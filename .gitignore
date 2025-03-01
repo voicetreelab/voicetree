@@ -1,0 +1,11 @@
+.idea/**/*
+.idea
+.idea/*
+test_output/*
+*vault*/*
+*Vault*/*
+voicetree.log
+.coverage
+.out.txt
+.env
+.venv/*

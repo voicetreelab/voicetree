@@ -1,0 +1,788 @@
+/Users/bobbobby/repos/VoiceTreePoc/tree_manager
+├── LLM_engine
+│   ├── LLM_API.py
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── LLM_API.cpython-311.pyc
+│   │   ├── __init__.cpython-311.pyc
+│   │   ├── background_rewrite.cpython-311.pyc
+│   │   ├── summarize_with_llm.cpython-311.pyc
+│   │   └── tree_action_decider.cpython-311.pyc
+│   ├── background_rewrite.py
+│   ├── prompts
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-311.pyc
+│   │   │   ├── background_rewrite_prompt.cpython-311.pyc
+│   │   │   ├── prompt_utils.cpython-311.pyc
+│   │   │   ├── summarize_prompt.cpython-311.pyc
+│   │   │   └── tree_action_decider_prompt.cpython-311.pyc
+│   │   ├── background_rewrite_prompt.py
+│   │   ├── prompt_utils.py
+│   │   ├── summarize_prompt.py
+│   │   └── tree_action_decider_prompt.py
+│   ├── summarize_with_llm.py
+│   └── tree_action_decider.py
+├── __init__.py
+├── __pycache__
+│   ├── __init__.cpython-311.pyc
+│   ├── decision_tree_ds.cpython-311.pyc
+│   ├── text_to_tree_manager.cpython-311.pyc
+│   ├── tree_to_markdown.cpython-311.pyc
+│   └── utils.cpython-311.pyc
+├── decision_tree_ds.py
+├── text_to_tree_manager.py
+├── tree_to_markdown.py
+└── utils.py
+
+6 directories, 30 files
+===== tree_to_markdown.py =====
+# treeToMarkdown.py
+import logging
+import os
+import re
+import traceback
+from venv import logger
+
+from rake_nltk import Rake
+
+
+def generate_filename_from_keywords(node_content, max_keywords=3):
+    # r = Rake()
+    # r.extract_keywords_from_text(node_content)
+    # keywords = r.get_ranked_phrases()[:max_keywords]
+    # file_name = '_'.join(keywords)
+    title_match = re.search(r'##+(.*)', node_content, re.MULTILINE)
+    title = title_match.group(1).strip() if title_match else "Untitled"
+    file_name = title
+    file_name = re.sub(r'summary\s*:', '', file_name, flags=re.IGNORECASE)  # Remove "summary:"
+    file_name = re.sub(r'#+\s*title\s*:', '', file_name, flags=re.IGNORECASE)  # Remove "## title"
+    file_name = file_name.replace(" ", "_")
+    file_name = file_name.replace("*", "")
+    file_name = file_name.replace(".", "")
+    file_name = file_name.replace(",", "")
+    file_name = file_name.replace("#", "")
+    file_name = file_name.replace(":", "")
+    file_name = file_name.replace("\\", "")
+    file_name = file_name.replace("__", "_")
+
+    return file_name + ".md"
+
+
+def slugify(text):
+    """Converts text to a valid filename."""
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9]+', '_', text)
+    text = text.strip('_')
+    return text
+
+
+class TreeToMarkdownConverter:
+    def __init__(self, tree_data):
+        # self.mContextualTreeManager = contextual_tree_manager
+        self.tree_data = tree_data
+
+    def convert_tree(self, output_dir="markdownTreeVaultDefault"):
+        """Converts the tree data to Markdown files."""
+
+        for node_id, node_data in self.tree_data.items():
+            file_name = f"{node_id:02d}_{slugify(node_data['content'])}.md"
+            file_path = os.path.join(output_dir, file_name)
+
+            with open(file_path, 'w') as f:
+                f.write(f"# {node_data['content']}\n")
+
+                # Add child links
+                for child_id in node_data['children']:
+                    child_file_name = f"{child_id:02d}_{slugify(self.tree_data[child_id]['content'])}.md"
+                    f.write(f"- child of [[{child_file_name}]]\n")
+
+    def convert_node(self, output_dir="markdownTreeVaultDefault", nodes_to_update=None):
+        """Converts the specified nodes to Markdown files."""
+
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"updating/writing markdown for nodes {nodes_to_update}")
+
+        if nodes_to_update:
+            for node_id in nodes_to_update:
+                try:
+                    node_data = self.tree_data[node_id]
+                    if node_data.filename:
+                        file_name = node_data.filename
+                    else:
+                        file_name = str(node_id) + generate_filename_from_keywords(node_data['content'])
+                        node_data.filename = file_name  # Store the filename
+                        # title_match = re.search(r'^##+(.*)', node_data.content, re.MULTILINE)
+                        # node_data.content.replace(title_match.group(0), "")
+                    file_path = os.path.join(output_dir, file_name)
+
+                    with open(file_path, 'w') as f:
+                        f.write(f"{node_data.content}\n\n _Links:_\n")
+
+                        # Add child links
+                        # for child_id in node_data['children']:
+                        #     child_file_name = self.tree_data[child_id.filename
+                        #     f.write(f"- parent of [[{child_file_name}]]\n")
+
+                        # add parent backlinks
+                        parent_id = self.get_parent_id(node_id)
+                        if parent_id is not None:
+                            parent_file_name = self.tree_data[parent_id].filename
+                            relationship_to_parent = "child of"
+                            try:
+                                relationship_to_parent = self.tree_data[node_id].relationships[parent_id]
+                            except Exception as e:
+                                logging.error("Cparent relationship not in tree_data")
+                            f.write(f"- {relationship_to_parent} [[{parent_file_name}]]\n")
+
+                except (FileNotFoundError, IOError, OSError) as e:
+                    logging.error(
+                        f"Error writing Markdown file for node {node_id}: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}")
+                except Exception as e:
+                    logging.error(
+                        f"Unexpected error writing Markdown file for node {node_id}: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}")
+
+    def get_parent_id(self, node_id):
+        """Returns the parent ID of the given node, or None if it's the root."""
+        for parent_id, node_data in self.tree_data.items():
+            if node_id in node_data.children:
+                return parent_id
+        return None
+
+===== __init__.py =====
+
+===== decision_tree_ds.py =====
+import logging
+from datetime import datetime
+from typing import Dict, List
+
+from tree_manager.tree_to_markdown import generate_filename_from_keywords
+from tree_manager.utils import extract_summary
+
+
+class Node:
+    def __init__(self, node_id: int, content: str, summary: str = "", parent_id: int = None):
+        self.transcript_history = ""
+        self.id: int = node_id
+        self.content: str = content
+        self.parent_id: int | None = parent_id
+        self.children: List[int] = []
+
+        self.relationships: Dict[int, str] = {}
+        self.created_at: datetime = datetime.now()
+        self.modified_at: datetime = datetime.now()
+        self.filename: str = str(node_id) + generate_filename_from_keywords(content)
+        self.summary: str = summary
+        self.num_appends: int = 0
+
+    def append_content(self, new_content: str, transcript: str = ""):
+        self.content += "\n" + new_content
+        self.transcript_history += transcript + "... "
+        self.modified_at = datetime.now()
+        self.num_appends += 1
+
+class DecisionTree:
+    def __init__(self):
+        today_root_node_content = """
+                        #### Saturday 22 June
+                        \n**The root node for today. Add unrelated content here.**
+                        """
+        self.tree: Dict[int, Node] = {
+            0: Node(0, today_root_node_content, summary="The default root node for today's work.",
+                    parent_id=None)  # Create root node
+        }
+        self.next_node_id: int = 1
+
+    def create_new_node(self, parent_node_id: int, content: str, relationship_to_parent: str = "child of") -> int:
+        if not relationship_to_parent: #todo clean this up
+            relationship_to_parent = "child of"
+
+        if parent_node_id not in self.tree:
+            logging.error(f"Error: Trying to create a node with non-existent parent ID: {parent_node_id}")
+            parent_node_id = 0
+
+        new_node_id = self.next_node_id
+        self.next_node_id += 1
+        new_node = Node(new_node_id, content, parent_id=parent_node_id)
+        new_node.relationships[parent_node_id] = relationship_to_parent
+        self.tree[new_node_id] = new_node
+        self.tree[parent_node_id].children.append(new_node_id)
+        self.tree[new_node_id].summary = extract_summary(content)
+
+        return new_node_id
+
+    def get_recent_nodes(self, num_nodes=10):
+        """Returns a list of IDs of the most recently modified nodes."""
+        sorted_nodes = sorted(self.tree.keys(), key=lambda k: self.tree[k].modified_at, reverse=True)
+        return sorted_nodes[:num_nodes]
+
+    def get_parent_id(self, node_id):
+        """Returns the parent ID of the given node, or None if it's the root."""
+        # assumes tree invariant
+        for parent_id, node in self.tree.items():
+            if node_id in node.children:
+                return parent_id
+        return None
+
+===== utils.py =====
+import re
+
+
+def extract_summary(node_content):
+    # extract summary from rewritten_content
+    # find the first text in between **text**
+    # or ##+ a title
+
+    summary_re: re.Match[str] | None = re.search(r'\*\*(.+)\*\*', node_content, re.DOTALL)
+    if not summary_re:
+        summary_re = re.search(r'##+(.*)', node_content)
+        if not summary_re:
+            return "unable to extract summary"
+
+    summary: str = summary_re.group(1).strip()
+    return summary
+
+
+def extract_complete_sentences(text_chunk) -> str:
+    """
+    Extracts complete sentences from the text buffer, leaving any incomplete
+    sentence in the buffer.
+    Returns:
+        str: The extracted complete sentences.
+    """
+    last_sentence_end_matches = re.findall(r"[.!?)]", text_chunk)
+
+    if last_sentence_end_matches:
+        last_sentence_end = last_sentence_end_matches[-1]
+        last_sentence_end_index = text_chunk.rfind(last_sentence_end) + len(last_sentence_end)
+        text_to_process = text_chunk[:last_sentence_end_index]
+        return text_to_process
+    else:
+        return ""  # No complete sentence found
+
+
+# simpler/faster version:
+# last_sentence_end = re.search(r"[.!?][\s\n]*$", self.text_buffer)
+# text_to_process = ""
+# if last_sentence_end:
+#     text_to_process = self.text_buffer[:last_sentence_end.end()]
+
+# return text_to_process
+
+def remove_first_word(sentence):
+    if sentence:
+        sentence = sentence.split(' ', 1)[1]
+    return sentence
+
+===== text_to_tree_manager.py =====
+import logging
+import time
+import traceback
+import re
+import asyncio
+from typing import Set, Tuple, List
+
+import google.generativeai as genai
+
+import settings
+from tree_manager.LLM_engine.background_rewrite import Rewriter 
+from tree_manager.LLM_engine.summarize_with_llm import Summarizer
+from tree_manager.LLM_engine.tree_action_decider import Decider
+from tree_manager.decision_tree_ds import DecisionTree
+from tree_manager.utils import extract_summary, remove_first_word
+
+genai.configure(api_key=settings.GOOGLE_API_KEY)
+
+TRANSCRIPT_HISTORY_MULTIPLIER: int = 6
+
+
+def extract_complete_sentences(text_chunk) -> str:
+    """
+    Extracts complete sentences from the text buffer, leaving any incomplete
+    sentence in the buffer.
+
+    Returns:
+        str: The extracted complete sentences.
+    """
+    last_sentence_end_matches = re.findall(r"[.!?)]", text_chunk)
+
+    if last_sentence_end_matches:
+        last_sentence_end = last_sentence_end_matches[-1]
+        last_sentence_end_index = text_chunk.rfind(last_sentence_end) + len(last_sentence_end)
+        text_to_process = text_chunk[:last_sentence_end_index]
+        return text_to_process
+    else:
+        return ""  # No complete sentence found
+
+    # simpler/faster version:
+    # last_sentence_end = re.search(r"[.!?][\s\n]*$", self.text_buffer)
+    # text_to_process = ""
+    # if last_sentence_end:
+    #     text_to_process = self.text_buffer[:last_sentence_end.end()]
+
+    # return text_to_process
+
+
+class ContextualTreeManager:
+    def __init__(self, decision_tree: DecisionTree):
+        self.decision_tree: DecisionTree = decision_tree
+        self.text_buffer: str = ""
+        self.transcript_history: str = ""
+        self.transcript_history_up_until_curr = ""
+        self.text_buffer_size_threshold: int = settings.TEXT_BUFFER_SIZE_THRESHOLD
+        self.nodes_to_update: Set[int] = set()
+        self.summarizer = Summarizer()
+        self.decider = Decider()
+        self.rewriter = Rewriter()
+
+    async def process_voice_input(self, transcribed_text: str):
+        """
+        Processes incoming transcribed text, appends to buffers,
+        and triggers text chunk processing when the buffer reaches
+        the threshold. Only processes complete sentences.
+
+        Args:
+            transcribed_text (str): The transcribed text from the
+                                   speech recognition engine.
+        """
+        self.text_buffer += transcribed_text + " "
+        self.transcript_history += transcribed_text + " "
+
+        text_to_process = extract_complete_sentences(self.text_buffer)
+
+        self.transcript_history = self.transcript_history[
+                                  -self.text_buffer_size_threshold * (TRANSCRIPT_HISTORY_MULTIPLIER + 1):]
+        self.transcript_history_up_until_curr = remove_first_word(self.transcript_history)[:-len(self.text_buffer)]
+
+        logging.info(f"Text buffer size is now {len(self.text_buffer)} characters")
+        logging.info(f"Text to process size is now {len(text_to_process)} characters")
+
+        if len(text_to_process) > self.text_buffer_size_threshold:
+            await self._process_text_chunk(text_to_process, self.transcript_history_up_until_curr)
+            self.text_buffer = self.text_buffer[len(text_to_process):]  # Clear processed text
+
+            # processed text doesn't include whitespace, so after clearing it may contain just whitespace
+            if len(self.text_buffer) < 2:
+                self.text_buffer = self.text_buffer.strip()
+            # todo: hacky way handle edge case of where there is leftover in text_Buffer, now not ending on a space
+
+    async def _process_text_chunk(self, text_chunk: str, transcript_history_context: str):
+        """
+        Processes a text chunk, summarizes and analyzes it using LLMs,
+        and updates the decision tree accordingly.
+
+        Args:
+            text_chunk (str): The chunk of text to process.
+            transcript_history_context (str): The relevant portion of the
+                                        transcript history for context.
+        """
+        summary: str
+        mode: str # todo make it an enum
+        relationship: str
+        chosen_node_id: int
+
+        summarization_task = asyncio.create_task(
+            self.summarizer.summarize_with_llm(text_chunk, transcript_history_context))
+        context_analysis_task = asyncio.create_task(
+            self.decider.decide_tree_action(self.decision_tree, text_chunk, transcript_history_context))
+
+        # Await both tasks concurrently
+        summary, (mode, relationship, chosen_node_id) = await asyncio.gather(summarization_task, context_analysis_task)
+
+        if mode == "CREATE":
+            new_node_id: int = self.decision_tree.create_new_node(parent_node_id=chosen_node_id, content=summary,
+                                                                  relationship_to_parent=relationship)
+            self.nodes_to_update.add(new_node_id)
+
+        elif mode == "APPEND":
+            await self._append_to_node(chosen_node_id, summary, text_chunk)
+
+        else:
+            print("Warning: Unexpected mode returned from decide_tree_action")
+
+        self.nodes_to_update.add(chosen_node_id)
+
+    async def _append_to_node(self, chosen_node_id, summary, text_chunk):
+        self.decision_tree.tree[chosen_node_id].append_content(summary, text_chunk)
+        new_node_content = self.decision_tree.tree[chosen_node_id].content
+
+        if chosen_node_id != 0:  # don't redfine root node summary
+            self.decision_tree.tree[chosen_node_id].summary = extract_summary(new_node_content)
+
+        # only do this every nth time, because append is fine for a couple times before it gets messy
+        if self.decision_tree.tree[chosen_node_id].num_appends % settings.BACKGROUND_REWRITE_EVERY_N_APPEND == 0:
+            asyncio.create_task(
+                self.rewriter.rewrite_node_in_background(self.decision_tree, chosen_node_id)).add_done_callback(
+                lambda res: self.nodes_to_update.add(chosen_node_id))
+
+===== LLM_engine/summarize_with_llm.py =====
+import logging
+import time
+import traceback
+
+import settings
+from tree_manager.LLM_engine.LLM_API import  generate_async
+from tree_manager.LLM_engine.prompts.summarize_prompt import create_summarization_prompt
+
+
+class Summarizer:
+    async def summarize_with_llm(self, text: str, transcript_history: str) -> str:
+        """
+        Summarizes the given text using an LLM.
+
+        Args:
+            text (str): The text to summarize.
+            transcript_history (str): The transcript history for context.
+
+        Returns:
+            str: The summarized text.
+        """
+        prompt: str = create_summarization_prompt(text, transcript_history)
+        try:
+            response = await generate_async(settings.LLMTask.SUMMARIZE, prompt)
+
+            return response.strip()
+        except Exception as e:
+            logging.error(f"Error in summarize_with_llm: {e} "
+                          f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
+            return "Error summarizing text."
+
+===== LLM_engine/tree_action_decider.py =====
+import logging
+import time
+import traceback
+from typing import Tuple, List
+import re
+import settings
+from tree_manager.LLM_engine.LLM_API import generate_async
+from tree_manager.LLM_engine.prompts.tree_action_decider_prompt import create_context_prompt
+from tree_manager.decision_tree_ds import DecisionTree
+
+
+class Decider:
+    async def decide_tree_action(self,decision_tree: DecisionTree, text: str, transcript_history: str) -> Tuple[
+        str, str, int]:
+        """
+        Analyzes the context of the given text using an LLM to
+        determine whether to create a new node or append to an existing one.
+
+        Args:
+            decision_tree
+            text (str): The input text to analyze.
+            transcript_history (str): The transcript history for context.
+
+        Returns:
+            Tuple[str, int]: A tuple containing the mode ("CREATE" or "APPEND")
+                              and the chosen node ID.
+        """
+        if len(decision_tree.tree) == 1:
+            return "CREATE", "Child Of", 0
+
+        response_text = ""
+
+        try:
+            recent_nodes: List[int] = decision_tree.get_recent_nodes(num_nodes=settings.NUM_RECENT_NODES_INCLUDE)
+            prompt: str = create_context_prompt(decision_tree.tree, recent_nodes, text, transcript_history)
+
+            response_text = await generate_async(settings.LLMTask.CLASSIFY, prompt)
+            response_text = response_text.strip()
+
+            chosen_node_id: int = int(re.search(r'- Node ID: (\d+)', response_text).group(1))
+            action: str = re.search(r'- ACTION: (APPEND|CREATE)', response_text.upper()).group(1).strip()
+            relationship: str = re.search(r'- Relationship: (.+)', response_text).group(1).strip()
+            # Reset buffer threshold
+            # self.text_buffer_size_threshold = settings.TEXT_BUFFER_SIZE_THRESHOLD
+
+            assert (chosen_node_id in decision_tree.tree)
+            assert (action == "APPEND" or action == "CREATE")
+
+            return action, relationship, chosen_node_id
+
+        except (ValueError, IndexError, Exception) as e:
+            logging.error(f"Tree state: {decision_tree.tree}")
+
+            logging.warning(
+                f"Warning: Could not extract node ID or action from response: {e} - Response: {response_text} "
+                f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
+
+            return "CREATE", "Unknown Relationship", 0  # todo return ERROR, which initiates exponential backoff
+
+        # except Exception as e:
+        #     logging.error(f"Error in decide_tree_action: {e} "
+        #                   f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
+        #     # Append response to root, put text back into buffer and try again later
+        #     # (exponential backoff) to handle rate limits
+        #     # self.text_buffer += text
+        #     # self.text_buffer_size_threshold *= 2
+        #     # Consider doubling text_buffer and resetting it on the next success.
+        #     return "APPEND", 0
+
+===== LLM_engine/background_rewrite.py =====
+import logging
+
+from settings import LLMTask
+from tree_manager.LLM_engine.LLM_API import generate_async
+from tree_manager.decision_tree_ds import DecisionTree
+from tree_manager.utils import extract_summary
+
+
+class Rewriter:
+    async def rewrite_node_in_background(self, decision_tree: DecisionTree, node_id: int):
+        """Rewrites the given node in the background."""
+        content = decision_tree.tree[node_id].content
+        transcript_history = decision_tree.tree[node_id].transcript_history
+        rewritten_content = await self._rewrite_node(content, transcript_history)
+
+        decision_tree.tree[node_id].content = rewritten_content
+        if node_id != 0:  # don't rewrite the root node (todo correct?)
+            decision_tree.tree[node_id].summary = extract_summary(rewritten_content)
+
+    async def _rewrite_node(self, node_content: str, context: str = None) -> str:
+        """
+        Rewrites a given node's content using an LLM, aiming to improve clarity,
+        conciseness, and structure.
+
+        Args:
+            node_content (str): The original content of the node.
+            context (str, optional): Contextual information to aid the rewriting process.
+                                      Defaults to None.
+
+        Returns:
+            str: The rewritten node content.
+        """
+
+        node_content = node_content.replace("#", "")
+        # todo: mention that transcript history won't include new user content
+        # todo, include siblings.
+
+        # todo, could we also re-write siblings??!!
+
+        # todo explain why the nodes become messy
+        prompt = f"""
+        Instructions:
+        I have a system which summarizes and appends voice transcript to the most relevant node in a content tree.
+        Over time the nodes become long, disorganized and inconcise.
+        - Rewrite the following node content to improve its readability, remove redundancies, 
+          and ensure it's well-organized. Ensure it is maximally concise.
+        - I will also include the raw transcript that was originally used to create the node content.
+          Ensure all the core information is still represented in the rewrite. 
+        - Use Markdown formatting to structure the content, 
+           include a short title, a one paragraph summary of the whole node
+           and then bullet points of the content matter divided up by sections
+        - merge sections where possible to minimize the number of sections to maximise conciseness
+        - Return output like so:\n
+        ## short_title 
+        ** summary of node content **
+
+        #### section_n_title
+        - bullet point content
+        - ...
+        - ...
+        ...
+        """
+
+        # prompt += f"Contextual Information:\n```\n{context}\n```\n" if context else ''}
+
+        prompt += f"""
+
+        Here is the raw transcript input for the node:\n
+        {context}
+
+        Here is the original node content:\n
+        {node_content}
+
+        Rewritten node content: 
+        """
+
+        logging.info(f"background resumm prompt: {prompt}")
+
+        try:
+            response = await generate_async(LLMTask.REWRITE, prompt)
+            logging.info(f"background resumm response: {response.text.strip()}")
+            return response.text.strip()
+        except Exception as e:
+            logging.error(f"Error during node rewriting: {e}")
+            return node_content
+
+===== LLM_engine/LLM_API.py =====
+import logging
+import time
+from enum import Enum
+
+import google.generativeai as genai
+
+import settings
+
+
+async def generate_async(task: settings.LLMTask, prompt):
+    # todo: try catch here with exponential backoff
+
+    start_time = time.time()
+    model = settings.LLM_MODELS[task]
+    response = await model.generate_content_async(
+        prompt,
+        generation_config=settings.LLM_PARAMETERS[task]
+        # safety_settings=settings.safety_settings
+    )
+    elapsed_time = time.time() - start_time
+    logging.info(f"{task.value} Prompt: {prompt}")
+    logging.info(f"{task.value}LLM raw response: {response.text}")
+    logging.info(f"{task.value}LLM summarization took: {elapsed_time:.4f} seconds")
+
+    return response.text
+
+===== LLM_engine/__init__.py =====
+
+===== LLM_engine/prompts/summarize_prompt.py =====
+def create_summarization_prompt(text, transcript_history):
+    """Constructs the prompt for the LLM to summarize text and generate a title."""
+
+    return (
+        "You are a meeting note-taker, skilled at summarizing key points and decisions concisely.\n\n"
+        "Format the summary using Markdown, including:\n"
+        "* A short title (## My Title)\n"
+        "* A one-paragraph summary of the entire node content. (**my summary**)\n"
+        "* Section titles (#### Section Title) followed by bullet points for key points.\n\n"
+        "Here's an example:\n\n"
+        "Previous conversation to provide context: \n"
+        "```\n"
+        "We need to come up with a name for the new project. We also need to decide on the technology we'll be using. "
+        "We're considering Python, but are open to other options.\n"
+        "We also need to figure out the key features and what makes this project unique.\n"
+        "```\n\n"
+        "New user input:\n"
+        "```\n"
+        "So I think we should call it 'Project Phoenix.' It'll be built using Python, and it'll heavily leverage "
+        "machine learning for predictive analysis. We'll also incorporate a user-friendly interface to make it "
+        "accessible to a wide audience.\n"
+        "```\n\n"
+        "Your summary:\n"
+        "```\n"
+        "## Project Phoenix\n"
+        "\n"
+        "**This node outlines the name, chosen technology stack, and key features for the new project.**\n"
+        "\n"
+        "#### Key Decisions:\n"
+        "- Project Name: Project Phoenix\n"
+        "- Technology: Python\n"
+        "\n"
+        "#### Key Features:\n"
+        "- Machine learning for predictive analysis\n"
+        "- User-friendly interface for broad accessibility\n"
+        "```\n\n"
+        "Consider the context of the previous conversation and avoid redundancy in your summary:\n"
+        f"```{transcript_history}```\n\n"
+        "New user input:\n"
+        f"```{text}```\n\n"
+        "Your summary:\n"
+    )
+===== LLM_engine/prompts/__init__.py =====
+
+===== LLM_engine/prompts/tree_action_decider_prompt.py =====
+from tree_manager.LLM_engine.prompts.prompt_utils import remove_first_word
+
+def create_context_prompt(tree, recent_nodes, new_text, transcript_history):
+    """Constructs the prompt for the LLM to analyze context."""
+
+    prompt = (
+        "The task is to decide where a voice transcript should be added to in a visual tree "
+        "such that the updated tree best represents the speaker's content\n"
+        "You can decide to either CREATE a new node, or APPEND to an existing node in the tree.\n"
+        # f"I prefer to have shorter, more focused nodes in the decision tree.\n "
+        f"Here are the summaries of nodes {str(recent_nodes)} in a decision tree, "
+        "ordered in descending order by the last time they were modified, so most recent first. "
+        "Node length is also included.\n"
+        f"Pay close attention to the meaning and intent of the new input within the context of the recent "
+        f"conversation. Nodes:\n"
+    )
+
+    for node_id in recent_nodes:
+        # node_summary = tree[node_id].content
+        # if len(tree[node_id].content) > 300:
+        node_summary = tree[node_id].summary
+        node_content = tree[node_id].content
+        prompt += f"Node ID: {node_id}, Total content length: {len(node_content)} Node Summary:```{node_summary}```\n"
+
+    if len(transcript_history) > 2:
+        prompt += (f"\nRecent conversation transcript to provide you context to the subsequent input:\n"
+                   f"```{transcript_history}...```\n")
+
+    #todo: rigirous definition of overlap feature
+    prompt += f"\nNew user input:\n```...{new_text}```\n"
+
+    # old prompt:
+
+    # 1. Which node is the most relevant to the new user input?
+    #    (Respond with only the node ID).
+    # 2. Should the new user input be appended to the most relevant node
+    #    or is it a new idea that should be a new node?
+    #    (Respond with either "Append" or "New Node").
+    #    I prefer to have shorter, more focused nodes in the decision tree.
+    #     If the new user input introduces a distinct idea or topic, create a new node.
+
+    prompt += """
+    Answer the following:
+    1. Which node is the most relevant to the new user input?
+       (Respond with only the node ID, if no relevant node, return 0 as default).
+    2. Should the new user input be appended to this most relevant node
+       or is it a new idea that should be created as a new node?
+       (Respond with either "APPEND" or "CREATE").
+    3. How would you best explain the relationship between the text input and the most relevant node?
+       Explain in up to five words as the discovered_relationship.
+
+    Instructions:
+    - CREATE a new node if the new input introduces a distinct idea or task.
+    - CREATE a new node if the new user input has a relationship that resembles a dependency, prerequisite, or requirement
+      with an existing node (i.e., it is something that must be completed before the existing node can proceed).
+    - APPEND if the new user input is directly related to the most relevant node 
+      with no clear separating relationship or conceptual difference. 
+    """
+    #- prefer CREATE over APPEND if unsure.
+
+
+    # prompt += """
+    #     - Pay close attention to the meaning and intent of the new input within the context of the recent conversation.
+    #     - A node is relevant if it directly addresses the topic or theme of the new input, even if it doesn't contain the same keywords.
+    #     - Consider the broader context and the flow of the conversation when assessing relevance.
+    # """
+
+    # define dependency
+    # prompt += """
+    #     A dependency exists when one task or idea needs to be completed before another can proceed.
+    #     Example: "Before starting the project, I need to gather the team members."
+    #     In this example, a new node should be CREATEd to express the dependency relationship:
+    #     "Gather Team Members" as it is a prerequisite for the relevant "Project Start" node.
+    # """
+
+    prompt += """
+    Provide your answer in the following format:
+    - First spend up to 5 sentences brainstorming your answer, giving yourself time to think.
+    - Node ID: [node_id]
+    - Action: [CREATE | APPEND]
+    - Relationship: [discovered_relationship]
+    """
+    return prompt
+
+
+===== LLM_engine/prompts/prompt_utils.py =====
+def remove_first_word(sentence):
+    if sentence:
+        sentence = sentence.split(' ', 1)[1]
+    return sentence
+
+
+def summarize_node_content(node_content: str, max_length: int = 400) -> str:
+    """Summarizes node content to a maximum length."""
+    # TODO Implement summarization logic here (e.g., using an LLM or simple truncation)
+    # for now could just extract the titles
+
+    return node_content.replace("#", "")
+    # [:max_length]  # Replace with your actual summarization
+
+
+
+
+===== LLM_engine/prompts/background_rewrite_prompt.py =====
+# todo, should we have seperate files for prompts? doesn't really matter right now...
+
+
