@@ -3,7 +3,7 @@ import google.generativeai as genai
 
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-
+GOOGLE_API_KEY="!@341234"
 
 
 class LLMTask(Enum):

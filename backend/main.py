@@ -24,8 +24,8 @@ async def main():
 
 
 if __name__ == "__main__":
-    # unit_tests = unittest.TestLoader().discover('tests/unit_tests')
-    # unit_tests_results = unittest.TextTestRunner().run(unit_tests)
+    unit_tests = unittest.TestLoader().discover('tests/unit_tests')
+    unit_tests_results = unittest.TextTestRunner().run(unit_tests)
     #
     # integration_tests = unittest.TestLoader().discover('tests/integration_tests/mocked')
     # integration_tests_results = unittest.TextTestRunner().run(integration_tests)

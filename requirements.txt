@@ -2,8 +2,12 @@ setuptools
 pyaudio
 SpeechRecognition
 --extra-index-url https://download.pytorch.org/whl/cu116
-torch~=2.3.0
+torch~=2.2.0
 numpy~=1.26.4
 git+https://github.com/openai/whisper.git
 google~=3.0.0
 nltk~=3.8.1
+pytest>=7.0.0
+pytest-asyncio
+google-generativeai
+openai

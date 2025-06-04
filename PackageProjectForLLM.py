@@ -22,4 +22,4 @@ def package_project(project_dir, file_extension=".py"):
     return out
 
 if __name__ == "__main__":
-    print(package_project("/Users/bobbobby/repos/VoiceTreePoc/tree_manager"))
+    print(package_project("/backend/tree_manager"))

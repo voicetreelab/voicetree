@@ -32,7 +32,7 @@ from google.generativeai import GenerativeModel
 from process_transcription import TranscriptionProcessor
 from tree_manager.text_to_tree_manager import ContextualTreeManager
 from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 import settings
 import PackageProjectForLLM
 
@@ -42,7 +42,7 @@ genai.configure(api_key=settings.GOOGLE_API_KEY)
 # Constants
 REQUESTS_PER_MINUTE = 15  # to avoid breaching 15RPM gemini limit
 SECONDS_PER_REQUEST = 60 / REQUESTS_PER_MINUTE
-OUTPUT_DIR = "/Users/bobbobby/repos/VoiceTreePoc/oldVaults/VoiceTreePOC/QualityTest"  # Replace with your desired output directory
+OUTPUT_DIR = "/oldVaults/VoiceTreePOC/QualityTest"  # Replace with your desired output directory
 QUALITY_LOG_FILE = "quality_log.txt"
 
 
@@ -52,7 +52,7 @@ async def process_transcript_with_voicetree(transcript_file):
     tree_manager = ContextualTreeManager(decision_tree)
     converter = TreeToMarkdownConverter(decision_tree.tree)
     #first copy all files in QualityTest to ../OLDQualityTest
-    BACKUP_DIR = "/Users/bobbobby/repos/VoiceTreePoc/oldVaults/VoiceTreePOC/OLDQualityTest"
+    BACKUP_DIR = "/oldVaults/VoiceTreePOC/OLDQualityTest"
 
     # Backup existing files in OUTPUT_DIR to BACKUP_DIR
     if os.path.exists(BACKUP_DIR):
@@ -175,7 +175,7 @@ def evaluate_tree_quality(transcript_file):
 
 
 async def main():
-    transcript_file = "/Users/bobbobby/repos/VoiceTreePoc/oldVaults/VoiceTreePOC/transcript.txt"  # Replace with your transcript file
+    transcript_file = "/oldVaults/VoiceTreePOC/transcript.txt"  # Replace with your transcript file
     await process_transcript_with_voicetree(transcript_file)
     evaluate_tree_quality(transcript_file)
 

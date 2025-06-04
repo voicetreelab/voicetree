@@ -2,10 +2,6 @@ import logging
 import time
 import traceback
 
-from tree_manager.text_to_tree_manager import ContextualTreeManager
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.tree_to_markdown import TreeToMarkdownConverter
-
 logging.basicConfig(filename='voicetree.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
