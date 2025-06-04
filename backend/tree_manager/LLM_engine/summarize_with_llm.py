@@ -3,7 +3,7 @@ import traceback
 
 import settings
 from tree_manager.LLM_engine.LLM_API import  generate_async
-from backend.tree_manager.LLM_engine.prompts import create_summarization_prompt
+from tree_manager.LLM_engine.prompts import create_summarization_prompt
 
 
 class Summarizer:

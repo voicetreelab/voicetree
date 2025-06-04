@@ -1,9 +1,10 @@
+import os
 from enum import Enum
 import google.generativeai as genai
 
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-GOOGLE_API_KEY="!@341234"
+GOOGLE_API_KEY=os.getenv("GOOGLE_API_KEY")
 
 
 class LLMTask(Enum):

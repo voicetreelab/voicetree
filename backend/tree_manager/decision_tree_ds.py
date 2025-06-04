@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from typing import Dict, List
 import difflib
-from backend.tree_manager.tree_to_markdown import generate_filename_from_keywords
+from tree_manager.tree_to_markdown import generate_filename_from_keywords
 from tree_manager.utils import extract_summary
 
 def extract_title_from_md(node_content):

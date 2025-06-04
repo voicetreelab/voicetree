@@ -5,7 +5,7 @@ from typing import List
 import settings
 from tree_manager import NodeAction
 from tree_manager.LLM_engine.LLM_API import generate_async
-from backend.tree_manager.LLM_engine.prompts import create_context_prompt
+from tree_manager.LLM_engine.prompts import create_context_prompt
 from tree_manager.decision_tree_ds import DecisionTree
 
 
