@@ -10,7 +10,7 @@ from tree_manager.LLM_engine.summarize_with_llm import Summarizer
 from tree_manager.LLM_engine.tree_action_decider import Decider
 from tree_manager.text_to_tree_manager import ContextualTreeManager
 from tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 
 class TestIntegrationMockedLLM(unittest.TestCase):
