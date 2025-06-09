@@ -1,37 +1,41 @@
-# VoiceTree Benchmark Summary
+# VoiceTree LangGraph Benchmark Summary
 
-Generated: 2025-06-09 22:51:21
+Generated: 2025-06-09 23:22:59
 
 ## Overall Performance
 
 - Total tests run: 3
-- Average single-LLM time: 0.50s
-- Average LangGraph time: 9.27s
-- LangGraph is slower by 8.77s on average
+- Average execution time: 65.96s
+- Average overall score: 5.00/5
+- Average accuracy: 5.00/5
+- Average completeness: 5.00/5
+- Average granularity: 5.00/5
+- Average relationships: 5.00/5
+- Average clarity: 5.00/5
 
 ## Test Results
 
 ### Simple Project Planning
 
 - Transcript length: 256 chars
-- Single-LLM time: 0.50s
-- LangGraph time: 8.40s
-- Single-LLM quality: 1/5
-- LangGraph quality: 5/5
+- Execution time: 49.32s
+- Overall score: 5/5
+- Accuracy: 5/5
+- Completeness: 5/5
+- Granularity: 5/5
+- Relationships: 5/5
+- Clarity: 5/5
+
+**Weaknesses:**
+- No apparent weaknesses for this specific transcript; the extraction is robust and high-quality.
 
 ### Complex Technical Discussion
 
 - Transcript length: 626 chars
-- Single-LLM time: 0.50s
-- LangGraph time: 9.70s
-- Single-LLM quality: 1/5
-- LangGraph quality: 4/5
+- Execution time: 62.72s
 
 ### Meeting Notes with Action Items
 
 - Transcript length: 558 chars
-- Single-LLM time: 0.50s
-- LangGraph time: 9.73s
-- Single-LLM quality: 1/5
-- LangGraph quality: 4/5
+- Execution time: 85.85s
 

@@ -16,6 +16,11 @@ Your specific instructions are:
     f.  If, after careful consideration, you determine that **no** existing node AND **no** other sub-chunk is sufficiently relevant:
         i.  Record the specific string: `NO_RELEVANT_NODE` for the `relevant_node_name`.
         ii. The relationship type should be `null`.
+        iii. IMPORTANT: Use NO_RELEVANT_NODE sparingly. Consider:
+            - Does this chunk implement or support another chunk's idea?
+            - Is it a next step that follows from another chunk?
+            - Does it provide context or background for other chunks?
+            - Is it part of a sequence with other chunks?
 
 3.  **Output Format:** Construct a JSON list as your output. Each element in the list corresponds to one input sub-chunk and MUST contain:
     *   `name`: The original `name` of the sub-chunk from the input.

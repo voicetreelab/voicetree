@@ -1,0 +1,374 @@
+[
+  {
+    "test_name": "Simple Project Planning",
+    "timestamp": "2025-06-09T23:01:14.097759",
+    "transcript_length": 256,
+    "existing_nodes_count": 3,
+    "execution_time": 12.929901838302612,
+    "result": {
+      "new_nodes": [
+        "Python code:",
+        "```python"
+      ],
+      "chunks": [
+        {
+          "name": "Project Goal",
+          "text": "Today I want to work on my new project.",
+          "is_complete": true
+        },
+        {
+          "name": "Setup Environment",
+          "text": "I need to set up the development environment first.",
+          "is_complete": true
+        },
+        {
+          "name": "Implement Core Features",
+          "text": "Then I'll implement the core features.",
+          "is_complete": true
+        },
+        {
+          "name": "Add Tests and Docs",
+          "text": "Finally, I'll add tests and documentation.",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "Project Goal",
+          "text": "Today I want to work on my new project.",
+          "reasoning": "This sub-chunk sets the overall context of the conversation.  While it doesn't directly relate to any specific existing node, it's the overarching goal encompassing all subsequent activities.  Therefore, there is no immediately relevant node or sub-chunk.",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
+        },
+        {
+          "name": "Setup Environment",
+          "text": "I need to set up the development environment first.",
+          "reasoning": "This sub-chunk clearly relates to the 'Development' node because it describes a crucial step in the development process. ",
+          "relevant_node_name": "Development",
+          "relationship": "part of"
+        },
+        {
+          "name": "Implement Core Features",
+          "text": "Then I'll implement the core features.",
+          "reasoning": "This sub-chunk also falls under the 'Development' node, as implementing features is a core part of the development lifecycle. It follows logically from 'Setup Environment'.",
+          "relevant_node_name": "Development",
+          "relationship": "continuation of"
+        },
+        {
+          "name": "Add Tests and Docs",
+          "text": "Finally, I'll add tests and documentation.",
+          "reasoning": "This sub-chunk is most closely related to the 'Testing' node due to the explicit mention of adding tests.  While documentation is not solely related to testing, the phrase links it to the post-implementation phase alongside testing.",
+          "relevant_node_name": "Testing",
+          "relationship": "part of"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "Project Goal",
+          "text": "Today I want to work on my new project.",
+          "action": "CREATE",
+          "target_node": "NO_RELEVANT_NODE",
+          "new_node_name": "Project Goal",
+          "new_node_summary": "The overall goal is to work on a new project.",
+          "relationship_for_edge": null
+        },
+        {
+          "name": "Setup Environment",
+          "text": "I need to set up the development environment first.",
+          "action": "CREATE",
+          "target_node": "Development",
+          "new_node_name": "Setup Environment",
+          "new_node_summary": "Setting up the development environment is the first step.",
+          "relationship_for_edge": "part of"
+        },
+        {
+          "name": "Implement Core Features",
+          "text": "Then I'll implement the core features.",
+          "action": "APPEND",
+          "target_node": "Development",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null
+        },
+        {
+          "name": "Add Tests and Docs",
+          "text": "Finally, I'll add tests and documentation.",
+          "action": "CREATE",
+          "target_node": "Testing",
+          "new_node_name": "Add Tests and Docs",
+          "new_node_summary": "Adding tests and documentation is the final step.",
+          "relationship_for_edge": "part of"
+        }
+      ],
+      "approach": "langgraph-multi-stage"
+    },
+    "quality_evaluation": {
+      "accuracy": 4,
+      "completeness": 4,
+      "granularity": 5,
+      "relationships": 4,
+      "clarity": 4,
+      "overall_score": 4,
+      "strengths": [
+        "Good granularity of chunks, reflecting the sequential nature of the project.",
+        "Reasoning provided for each chunk's relationship to existing nodes is helpful for understanding the decision-making process.",
+        "Clear naming of chunks and newly created nodes."
+      ],
+      "weaknesses": [
+        "The 'new_nodes' section contains irrelevant Python code snippets which are not present or implied in the transcript.",
+        "The relationship between 'Project Goal' and subsequent steps could be more explicitly defined.  While it's the overarching goal, a relationship like 'includes' or 'encompasses' would improve clarity.",
+        "The 'Testing' node might be too broad. 'Add Tests and Docs' could be a more specific node under a broader 'Project Testing' or 'Quality Assurance' node if such nodes existed in the knowledge graph. The current setup implies that testing is the only final step."
+      ],
+      "comments": "The LangGraph approach demonstrates a good understanding of the transcript's sequential structure. The granularity of the chunks is excellent, breaking down the project into manageable steps.  The reasoning behind the node relationships adds transparency and allows for assessment of the methodology. However, the inclusion of irrelevant Python code is a significant flaw.  Additionally, while relationships are identified, some could be more precisely defined to reflect the hierarchical structure of the project. The final step being solely focused on testing is also not quite accurate as documentation is equally important as testing, if not more so.  Overall, the extraction is accurate and relatively complete, but improvements are needed to address the issues with irrelevant information and the precision of relationships."
+    }
+  },
+  {
+    "test_name": "Complex Technical Discussion",
+    "timestamp": "2025-06-09T23:01:29.341569",
+    "transcript_length": 626,
+    "existing_nodes_count": 5,
+    "execution_time": 10.492317914962769,
+    "result": {
+      "new_nodes": [
+        "new"
+      ],
+      "chunks": [
+        {
+          "name": "System Redesign",
+          "text": "We need to redesign our system architecture to handle increased load. The current monolithic approach is causing bottlenecks.",
+          "is_complete": true
+        },
+        {
+          "name": "Microservices Proposal",
+          "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway. Each service should have its own database to ensure loose coupling.",
+          "is_complete": true
+        },
+        {
+          "name": "Kubernetes & Circuit Breakers",
+          "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+          "is_complete": true
+        },
+        {
+          "name": "Scalability Context",
+          "text": "This relates to our previous discussions about scalability and performance optimization.",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "System Redesign",
+          "text": "We need to redesign our system architecture to handle increased load. The current monolithic approach is causing bottlenecks.",
+          "reasoning": "The text explicitly mentions redesigning the system architecture to address increased load. This directly relates to the 'System Architecture' node.  The mention of bottlenecks implies performance issues, but the primary focus is architectural redesign.",
+          "relevant_node_name": "System Architecture",
+          "relationship": "relates to"
+        },
+        {
+          "name": "Microservices Proposal",
+          "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway. Each service should have its own database to ensure loose coupling.",
+          "reasoning": "This sub-chunk proposes a specific solution (microservices) directly related to improving system architecture ('System Redesign'). It elaborates on a potential solution to the problems mentioned in 'System Redesign'.",
+          "relevant_node_name": "System Redesign",
+          "relationship": "elaborates on"
+        },
+        {
+          "name": "Kubernetes & Circuit Breakers",
+          "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+          "reasoning": "The technologies mentioned (Kubernetes and circuit breakers) are related to improving system architecture and performance, specifically in the context of the proposed microservices architecture.  However, it's not directly tied to a single existing node or the previous sub-chunk in a way that establishes a clear relationship.",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": "null"
+        },
+        {
+          "name": "Scalability Context",
+          "text": "This relates to our previous discussions about scalability and performance optimization.",
+          "reasoning": "This sub-chunk explicitly references previous discussions on scalability and performance.  The 'Scalability' node is the most direct connection.",
+          "relevant_node_name": "Scalability",
+          "relationship": "refers to"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "System Redesign",
+          "text": "We need to redesign our system architecture to handle increased load. The current monolithic approach is causing bottlenecks.",
+          "action": "CREATE",
+          "target_node": "System Architecture",
+          "new_node_name": "System Redesign",
+          "new_node_summary": "Redesigning the system architecture is needed to handle increased load and address bottlenecks caused by the current monolithic approach.",
+          "relationship_for_edge": "relates to"
+        },
+        {
+          "name": "Microservices Proposal",
+          "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway. Each service should have its own database to ensure loose coupling.",
+          "action": "CREATE",
+          "target_node": "System Redesign",
+          "new_node_name": "Microservices Proposal",
+          "new_node_summary": "Proposes a microservices architecture with separate services for user management, data processing, and API gateway, each with its own database.",
+          "relationship_for_edge": "elaborates on"
+        },
+        {
+          "name": "Kubernetes & Circuit Breakers",
+          "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+          "action": "CREATE",
+          "target_node": "NO_RELEVANT_NODE",
+          "new_node_name": "Kubernetes & Circuit Breakers",
+          "new_node_summary": "Kubernetes will be used for orchestration and circuit breakers will be implemented for resilience.",
+          "relationship_for_edge": null
+        },
+        {
+          "name": "Scalability Context",
+          "text": "This relates to our previous discussions about scalability and performance optimization.",
+          "action": "APPEND",
+          "target_node": "Scalability",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null
+        }
+      ],
+      "approach": "langgraph-multi-stage"
+    },
+    "quality_evaluation": {
+      "accuracy": 4,
+      "completeness": 4,
+      "granularity": 4,
+      "relationships": 3,
+      "clarity": 4,
+      "overall_score": 4,
+      "strengths": [
+        "Good chunk segmentation; captures the main ideas effectively.",
+        "Clear naming of extracted nodes.",
+        "Reasoning behind decisions is provided, enhancing transparency."
+      ],
+      "weaknesses": [
+        "Relationship identification is inconsistent; 'Kubernetes & Circuit Breakers' lacks a clear connection to other concepts.",
+        "The 'new_nodes' section contains only 'new', which is not useful and suggests a flaw in the process. ",
+        "The 'APPEND' action for 'Scalability Context' is vague; a more specific relationship should be defined."
+      ],
+      "comments": "The LangGraph approach demonstrates good accuracy in capturing the transcript's core message.  The chunk segmentation is well-done, separating the discussion into logical units. Node naming is clear and understandable. However, the system struggles to identify relationships between all concepts.  The failure to link 'Kubernetes & Circuit Breakers' indicates a weakness in relationship extraction. This is further compounded by the unhelpful 'new_nodes' entry.  While most reasoning is clear, the lack of a concrete relationship for the 'Scalability Context' weakens the overall knowledge graph.  The system could benefit from improved relationship identification and better handling of less directly connected concepts.  A more sophisticated approach to recognizing implied relationships (e.g., 'Kubernetes & Circuit Breakers' improving the 'Microservices Proposal') would be beneficial."
+    }
+  },
+  {
+    "test_name": "Meeting Notes with Action Items",
+    "timestamp": "2025-06-09T23:01:44.716161",
+    "transcript_length": 558,
+    "existing_nodes_count": 5,
+    "execution_time": 9.758146047592163,
+    "result": {
+      "new_nodes": [
+        "\"Hiring Mobile Engineers\"",
+        "and",
+        "\"Next Steps\""
+      ],
+      "chunks": [
+        {
+          "name": "Q4 Revenue Projections",
+          "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+          "is_complete": true
+        },
+        {
+          "name": "Hiring Mobile Engineers",
+          "text": "Second, we need to hire two more engineers for the mobile team by end of month. John will handle the recruitment process.",
+          "is_complete": true
+        },
+        {
+          "name": "Customer Feedback Analysis",
+          "text": "Third, the customer feedback on the new feature has been mixed. Sarah will analyze the feedback and present findings next week.",
+          "is_complete": true
+        },
+        {
+          "name": "Next Steps",
+          "text": "We'll reconvene next Tuesday to review progress.",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "Q4 Revenue Projections",
+          "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+          "reasoning": "The sub-chunk's text explicitly discusses Q4 revenue projections. This directly relates to the existing node 'Revenue'.",
+          "relevant_node_name": "Revenue",
+          "relationship": "elaborates on"
+        },
+        {
+          "name": "Hiring Mobile Engineers",
+          "text": "Second, we need to hire two more engineers for the mobile team by end of month. John will handle the recruitment process.",
+          "reasoning": "The sub-chunk focuses on hiring mobile engineers, which strongly connects to both 'Hiring' and 'Mobile Development'.  However, the specificity of 'Mobile Engineers' makes 'Mobile Development' the more precise connection.",
+          "relevant_node_name": "Mobile Development",
+          "relationship": "related to"
+        },
+        {
+          "name": "Customer Feedback Analysis",
+          "text": "Third, the customer feedback on the new feature has been mixed. Sarah will analyze the feedback and present findings next week.",
+          "reasoning": "The text directly discusses customer feedback, aligning perfectly with the existing node 'Customer Feedback'.",
+          "relevant_node_name": "Customer Feedback",
+          "relationship": "elaborates on"
+        },
+        {
+          "name": "Next Steps",
+          "text": "We'll reconvene next Tuesday to review progress.",
+          "reasoning": "This sub-chunk lacks specific content to strongly connect to any existing node or other sub-chunk. It's a general statement about future actions.",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "Q4 Revenue Projections",
+          "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+          "action": "APPEND",
+          "target_node": "Revenue",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null
+        },
+        {
+          "name": "Hiring Mobile Engineers",
+          "text": "Second, we need to hire two more engineers for the mobile team by end of month. John will handle the recruitment process.",
+          "action": "CREATE",
+          "target_node": "Mobile Development",
+          "new_node_name": "Hiring Mobile Engineers",
+          "new_node_summary": "Details the need to hire two more mobile engineers by the end of the month, with John managing the recruitment.",
+          "relationship_for_edge": "related to"
+        },
+        {
+          "name": "Customer Feedback Analysis",
+          "text": "Third, the customer feedback on the new feature has been mixed. Sarah will analyze the feedback and present findings next week.",
+          "action": "APPEND",
+          "target_node": "Customer Feedback",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null
+        },
+        {
+          "name": "Next Steps",
+          "text": "We'll reconvene next Tuesday to review progress.",
+          "action": "CREATE",
+          "target_node": "NO_RELEVANT_NODE",
+          "new_node_name": "Next Steps",
+          "new_node_summary": "Plans to reconvene next Tuesday to review progress.",
+          "relationship_for_edge": null
+        }
+      ],
+      "approach": "langgraph-multi-stage"
+    },
+    "quality_evaluation": {
+      "accuracy": 4,
+      "completeness": 4,
+      "granularity": 4,
+      "relationships": 3,
+      "clarity": 4,
+      "overall_score": 4,
+      "strengths": [
+        "Accurate identification of key topics from the transcript.",
+        "Good granularity in segmenting the transcript into meaningful chunks.",
+        "Clear naming of extracted nodes, generally reflecting the content.",
+        "Good use of 'APPEND' action for integrating information into existing nodes where appropriate."
+      ],
+      "weaknesses": [
+        "Weak relationship identification in some cases, particularly the 'Next Steps' chunk.",
+        "The 'and' node in 'new_nodes' is unnecessary and indicates a flaw in the node creation process.",
+        "The system fails to extract the individuals responsible (John and Sarah), although their roles are important contextual information.",
+        "'Next Steps' is a somewhat vague node, indicating the system struggles with summarizing more abstract concepts.",
+        "Missing relationships between the chunks. For example, the chunks are logically sequential, but this is not captured in the output."
+      ],
+      "comments": "The LangGraph approach demonstrates a good ability to extract key information from the transcript and organize it into meaningful chunks.  The chunk names and summaries are generally accurate and clearly reflect the content.  However, the system's ability to identify relationships between concepts needs improvement. The 'Next Steps' chunk highlights this weakness\u2014it correctly identifies a topic but fails to connect it to other elements, or even create a meaningful relationship to itself.  The inclusion of 'and' in the 'new_nodes' array indicates a problem with the node creation logic.  The system also misses crucial contextual information such as the individuals responsible for various tasks.  While the granularity is appropriate, the system could benefit from enhanced relationship extraction and a more robust mechanism for handling abstract concepts and contextual details.  Adding a mechanism for identifying temporal relationships (e.g., 'precedes', 'follows') between chunks would enhance the knowledge graph."
+    }
+  }
+]

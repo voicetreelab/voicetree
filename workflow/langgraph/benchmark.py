@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Benchmarker to compare LangGraph multi-stage pipeline vs single-LLM approach
-Similar to quality_LLM_benchmarker.py but comparing two approaches
+Benchmarker for LangGraph multi-stage pipeline
+Evaluates quality and iterates until achieving 5/5 scores
 """
 
 import asyncio
@@ -18,16 +18,6 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 # Import LangGraph pipeline
 from main import run_voicetree_pipeline
-
-# Import existing single-LLM approach
-try:
-    from backend.tree_manager.LLM_engine.LLM_engine import LLMEngine
-    from backend.tree_manager.decision_tree_ds import DecisionTree
-    from backend.tree_manager.text_to_tree_manager import ContextualTreeManager
-    SINGLE_LLM_AVAILABLE = True
-except ImportError:
-    print("⚠️ Could not import single-LLM components - will use mock")
-    SINGLE_LLM_AVAILABLE = False
 
 # Import Gemini for quality evaluation
 try:
@@ -48,42 +38,12 @@ except ImportError:
 
 
 class VoiceTreeBenchmarker:
-    """Benchmarker for comparing VoiceTree approaches"""
+    """Benchmarker for LangGraph VoiceTree approach"""
     
     def __init__(self, output_dir: str = "benchmark_results"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         self.results_file = self.output_dir / f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
-    async def run_single_llm_approach(self, transcript: str, existing_nodes: List[str]) -> Tuple[Dict[str, Any], float]:
-        """Run the existing single-LLM approach"""
-        start_time = time.time()
-        
-        if not SINGLE_LLM_AVAILABLE:
-            # Mock response for testing
-            await asyncio.sleep(0.5)  # Simulate processing time
-            result = {
-                "new_nodes": ["Mock Node 1", "Mock Node 2"],
-                "relationships": [("Mock Node 1", "relates to", existing_nodes[0])],
-                "approach": "single-llm-mock"
-            }
-        else:
-            # Run actual single-LLM approach
-            decision_tree = DecisionTree()
-            tree_manager = ContextualTreeManager(decision_tree)
-            
-            # Process the transcript
-            result = await tree_manager.process_text(transcript)
-            
-            # Extract results in comparable format
-            result = {
-                "new_nodes": [node.name for node in result.get("new_nodes", [])],
-                "relationships": result.get("relationships", []),
-                "approach": "single-llm"
-            }
-        
-        elapsed_time = time.time() - start_time
-        return result, elapsed_time
     
     def run_langgraph_approach(self, transcript: str, existing_nodes: List[str]) -> Tuple[Dict[str, Any], float]:
         """Run the LangGraph multi-stage approach"""
@@ -116,7 +76,7 @@ class VoiceTreeBenchmarker:
         elapsed_time = time.time() - start_time
         return processed_result, elapsed_time
     
-    def evaluate_quality(self, transcript: str, result: Dict[str, Any], approach_name: str) -> Dict[str, Any]:
+    def evaluate_quality(self, transcript: str, result: Dict[str, Any]) -> Dict[str, Any]:
         """Evaluate the quality of results using Gemini"""
         if not GEMINI_AVAILABLE:
             return {
@@ -127,7 +87,7 @@ class VoiceTreeBenchmarker:
         prompt = f"""
         You are an expert at evaluating the quality of knowledge graph extraction from transcripts.
         
-        Evaluate the following results from the {approach_name} approach:
+        Evaluate the following results from the LangGraph multi-stage approach:
         
         **Original Transcript:**
         {transcript}
@@ -163,12 +123,14 @@ class VoiceTreeBenchmarker:
         """
         
         try:
-            model = GenerativeModel('gemini-1.5-flash')
+            model = GenerativeModel('gemini-2.5-flash-preview-05-20')
             response = model.generate_content(prompt)
             
             # Try to parse JSON from response
             import re
-            json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+            # Clean up any control characters that might cause parsing issues
+            cleaned_text = response.text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+            json_match = re.search(r'\{.*\}', cleaned_text, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group())
             else:
@@ -187,45 +149,32 @@ class VoiceTreeBenchmarker:
         print(f"\n🧪 Running benchmark: {test_name}")
         print("=" * 60)
         
+        # Run LangGraph approach
+        print("📊 Testing LangGraph multi-stage approach...")
+        langgraph_result, langgraph_time = self.run_langgraph_approach(transcript, existing_nodes)
+        langgraph_quality = self.evaluate_quality(transcript, langgraph_result)
+        
         results = {
             "test_name": test_name,
             "timestamp": datetime.now().isoformat(),
             "transcript_length": len(transcript),
             "existing_nodes_count": len(existing_nodes),
-            "approaches": {}
-        }
-        
-        # Run single-LLM approach
-        print("📊 Testing single-LLM approach...")
-        single_result, single_time = await self.run_single_llm_approach(transcript, existing_nodes)
-        single_quality = self.evaluate_quality(transcript, single_result, "single-LLM")
-        
-        results["approaches"]["single-llm"] = {
-            "result": single_result,
-            "execution_time": single_time,
-            "quality_evaluation": single_quality
-        }
-        
-        # Run LangGraph approach
-        print("📊 Testing LangGraph multi-stage approach...")
-        langgraph_result, langgraph_time = self.run_langgraph_approach(transcript, existing_nodes)
-        langgraph_quality = self.evaluate_quality(transcript, langgraph_result, "LangGraph multi-stage")
-        
-        results["approaches"]["langgraph"] = {
-            "result": langgraph_result,
             "execution_time": langgraph_time,
+            "result": langgraph_result,
             "quality_evaluation": langgraph_quality
         }
         
-        # Compare results
-        print("\n📈 Results Comparison:")
-        print(f"   Single-LLM time: {single_time:.2f}s")
-        print(f"   LangGraph time: {langgraph_time:.2f}s")
-        print(f"   Speed difference: {abs(single_time - langgraph_time):.2f}s")
+        # Display results
+        print(f"\n📈 Results:")
+        print(f"   Execution time: {langgraph_time:.2f}s")
         
-        if isinstance(single_quality.get("overall_score"), (int, float)) and isinstance(langgraph_quality.get("overall_score"), (int, float)):
-            print(f"   Single-LLM quality: {single_quality['overall_score']}/5")
-            print(f"   LangGraph quality: {langgraph_quality['overall_score']}/5")
+        if isinstance(langgraph_quality.get("overall_score"), (int, float)):
+            print(f"   Quality score: {langgraph_quality['overall_score']}/5")
+            print(f"   - Accuracy: {langgraph_quality.get('accuracy', 'N/A')}/5")
+            print(f"   - Completeness: {langgraph_quality.get('completeness', 'N/A')}/5")
+            print(f"   - Granularity: {langgraph_quality.get('granularity', 'N/A')}/5")
+            print(f"   - Relationships: {langgraph_quality.get('relationships', 'N/A')}/5")
+            print(f"   - Clarity: {langgraph_quality.get('clarity', 'N/A')}/5")
         
         return results
     
@@ -291,42 +240,71 @@ class VoiceTreeBenchmarker:
         
         # Generate summary report
         self.generate_summary_report(all_results)
+        
+        return all_results
     
     def generate_summary_report(self, results: List[Dict[str, Any]]):
         """Generate a summary report of benchmark results"""
         report_file = self.output_dir / "benchmark_summary.md"
         
         with open(report_file, 'w') as f:
-            f.write("# VoiceTree Benchmark Summary\n\n")
+            f.write("# VoiceTree LangGraph Benchmark Summary\n\n")
             f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             
             # Overall statistics
             total_tests = len(results)
-            avg_single_time = sum(r["approaches"]["single-llm"]["execution_time"] for r in results) / total_tests
-            avg_langgraph_time = sum(r["approaches"]["langgraph"]["execution_time"] for r in results) / total_tests
+            avg_time = sum(r["execution_time"] for r in results) / total_tests
+            
+            # Calculate average scores
+            total_scores = {"overall": 0, "accuracy": 0, "completeness": 0, "granularity": 0, "relationships": 0, "clarity": 0}
+            valid_tests = 0
+            
+            for result in results:
+                quality = result["quality_evaluation"]
+                if isinstance(quality.get("overall_score"), (int, float)):
+                    valid_tests += 1
+                    total_scores["overall"] += quality["overall_score"]
+                    total_scores["accuracy"] += quality.get("accuracy", 0)
+                    total_scores["completeness"] += quality.get("completeness", 0)
+                    total_scores["granularity"] += quality.get("granularity", 0)
+                    total_scores["relationships"] += quality.get("relationships", 0)
+                    total_scores["clarity"] += quality.get("clarity", 0)
+            
+            if valid_tests > 0:
+                avg_scores = {k: v / valid_tests for k, v in total_scores.items()}
+            else:
+                avg_scores = {k: 0 for k in total_scores.keys()}
             
             f.write("## Overall Performance\n\n")
             f.write(f"- Total tests run: {total_tests}\n")
-            f.write(f"- Average single-LLM time: {avg_single_time:.2f}s\n")
-            f.write(f"- Average LangGraph time: {avg_langgraph_time:.2f}s\n")
-            f.write(f"- LangGraph is {'faster' if avg_langgraph_time < avg_single_time else 'slower'} by {abs(avg_single_time - avg_langgraph_time):.2f}s on average\n\n")
+            f.write(f"- Average execution time: {avg_time:.2f}s\n")
+            f.write(f"- Average overall score: {avg_scores['overall']:.2f}/5\n")
+            f.write(f"- Average accuracy: {avg_scores['accuracy']:.2f}/5\n")
+            f.write(f"- Average completeness: {avg_scores['completeness']:.2f}/5\n")
+            f.write(f"- Average granularity: {avg_scores['granularity']:.2f}/5\n")
+            f.write(f"- Average relationships: {avg_scores['relationships']:.2f}/5\n")
+            f.write(f"- Average clarity: {avg_scores['clarity']:.2f}/5\n\n")
             
             # Individual test results
             f.write("## Test Results\n\n")
             for result in results:
                 f.write(f"### {result['test_name']}\n\n")
                 f.write(f"- Transcript length: {result['transcript_length']} chars\n")
-                f.write(f"- Single-LLM time: {result['approaches']['single-llm']['execution_time']:.2f}s\n")
-                f.write(f"- LangGraph time: {result['approaches']['langgraph']['execution_time']:.2f}s\n")
+                f.write(f"- Execution time: {result['execution_time']:.2f}s\n")
                 
-                # Quality scores if available
-                single_quality = result['approaches']['single-llm']['quality_evaluation']
-                langgraph_quality = result['approaches']['langgraph']['quality_evaluation']
-                
-                if isinstance(single_quality.get('overall_score'), (int, float)):
-                    f.write(f"- Single-LLM quality: {single_quality['overall_score']}/5\n")
-                if isinstance(langgraph_quality.get('overall_score'), (int, float)):
-                    f.write(f"- LangGraph quality: {langgraph_quality['overall_score']}/5\n")
+                quality = result["quality_evaluation"]
+                if isinstance(quality.get('overall_score'), (int, float)):
+                    f.write(f"- Overall score: {quality['overall_score']}/5\n")
+                    f.write(f"- Accuracy: {quality.get('accuracy', 'N/A')}/5\n")
+                    f.write(f"- Completeness: {quality.get('completeness', 'N/A')}/5\n")
+                    f.write(f"- Granularity: {quality.get('granularity', 'N/A')}/5\n")
+                    f.write(f"- Relationships: {quality.get('relationships', 'N/A')}/5\n")
+                    f.write(f"- Clarity: {quality.get('clarity', 'N/A')}/5\n")
+                    
+                    if quality.get('weaknesses'):
+                        f.write("\n**Weaknesses:**\n")
+                        for weakness in quality['weaknesses']:
+                            f.write(f"- {weakness}\n")
                 
                 f.write("\n")
         
@@ -336,7 +314,19 @@ class VoiceTreeBenchmarker:
 async def main():
     """Run the benchmark suite"""
     benchmarker = VoiceTreeBenchmarker()
-    await benchmarker.run_benchmark_suite()
+    results = await benchmarker.run_benchmark_suite()
+    
+    # Check if all tests achieved 5/5
+    all_perfect = all(
+        isinstance(r["quality_evaluation"].get("overall_score"), (int, float)) and 
+        r["quality_evaluation"]["overall_score"] == 5 
+        for r in results
+    )
+    
+    if all_perfect:
+        print("\n🎉 All tests achieved perfect 5/5 scores!")
+    else:
+        print("\n📊 Some tests need improvement to reach 5/5")
 
 
 if __name__ == "__main__":

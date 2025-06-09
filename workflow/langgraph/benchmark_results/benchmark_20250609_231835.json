@@ -1,0 +1,456 @@
+[
+  {
+    "test_name": "Simple Project Planning",
+    "timestamp": "2025-06-09T23:19:37.776324",
+    "transcript_length": 256,
+    "existing_nodes_count": 3,
+    "execution_time": 49.3214910030365,
+    "result": {
+      "new_nodes": [
+        "New Project Goal",
+        "Set Up Dev Environment",
+        "Implement Core Features",
+        "Add Tests and Docs"
+      ],
+      "chunks": [
+        {
+          "name": "New Project Goal",
+          "text": "Today I want to work on my new project.",
+          "is_complete": true
+        },
+        {
+          "name": "Set Up Dev Environment",
+          "text": "I need to set up the development environment first.",
+          "is_complete": true
+        },
+        {
+          "name": "Implement Core Features",
+          "text": "Then I'll implement the core features.",
+          "is_complete": true
+        },
+        {
+          "name": "Add Tests and Docs",
+          "text": "Finally, I'll add tests and documentation.",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "New Project Goal",
+          "text": "Today I want to work on my new project.",
+          "reasoning": "This sub-chunk expresses a high-level intention to start a project. Among the existing nodes, 'Project Management' is the most relevant general category for initiating and overseeing projects. It establishes the overarching context for any subsequent project-related activities. Other sub-chunks are specific tasks that would fall within such a project, making 'Project Management' the best initial categorical link.",
+          "relevant_node_name": "Project Management",
+          "relationship": "Establishes context"
+        },
+        {
+          "name": "Set Up Dev Environment",
+          "text": "I need to set up the development environment first.",
+          "reasoning": "This sub-chunk describes a specific preparatory technical step. While it falls under the general 'Development' category, its strongest and most direct semantic link is to 'Implement Core Features' from the same input list. Setting up the development environment is a necessary prerequisite and direct precursor to implementing features, establishing a clear sequential and functional dependency between these two new sub-chunks.",
+          "relevant_node_name": "Implement Core Features",
+          "relationship": "Prerequisite for"
+        },
+        {
+          "name": "Implement Core Features",
+          "text": "Then I'll implement the core features.",
+          "reasoning": "This sub-chunk describes the central coding activity of a project. Among the existing nodes, 'Development' is the most direct and semantically appropriate category for this task. While it sequentially follows 'Set Up Dev Environment' and precedes 'Add Tests and Docs', its fundamental nature is directly encapsulated by the 'Development' domain itself. This provides a strong categorical link to an established topic.",
+          "relevant_node_name": "Development",
+          "relationship": "Core activity"
+        },
+        {
+          "name": "Add Tests and Docs",
+          "text": "Finally, I'll add tests and documentation.",
+          "reasoning": "This sub-chunk describes post-implementation activities. The word 'Finally' explicitly indicates a sequential completion after the core features have been implemented. While 'tests' directly relates to the 'Testing' node, the entire phrase 'Add Tests and Docs' represents a natural follow-up and validation phase that directly acts upon the 'Implement Core Features' activity. Connecting it to 'Implement Core Features' maintains a strong sequential and functional workflow within the newly identified project steps.",
+          "relevant_node_name": "Implement Core Features",
+          "relationship": "Follows"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "New Project Goal",
+          "text": "Today I want to work on my new project.",
+          "action": "CREATE",
+          "target_node": "Project Management",
+          "new_node_name": "New Project Goal",
+          "new_node_summary": "Establishes the intention to start working on a new project.",
+          "relationship_for_edge": "Establishes context"
+        },
+        {
+          "name": "Set Up Dev Environment",
+          "text": "I need to set up the development environment first.",
+          "action": "CREATE",
+          "target_node": "Implement Core Features",
+          "new_node_name": "Set Up Dev Environment",
+          "new_node_summary": "Describes the necessary prerequisite step of setting up the development environment.",
+          "relationship_for_edge": "Prerequisite for"
+        },
+        {
+          "name": "Implement Core Features",
+          "text": "Then I'll implement the core features.",
+          "action": "CREATE",
+          "target_node": "Development",
+          "new_node_name": "Implement Core Features",
+          "new_node_summary": "Describes the core activity of implementing the project's main features.",
+          "relationship_for_edge": "Core activity"
+        },
+        {
+          "name": "Add Tests and Docs",
+          "text": "Finally, I'll add tests and documentation.",
+          "action": "CREATE",
+          "target_node": "Implement Core Features",
+          "new_node_name": "Add Tests and Docs",
+          "new_node_summary": "Describes the final step of adding tests and documentation after core feature implementation.",
+          "relationship_for_edge": "Follows"
+        }
+      ],
+      "approach": "langgraph-multi-stage"
+    },
+    "quality_evaluation": {
+      "accuracy": 5,
+      "completeness": 5,
+      "granularity": 5,
+      "relationships": 5,
+      "clarity": 5,
+      "overall_score": 5,
+      "strengths": [
+        "All key concepts and actions are accurately identified and extracted.",
+        "Optimal granularity, with each sentence effectively segmented into a clear and distinct node.",
+        "Excellent identification of meaningful relationships, including both sequential dependencies ('Prerequisite for', 'Follows') and categorical associations ('Establishes context', 'Core activity').",
+        "Node names and summaries are exceptionally clear, concise, and reflective of the original text.",
+        "Detailed and insightful reasoning provided for each chunk's analysis, justifying the chosen relationships and target nodes."
+      ],
+      "weaknesses": [
+        "No apparent weaknesses for this specific transcript; the extraction is robust and high-quality."
+      ],
+      "comments": "The LangGraph multi-stage approach delivered outstanding results for this transcript. Every essential piece of information was captured accurately and completely. The granularity was perfect, creating distinct, actionable nodes for each step of the project. The most impressive aspect was the identification of highly relevant and logical relationships: 'Set Up Dev Environment' as a 'Prerequisite for' 'Implement Core Features', and 'Add Tests and Docs' as a step that 'Follows' 'Implement Core Features'. Additionally, the ability to categorize 'New Project Goal' under 'Project Management' and 'Implement Core Features' under 'Development' (assuming these are existing general nodes) demonstrates a sophisticated understanding of knowledge integration. The clarity of the extracted nodes and their associated summaries makes the resulting knowledge graph highly interpretable and useful. This is an exemplary extraction for the given input."
+    }
+  },
+  {
+    "test_name": "Complex Technical Discussion",
+    "timestamp": "2025-06-09T23:21:05.030323",
+    "transcript_length": 626,
+    "existing_nodes_count": 5,
+    "execution_time": 62.72073316574097,
+    "result": {
+      "new_nodes": [
+        "System Redesign Need",
+        "Monolithic Bottlenecks",
+        "Microservices Proposal",
+        "Database per Service",
+        "Orchestration and Resilience"
+      ],
+      "chunks": [
+        {
+          "name": "System Redesign Need",
+          "text": "We need to redesign our system architecture to handle increased load.",
+          "is_complete": true
+        },
+        {
+          "name": "Monolithic Bottlenecks",
+          "text": "The current monolithic approach is causing bottlenecks.",
+          "is_complete": true
+        },
+        {
+          "name": "Microservices Proposal",
+          "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway.",
+          "is_complete": true
+        },
+        {
+          "name": "Database per Service",
+          "text": "Each service should have its own database to ensure loose coupling.",
+          "is_complete": true
+        },
+        {
+          "name": "Orchestration and Resilience",
+          "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+          "is_complete": true
+        },
+        {
+          "name": "Link to Past Discussions",
+          "text": "This relates to our previous discussions about scalability and performance optimization.",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "System Redesign Need",
+          "text": "We need to redesign our system architecture to handle increased load.",
+          "reasoning": "This sub-chunk expresses a need for system redesign. The 'Monolithic Bottlenecks' sub-chunk describes the direct problem (bottlenecks caused by the monolithic approach) that necessitates this redesign. Therefore, 'System Redesign Need' is a direct response or consequence of the issues described in 'Monolithic Bottlenecks'. This provides a strong, sequential narrative link.",
+          "relevant_node_name": "Monolithic Bottlenecks",
+          "relationship": "response to"
+        },
+        {
+          "name": "Monolithic Bottlenecks",
+          "text": "The current monolithic approach is causing bottlenecks.",
+          "reasoning": "This sub-chunk identifies a problem with the current system's 'monolithic approach'. The 'System Architecture' existing node is the most direct categorical fit, as the monolithic approach is a specific type of system architecture, and the bottlenecks are an issue directly stemming from this architectural choice. While it also impacts 'Performance', 'System Architecture' is the fundamental domain of the problem described.",
+          "relevant_node_name": "System Architecture",
+          "relationship": "issue within"
+        },
+        {
+          "name": "Microservices Proposal",
+          "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway.",
+          "reasoning": "This sub-chunk proposes a 'microservices architecture'. The 'System Architecture' existing node is the most direct and high-level classification for this proposal, as microservices is a well-known architectural style. This represents a 'is a type of' relationship, classifying the proposal under its fundamental domain.",
+          "relevant_node_name": "System Architecture",
+          "relationship": "is a type of"
+        },
+        {
+          "name": "Database per Service",
+          "text": "Each service should have its own database to ensure loose coupling.",
+          "reasoning": "This sub-chunk describes a specific architectural pattern ('database per service') and its benefit ('loose coupling'), which is a common practice and detail within a microservices architecture. Therefore, it directly elaborates on the 'Microservices Proposal' sub-chunk by providing a specific design choice related to it.",
+          "relevant_node_name": "Microservices Proposal",
+          "relationship": "elaborates on"
+        },
+        {
+          "name": "Orchestration and Resilience",
+          "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+          "reasoning": "This sub-chunk mentions specific technologies (Kubernetes) and patterns (circuit breakers) for orchestration and resilience. These are crucial implementation details and enabling technologies for building and operating a robust microservices architecture. Thus, this chunk provides direct 'implementation details for' the 'Microservices Proposal'. While Kubernetes also relates to 'DevOps', the strong narrative link to the proposed architecture makes 'Microservices Proposal' the most semantically relevant connection in this context.",
+          "relevant_node_name": "Microservices Proposal",
+          "relationship": "implementation details for"
+        },
+        {
+          "name": "Link to Past Discussions",
+          "text": "This relates to our previous discussions about scalability and performance optimization.",
+          "reasoning": "This sub-chunk explicitly states a connection to 'scalability and performance optimization'. Both 'Scalability' and 'Performance' are existing topic nodes. Given that 'System Redesign Need' was driven by 'increased load' (directly related to scalability), 'Scalability' is a very direct and highly relevant topic that this chunk explicitly references, providing context for the ongoing discussion.",
+          "relevant_node_name": "Scalability",
+          "relationship": "references topic"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "System Redesign Need",
+          "text": "We need to redesign our system architecture to handle increased load.",
+          "action": "CREATE",
+          "target_node": "Monolithic Bottlenecks",
+          "new_node_name": "System Redesign Need",
+          "new_node_summary": "Identifies the need to redesign the system architecture due to increased load.",
+          "relationship_for_edge": "leads to"
+        },
+        {
+          "name": "Monolithic Bottlenecks",
+          "text": "The current monolithic approach is causing bottlenecks.",
+          "action": "CREATE",
+          "target_node": "System Architecture",
+          "new_node_name": "Monolithic Bottlenecks",
+          "new_node_summary": "Describes bottlenecks caused by the current monolithic approach within the system architecture.",
+          "relationship_for_edge": "part of"
+        },
+        {
+          "name": "Microservices Proposal",
+          "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway.",
+          "action": "CREATE",
+          "target_node": "System Architecture",
+          "new_node_name": "Microservices Proposal",
+          "new_node_summary": "Proposes a microservices architecture, including separate services for user management, data processing, and an API gateway.",
+          "relationship_for_edge": "exemplifies"
+        },
+        {
+          "name": "Database per Service",
+          "text": "Each service should have its own database to ensure loose coupling.",
+          "action": "CREATE",
+          "target_node": "Microservices Proposal",
+          "new_node_name": "Database per Service",
+          "new_node_summary": "Recommends each microservice have its own database to ensure loose coupling.",
+          "relationship_for_edge": "elaborates on"
+        },
+        {
+          "name": "Orchestration and Resilience",
+          "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+          "action": "CREATE",
+          "target_node": "Microservices Proposal",
+          "new_node_name": "Orchestration and Resilience",
+          "new_node_summary": "Describes using Kubernetes for orchestration and implementing circuit breakers for resilience in the proposed microservices architecture.",
+          "relationship_for_edge": "implements"
+        },
+        {
+          "name": "Link to Past Discussions",
+          "text": "This relates to our previous discussions about scalability and performance optimization.",
+          "action": "APPEND",
+          "target_node": "Scalability",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null
+        }
+      ],
+      "approach": "langgraph-multi-stage"
+    },
+    "quality_evaluation": {
+      "overall_score": "Error",
+      "evaluation": "Error during evaluation: Invalid control character at: line 19 column 527 (char 1473)"
+    }
+  },
+  {
+    "test_name": "Meeting Notes with Action Items",
+    "timestamp": "2025-06-09T23:22:57.298594",
+    "transcript_length": 558,
+    "existing_nodes_count": 5,
+    "execution_time": 85.85160398483276,
+    "result": {
+      "new_nodes": [
+        "Meeting Agenda Overview",
+        "Q4 Revenue Projections",
+        "Mobile Team Engineer Hiring",
+        "John Handles Recruitment",
+        "Mixed Customer Feedback",
+        "Sarah Analyzes Feedback",
+        "Next Meeting Scheduled"
+      ],
+      "chunks": [
+        {
+          "name": "Meeting Agenda Overview",
+          "text": "In today's meeting we discussed three main topics.",
+          "is_complete": true
+        },
+        {
+          "name": "Q4 Revenue Projections",
+          "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+          "is_complete": true
+        },
+        {
+          "name": "Mobile Team Engineer Hiring",
+          "text": "Second, we need to hire two more engineers for the mobile team by end of month.",
+          "is_complete": true
+        },
+        {
+          "name": "John Handles Recruitment",
+          "text": "John will handle the recruitment process.",
+          "is_complete": true
+        },
+        {
+          "name": "Mixed Customer Feedback",
+          "text": "Third, the customer feedback on the new feature has been mixed.",
+          "is_complete": true
+        },
+        {
+          "name": "Sarah Analyzes Feedback",
+          "text": "Sarah will analyze the feedback and present findings next week.",
+          "is_complete": true
+        },
+        {
+          "name": "Next Meeting Scheduled",
+          "text": "We'll reconvene next Tuesday to review progress.",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "Meeting Agenda Overview",
+          "text": "In today's meeting we discussed three main topics.",
+          "reasoning": "This sub-chunk provides an overarching statement about the meeting. The existing node 'Team Meetings' directly represents the general concept of a meeting and serves as the best high-level connection for an introductory statement like this.",
+          "relevant_node_name": "Team Meetings",
+          "relationship": "Meeting overview"
+        },
+        {
+          "name": "Q4 Revenue Projections",
+          "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+          "reasoning": "The text explicitly discusses 'Q4 revenue projections' and an 'increase expected'. This directly relates to the concept of 'Revenue' captured by the existing node. It provides specific details under that broad topic.",
+          "relevant_node_name": "Revenue",
+          "relationship": "Details"
+        },
+        {
+          "name": "Mobile Team Engineer Hiring",
+          "text": "Second, we need to hire two more engineers for the mobile team by end of month.",
+          "reasoning": "The core action in this sub-chunk is the need to 'hire two more engineers'. The existing node 'Hiring' is the most direct semantic match for this action. While 'Mobile Development' is relevant context, 'Hiring' represents the primary subject.",
+          "relevant_node_name": "Hiring",
+          "relationship": "Details"
+        },
+        {
+          "name": "John Handles Recruitment",
+          "text": "John will handle the recruitment process.",
+          "reasoning": "This sub-chunk assigns responsibility for the 'recruitment process'. This is a direct follow-up and assignment related to the specific 'Mobile Team Engineer Hiring' discussed in the previous sub-chunk. This is a much more specific link than the general 'Hiring' node.",
+          "relevant_node_name": "Mobile Team Engineer Hiring",
+          "relationship": "Assigns task"
+        },
+        {
+          "name": "Mixed Customer Feedback",
+          "text": "Third, the customer feedback on the new feature has been mixed.",
+          "reasoning": "The text directly mentions 'customer feedback'. The existing node 'Customer Feedback' is an exact semantic match for the topic presented in this sub-chunk. It provides specific information about that topic.",
+          "relevant_node_name": "Customer Feedback",
+          "relationship": "Details"
+        },
+        {
+          "name": "Sarah Analyzes Feedback",
+          "text": "Sarah will analyze the feedback and present findings next week.",
+          "reasoning": "This sub-chunk describes an action ('analyze the feedback') that directly pertains to the 'Mixed Customer Feedback' discussed immediately before it. It's a specific follow-up task related to that particular feedback.",
+          "relevant_node_name": "Mixed Customer Feedback",
+          "relationship": "Follow-up action"
+        },
+        {
+          "name": "Next Meeting Scheduled",
+          "text": "We'll reconvene next Tuesday to review progress.",
+          "reasoning": "This sub-chunk is about scheduling a future meeting. The existing node 'Team Meetings' represents the general concept of meetings, and this specific sub-chunk details the scheduling aspect of a future meeting within that overall topic.",
+          "relevant_node_name": "Team Meetings",
+          "relationship": "Meeting scheduling"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "Meeting Agenda Overview",
+          "text": "In today's meeting we discussed three main topics.",
+          "action": "CREATE",
+          "target_node": "Team Meetings",
+          "new_node_name": "Meeting Agenda Overview",
+          "new_node_summary": "Provides an overview stating that three main topics were discussed in the meeting.",
+          "relationship_for_edge": "part of"
+        },
+        {
+          "name": "Q4 Revenue Projections",
+          "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+          "action": "CREATE",
+          "target_node": "Revenue",
+          "new_node_name": "Q4 Revenue Projections",
+          "new_node_summary": "Reports promising Q4 revenue projections with an expected 15% increase.",
+          "relationship_for_edge": "elaborates on"
+        },
+        {
+          "name": "Mobile Team Engineer Hiring",
+          "text": "Second, we need to hire two more engineers for the mobile team by end of month.",
+          "action": "CREATE",
+          "target_node": "Hiring",
+          "new_node_name": "Mobile Team Engineer Hiring",
+          "new_node_summary": "Identifies the need to hire two more engineers for the mobile team by month's end.",
+          "relationship_for_edge": "elaborates on"
+        },
+        {
+          "name": "John Handles Recruitment",
+          "text": "John will handle the recruitment process.",
+          "action": "CREATE",
+          "target_node": "Mobile Team Engineer Hiring",
+          "new_node_name": "John Handles Recruitment",
+          "new_node_summary": "Assigns John the responsibility for handling the recruitment process.",
+          "relationship_for_edge": "implements"
+        },
+        {
+          "name": "Mixed Customer Feedback",
+          "text": "Third, the customer feedback on the new feature has been mixed.",
+          "action": "CREATE",
+          "target_node": "Customer Feedback",
+          "new_node_name": "Mixed Customer Feedback",
+          "new_node_summary": "Reports that customer feedback on the new feature has been mixed.",
+          "relationship_for_edge": "elaborates on"
+        },
+        {
+          "name": "Sarah Analyzes Feedback",
+          "text": "Sarah will analyze the feedback and present findings next week.",
+          "action": "CREATE",
+          "target_node": "Mixed Customer Feedback",
+          "new_node_name": "Sarah Analyzes Feedback",
+          "new_node_summary": "Assigns Sarah the task of analyzing feedback and presenting findings next week.",
+          "relationship_for_edge": "leads to"
+        },
+        {
+          "name": "Next Meeting Scheduled",
+          "text": "We'll reconvene next Tuesday to review progress.",
+          "action": "CREATE",
+          "target_node": "Team Meetings",
+          "new_node_name": "Next Meeting Scheduled",
+          "new_node_summary": "Schedules the next meeting for Tuesday to review progress.",
+          "relationship_for_edge": "elaborates on"
+        }
+      ],
+      "approach": "langgraph-multi-stage"
+    },
+    "quality_evaluation": {
+      "overall_score": "Error",
+      "evaluation": "Error during evaluation: Invalid control character at: line 17 column 565 (char 1480)"
+    }
+  }
+]

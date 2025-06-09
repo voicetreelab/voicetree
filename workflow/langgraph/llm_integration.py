@@ -45,13 +45,13 @@ else:
     print("⚠️ Gemini API not configured - will use mock responses")
 
 
-def call_llm(prompt: str, model_name: str = "gemini-1.5-flash") -> str:
+def call_llm(prompt: str, model_name: str = "gemini-2.5-flash-preview-05-20") -> str:
     """
     Call the LLM with the given prompt
     
     Args:
         prompt: The prompt to send to the LLM
-        model_name: The model to use
+        model_name: The model to use (default: gemini-2.5-flash-preview-05-20 for adaptive thinking)
         
     Returns:
         The LLM response as a string

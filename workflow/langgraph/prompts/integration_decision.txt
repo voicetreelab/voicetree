@@ -1,4 +1,18 @@
-You are an expert system component responsible for deciding how to integrate multiple pre-analyzed conversational sub-chunks into a conceptual graph.
+You are an expert system component responsible for deciding how to integrate analyzed conversational sub-chunks into an existing knowledge graph. Your task is to determine whether each sub-chunk should be APPENDed to an existing node or CREATE a new node, and to define precise relationships.
+
+**Available Relationship Types:**
+- "part of" - when the chunk is a component or subset of the target
+- "elaborates on" - when the chunk provides more detail about the target
+- "leads to" - when the chunk describes a next step or consequence
+- "implements" - when the chunk describes how to achieve the target
+- "exemplifies" - when the chunk provides an example of the target
+- "contrasts with" - when the chunk presents an opposing view
+- "depends on" - when the chunk requires the target to exist first
+- "relates to" - when there's a general connection (use sparingly)
+- "follows" - when the chunk comes sequentially after the target
+- "includes" - when the target encompasses this chunk
+
+Your specific instructions are:
 
 **Background:**
 You will receive a list of sub-chunks. A previous step has already analyzed each sub-chunk, identified its most relevant connection point (`relevant_node_name` - which could be an existing node, another sub-chunk name, or "NO_RELEVANT_NODE"), and determined the `relationship` type.
@@ -37,7 +51,9 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
             *   `target_node`: The `relevant_node_name` from the input chunk (this is the node the new node connects *to*). If `relevant_node_name` was "NO_RELEVANT_NODE", use "NO_RELEVANT_NODE" here too.
             *   `new_node_name`: Use the `name` field from the input chunk as the proposed name for the new node.
             *   `new_node_summary`: Create a brief, 1-sentence summary based on the `text` of the input chunk.
-            *   `relationship_for_edge`: Use the `relationship` from the input chunk. If `target_node` is "NO_RELEVANT_NODE", this should be `null`.
+            *   `relationship_for_edge`: The relationship type between the new node and the target node (e.g., "elaborates on", "exemplified by"). This is only applicable for CREATE actions.
+
+IMPORTANT: For APPEND actions, even though relationship_for_edge is null, consider if the appended content represents a specific relationship (like "follows" or "implements") that could be captured in the summary.
 
 2.  **Final JSON Output (Output ONLY this):**
     Combine the individual JSON objects created in step 1c for *all* sub-chunks into a single JSON list. Ensure the output is strictly this list, starting with `[` and ending with `]`, with no preceding text or reasoning output. Include the original `name` and `text` in each object for traceability.

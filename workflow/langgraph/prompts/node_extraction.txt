@@ -1,9 +1,21 @@
-Extract from this output the new nodes (i.e. create mode) that aren't already existing.
+You are extracting new node names from integration decisions.
 
-Output to get new nodes from: ```{extract}```
+Given the integration decisions below, extract ONLY the names of nodes that should be created (action="CREATE").
 
-i.e. select all names of nodes which have append_or_create=create
-which also haven't been listed here in existing nodes : ```{nodes}```
+Integration decisions:
+```{extract}```
 
+Existing nodes that should NOT be included:
+```{nodes}```
 
-New nodes only are: 
+Instructions:
+1. Look for entries where "action": "CREATE"
+2. Extract the "new_node_name" value from those entries
+3. Return ONLY the node names as a simple comma-separated list
+4. Do NOT include any explanatory text, code snippets, or formatting
+5. Do NOT include nodes that already exist in the existing nodes list
+
+Example output format:
+Node Name 1, Node Name 2, Node Name 3
+
+New nodes to create:
