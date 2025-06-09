@@ -1,0 +1,298 @@
+Langflow Workflow Core Summary:
+===============================
+
+--- Prompt Nodes ---
+
+Node: Prompt_0PxLW (ID: Prompt-0PxLW)
+------------------------
+Prompt Text:
+```
+  Extract from this output the new nodes (i.e. create mode) that aren't already existing.
+  
+  Output to get new nodes from: ```{extract}```
+  
+  i.e. select all names of nodes which have append_or_create=create
+  which also haven't been listed here in existing nodes : ```{nodes}```
+  
+  
+  New nodes only are:
+```
+
+Node: Prompt_CNPqb (ID: Prompt-CNPqb)
+------------------------
+Prompt Text:
+```
+  You are an expert system component responsible for deciding how to integrate multiple pre-analyzed conversational sub-chunks into a conceptual graph.
+  
+  **Background:**
+  You will receive a list of sub-chunks. A previous step has already analyzed each sub-chunk, identified its most relevant connection point (`relevant_node_name` - which could be an existing node, another sub-chunk name, or "NO_RELEVANT_NODE"), and determined the `relationship` type.
+  
+  **Your Task:**
+  Process the entire input list of sub-chunks. For **each** sub-chunk, decide whether its information should be **APPENDED** to its identified `relevant_node_name`, or if it warrants the **CREATION** of a new, distinct node connected to that `relevant_node_name`. Your final output must be a single JSON list containing the decision and necessary metadata for *all* processed sub-chunks.
+  
+  **Input:**
+  
+  *   `analyzed_sub_chunks`: A JSON list where each object represents a sub-chunk and contains:
+      *   `name`: The concise name given to the sub-chunk.
+      *   `text`: The text content of the sub-chunk.
+      *   `relevant_node_name`: The name of the most relevant existing node OR another sub-chunk name, OR the string "NO_RELEVANT_NODE".
+      *   `relationship`: The relationship type (e.g., "elaborates on", "counter-argument"), OR `null`.
+      *   (It might also contain `reasoning` from the previous step, which you can ignore).
+  
+  **Instructions:**
+  
+  1.  **Iterate through the `analyzed_sub_chunks` list.** For each sub-chunk object in the list, perform the following analysis:
+      a.  **Identify Inputs for this chunk:** Note the `name`, `text`, `relevant_node_name`, and `relationship` for the current sub-chunk.
+      b.  **Determine Action (Internal Reasoning - Do Not Output Separately):**
+          *   If `relevant_node_name` is "NO_RELEVANT_NODE", the action is **CREATE**.
+          *   If `relevant_node_name` is *not* "NO_RELEVANT_NODE", analyze the `relationship`:
+              *   **APPEND** for direct continuations, minor clarifying details, corrections, examples that don't introduce new structure/concepts. Relationships like "correction", "clarifies", "example of" (sometimes), "continues process" often fit here.
+              *   **CREATE** for distinct new concepts, steps, requirements, objectives, counter-arguments, questions, or when introducing specific items under a broader category. Relationships like "counter-argument", "new related topic", "alternative option", "blocked by", "introduces topic", "starts section", "poses question", "specifies requirements for", "identifies task for", "lists tasks for", or even "elaborates on" if the elaboration defines a significant sub-component, often fit here.
+              *   Use the `relationship` and the semantic *weight* of the `text` as guides. Does it feel like adding descriptive detail to an existing node (APPEND) or defining a new logical component/step/issue/item (CREATE)?
+      c.  **Prepare Output Object:** Based on the determined action, prepare a JSON object for this sub-chunk:
+          *   **If Action is APPEND:**
+              *   `action`: "APPEND"
+              *   `target_node`: The `relevant_node_name` from the input chunk.
+              *   `new_node_name`: `null`
+              *   `new_node_summary`: `null`
+              *   `relationship_for_edge`: `null`
+          *   **If Action is CREATE:**
+              *   `action`: "CREATE"
+              *   `target_node`: The `relevant_node_name` from the input chunk (this is the node the new node connects *to*). If `relevant_node_name` was "NO_RELEVANT_NODE", use "NO_RELEVANT_NODE" here too.
+              *   `new_node_name`: Use the `name` field from the input chunk as the proposed name for the new node.
+              *   `new_node_summary`: Create a brief, 1-sentence summary based on the `text` of the input chunk.
+              *   `relationship_for_edge`: Use the `relationship` from the input chunk. If `target_node` is "NO_RELEVANT_NODE", this should be `null`.
+  
+  2.  **Final JSON Output (Output ONLY this):**
+      Combine the individual JSON objects created in step 1c for *all* sub-chunks into a single JSON list. Ensure the output is strictly this list, starting with `[` and ending with `]`, with no preceding text or reasoning output. Include the original `name` and `text` in each object for traceability.
+  
+  **Example:**
+  
+  Input `analyzed_sub_chunks`:
+  `[ {{{{ "name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "...", "relevant_node_name": "Self Improvement", "relationship": "lists tasks for" }}}}, {{{{ "name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "...", "relevant_node_name": "Yard Work", "relationship": "identifies task for" }}}}, {{{{ "name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "...", "relevant_node_name": "Fence Repair Task", "relationship": "elaborates on" }}}} ]`
+  
+  Expected Output:
+  `[ {{{{ "name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "action": "CREATE", "target_node": "Self Improvement", "new_node_name": "Study and Gym Plan", "new_node_summary": "Lists studying and going to the gym as tasks for the day under self-improvement.", "relationship_for_edge": "lists tasks for" }}}}, {{{{ "name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "action": "CREATE", "target_node": "Yard Work", "new_node_name": "Fence Repair Task", "new_node_summary": "Identifies the specific yard work task of repairing the fence due to a cracking stake.", "relationship_for_edge": "identifies task for" }}}}, {{{{ "name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "action": "APPEND", "target_node": "Fence Repair Task", "new_node_name": null, "new_node_summary": null, "relationship_for_edge": null }}}} ]`
+  
+  
+  **Inputs:**
+  
+  **analyzed_sub_chunks:**
+  ```json
+  {analyzed_sub_chunks}
+```
+
+Node: Prompt_X3YW6 (ID: Prompt-X3YW6)
+------------------------
+Prompt Text:
+```
+  Please split this chunk of transcript into sub-chunks each labelled with a 1-3 word name which best represents the concept the sub-chunk is referring to. This way, we can associate each part of the text as nodes in a visual graph representation of the text.
+  
+  Refer to concepts that have already been extracted from the text, or are already existing in the tree, whichever is more relevant and better summarizes the sub-chunk:
+  
+  Concepts already extracted from text: 
+  ```
+  {SingleLLMCallNode_1output}
+  ```
+  Nodes/Concepts already existing in the tree:
+  ``
+  {existing_nodes}
+  ```
+  
+  Please make sure these sub-chunks do not overlap, are complete, and are in order, so if read sequentially, they are equivalent to the the transcript. In other words, do not modify the transcript at all, just split it into chunks, with each chunk having a name. 
+  
+  output like:
+  [{{<concept_name_1> : "sub_chunk_1"}}, 
+  ...
+   {{<concept_name_i> : sub_chunk_i>}}]
+  
+  Chunk of text transcript: 
+  ```{input_nodeuser_message}```
+```
+
+Node: Prompt_dJZui (ID: Prompt-dJZui)
+------------------------
+Prompt Text:
+```
+  You are an AI expert at segmenting conversational transcripts into graph-ready chunks. Your goal is to identify distinct, self-contained ideas suitable for individual graph nodes and assign a concise name to each.
+  
+  ────────────────────────────────────────
+  OUTPUT SPECIFICATION
+  ────────────────────────────────────────
+  Output ONLY the following JSON object. Adhere strictly to this format. No extra text or markdown.
+  
+  
+    "chunks": [
+      {{ "name": "Chunk 1 concise name", "text": "Chunk 1 text...", "is_complete": true }},
+      // ... more chunks ...
+      {{ "name": "Final chunk concise name", "text": "Final chunk text...", "is_complete": <true_or_false> }}
+    ]
+  
+  ────────────────────────────────────────
+  SEGMENTATION, NAMING & EDITING RULES
+  ────────────────────────────────────────
+  1.  **Core Principle:** Each chunk must represent one **Atomic Idea** (a single point, decision, question, answer, step, etc.).
+  2.  **Create New Chunks on Idea Shifts:** Start a new chunk for:
+      *   New topics, objectives, requirements, or steps.
+      *   Contrasting points or counter-arguments.
+      *   Distinct examples or anecdotes (if not essential to the current point).
+      *   Specific questions or direct answers.
+      *   Explicit speaker transitions.
+  3.  **Manage Sentence Flow:**
+      *   **Merge:** Keep dependent clauses/sentences together if they form one Atomic Idea.
+      *   **Split:** Divide sentences with multiple distinct ideas (e.g., joined by "and," "but") *only if* each part forms a valid Atomic Idea.
+      *   **Attach Fillers:** Keep conversational fillers ("Okay," "Right," "Uh-huh") with the related substantive statement.
+  4.  **Assign Concise Name:** For each chunk created, generate a brief `name` (1-5 words) that accurately summarizes its core Atomic Idea. This name will be used for linking.
+  5.  **Light Editing:**
+      *   Fix obvious typos/ASR errors: e.g., stray period after a single word, duplicated words like ‘the the’, homophone substitutions that are nonsensical.
+      *   Perform minor adjustments for clarity, but preserve original meaning and speaker style – **do not paraphrase or summarize the main `text`**.
+  
+  ────────────────────────────────────────
+  FINAL CHUNK COMPLETENESS
+  ────────────────────────────────────────
+  Applies *only* to the very last chunk generated:
+  *   Set `"is_complete": false` **only if** it ends mid-thought (e.g., trails off, cut mid-sentence, incomplete phrase).
+  *   Otherwise, set `"is_complete": true`.
+  
+  ────────────────────────────────────────
+  CONSTRAINTS
+  ────────────────────────────────────────
+  *   Focus solely on semantic coherence (Atomic Idea principle).
+  *   Do not invent or delete content from the `text`.
+  *   Strictly follow the JSON output format.
+  
+  ────────────────────────────────────────
+  TRANSCRIPT TO SEGMENT:
+  ────────────────────────────────────────
+  {transcript_text}
+```
+
+Node: Prompt_r5ZnC (ID: Prompt-r5ZnC)
+------------------------
+Prompt Text:
+```
+  You are an expert system component responsible for semantic matching within a conversational transcript analysis process. Your task is to analyze a list of incoming conversational sub-chunks (each with a name and text) and, for each one, identify the single most relevant existing topic node OR *another sub-chunk from the same input list*. You also need to briefly describe the relationship.
+  
+  The goal is to find the best connection point for each sub-chunk, which could be an established node in the graph summary OR another potential node (represented by a sub-chunk) just identified in the latest transcript processing.
+  
+  Your specific instructions are:
+  
+  1.  Iterate through each sub-chunk object in the `sub_chunks` list. Each sub-chunk has `name`, `text`, and `is_complete` fields.
+  2.  For each sub-chunk:
+      a.  Analyze the core meaning and topic presented in its `text`.
+      b.  Carefully compare this core meaning against BOTH:
+          i.  The `name` and `summary` of *every* node provided in the `existing_nodes_summary`.
+          ii. The `name` and `text` of *every OTHER* sub-chunk within the input `sub_chunks` list.
+      c.  Reasoning: Briefly articulate *why* you chose a specific existing node OR another sub-chunk (or decided none fit) and *why* you assigned that relationship type. Use this space to think step-by-step.
+      d.  ACTION: Determine which *single* item (either an existing node from `existing_nodes_summary` OR another sub-chunk from the `sub_chunks` list) is the **most** semantically relevant to the current sub-chunk being processed. The connection should be strong and direct (e.g., same topic, continuation, elaboration, example, counter-point). Record the exact `name` of that chosen item (whether it's an existing node name or a sub-chunk name).
+      e.  ACTION: Determine the relationship between the current sub-chunk and the chosen item (e.g., "elaborates on", "exemplified by", "continuation of", "blocked by", "correction", "counter-argument"). Provide a brief, descriptive relationship type (1-3 words).
+      f.  If, after careful consideration, you determine that **no** existing node AND **no** other sub-chunk is sufficiently relevant:
+          i.  Record the specific string: `NO_RELEVANT_NODE` for the `relevant_node_name`.
+          ii. The relationship type should be `null`.
+  
+  3.  **Output Format:** Construct a JSON list as your output. Each element in the list corresponds to one input sub-chunk and MUST contain:
+      *   `name`: The original `name` of the sub-chunk from the input.
+      *   `text`: The original `text` of the sub-chunk from the input.
+      *   `reasoning`: Your step-by-step analysis for choosing the relevant item and relationship.
+      *   `relevant_node_name`: The exact `name` of the most relevant existing node OR other sub-chunk found, or the string `NO_RELEVANT_NODE`.
+      *   `relationship`: The brief description of the relationship, or `null`.
+  
+  4.  Ensure your final output is ONLY the valid JSON list described above, without any introductory text, explanations, or markdown formatting outside the JSON structure itself.
+  
+  **Example:**
+  
+  Input `sub_chunks`:
+  `{{ "chunks": [ {{ "name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "is_complete": true }}, {{ "name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "is_complete": true }}, {{ "name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "is_complete": true }} ] }}`
+  
+  Input `existing_nodes_summary`:
+  `[ {{ "name": "Root Node", "summary": "Content root for today's work." }}, {{ "name": "Home Upgrades", "summary": "Various tasks related to improving the house." }}, {{ "name": "Self Improvement", "summary": "Activities to achieve my personal growth goals" }}, {{ "name": "Yard Work", "summary": "Outdoor home tasks like mowing or gardening." }} ]`
+  
+  Example Output:
+  `[ {{ "name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "The speaker lists study and gym activities. These align directly with the 'Self Improvement' existing node.", "relevant_node_name": "Self Improvement", "relationship": "lists tasks for" }}, {{ "name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "Fence repair is an outdoor task. It fits under 'Yard Work' better than general 'Home Upgrades'.", "relevant_node_name": "Yard Work", "relationship": "identifies task for" }}, {{ "name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "This chunk directly elaborates on the previous chunk ('Fence Repair Task') by providing specific details about the problem. It's more closely related to that sub-chunk than the general 'Yard Work' node.", "relevant_node_name": "Fence Repair Task", "relationship": "elaborates on" }} ]`
+  
+  **Inputs:**
+  
+  **sub_chunks:**
+  ```{sub_chunks}```
+  
+  **existing_nodes_summary:**
+  ```{existing_nodes_summary}```
+  
+  Now, analyze each sub-chunk based on the rules and produce the JSON output containing `name`, `text`, `reasoning`, `relevant_node_name`, and `relationship` for each.
+  
+  **Output:**
+  ```json
+```
+
+Node: Prompt_yOjKF (ID: Prompt-yOjKF)
+------------------------
+Prompt Text:
+```
+  You are an expert system component integrating conversational sub-chunks into an existing graph representation. Your current task is to analyze **one** sub-chunk and identify the **single most relevant** existing node from the provided summary. This identified node will the in a later step be updated.
+  
+  **Instructions:**
+  
+  1.  **Analyze Inputs:** Carefully review the input `sub_chunk_text` and the `existing_nodes_summary`.
+  
+  2.  **Reasoning (Output this section first, before the JSON):**
+      *   **Analyze Sub-chunk:** First, what is the core topic or key point being conveyed in the `sub_chunk_text`?
+      *   **Evaluate Potential Matches:** Now, consider each node in `existing_nodes_summary`. For each node:
+          *   Briefly assess *how closely* its `name` and `summary` relate to the sub-chunk's core topic.
+          *   Is it a strong candidate for the most relevant node? Why or why not?
+      *   **Compare Top Candidates & Justify Selection:** Identify the top 1-2 strongest candidate nodes from the evaluation above. Compare them:
+          *   Which node provides the *most direct and strong semantic connection* to the sub-chunk (e.g., discussing the exact same specific point, providing a direct continuation, example, or counterpoint)?
+          *   Explain *why* you are selecting this node as the single best fit over the other potential candidates.
+      *   **Handle No Match:** If, after careful comparison, no existing node demonstrates a strong, direct relevance, explicitly state `Selection: NO_RELEVANT_NODE` and briefly explain why none of the candidates were a good enough fit.
+      *   **Determine Relationship:** If a best-match node was selected, determine the most appropriate relationship type (1-3 words, e.g., "elaborates on", "continuation of", "example of", "corrects", "counter-argument"). Justify *why* this relationship term best describes the link between the sub-chunk and the chosen node's topic. If `NO_RELEVANT_NODE`, the relationship is `null`.
+  
+  3.  **Final JSON Output (Output this immediately after the reasoning, starting with `[` and containing ONLY the JSON):**
+      Based *only* on the conclusion derived in your reasoning step, construct a JSON list containing a single object with the following exact structure:
+      ```json
+      [{{  "sub_chunk_text": <same_as_input> "relevant_node": <RELEVANT_NODE_NAME> || "NO_RELEVANT_NODE", "relationship": <RELATIONSHIP_TYPE> || null}},...]
+      ```
+  
+  **Inputs:**
+  
+  **Inputs:**
+  **sub_chunk_text:**
+  ```{sub_chunk_text}```
+  
+  **existing_nodes_summary:**
+  ```{existing_nodes_summary}```
+  
+  **sub_chunk_text:**
+```
+
+--- Connections ---
+Format: [Source Node (Output Port)] --> [Target Node (Input Port)]
+
+* [AppendAndReadFile_NBpP7 (file_content)] --> [Prompt_0PxLW (nodes)]
+* [AppendAndReadFile_NBpP7 (file_content)] --> [Prompt_r5ZnC (existing_nodes_summary)]
+* [Chat Input (message)] --> [Prompt_dJZui (transcript_text)]
+- [ChatOutput_HMKA8 (message)] --> [ChatOutput_AWXNx (input_value)]
+- [GoogleGenerativeAIModel_QDbyL (text_output)] --> [AppendAndReadFile_IVnof (text_to_append)]
+- [GoogleGenerativeAIModel_Vwxvg (text_output)] --> [ChatOutput_HMKA8 (input_value)]
+* [GoogleGenerativeAIModel_Vwxvg (text_output)] --> [Prompt_0PxLW (extract)]
+* [GoogleGenerativeAIModel_ZheFR (text_output)] --> [Prompt_r5ZnC (sub_chunks)]
+* [GoogleGenerativeAIModel_hb1hM (text_output)] --> [Prompt_CNPqb (analyzed_sub_chunks)]
+* [Prompt_0PxLW (prompt)] --> [GoogleGenerativeAIModel_QDbyL (input_value)]
+* [Prompt_CNPqb (prompt)] --> [GoogleGenerativeAIModel_Vwxvg (input_value)]
+* [Prompt_dJZui (prompt)] --> [GoogleGenerativeAIModel_ZheFR (input_value)]
+* [Prompt_r5ZnC (prompt)] --> [GoogleGenerativeAIModel_hb1hM (input_value)]
+- [TextInput_YnucI (text)] --> [GoogleGenerativeAIModel_Vwxvg (system_message)]
+- [TextInput_YnucI (text)] --> [GoogleGenerativeAIModel_ZheFR (system_message)]
+- [TextInput_YnucI (text)] --> [GoogleGenerativeAIModel_hb1hM (system_message)]
+
+--- Other Significant Nodes ---
+- AppendAndReadFile_IVnof (Type: AppendAndReadFile)
+- AppendAndReadFile_NBpP7 (Type: AppendAndReadFile)
+- Chat Input (Type: ChatInput)
+- ChatOutput_AWXNx (Type: ChatOutput)
+- ChatOutput_HMKA8 (Type: ChatOutput)
+- GoogleGenerativeAIModel_QDbyL (Type: GoogleGenerativeAIModel, Model: learnlm-2.0-flash-experimental)
+- GoogleGenerativeAIModel_Vwxvg (Type: GoogleGenerativeAIModel, Model: gemini-2.0-flash-lite-preview-02-05)
+- GoogleGenerativeAIModel_ZheFR (Type: GoogleGenerativeAIModel, Model: gemini-2.0-flash-lite-preview-02-05)
+- GoogleGenerativeAIModel_hb1hM (Type: GoogleGenerativeAIModel, Model: gemini-2.0-flash-lite-preview-02-05)
+- TextInput_YnucI (Type: TextInput)
+
+===============================

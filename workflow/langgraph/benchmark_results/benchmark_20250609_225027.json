@@ -1,0 +1,493 @@
+[
+  {
+    "test_name": "Simple Project Planning",
+    "timestamp": "2025-06-09T22:50:27.782413",
+    "transcript_length": 256,
+    "existing_nodes_count": 3,
+    "approaches": {
+      "single-llm": {
+        "result": {
+          "new_nodes": [
+            "Mock Node 1",
+            "Mock Node 2"
+          ],
+          "relationships": [
+            [
+              "Mock Node 1",
+              "relates to",
+              "Project Management"
+            ]
+          ],
+          "approach": "single-llm-mock"
+        },
+        "execution_time": 0.5014548301696777,
+        "quality_evaluation": {
+          "accuracy": 1,
+          "completeness": 1,
+          "granularity": 1,
+          "relationships": 1,
+          "clarity": 1,
+          "overall_score": 1,
+          "strengths": [],
+          "weaknesses": [
+            "The extracted nodes are meaningless placeholders ('Mock Node 1', 'Mock Node 2').",
+            "The relationship is completely arbitrary and lacks any connection to the transcript content.",
+            "No key concepts from the transcript (project setup, implementation, testing, documentation) are extracted.",
+            "The output shows no understanding of the sequential nature of the project phases."
+          ],
+          "comments": "The LLM's performance is extremely poor. It fails to extract any meaningful information from the transcript.  The use of 'Mock Node' placeholders indicates a fundamental failure in the knowledge graph construction process.  There is no evidence of understanding the transcript's content.  The relationship between 'Mock Node 1' and 'Project Management' is completely fabricated and demonstrates a lack of semantic understanding.  The output is essentially worthless as a knowledge graph representation of the transcript.  This requires significant improvement in the LLM's ability to extract and represent knowledge from textual data."
+        }
+      },
+      "langgraph": {
+        "result": {
+          "new_nodes": [
+            "```\n['Project Goal'",
+            "'Setup Environment'",
+            "'Implement Core Features'",
+            "'Add Tests and Docs']\n```"
+          ],
+          "chunks": [
+            {
+              "name": "Project Goal",
+              "text": "Today I want to work on my new project.",
+              "is_complete": true
+            },
+            {
+              "name": "Setup Environment",
+              "text": "I need to set up the development environment first.",
+              "is_complete": true
+            },
+            {
+              "name": "Implement Core Features",
+              "text": "Then I'll implement the core features.",
+              "is_complete": true
+            },
+            {
+              "name": "Add Tests and Docs",
+              "text": "Finally, I'll add tests and documentation.",
+              "is_complete": true
+            }
+          ],
+          "analyzed_chunks": [
+            {
+              "name": "Project Goal",
+              "text": "Today I want to work on my new project.",
+              "reasoning": "This sub-chunk expresses the overall intention to start a project.  It's most closely related to 'Project Management' because it sets the overall project goal. While it mentions 'new project', this is merely context; the overarching theme is initiating and managing a project.",
+              "relevant_node_name": "Project Management",
+              "relationship": "initiates"
+            },
+            {
+              "name": "Setup Environment",
+              "text": "I need to set up the development environment first.",
+              "reasoning": "This sub-chunk explicitly mentions setting up a 'development environment'. This directly relates to the 'Development' node, indicating a step within the software development process.",
+              "relevant_node_name": "Development",
+              "relationship": "part of"
+            },
+            {
+              "name": "Implement Core Features",
+              "text": "Then I'll implement the core features.",
+              "reasoning": "Implementing core features is a key aspect of the Development process. Therefore, it's directly linked to the 'Development' node.",
+              "relevant_node_name": "Development",
+              "relationship": "part of"
+            },
+            {
+              "name": "Add Tests and Docs",
+              "text": "Finally, I'll add tests and documentation.",
+              "reasoning": "Adding tests and documentation is a crucial part of the software testing phase.  It directly relates to the 'Testing' node in the existing nodes.",
+              "relevant_node_name": "Testing",
+              "relationship": "part of"
+            }
+          ],
+          "integration_decisions": [
+            {
+              "name": "Project Goal",
+              "text": "Today I want to work on my new project.",
+              "action": "CREATE",
+              "target_node": "Project Management",
+              "new_node_name": "Project Goal",
+              "new_node_summary": "The overall goal is to work on a new project.",
+              "relationship_for_edge": "initiates"
+            },
+            {
+              "name": "Setup Environment",
+              "text": "I need to set up the development environment first.",
+              "action": "CREATE",
+              "target_node": "Development",
+              "new_node_name": "Setup Environment",
+              "new_node_summary": "Setting up the development environment is a necessary first step.",
+              "relationship_for_edge": "part of"
+            },
+            {
+              "name": "Implement Core Features",
+              "text": "Then I'll implement the core features.",
+              "action": "CREATE",
+              "target_node": "Development",
+              "new_node_name": "Implement Core Features",
+              "new_node_summary": "Implementing core features is a part of the development process.",
+              "relationship_for_edge": "part of"
+            },
+            {
+              "name": "Add Tests and Docs",
+              "text": "Finally, I'll add tests and documentation.",
+              "action": "CREATE",
+              "target_node": "Testing",
+              "new_node_name": "Add Tests and Docs",
+              "new_node_summary": "Adding tests and documentation is a final step in the process.",
+              "relationship_for_edge": "part of"
+            }
+          ],
+          "approach": "langgraph-multi-stage"
+        },
+        "execution_time": 8.39524507522583,
+        "quality_evaluation": {
+          "accuracy": 5,
+          "completeness": 5,
+          "granularity": 5,
+          "relationships": 5,
+          "clarity": 4,
+          "overall_score": 5,
+          "strengths": [
+            "Accurate identification of key project phases.",
+            "Appropriate granularity of extracted chunks.",
+            "Well-defined relationships between phases.",
+            "Clear reasoning provided for each chunk's categorization.",
+            "Complete coverage of the transcript's information."
+          ],
+          "weaknesses": [
+            "Node names in 'new_nodes' are poorly formatted (using backticks and single quotes unnecessarily).",
+            "While the relationships are accurate,  the 'initiates' relationship between 'Project Goal' and 'Project Management' could be more precisely defined (e.g., 'defines' or 'is a part of'). The term 'initiates' implies action which doesn't explicitly appear in the text.   This is a minor weakness because the meaning is still clear.",
+            "The summary for the nodes could be more concise, for example, 'Setup Environment' could simply be 'Setup development environment'."
+          ],
+          "comments": "The LangGraph approach demonstrates excellent performance on this simple transcript.  It accurately identifies the four main phases of the project (Project Goal, Setup Environment, Implement Core Features, Add Tests and Docs) and establishes clear relationships between them and existing nodes ('Project Management', 'Development', 'Testing'). The granularity is perfect; each chunk represents a logical step. The reasoning behind each categorization is well-explained and justifiable. The minor weakness lies in the slightly awkward formatting of the 'new_nodes' array and the slightly less-precise wording in the relationship descriptions. Overall, this is a high-quality extraction exhibiting strength in accuracy, completeness, granularity, and the establishment of relationships."
+        }
+      }
+    }
+  },
+  {
+    "test_name": "Complex Technical Discussion",
+    "timestamp": "2025-06-09T22:50:45.259921",
+    "transcript_length": 626,
+    "existing_nodes_count": 5,
+    "approaches": {
+      "single-llm": {
+        "result": {
+          "new_nodes": [
+            "Mock Node 1",
+            "Mock Node 2"
+          ],
+          "relationships": [
+            [
+              "Mock Node 1",
+              "relates to",
+              "System Architecture"
+            ]
+          ],
+          "approach": "single-llm-mock"
+        },
+        "execution_time": 0.5012898445129395,
+        "quality_evaluation": {
+          "accuracy": 1,
+          "completeness": 1,
+          "granularity": 1,
+          "relationships": 1,
+          "clarity": 1,
+          "overall_score": 1,
+          "strengths": [],
+          "weaknesses": [
+            "The extracted nodes are nonsensical placeholders ('Mock Node 1', 'Mock Node 2').",
+            "The single relationship extracted is completely unrelated to the content of the transcript.",
+            "No key concepts from the transcript (microservices, Kubernetes, circuit breakers, scalability, monolithic architecture) are extracted.",
+            "The output shows no evidence of understanding the transcript's core topic: system redesign."
+          ],
+          "comments": "The extraction completely fails to capture the meaning of the transcript.  The 'Mock Node' placeholders and the nonsensical relationship demonstrate a fundamental lack of functionality.  This result indicates a serious problem with the LLM's knowledge graph extraction capabilities. The extraction is not only incomplete but also inaccurate and provides no valuable information.  The output is essentially useless for any knowledge representation or analysis purpose.  A complete overhaul of the LLM's approach is required.  It lacks the ability to even identify basic entities or relationships relevant to the provided text."
+        }
+      },
+      "langgraph": {
+        "result": {
+          "new_nodes": [
+            "System Redesign",
+            "Microservices Proposal",
+            "The existing nodes list does not contain these names."
+          ],
+          "chunks": [
+            {
+              "name": "System Redesign",
+              "text": "We need to redesign our system architecture to handle increased load. The current monolithic approach is causing bottlenecks.",
+              "is_complete": true
+            },
+            {
+              "name": "Microservices Proposal",
+              "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway. Each service should have its own database to ensure loose coupling.",
+              "is_complete": true
+            },
+            {
+              "name": "Kubernetes & Circuit Breakers",
+              "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+              "is_complete": true
+            },
+            {
+              "name": "Scalability Relation",
+              "text": "This relates to our previous discussions about scalability and performance optimization.",
+              "is_complete": true
+            }
+          ],
+          "analyzed_chunks": [
+            {
+              "name": "System Redesign",
+              "text": "We need to redesign our system architecture to handle increased load. The current monolithic approach is causing bottlenecks.",
+              "reasoning": "The sub-chunk explicitly mentions redesigning the system architecture to address increased load.  This directly relates to the existing node 'System Architecture'. The text describes a problem and proposed solution within that architectural context.",
+              "relevant_node_name": "System Architecture",
+              "relationship": "elaborates on"
+            },
+            {
+              "name": "Microservices Proposal",
+              "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway. Each service should have its own database to ensure loose coupling.",
+              "reasoning": "This sub-chunk proposes a specific architectural solution (microservices) as a response to the problem mentioned in 'System Redesign'.  It's a concrete proposal to address the architectural issues.",
+              "relevant_node_name": "System Redesign",
+              "relationship": "proposes solution"
+            },
+            {
+              "name": "Kubernetes & Circuit Breakers",
+              "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+              "reasoning": "This sub-chunk focuses on implementation details (Kubernetes and circuit breakers) which are related to both system architecture and scalability/performance. While relevant to multiple nodes, the implementation aspects make 'System Redesign' the better fit since it's about solving the architecture problems.",
+              "relevant_node_name": "System Redesign",
+              "relationship": "implementation detail"
+            },
+            {
+              "name": "Scalability Relation",
+              "text": "This relates to our previous discussions about scalability and performance optimization.",
+              "reasoning": "This sub-chunk explicitly references scalability and performance, which are covered by existing nodes. The relationship is indirect, but 'Performance' is the most direct connection.",
+              "relevant_node_name": "Performance",
+              "relationship": "refers to"
+            }
+          ],
+          "integration_decisions": [
+            {
+              "name": "System Redesign",
+              "text": "We need to redesign our system architecture to handle increased load. The current monolithic approach is causing bottlenecks.",
+              "action": "CREATE",
+              "target_node": "System Architecture",
+              "new_node_name": "System Redesign",
+              "new_node_summary": "Redesigning the system architecture is needed to handle increased load and address bottlenecks caused by the current monolithic approach.",
+              "relationship_for_edge": "elaborates on"
+            },
+            {
+              "name": "Microservices Proposal",
+              "text": "I propose moving to a microservices architecture with separate services for user management, data processing, and API gateway. Each service should have its own database to ensure loose coupling.",
+              "action": "CREATE",
+              "target_node": "System Redesign",
+              "new_node_name": "Microservices Proposal",
+              "new_node_summary": "Proposes a microservices architecture with separate services for user management, data processing, and API gateway, each with its own database for loose coupling.",
+              "relationship_for_edge": "proposes solution"
+            },
+            {
+              "name": "Kubernetes & Circuit Breakers",
+              "text": "We'll use Kubernetes for orchestration and implement circuit breakers for resilience.",
+              "action": "APPEND",
+              "target_node": "System Redesign",
+              "new_node_name": null,
+              "new_node_summary": null,
+              "relationship_for_edge": null
+            },
+            {
+              "name": "Scalability Relation",
+              "text": "This relates to our previous discussions about scalability and performance optimization.",
+              "action": "APPEND",
+              "target_node": "Performance",
+              "new_node_name": null,
+              "new_node_summary": null,
+              "relationship_for_edge": null
+            }
+          ],
+          "approach": "langgraph-multi-stage"
+        },
+        "execution_time": 9.69970989227295,
+        "quality_evaluation": {
+          "accuracy": 4,
+          "completeness": 4,
+          "granularity": 4,
+          "relationships": 4,
+          "clarity": 4,
+          "overall_score": 4,
+          "strengths": [
+            "Good identification of key concepts like 'System Redesign' and 'Microservices Proposal'.",
+            "Reasonably accurate relationship identification between chunks (e.g., 'System Redesign' elaborates on 'System Architecture').",
+            "Clear distinction between 'CREATE' and 'APPEND' actions in integration decisions.",
+            "Well-structured JSON output making the results easy to parse."
+          ],
+          "weaknesses": [
+            "The name 'Scalability Relation' is less descriptive than other chunk names.",
+            "The 'new_nodes' section contains an unhelpful entry ('The existing nodes list does not contain these names.'). This should be removed or replaced with more relevant information.",
+            "While the relationships are identified, the depth of the relationships could be improved.  For example, the relationship between Kubernetes/Circuit breakers and microservices could be made more explicit.",
+            "'Performance' as the relevant node for 'Scalability Relation' is a bit weak; a more specific node like 'System Performance' would be better if it exists."
+          ],
+          "comments": "The LangGraph approach demonstrates a good understanding of the transcript's core ideas.  The segmentation into chunks is appropriate, with a good balance between granularity and comprehensiveness.  The relationships identified are mostly accurate, but could be more specific and nuanced. The naming of some nodes could be more precise. The inclusion of the unhelpful entry in 'new_nodes' detracts from the overall quality.  The output would be improved by including a section specifying the existing nodes (referenced as relevant nodes) so that the results are fully self-contained.  A more sophisticated approach might involve creating new nodes for 'User Management', 'Data Processing', and 'API Gateway' as separate entities within the microservices architecture, creating a richer knowledge graph."
+        }
+      }
+    }
+  },
+  {
+    "test_name": "Meeting Notes with Action Items",
+    "timestamp": "2025-06-09T22:51:03.504926",
+    "transcript_length": 558,
+    "existing_nodes_count": 5,
+    "approaches": {
+      "single-llm": {
+        "result": {
+          "new_nodes": [
+            "Mock Node 1",
+            "Mock Node 2"
+          ],
+          "relationships": [
+            [
+              "Mock Node 1",
+              "relates to",
+              "Revenue"
+            ]
+          ],
+          "approach": "single-llm-mock"
+        },
+        "execution_time": 0.5012640953063965,
+        "quality_evaluation": {
+          "accuracy": 1,
+          "completeness": 1,
+          "granularity": 1,
+          "relationships": 1,
+          "clarity": 1,
+          "overall_score": 1,
+          "strengths": [],
+          "weaknesses": [
+            "The extracted nodes are nonsensical ('Mock Node 1', 'Mock Node 2').",
+            "The single relationship is vaguely defined and lacks context ('Mock Node 1 relates to Revenue').",
+            "The extraction fails to capture any of the key information from the transcript, such as Q4 revenue projections, hiring needs, customer feedback, or meeting scheduling.",
+            "The approach completely misses the important entities (John, Sarah) and their roles."
+          ],
+          "comments": "The provided extraction is completely inadequate. It fails to capture any meaningful information from the transcript.  The use of 'Mock Node' placeholders indicates a fundamental failure in the knowledge graph extraction process.  There's no evidence of any successful information retrieval or relation identification. The lack of relevant nodes and relationships demonstrates a severe deficiency in the LLM's ability to process and understand the text.  The output is essentially meaningless.  Significant improvements are needed in the LLM's ability to identify entities, relationships and to name entities accurately. A proper implementation should extract nodes representing 'Q4 Revenue Projections', 'Hiring Needs', 'Customer Feedback', 'John', 'Sarah', etc., and define relevant relationships between them (e.g., 'John is responsible for' 'Hiring Needs', 'Sarah will analyze' 'Customer Feedback')."
+        }
+      },
+      "langgraph": {
+        "result": {
+          "new_nodes": [
+            "independently",
+            "Q4 Revenue Projections",
+            "Hire Mobile Engineers",
+            "Customer Feedback Analysis",
+            "Next Steps"
+          ],
+          "chunks": [
+            {
+              "name": "Q4 Revenue Projections",
+              "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+              "is_complete": true
+            },
+            {
+              "name": "Hire Mobile Engineers",
+              "text": "Second, we need to hire two more engineers for the mobile team by end of month. John will handle the recruitment process.",
+              "is_complete": true
+            },
+            {
+              "name": "Customer Feedback Analysis",
+              "text": "Third, the customer feedback on the new feature has been mixed. Sarah will analyze the feedback and present findings next week.",
+              "is_complete": true
+            },
+            {
+              "name": "Next Steps",
+              "text": "We'll reconvene next Tuesday to review progress.",
+              "is_complete": true
+            }
+          ],
+          "analyzed_chunks": [
+            {
+              "name": "Q4 Revenue Projections",
+              "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+              "reasoning": "The text explicitly mentions 'Q4 revenue projections'. This directly relates to the existing node 'Revenue'.",
+              "relevant_node_name": "Revenue",
+              "relationship": "elaborates on"
+            },
+            {
+              "name": "Hire Mobile Engineers",
+              "text": "Second, we need to hire two more engineers for the mobile team by end of month. John will handle the recruitment process.",
+              "reasoning": "The text focuses on hiring mobile engineers, which is strongly related to both 'Hiring' and 'Mobile Development'.  'Mobile Development' is chosen because the hiring is specifically for the mobile team.",
+              "relevant_node_name": "Mobile Development",
+              "relationship": "related to"
+            },
+            {
+              "name": "Customer Feedback Analysis",
+              "text": "Third, the customer feedback on the new feature has been mixed. Sarah will analyze the feedback and present findings next week.",
+              "reasoning": "The sub-chunk directly addresses 'customer feedback', which exactly matches the existing node 'Customer Feedback'.",
+              "relevant_node_name": "Customer Feedback",
+              "relationship": "elaborates on"
+            },
+            {
+              "name": "Next Steps",
+              "text": "We'll reconvene next Tuesday to review progress.",
+              "reasoning": "This sub-chunk lacks a specific topic connection to any existing node or other sub-chunk. It's a general concluding statement.",
+              "relevant_node_name": "NO_RELEVANT_NODE",
+              "relationship": "null"
+            }
+          ],
+          "integration_decisions": [
+            {
+              "name": "Q4 Revenue Projections",
+              "text": "First, the Q4 revenue projections look promising with a 15% increase expected.",
+              "action": "CREATE",
+              "target_node": "Revenue",
+              "new_node_name": "Q4 Revenue Projections",
+              "new_node_summary": "Q4 revenue projections show a promising 15% increase.",
+              "relationship_for_edge": "elaborates on"
+            },
+            {
+              "name": "Hire Mobile Engineers",
+              "text": "Second, we need to hire two more engineers for the mobile team by end of month. John will handle the recruitment process.",
+              "action": "CREATE",
+              "target_node": "Mobile Development",
+              "new_node_name": "Hire Mobile Engineers",
+              "new_node_summary": "Two more mobile engineers need to be hired by the end of the month; John will handle recruitment.",
+              "relationship_for_edge": "related to"
+            },
+            {
+              "name": "Customer Feedback Analysis",
+              "text": "Third, the customer feedback on the new feature has been mixed. Sarah will analyze the feedback and present findings next week.",
+              "action": "CREATE",
+              "target_node": "Customer Feedback",
+              "new_node_name": "Customer Feedback Analysis",
+              "new_node_summary": "Customer feedback on the new feature is mixed; Sarah will analyze and present findings next week.",
+              "relationship_for_edge": "elaborates on"
+            },
+            {
+              "name": "Next Steps",
+              "text": "We'll reconvene next Tuesday to review progress.",
+              "action": "CREATE",
+              "target_node": "NO_RELEVANT_NODE",
+              "new_node_name": "Next Steps",
+              "new_node_summary": "A follow-up meeting is scheduled for next Tuesday to review progress.",
+              "relationship_for_edge": null
+            }
+          ],
+          "approach": "langgraph-multi-stage"
+        },
+        "execution_time": 9.727022171020508,
+        "quality_evaluation": {
+          "accuracy": 4,
+          "completeness": 4,
+          "granularity": 4,
+          "relationships": 3,
+          "clarity": 4,
+          "overall_score": 4,
+          "strengths": [
+            "The system accurately identifies the three main discussion points from the transcript.",
+            "The summaries for each extracted node are concise and informative.",
+            "The 'chunks' section effectively segments the text into meaningful units.",
+            "Node names are generally clear and descriptive (e.g., 'Q4 Revenue Projections', 'Hire Mobile Engineers')."
+          ],
+          "weaknesses": [
+            "The relationship between 'Next Steps' and other concepts is not established. It should ideally be connected to the overall meeting objective or a higher-level concept. ",
+            "While relationships are attempted, they are sometimes simplistic (e.g., 'related to'). More nuanced relationships could enhance the knowledge graph.",
+            "The inclusion of 'independently' in 'new_nodes' is spurious and doesn't reflect the transcript's content."
+          ],
+          "comments": "The LangGraph approach demonstrates a good ability to extract key information from the transcript and structure it into meaningful chunks. The summaries associated with each extracted node are accurate and well-written. However, the system struggles to identify the relationships between some concepts, especially the concluding 'Next Steps' segment.  The relationship labels are sometimes too generic ('related to'), lacking the specificity needed for a robust knowledge graph. The inclusion of 'independently' in the new nodes is a clear error, indicating a need for stricter filtering during extraction.  Overall, the results showcase a functional system that could benefit from improvements in relationship identification and error handling to achieve a higher level of quality.  More sophisticated relationship extraction and a more robust filtering mechanism would improve the overall graph quality."
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,9 @@
+Extract from this output the new nodes (i.e. create mode) that aren't already existing.
+
+Output to get new nodes from: ```{extract}```
+
+i.e. select all names of nodes which have append_or_create=create
+which also haven't been listed here in existing nodes : ```{nodes}```
+
+
+New nodes only are: 
