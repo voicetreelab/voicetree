@@ -12,6 +12,7 @@ class VoiceTreeState(TypedDict):
     # Input
     transcript_text: str
     existing_nodes: str  # Summary of existing nodes in the tree
+    incomplete_chunk_buffer: Optional[str]  # Buffer for incomplete chunks from previous execution
     
     # Stage 1: Segmentation output
     chunks: Optional[List[Dict[str, Any]]]
@@ -24,6 +25,9 @@ class VoiceTreeState(TypedDict):
     
     # Stage 4: Node extraction output (final)
     new_nodes: Optional[List[str]]
+    
+    # Processing metadata
+    incomplete_chunk_remainder: Optional[str]  # Incomplete chunk to carry forward to next execution
     
     # Metadata
     current_stage: str

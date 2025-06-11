@@ -3,13 +3,13 @@ import sys
 import unittest
 
 import process_transcription
-from tree_manager.text_to_tree_manager import ContextualTreeManager
+from tree_manager.workflow_tree_manager import WorkflowTreeManager
 from tree_manager.decision_tree_ds import DecisionTree
 from tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from voice_to_text.voice_to_text import VoiceToTextEngine
 
 decision_tree = DecisionTree()
-tree_manager = ContextualTreeManager(decision_tree)
+tree_manager = WorkflowTreeManager(decision_tree, workflow_state_file="voicetree_workflow_state.json")
 converter = TreeToMarkdownConverter(decision_tree.tree)
 processor = process_transcription.TranscriptionProcessor(tree_manager,
                                                          converter)

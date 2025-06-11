@@ -1,0 +1,67 @@
+{
+  "nodes": {
+    "Discussed Q1 roadmap": {
+      "name": "Discussed Q1 roadmap",
+      "created_at": "2025-06-11T19:06:23.089376",
+      "summary": "The team meeting discussed the Q1 roadmap and identified three key initiatives.",
+      "parent": "NO_RELEVANT_NODE",
+      "content": null,
+      "source_chunk": "Discussed Q1 roadmap"
+    },
+    "Initiative: Improving customer onboarding": {
+      "name": "Initiative: Improving customer onboarding",
+      "created_at": "2025-06-11T19:06:28.111980",
+      "summary": "The first initiative following the meeting is improving customer onboarding.",
+      "parent": "Discussed Q1 roadmap",
+      "content": null,
+      "source_chunk": "Initiative: Improving customer onboarding"
+    },
+    "Automated testing initiative": {
+      "name": "Automated testing initiative",
+      "created_at": "2025-06-11T19:06:33.447009",
+      "summary": "Describes the second initiative from the Q1 roadmap, focusing on implementing automated testing across all services.",
+      "parent": "Discussed Q1 roadmap",
+      "content": null,
+      "source_chunk": "Automated testing initiative"
+    },
+    "Onboarding project requirements": {
+      "name": "Onboarding project requirements",
+      "created_at": "2025-06-11T19:06:40.099329",
+      "summary": "States that the customer onboarding project needs UX research and new documentation.",
+      "parent": "Initiative: Improving customer onboarding",
+      "content": null,
+      "source_chunk": "Onboarding project requirements"
+    }
+  },
+  "execution_history": [
+    {
+      "timestamp": "2025-06-11T19:06:23.089404",
+      "new_nodes": [
+        "Discussed Q1 roadmap"
+      ],
+      "total_nodes_after": 1
+    },
+    {
+      "timestamp": "2025-06-11T19:06:28.112011",
+      "new_nodes": [
+        "Initiative: Improving customer onboarding"
+      ],
+      "total_nodes_after": 2
+    },
+    {
+      "timestamp": "2025-06-11T19:06:33.447045",
+      "new_nodes": [
+        "Automated testing initiative"
+      ],
+      "total_nodes_after": 3
+    },
+    {
+      "timestamp": "2025-06-11T19:06:40.099362",
+      "new_nodes": [
+        "Onboarding project requirements"
+      ],
+      "total_nodes_after": 4
+    }
+  ],
+  "last_saved": "2025-06-11T19:06:40.099377"
+}

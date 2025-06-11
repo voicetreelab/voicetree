@@ -1,0 +1,76 @@
+{
+  "nodes": {
+    "Started learning machine learning": {
+      "name": "Started learning machine learning",
+      "created_at": "2025-06-11T19:06:52.700111",
+      "summary": "Started learning about machine learning today.",
+      "parent": "NO_RELEVANT_NODE",
+      "content": null,
+      "source_chunk": "Started learning machine learning"
+    },
+    "Focusing on supervised learning": {
+      "name": "Focusing on supervised learning",
+      "created_at": "2025-06-11T19:06:52.700120",
+      "summary": "Focusing on supervised learning algorithms as a specific area within machine learning.",
+      "parent": "Started learning machine learning",
+      "content": null,
+      "source_chunk": "Focusing on supervised learning"
+    },
+    "Studying classification and regression": {
+      "name": "Studying classification and regression",
+      "created_at": "2025-06-11T19:06:57.725152",
+      "summary": "Describes studying classification and regression techniques within supervised learning.",
+      "parent": "Focusing on supervised learning",
+      "content": null,
+      "source_chunk": "Studying classification and regression"
+    },
+    "Decision trees and random forests": {
+      "name": "Decision trees and random forests",
+      "created_at": "2025-06-11T19:07:04.269976",
+      "summary": "Learned about decision trees and random forests as methods for classification.",
+      "parent": "Studying classification and regression",
+      "content": null,
+      "source_chunk": "Decision trees and random forests"
+    },
+    "Random forests use decision trees": {
+      "name": "Random forests use decision trees",
+      "created_at": "2025-06-11T19:07:17.076176",
+      "summary": "Explains that random forests are an ensemble method that utilizes multiple decision trees.",
+      "parent": "Decision trees and random forests",
+      "content": null,
+      "source_chunk": "Random forests use decision trees"
+    }
+  },
+  "execution_history": [
+    {
+      "timestamp": "2025-06-11T19:06:52.700124",
+      "new_nodes": [
+        "Started learning machine learning",
+        "Focusing on supervised learning"
+      ],
+      "total_nodes_after": 2
+    },
+    {
+      "timestamp": "2025-06-11T19:06:57.725171",
+      "new_nodes": [
+        "Studying classification and regression"
+      ],
+      "total_nodes_after": 3
+    },
+    {
+      "timestamp": "2025-06-11T19:07:04.269988",
+      "new_nodes": [
+        "Decision trees and random forests"
+      ],
+      "total_nodes_after": 4
+    },
+    {
+      "timestamp": "2025-06-11T19:07:17.076210",
+      "new_nodes": [
+        "Random forests use decision trees"
+      ],
+      "total_nodes_after": 5
+    }
+  ],
+  "last_saved": "2025-06-11T19:07:17.076226"
+}

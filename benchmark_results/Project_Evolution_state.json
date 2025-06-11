@@ -1,0 +1,85 @@
+{
+  "nodes": {
+    "New AI project: NLP": {
+      "name": "New AI project: NLP",
+      "created_at": "2025-06-11T19:05:53.420095",
+      "summary": "The user is starting a new AI project focused on natural language processing.",
+      "parent": "NO_RELEVANT_NODE",
+      "content": null,
+      "source_chunk": "New AI project: NLP"
+    },
+    "Goal: Build a chatbot": {
+      "name": "Goal: Build a chatbot",
+      "created_at": "2025-06-11T19:05:53.420114",
+      "summary": "The project's goal is to build a chatbot.",
+      "parent": "New AI project: NLP",
+      "content": null,
+      "source_chunk": "Goal: Build a chatbot"
+    },
+    "Implement chatbot features": {
+      "name": "Implement chatbot features",
+      "created_at": "2025-06-11T19:05:58.449668",
+      "summary": "Specifies implementing intent recognition and entity extraction features for the chatbot project.",
+      "parent": "Goal: Build a chatbot",
+      "content": null,
+      "source_chunk": "Implement chatbot features"
+    },
+    "NLP system: multiple languages": {
+      "name": "NLP system: multiple languages",
+      "created_at": "2025-06-11T19:06:04.933828",
+      "summary": "The NLP system should support multiple languages, expanding on the overall project requirements.",
+      "parent": "New AI project: NLP",
+      "content": null,
+      "source_chunk": "NLP system: multiple languages"
+    },
+    "Using transformer models": {
+      "name": "Using transformer models",
+      "created_at": "2025-06-11T19:06:11.580117",
+      "summary": "The decision was made to use transformer models for building the chatbot.",
+      "parent": "Goal: Build a chatbot",
+      "content": null,
+      "source_chunk": "Using transformer models"
+    },
+    "BERT for intent classification": {
+      "name": "BERT for intent classification",
+      "created_at": "2025-06-11T19:06:11.580144",
+      "summary": "BERT is considered a good choice for implementing intent classification within the chatbot.",
+      "parent": "Implement chatbot features",
+      "content": null,
+      "source_chunk": "BERT for intent classification"
+    }
+  },
+  "execution_history": [
+    {
+      "timestamp": "2025-06-11T19:05:53.420122",
+      "new_nodes": [
+        "New AI project: NLP",
+        "Goal: Build a chatbot"
+      ],
+      "total_nodes_after": 2
+    },
+    {
+      "timestamp": "2025-06-11T19:05:58.449675",
+      "new_nodes": [
+        "Implement chatbot features"
+      ],
+      "total_nodes_after": 3
+    },
+    {
+      "timestamp": "2025-06-11T19:06:04.933844",
+      "new_nodes": [
+        "NLP system: multiple languages"
+      ],
+      "total_nodes_after": 4
+    },
+    {
+      "timestamp": "2025-06-11T19:06:11.580151",
+      "new_nodes": [
+        "Using transformer models",
+        "BERT for intent classification"
+      ],
+      "total_nodes_after": 6
+    }
+  ],
+  "last_saved": "2025-06-11T19:06:11.580160"
+}

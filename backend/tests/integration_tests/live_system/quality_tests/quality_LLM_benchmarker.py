@@ -24,16 +24,21 @@ import shutil
 import time
 import subprocess
 import os
+import sys
 from datetime import datetime
+
+# Add parent directories to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..')))
 
 import google.generativeai as genai
 from google.generativeai import GenerativeModel
 
 from process_transcription import TranscriptionProcessor
-from tree_manager.text_to_tree_manager import ContextualTreeManager
-from tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-import settings
+from backend import settings
 import PackageProjectForLLM
 
 # Configure Gemini API
@@ -42,17 +47,20 @@ genai.configure(api_key=settings.GOOGLE_API_KEY)
 # Constants
 REQUESTS_PER_MINUTE = 15  # to avoid breaching 15RPM gemini limit
 SECONDS_PER_REQUEST = 60 / REQUESTS_PER_MINUTE
-OUTPUT_DIR = "/oldVaults/VoiceTreePOC/QualityTest"  # Replace with your desired output directory
+OUTPUT_DIR = "oldVaults/VoiceTreePOC/QualityTest"  # Replace with your desired output directory
 QUALITY_LOG_FILE = "quality_log.txt"
 
 
 async def process_transcript_with_voicetree(transcript_file):
-    """Processes a transcript file with VoiceTree."""
+    """Processes a transcript file with VoiceTree using agentic workflow."""
     decision_tree = DecisionTree()
-    tree_manager = ContextualTreeManager(decision_tree)
+    tree_manager = WorkflowTreeManager(
+        decision_tree, 
+        workflow_state_file="benchmark_workflow_state.json"
+    )
     converter = TreeToMarkdownConverter(decision_tree.tree)
     #first copy all files in QualityTest to ../OLDQualityTest
-    BACKUP_DIR = "/oldVaults/VoiceTreePOC/OLDQualityTest"
+    BACKUP_DIR = "oldVaults/VoiceTreePOC/OLDQualityTest"
 
     # Backup existing files in OUTPUT_DIR to BACKUP_DIR
     if os.path.exists(BACKUP_DIR):
@@ -87,6 +95,10 @@ async def process_transcript_with_voicetree(transcript_file):
     # Process any remaining buffer content
     if buffer:
         await processor.process_and_convert(buffer)
+    
+    # Log workflow statistics
+    workflow_stats = tree_manager.get_workflow_statistics()
+    logging.info(f"Workflow statistics: {workflow_stats}")
 
 
 def evaluate_tree_quality(transcript_file):
@@ -171,11 +183,12 @@ def evaluate_tree_quality(transcript_file):
     with open(QUALITY_LOG_FILE, "a") as log_file:
         log_file.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         log_file.write(f"Git Commit: {commit_message} ({commit_hash})\n")
+        log_file.write(f"Processing Method: Agentic Workflow (Multi-Stage)\n")
         log_file.write(f"Quality Score: {evaluation}\n\n")
 
 
 async def main():
-    transcript_file = "/oldVaults/VoiceTreePOC/transcript.txt"  # Replace with your transcript file
+    transcript_file = "oldVaults/MylesDBChat.txt"  # Using the MylesDBChat transcript
     await process_transcript_with_voicetree(transcript_file)
     evaluate_tree_quality(transcript_file)
 
