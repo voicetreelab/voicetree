@@ -88,7 +88,8 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
         
     # Create fresh instances for each transcript
     decision_tree = DecisionTree()
-    tree_manager = WorkflowTreeManager(decision_tree, OUTPUT_DIR)
+    workflow_state_file = os.path.join(OUTPUT_DIR, "workflow_state.json")
+    tree_manager = WorkflowTreeManager(decision_tree, workflow_state_file)
     processor = TranscriptionProcessor(tree_manager, TreeToMarkdownConverter(decision_tree.tree), OUTPUT_DIR)
 
     with open(transcript_file, 'r') as f:

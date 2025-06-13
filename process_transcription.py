@@ -42,3 +42,13 @@ class TranscriptionProcessor:
             logging.error(
                 f"Error in convert_text_to_markdown_tree_node: {e} "
                 f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
+
+    async def finalize(self):
+        """Finalize processing - convert any remaining nodes to markdown"""
+        try:
+            logging.info("Finalizing transcription processing")
+            self.converter.convert_node(output_dir=self.output_dir,
+                                        nodes_to_update=self.tree_manager.nodes_to_update)
+            self.tree_manager.nodes_to_update.clear()
+        except Exception as e:
+            logging.error(f"Error in finalize: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}")

@@ -156,4 +156,21 @@ class WorkflowTreeManager(ContextualTreeManager):
     def clear_workflow_state(self):
         """Clear the workflow state"""
         self.workflow_adapter.clear_workflow_state()
-        logging.info("Workflow state cleared") 
+        logging.info("Workflow state cleared")
+    
+    def save_tree_structure(self):
+        """Save the current tree structure (for benchmarking/analysis)"""
+        logging.info("Saving final tree structure")
+        node_count = len(self.decision_tree.tree)
+        root_children = len(self.decision_tree.tree[0].children) if 0 in self.decision_tree.tree else 0
+        
+        logging.info(f"Tree structure: {node_count} total nodes, root has {root_children} direct children")
+        
+        # Log the tree hierarchy
+        for node_id, node in self.decision_tree.tree.items():
+            if node_id == 0:
+                continue  # Skip root for cleaner output
+            parent_name = self.decision_tree.tree[node.parent_id].title if node.parent_id is not None else "None"
+            logging.info(f"Node {node_id}: '{node.title}' (parent: '{parent_name}')")
+        
+        return {"total_nodes": node_count, "root_children": root_children} 

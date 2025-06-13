@@ -1,0 +1,196 @@
+{
+  "results": [
+    {
+      "transcript_text": "\n    This is a test of the VoiceTree application.\n    I want to create a new node about project planning. \n    The first step is to define the project scope. \n    The next step is to identify the key stakeholders.\n    ",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k",
+      "incomplete_chunk_buffer": "",
+      "chunks": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "is_complete": true
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "reasoning": "This appears to be a new topic not directly related to existing nodes",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "reasoning": "This relates to the project discussion as it elaborates on project work",
+          "relevant_node_name": "Project Discussion",
+          "relationship": "elaborates on"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "action": "CREATE",
+          "target_node": "NO_RELEVANT_NODE",
+          "new_node_name": "Project Discussion",
+          "new_node_summary": "Discussion about working on a project today.",
+          "relationship_for_edge": null,
+          "content": "Today I want to work on my project"
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "action": "CREATE",
+          "target_node": "Project Discussion",
+          "new_node_name": "Feature Planning",
+          "new_node_summary": "Planning to add new features to improve the project.",
+          "relationship_for_edge": "elaborates on",
+          "content": "I need to add new features to make it better"
+        }
+      ],
+      "new_nodes": [
+        "Project Discussion",
+        "Feature Planning"
+      ],
+      "incomplete_chunk_remainder": null,
+      "current_stage": "complete",
+      "error_message": null
+    },
+    {
+      "transcript_text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me. I should talk to Austin's dad first.",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- P\n- j\n- c\n- D\n- i\n- F\n- l",
+      "incomplete_chunk_buffer": "",
+      "chunks": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "is_complete": true
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "reasoning": "This appears to be a new topic not directly related to existing nodes",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "reasoning": "This relates to the project discussion as it elaborates on project work",
+          "relevant_node_name": "Project Discussion",
+          "relationship": "elaborates on"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "action": "CREATE",
+          "target_node": "NO_RELEVANT_NODE",
+          "new_node_name": "Project Discussion",
+          "new_node_summary": "Discussion about working on a project today.",
+          "relationship_for_edge": null,
+          "content": "Today I want to work on my project"
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "action": "CREATE",
+          "target_node": "Project Discussion",
+          "new_node_name": "Feature Planning",
+          "new_node_summary": "Planning to add new features to improve the project.",
+          "relationship_for_edge": "elaborates on",
+          "content": "I need to add new features to make it better"
+        }
+      ],
+      "new_nodes": [
+        "Project Discussion",
+        "Feature Planning"
+      ],
+      "incomplete_chunk_remainder": null,
+      "current_stage": "complete",
+      "error_message": null
+    },
+    {
+      "transcript_text": "To be able to start reaching out to investors, I will first have to polish my POC. This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use. I'll also need to prepare a compelling pitch deck and presentation.",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- P\n- j\n- c\n- D\n- i\n- F\n- l",
+      "incomplete_chunk_buffer": "",
+      "chunks": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "is_complete": true
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "is_complete": true
+        }
+      ],
+      "analyzed_chunks": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "reasoning": "This appears to be a new topic not directly related to existing nodes",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "reasoning": "This relates to the project discussion as it elaborates on project work",
+          "relevant_node_name": "Project Discussion",
+          "relationship": "elaborates on"
+        }
+      ],
+      "integration_decisions": [
+        {
+          "name": "Project Discussion",
+          "text": "Today I want to work on my project",
+          "action": "CREATE",
+          "target_node": "NO_RELEVANT_NODE",
+          "new_node_name": "Project Discussion",
+          "new_node_summary": "Discussion about working on a project today.",
+          "relationship_for_edge": null,
+          "content": "Today I want to work on my project"
+        },
+        {
+          "name": "Feature Planning",
+          "text": "I need to add new features to make it better",
+          "action": "CREATE",
+          "target_node": "Project Discussion",
+          "new_node_name": "Feature Planning",
+          "new_node_summary": "Planning to add new features to improve the project.",
+          "relationship_for_edge": "elaborates on",
+          "content": "I need to add new features to make it better"
+        }
+      ],
+      "new_nodes": [
+        "Project Discussion",
+        "Feature Planning"
+      ],
+      "incomplete_chunk_remainder": null,
+      "current_stage": "complete",
+      "error_message": null
+    }
+  ],
+  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - Project Discussion\n    - Feature Planning    - Project Discussion\n    - Feature Planning",
+  "statistics": {
+    "total_new_nodes": 6,
+    "append_decisions": 0,
+    "create_decisions": 0
+  }
+}

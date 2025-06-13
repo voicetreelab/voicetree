@@ -60,6 +60,92 @@ MAX_NODE_NAME_LENGTH = 100
 EXCLUDED_PHRASES = ["based on", "provided data", "new nodes"]
 
 
+def extract_json_from_response(response: str) -> str:
+    """
+    Extract JSON from LLM response, handling common formatting issues
+    
+    Args:
+        response: Raw LLM response text
+        
+    Returns:
+        Cleaned JSON string
+    """
+    import json
+    
+    # Remove whitespace
+    response = response.strip()
+    
+    if not response:
+        return response
+    
+    # Try to find JSON in markdown code blocks
+    json_pattern = r'```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```'
+    match = re.search(json_pattern, response, re.DOTALL)
+    if match:
+        json_text = match.group(1)
+        try:
+            # Validate the extracted JSON
+            json.loads(json_text)
+            return json_text
+        except json.JSONDecodeError:
+            pass
+    
+    # Try to find JSON object or array directly
+    # Look for outermost braces/brackets
+    json_pattern = r'(\{.*\}|\[.*\])'
+    match = re.search(json_pattern, response, re.DOTALL)
+    if match:
+        json_text = match.group(1)
+        try:
+            # Validate the extracted JSON
+            json.loads(json_text)
+            return json_text
+        except json.JSONDecodeError:
+            # Try to fix common issues
+            fixed_json = _fix_json_response(json_text)
+            try:
+                json.loads(fixed_json)
+                return fixed_json
+            except json.JSONDecodeError:
+                pass
+    
+    # If no JSON found or validation failed, return original
+    return response
+
+
+def _fix_json_response(json_text: str) -> str:
+    """
+    Fix common JSON formatting issues
+    
+    Args:
+        json_text: Potentially malformed JSON
+        
+    Returns:
+        Fixed JSON string
+    """
+    import json
+    
+    # Remove any leading/trailing whitespace
+    json_text = json_text.strip()
+    
+    # Fix incomplete JSON by adding missing closing braces/brackets
+    if json_text and (json_text.startswith('{') or json_text.startswith('[')):
+        open_braces = json_text.count('{') - json_text.count('}')
+        open_brackets = json_text.count('[') - json_text.count(']')
+        
+        # Add missing closing braces/brackets
+        json_text += '}' * max(0, open_braces)
+        json_text += ']' * max(0, open_brackets)
+    
+    # Fix trailing commas
+    json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
+    
+    # Fix quotes around property names
+    json_text = re.sub(r'(\w+):', r'"\1":', json_text)
+    
+    return json_text
+
+
 def load_prompt_template(prompt_name: str) -> str:
     """
     Load a prompt template from the prompts directory
@@ -156,10 +242,16 @@ def process_llm_stage_structured(
         }
         
     except Exception as e:
+        error_msg = f"{stage_name} failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        
+        # For debugging, log the full error details
+        log_to_file(stage_name, "ERROR", f"Exception: {str(e)}\nState: {state}")
+        
         return {
             **state,
             "current_stage": "error",
-            "error_message": f"{stage_name} failed: {str(e)}"
+            "error_message": error_msg
         }
 
 

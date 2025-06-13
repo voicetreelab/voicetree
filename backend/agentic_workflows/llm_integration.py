@@ -108,7 +108,22 @@ def _initialize_gemini() -> bool:
         True if successfully initialized, False otherwise
     """
     try:
-        import google.generativeai as genai
+        # Try both the new and old APIs to see what's available
+        try:
+            from google import genai
+            new_api_available = True
+        except ImportError:
+            new_api_available = False
+        
+        try:
+            import google.generativeai as old_genai
+            old_api_available = True
+        except ImportError:
+            old_api_available = False
+        
+        if not (new_api_available or old_api_available):
+            print("⚠️ Google Generative AI package not available")
+            return False
         
         # Try to get API key from environment
         api_key = os.environ.get("GOOGLE_API_KEY")
@@ -130,15 +145,23 @@ def _initialize_gemini() -> bool:
                 pass
         
         if api_key:
-            genai.configure(api_key=api_key)
+            # Configure both APIs if available
+            if old_api_available:
+                old_genai.configure(api_key=api_key)
+            
+            if new_api_available:
+                print("✅ New Gemini API available")
+            if old_api_available:
+                print("✅ Old Gemini API available as fallback")
+            
             print("✅ Gemini API configured successfully")
             return True
         else:
             print("⚠️ No API key found")
             return False
             
-    except ImportError:
-        print("⚠️ Google Generative AI package not available")
+    except Exception as e:
+        print(f"⚠️ Error initializing Gemini API: {e}")
         return False
 
 
@@ -164,7 +187,7 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         return MOCK_RESPONSES.get(stage_type, MOCK_RESPONSES["segmentation"])
     
     try:
-        import google.generativeai as genai
+        from google import genai
         
         schema_class = SCHEMA_MAP.get(stage_type)
         if not schema_class:
@@ -172,19 +195,91 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         
         print(f"🤖 Calling Gemini API with structured output ({model_name})...")
         
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="application/json",
-                response_schema=schema_class
-            )
-        )
+        # Get API key
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            try:
+                from backend import settings
+                api_key = getattr(settings, 'GOOGLE_API_KEY', None)
+            except ImportError:
+                pass
         
-        if hasattr(response, 'text') and response.text:
+        if not api_key:
+            raise ValueError("No Google API key available")
+        
+        # Use the new genai.Client API as recommended by Google
+        client = genai.Client(api_key=api_key)
+        
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": schema_class,
+                    "max_output_tokens": 8192,
+                    "temperature": 0.3,
+                }
+            )
+        except Exception as e:
+            # If the new API fails, try the old API as fallback
+            print(f"⚠️ New API failed ({e}), trying old API...")
+            import google.generativeai as old_genai
+            
+            old_genai.configure(api_key=api_key)
+            model = old_genai.GenerativeModel(model_name)
+            
+            try:
+                response = model.generate_content(
+                    prompt,
+                    generation_config=old_genai.types.GenerationConfig(
+                        response_mime_type="application/json",
+                        response_schema=schema_class,
+                        max_output_tokens=8192,
+                        temperature=0.3,
+                    )
+                )
+            except TypeError as te:
+                if "response_mime_type" in str(te) or "response_schema" in str(te):
+                    # Fallback to older API without structured output
+                    print("⚠️ Using fallback generation config (older API)")
+                    enhanced_prompt = f"{prompt}\n\nIMPORTANT: Return ONLY valid JSON that matches this exact schema: {schema_class.model_json_schema()}\nDo not include any explanatory text, markdown formatting, or code blocks. Return only the JSON object."
+                    response = model.generate_content(
+                        enhanced_prompt,
+                        generation_config=old_genai.types.GenerationConfig(
+                            max_output_tokens=8192,
+                            temperature=0.3,
+                        )
+                    )
+                else:
+                    raise
+        
+        # Try to use parsed response first (from new API)
+        if hasattr(response, 'parsed') and response.parsed is not None:
+            print(f"✅ API call successful - structured response parsed automatically")
+            return response.parsed
+        elif hasattr(response, 'text') and response.text:
             print(f"✅ API call successful - structured response received")
-            # Parse the response using the schema
-            return schema_class.model_validate_json(response.text)
+            # Try to extract and fix the JSON first
+            response_text = response.text
+            try:
+                from backend.agentic_workflows.nodes import extract_json_from_response
+                extracted_json = extract_json_from_response(response_text)
+                if extracted_json != response_text:
+                    print(f"🔧 Extracted JSON from markdown wrapper")
+                    response_text = extracted_json
+            except Exception as extract_error:
+                print(f"⚠️ JSON extraction failed: {extract_error}")
+            
+            # Validate the JSON after cleaning
+            try:
+                # Parse the response using the schema
+                parsed_response = schema_class.model_validate_json(response_text)
+                return parsed_response
+            except Exception as json_error:
+                print(f"❌ JSON validation error: {json_error}")
+                print(f"Response text: {response_text}")
+                raise json_error
         else:
             print(f"❌ No text in response: {response}")
             raise ValueError("No text content in Gemini response")

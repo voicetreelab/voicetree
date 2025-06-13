@@ -8,13 +8,14 @@ import sys
 import os
 from pathlib import Path
 
-# Add the current directory to the Python path
+# Add project root to path for imports
 current_dir = Path(__file__).parent
-sys.path.insert(0, str(current_dir))
+project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
+sys.path.insert(0, str(project_root))
 
 try:
-    # Import the modules directly since we're in the same directory
-    import main
+    # Import the main module from the backend
+    from backend.agentic_workflows import main
     
     def test_basic_pipeline():
         """Test the pipeline with basic input"""

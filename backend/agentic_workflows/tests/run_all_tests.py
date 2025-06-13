@@ -13,7 +13,11 @@ def run_test(test_file: str, description: str):
     print(f"🧪 {description}")
     print(f"{'='*60}")
     
-    result = subprocess.run([sys.executable, test_file], capture_output=False)
+    # Get the correct path to the test file
+    current_dir = Path(__file__).parent
+    test_path = current_dir / test_file
+    
+    result = subprocess.run([sys.executable, str(test_path)], capture_output=False)
     
     if result.returncode == 0:
         print(f"✅ {test_file} passed")
