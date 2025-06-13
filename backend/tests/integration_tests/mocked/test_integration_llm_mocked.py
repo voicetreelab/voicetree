@@ -2,15 +2,15 @@ import asyncio
 import unittest
 import os
 import shutil
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 import process_transcription
 import tree_manager
-from tree_manager.LLM_engine.summarize_with_llm import Summarizer
-from tree_manager.LLM_engine.tree_action_decider import Decider
-from tree_manager.text_to_tree_manager import ContextualTreeManager
+from tree_manager import NodeAction
+from tree_manager.workflow_tree_manager import WorkflowTreeManager
 from tree_manager.decision_tree_ds import DecisionTree
 from tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.workflow_adapter import WorkflowResult
 
 
 class TestIntegrationMockedLLM(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         # Reset the tree and other objects before each test
 
         self.decision_tree = DecisionTree()
-        self.tree_manager = ContextualTreeManager(self.decision_tree)
+        self.tree_manager = WorkflowTreeManager(self.decision_tree)
         self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.output_dir = "/Users/bobbobby/repos/VoiceTreePoc/test_output"
         self.processor = process_transcription.TranscriptionProcessor(self.tree_manager,
@@ -42,17 +42,63 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         "and presentation."
     ]
 
-    @patch.object(Summarizer, "summarize_with_llm", side_effect=[
-        "## Project Planning Node\n\n- Define project scope.\n- Identify key stakeholders.",
-        "## Next Steps for Project\n\n- Need to reach out to investors for advice.\n- Will start with Austin's dad.",
-        "## Preparing for Investor Outreach\n\n- Polish Proof of Concept (POC):\n    - Refine user interface.\n    - Improve summarization quality.\n    - Ensure application robustness and ease of use.\n- Prepare pitch deck and presentation."
-    ])
-    @patch.object(Decider, "decide_tree_action",
-                  side_effect=[("CREATE", "", 0, summaries[0]),
-                               ("CREATE", "", 1, summaries[1]),
-                               ("CREATE", "", 2, summaries[2])])
-    def test_complex_tree_creation(self, mock_analyze_context, mock_summarize):
-        # ... (your transcript definitions and processing code) ...
+    @patch('backend.workflow_adapter.WorkflowAdapter.process_transcript')
+    async def test_complex_tree_creation_workflow(self, mock_process_transcript):
+        """Test complex tree creation using the new workflow system"""
+        
+        # Mock workflow responses for each transcript processing
+        mock_process_transcript.side_effect = [
+            # First transcript response
+            WorkflowResult(
+                success=True,
+                new_nodes=["Project Planning"],
+                node_actions=[NodeAction(
+                    labelled_text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
+                    action="CREATE",
+                    concept_name="Project Planning",
+                    neighbour_concept_name="Root",
+                    relationship_to_neighbour="child of",
+                    updated_summary_of_node=self.summaries[0],
+                    markdown_content_to_append=self.summaries[0],
+                    is_complete=True
+                )],
+                metadata={"chunks_processed": 1}
+            ),
+            # Second transcript response
+            WorkflowResult(
+                success=True,
+                new_nodes=["Investor Outreach"],
+                node_actions=[NodeAction(
+                    labelled_text="Another thing I will have to do is start reaching out to investors",
+                    action="CREATE", 
+                    concept_name="Investor Outreach",
+                    neighbour_concept_name="Project Planning",
+                    relationship_to_neighbour="child of",
+                    updated_summary_of_node=self.summaries[1],
+                    markdown_content_to_append=self.summaries[1],
+                    is_complete=True
+                )],
+                metadata={"chunks_processed": 1}
+            ),
+            # Third transcript response
+            WorkflowResult(
+                success=True,
+                new_nodes=["POC Polish"],
+                node_actions=[NodeAction(
+                    labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
+                    action="CREATE",
+                    concept_name="POC Polish",
+                    neighbour_concept_name="Investor Outreach", 
+                    relationship_to_neighbour="child of",
+                    updated_summary_of_node=self.summaries[2],
+                    markdown_content_to_append=self.summaries[2],
+                    is_complete=True
+                )],
+                metadata={"chunks_processed": 1}
+            )
+        ]
+        
+        # Test transcripts
         transcript1 = """
          This is a test of the VoiceTree application.
          I want to create a new node about project planning. 
@@ -74,14 +120,12 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         )
 
         # Process the transcripts
-        asyncio.run(self.processor.process_and_convert(transcript1))
-        asyncio.run(self.processor.process_and_convert(transcript2))
-        asyncio.run(self.processor.process_and_convert(transcript3))
+        await self.processor.process_and_convert(transcript1)
+        await self.processor.process_and_convert(transcript2)
+        await self.processor.process_and_convert(transcript3)
+        
         # Assertions
         tree = self.decision_tree.tree
-
-        # print(tree)
-        # self.print_tree(tree)
 
         # 1. Check the Number of Nodes (should be 4)
         self.assertEqual(len(tree), 4, "The tree should have 4 nodes.")
@@ -118,22 +162,74 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                     self.assertIn(keyword.lower(), content,
                                   f"Keyword '{keyword}' not found in Node {node_id} Markdown file.")
 
-    @patch.object(Summarizer, "summarize_with_llm", side_effect=[
-        "## Project Planning Node\n\n- Define project scope.\n- Identify key stakeholders.",
-        "## Next Steps for Project\n\n- Reach out to investors for advice.\n- Will start with Austin's dad.",
-        "## Investor Outreach Preparation\n\n- Refine POC:\n    - Improve user interface\n    - Enhance summarization quality\n    - Ensure application robustness and ease of use\n- Prepare pitch deck and presentation"
-    ])
-    @patch.object(Decider, "decide_tree_action",
-                  side_effect=[("CREATE", "", 0, summaries[0]), ("APPEND", "", 1, summaries[1]), ("CREATE", "", 1, summaries[2])])
-    def test_complex_tree_creation_append_mode(self, mock_analyze_context, mock_summarize):
-        process_transcription.decision_tree = DecisionTree()
+    # Update the test method names and remove the old patches
+    def test_complex_tree_creation(self):
+        """Test complex tree creation using workflow system"""
+        asyncio.run(self.test_complex_tree_creation_workflow())
 
+    @patch('backend.workflow_adapter.WorkflowAdapter.process_transcript')
+    async def test_complex_tree_creation_append_mode_workflow(self, mock_process_transcript):
+        """Test complex tree creation with APPEND mode using the new workflow system"""
+        
+        # Mock workflow responses showing APPEND behavior
+        mock_process_transcript.side_effect = [
+            # First transcript response
+            WorkflowResult(
+                success=True,
+                new_nodes=["Project Planning"],
+                node_actions=[NodeAction(
+                    labelled_text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
+                    action="CREATE",
+                    concept_name="Project Planning",
+                    neighbour_concept_name="Root",
+                    relationship_to_neighbour="child of",
+                    updated_summary_of_node=self.summaries[0],
+                    markdown_content_to_append=self.summaries[0],
+                    is_complete=True
+                )],
+                metadata={"chunks_processed": 1}
+            ),
+            # Second transcript response - APPEND to existing node
+            WorkflowResult(
+                success=True,
+                new_nodes=[],  # No new nodes created, just appending
+                node_actions=[NodeAction(
+                    labelled_text="Another thing I will have to do is start reaching out to investors",
+                    action="APPEND",
+                    concept_name="Project Planning",
+                    neighbour_concept_name="Project Planning",
+                    relationship_to_neighbour="append to",
+                    updated_summary_of_node=self.summaries[1],
+                    markdown_content_to_append=self.summaries[1],
+                    is_complete=True
+                )],
+                metadata={"chunks_processed": 1}
+            ),
+            # Third transcript response - CREATE new node
+            WorkflowResult(
+                success=True,
+                new_nodes=["POC Polish"],
+                node_actions=[NodeAction(
+                    labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
+                    action="CREATE",
+                    concept_name="POC Polish",
+                    neighbour_concept_name="Project Planning",
+                    relationship_to_neighbour="child of",
+                    updated_summary_of_node=self.summaries[2],
+                    markdown_content_to_append=self.summaries[2],
+                    is_complete=True
+                )],
+                metadata={"chunks_processed": 1}
+            )
+        ]
+        
+        # Test transcripts
         transcript1 = """
-        This is a test of the VoiceTree application.
-        I want to create a new node about project planning. 
-        The first step is to define the project scope. 
-        The next step is to identify the key stakeholders.
-        """
+         This is a test of the VoiceTree application.
+         I want to create a new node about project planning. 
+         The first step is to define the project scope. 
+         The next step is to identify the key stakeholders.
+         """
 
         transcript2 = (
             "Another thing I will have to do is start reaching out to investors "
@@ -148,24 +244,19 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             "I'll also need to prepare a compelling pitch deck and presentation."
         )
 
-        # reset tree
-
         # Process the transcripts
-        asyncio.run(self.processor.process_and_convert(transcript1))
-        asyncio.run(self.processor.process_and_convert(transcript2))
-        asyncio.run(self.processor.process_and_convert(transcript3))
-
+        await self.processor.process_and_convert(transcript1)
+        await self.processor.process_and_convert(transcript2)
+        await self.processor.process_and_convert(transcript3)
+        
         # Assertions
         tree = self.decision_tree.tree
 
-        # print(tree)
-        # self.print_tree(tree)
-
-        # 1. Check the Number of Nodes (should be 3)
-        self.assertEqual(len(tree), 3, "The tree should have 3 nodes.")
+        # 1. Check the Number of Nodes (should be 3 due to APPEND behavior)
+        self.assertEqual(len(tree), 3, "The tree should have 3 nodes (due to APPEND).")
 
         # 2. Verify Node Content Using Keywords
-        project_planning_node_id = self.assert_node_content_contains(tree, ["project", "planning"])
+        project_planning_node_id = self.assert_node_content_contains(tree, ["project", "planning"]) 
         investors_node_id = self.assert_node_content_contains(tree, ["investors", "austin"])
         poc_node_id = self.assert_node_content_contains(tree, ["poc"])
 
@@ -196,6 +287,10 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 for keyword in self.get_keywords_for_node(node_id):
                     self.assertIn(keyword.lower(), content,
                                   f"Keyword '{keyword}' not found in Node {node_id} Markdown file.")
+
+    def test_complex_tree_creation_append_mode(self):
+        """Test complex tree creation with APPEND mode using workflow system"""
+        asyncio.run(self.test_complex_tree_creation_append_mode_workflow())
 
     # ... (Your helper functions) ...
     # Helper functions to make assertions more readable and reusable

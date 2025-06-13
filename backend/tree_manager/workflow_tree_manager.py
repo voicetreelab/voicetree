@@ -76,6 +76,12 @@ class WorkflowTreeManager(ContextualTreeManager):
         if result.success:
             logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
             
+            # Apply the node actions to the decision tree
+            await self._apply_node_actions_from_result(result.node_actions)
+            
+            # Ensure root node is always included for markdown generation
+            self.nodes_to_update.add(0)
+            
             # Track nodes that were updated
             for action in result.node_actions:
                 if action.action == "CREATE":
@@ -102,6 +108,46 @@ class WorkflowTreeManager(ContextualTreeManager):
                 logging.info(f"Workflow metadata: {result.metadata}")
         else:
             logging.error(f"Workflow failed: {result.error_message}")
+    
+    async def _apply_node_actions_from_result(self, node_actions):
+        """
+        Apply node actions from workflow result to the decision tree
+        
+        Args:
+            node_actions: List of NodeAction objects to apply
+        """
+        for action in node_actions:
+            if action.action == "CREATE":
+                # Find parent node ID
+                parent_id = 0  # Default to root
+                if action.neighbour_concept_name and action.neighbour_concept_name != "Root":
+                    parent_id = self.decision_tree.get_node_id_from_name(action.neighbour_concept_name)
+                    if parent_id is None:
+                        parent_id = 0  # Fallback to root if parent not found
+                
+                # Create new node
+                new_node_id = self.decision_tree.create_new_node(
+                    name=action.concept_name,
+                    parent_node_id=parent_id,
+                    content=action.markdown_content_to_append,
+                    summary=action.updated_summary_of_node,
+                    relationship_to_parent=action.relationship_to_neighbour
+                )
+                logging.info(f"Created new node '{action.concept_name}' with ID {new_node_id}")
+                
+            elif action.action == "APPEND":
+                # Find target node and append content
+                node_id = self.decision_tree.get_node_id_from_name(action.concept_name)
+                if node_id is not None:
+                    node = self.decision_tree.tree[node_id]
+                    node.append_content(
+                        action.markdown_content_to_append,
+                        action.updated_summary_of_node,
+                        action.labelled_text
+                    )
+                    logging.info(f"Appended content to node '{action.concept_name}' (ID {node_id})")
+                else:
+                    logging.warning(f"Could not find node '{action.concept_name}' for APPEND action")
     
     def get_workflow_statistics(self) -> dict:
         """Get statistics from the workflow adapter"""

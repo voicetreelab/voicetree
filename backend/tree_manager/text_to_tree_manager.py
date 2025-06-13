@@ -31,6 +31,7 @@ class ContextualTreeManager:
         self.summarizer = Summarizer()
         self.decider = Decider()
         self.rewriter = Rewriter()
+        self._first_processing = True  # Track if this is the first processing
 
     async def process_voice_input(self, transcribed_text: str):
         """
@@ -110,6 +111,11 @@ class ContextualTreeManager:
             transcript_history_context (str): The relevant portion of the
                                             transcript history for context.
         """
+
+        # Add root node to updates on first processing to ensure it gets a markdown file
+        if self._first_processing:
+            self.nodes_to_update.add(0)  # Add root node
+            self._first_processing = False
 
         # Call decide_tree_action with the previous chunk and output for context
         actions = await self.decider.decide_tree_action(

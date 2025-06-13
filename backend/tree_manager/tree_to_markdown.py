@@ -3,7 +3,6 @@ import logging
 import os
 import re
 import traceback
-from venv import logger
 
 from rake_nltk import Rake
 
@@ -57,7 +56,7 @@ class TreeToMarkdownConverter:
         """Converts the specified nodes to Markdown files."""
 
         os.makedirs(output_dir, exist_ok=True)
-        logger.info(f"updating/writing markdown for nodes {nodes_to_update}")
+        logging.info(f"updating/writing markdown for nodes {nodes_to_update}")
 
         if nodes_to_update:
             for node_id in nodes_to_update:
@@ -66,7 +65,7 @@ class TreeToMarkdownConverter:
                     if node_data.filename:
                         file_name = node_data.filename
                     else:
-                        file_name = generate_filename_from_keywords(node_data['content'])
+                        file_name = generate_filename_from_keywords(node_data.content)
                         node_data.filename = file_name  # Store the filename
                         # title_match = re.search(r'^##+(.*)', node_data.content, re.MULTILINE)
                         # node_data.content.replace(title_match.group(0), "")

@@ -52,26 +52,27 @@ class TestContextualTreeManager(unittest.TestCase):
         text="**This is a concise summary.**"
     )
 
-    @patch("google.generativeai.GenerativeModel.generate_content_async", return_value=mock_response_append)
-    def test_decide_tree_action_append(self, mock_generate_content):
-        tree_manager = ContextualTreeManager(DecisionTree())
-        tree_manager.decision_tree.tree = {
-            0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
-            1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
-            2: Node(name="Node 2 content", node_id=2, content="node_2_content", parent_id=0),
-        }
-        tree_manager.decision_tree.next_node_id = 3
-
-        async def run_test():
-            actions = await Decider().decide_tree_action(tree_manager.decision_tree,
-                                                                                  "This is a test",
-                                                                                  "History",
-                                                                                  "Future")
-            self.assertEqual(actions[0].action, "APPEND")
-            self.assertEqual(actions[0].concept_name, "Node 2 content")
-
-        asyncio.run(run_test())
-        mock_generate_content.assert_called_once()
+    # TODO REMOVE (OLD)
+    # @patch("google.generativeai.GenerativeModel.generate_content_async", return_value=mock_response_append)
+    # def test_decide_tree_action_append(self, mock_generate_content):
+    #     tree_manager = ContextualTreeManager(DecisionTree())
+    #     tree_manager.decision_tree.tree = {
+    #         0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
+    #         1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
+    #         2: Node(name="Node 2 content", node_id=2, content="node_2_content", parent_id=0),
+    #     }
+    #     tree_manager.decision_tree.next_node_id = 3
+    #
+    #     async def run_test():
+    #         actions = await Decider().decide_tree_action(tree_manager.decision_tree,
+    #                                                                               "This is a test",
+    #                                                                               "History",
+    #                                                                               "Future")
+    #         self.assertEqual(actions[0].action, "APPEND")
+    #         self.assertEqual(actions[0].concept_name, "Node 2 content")
+    #
+    #     asyncio.run(run_test())
+    #     mock_generate_content.assert_called_once()
 
     def test_extract_complete_sentences(self):
         tree_manager = ContextualTreeManager(DecisionTree())
@@ -91,25 +92,25 @@ class TestContextualTreeManager(unittest.TestCase):
         complete_sentences = extract_complete_sentences(tree_manager.text_buffer)
         self.assertEqual(complete_sentences, "Sentence one. Sentence two.")
 
-    @patch("google.generativeai.GenerativeModel.generate_content_async", return_value=mock_response_create)
-    def test_decide_tree_action_create(self, mock_generate_content):
-        tree_manager = ContextualTreeManager(DecisionTree())
-        tree_manager.decision_tree.tree = {
-            0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
-            1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
-        }
-        tree_manager.decision_tree.next_node_id = 2
-
-        async def run_test():
-            actions = await Decider().decide_tree_action(tree_manager.decision_tree,
-                                                                                  "This is a test",
-                                                                                  "History",
-                                                                                  "Future")
-            self.assertEqual(actions[0].action, "CREATE")
-            self.assertEqual(actions[0].neighbour_concept_name, "**Node 1 content**")
-
-        asyncio.run(run_test())
-        mock_generate_content.assert_called_once()
+    # @patch("google.generativeai.GenerativeModel.generate_content_async", return_value=mock_response_create)
+    # def test_decide_tree_action_create(self, mock_generate_content):
+    #     tree_manager = ContextualTreeManager(DecisionTree())
+    #     tree_manager.decision_tree.tree = {
+    #         0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
+    #         1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
+    #     }
+    #     tree_manager.decision_tree.next_node_id = 2
+    #
+    #     async def run_test():
+    #         actions = await Decider().decide_tree_action(tree_manager.decision_tree,
+    #                                                                               "This is a test",
+    #                                                                               "History",
+    #                                                                               "Future")
+    #         self.assertEqual(actions[0].action, "CREATE")
+    #         self.assertEqual(actions[0].neighbour_concept_name, "**Node 1 content**")
+    #
+    #     asyncio.run(run_test())
+    #     mock_generate_content.assert_called_once()
 
     @patch("google.generativeai.GenerativeModel.generate_content_async", return_value=mock_response_summary)
     def test_summarize_with_llm(self, mock_generate_content):

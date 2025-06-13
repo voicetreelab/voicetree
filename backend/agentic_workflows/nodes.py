@@ -55,7 +55,8 @@ EXCLUDED_PHRASES = ["based on", "provided data", "new nodes"]
 
 def extract_json_from_response(response: str) -> str:
     """
-    Extract JSON from a response that might be wrapped in markdown code blocks
+    Extract JSON from a response that might be wrapped in markdown code blocks.
+    This function is designed to be resilient to variations in model output.
     
     Args:
         response: LLM response that may contain JSON in markdown blocks
@@ -63,57 +64,93 @@ def extract_json_from_response(response: str) -> str:
     Returns:
         Extracted JSON string
     """
-    # Clean up the response first
+    if not response or not isinstance(response, str):
+        return "{}"
+    
+    # Remove common markdown code block markers
+    response = response.strip()
+    if response.startswith("```json"):
+        response = response[7:]
+    elif response.startswith("```"):
+        response = response[3:]
+    if response.endswith("```"):
+        response = response[:-3]
+    
     response = response.strip()
     
-    # First try to find JSON within markdown code blocks
-    json_match = re.search(r'```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```', response, re.DOTALL)
-    if json_match:
-        return json_match.group(1).strip()
+    # Find the first occurrence of '{' or '['
+    start_bracket = -1
+    for i, char in enumerate(response):
+        if char in ['{', '[']:
+            start_bracket = i
+            break
+            
+    if start_bracket == -1:
+        # No JSON object or array found, try to construct a valid response
+        print(f"⚠️ No JSON brackets found in response: {response[:100]}...")
+        return "{}"
+
+    # Find the last occurrence of '}' or ']'
+    end_bracket = -1
+    bracket_pairs = {'{': '}', '[': ']'}
+    expected_end = bracket_pairs.get(response[start_bracket])
     
-    # If no code blocks found, try to find JSON directly
-    # Look for JSON object or array that spans multiple lines
-    json_match = re.search(r'(\{[^{}]*\{.*\}[^{}]*\}|\[.*\])', response, re.DOTALL)
-    if json_match:
-        return json_match.group(1).strip()
+    for i in range(len(response) - 1, -1, -1):
+        if response[i] == expected_end:
+            end_bracket = i
+            break
+            
+    if end_bracket == -1:
+        # No closing bracket found, try to add one
+        print(f"⚠️ No closing bracket found in response: {response[:100]}...")
+        expected_end = '}' if response[start_bracket] == '{' else ']'
+        response = response[start_bracket:] + expected_end
+        return response
+
+    # Extract the potential JSON string
+    json_str = response[start_bracket : end_bracket + 1]
     
-    # Try simpler JSON patterns
-    json_match = re.search(r'(\{.*\}|\[.*\])', response, re.DOTALL)
-    if json_match:
-        return json_match.group(1).strip()
+    # Basic validation to ensure it's likely JSON
+    try:
+        json.loads(json_str)
+        return json_str
+    except json.JSONDecodeError as e:
+        print(f"⚠️ JSON validation failed: {e}")
+        print(f"⚠️ Extracted JSON: {json_str[:200]}...")
+        # Try to fix common JSON issues
+        fixed_json = _try_fix_json(json_str)
+        if fixed_json:
+            return fixed_json
+        # Fallback to empty JSON for the expected structure
+        return "{}"
+
+def _try_fix_json(json_str: str) -> str:
+    """
+    Try to fix common JSON formatting issues
     
-    # If the response looks like it starts with JSON, try to extract from there
-    if response.lstrip().startswith(('{', '[')):
-        # Find the matching closing bracket
-        stack = []
-        in_string = False
-        escape_next = False
+    Args:
+        json_str: Potentially malformed JSON string
         
-        for i, char in enumerate(response):
-            if escape_next:
-                escape_next = False
-                continue
-                
-            if char == '\\':
-                escape_next = True
-                continue
-                
-            if char == '"' and not escape_next:
-                in_string = not in_string
-                continue
-                
-            if not in_string:
-                if char in '{[':
-                    stack.append(char)
-                elif char in '}]':
-                    if stack:
-                        opener = stack.pop()
-                        if (opener == '{' and char == '}') or (opener == '[' and char == ']'):
-                            if not stack:  # Found complete JSON
-                                return response[:i+1].strip()
+    Returns:
+        Fixed JSON string or None if unfixable
+    """
+    try:
+        # Try removing trailing commas
+        fixed = re.sub(r',(\s*[}\]])', r'\1', json_str)
+        json.loads(fixed)
+        return fixed
+    except json.JSONDecodeError:
+        pass
     
-    # If no JSON found, return the original response
-    return response.strip()
+    try:
+        # Try adding missing quotes around keys
+        fixed = re.sub(r'(\w+):', r'"\1":', json_str)
+        json.loads(fixed)
+        return fixed
+    except json.JSONDecodeError:
+        pass
+    
+    return None
 
 
 def load_prompt_template(prompt_name: str) -> str:
@@ -197,6 +234,17 @@ def process_llm_stage(
         # Handle both dict and list responses
         if isinstance(result, dict) and result_key in result:
             result = result[result_key]
+        elif isinstance(result, dict) and not result:
+            # Empty dict, return empty result appropriate for the stage
+            if result_key == "chunks":
+                result = []
+            elif result_key in ["analyzed_chunks", "integration_decisions"]:
+                result = []
+            else:
+                result = []
+        
+        # Log the final result
+        log_to_file(stage_name, "FINAL_RESULT", str(result)[:500] + "..." if len(str(result)) > 500 else str(result))
         
         return {
             **state,
@@ -223,6 +271,32 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         result_key="chunks",
         next_stage="segmentation_complete"
     )
+    
+    # If segmentation failed or returned no chunks, create a simple fallback
+    if result.get("current_stage") == "error" or not result.get("chunks"):
+        print("⚠️ Segmentation failed or returned no chunks, creating fallback segmentation")
+        transcript = state["transcript_text"].strip()
+        if transcript:
+            # Create a simple single chunk as fallback
+            fallback_chunk = {
+                "name": "Voice Input",
+                "text": transcript,
+                "is_complete": True
+            }
+            result = {
+                **state,
+                "chunks": [fallback_chunk],
+                "current_stage": "segmentation_complete",
+                "incomplete_chunk_remainder": None
+            }
+            print(f"   ✅ Created fallback segmentation with 1 chunk")
+        else:
+            # Empty transcript, return error
+            return {
+                **state,
+                "current_stage": "error",
+                "error_message": "Empty transcript provided for segmentation"
+            }
     
     # If segmentation was successful, filter out incomplete chunks
     if result.get("chunks") and result["current_stage"] != "error":
