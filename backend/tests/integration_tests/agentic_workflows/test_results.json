@@ -6,57 +6,246 @@
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
+          "name": "VoiceTree application test",
+          "text": "This is a test of the VoiceTree application.",
           "is_complete": true
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
+          "name": "Create new node: planning",
+          "text": "I want to create a new node about project planning.",
+          "is_complete": true
+        },
+        {
+          "name": "Step 1: Define scope",
+          "text": "The first step is to define the project scope.",
+          "is_complete": true
+        },
+        {
+          "name": "Step 2: Identify stakeholders",
+          "text": "The next step is to identify the key stakeholders.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
-          "reasoning": "This appears to be a new topic not directly related to existing nodes",
+          "name": "VoiceTree application test",
+          "text": "This is a test of the VoiceTree application.",
+          "reasoning": "This chunk introduces the application being discussed. Since there are no existing nodes, and it doesn't directly relate to the other sub-chunks, it's best to mark it as having no relevant node for now.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
-          "reasoning": "This relates to the project discussion as it elaborates on project work",
-          "relevant_node_name": "Project Discussion",
-          "relationship": "elaborates on"
+          "name": "Create new node: planning",
+          "text": "I want to create a new node about project planning.",
+          "reasoning": "This chunk expresses the intention to discuss project planning. The subsequent chunks seem to detail steps within that planning process. Therefore, this chunk sets the context for the following chunks.",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
+        },
+        {
+          "name": "Step 1: Define scope",
+          "text": "The first step is to define the project scope.",
+          "reasoning": "This chunk describes the first step in project planning. It directly follows the intention declared in the 'Create new node: planning' chunk. Therefore, it's a continuation of that idea.",
+          "relevant_node_name": "Create new node: planning",
+          "relationship": "continuation of"
+        },
+        {
+          "name": "Step 2: Identify stakeholders",
+          "text": "The next step is to identify the key stakeholders.",
+          "reasoning": "This chunk describes the second step in project planning, following the definition of scope. It's a continuation of the planning process initiated in 'Create new node: planning' and follows 'Step 1: Define scope'.",
+          "relevant_node_name": "Create new node: planning",
+          "relationship": "continuation of"
         }
       ],
       "integration_decisions": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
+          "name": "Introduction to the Project",
+          "text": "Okay, so let's start with the introduction to the project.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Project Discussion",
-          "new_node_summary": "Discussion about working on a project today.",
+          "new_node_name": "Introduction to the Project",
+          "new_node_summary": "Initiates the discussion by introducing the project.",
           "relationship_for_edge": null,
-          "content": "Today I want to work on my project"
+          "content": "Okay, so let's start with the introduction to the project."
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
+          "name": "Project Goal",
+          "text": "The goal of this project is to create a comprehensive guide on how to build a birdhouse.",
           "action": "CREATE",
-          "target_node": "Project Discussion",
-          "new_node_name": "Feature Planning",
-          "new_node_summary": "Planning to add new features to improve the project.",
+          "target_node": "Introduction to the Project",
+          "new_node_name": "Project Goal",
+          "new_node_summary": "The project aims to create a comprehensive guide on building a birdhouse.",
           "relationship_for_edge": "elaborates on",
-          "content": "I need to add new features to make it better"
+          "content": "The goal of this project is to create a comprehensive guide on how to build a birdhouse."
+        },
+        {
+          "name": "Target Audience",
+          "text": "This guide is aimed at beginners with little to no woodworking experience.",
+          "action": "CREATE",
+          "target_node": "Project Goal",
+          "new_node_name": "Target Audience",
+          "new_node_summary": "The guide is designed for beginners without prior woodworking experience.",
+          "relationship_for_edge": "elaborates on",
+          "content": "This guide is aimed at beginners with little to no woodworking experience."
+        },
+        {
+          "name": "Guide Structure",
+          "text": "We'll start with selecting materials, then move on to cutting, assembly, and finally, finishing touches.",
+          "action": "CREATE",
+          "target_node": "Project Goal",
+          "new_node_name": "Guide Structure",
+          "new_node_summary": "The guide will cover material selection, cutting, assembly, and finishing touches.",
+          "relationship_for_edge": "elaborates on",
+          "content": "We'll start with selecting materials, then move on to cutting, assembly, and finally, finishing touches."
+        },
+        {
+          "name": "Material Selection",
+          "text": "So, first, let's talk about selecting the right materials for our birdhouse.",
+          "action": "CREATE",
+          "target_node": "Guide Structure",
+          "new_node_name": "Material Selection",
+          "new_node_summary": "Initiates the discussion on selecting appropriate materials for the birdhouse.",
+          "relationship_for_edge": "follows",
+          "content": "So, first, let's talk about selecting the right materials for our birdhouse."
+        },
+        {
+          "name": "Wood Type Recommendation",
+          "text": "For beginners, I recommend using cedar or pine because they are easy to work with and weather-resistant.",
+          "action": "CREATE",
+          "target_node": "Material Selection",
+          "new_node_name": "Wood Type Recommendation",
+          "new_node_summary": "Recommends cedar or pine for beginners due to their workability and weather resistance.",
+          "relationship_for_edge": "elaborates on",
+          "content": "For beginners, I recommend using cedar or pine because they are easy to work with and weather-resistant."
+        },
+        {
+          "name": "Alternative Wood Types",
+          "text": "You could also use plywood, but it requires more care in sealing the edges to prevent water damage.",
+          "action": "CREATE",
+          "target_node": "Wood Type Recommendation",
+          "new_node_name": "Alternative Wood Types",
+          "new_node_summary": "Suggests plywood as an alternative, but notes the need for careful edge sealing to prevent water damage.",
+          "relationship_for_edge": "contrasts with",
+          "content": "You could also use plywood, but it requires more care in sealing the edges to prevent water damage."
+        },
+        {
+          "name": "Fastener Choices",
+          "text": "As for fasteners, galvanized nails or screws are best to prevent rusting.",
+          "action": "CREATE",
+          "target_node": "Material Selection",
+          "new_node_name": "Fastener Choices",
+          "new_node_summary": "Recommends galvanized nails or screws to prevent rusting.",
+          "relationship_for_edge": "elaborates on",
+          "content": "As for fasteners, galvanized nails or screws are best to prevent rusting."
+        },
+        {
+          "name": "Cutting Tools",
+          "text": "Now that we have our materials, let's talk about cutting.",
+          "action": "CREATE",
+          "target_node": "Material Selection",
+          "new_node_name": "Cutting Tools",
+          "new_node_summary": "Transitions the discussion to cutting the materials.",
+          "relationship_for_edge": "follows",
+          "content": "Now that we have our materials, let's talk about cutting."
+        },
+        {
+          "name": "Saw Recommendation",
+          "text": "A simple handsaw or a jigsaw will work for most of the cuts.",
+          "action": "CREATE",
+          "target_node": "Cutting Tools",
+          "new_node_name": "Saw Recommendation",
+          "new_node_summary": "Suggests using a handsaw or jigsaw for most of the cuts.",
+          "relationship_for_edge": "elaborates on",
+          "content": "A simple handsaw or a jigsaw will work for most of the cuts."
+        },
+        {
+          "name": "Safety First",
+          "text": "Remember to always wear safety glasses when cutting!",
+          "action": "CREATE",
+          "target_node": "Cutting Tools",
+          "new_node_name": "Safety First",
+          "new_node_summary": "Emphasizes the importance of wearing safety glasses while cutting.",
+          "relationship_for_edge": "elaborates on",
+          "content": "Remember to always wear safety glasses when cutting!"
+        },
+        {
+          "name": "Assembly Techniques",
+          "text": "Okay, so after cutting all the pieces, we can start with the assembly.",
+          "action": "CREATE",
+          "target_node": "Cutting Tools",
+          "new_node_name": "Assembly Techniques",
+          "new_node_summary": "Moves on to discussing the assembly process after cutting the pieces.",
+          "relationship_for_edge": "follows",
+          "content": "Okay, so after cutting all the pieces, we can start with the assembly."
+        },
+        {
+          "name": "Joining Method",
+          "text": "I recommend using wood glue in addition to nails or screws for a stronger bond.",
+          "action": "CREATE",
+          "target_node": "Assembly Techniques",
+          "new_node_name": "Joining Method",
+          "new_node_summary": "Recommends using wood glue along with nails or screws for a stronger bond during assembly.",
+          "relationship_for_edge": "elaborates on",
+          "content": "I recommend using wood glue in addition to nails or screws for a stronger bond."
+        },
+        {
+          "name": "Clamping Advice",
+          "text": "Clamps can be very helpful to hold the pieces together while the glue dries.",
+          "action": "CREATE",
+          "target_node": "Assembly Techniques",
+          "new_node_name": "Clamping Advice",
+          "new_node_summary": "Suggests using clamps to hold pieces together while the glue dries during assembly.",
+          "relationship_for_edge": "elaborates on",
+          "content": "Clamps can be very helpful to hold the pieces together while the glue dries."
+        },
+        {
+          "name": "Finishing Touches",
+          "text": "Finally, let's talk about the finishing touches to protect the birdhouse from the elements.",
+          "action": "CREATE",
+          "target_node": "Assembly Techniques",
+          "new_node_name": "Finishing Touches",
+          "new_node_summary": "Transitions to discussing finishing touches to protect the birdhouse.",
+          "relationship_for_edge": "follows",
+          "content": "Finally, let's talk about the finishing touches to protect the birdhouse from the elements."
+        },
+        {
+          "name": "Sealing Recommendation",
+          "text": "Applying a non-toxic sealant or paint is a good idea.",
+          "action": "CREATE",
+          "target_node": "Finishing Touches",
+          "new_node_name": "Sealing Recommendation",
+          "new_node_summary": "Recommends applying a non-toxic sealant or paint for protection.",
+          "relationship_for_edge": "elaborates on",
+          "content": "Applying a non-toxic sealant or paint is a good idea."
+        },
+        {
+          "name": "Drainage Holes",
+          "text": "Also, make sure to drill some drainage holes in the bottom to prevent water buildup.",
+          "action": "CREATE",
+          "target_node": "Finishing Touches",
+          "new_node_name": "Drainage Holes",
+          "new_node_summary": "Advises drilling drainage holes to prevent water buildup.",
+          "relationship_for_edge": "elaborates on",
+          "content": "Also, make sure to drill some drainage holes in the bottom to prevent water buildup."
         }
       ],
       "new_nodes": [
-        "Project Discussion",
-        "Feature Planning"
+        "Introduction to the Project",
+        "Project Goal",
+        "Target Audience",
+        "Guide Structure",
+        "Material Selection",
+        "Wood Type Recommendation",
+        "Alternative Wood Types",
+        "Fastener Choices",
+        "Cutting Tools",
+        "Saw Recommendation",
+        "Safety First",
+        "Assembly Techniques",
+        "Joining Method",
+        "Clamping Advice",
+        "Finishing Touches",
+        "Sealing Recommendation",
+        "Drainage Holes"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
@@ -64,61 +253,146 @@
     },
     {
       "transcript_text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me. I should talk to Austin's dad first.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- P\n- j\n- c\n- D\n- i\n- F\n- l",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- I\n- c\n- i\n- P\n- j\n- G\n- l\n- A\n- S\n- M\n- W\n- p\n- m\n- v\n- F\n- w\n- f\n- b\n- q\n- J\n- D\n- H",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
+          "name": "Reach out to investors",
+          "text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me.",
           "is_complete": true
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
+          "name": "Talk to Austin's dad",
+          "text": "I should talk to Austin's dad first.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
-          "reasoning": "This appears to be a new topic not directly related to existing nodes",
-          "relevant_node_name": "NO_RELEVANT_NODE",
-          "relationship": null
+          "name": "Reach out to investors",
+          "text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me.",
+          "reasoning": "This chunk describes a future action. The second chunk describes a specific person to talk to first, so this chunk is a continuation of the overall plan.",
+          "relevant_node_name": "Talk to Austin's dad",
+          "relationship": "followed by"
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
-          "reasoning": "This relates to the project discussion as it elaborates on project work",
-          "relevant_node_name": "Project Discussion",
-          "relationship": "elaborates on"
+          "name": "Talk to Austin's dad",
+          "text": "I should talk to Austin's dad first.",
+          "reasoning": "This chunk describes a specific action to take. There are no existing nodes, but the first sub-chunk describes a related action (reaching out to investors). Talking to Austin's dad could be a preliminary step before reaching out to investors.",
+          "relevant_node_name": "Reach out to investors",
+          "relationship": "preliminary step"
         }
       ],
       "integration_decisions": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
+          "name": "Introduction to the Project",
+          "text": "Okay, so let's start with the introduction to the project.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Project Discussion",
-          "new_node_summary": "Discussion about working on a project today.",
+          "new_node_name": "Introduction to the Project",
+          "new_node_summary": "Begins the project with an introductory statement.",
           "relationship_for_edge": null,
-          "content": "Today I want to work on my project"
+          "content": "Okay, so let's start with the introduction to the project."
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
+          "name": "Project Goal",
+          "text": "The goal is to create a knowledge graph from a conversation.",
           "action": "CREATE",
-          "target_node": "Project Discussion",
-          "new_node_name": "Feature Planning",
-          "new_node_summary": "Planning to add new features to improve the project.",
+          "target_node": "Introduction to the Project",
+          "new_node_name": "Project Goal",
+          "new_node_summary": "The project aims to construct a knowledge graph based on a given conversation.",
           "relationship_for_edge": "elaborates on",
-          "content": "I need to add new features to make it better"
+          "content": "The goal is to create a knowledge graph from a conversation."
+        },
+        {
+          "name": "Data Source",
+          "text": "We'll be using a transcript of a conversation as our data source.",
+          "action": "CREATE",
+          "target_node": "Project Goal",
+          "new_node_name": "Data Source",
+          "new_node_summary": "The data source for the knowledge graph will be a conversation transcript.",
+          "relationship_for_edge": "part of",
+          "content": "We'll be using a transcript of a conversation as our data source."
+        },
+        {
+          "name": "Step 1: Chunking",
+          "text": "The first step is to chunk the conversation into smaller, meaningful segments.",
+          "action": "CREATE",
+          "target_node": "Project Goal",
+          "new_node_name": "Step 1: Chunking",
+          "new_node_summary": "The initial step involves dividing the conversation into smaller, meaningful chunks.",
+          "relationship_for_edge": "leads to",
+          "content": "The first step is to chunk the conversation into smaller, meaningful segments."
+        },
+        {
+          "name": "Chunking Explanation",
+          "text": "These chunks should represent individual ideas or pieces of information.",
+          "action": "APPEND",
+          "target_node": "Step 1: Chunking",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null,
+          "content": "These chunks should represent individual ideas or pieces of information."
+        },
+        {
+          "name": "Step 2: Analysis",
+          "text": "Next, we need to analyze each chunk to understand its content and relationships to other chunks or existing knowledge.",
+          "action": "CREATE",
+          "target_node": "Step 1: Chunking",
+          "new_node_name": "Step 2: Analysis",
+          "new_node_summary": "The subsequent step involves analyzing each chunk to understand its content and relationships.",
+          "relationship_for_edge": "follows",
+          "content": "Next, we need to analyze each chunk to understand its content and relationships to other chunks or existing knowledge."
+        },
+        {
+          "name": "Analysis Details",
+          "text": "This involves identifying key concepts, entities, and the relationships between them.",
+          "action": "APPEND",
+          "target_node": "Step 2: Analysis",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null,
+          "content": "This involves identifying key concepts, entities, and the relationships between them."
+        },
+        {
+          "name": "Step 3: Integration",
+          "text": "Finally, we integrate the analyzed chunks into the knowledge graph.",
+          "action": "CREATE",
+          "target_node": "Step 2: Analysis",
+          "new_node_name": "Step 3: Integration",
+          "new_node_summary": "The final step is to integrate the analyzed chunks into the knowledge graph.",
+          "relationship_for_edge": "follows",
+          "content": "Finally, we integrate the analyzed chunks into the knowledge graph."
+        },
+        {
+          "name": "Integration Explanation",
+          "text": "This means creating new nodes and edges or appending information to existing nodes.",
+          "action": "APPEND",
+          "target_node": "Step 3: Integration",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null,
+          "content": "This means creating new nodes and edges or appending information to existing nodes."
+        },
+        {
+          "name": "Tools and Technologies",
+          "text": "We can use tools like Python with libraries such as NetworkX or RDFlib to build the knowledge graph.",
+          "action": "CREATE",
+          "target_node": "Project Goal",
+          "new_node_name": "Tools and Technologies",
+          "new_node_summary": "Suggests using Python with libraries like NetworkX or RDFlib for building the knowledge graph.",
+          "relationship_for_edge": "implements",
+          "content": "We can use tools like Python with libraries such as NetworkX or RDFlib to build the knowledge graph."
         }
       ],
       "new_nodes": [
-        "Project Discussion",
-        "Feature Planning"
+        "Introduction to the Project",
+        "Project Goal",
+        "Data Source",
+        "Step 1: Chunking",
+        "Step 2: Analysis",
+        "Step 3: Integration",
+        "Tools and Technologies"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
@@ -126,70 +400,170 @@
     },
     {
       "transcript_text": "To be able to start reaching out to investors, I will first have to polish my POC. This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use. I'll also need to prepare a compelling pitch deck and presentation.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- P\n- j\n- c\n- D\n- i\n- F\n- l",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- I\n- c\n- i\n- P\n- j\n- G\n- l\n- A\n- S\n- M\n- W\n- p\n- m\n- v\n- F\n- w\n- f\n- b\n- q\n- J\n- D\n- H\n- 1\n- 2\n- 3",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
+          "name": "Polish POC for Investors",
+          "text": "To be able to start reaching out to investors, I will first have to polish my POC.",
           "is_complete": true
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
+          "name": "Refine User Interface",
+          "text": "This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use.",
+          "is_complete": true
+        },
+        {
+          "name": "Prepare Pitch Deck",
+          "text": "I'll also need to prepare a compelling pitch deck and presentation.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
-          "reasoning": "This appears to be a new topic not directly related to existing nodes",
-          "relevant_node_name": "NO_RELEVANT_NODE",
-          "relationship": null
+          "name": "Polish POC for Investors",
+          "text": "To be able to start reaching out to investors, I will first have to polish my POC.",
+          "reasoning": "This chunk introduces the need to refine the Proof of Concept (POC) to attract investors. The subsequent chunks describe specific aspects of this polishing process. Therefore, the other sub-chunks elaborate on this one.",
+          "relevant_node_name": "Refine User Interface",
+          "relationship": "followed by"
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
-          "reasoning": "This relates to the project discussion as it elaborates on project work",
-          "relevant_node_name": "Project Discussion",
+          "name": "Refine User Interface",
+          "text": "This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use.",
+          "reasoning": "This chunk details specific improvements needed for the POC. It directly relates to the goal stated in the first chunk, 'Polish POC for Investors'.",
+          "relevant_node_name": "Polish POC for Investors",
           "relationship": "elaborates on"
+        },
+        {
+          "name": "Prepare Pitch Deck",
+          "text": "I'll also need to prepare a compelling pitch deck and presentation.",
+          "reasoning": "This chunk describes another task necessary to reach out to investors, similar to polishing the POC. It's a separate but related step.",
+          "relevant_node_name": "Polish POC for Investors",
+          "relationship": "related task"
         }
       ],
       "integration_decisions": [
         {
-          "name": "Project Discussion",
-          "text": "Today I want to work on my project",
+          "name": "Introduction to the Project",
+          "text": "The project aims to develop a personalized AI assistant.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Project Discussion",
-          "new_node_summary": "Discussion about working on a project today.",
+          "new_node_name": "Introduction to the Project",
+          "new_node_summary": "The project aims to develop a personalized AI assistant.",
           "relationship_for_edge": null,
-          "content": "Today I want to work on my project"
+          "content": "The project aims to develop a personalized AI assistant."
         },
         {
-          "name": "Feature Planning",
-          "text": "I need to add new features to make it better",
+          "name": "Key Features",
+          "text": "The assistant will offer scheduling, reminders, and information retrieval.",
           "action": "CREATE",
-          "target_node": "Project Discussion",
-          "new_node_name": "Feature Planning",
-          "new_node_summary": "Planning to add new features to improve the project.",
+          "target_node": "Introduction to the Project",
+          "new_node_name": "Key Features",
+          "new_node_summary": "The AI assistant will offer scheduling, reminders, and information retrieval.",
+          "relationship_for_edge": "part of",
+          "content": "The assistant will offer scheduling, reminders, and information retrieval."
+        },
+        {
+          "name": "Personalization Details",
+          "text": "Personalization will be based on user preferences and past interactions.",
+          "action": "CREATE",
+          "target_node": "Key Features",
+          "new_node_name": "Personalization Details",
+          "new_node_summary": "Personalization of the AI assistant will be based on user preferences and past interactions.",
           "relationship_for_edge": "elaborates on",
-          "content": "I need to add new features to make it better"
+          "content": "Personalization will be based on user preferences and past interactions."
+        },
+        {
+          "name": "Data Sources",
+          "text": "Data will be gathered from calendar entries, contacts, and browsing history.",
+          "action": "CREATE",
+          "target_node": "Personalization Details",
+          "new_node_name": "Data Sources",
+          "new_node_summary": "Data for personalization will be gathered from calendar entries, contacts, and browsing history.",
+          "relationship_for_edge": "depends on",
+          "content": "Data will be gathered from calendar entries, contacts, and browsing history."
+        },
+        {
+          "name": "Privacy Considerations",
+          "text": "User data will be anonymized and securely stored.",
+          "action": "CREATE",
+          "target_node": "Data Sources",
+          "new_node_name": "Privacy Considerations",
+          "new_node_summary": "User data will be anonymized and securely stored to address privacy concerns.",
+          "relationship_for_edge": "relates to",
+          "content": "User data will be anonymized and securely stored."
+        },
+        {
+          "name": "Development Team",
+          "text": "The team consists of AI specialists, software engineers, and UX designers.",
+          "action": "CREATE",
+          "target_node": "Introduction to the Project",
+          "new_node_name": "Development Team",
+          "new_node_summary": "The project's development team consists of AI specialists, software engineers, and UX designers.",
+          "relationship_for_edge": "relates to",
+          "content": "The team consists of AI specialists, software engineers, and UX designers."
+        },
+        {
+          "name": "Timeline",
+          "text": "The project is expected to be completed within 12 months.",
+          "action": "CREATE",
+          "target_node": "Introduction to the Project",
+          "new_node_name": "Timeline",
+          "new_node_summary": "The project is expected to be completed within 12 months.",
+          "relationship_for_edge": "relates to",
+          "content": "The project is expected to be completed within 12 months."
+        },
+        {
+          "name": "First Milestone",
+          "text": "The first milestone is the completion of the core AI engine.",
+          "action": "CREATE",
+          "target_node": "Timeline",
+          "new_node_name": "First Milestone",
+          "new_node_summary": "The first milestone in the project timeline is the completion of the core AI engine.",
+          "relationship_for_edge": "part of",
+          "content": "The first milestone is the completion of the core AI engine."
+        },
+        {
+          "name": "Testing Phase",
+          "text": "Extensive testing will be conducted to ensure reliability and accuracy.",
+          "action": "CREATE",
+          "target_node": "Timeline",
+          "new_node_name": "Testing Phase",
+          "new_node_summary": "Extensive testing will be conducted to ensure the AI assistant's reliability and accuracy.",
+          "relationship_for_edge": "follows",
+          "content": "Extensive testing will be conducted to ensure reliability and accuracy."
+        },
+        {
+          "name": "Deployment Strategy",
+          "text": "The assistant will be initially deployed on mobile platforms.",
+          "action": "CREATE",
+          "target_node": "Introduction to the Project",
+          "new_node_name": "Deployment Strategy",
+          "new_node_summary": "The AI assistant will be initially deployed on mobile platforms as part of the deployment strategy.",
+          "relationship_for_edge": "relates to",
+          "content": "The assistant will be initially deployed on mobile platforms."
         }
       ],
       "new_nodes": [
-        "Project Discussion",
-        "Feature Planning"
+        "Introduction to the Project",
+        "Key Features",
+        "Personalization Details",
+        "Data Sources",
+        "Privacy Considerations",
+        "Development Team",
+        "Timeline",
+        "First Milestone",
+        "Testing Phase",
+        "Deployment Strategy"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
       "error_message": null
     }
   ],
-  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - Project Discussion\n    - Feature Planning    - Project Discussion\n    - Feature Planning",
+  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - Introduction to the Project\n    - Project Goal\n    - Target Audience\n    - Guide Structure\n    - Material Selection\n    - Wood Type Recommendation\n    - Alternative Wood Types\n    - Fastener Choices\n    - Cutting Tools\n    - Saw Recommendation\n    - Safety First\n    - Assembly Techniques\n    - Joining Method\n    - Clamping Advice\n    - Finishing Touches\n    - Sealing Recommendation\n    - Drainage Holes    - Introduction to the Project\n    - Project Goal\n    - Data Source\n    - Step 1: Chunking\n    - Step 2: Analysis\n    - Step 3: Integration\n    - Tools and Technologies",
   "statistics": {
-    "total_new_nodes": 6,
+    "total_new_nodes": 34,
     "append_decisions": 0,
     "create_decisions": 0
   }

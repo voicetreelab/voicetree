@@ -125,7 +125,14 @@ def test_complex_tree_creation():
     
     print(f"\n💾 Results saved to: {output_file}")
     
-    return results
+    # Assert that we got meaningful results
+    assert total_new_nodes > 0, f"Expected to create new nodes, but got {total_new_nodes}"
+    assert len(results) == 3, f"Expected 3 results, but got {len(results)}"
+    
+    # Assert that each transcript produced some output
+    for i, result in enumerate(results):
+        assert result is not None, f"Result {i+1} is None"
+        assert "chunks" in result, f"Result {i+1} missing 'chunks' field"
 
 def test_single_transcript():
     """Test with a single transcript for quick testing"""
@@ -151,7 +158,10 @@ def test_single_transcript():
     result = run_voicetree_pipeline(transcript, existing_nodes)
     print_detailed_results(result)
     
-    return result
+    # Assert that we got a valid result
+    assert result is not None, "Result should not be None"
+    assert "chunks" in result, "Result should contain 'chunks' field"
+    assert len(result.get("chunks", [])) > 0, "Should have processed at least one chunk"
 
 if __name__ == "__main__":
     # Run the complex test with multiple transcripts

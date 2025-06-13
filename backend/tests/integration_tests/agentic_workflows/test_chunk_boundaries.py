@@ -90,32 +90,37 @@ def test_chunk_boundaries():
         for name, node_data in pipeline.state_manager.nodes.items():
             print(f"   • {name}")
     
-    # Test specific expectations
+    # Test core functionality instead of specific concept names
     print("\n✅ Verification:")
     
-    # Should have created nodes for main concepts
-    expected_concepts = ["natural language processing", "transformer", "entity recognition", 
-                        "sentiment analysis", "multi-language support"]
+    # Test 1: Chunks should be processed
+    total_nodes = sum(len(r['new_nodes']) for r in all_results)
+    assert total_nodes > 0, f"Expected some nodes to be created, but got {total_nodes}"
+    print(f"   ✓ Created {total_nodes} nodes total")
     
-    node_names_lower = [name.lower() for name in pipeline.state_manager.nodes.keys()] if pipeline.state_manager else []
-    found_concepts = []
+    # Test 2: Incomplete chunks should be buffered
+    incomplete_chunks = sum(1 for r in all_results if r['has_incomplete'])
+    assert incomplete_chunks > 0, "Expected some chunks to be incomplete and buffered"
+    print(f"   ✓ Buffered {incomplete_chunks} incomplete chunks")
     
-    for concept in expected_concepts:
-        found = any(concept in node_name for node_name in node_names_lower)
-        found_concepts.append(found)
-        status = "✓" if found else "✗"
-        print(f"   {status} Found concept: {concept}")
+    # Test 3: Some chunks should have content from previous buffers 
+    buffered_chunks = sum(1 for r in all_results if r['had_buffer'])
+    assert buffered_chunks > 0, "Expected some chunks to use buffered content from previous execution"
+    print(f"   ✓ Used buffered content in {buffered_chunks} chunks")
     
-    # Overall test result
-    if all(found_concepts):
-        print("\n🎉 All expected concepts were extracted despite chunk boundaries!")
-    else:
-        print("\n⚠️  Some concepts were missed - chunk handling may need improvement")
+    # Test 4: Final state should have multiple nodes
+    assert stats['total_nodes'] >= 5, f"Expected at least 5 total nodes, got {stats['total_nodes']}"
+    print(f"   ✓ Final state has {stats['total_nodes']} nodes")
+    
+    # Test 5: No errors in processing
+    for i, result in enumerate(all_results):
+        assert result.get("error_message") is None, f"Chunk {i+1} had error: {result.get('error_message')}"
+    print(f"   ✓ All {len(voice_chunks)} chunks processed without errors")
+    
+    print("\n🎉 All chunk boundary tests passed!")
     
     # Cleanup
     Path(state_file).unlink(missing_ok=True)
-    
-    return all(found_concepts)
 
 
 def test_extreme_boundaries():
@@ -152,13 +157,25 @@ def test_extreme_boundaries():
     # Cleanup
     Path("test_extreme_state.json").unlink(missing_ok=True)
     
-    return stats['total_nodes'] > 0
+    # Assert that nodes were created
+    assert stats['total_nodes'] > 0, f"Expected nodes to be created, but got {stats['total_nodes']}"
 
 
 if __name__ == "__main__":
     # Run both tests
-    test1_passed = test_chunk_boundaries()
-    test2_passed = test_extreme_boundaries()
+    try:
+        test_chunk_boundaries()
+        test1_passed = True
+    except Exception as e:
+        print(f"❌ test_chunk_boundaries failed: {e}")
+        test1_passed = False
+    
+    try:
+        test_extreme_boundaries()
+        test2_passed = True
+    except Exception as e:
+        print(f"❌ test_extreme_boundaries failed: {e}")
+        test2_passed = False
     
     print("\n" + "="*60)
     print("🏁 Overall Test Results:")

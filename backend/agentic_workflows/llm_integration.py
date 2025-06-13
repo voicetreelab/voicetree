@@ -35,52 +35,7 @@ SCHEMA_MAP = {
     "extraction": NodeExtractionResponse
 }
 
-# Mock responses for fallback (updated to match new schema)
-MOCK_RESPONSES = {
-    "segmentation": SegmentationResponse(chunks=[
-        {"name": "Project Discussion", "text": "Today I want to work on my project", "is_complete": True},
-        {"name": "Feature Planning", "text": "I need to add new features to make it better", "is_complete": True}
-    ]),
-    "relationship": RelationshipResponse(analyzed_chunks=[
-        {
-            "name": "Project Discussion",
-            "text": "Today I want to work on my project",
-            "reasoning": "This appears to be a new topic not directly related to existing nodes",
-            "relevant_node_name": "NO_RELEVANT_NODE",
-            "relationship": None
-        },
-        {
-            "name": "Feature Planning", 
-            "text": "I need to add new features to make it better",
-            "reasoning": "This relates to the project discussion as it elaborates on project work",
-            "relevant_node_name": "Project Discussion",
-            "relationship": "elaborates on"
-        }
-    ]),
-    "integration": IntegrationResponse(integration_decisions=[
-        {
-            "name": "Project Discussion",
-            "text": "Today I want to work on my project", 
-            "action": "CREATE",
-            "target_node": "NO_RELEVANT_NODE",
-            "new_node_name": "Project Discussion",
-            "new_node_summary": "Discussion about working on a project today.",
-            "relationship_for_edge": None,
-            "content": "Today I want to work on my project"
-        },
-        {
-            "name": "Feature Planning",
-            "text": "I need to add new features to make it better",
-            "action": "CREATE", 
-            "target_node": "Project Discussion",
-            "new_node_name": "Feature Planning",
-            "new_node_summary": "Planning to add new features to improve the project.",
-            "relationship_for_edge": "elaborates on",
-            "content": "I need to add new features to make it better"
-        }
-    ]),
-    "extraction": NodeExtractionResponse(new_nodes=["Project Discussion", "Feature Planning"])
-}
+
 
 
 def _load_environment() -> None:
@@ -102,28 +57,15 @@ def _load_environment() -> None:
 
 def _initialize_gemini() -> bool:
     """
-    Initialize Gemini API if available
+    Initialize Gemini API using the new google.genai package
     
     Returns:
         True if successfully initialized, False otherwise
     """
     try:
-        # Try both the new and old APIs to see what's available
-        try:
-            from google import genai
-            new_api_available = True
-        except ImportError:
-            new_api_available = False
-        
-        try:
-            import google.generativeai as old_genai
-            old_api_available = True
-        except ImportError:
-            old_api_available = False
-        
-        if not (new_api_available or old_api_available):
-            print("⚠️ Google Generative AI package not available")
-            return False
+        # Only use the new API
+        import google.genai as genai
+        print("✅ Google Genai API available")
         
         # Try to get API key from environment
         api_key = os.environ.get("GOOGLE_API_KEY")
@@ -145,23 +87,17 @@ def _initialize_gemini() -> bool:
                 pass
         
         if api_key:
-            # Configure both APIs if available
-            if old_api_available:
-                old_genai.configure(api_key=api_key)
-            
-            if new_api_available:
-                print("✅ New Gemini API available")
-            if old_api_available:
-                print("✅ Old Gemini API available as fallback")
-            
             print("✅ Gemini API configured successfully")
             return True
         else:
-            print("⚠️ No API key found")
+            print("❌ No API key found in environment variables or settings.py")
             return False
             
+    except ImportError:
+        print("❌ google.genai package not available. Install with: pip install google-genai")
+        return False
     except Exception as e:
-        print(f"⚠️ Error initializing Gemini API: {e}")
+        print(f"❌ Error initializing Gemini API: {e}")
         return False
 
 
@@ -181,13 +117,21 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         
     Returns:
         Pydantic model instance with structured response
+        
+    Raises:
+        RuntimeError: If Gemini API is not available or configured
+        ValueError: If API key is missing or stage type is unknown
     """
     if not GEMINI_AVAILABLE:
-        print("ℹ️ Using mock LLM responses - API not available")
-        return MOCK_RESPONSES.get(stage_type, MOCK_RESPONSES["segmentation"])
+        raise RuntimeError(
+            "❌ Gemini API is not available. Please ensure:\n"
+            "1. google-generativeai package is installed: pip install google-generativeai\n"
+            "2. GOOGLE_API_KEY environment variable is set\n"
+            "3. API key is valid and has proper permissions"
+        )
     
     try:
-        from google import genai
+        import google.genai as genai
         
         schema_class = SCHEMA_MAP.get(stage_type)
         if not schema_class:
@@ -207,52 +151,19 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         if not api_key:
             raise ValueError("No Google API key available")
         
-        # Use the new genai.Client API as recommended by Google
+        # Use the new genai.Client API
         client = genai.Client(api_key=api_key)
         
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": schema_class,
-                    "max_output_tokens": 8192,
-                    "temperature": 0.3,
-                }
-            )
-        except Exception as e:
-            # If the new API fails, try the old API as fallback
-            print(f"⚠️ New API failed ({e}), trying old API...")
-            import google.generativeai as old_genai
-            
-            old_genai.configure(api_key=api_key)
-            model = old_genai.GenerativeModel(model_name)
-            
-            try:
-                response = model.generate_content(
-                    prompt,
-                    generation_config=old_genai.types.GenerationConfig(
-                        response_mime_type="application/json",
-                        response_schema=schema_class,
-                        max_output_tokens=8192,
-                        temperature=0.3,
-                    )
-                )
-            except TypeError as te:
-                if "response_mime_type" in str(te) or "response_schema" in str(te):
-                    # Fallback to older API without structured output
-                    print("⚠️ Using fallback generation config (older API)")
-                    enhanced_prompt = f"{prompt}\n\nIMPORTANT: Return ONLY valid JSON that matches this exact schema: {schema_class.model_json_schema()}\nDo not include any explanatory text, markdown formatting, or code blocks. Return only the JSON object."
-                    response = model.generate_content(
-                        enhanced_prompt,
-                        generation_config=old_genai.types.GenerationConfig(
-                            max_output_tokens=8192,
-                            temperature=0.3,
-                        )
-                    )
-                else:
-                    raise
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": schema_class,
+                "max_output_tokens": 8192,
+                "temperature": 0.3,
+            }
+        )
         
         # Try to use parsed response first (from new API)
         if hasattr(response, 'parsed') and response.parsed is not None:
@@ -285,9 +196,9 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
             raise ValueError("No text content in Gemini response")
             
     except Exception as e:
-        print(f"❌ Error calling Gemini API: {str(e)}")
-        print("⚠️ Falling back to mock response")
-        return MOCK_RESPONSES.get(stage_type, MOCK_RESPONSES["segmentation"])
+        error_msg = f"❌ Error calling Gemini API: {str(e)}"
+        print(error_msg)
+        raise RuntimeError(f"{error_msg}\nPlease check your API configuration and try again.")
 
 
 def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
@@ -301,58 +212,58 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         
     Returns:
         The LLM response as a string
+        
+    Raises:
+        RuntimeError: If Gemini API is not available or configured
     """
     if not GEMINI_AVAILABLE:
-        print("ℹ️ Using mock LLM responses - API not available")
-        return _get_mock_response(prompt)
+        raise RuntimeError(
+            "❌ Gemini API is not available. Please ensure:\n"
+            "1. google-generativeai package is installed: pip install google-generativeai\n"
+            "2. GOOGLE_API_KEY environment variable is set\n"
+            "3. API key is valid and has proper permissions"
+        )
     
     try:
-        import google.generativeai as genai
+        import google.genai as genai
         
         print(f"🤖 Calling Gemini API ({model_name})...")
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
+        
+        # Get API key
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            try:
+                from backend import settings
+                api_key = getattr(settings, 'GOOGLE_API_KEY', None)
+            except ImportError:
+                pass
+        
+        if not api_key:
+            raise ValueError("No Google API key available")
+        
+        # Use the new genai.Client API
+        client = genai.Client(api_key=api_key)
+        
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config={
+                "max_output_tokens": 8192,
+                "temperature": 0.3,
+            }
+        )
         
         # Check if response has text
         if hasattr(response, 'text') and response.text:
             print(f"✅ API call successful - response length: {len(response.text)} chars")
             return response.text
         else:
-            # Try to get text from candidates
-            if hasattr(response, 'candidates') and response.candidates:
-                text = response.candidates[0].content.parts[0].text
-                print(f"✅ API call successful - response length: {len(text)} chars")
-                return text
-            else:
-                print(f"❌ No text in response: {response}")
-                raise ValueError("No text content in Gemini response")
+            print(f"❌ No text in response: {response}")
+            raise ValueError("No text content in Gemini response")
     except Exception as e:
-        print(f"❌ Error calling Gemini API: {str(e)}")
-        print("⚠️ Falling back to mock response")
-        return _get_mock_response(prompt)
+        error_msg = f"❌ Error calling Gemini API: {str(e)}"
+        print(error_msg)
+        raise RuntimeError(f"{error_msg}\nPlease check your API configuration and try again.")
 
 
-def _get_mock_response(prompt: str) -> str:
-    """
-    Get appropriate mock response based on prompt content (legacy)
-    
-    Args:
-        prompt: The prompt to analyze
-        
-    Returns:
-        Mock response string
-    """
-    import json
-    
-    prompt_lower = prompt.lower()
-    
-    if "segmenting conversational transcripts" in prompt_lower:
-        return MOCK_RESPONSES["segmentation"].model_dump_json()
-    elif "semantic matching" in prompt_lower:
-        return MOCK_RESPONSES["relationship"].model_dump_json()
-    elif "deciding how to integrate" in prompt_lower:
-        return MOCK_RESPONSES["integration"].model_dump_json()
-    elif "extract from this output" in prompt_lower:
-        return json.dumps(MOCK_RESPONSES["extraction"].model_dump()["new_nodes"])
-    
-    return "Mock response for unknown prompt type"
+

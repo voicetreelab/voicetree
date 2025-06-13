@@ -1,6 +1,0 @@
-# Requirements for VoiceTree LangGraph tests
-langgraph>=0.0.55
-langchain-core>=0.1.0
-google-generativeai>=0.3.0
-pydantic>=2.0.0
-python-dotenv>=1.0.0 

@@ -1,0 +1,136 @@
+{
+  "nodes": {
+    "Introduction to the Topic": {
+      "name": "Introduction to the Topic",
+      "created_at": "2025-06-13T23:03:10.347394",
+      "summary": "Introduces the topic of how to use the new AI tool.",
+      "parent": "NO_RELEVANT_NODE",
+      "content": "Okay, so today we're going to talk about how to use the new AI tool.",
+      "source_chunk": "Introduction to the Topic"
+    },
+    "Accessing the AI Tool": {
+      "name": "Accessing the AI Tool",
+      "created_at": "2025-06-13T23:03:10.347407",
+      "summary": "Explains the first step to access the AI tool, which is logging into the company portal and finding the AI tool icon.",
+      "parent": "Introduction to the Topic",
+      "content": "First, you'll need to log in to the company portal and find the AI tool icon on the main dashboard.",
+      "source_chunk": "Accessing the AI Tool"
+    },
+    "Initial AI Tool Interface": {
+      "name": "Initial AI Tool Interface",
+      "created_at": "2025-06-13T23:03:10.347411",
+      "summary": "Describes the initial interface of the AI tool, including a search bar and pre-set options, after clicking the icon.",
+      "parent": "Accessing the AI Tool",
+      "content": "Once you click on the icon, you'll be taken to the main interface, which has a search bar and a few pre-set options.",
+      "source_chunk": "Initial AI Tool Interface"
+    },
+    "Using the Search Bar": {
+      "name": "Using the Search Bar",
+      "created_at": "2025-06-13T23:03:10.347415",
+      "summary": "Explains that the search bar is the easiest way to find specific information by typing in what you are looking for.",
+      "parent": "Initial AI Tool Interface",
+      "content": "The search bar is the easiest way to find specific information. Just type in what you're looking for.",
+      "source_chunk": "Using the Search Bar"
+    },
+    "AI Tool Response": {
+      "name": "AI Tool Response",
+      "created_at": "2025-06-13T23:03:10.347418",
+      "summary": "Describes that the AI tool will generate a list of relevant documents and FAQs in response to a search query.",
+      "parent": "Using the Search Bar",
+      "content": "The AI will then generate a list of relevant documents and FAQs.",
+      "source_chunk": "AI Tool Response"
+    },
+    "Pre-set Options": {
+      "name": "Pre-set Options",
+      "created_at": "2025-06-13T23:03:10.347422",
+      "summary": "Explains that the AI tool also provides pre-set options for common tasks like generating reports or scheduling meetings.",
+      "parent": "Initial AI Tool Interface",
+      "content": "Alternatively, you can use the pre-set options for common tasks like generating reports or scheduling meetings.",
+      "source_chunk": "Pre-set Options"
+    },
+    "Generating Reports": {
+      "name": "Generating Reports",
+      "created_at": "2025-06-13T23:03:10.347425",
+      "summary": "Describes how to generate a report by selecting the 'Generate Report' option and choosing the report type.",
+      "parent": "Pre-set Options",
+      "content": "To generate a report, simply select the 'Generate Report' option and choose the type of report you need.",
+      "source_chunk": "Generating Reports"
+    },
+    "Scheduling Meetings": {
+      "name": "Scheduling Meetings",
+      "created_at": "2025-06-13T23:03:10.347429",
+      "summary": "Describes how to schedule meetings by clicking on 'Schedule Meeting' and following the prompts.",
+      "parent": "Pre-set Options",
+      "content": "For scheduling meetings, click on 'Schedule Meeting' and follow the prompts to invite attendees and set a time.",
+      "source_chunk": "Scheduling Meetings"
+    },
+    "Introduction to the Project": {
+      "name": "Introduction to the Project",
+      "created_at": "2025-06-13T23:03:22.339349",
+      "summary": "The project focuses on constructing a knowledge graph derived from conversational data.",
+      "parent": "NO_RELEVANT_NODE",
+      "content": "The project is about building a knowledge graph from conversations.",
+      "source_chunk": "Introduction to the Project"
+    },
+    "Task of the Expert System Component": {
+      "name": "Task of the Expert System Component",
+      "created_at": "2025-06-13T23:03:22.339362",
+      "summary": "The expert system component determines the integration method for analyzed conversational sub-chunks within a knowledge graph.",
+      "parent": "Introduction to the Project",
+      "content": "The expert system component decides how to integrate analyzed conversational sub-chunks into an existing knowledge graph.",
+      "source_chunk": "Task of the Expert System Component"
+    },
+    "Available Relationship Types": {
+      "name": "Available Relationship Types",
+      "created_at": "2025-06-13T23:03:22.339367",
+      "summary": "Lists the different relationship types that can be used to connect nodes in the knowledge graph.",
+      "parent": "Task of the Expert System Component",
+      "content": "The available relationship types include 'part of', 'elaborates on', 'leads to', 'implements', 'exemplifies', 'contrasts with', 'depends on', 'relates to', 'follows', and 'includes'.",
+      "source_chunk": "Available Relationship Types"
+    },
+    "Input: Analyzed Sub-chunks": {
+      "name": "Input: Analyzed Sub-chunks",
+      "created_at": "2025-06-13T23:03:22.339371",
+      "summary": "The input consists of a JSON list of analyzed sub-chunks, each with name, text, relevant_node_name, and relationship attributes.",
+      "parent": "Task of the Expert System Component",
+      "content": "The input is a JSON list of analyzed sub-chunks, each containing a name, text, relevant_node_name, and relationship.",
+      "source_chunk": "Input: Analyzed Sub-chunks"
+    },
+    "Output: JSON Object": {
+      "name": "Output: JSON Object",
+      "created_at": "2025-06-13T23:03:22.339374",
+      "summary": "The output is a JSON object that includes the decision and metadata for each processed sub-chunk.",
+      "parent": "Task of the Expert System Component",
+      "content": "The output is a JSON object containing the decision and metadata for all processed sub-chunks.",
+      "source_chunk": "Output: JSON Object"
+    }
+  },
+  "execution_history": [
+    {
+      "timestamp": "2025-06-13T23:03:10.347432",
+      "new_nodes": [
+        "Introduction to the Topic",
+        "Accessing the AI Tool",
+        "Initial AI Tool Interface",
+        "Using the Search Bar",
+        "AI Tool Response",
+        "Pre-set Options",
+        "Generating Reports",
+        "Scheduling Meetings"
+      ],
+      "total_nodes_after": 8
+    },
+    {
+      "timestamp": "2025-06-13T23:03:22.339376",
+      "new_nodes": [
+        "Introduction to the Project",
+        "Task of the Expert System Component",
+        "Available Relationship Types",
+        "Input: Analyzed Sub-chunks",
+        "Output: JSON Object"
+      ],
+      "total_nodes_after": 13
+    }
+  ],
+  "last_saved": "2025-06-13T23:03:22.339379"
+}
