@@ -1,0 +1,9 @@
+{
+    "date": "2025-06-13 18:48:15",
+    "transcript_file": "/Users/bobbobby/repos/VoiceTreePoc/oldVaults/VoiceTreePOC/og_vt_transcript.txt",
+    "output_dir": "/Users/bobbobby/repos/VoiceTreePoc/oldVaults/VoiceTreePOC/QualityTest",
+    "quality_log_file": "/Users/bobbobby/repos/VoiceTreePoc/latest_quality_log.txt",
+    "workflow_io_log": "/Users/bobbobby/repos/VoiceTreePoc/backend/agentic_workflows/workflow_io.log",
+    "git_commit_hash": "2a7c152a33651ffa7713e8b4662c272e66f6f7c4",
+    "git_commit_message": "Better benchmarker + strategist"
+}

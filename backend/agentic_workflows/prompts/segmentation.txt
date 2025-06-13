@@ -7,9 +7,9 @@ Output ONLY the following JSON object. Adhere strictly to this format. No extra 
 
 
   "chunks": [
-    {{ "name": "Chunk 1 concise name", "text": "Chunk 1 text...", "is_complete": true }},
+    { "name": "Chunk 1 concise name", "text": "Chunk 1 text...", "is_complete": true },
     // ... more chunks ...
-    {{ "name": "Final chunk concise name", "text": "Final chunk text...", "is_complete": <true_or_false> }}
+    { "name": "Final chunk concise name", "text": "Final chunk text...", "is_complete": <true_or_false> }
   ]
 
 ────────────────────────────────────────
