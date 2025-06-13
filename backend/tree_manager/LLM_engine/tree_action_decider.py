@@ -101,7 +101,15 @@ class Decider:
                 f"Warning: Could not process LLM response: {e} - Response: {response_text} "
                 f"- Type: {type(e)} - Traceback: {traceback.format_exc()}"
             )
-            return [("CREATE", "Unknown Relationship", 0, f"## Unknown Content\n **{e}**\n {response_text}")]
+            return [NodeAction(labelled_text="Unknown",
+                                 action="CREATE",
+                                 concept_name="Unknown Concept",
+                                 neighbour_concept_name="Unknown Neighbour",
+                                 relationship_to_neighbour="Unknown Relationship",
+                                 updated_summary_of_node=f"## Unknown Content\n **{e}**\n {response_text}",
+                                 markdown_content_to_append="",
+                                 is_complete=True
+                                 )]
 
     def get_prev_chunk(self) -> str:
         """Returns the previous text chunk processed."""

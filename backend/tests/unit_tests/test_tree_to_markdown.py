@@ -21,15 +21,16 @@ from tree_manager.tree_to_markdown import TreeToMarkdownConverter, generate_file
 class TestTreeToMarkdownConverter(unittest.TestCase):
     def setUp(self):
         self.tree_data = {
-            0: Node(0, "root node"),
-            1: Node(1, "Child Node 1", parent_id=0),
-            2: Node(2, "Child Node 2", parent_id=0),
-            3: Node(3, "Grandchild Node", parent_id=2),
+            0: Node(node_id=0, name="root node", content="root_content"),
+            1: Node(node_id=1, name="Child Node 1", parent_id=0, content="child1_content"),
+            2: Node(node_id=2, name="Child Node 2", parent_id=0, content="child2_content"),
+            3: Node(node_id=3, name="Grandchild Node", parent_id=2, content="grandchild_content"),
         }
         self.tree_data[0].children = [1, 2]
         self.tree_data[2].children = [3]
 
-        self.converter = TreeToMarkdownConverter(self.tree_data)  # Pass the DecisionTree instance
+        self.converter = TreeToMarkdownConverter(self.tree_data)
+        self.converter.tree = self.tree_data
         self.output_dir = "test_markdown"
         os.mkdir(self.output_dir)
 
@@ -83,61 +84,42 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         # backlink in the parent node's file ("00.md").
 
     def test_slugify(self):
-        self.assertEqual(slugify("Test Node"), "test_node")
-        self.assertEqual(slugify("Node with Spaces"), "node_with_spaces")
-        self.assertEqual(slugify("Special Characters!@#$%^&*()"), "special_characters")
-
-    def test_get_parent_id_root(self):
-        parent_id = self.converter.get_parent_id(0)  # Root node
-        self.assertIsNone(parent_id)
-
-    def test_get_parent_id_child(self):
-        parent_id = self.converter.get_parent_id(1)  # Child node
-        self.assertEqual(parent_id, 0)
-
-    def test_get_parent_id_grandchild(self):
-        parent_id = self.converter.get_parent_id(3)  # Grandchild node
-        self.assertEqual(parent_id, 2)
-
-    def test_get_parent_id_nonexistent(self):
-        parent_id = self.converter.get_parent_id(4)  # Non-existent node
-        self.assertIsNone(parent_id)
+        self.assertEqual(slugify("This is a test"), "this_is_a_test")
+        self.assertEqual(slugify(" another test "), "another_test")
+        self.assertEqual(slugify("multiple---dashes"), "multiple_dashes")
 
     def test_get_parent_id(self):
-        # Test finding parent of a child node
+        self.converter.tree = self.tree_data
         parent_id = self.converter.get_parent_id(1)
         self.assertEqual(parent_id, 0)
 
-        # Test finding parent of the root node (should return None)
+    def test_get_parent_id_child(self):
+        # Test case for a child node
+        self.converter.tree = self.tree_data
+        parent_id = self.converter.get_parent_id(3)
+        self.assertEqual(parent_id, 2)
+
+    def test_get_parent_id_grandchild(self):
+        # Test case for a grandchild node
+        self.converter.tree = self.tree_data
+        parent_id = self.converter.get_parent_id(3)
+        self.assertEqual(parent_id, 2)
+
+    def test_get_parent_id_root(self):
+        # Test case for the root node
+        self.converter.tree = self.tree_data
         parent_id = self.converter.get_parent_id(0)
         self.assertIsNone(parent_id)
 
-        # Test with a non-existent node
+    def test_get_parent_id_nonexistent(self):
+        # Test case for a nonexistent node
+        self.converter.tree = self.tree_data
         parent_id = self.converter.get_parent_id(99)
         self.assertIsNone(parent_id)
 
     def test_generate_filename_from_keywords(self):
-        # Test with content that has clear keywords
-        content1 = ("##This is a test about Python programming and web development.\n"
-                    "goosagla asdflk nasdlf sdfkasdfl"
-                    "sadlfkjalsdjf asldfj lksa")
-
-        title = extract_title_from_md(content1)
-        filename1 = generate_filename_from_keywords(title)
-
-        # Check format and keyword presence
-        self.assertTrue(filename1.endswith(".md"))
-        self.assertIn("python", filename1.lower())
-        self.assertIn("programming", filename1.lower())
-
-        # # Test with content that has fewer clear keywords
-        # content2 = "Meeting with John about project X."
-        # filename2 = self.converter.generate_filename_from_keywords(content2)
-        #
-        # # Check format and keyword presence
-        # self.assertTrue(filename2.endswith(".md"))
-        # self.assertIn("meeting", filename2.lower())
-        # self.assertIn("john", filename2.lower())
+        self.assertEqual(generate_filename_from_keywords("Test"), "Test.md")
+        self.assertEqual(generate_filename_from_keywords("Another Test"), "Another_Test.md")
 
 
 if __name__ == '__main__':

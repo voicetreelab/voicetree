@@ -43,7 +43,7 @@ class DecisionTree:
 **The root node for today. Add unrelated content here.**
 """
         self.tree: Dict[int, Node] = {
-            0: Node("Tuesday_13th_August", 0, today_root_node_content, summary="The default root node for today's work.",
+            0: Node("Root", 0, today_root_node_content, summary="The default root node for today's work.",
                     parent_id=None)  # Create root node
         }
         self.next_node_id: int = 1

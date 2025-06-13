@@ -10,7 +10,7 @@ setup(
         "setuptools",
         "pyaudio",
         "SpeechRecognition",
-        "torch~=2.3.0",
+        "torch~=2.2.0",
         "numpy~=1.26.4",
         "google~=3.0.0",
         "nltk~=3.8.1",

@@ -7,32 +7,34 @@ from tree_manager.decision_tree_ds import DecisionTree, Node
 
 class TestDecisionTree(unittest.TestCase):
     def test_append_to_node(self):
-        tree = DecisionTree()
-        tree.create_new_node(0, "**Node 1 content**")
-        tree.tree[1].append_content( "New content.")
-        self.assertEqual(tree.tree[1].content, "**Node 1 content**\nNew content.")
-        self.assertGreater(tree.tree[1].modified_at, datetime.now() - timedelta(seconds=1))
+        dt = DecisionTree()
+        dt.create_new_node("test_node", 0, "test_content", "test_summary")
+        dt.tree[1].append_content("appended content", "appended_summary")
+        self.assertIn("appended content", dt.tree[1].content)
 
     def test_create_new_node(self):
-        tree = DecisionTree()
-        tree.create_new_node(0, "New node content")
-        self.assertIn(1, tree.tree)  # Check if node ID 1 exists in the nodes dictionary
-        self.assertEqual(tree.tree[1].content, "New node content")
-        self.assertGreater(tree.tree[1].created_at, datetime.now() - timedelta(seconds=1))
+        dt = DecisionTree()
+        new_node_id = dt.create_new_node("test_node", 0, "test_content", "test_summary")
+        self.assertEqual(new_node_id, 1)
+        self.assertIn(1, dt.tree)
+        self.assertEqual(dt.tree[1].parent_id, 0)
 
     def test_get_recent_nodes(self):
-        tree = DecisionTree()
-        tree.create_new_node(0, "**Node 1 content**")
-        tree.create_new_node(0, "Node 2 content")
+        dt = DecisionTree()
+        dt.create_new_node("node1", 0, "content1", "summary1")
         time.sleep(0.01)
-        tree.tree[0].append_content("Modified root content")
-        tree.tree[1].append_content("Modified **Node 1 content**")
-
-        recent_nodes = tree.get_recent_nodes(num_nodes=2)
-        self.assertEqual(recent_nodes, [1, 0])
+        dt.create_new_node("node2", 0, "content2", "summary2")
+        recent_nodes = dt.get_recent_nodes(1)
+        self.assertEqual(len(recent_nodes), 1)
+        self.assertEqual(recent_nodes[0], 2)
 
     def test_get_parent_id(self):
-        tree = DecisionTree()
-        tree.create_new_node(0, "Child Node")
-        self.assertEqual(tree.get_parent_id(1), 0)  # Child node
-        self.assertIsNone(tree.get_parent_id(0))  # Root node
+        dt = DecisionTree()
+        dt.create_new_node("node1", 0, "content1", "summary1")
+        dt.create_new_node("node2", 1, "content2", "summary2")
+        parent_id = dt.get_parent_id(2)
+        self.assertEqual(parent_id, 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

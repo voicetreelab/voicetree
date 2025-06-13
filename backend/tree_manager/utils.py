@@ -23,13 +23,29 @@ def extract_complete_sentences(text_chunk) -> str:
     Returns:
         str: The extracted complete sentences.
     """
-    last_sentence_end_matches = re.findall(r"[.!?)]", text_chunk)
-
-    if last_sentence_end_matches:
-        last_sentence_end = last_sentence_end_matches[-1]
-        last_sentence_end_index = text_chunk.rfind(last_sentence_end) + len(last_sentence_end)
-        text_to_process = text_chunk[:last_sentence_end_index]
-        return text_to_process
+    # Split into sentences using nltk-like approach but simpler
+    # First, handle ellipses as incomplete sentences
+    if text_chunk.rstrip().endswith('...'):
+        # Find the last sentence that ends with proper punctuation before the ellipses
+        # Split by ellipses first
+        parts = text_chunk.split('...')
+        if len(parts) > 1:
+            # Everything before the last part (which contains ellipses)
+            text_before_ellipses = '...'.join(parts[:-1])
+            # Check if there are complete sentences in the part before ellipses
+            if text_before_ellipses.strip():
+                # Find the last proper sentence ending
+                matches = re.findall(r'[^.!?]*[.!?]', text_before_ellipses)
+                if matches:
+                    return ''.join(matches).strip()
+        return ""
+    
+    # For regular case, find all complete sentences
+    # This regex captures text ending with . ! or ? (but not ...)
+    matches = re.findall(r'[^.!?]*[.!?](?![.])', text_chunk)
+    
+    if matches:
+        return ''.join(matches).strip()
     else:
         return ""  # No complete sentence found
 

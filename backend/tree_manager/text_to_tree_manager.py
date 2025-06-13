@@ -13,38 +13,10 @@ from tree_manager.LLM_engine.background_rewrite import Rewriter
 from tree_manager.LLM_engine.summarize_with_llm import Summarizer
 from tree_manager.LLM_engine.tree_action_decider import Decider
 from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.utils import extract_summary, remove_first_word
+from tree_manager.utils import extract_summary, remove_first_word, extract_complete_sentences
 from tree_manager import NodeAction
 
 genai.configure(api_key=settings.GOOGLE_API_KEY)
-
-
-def extract_complete_sentences(text_chunk) -> str:
-    """
-    Extracts complete sentences from the text buffer, leaving any incomplete
-    sentence in the buffer.
-
-    Returns:
-        str: The extracted complete sentences.
-    """
-    # Use re.finditer to get match objects with positions
-    matches = list(re.finditer(r"\w([.!?])(?:\s|$)", text_chunk))
-
-    if matches:
-        # Get the end index of the last complete sentence
-        last_sentence_end_index = matches[-1].end(1)
-        # Extract up to this index
-        return text_chunk[:last_sentence_end_index]
-    else:
-        return ""  # No complete sentence found
-
-    # simpler/faster version:
-    # last_sentence_end = re.search(r"[.!?][\s\n]*$", self.text_buffer)
-    # text_to_process = ""
-    # if last_sentence_end:
-    #     text_to_process = self.text_buffer[:last_sentence_end.end()]
-
-    # return text_to_process
 
 
 class ContextualTreeManager:
@@ -75,23 +47,27 @@ class ContextualTreeManager:
 
         # Extract complete sentences from the text buffer
         text_to_process = extract_complete_sentences(self.text_buffer)
+        logging.info(f"text_to_process: '{text_to_process}' from text_buffer: '{self.text_buffer}'")
 
         # Update the transcript history to maintain a window of relevant context
         self.transcript_history = self.transcript_history[
                                   -self.text_buffer_size_threshold * (settings.TRANSCRIPT_HISTORY_MULTIPLIER + 1):]
 
         # Determine the point at which to split text for lookahead
-        length_of_last_dot = text_to_process[:-1].rfind('.') + 1
-        length_of_last_q = text_to_process[:-1].rfind('?') + 1
-        length_of_last_exc = text_to_process[:-1].rfind('!') + 1
-        # todo just use a regex
-        length_of_last_sentence = max(length_of_last_q, length_of_last_exc, length_of_last_dot)
+        # Only do lookahead splitting if there are multiple sentences
+        if text_to_process.count('.') + text_to_process.count('!') + text_to_process.count('?') > 1:
+            length_of_last_dot = text_to_process[:-1].rfind('.') + 1
+            length_of_last_q = text_to_process[:-1].rfind('?') + 1
+            length_of_last_exc = text_to_process[:-1].rfind('!') + 1
+            # todo just use a regex
+            length_of_last_sentence = max(length_of_last_q, length_of_last_exc, length_of_last_dot)
 
-        # The portion before the split point is the main text to process
-        text_to_process = text_to_process[:length_of_last_sentence]
+            # The portion before the split point is the main text to process
+            text_to_process = text_to_process[:length_of_last_sentence]
+            logging.info(f"text_to_process after lookahead split: '{text_to_process}'")
 
         # The portion after the split point is the future lookahead context
-        self.future_lookahead_history = self.text_buffer[len(text_to_process):]
+        self.future_lookahead_history = self.text_buffer[len(text_to_process):] if len(text_to_process) > 0 else self.text_buffer
 
         # Update the transcript history up until the current point (excluding lookahead)
         self.transcript_history_up_until_curr = remove_first_word(self.transcript_history)[:-len(self.text_buffer)]
@@ -100,7 +76,18 @@ class ContextualTreeManager:
         logging.info(f"Text to process size is now {len(text_to_process)} characters")
         logging.info(f"Future lookahead size is now {len(self.future_lookahead_history)} characters")
 
-        if len(text_to_process) > self.text_buffer_size_threshold:
+        # Process if either we have complete sentences that exceed threshold, 
+        # OR if the buffer itself exceeds threshold (even with incomplete sentences)
+        should_process = (len(text_to_process) > self.text_buffer_size_threshold) or \
+                        (len(self.text_buffer) > self.text_buffer_size_threshold and len(text_to_process) == 0)
+        
+        if should_process:
+            # If we don't have complete sentences but buffer is large, process the buffer as-is
+            if len(text_to_process) == 0 and len(self.text_buffer) > self.text_buffer_size_threshold:
+                text_to_process = self.text_buffer.strip()
+                self.future_lookahead_history = ""
+            
+            logging.info(f"Processing text chunk as criteria met. Final text_to_process: '{text_to_process}'")
             # if(get_num_req_last_min >= 15):
             #     return
             # num_req_last_min += 2 (no put this in the actual llm call)

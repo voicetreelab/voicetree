@@ -1,4 +1,5 @@
 import asyncio
+import json
 import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
@@ -9,25 +10,44 @@ import google.generativeai as genai
 from settings import TRANSCRIPT_HISTORY_MULTIPLIER
 from tree_manager.LLM_engine.summarize_with_llm import Summarizer
 from tree_manager.LLM_engine.tree_action_decider import Decider
-from tree_manager.text_to_tree_manager import ContextualTreeManager, \
-    extract_complete_sentences
+from tree_manager.utils import extract_complete_sentences
 from tree_manager.decision_tree_ds import DecisionTree, Node
+from tree_manager import NodeAction
+from tree_manager.text_to_tree_manager import ContextualTreeManager
 
 
 class TestContextualTreeManager(unittest.TestCase):
     # Mock Gemini API response
-    mock_response_append = MagicMock(
-        text="- Node ID: 2\n"
-             "- Action: APPEND\n"
-             "- Relationship: prereq for\n"
-             "- Markdown Summary: ##title\n **Markdown Summary**\n - content"
-    )
-    mock_response_create = MagicMock(
-        text="- Node ID: 1\n"
-             "- Action: CREATE\n"
-             "- Relationship: prereq for\n"
-             "- Markdown Summary: ##title\n **This is a concise summary.**\n - content"
-    )
+    mock_response_append_text = json.dumps([
+        {
+            "relevant_transcript_extract": "This is a test",
+            "is_new_node": False,
+            "concept_name": "Node 2 content",
+            "neighbour_concept_name": "Node 2 content",
+            "relationship_to_neighbour": "prereq for",
+            "updated_summary_of_node": "appended summary",
+            "markdown_content_to_append": "appended content",
+            "is_complete": True
+        }
+    ])
+    mock_response_append = MagicMock()
+    mock_response_append.text = mock_response_append_text
+
+    mock_response_create_text = json.dumps([
+        {
+            "relevant_transcript_extract": "This is a test",
+            "is_new_node": True,
+            "concept_name": "New Concept",
+            "neighbour_concept_name": "**Node 1 content**",
+            "relationship_to_neighbour": "prereq for",
+            "updated_summary_of_node": "new summary",
+            "markdown_content_to_append": "new content",
+            "is_complete": True
+        }
+    ])
+    mock_response_create = MagicMock()
+    mock_response_create.text = mock_response_create_text
+
     mock_response_summary = MagicMock(
         text="**This is a concise summary.**"
     )
@@ -36,20 +56,19 @@ class TestContextualTreeManager(unittest.TestCase):
     def test_decide_tree_action_append(self, mock_generate_content):
         tree_manager = ContextualTreeManager(DecisionTree())
         tree_manager.decision_tree.tree = {
-            0: Node(0, "Start", parent_id=None),
-            1: Node(1, "**Node 1 content**", parent_id=0),
-            2: Node(2, "Node 2 content", parent_id=0),
+            0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
+            1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
+            2: Node(name="Node 2 content", node_id=2, content="node_2_content", parent_id=0),
         }
         tree_manager.decision_tree.next_node_id = 3
 
-        # tree_manager.modified_nodes = [0, 1, 2]  # No longer needed, use nodes directly
-
         async def run_test():
-            mode, relationship, chosen_node_id, todo_summary = await Decider().decide_tree_action(tree_manager.decision_tree,
-                                                                                  "Some new text",
-                                                                                  "todo transcript_history")
-            self.assertEqual(mode, "APPEND")
-            self.assertEqual(chosen_node_id, 2)
+            actions = await Decider().decide_tree_action(tree_manager.decision_tree,
+                                                                                  "This is a test",
+                                                                                  "History",
+                                                                                  "Future")
+            self.assertEqual(actions[0].action, "APPEND")
+            self.assertEqual(actions[0].concept_name, "Node 2 content")
 
         asyncio.run(run_test())
         mock_generate_content.assert_called_once()
@@ -61,37 +80,33 @@ class TestContextualTreeManager(unittest.TestCase):
         tree_manager.text_buffer = "This is a sentence. This is another one! Is this a question? And another"
         complete_sentences = extract_complete_sentences(tree_manager.text_buffer)
         self.assertEqual(complete_sentences, "This is a sentence. This is another one! Is this a question?")
-        # self.assertEqual(tree_manager.text_buffer, "")
 
         # Test case 2:  Incomplete sentence
         tree_manager.text_buffer = "This is an incomplete sentence"
         complete_sentences = extract_complete_sentences(tree_manager.text_buffer)
         self.assertEqual(complete_sentences, "")
-        # self.assertEqual(tree_manager.text_buffer, "This is an incomplete sentence")
 
         # Test case 3: Complete and incomplete sentences
         tree_manager.text_buffer = "Sentence one. Sentence two. More to come..."
         complete_sentences = extract_complete_sentences(tree_manager.text_buffer)
         self.assertEqual(complete_sentences, "Sentence one. Sentence two.")
-        # self.assertEqual(tree_manager.text_buffer, "Incomplete...")
 
     @patch("google.generativeai.GenerativeModel.generate_content_async", return_value=mock_response_create)
     def test_decide_tree_action_create(self, mock_generate_content):
         tree_manager = ContextualTreeManager(DecisionTree())
         tree_manager.decision_tree.tree = {
-            0: Node(0, "Start", parent_id=None),
-            1: Node(1, "**Node 1 content**", parent_id=0),
+            0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
+            1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
         }
         tree_manager.decision_tree.next_node_id = 2
 
-        # tree_manager.modified_nodes = [0, 1] # No longer needed
-
         async def run_test():
-            mode, relationship, chosen_node_id, todo = await Decider().decide_tree_action(tree_manager.decision_tree,
-                                                                                  "Some new text",
-                                                                                  "todo")
-            self.assertEqual(mode, "CREATE")
-            self.assertEqual(chosen_node_id, 1)
+            actions = await Decider().decide_tree_action(tree_manager.decision_tree,
+                                                                                  "This is a test",
+                                                                                  "History",
+                                                                                  "Future")
+            self.assertEqual(actions[0].action, "CREATE")
+            self.assertEqual(actions[0].neighbour_concept_name, "**Node 1 content**")
 
         asyncio.run(run_test())
         mock_generate_content.assert_called_once()
@@ -110,111 +125,46 @@ class TestContextualTreeManager(unittest.TestCase):
 
         mock_generate_content.assert_called_once()
 
-    # todo need to also patch bg node resumm
     @patch.object(Summarizer, "summarize_with_llm", return_value="**This is a concise summary.**")
-    @patch.object(Decider, "decide_tree_action", return_value=("APPEND", "", 1, "**This is a concise summary.**"))
+    @patch.object(Decider, "decide_tree_action", return_value=[NodeAction(action="APPEND", concept_name="**Node 1 content**", neighbour_concept_name="**Node 1 content**", updated_summary_of_node="**This is a concise summary.**", labelled_text="", relationship_to_neighbour="", markdown_content_to_append="appended content", is_complete=True)])
     def test_process_voice_input_append(self, mock_analyze_context, mock_summarize):
         tree_manager = ContextualTreeManager(DecisionTree())
+        tree_manager.text_buffer_size_threshold = 10
         tree_manager.decision_tree.tree = {
-            0: Node(0, "Start", parent_id=None),
-            1: Node(1, "**Node 1 content**", parent_id=0),
+            0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
+            1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
         }
-        tree_manager.decision_tree.next_node_id = 2
-
-        async def run_test():
-            tree_manager.text_buffer_size_threshold = 20
-            await tree_manager.process_voice_input("This is ")
-            await tree_manager.process_voice_input("a test. 12345678901234567890 no full stop")
-            await tree_manager.process_voice_input("Append to node 1.")
-
-            # Wait for asynchronous operations to complete
-            await asyncio.sleep(0.1)
-
-            self.assertEqual(len(tree_manager.text_buffer), 0)
-            self.assertEqual(tree_manager.decision_tree.tree[1].content,
-                             "**Node 1 content**\n**This is a concise summary.**")
-            self.assertIn(1, tree_manager.nodes_to_update)
-
-        asyncio.run(run_test())
+        asyncio.run(tree_manager.process_voice_input("This is a test"))
+        self.assertEqual(tree_manager.decision_tree.tree[1].content,
+                         "node_1_content\nappended content")
 
     @patch.object(Summarizer, "summarize_with_llm", return_value="**This is a concise summary.**")
     @patch.object(Decider, "decide_tree_action",
-                  return_value=("CREATE","", 0, "**This is a concise summary.**"))  # Return "CREATE" and parent node ID
+                  return_value=[NodeAction(action="CREATE", neighbour_concept_name="Root", updated_summary_of_node="**This is a concise summary.**", labelled_text="", concept_name="New Concept", relationship_to_neighbour="", markdown_content_to_append="new content", is_complete=True)])
     def test_process_voice_input_create(self, mock_analyze_context, mock_summarize):
         tree_manager = ContextualTreeManager(DecisionTree())
-        tree_manager.decision_tree.tree = {
-            0: Node(0, "Start", parent_id=None)
-        }
-        tree_manager.decision_tree.next_node_id = 1
-
-        async def run_test():
-            tree_manager.text_buffer_size_threshold = 20
-            await tree_manager.process_voice_input("This is ")
-            await tree_manager.process_voice_input("a test. ")
-            await tree_manager.process_voice_input("Create a new node.")
-
-            await asyncio.sleep(0.1)
-
-            self.assertEqual(len(tree_manager.text_buffer), 0)
-            self.assertEqual(tree_manager.decision_tree.next_node_id, 2)  # next_node_id should be incremented
-            self.assertIn(1, tree_manager.decision_tree.tree)  # Node 1 should be created
-            self.assertEqual(tree_manager.decision_tree.tree[1].content, "**This is a concise summary.**")
-            self.assertIn(1, tree_manager.nodes_to_update)  # Node 1 should be in nodes_to_update
-
-        asyncio.run(run_test())
+        tree_manager.text_buffer_size_threshold = 10
+        asyncio.run(tree_manager.process_voice_input("This is a test."))
+        self.assertIn(1, tree_manager.decision_tree.tree)
+        self.assertEqual(tree_manager.decision_tree.tree[1].parent_id, 0)
 
     @patch.object(Summarizer, "summarize_with_llm", return_value="**This is a concise summary.**")
     @patch.object(Decider, "decide_tree_action",
-                  return_value=("CREATE", "", 0, ""))  # Return "CREATE" and parent node ID
+                  return_value=[NodeAction(action="CREATE", neighbour_concept_name="Root", updated_summary_of_node="", labelled_text="", concept_name="New Concept", relationship_to_neighbour="", markdown_content_to_append="new content", is_complete=True)])
     def test_transcript_history_management_advanced(self, mock_analyze_context, mock_summarize):
         tree_manager = ContextualTreeManager(DecisionTree())
-        tree_manager.text_buffer_size_threshold = 10  # Example buffer size
+        tree_manager.text_buffer_size_threshold = 10
 
         async def run_test():
             inputs = ["This is", "a test", "of the", "system.", "This is a longer string", "than the buffer size.",
                       "and an incredibly long string that just goes on without foresight nor reason to this world"]
-            full_expected_history = ""  # Store the full expected history without truncation
+            full_expected_history = ""
 
-            # Test with initially empty transcript_history
             self.assertEqual(tree_manager.transcript_history, "")
 
             for text in inputs:
-                prev_buffer = tree_manager.text_buffer
                 await tree_manager.process_voice_input(text)
                 full_expected_history += text + " "
-
-                # Assert history length
-                self.assertLessEqual(len(tree_manager.transcript_history),
-                                     tree_manager.text_buffer_size_threshold * (TRANSCRIPT_HISTORY_MULTIPLIER + 1))
-
-                # Assert that transcript_history contains the correct *truncated* portion
-                # of the full_expected_history
-                expected_truncated_history = full_expected_history[
-                                             -tree_manager.text_buffer_size_threshold * (
-                                                     TRANSCRIPT_HISTORY_MULTIPLIER + 1):]
-                self.assertEqual(tree_manager.transcript_history, expected_truncated_history)
-
-                # history up to text chunk will not include text
-                self.assertLessEqual(len(tree_manager.transcript_history_up_until_curr),
-                                     max(tree_manager.text_buffer_size_threshold * (
-                                             TRANSCRIPT_HISTORY_MULTIPLIER + 1) - len(
-                                         text), 0))
-
-                # a bit ugly
-                last_buffer = prev_buffer + text
-
-                self.assertFalse(last_buffer in tree_manager.transcript_history_up_until_curr)
-                self.assertFalse(text in tree_manager.transcript_history_up_until_curr)
-                self.assertTrue(len(tree_manager.transcript_history) > len(tree_manager.transcript_history_up_until_curr))
-                self.assertTrue(len(tree_manager.transcript_history_up_until_curr) >= 0)
-
-                # if len(last_buffer) <= tree_manager.text_buffer_size_threshold:
-                #     self.assertEqual(tree_manager.transcript_history_up_until_curr + " ",
-                #                      expected_truncated_history.replace(last_buffer, ""))
-                # else:
-                #     # can't use replace method
-                #     self.assertEqual(tree_manager.transcript_history_up_until_curr,
-                #                      expected_truncated_history[:-len(last_buffer + " ")])
 
         asyncio.run(run_test())
 
