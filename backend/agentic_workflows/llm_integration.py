@@ -5,19 +5,43 @@ LLM integration for VoiceTree LangGraph workflow
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TypeVar, Type
 from dotenv import load_dotenv
+from pydantic import BaseModel
+
+# Import our schema models
+try:
+    from backend.agentic_workflows.schema_models import (
+        SegmentationResponse, RelationshipResponse, 
+        IntegrationResponse, NodeExtractionResponse
+    )
+except ImportError:
+    from schema_models import (
+        SegmentationResponse, RelationshipResponse,
+        IntegrationResponse, NodeExtractionResponse
+    )
 
 # Configuration
 DEFAULT_MODEL = "gemini-2.0-flash"
+
+# Type variable for generic response types
+T = TypeVar('T', bound=BaseModel)
+
+# Schema mapping for different workflow stages
+SCHEMA_MAP = {
+    "segmentation": SegmentationResponse,
+    "relationship": RelationshipResponse,
+    "integration": IntegrationResponse,
+    "extraction": NodeExtractionResponse
+}
+
+# Mock responses for fallback (updated to match new schema)
 MOCK_RESPONSES = {
-    "segmentation": {
-        "chunks": [
-            {"name": "Project Discussion", "text": "Today I want to work on my project", "is_complete": True},
-            {"name": "Feature Planning", "text": "I need to add new features to make it better", "is_complete": True}
-        ]
-    },
-    "relationship": [
+    "segmentation": SegmentationResponse(chunks=[
+        {"name": "Project Discussion", "text": "Today I want to work on my project", "is_complete": True},
+        {"name": "Feature Planning", "text": "I need to add new features to make it better", "is_complete": True}
+    ]),
+    "relationship": RelationshipResponse(analyzed_chunks=[
         {
             "name": "Project Discussion",
             "text": "Today I want to work on my project",
@@ -32,8 +56,8 @@ MOCK_RESPONSES = {
             "relevant_node_name": "Project Discussion",
             "relationship": "elaborates on"
         }
-    ],
-    "integration": [
+    ]),
+    "integration": IntegrationResponse(integration_decisions=[
         {
             "name": "Project Discussion",
             "text": "Today I want to work on my project", 
@@ -41,7 +65,8 @@ MOCK_RESPONSES = {
             "target_node": "NO_RELEVANT_NODE",
             "new_node_name": "Project Discussion",
             "new_node_summary": "Discussion about working on a project today.",
-            "relationship_for_edge": None
+            "relationship_for_edge": None,
+            "content": "Today I want to work on my project"
         },
         {
             "name": "Feature Planning",
@@ -50,10 +75,11 @@ MOCK_RESPONSES = {
             "target_node": "Project Discussion",
             "new_node_name": "Feature Planning",
             "new_node_summary": "Planning to add new features to improve the project.",
-            "relationship_for_edge": "elaborates on"
+            "relationship_for_edge": "elaborates on",
+            "content": "I need to add new features to make it better"
         }
-    ],
-    "extraction": "Project Discussion, Feature Planning"
+    ]),
+    "extraction": NodeExtractionResponse(new_nodes=["Project Discussion", "Feature Planning"])
 }
 
 
@@ -121,9 +147,58 @@ _load_environment()
 GEMINI_AVAILABLE = _initialize_gemini()
 
 
+def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
+    """
+    Call the LLM with structured output using Pydantic schemas
+    
+    Args:
+        prompt: The prompt to send to the LLM
+        stage_type: The workflow stage type (segmentation, relationship, integration, extraction)
+        model_name: The model to use (default: gemini-2.0-flash)
+        
+    Returns:
+        Pydantic model instance with structured response
+    """
+    if not GEMINI_AVAILABLE:
+        print("ℹ️ Using mock LLM responses - API not available")
+        return MOCK_RESPONSES.get(stage_type, MOCK_RESPONSES["segmentation"])
+    
+    try:
+        import google.generativeai as genai
+        
+        schema_class = SCHEMA_MAP.get(stage_type)
+        if not schema_class:
+            raise ValueError(f"Unknown stage type: {stage_type}")
+        
+        print(f"🤖 Calling Gemini API with structured output ({model_name})...")
+        
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=schema_class
+            )
+        )
+        
+        if hasattr(response, 'text') and response.text:
+            print(f"✅ API call successful - structured response received")
+            # Parse the response using the schema
+            return schema_class.model_validate_json(response.text)
+        else:
+            print(f"❌ No text in response: {response}")
+            raise ValueError("No text content in Gemini response")
+            
+    except Exception as e:
+        print(f"❌ Error calling Gemini API: {str(e)}")
+        print("⚠️ Falling back to mock response")
+        return MOCK_RESPONSES.get(stage_type, MOCK_RESPONSES["segmentation"])
+
+
 def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
     """
-    Call the LLM with the given prompt
+    Legacy function for backward compatibility
+    Calls the LLM and returns raw text response
     
     Args:
         prompt: The prompt to send to the LLM
@@ -137,10 +212,10 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         return _get_mock_response(prompt)
     
     try:
-        from google.generativeai import GenerativeModel
+        import google.generativeai as genai
         
         print(f"🤖 Calling Gemini API ({model_name})...")
-        model = GenerativeModel(model_name)
+        model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
         
         # Check if response has text
@@ -164,7 +239,7 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
 
 def _get_mock_response(prompt: str) -> str:
     """
-    Get appropriate mock response based on prompt content
+    Get appropriate mock response based on prompt content (legacy)
     
     Args:
         prompt: The prompt to analyze
@@ -177,12 +252,12 @@ def _get_mock_response(prompt: str) -> str:
     prompt_lower = prompt.lower()
     
     if "segmenting conversational transcripts" in prompt_lower:
-        return json.dumps(MOCK_RESPONSES["segmentation"], indent=2)
+        return MOCK_RESPONSES["segmentation"].model_dump_json()
     elif "semantic matching" in prompt_lower:
-        return json.dumps(MOCK_RESPONSES["relationship"], indent=2)
+        return MOCK_RESPONSES["relationship"].model_dump_json()
     elif "deciding how to integrate" in prompt_lower:
-        return json.dumps(MOCK_RESPONSES["integration"], indent=2)
+        return MOCK_RESPONSES["integration"].model_dump_json()
     elif "extract from this output" in prompt_lower:
-        return MOCK_RESPONSES["extraction"]
+        return json.dumps(MOCK_RESPONSES["extraction"].model_dump()["new_nodes"])
     
     return "Mock response for unknown prompt type"
