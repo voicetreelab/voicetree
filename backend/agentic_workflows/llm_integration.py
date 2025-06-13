@@ -142,9 +142,20 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         print(f"🤖 Calling Gemini API ({model_name})...")
         model = GenerativeModel(model_name)
         response = model.generate_content(prompt)
-        print(f"✅ API call successful - response length: {len(response.text)} chars")
         
-        return response.text
+        # Check if response has text
+        if hasattr(response, 'text') and response.text:
+            print(f"✅ API call successful - response length: {len(response.text)} chars")
+            return response.text
+        else:
+            # Try to get text from candidates
+            if hasattr(response, 'candidates') and response.candidates:
+                text = response.candidates[0].content.parts[0].text
+                print(f"✅ API call successful - response length: {len(text)} chars")
+                return text
+            else:
+                print(f"❌ No text in response: {response}")
+                raise ValueError("No text content in Gemini response")
     except Exception as e:
         print(f"❌ Error calling Gemini API: {str(e)}")
         print("⚠️ Falling back to mock response")

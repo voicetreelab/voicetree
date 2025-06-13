@@ -26,6 +26,7 @@ import subprocess
 import os
 import sys
 from datetime import datetime
+import json
 
 # Add parent directories to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..')))
@@ -49,67 +50,137 @@ REQUESTS_PER_MINUTE = 15  # to avoid breaching 15RPM gemini limit
 SECONDS_PER_REQUEST = 60 / REQUESTS_PER_MINUTE
 OUTPUT_DIR = "oldVaults/VoiceTreePOC/QualityTest"  # Replace with your desired output directory
 QUALITY_LOG_FILE = "quality_log.txt"
+LATEST_QUALITY_LOG_FILE = "latest_quality_log.txt"
+LATEST_RUN_CONTEXT_FILE = "latest_run_context.json"
+WORKFLOW_IO_LOG = "backend/agentic_workflows/workflow_io.log"
 
 
-async def process_transcript_with_voicetree(transcript_file):
-    """Processes a transcript file with VoiceTree using agentic workflow."""
+def setup_output_directory():
+    """Handles backing up previous results and setting up a clean output directory."""
+    if os.path.exists(OUTPUT_DIR):
+        # Create a timestamped backup directory name
+        backup_dir_base = "oldVaults/VoiceTreePOC/OLDQualityTest"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_dir = f"{backup_dir_base}_{timestamp}"
+        
+        # Ensure the base backup directory exists
+        os.makedirs(os.path.dirname(backup_dir_base), exist_ok=True)
+        
+        print(f"Backing up existing output from {OUTPUT_DIR} to {backup_dir}")
+        shutil.copytree(OUTPUT_DIR, backup_dir)
+        
+        # Also move the log file if it exists
+        voicetree_log_file = "voicetree.log"
+        if os.path.exists(voicetree_log_file):
+            shutil.move(voicetree_log_file, os.path.join(backup_dir, voicetree_log_file))
+            
+        # Clear the output directory for a fresh run
+        shutil.rmtree(OUTPUT_DIR)
+        
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+
+async def process_transcript_with_voicetree_limited(transcript_file, max_words=None):
+    """Processes a transcript file with VoiceTree using agentic workflow, with optional word limit."""
+    # Reset the workflow I/O log for a clean run
+    if os.path.exists(WORKFLOW_IO_LOG):
+        os.remove(WORKFLOW_IO_LOG)
+        
+    # Create fresh instances for each transcript
     decision_tree = DecisionTree()
+    
+    # Use a unique state file for each transcript to avoid cross-contamination
+    import hashlib
+    state_file_name = f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json"
+    
     tree_manager = WorkflowTreeManager(
         decision_tree, 
-        workflow_state_file="benchmark_workflow_state.json"
+        workflow_state_file=state_file_name
     )
+    
+    # Clear any existing workflow state before processing
+    tree_manager.workflow_adapter.clear_workflow_state()
+    
     converter = TreeToMarkdownConverter(decision_tree.tree)
-    #first copy all files in QualityTest to ../OLDQualityTest
-    BACKUP_DIR = "oldVaults/VoiceTreePOC/OLDQualityTest"
-
-    # Backup existing files in OUTPUT_DIR to BACKUP_DIR
-    if os.path.exists(BACKUP_DIR):
-        BACKUP_DIR = BACKUP_DIR + str(datetime.now())
-
-    shutil.copytree(OUTPUT_DIR, BACKUP_DIR)
-
-    #copy the local voicetree.log to backup_dir
-    VOICE_TREE_LOG_FILE = "voicetree.log"
-    if os.path.exists(VOICE_TREE_LOG_FILE):
-        shutil.move(VOICE_TREE_LOG_FILE, os.path.join(BACKUP_DIR, VOICE_TREE_LOG_FILE))
-
-    # Clear the OUTPUT_DIR for fresh slate
-    shutil.rmtree(OUTPUT_DIR)
-    os.makedirs(OUTPUT_DIR)
-
-
+    
+    # Setup fresh output directory
+    setup_output_directory()
+    
     processor = TranscriptionProcessor(tree_manager, converter, OUTPUT_DIR)
-
+    
     with open(transcript_file, "r") as f:
-        lines = f.readlines()
-
+        content = f.read()
+    
+    # Limit to max_words if specified
+    if max_words:
+        words = content.split()
+        if len(words) > max_words:
+            content = ' '.join(words[:max_words])
+            print(f"Limited transcript to {max_words} words")
+    
+    # Process in chunks by words to better simulate real-time buffering
+    words = content.split()
     buffer = ""
-    for i in range(0, len(lines)):
-        buffer += lines[i]
-
-        if len(buffer) > tree_manager.text_buffer_size_threshold:
+    for word in words:
+        # Add the word and a space to the buffer
+        buffer += word + " "
+        
+        # Check if the buffer has reached the desired size
+        if len(buffer) >= tree_manager.text_buffer_size_threshold:
+            # Process the current buffer
             await processor.process_and_convert(buffer)
+            # Reset the buffer
             buffer = ""
-            time.sleep(SECONDS_PER_REQUEST)  # Rate limiting
-
-    # Process any remaining buffer content
-    if buffer:
+            # Rate limiting to simulate real-time processing intervals
+            time.sleep(SECONDS_PER_REQUEST)
+    
+    # Process any remaining content in the buffer
+    if buffer.strip():
         await processor.process_and_convert(buffer)
     
     # Log workflow statistics
     workflow_stats = tree_manager.get_workflow_statistics()
     logging.info(f"Workflow statistics: {workflow_stats}")
+    
+    # Clean up the temporary state file
+    if os.path.exists(state_file_name):
+        os.remove(state_file_name)
 
 
-def evaluate_tree_quality(transcript_file):
+def evaluate_tree_quality(transcript_file, transcript_name=""):
     """Evaluates the quality of the generated tree using an LLM."""
     # Package the Markdown output for the LLM
     packaged_output = PackageProjectForLLM.package_project(OUTPUT_DIR, ".md")
 
+    # Load prompts from the agentic workflow to include in the evaluation
+    prompts_content = ""
+    # Correctly locate the prompts directory relative to this script file
+    prompt_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../agentic_workflows/prompts'))
+    if os.path.isdir(prompt_dir):
+        for filename in sorted(os.listdir(prompt_dir)): # sort to maintain order
+            if filename.endswith(".txt"):
+                try:
+                    with open(os.path.join(prompt_dir, filename), 'r') as f:
+                        prompts_content += f"--- START OF PROMPT: {filename} ---\n"
+                        prompts_content += f.read()
+                        prompts_content += f"\n--- END OF PROMPT: {filename} ---\n\n"
+                except Exception as e:
+                    logging.error(f"Error reading prompt file {filename}: {e}")
+    else:
+        logging.warning(f"Prompts directory not found at: {prompt_dir}")
+
+
     # Construct the evaluation prompt
     prompt = (
-        f"I have a system which converts in real-time, spoken voice into a content tree (similar to a mind-map)"
-        "Please evaluate the quality of the output (Markdown files) generated from the following transcript\n\n"
+        f"I have a system which converts in real-time, spoken voice into a content tree (similar to a mind-map).\n"
+        "This system uses an agentic workflow with several prompts to achieve its goal. For your reference, here are the prompts used in the workflow:\n\n"
+        f"```\n{prompts_content}```\n\n"
+        "Now, please evaluate the quality of the output (Markdown files) generated from the following transcript, keeping in mind the prompts that were used to generate it.\n\n"
+        "Here is the original transcript:\n"
+        f"```{open(transcript_file, 'r').read()}```\n\n"
+        f"And here is the system's output that you need to assess:\n"
+        "Markdown Output:\n\n"
+        f"```{packaged_output}```\n\n"
         """
         You are an expert at evaluating the quality of decision trees created from spoken transcripts. 
 
@@ -140,11 +211,12 @@ def evaluate_tree_quality(transcript_file):
          Spend some time brainstorming, and allowing yourself time to think, 
          then work out the best answer in a step-by-step way to be sure we have the right answer. 
         """
-        f"```{open(transcript_file, 'r').read()}```\n\n"
-        f"And here is the output, I will want you to assess the quality of the outputted markdown files and tree structure"
-        "Markdown Output:\n\n"
-        f"```{packaged_output}```\n\n"
-        "Evaluate the tree. Please also include one final overall score, and a short summary of where the biggest areas for improvement are"
+        "Evaluate the tree. Please also include one final overall score, and a short summary of where the biggest areas for improvement are.\n\n"
+        "Pay special attention to:\n"
+        "- Node fragmentation (e.g., '50,000' split into '50' and '000' nodes)\n"
+        "- Circular or illogical parent-child relationships\n"
+        "- Whether technical concepts are properly grouped together\n"
+        "- If the tree captures the main narrative flow of the conversation"
     )
 
     logging.info("Assess quality prompt:\n" + prompt)
@@ -174,23 +246,70 @@ def evaluate_tree_quality(transcript_file):
     commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8').strip()
     commit_message = subprocess.check_output(['git', 'log', '-1', '--pretty=%B']).decode('utf-8').strip()
 
-    # Use Gemini Pro for evaluation
-    model = GenerativeModel('models/gemini-1.5-pro-latest')
+    # Use Gemini Pro for evaluation for the highest quality assessment
+    model = GenerativeModel('models/gemini-2.5-pro-preview-06-05')
     response = model.generate_content(prompt)
+
+    # Log the quality assessment
     evaluation = response.text.strip()
 
-    # Write to the quality log file
+    # Construct the full log entry
+    log_entry = (
+        f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Transcript: {transcript_name if transcript_name else transcript_file}\n"
+        f"Git Commit: {commit_message} ({commit_hash})\n"
+        f"Processing Method: Agentic Workflow (Multi-Stage)\n"
+        f"Quality Score: {evaluation}\n\n"
+    )
+
+    # Write to the main historical quality log file (append)
     with open(QUALITY_LOG_FILE, "a") as log_file:
-        log_file.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        log_file.write(f"Git Commit: {commit_message} ({commit_hash})\n")
-        log_file.write(f"Processing Method: Agentic Workflow (Multi-Stage)\n")
-        log_file.write(f"Quality Score: {evaluation}\n\n")
+        log_file.write(log_entry)
+
+    # Write to a separate file for just the latest log (overwrite)
+    with open(LATEST_QUALITY_LOG_FILE, "w") as log_file:
+        log_file.write(log_entry)
+
+    # Save the context of this run for the strategist
+    run_context = {
+        "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "transcript_file": os.path.abspath(transcript_file),
+        "output_dir": os.path.abspath(OUTPUT_DIR),
+        "quality_log_file": os.path.abspath(LATEST_QUALITY_LOG_FILE),
+        "workflow_io_log": os.path.abspath(WORKFLOW_IO_LOG),
+        "git_commit_hash": commit_hash,
+        "git_commit_message": commit_message
+    }
+    with open(LATEST_RUN_CONTEXT_FILE, "w") as f:
+        json.dump(run_context, f, indent=4)
 
 
 async def main():
-    transcript_file = "oldVaults/MylesDBChat.txt"  # Using the MylesDBChat transcript
-    await process_transcript_with_voicetree(transcript_file)
-    evaluate_tree_quality(transcript_file)
+    # Test with multiple realistic transcripts
+    test_transcripts = [
+        {
+            "file": "oldVaults/VoiceTreePOC/og_vt_transcript.txt",
+            "name": "VoiceTree Original",
+            "max_words": 300
+        }
+        # {
+        #     "file": "oldVaults/MylesDBChat.txt", 
+        #     "name": "Myles DB Chat",
+        #     "max_words": 400
+        # }
+    ]
+    
+    for transcript_info in test_transcripts:
+        print(f"\n{'='*60}")
+        print(f"Testing: {transcript_info['name']}")
+        print(f"{'='*60}\n")
+        
+        # Process with word limit
+        await process_transcript_with_voicetree_limited(
+            transcript_info['file'], 
+            transcript_info['max_words']
+        )
+        evaluate_tree_quality(transcript_info['file'], transcript_info['name'])
 
 
 if __name__ == "__main__":

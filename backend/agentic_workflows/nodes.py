@@ -7,6 +7,25 @@ import json
 import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+import logging
+
+# Set up logging
+# Get a logger instance
+logger = logging.getLogger(__name__)
+
+# Define a specific log file for workflow I/O
+LOG_FILE = Path(__file__).parent / "workflow_io.log"
+
+def log_to_file(stage_name: str, log_type: str, content: str):
+    """Append logs to a dedicated file for detailed I/O review"""
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"--- START: {stage_name} - {log_type} ---\n")
+            f.write(content)
+            f.write(f"\n--- END: {stage_name} - {log_type} ---\n\n")
+    except Exception as e:
+        logger.error(f"Failed to write to workflow_io.log: {e}")
+
 
 # Import the LLM integration
 try:
@@ -44,15 +63,54 @@ def extract_json_from_response(response: str) -> str:
     Returns:
         Extracted JSON string
     """
+    # Clean up the response first
+    response = response.strip()
+    
     # First try to find JSON within markdown code blocks
     json_match = re.search(r'```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```', response, re.DOTALL)
     if json_match:
         return json_match.group(1).strip()
     
     # If no code blocks found, try to find JSON directly
+    # Look for JSON object or array that spans multiple lines
+    json_match = re.search(r'(\{[^{}]*\{.*\}[^{}]*\}|\[.*\])', response, re.DOTALL)
+    if json_match:
+        return json_match.group(1).strip()
+    
+    # Try simpler JSON patterns
     json_match = re.search(r'(\{.*\}|\[.*\])', response, re.DOTALL)
     if json_match:
         return json_match.group(1).strip()
+    
+    # If the response looks like it starts with JSON, try to extract from there
+    if response.lstrip().startswith(('{', '[')):
+        # Find the matching closing bracket
+        stack = []
+        in_string = False
+        escape_next = False
+        
+        for i, char in enumerate(response):
+            if escape_next:
+                escape_next = False
+                continue
+                
+            if char == '\\':
+                escape_next = True
+                continue
+                
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+                
+            if not in_string:
+                if char in '{[':
+                    stack.append(char)
+                elif char in '}]':
+                    if stack:
+                        opener = stack.pop()
+                        if (opener == '{' and char == '}') or (opener == '[' and char == ']'):
+                            if not stack:  # Found complete JSON
+                                return response[:i+1].strip()
     
     # If no JSON found, return the original response
     return response.strip()
@@ -109,12 +167,32 @@ def process_llm_stage(
         prompt_template = load_prompt_template(prompt_name)
         prompt = prompt_template.format(**prompt_kwargs)
         
+        # Log input prompt
+        log_to_file(stage_name, "INPUT_PROMPT", prompt)
+        
         # Call LLM
         response = call_llm(prompt)
         
+        # Log raw LLM response
+        log_to_file(stage_name, "RAW_LLM_RESPONSE", response)
+        
         # Parse JSON response
         json_content = extract_json_from_response(response)
-        result = json.loads(json_content)
+        
+        # Log extracted JSON
+        log_to_file(stage_name, "EXTRACTED_JSON", json_content)
+        
+        # Debug logging for segmentation issues
+        if stage_name == "Segmentation" and len(json_content) < 50:
+            print(f"⚠️ Short JSON content extracted: {json_content[:50]}...")
+            print(f"⚠️ Original response preview: {response[:200]}...")
+        
+        try:
+            result = json.loads(json_content)
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON parsing error: {e}")
+            print(f"❌ JSON content: {json_content[:200]}...")
+            raise
         
         # Handle both dict and list responses
         if isinstance(result, dict) and result_key in result:
@@ -233,52 +311,52 @@ def extract_node_names(response: str) -> List[str]:
 
 
 def node_extraction_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Stage 4: Extract only the new nodes that should be created"""
-    print("🔵 Stage: Node Extraction")
-    
+    """Stage 4: Extract new node names from integration decisions"""
+    stage_name = "Node Extraction"
+    print(f"🔵 Stage: {stage_name}")
+
     try:
-        # If there are no integration decisions, return empty list
-        if not state.get("integration_decisions"):
-            print("   ℹ️  No integration decisions to process")
-            return {
-                **state,
-                "new_nodes": [],
-                "current_stage": "complete"
-            }
-        
-        # Load and format prompt
+        # Get existing node names to avoid re-creating them
+        if isinstance(state.get("existing_nodes"), str):
+            existing_node_names = [
+                line.split("-")[0].strip()
+                for line in state["existing_nodes"].split("\n")
+                if line.strip()
+            ]
+        else:
+            existing_node_names = []
+            
+        # Format the prompt
         prompt_template = load_prompt_template("node_extraction")
-        prompt = prompt_template.format(
-            extract=json.dumps(state["integration_decisions"], indent=2),
-            nodes=state["existing_nodes"]
-        )
+        prompt_kwargs = {
+            "extract": json.dumps(state["integration_decisions"], indent=2),
+            "nodes": "\n".join(existing_node_names),
+        }
+        prompt = prompt_template.format(**prompt_kwargs)
+        
+        # Log input prompt
+        log_to_file(stage_name, "INPUT_PROMPT", prompt)
         
         # Call LLM
         response = call_llm(prompt)
+
+        # Log raw response
+        log_to_file(stage_name, "RAW_LLM_RESPONSE", response)
         
-        # Extract node names
+        # Extract names from response
         new_nodes = extract_node_names(response)
-        
-        # Filter out any error messages or invalid nodes
-        valid_nodes = []
-        for node in new_nodes:
-            # Skip nodes that look like error messages
-            if any(phrase in node.lower() for phrase in ["no output", "no entries", "empty", "error", "integration decisions"]):
-                continue
-            # Skip parenthetical expressions
-            if node.startswith("(") and node.endswith(")"):
-                continue
-            valid_nodes.append(node)
+
+        # Log extracted names
+        log_to_file(stage_name, "EXTRACTED_NAMES", ", ".join(new_nodes))
         
         return {
             **state,
-            "new_nodes": valid_nodes,
-            "current_stage": "complete"
+            "new_nodes": new_nodes,
+            "current_stage": "complete",
         }
-        
     except Exception as e:
         return {
             **state,
             "current_stage": "error",
-            "error_message": f"Node extraction failed: {str(e)}"
+            "error_message": f"{stage_name} failed: {str(e)}",
         } 

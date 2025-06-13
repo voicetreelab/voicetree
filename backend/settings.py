@@ -14,9 +14,9 @@ class LLMTask(Enum):
 
 
 class AvailableModels(Enum):
-    PRO = genai.GenerativeModel("models/gemini-1.5-pro-latest",
+    PRO = genai.GenerativeModel("models/gemini-2.5-pro-preview-06-05",
                                 generation_config={"response_mime_type": "application/json"})
-    FLASH = genai.GenerativeModel("models/gemini-1.5-flash-latest",
+    FLASH = genai.GenerativeModel("models/gemini-2.0-flash",
                                   generation_config={"response_mime_type": "application/json"})
 
 
