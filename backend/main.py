@@ -21,6 +21,7 @@ async def main():
         transcription = voice_engine.process_audio_queue()
         if transcription:
             await processor.process_and_convert(transcription)
+        await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning
 
 
 if __name__ == "__main__":

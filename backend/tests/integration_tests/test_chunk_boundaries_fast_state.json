@@ -103,6 +103,62 @@
       "parent": "Task of the Expert System Component",
       "content": "The output is a JSON object containing the decision and metadata for all processed sub-chunks.",
       "source_chunk": "Output: JSON Object"
+    },
+    "Data Collection": {
+      "name": "Data Collection",
+      "created_at": "2025-06-13T23:03:37.690837",
+      "summary": "The initial step involves gathering data on movies and user preferences.",
+      "parent": "Introduction to the Project",
+      "content": "First, we need to collect data about movies and user preferences.",
+      "source_chunk": "Data Collection"
+    },
+    "Data Preprocessing": {
+      "name": "Data Preprocessing",
+      "created_at": "2025-06-13T23:03:37.690842",
+      "summary": "The subsequent step is to clean and format the collected data.",
+      "parent": "Data Collection",
+      "content": "Next, we need to preprocess the data to clean and format it.",
+      "source_chunk": "Data Preprocessing"
+    },
+    "Feature Engineering": {
+      "name": "Feature Engineering",
+      "created_at": "2025-06-13T23:03:37.690845",
+      "summary": "After preprocessing, features need to be engineered from the data.",
+      "parent": "Data Preprocessing",
+      "content": "Then, we need to engineer features from the data.",
+      "source_chunk": "Feature Engineering"
+    },
+    "Model Selection": {
+      "name": "Model Selection",
+      "created_at": "2025-06-13T23:03:37.690847",
+      "summary": "Following feature engineering, a suitable model needs to be selected.",
+      "parent": "Feature Engineering",
+      "content": "After that, we need to select a suitable model.",
+      "source_chunk": "Model Selection"
+    },
+    "Model Training": {
+      "name": "Model Training",
+      "created_at": "2025-06-13T23:03:37.690848",
+      "summary": "The selected model is then trained using the preprocessed data.",
+      "parent": "Model Selection",
+      "content": "Next, we train the selected model using the preprocessed data.",
+      "source_chunk": "Model Training"
+    },
+    "Model Evaluation": {
+      "name": "Model Evaluation",
+      "created_at": "2025-06-13T23:03:37.690850",
+      "summary": "The model's performance is evaluated after training.",
+      "parent": "Model Training",
+      "content": "Then, we evaluate the model's performance.",
+      "source_chunk": "Model Evaluation"
+    },
+    "Model Deployment": {
+      "name": "Model Deployment",
+      "created_at": "2025-06-13T23:03:37.690852",
+      "summary": "The final step is to deploy the model to provide recommendations.",
+      "parent": "Model Evaluation",
+      "content": "Finally, we deploy the model to make recommendations.",
+      "source_chunk": "Model Deployment"
     }
   },
   "execution_history": [
@@ -130,7 +186,20 @@
         "Output: JSON Object"
       ],
       "total_nodes_after": 13
+    },
+    {
+      "timestamp": "2025-06-13T23:03:37.690854",
+      "new_nodes": [
+        "Data Collection",
+        "Data Preprocessing",
+        "Feature Engineering",
+        "Model Selection",
+        "Model Training",
+        "Model Evaluation",
+        "Model Deployment"
+      ],
+      "total_nodes_after": 20
     }
   ],
-  "last_saved": "2025-06-13T23:03:22.339379"
+  "last_saved": "2025-06-13T23:03:37.690855"
 }

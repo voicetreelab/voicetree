@@ -53,13 +53,18 @@ class DecisionTree:
             logging.error(f"Error: Trying to create a node with non-existent parent ID: {parent_node_id}")
             parent_node_id = 0
 
+        # Only get and increment node_id after validation passes
         new_node_id = self.next_node_id
-        self.next_node_id += 1
         new_node = Node(name, new_node_id, content, parent_id=parent_node_id)
         new_node.relationships[parent_node_id] = relationship_to_parent
+        
+        # Only increment after we successfully create the node
         self.tree[new_node_id] = new_node
         self.tree[parent_node_id].children.append(new_node_id)
         self.tree[new_node_id].summary = summary if summary else extract_summary(content)
+        
+        # Increment AFTER successful creation
+        self.next_node_id += 1
 
         return new_node_id
 

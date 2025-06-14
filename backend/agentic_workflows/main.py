@@ -51,10 +51,7 @@ class VoiceTreePipeline:
         print("🚀 Starting VoiceTree LangGraph Pipeline")
         print("=" * 50)
         
-        # Prepend any incomplete chunk from previous execution
-        if self.incomplete_chunk_buffer:
-            print(f"📎 Prepending incomplete chunk from previous execution: '{self.incomplete_chunk_buffer[:50]}...'")
-            transcript = self.incomplete_chunk_buffer + " " + transcript
+        # NOTE: Incomplete chunk handling is now managed by UnifiedBufferManager
         
         # Get existing nodes from state manager
         existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"

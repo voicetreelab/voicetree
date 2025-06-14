@@ -1,24 +1,21 @@
 """
 Workflow-based Tree Manager
-Uses agentic workflows for all processing
+Uses agentic workflows for all processing with unified buffering
 """
 
 import logging
 import asyncio
 from typing import Optional, Set
 
-from backend.tree_manager.text_to_tree_manager import (
-    ContextualTreeManager,
-    extract_complete_sentences
-)
 from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
 from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
 import settings
 
 
-class WorkflowTreeManager(ContextualTreeManager):
+class WorkflowTreeManager:
     """
-    Tree manager that uses agentic workflows for processing
+    Tree manager that uses agentic workflows for processing with adaptive buffering
     """
     
     def __init__(
@@ -33,14 +30,48 @@ class WorkflowTreeManager(ContextualTreeManager):
             decision_tree: The decision tree instance
             workflow_state_file: Optional path to persist workflow state
         """
-        super().__init__(decision_tree)
+        self.decision_tree = decision_tree
+        self.nodes_to_update: Set[int] = set()
         
+        # Initialize unified buffer manager with adaptive processing
+        self.buffer_manager = UnifiedBufferManager(
+            buffer_size_threshold=settings.TEXT_BUFFER_SIZE_THRESHOLD
+        )
+        
+        # Initialize workflow adapter
         self.workflow_adapter = WorkflowAdapter(
             decision_tree=decision_tree,
             state_file=workflow_state_file,
             mode=WorkflowMode.ATOMIC
         )
-        logging.info("WorkflowTreeManager initialized with agentic workflow")
+        
+        logging.info(f"WorkflowTreeManager initialized with adaptive buffering and agentic workflow")
+    
+    @property
+    def text_buffer_size_threshold(self) -> int:
+        """Backward compatibility property for buffer size threshold"""
+        return self.buffer_manager.buffer_size_threshold
+    
+    async def process_voice_input(self, transcribed_text: str):
+        """
+        Process incoming voice input using unified buffer management
+        
+        Args:
+            transcribed_text: The transcribed text from voice recognition
+        """
+        # Add text to buffer and get text ready for processing
+        text_to_process = self.buffer_manager.add_text(transcribed_text)
+        
+        if text_to_process:
+            # Get transcript history for context
+            transcript_history = self.buffer_manager.get_transcript_history()
+            
+            # Add root node to updates on first processing
+            if self.buffer_manager.is_first_processing():
+                self.nodes_to_update.add(0)
+            
+            # Process the text chunk
+            await self._process_text_chunk(text_to_process, transcript_history)
     
     async def _process_text_chunk(self, text_chunk: str, transcript_history_context: str):
         """
@@ -62,19 +93,18 @@ class WorkflowTreeManager(ContextualTreeManager):
         """
         logging.info("Processing text chunk with agentic workflow")
         
-        # Combine text chunk with future lookahead for complete context
-        full_transcript = text_chunk
-        if self.future_lookahead_history:
-            full_transcript += " " + self.future_lookahead_history
-        
         # Process through workflow
         result = await self.workflow_adapter.process_transcript(
-            transcript=full_transcript,
+            transcript=text_chunk,
             context=transcript_history_context
         )
         
         if result.success:
             logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
+            
+            # Update buffer manager with incomplete remainder
+            incomplete_remainder = result.metadata.get("incomplete_buffer", "") if result.metadata else ""
+            self.buffer_manager.set_incomplete_remainder(incomplete_remainder)
             
             # Apply the node actions to the decision tree
             await self._apply_node_actions_from_result(result.node_actions)
@@ -93,15 +123,6 @@ class WorkflowTreeManager(ContextualTreeManager):
                     node_id = self.decision_tree.get_node_id_from_name(action.concept_name)
                     if node_id:
                         self.nodes_to_update.add(node_id)
-                        
-                        # Check if background rewrite is needed
-                        node = self.decision_tree.tree[node_id]
-                        if hasattr(node, 'num_appends') and node.num_appends % settings.BACKGROUND_REWRITE_EVERY_N_APPEND == 0:
-                            asyncio.create_task(
-                                self.rewriter.rewrite_node_in_background(self.decision_tree, node_id)
-                            ).add_done_callback(
-                                lambda res: self.nodes_to_update.add(node_id)
-                            )
             
             # Log metadata
             if result.metadata:
@@ -154,9 +175,11 @@ class WorkflowTreeManager(ContextualTreeManager):
         return self.workflow_adapter.get_workflow_statistics()
     
     def clear_workflow_state(self):
-        """Clear the workflow state"""
+        """Clear the workflow state and all buffers"""
         self.workflow_adapter.clear_workflow_state()
-        logging.info("Workflow state cleared")
+        self.buffer_manager.clear_buffers()
+        self.nodes_to_update.clear()
+        logging.info("Workflow state and all buffers cleared")
     
     def save_tree_structure(self):
         """Save the current tree structure (for benchmarking/analysis)"""

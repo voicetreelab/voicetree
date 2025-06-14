@@ -27,6 +27,7 @@ import os
 import sys
 from datetime import datetime
 import json
+import re
 
 # Add parent directories to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..')))
@@ -96,10 +97,11 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
     tree_manager = WorkflowTreeManager(
         decision_tree, 
         workflow_state_file=state_file_name
+        # No need to specify buffer mode - it adapts automatically
     )
     
     # Clear any existing workflow state before processing
-    tree_manager.workflow_adapter.clear_workflow_state()
+    tree_manager.clear_workflow_state()
     
     converter = TreeToMarkdownConverter(decision_tree.tree)
     
@@ -118,17 +120,26 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
             content = ' '.join(words[:max_words])
             print(f"Limited transcript to {max_words} words")
     
-    # Process in chunks by words to better simulate real-time buffering
-    words = content.split()
+    # Process in chunks to simulate real-time processing
+    # Create more coherent chunks based on sentence boundaries to reduce duplication
+    sentences = re.split(r'[.!?]+', content)
     buffer = ""
-    for word in words:
-        # Add the word and a space to the buffer
-        buffer += word + " "
+    
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+            
+        # Add sentence to buffer
+        buffer += sentence + ". "
         
-        # Check if the buffer has reached the desired size
-        if len(buffer) >= tree_manager.text_buffer_size_threshold:
+        # Check if buffer is large enough or if we have multiple sentences
+        sentence_count = buffer.count('.') + buffer.count('!') + buffer.count('?')
+        
+        # Process when we have enough content or multiple complete thoughts
+        if len(buffer) >= tree_manager.text_buffer_size_threshold or sentence_count >= 3:
             # Process the current buffer
-            await processor.process_and_convert(buffer)
+            await processor.process_and_convert(buffer.strip())
             # Reset the buffer
             buffer = ""
             # Rate limiting to simulate real-time processing intervals
@@ -136,7 +147,7 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
     
     # Process any remaining content in the buffer
     if buffer.strip():
-        await processor.process_and_convert(buffer)
+        await processor.process_and_convert(buffer.strip())
     
     # Log workflow statistics
     workflow_stats = tree_manager.get_workflow_statistics()
@@ -290,7 +301,7 @@ async def main():
         {
             "file": "oldVaults/VoiceTreePOC/og_vt_transcript.txt",
             "name": "VoiceTree Original",
-            "max_words": 300
+            "max_words": 150
         }
         # {
         #     "file": "oldVaults/MylesDBChat.txt", 

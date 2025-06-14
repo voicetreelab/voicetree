@@ -71,5 +71,5 @@ Expected Output:
 
 **analyzed_sub_chunks:**
 ```json
-{{analyzed_sub_chunks}}
+{analyzed_sub_chunks}
 ``` 

@@ -53,7 +53,6 @@ class WorkflowAdapter:
         self.decision_tree = decision_tree
         self.mode = mode
         self.pipeline = VoiceTreePipeline(state_file)
-        self._incomplete_buffer = ""
     
     async def process_transcript(
         self, 
@@ -71,18 +70,13 @@ class WorkflowAdapter:
             WorkflowResult with processing outcomes
         """
         try:
-            # Prepare the full transcript with any incomplete buffer
-            full_transcript = transcript
-            if self._incomplete_buffer:
-                full_transcript = self._incomplete_buffer + " " + transcript
-            
             # Get current state snapshot for the workflow
             state_snapshot = self._prepare_state_snapshot()
             
             # Run the workflow (synchronously for now, can be made async)
             result = await asyncio.to_thread(
                 self.pipeline.run,
-                full_transcript
+                transcript
             )
             
             # Process the workflow result
@@ -93,9 +87,6 @@ class WorkflowAdapter:
                     node_actions=[],
                     error_message=result["error_message"]
                 )
-            
-            # Update incomplete buffer
-            self._incomplete_buffer = result.get("incomplete_chunk_remainder", "")
             
             # Convert workflow decisions to NodeActions
             node_actions = self._convert_to_node_actions(result)
@@ -111,7 +102,7 @@ class WorkflowAdapter:
                 metadata={
                     "chunks_processed": len(result.get("chunks", [])),
                     "decisions_made": len(result.get("integration_decisions", [])),
-                    "incomplete_buffer": self._incomplete_buffer
+                    "incomplete_buffer": result.get("incomplete_chunk_remainder", "")
                 }
             )
             
@@ -223,5 +214,4 @@ class WorkflowAdapter:
     
     def clear_workflow_state(self) -> None:
         """Clear the workflow state"""
-        self.pipeline.clear_state()
-        self._incomplete_buffer = "" 
+        self.pipeline.clear_state() 

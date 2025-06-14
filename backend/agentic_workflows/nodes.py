@@ -27,15 +27,24 @@ def log_to_file(stage_name: str, log_type: str, content: str):
         logger.error(f"Failed to write to workflow_io.log: {e}")
 
 
-# Import the LLM integration
+# Import the LLM integration and debug logger
 try:
     from backend.agentic_workflows.llm_integration import call_llm_structured, call_llm
+    from backend.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
 except ImportError:
     # If running from a different directory, try relative import
     try:
         from llm_integration import call_llm_structured, call_llm
+        from debug_logger import log_stage_input_output, log_transcript_processing
     except ImportError:
         print("⚠️ Could not import LLM integration - using mock implementation")
+        
+        # Mock debug logging
+        def log_stage_input_output(stage_name: str, inputs: dict, outputs: dict):
+            print(f"📝 (Mock) Would log {stage_name} I/O")
+        
+        def log_transcript_processing(transcript_text: str, file_source: str = "unknown"):
+            print(f"📝 (Mock) Would log transcript input")
         
         # Fallback mock implementation
         def call_llm_structured(prompt: str, stage_type: str) -> dict:
@@ -194,6 +203,15 @@ def process_llm_stage_structured(
     """
     print(f"🔵 Stage: {stage_name}")
     
+    # Log the input variables for debugging
+    debug_inputs = {
+        "stage_name": stage_name,
+        "stage_type": stage_type,
+        "prompt_name": prompt_name,
+        **prompt_kwargs,
+        "relevant_state_keys": [k for k in state.keys() if k not in ["current_stage", "error_message"]]
+    }
+    
     try:
         # Load and format prompt
         prompt_template = load_prompt_template(prompt_name)
@@ -235,11 +253,24 @@ def process_llm_stage_structured(
         # Log the final result
         log_to_file(stage_name, "FINAL_RESULT", str(result)[:500] + "..." if len(str(result)) > 500 else str(result))
         
-        return {
+        # Prepare the final state
+        final_state = {
             **state,
             result_key: result,
             "current_stage": next_stage
         }
+        
+        # Log debug information
+        debug_outputs = {
+            result_key: result,
+            "current_stage": next_stage,
+            "result_count": len(result) if isinstance(result, list) else 1,
+            "result_type": type(result).__name__
+        }
+        
+        log_stage_input_output(stage_name.lower().replace(" ", "_"), debug_inputs, debug_outputs)
+        
+        return final_state
         
     except Exception as e:
         error_msg = f"{stage_name} failed: {str(e)}"
@@ -247,6 +278,15 @@ def process_llm_stage_structured(
         
         # For debugging, log the full error details
         log_to_file(stage_name, "ERROR", f"Exception: {str(e)}\nState: {state}")
+        
+        # Log debug information for errors too
+        debug_outputs = {
+            "error_message": error_msg,
+            "current_stage": "error",
+            "exception_type": type(e).__name__
+        }
+        
+        log_stage_input_output(stage_name.lower().replace(" ", "_"), debug_inputs, debug_outputs)
         
         return {
             **state,
@@ -257,6 +297,12 @@ def process_llm_stage_structured(
 
 def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Stage 1: Segment transcript into atomic idea chunks"""
+    
+    # Log the transcript being processed
+    transcript_text = state.get("transcript_text", "")
+    if transcript_text:
+        log_transcript_processing(transcript_text, "segmentation_node")
+    
     # Use structured output for segmentation
     result = process_llm_stage_structured(
         state=state,

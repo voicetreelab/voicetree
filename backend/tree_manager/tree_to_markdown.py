@@ -5,6 +5,7 @@ import re
 import traceback
 
 from rake_nltk import Rake
+from backend.tree_manager.utils import deduplicate_content
 
 
 def generate_filename_from_keywords(node_title, max_keywords=3):
@@ -75,7 +76,9 @@ class TreeToMarkdownConverter:
                         if not node_data.content or "###" not in node_data.content:
                             f.write(f"### {node_data.summary}\n\n")
 
-                        f.write(f"{node_data.content}\n\n\n-----------------\n_Links:_\n")
+                        # Deduplicate content before writing to improve quality
+                        clean_content = deduplicate_content(node_data.content)
+                        f.write(f"{clean_content}\n\n\n-----------------\n_Links:_\n")
 
                         # Add child links
                         # for child_id in node_data['children']:
