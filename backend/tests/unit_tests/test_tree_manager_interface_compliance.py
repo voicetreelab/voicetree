@@ -12,6 +12,7 @@ import pytest
 from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.text_to_tree_manager import ContextualTreeManager
 from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.tree_manager.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree, Node
 
 
@@ -40,6 +41,7 @@ class TestTreeManagerInterfaceCompliance:
     @pytest.mark.parametrize("manager_class", [
         ContextualTreeManager,
         WorkflowTreeManager,
+        EnhancedWorkflowTreeManager,
     ])
     def test_all_managers_implement_interface(self, manager_class, empty_decision_tree):
         """Test that all tree managers implement TreeManagerInterface"""
@@ -52,6 +54,7 @@ class TestTreeManagerInterfaceCompliance:
     @pytest.mark.parametrize("manager_class", [
         ContextualTreeManager,
         WorkflowTreeManager,
+        EnhancedWorkflowTreeManager,
     ])
     def test_interface_method_signatures(self, manager_class, empty_decision_tree):
         """Test that all managers have the required interface methods"""
@@ -72,6 +75,7 @@ class TestTreeManagerInterfaceCompliance:
     @pytest.mark.parametrize("manager_class", [
         ContextualTreeManager,
         WorkflowTreeManager,
+        EnhancedWorkflowTreeManager,
     ])
     def test_interface_contracts(self, manager_class, decision_tree_with_root):
         """Test that all managers follow interface contracts correctly"""
@@ -99,6 +103,7 @@ class TestTreeManagerInterfaceCompliance:
         managers = [
             ContextualTreeManager(empty_decision_tree),
             WorkflowTreeManager(empty_decision_tree),
+            EnhancedWorkflowTreeManager(empty_decision_tree),
         ]
         
         # All should implement the same interface
@@ -169,6 +174,7 @@ class TestInterfaceEvolution:
         managers = [
             ContextualTreeManager(empty_decision_tree),
             WorkflowTreeManager(empty_decision_tree),
+            EnhancedWorkflowTreeManager(empty_decision_tree),
         ]
         
         # All current managers should be instances of the base interface
@@ -223,9 +229,9 @@ class ArchitecturalProperties:
     """
     
     CURRENT_MANAGERS = [
-        'ContextualTreeManager',  # Direct LLM integration
-        'WorkflowTreeManager',    # Agentic workflow integration
-        # 'EnhancedWorkflowTreeManager',  # TODO: Add when interface implemented
+        'ContextualTreeManager',        # Direct LLM integration
+        'WorkflowTreeManager',          # Agentic workflow integration  
+        'EnhancedWorkflowTreeManager',  # TADA + TROA hybrid system
     ]
     
     INTERFACE_CONTRACT = {

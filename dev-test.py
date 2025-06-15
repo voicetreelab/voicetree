@@ -107,10 +107,10 @@ def run_smart_tests(speed_mode: str = "fast", changed_only: bool = False) -> int
             cmd = ["python", "-m", "pytest", "tests/", "--tb=short"]
     
     # Add common optimizations
-    cmd.extend([
-        "--cache-clear" if speed_mode == "smoke" else "--reuse-db",
-        "-x" if speed_mode in ["smoke", "fast"] else "--maxfail=5"
-    ])
+    if speed_mode == "smoke":
+        cmd.append("--cache-clear")
+    
+    cmd.append("-x" if speed_mode in ["smoke", "fast"] else "--maxfail=5")
     
     print(f"🚀 Command: {' '.join(cmd)}")
     
