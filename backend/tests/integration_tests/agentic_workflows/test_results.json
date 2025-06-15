@@ -1,499 +1,264 @@
 {
   "results": [
     {
-      "transcript_text": "\n    This is a test of the VoiceTree application.\n    I want to create a new node about project planning. \n    The first step is to define the project scope. \n    The next step is to identify the key stakeholders.\n    ",
+      "transcript_text": "This is a comprehensive test of the VoiceTree application and its capabilities.\n    I want to create a new node about project planning and management strategies. \n    The first step is to define the project scope clearly, including all deliverables and timelines.\n    The next step is to identify the key stakeholders, their roles, and responsibilities.\n    We also need to establish communication channels and regular check-in meetings.\n    Risk assessment and mitigation strategies should be developed early in the process.\n    Finally, we need to set up proper documentation and version control systems.",
       "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "VoiceTree application test",
-          "text": "This is a test of the VoiceTree application.",
+          "name": "VoiceTree Application Capabilities Test",
+          "text": "This is a comprehensive test of the VoiceTree application and its capabilities.",
           "is_complete": true
         },
         {
-          "name": "Create project planning node",
-          "text": "I want to create a new node about project planning.",
+          "name": "Create New Node About Project Planning",
+          "text": "I want to create a new node about project planning and management strategies.",
           "is_complete": true
         },
         {
-          "name": "Define project scope",
-          "text": "The first step is to define the project scope.",
+          "name": "Project Scope Definition Deliverables and Timelines",
+          "text": "The first step is to define the project scope clearly, including all deliverables and timelines.",
           "is_complete": true
         },
         {
-          "name": "Identify key stakeholders",
-          "text": "The next step is to identify the key stakeholders.",
+          "name": "Identify Key Stakeholders Roles Responsibilities",
+          "text": "The next step is to identify the key stakeholders, their roles, and responsibilities.",
+          "is_complete": true
+        },
+        {
+          "name": "Establish Communication Channels Regular Check-in Meetings",
+          "text": "We also need to establish communication channels and regular check-in meetings.",
+          "is_complete": true
+        },
+        {
+          "name": "Risk Assessment and Mitigation Strategies",
+          "text": "Risk assessment and mitigation strategies should be developed early in the process.",
+          "is_complete": true
+        },
+        {
+          "name": "Set Up Documentation and Version Control",
+          "text": "Finally, we need to set up proper documentation and version control systems.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "VoiceTree application test",
-          "text": "This is a test of the VoiceTree application.",
-          "reasoning": "This sub-chunk introduces the VoiceTree application. Since there are no existing nodes, and it doesn't directly relate to the other sub-chunks, it stands alone for now.",
+          "name": "VoiceTree Application Capabilities Test",
+          "text": "This is a comprehensive test of the VoiceTree application and its capabilities.",
+          "reasoning": "This chunk introduces a new topic - testing the VoiceTree application. There are no existing nodes to connect to, and it doesn't relate to the other chunks in the batch yet.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         },
         {
-          "name": "Create project planning node",
-          "text": "I want to create a new node about project planning.",
-          "reasoning": "This sub-chunk expresses the intention to create a project planning node. The subsequent chunks define steps within project planning, so this chunk sets the context for them.",
+          "name": "Create New Node About Project Planning",
+          "text": "I want to create a new node about project planning and management strategies.",
+          "reasoning": "This chunk introduces the topic of project planning. It doesn't connect to the previous chunk about testing, and it sets the stage for the following chunks.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         },
         {
-          "name": "Define project scope",
-          "text": "The first step is to define the project scope.",
-          "reasoning": "This sub-chunk describes the first step in project planning. It directly relates to the 'Create project planning node' sub-chunk as a specific action within that broader topic.",
-          "relevant_node_name": "Create project planning node",
-          "relationship": "part of"
+          "name": "Project Scope Definition Deliverables and Timelines",
+          "text": "The first step is to define the project scope clearly, including all deliverables and timelines.",
+          "reasoning": "This chunk describes the first step in project planning, directly following the previous chunk's intention to create a node about project planning.",
+          "relevant_node_name": "Create New Node About Project Planning",
+          "relationship": "follows"
         },
         {
-          "name": "Identify key stakeholders",
-          "text": "The next step is to identify the key stakeholders.",
-          "reasoning": "This sub-chunk describes another step in project planning, following the definition of project scope. It's a continuation of the project planning process initiated in 'Create project planning node'.",
-          "relevant_node_name": "Create project planning node",
-          "relationship": "part of"
+          "name": "Identify Key Stakeholders Roles Responsibilities",
+          "text": "The next step is to identify the key stakeholders, their roles, and responsibilities.",
+          "reasoning": "This chunk describes the next step in project planning, following the definition of project scope.",
+          "relevant_node_name": "Project Scope Definition Deliverables and Timelines",
+          "relationship": "follows"
+        },
+        {
+          "name": "Establish Communication Channels Regular Check-in Meetings",
+          "text": "We also need to establish communication channels and regular check-in meetings.",
+          "reasoning": "This chunk describes another step in project planning, following the identification of stakeholders.",
+          "relevant_node_name": "Identify Key Stakeholders Roles Responsibilities",
+          "relationship": "follows"
+        },
+        {
+          "name": "Risk Assessment and Mitigation Strategies",
+          "text": "Risk assessment and mitigation strategies should be developed early in the process.",
+          "reasoning": "This chunk describes another important aspect of project planning, following the establishment of communication channels.",
+          "relevant_node_name": "Establish Communication Channels Regular Check-in Meetings",
+          "relationship": "follows"
+        },
+        {
+          "name": "Set Up Documentation and Version Control",
+          "text": "Finally, we need to set up proper documentation and version control systems.",
+          "reasoning": "This chunk describes the final step mentioned in project planning, following the risk assessment and mitigation strategies.",
+          "relevant_node_name": "Risk Assessment and Mitigation Strategies",
+          "relationship": "follows"
         }
       ],
       "integration_decisions": [
         {
-          "name": "Introduction to the Project",
-          "text": "Okay, so let's start by outlining the project we're about to undertake.",
+          "name": "VoiceTree Application Capabilities Test",
+          "text": "This is a comprehensive test of the VoiceTree application and its capabilities.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Introduction to the Project",
-          "new_node_summary": "Introduces the beginning of outlining a project.",
+          "new_node_name": "VoiceTree Application Capabilities Test",
+          "new_node_summary": "Initiates a comprehensive test of the VoiceTree application and its capabilities.",
           "relationship_for_edge": null,
-          "content": "Okay, so let's start by outlining the project we're about to undertake."
+          "content": "\u2022 Comprehensive testing of VoiceTree application planned\n\u2022 Focus on evaluating all application capabilities\n\u2022 Goal: Thorough assessment of VoiceTree's functionality"
         },
         {
-          "name": "Project Goal",
-          "text": "Our main goal is to develop a comprehensive data analysis pipeline.",
+          "name": "Create New Node About Project Planning",
+          "text": "I want to create a new node about project planning and management strategies.",
           "action": "CREATE",
-          "target_node": "Introduction to the Project",
-          "new_node_name": "Project Goal",
-          "new_node_summary": "The project's main goal is to develop a comprehensive data analysis pipeline.",
-          "relationship_for_edge": "elaborates on",
-          "content": "Our main goal is to develop a comprehensive data analysis pipeline."
+          "target_node": "NO_RELEVANT_NODE",
+          "new_node_name": "Create New Node About Project Planning",
+          "new_node_summary": "Intention to create a new node focusing on project planning and management strategies.",
+          "relationship_for_edge": null,
+          "content": "\u2022 New node to cover project planning strategies\n\u2022 Focus on effective project management techniques\n\u2022 Goal: Establish a resource for project planning knowledge"
         },
         {
-          "name": "Pipeline Components",
-          "text": "This pipeline will include data collection, cleaning, analysis, and visualization components.",
+          "name": "Project Scope Definition Deliverables and Timelines",
+          "text": "The first step is to define the project scope clearly, including all deliverables and timelines.",
           "action": "CREATE",
-          "target_node": "Project Goal",
-          "new_node_name": "Pipeline Components",
-          "new_node_summary": "The data analysis pipeline will include data collection, cleaning, analysis, and visualization components.",
-          "relationship_for_edge": "part of",
-          "content": "This pipeline will include data collection, cleaning, analysis, and visualization components."
+          "target_node": "Create New Node About Project Planning",
+          "new_node_name": "Project Scope Definition Deliverables and Timelines",
+          "new_node_summary": "The initial step in project planning involves clearly defining the project scope, deliverables, and timelines.",
+          "relationship_for_edge": "follows",
+          "content": "\u2022 Define project scope as first step\n\u2022 Identify all project deliverables\n\u2022 Establish realistic project timelines"
         },
         {
-          "name": "Data Collection Methods",
-          "text": "For data collection, we'll primarily use web scraping and API integrations.",
+          "name": "Identify Key Stakeholders Roles Responsibilities",
+          "text": "The next step is to identify the key stakeholders, their roles, and responsibilities.",
           "action": "CREATE",
-          "target_node": "Pipeline Components",
-          "new_node_name": "Data Collection Methods",
-          "new_node_summary": "The primary methods for data collection will be web scraping and API integrations.",
-          "relationship_for_edge": "implements",
-          "content": "For data collection, we'll primarily use web scraping and API integrations."
+          "target_node": "Project Scope Definition Deliverables and Timelines",
+          "new_node_name": "Identify Key Stakeholders Roles Responsibilities",
+          "new_node_summary": "The next step involves identifying key stakeholders and defining their roles and responsibilities within the project.",
+          "relationship_for_edge": "follows",
+          "content": "\u2022 Identify key project stakeholders\n\u2022 Define roles for each stakeholder\n\u2022 Clarify stakeholder responsibilities"
         },
         {
-          "name": "Cleaning Techniques",
-          "text": "Data cleaning will involve handling missing values, removing duplicates, and standardizing formats.",
+          "name": "Establish Communication Channels Regular Check-in Meetings",
+          "text": "We also need to establish communication channels and regular check-in meetings.",
           "action": "CREATE",
-          "target_node": "Pipeline Components",
-          "new_node_name": "Cleaning Techniques",
-          "new_node_summary": "Data cleaning will involve handling missing values, removing duplicates, and standardizing formats.",
-          "relationship_for_edge": "implements",
-          "content": "Data cleaning will involve handling missing values, removing duplicates, and standardizing formats."
+          "target_node": "Identify Key Stakeholders Roles Responsibilities",
+          "new_node_name": "Establish Communication Channels Regular Check-in Meetings",
+          "new_node_summary": "Establishing communication channels and regular check-in meetings is crucial for project success.",
+          "relationship_for_edge": "follows",
+          "content": "\u2022 Establish clear communication channels\n\u2022 Schedule regular project check-in meetings\n\u2022 Ensure consistent information flow"
         },
         {
-          "name": "Analysis Tools",
-          "text": "Our analysis will leverage Python with libraries like Pandas, NumPy, and Scikit-learn.",
+          "name": "Risk Assessment and Mitigation Strategies",
+          "text": "Risk assessment and mitigation strategies should be developed early in the process.",
           "action": "CREATE",
-          "target_node": "Pipeline Components",
-          "new_node_name": "Analysis Tools",
-          "new_node_summary": "The data analysis will leverage Python with libraries like Pandas, NumPy, and Scikit-learn.",
-          "relationship_for_edge": "implements",
-          "content": "Our analysis will leverage Python with libraries like Pandas, NumPy, and Scikit-learn."
+          "target_node": "Establish Communication Channels Regular Check-in Meetings",
+          "new_node_name": "Risk Assessment and Mitigation Strategies",
+          "new_node_summary": "Developing risk assessment and mitigation strategies early in the project planning process is essential.",
+          "relationship_for_edge": "follows",
+          "content": "\u2022 Conduct early risk assessment\n\u2022 Develop risk mitigation strategies\n\u2022 Proactively address potential project issues"
         },
         {
-          "name": "Visualization Platforms",
-          "text": "For visualization, we'll use tools like Matplotlib, Seaborn, and potentially Tableau for interactive dashboards.",
+          "name": "Set Up Documentation and Version Control",
+          "text": "Finally, we need to set up proper documentation and version control systems.",
           "action": "CREATE",
-          "target_node": "Pipeline Components",
-          "new_node_name": "Visualization Platforms",
-          "new_node_summary": "The visualization will use tools like Matplotlib, Seaborn, and potentially Tableau for interactive dashboards.",
-          "relationship_for_edge": "implements",
-          "content": "For visualization, we'll use tools like Matplotlib, Seaborn, and potentially Tableau for interactive dashboards."
-        },
-        {
-          "name": "Project Timeline",
-          "text": "We aim to complete this project within the next six months.",
-          "action": "CREATE",
-          "target_node": "Introduction to the Project",
-          "new_node_name": "Project Timeline",
-          "new_node_summary": "The project aims to be completed within the next six months.",
-          "relationship_for_edge": "relates to",
-          "content": "We aim to complete this project within the next six months."
-        },
-        {
-          "name": "Team Roles",
-          "text": "Each team member will be assigned specific roles and responsibilities throughout the project.",
-          "action": "CREATE",
-          "target_node": "Introduction to the Project",
-          "new_node_name": "Team Roles",
-          "new_node_summary": "Each team member will be assigned specific roles and responsibilities throughout the project.",
-          "relationship_for_edge": "relates to",
-          "content": "Each team member will be assigned specific roles and responsibilities throughout the project."
-        },
-        {
-          "name": "Regular Meetings",
-          "text": "We'll have weekly meetings to track progress and address any challenges.",
-          "action": "CREATE",
-          "target_node": "Introduction to the Project",
-          "new_node_name": "Regular Meetings",
-          "new_node_summary": "Weekly meetings will be held to track progress and address any challenges.",
-          "relationship_for_edge": "relates to",
-          "content": "We'll have weekly meetings to track progress and address any challenges."
+          "target_node": "Risk Assessment and Mitigation Strategies",
+          "new_node_name": "Set Up Documentation and Version Control",
+          "new_node_summary": "Setting up proper documentation and version control systems is the final step in project planning.",
+          "relationship_for_edge": "follows",
+          "content": "\u2022 Implement robust documentation practices\n\u2022 Establish version control systems\n\u2022 Maintain accurate project records"
         }
       ],
       "new_nodes": [
-        "Introduction to the Project",
-        "Project Goal",
-        "Pipeline Components",
-        "Data Collection Methods",
-        "Cleaning Techniques",
-        "Analysis Tools",
-        "Visualization Platforms",
-        "Project Timeline",
-        "Team Roles",
-        "Regular Meetings"
+        "VoiceTree Application Capabilities Test",
+        "Create New Node About Project Planning",
+        "Project Scope Definition Deliverables and Timelines",
+        "Identify Key Stakeholders Roles Responsibilities",
+        "Establish Communication Channels Regular Check-in Meetings",
+        "Risk Assessment and Mitigation Strategies",
+        "Set Up Documentation and Version Control"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
       "error_message": null
     },
     {
-      "transcript_text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me. I should talk to Austin's dad first.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- I\n- c\n- i\n- P\n- j\n- G\n- l\n- p\n- m\n- D\n- M\n- q\n- A\n- V\n- z\n- f",
+      "transcript_text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- b\n- N\n- w\n- P\n- j\n- S\n- D\n- f\n- v\n- m\n- I\n- K\n- E\n- M\n- U",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Reach out to investors",
-          "text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me.",
-          "is_complete": true
-        },
-        {
-          "name": "Talk to Austin's dad",
-          "text": "I should talk to Austin's dad first.",
+          "name": "Reaching out to potential investors plan",
+          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Reach out to investors",
-          "text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me.",
-          "reasoning": "This chunk discusses reaching out to investors. The next chunk suggests talking to Austin's dad first. Talking to Austin's dad could be a preliminary step before reaching out to investors, so it's a related action.",
-          "relevant_node_name": "Talk to Austin's dad",
-          "relationship": "precedes"
-        },
-        {
-          "name": "Talk to Austin's dad",
-          "text": "I should talk to Austin's dad first.",
-          "reasoning": "This chunk suggests talking to Austin's dad. It seems like a preliminary step before reaching out to investors. Therefore, it is related to the 'Reach out to investors' chunk.",
-          "relevant_node_name": "Reach out to investors",
-          "relationship": "precedes"
+          "name": "Reaching out to potential investors plan",
+          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
+          "reasoning": "This chunk outlines a plan to reach out to potential investors, including specific steps like talking to Austin's dad, preparing a business plan, and creating a product demo. Since there are no existing nodes, it is a new topic.",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
         }
       ],
       "integration_decisions": [
         {
-          "name": "Introduction",
-          "text": "Okay, so we're going to talk about how to use the new AI tool.",
+          "name": "Reaching out to potential investors plan",
+          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Introduction",
-          "new_node_summary": "Introduces the topic of how to use the new AI tool.",
+          "new_node_name": "Reaching out to potential investors plan",
+          "new_node_summary": "Outlines a plan to reach out to potential investors, including talking to Austin's dad, preparing a business plan, and creating a product demo.",
           "relationship_for_edge": null,
-          "content": "Okay, so we're going to talk about how to use the new AI tool."
-        },
-        {
-          "name": "Accessing the Tool",
-          "text": "First, you'll need to access the tool through the company portal.",
-          "action": "CREATE",
-          "target_node": "Introduction",
-          "new_node_name": "Accessing the Tool",
-          "new_node_summary": "Explains that the first step is to access the AI tool through the company portal.",
-          "relationship_for_edge": "follows",
-          "content": "First, you'll need to access the tool through the company portal."
-        },
-        {
-          "name": "Login Credentials",
-          "text": "Use your standard login credentials.",
-          "action": "APPEND",
-          "target_node": "Accessing the Tool",
-          "new_node_name": null,
-          "new_node_summary": null,
-          "relationship_for_edge": null,
-          "content": "Use your standard login credentials."
-        },
-        {
-          "name": "Tool Interface Overview",
-          "text": "Once you're in, you'll see the main interface with several options.",
-          "action": "CREATE",
-          "target_node": "Accessing the Tool",
-          "new_node_name": "Tool Interface Overview",
-          "new_node_summary": "Describes that the main interface with several options will be visible after logging in.",
-          "relationship_for_edge": "follows",
-          "content": "Once you're in, you'll see the main interface with several options."
-        },
-        {
-          "name": "Text Input Area",
-          "text": "The primary area is the text input box where you'll enter your prompts.",
-          "action": "CREATE",
-          "target_node": "Tool Interface Overview",
-          "new_node_name": "Text Input Area",
-          "new_node_summary": "Identifies the text input box as the primary area for entering prompts.",
-          "relationship_for_edge": "part of",
-          "content": "The primary area is the text input box where you'll enter your prompts."
-        },
-        {
-          "name": "Prompt Engineering Importance",
-          "text": "It's important to craft your prompts carefully to get the best results.",
-          "action": "CREATE",
-          "target_node": "Text Input Area",
-          "new_node_name": "Prompt Engineering Importance",
-          "new_node_summary": "Emphasizes the importance of carefully crafting prompts for optimal results.",
-          "relationship_for_edge": "elaborates on",
-          "content": "It's important to craft your prompts carefully to get the best results."
-        },
-        {
-          "name": "Example Prompt",
-          "text": "For example, instead of saying 'Summarize this,' try 'Provide a concise summary focusing on the key points and implications'.",
-          "action": "CREATE",
-          "target_node": "Prompt Engineering Importance",
-          "new_node_name": "Example Prompt",
-          "new_node_summary": "Provides an example of a well-crafted prompt for summarizing text.",
-          "relationship_for_edge": "exemplifies",
-          "content": "For example, instead of saying 'Summarize this,' try 'Provide a concise summary focusing on the key points and implications'."
-        },
-        {
-          "name": "Output Options",
-          "text": "Below the input box, you'll find options for different output formats.",
-          "action": "CREATE",
-          "target_node": "Tool Interface Overview",
-          "new_node_name": "Output Options",
-          "new_node_summary": "States that options for different output formats are located below the input box.",
-          "relationship_for_edge": "part of",
-          "content": "Below the input box, you'll find options for different output formats."
-        },
-        {
-          "name": "Supported Formats",
-          "text": "These include text, JSON, and CSV.",
-          "action": "APPEND",
-          "target_node": "Output Options",
-          "new_node_name": null,
-          "new_node_summary": null,
-          "relationship_for_edge": null,
-          "content": "These include text, JSON, and CSV."
-        },
-        {
-          "name": "Processing Time",
-          "text": "Processing time will vary depending on the complexity of the task.",
-          "action": "CREATE",
-          "target_node": "Tool Interface Overview",
-          "new_node_name": "Processing Time",
-          "new_node_summary": "Explains that the processing time depends on the complexity of the task.",
-          "relationship_for_edge": "relates to",
-          "content": "Processing time will vary depending on the complexity of the task."
+          "content": "\u2022 Initiate outreach to potential investors for guidance on next steps for the startup.\n\u2022 Consult Austin's dad, leveraging his industry experience for insights.\n\u2022 Develop a comprehensive business plan with financial projections, market research, and competitive analysis.\n\u2022 Prepare a product demo to showcase the startup's capabilities to investors."
         }
       ],
       "new_nodes": [
-        "Introduction",
-        "Accessing the Tool",
-        "Tool Interface Overview",
-        "Text Input Area",
-        "Prompt Engineering Importance",
-        "Example Prompt",
-        "Output Options",
-        "Processing Time"
+        "Reaching out to potential investors plan"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
       "error_message": null
     },
     {
-      "transcript_text": "To be able to start reaching out to investors, I will first have to polish my POC. This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use. I'll also need to prepare a compelling pitch deck and presentation.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- I\n- c\n- i\n- P\n- j\n- G\n- l\n- p\n- m\n- D\n- M\n- q\n- A\n- V\n- z\n- f\n- O\n- v\n- w\n- x\n- E",
+      "transcript_text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- b\n- N\n- w\n- P\n- j\n- S\n- D\n- f\n- v\n- m\n- I\n- K\n- E\n- M\n- U",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Polish POC for Investors",
-          "text": "To be able to start reaching out to investors, I will first have to polish my POC.",
-          "is_complete": true
-        },
-        {
-          "name": "Refine UI, Summarization, Robustness",
-          "text": "This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use.",
-          "is_complete": true
-        },
-        {
-          "name": "Prepare Pitch Deck",
-          "text": "I'll also need to prepare a compelling pitch deck and presentation.",
+          "name": "Investor Outreach Preparation: Polishing POC",
+          "text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Polish POC for Investors",
-          "text": "To be able to start reaching out to investors, I will first have to polish my POC.",
-          "reasoning": "This sub-chunk introduces the need to polish the POC to attract investors. The next sub-chunk elaborates on what 'polishing' entails.",
-          "relevant_node_name": "Refine UI, Summarization, Robustness",
-          "relationship": "followed by"
-        },
-        {
-          "name": "Refine UI, Summarization, Robustness",
-          "text": "This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use.",
-          "reasoning": "This sub-chunk details the specific improvements needed for the POC, as mentioned in the previous sub-chunk. It elaborates on what 'polishing' the POC means.",
-          "relevant_node_name": "Polish POC for Investors",
-          "relationship": "elaborates on"
-        },
-        {
-          "name": "Prepare Pitch Deck",
-          "text": "I'll also need to prepare a compelling pitch deck and presentation.",
-          "reasoning": "This sub-chunk introduces a separate task (preparing the pitch deck) that is also necessary for reaching out to investors, similar to polishing the POC. It's a parallel step.",
-          "relevant_node_name": "Polish POC for Investors",
-          "relationship": "related task"
+          "name": "Investor Outreach Preparation: Polishing POC",
+          "text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
+          "reasoning": "This chunk outlines the necessary steps to prepare the Proof of Concept (POC) for investor outreach. It describes concrete actions and improvements needed, essentially detailing the implementation process for making the POC investor-ready. Since there are no existing nodes to connect to, it is a new topic.",
+          "relevant_node_name": "NO_RELEVANT_NODE",
+          "relationship": null
         }
       ],
       "integration_decisions": [
         {
-          "name": "Introduction to the Project",
-          "text": "Okay, so the project that I'm working on is a personal knowledge graph.",
+          "name": "Investor Outreach Preparation: Polishing POC",
+          "text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Introduction to the Project",
-          "new_node_summary": "Introduces the project as a personal knowledge graph.",
+          "new_node_name": "Investor Outreach Preparation: Polishing POC",
+          "new_node_summary": "Describes the necessary steps to polish the Proof of Concept (POC) for effective investor outreach, including UI refinement, AI model improvement, and documentation.",
           "relationship_for_edge": null,
-          "content": "Okay, so the project that I'm working on is a personal knowledge graph."
-        },
-        {
-          "name": "Purpose of the Knowledge Graph",
-          "text": "And the idea is that I want to be able to, you know, ingest information and then be able to ask questions of that information.",
-          "action": "CREATE",
-          "target_node": "Introduction to the Project",
-          "new_node_name": "Purpose of the Knowledge Graph",
-          "new_node_summary": "The purpose of the knowledge graph is to ingest information and answer questions about it.",
-          "relationship_for_edge": "elaborates on",
-          "content": "And the idea is that I want to be able to, you know, ingest information and then be able to ask questions of that information."
-        },
-        {
-          "name": "Current Ingestion Method",
-          "text": "So right now, I'm doing that by taking notes as I'm reading books or watching videos.",
-          "action": "CREATE",
-          "target_node": "Purpose of the Knowledge Graph",
-          "new_node_name": "Current Ingestion Method",
-          "new_node_summary": "The current method for ingesting information involves taking notes while reading books or watching videos.",
-          "relationship_for_edge": "implements",
-          "content": "So right now, I'm doing that by taking notes as I'm reading books or watching videos."
-        },
-        {
-          "name": "Note-Taking Process",
-          "text": "And then I'm summarizing those notes and putting them into a markdown file.",
-          "action": "APPEND",
-          "target_node": "Current Ingestion Method",
-          "new_node_name": null,
-          "new_node_summary": null,
-          "relationship_for_edge": null,
-          "content": "And then I'm summarizing those notes and putting them into a markdown file."
-        },
-        {
-          "name": "Markdown File Structure",
-          "text": "And the markdown file has a specific structure.",
-          "action": "CREATE",
-          "target_node": "Note-Taking Process",
-          "new_node_name": "Markdown File Structure",
-          "new_node_summary": "The markdown files used for storing notes have a specific structure.",
-          "relationship_for_edge": "elaborates on",
-          "content": "And the markdown file has a specific structure."
-        },
-        {
-          "name": "YAML Frontmatter",
-          "text": "It has YAML front matter.",
-          "action": "APPEND",
-          "target_node": "Markdown File Structure",
-          "new_node_name": null,
-          "new_node_summary": null,
-          "relationship_for_edge": null,
-          "content": "It has YAML front matter."
-        },
-        {
-          "name": "YAML Frontmatter Details",
-          "text": "And the YAML front matter has a title, a URL, a description, and a few other things.",
-          "action": "APPEND",
-          "target_node": "YAML Frontmatter",
-          "new_node_name": null,
-          "new_node_summary": null,
-          "relationship_for_edge": null,
-          "content": "And the YAML front matter has a title, a URL, a description, and a few other things."
-        },
-        {
-          "name": "Main Content Format",
-          "text": "And then the main content of the file is just in a plain text format.",
-          "action": "APPEND",
-          "target_node": "Markdown File Structure",
-          "new_node_name": null,
-          "new_node_summary": null,
-          "relationship_for_edge": null,
-          "content": "And then the main content of the file is just in a plain text format."
-        },
-        {
-          "name": "Current Limitations",
-          "text": "So that's how I'm doing it right now, but it's not ideal.",
-          "action": "CREATE",
-          "target_node": "Note-Taking Process",
-          "new_node_name": "Current Limitations",
-          "new_node_summary": "Acknowledges that the current note-taking process is not ideal.",
-          "relationship_for_edge": "leads to",
-          "content": "So that's how I'm doing it right now, but it's not ideal."
-        },
-        {
-          "name": "Desired Improvements",
-          "text": "I want to be able to ingest PDFs and other types of files.",
-          "action": "CREATE",
-          "target_node": "Current Limitations",
-          "new_node_name": "Desired Improvements",
-          "new_node_summary": "The desired improvement is to ingest PDFs and other file types.",
-          "relationship_for_edge": "elaborates on",
-          "content": "I want to be able to ingest PDFs and other types of files."
-        },
-        {
-          "name": "Problem with Current System",
-          "text": "I don't want to have to manually take notes on everything.",
-          "action": "APPEND",
-          "target_node": "Current Limitations",
-          "new_node_name": null,
-          "new_node_summary": null,
-          "relationship_for_edge": null,
-          "content": "I don't want to have to manually take notes on everything."
+          "content": "\u2022 Refine the POC user interface for intuitiveness and professionalism.\n\u2022 Improve the summarization quality and accuracy of AI models.\n\u2022 Prepare a compelling pitch deck and presentation materials for investors.\n\u2022 Complete performance optimization and scalability testing of the application."
         }
       ],
       "new_nodes": [
-        "Introduction to the Project",
-        "Purpose of the Knowledge Graph",
-        "Current Ingestion Method",
-        "Markdown File Structure",
-        "Current Limitations",
-        "Desired Improvements"
+        "Investor Outreach Preparation: Polishing POC"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
       "error_message": null
     }
   ],
-  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - Introduction to the Project\n    - Project Goal\n    - Pipeline Components\n    - Data Collection Methods\n    - Cleaning Techniques\n    - Analysis Tools\n    - Visualization Platforms\n    - Project Timeline\n    - Team Roles\n    - Regular Meetings    - Introduction\n    - Accessing the Tool\n    - Tool Interface Overview\n    - Text Input Area\n    - Prompt Engineering Importance\n    - Example Prompt\n    - Output Options\n    - Processing Time",
+  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - VoiceTree Application Capabilities Test\n    - Create New Node About Project Planning\n    - Project Scope Definition Deliverables and Timelines\n    - Identify Key Stakeholders Roles Responsibilities\n    - Establish Communication Channels Regular Check-in Meetings\n    - Risk Assessment and Mitigation Strategies\n    - Set Up Documentation and Version Control    - Reaching out to potential investors plan",
   "statistics": {
-    "total_new_nodes": 24,
+    "total_new_nodes": 9,
     "append_decisions": 0,
     "create_decisions": 0
   }

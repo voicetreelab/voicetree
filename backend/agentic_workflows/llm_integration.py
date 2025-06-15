@@ -161,7 +161,7 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
                 "response_mime_type": "application/json",
                 "response_schema": schema_class,
                 "max_output_tokens": 8192,
-                "temperature": 0.3,
+                "temperature": 0.1,
             }
         )
         
@@ -249,7 +249,7 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
             contents=prompt,
             config={
                 "max_output_tokens": 8192,
-                "temperature": 0.3,
+                "temperature": 0.1,
             }
         )
         

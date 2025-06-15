@@ -22,25 +22,36 @@ def test_complex_tree_creation():
     print("🧪 Testing VoiceTree LangGraph Pipeline with Real Integration Test Examples")
     print("=" * 80)
     
-    # These are the exact transcripts from test_system_llm_live.py
+    # Longer, more realistic transcripts that exceed the 500-character buffer threshold
     transcript1 = """
-    This is a test of the VoiceTree application.
-    I want to create a new node about project planning. 
-    The first step is to define the project scope. 
-    The next step is to identify the key stakeholders.
+    This is a comprehensive test of the VoiceTree application and its capabilities.
+    I want to create a new node about project planning and management strategies. 
+    The first step is to define the project scope clearly, including all deliverables and timelines.
+    The next step is to identify the key stakeholders, their roles, and responsibilities.
+    We also need to establish communication channels and regular check-in meetings.
+    Risk assessment and mitigation strategies should be developed early in the process.
+    Finally, we need to set up proper documentation and version control systems.
     """
 
     transcript2 = (
-        "Another thing I will have to do is start reaching out to investors "
-        "to see what next steps they would recommend for me. "
-        "I should talk to Austin's dad first."
+        "Another important thing I will have to do is start reaching out to potential investors "
+        "to see what next steps they would recommend for me and my startup. "
+        "I should talk to Austin's dad first since he has experience in this industry. "
+        "I also need to prepare a comprehensive business plan with financial projections. "
+        "Market research and competitive analysis will be crucial for these conversations. "
+        "I should also prepare a demo of the current product to show its capabilities. "
+        "Building relationships with investors takes time, so I need to start early."
     )
 
     transcript3 = (
-        "To be able to start reaching out to investors, I will first have to polish my POC. "
-        "This involves refining the user interface, improving the summarization quality, "
-        "and making sure the application is robust and easy to use. "
-        "I'll also need to prepare a compelling pitch deck and presentation."
+        "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. "
+        "This involves refining the user interface to make it more intuitive and professional. "
+        "I need to improve the summarization quality and accuracy of the AI models. "
+        "Making sure the application is robust and easy to use is absolutely critical. "
+        "I'll also need to prepare a compelling pitch deck and presentation materials. "
+        "Performance optimization and scalability testing should be completed. "
+        "User feedback collection and iteration based on that feedback is important. "
+        "Documentation for both users and developers needs to be comprehensive and clear."
     )
     
     # Start with empty tree (just root node)
@@ -141,10 +152,14 @@ def test_single_transcript():
     print("=" * 80)
     
     transcript = """
-    I need to work on the VoiceTree project today.
-    First, I should integrate LangGraph to improve the workflow processing.
-    This will help with better decision making about where to place new nodes in the tree.
-    After that, I need to benchmark the performance against the current system.
+    I need to work on the VoiceTree project today and make significant progress on several fronts.
+    First, I should integrate LangGraph to improve the workflow processing and make it more robust.
+    This will help with better decision making about where to place new nodes in the tree structure.
+    After that, I need to benchmark the performance against the current system to measure improvements.
+    I also need to write comprehensive tests to ensure the new functionality works correctly.
+    Documentation updates will be necessary to reflect the new architecture and capabilities.
+    User interface improvements should be considered to make the system more intuitive.
+    Finally, I should prepare for the next phase of development and plan future features.
     """
     
     existing_nodes = """

@@ -19,17 +19,17 @@ def test_chunk_boundaries_quick():
     print("🧪 Testing Chunk Boundary Handling (Quick - Real LLM)")
     print("=" * 50)
     
-    # Create pipeline with state file
+    # Create pipeline with state file (using default buffer threshold)
     state_file = "test_chunk_boundaries_quick_state.json"
     pipeline = VoiceTreePipeline(state_file)
     
     # Clear any existing state
     pipeline.clear_state()
     
-    # Only test 2 chunks instead of 5 (reduces API calls from 20 to 8)
+    # Longer, more realistic voice chunks that exceed the 500-character buffer threshold
     voice_chunks = [
-        "I'm working on a new project for natural language processing. The system will use transfor",
-        "mer models for text analysis. We need to implement features."
+        "I'm working on a new project for natural language processing and machine learning applications. The system will use transformer models for advanced text analysis and understanding. We need to implement entity recognition, sentiment analysis, and semantic search capabilities. The architecture should be scalable and robust to handle large volumes of text data efficiently.",
+        "Additionally, we need to implement comprehensive testing frameworks and quality assurance processes. The user interface should be intuitive and responsive, providing real-time feedback to users. Documentation and training materials will be essential for successful adoption. We should also consider integration with existing enterprise systems and APIs."
     ]
     
     print(f"\n📝 Processing {len(voice_chunks)} voice chunks:")
@@ -43,6 +43,11 @@ def test_chunk_boundaries_quick():
         # Show basic results
         nodes_created = len(result.get("new_nodes", []))
         print(f"   • Created {nodes_created} nodes")
+    
+    # Process any remaining buffer
+    final_result = pipeline.force_process_buffer()
+    if final_result.get("new_nodes"):
+        all_results.append(final_result)
     
     # Basic verification
     total_nodes = sum(len(r.get('new_nodes', [])) for r in all_results)

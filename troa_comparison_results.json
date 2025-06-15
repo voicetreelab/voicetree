@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-06-15T19:26:15.927991",
+  "baseline": {
+    "files": 2,
+    "content_length": 1406,
+    "quality_score": 1.0,
+    "quality_issues": 0,
+    "good_practices": 4,
+    "processing_time": 0.9596719741821289
+  },
+  "enhanced": {
+    "files": 2,
+    "content_length": 1408,
+    "quality_score": 1.0,
+    "quality_issues": 0,
+    "good_practices": 4,
+    "processing_time": 0.9512960910797119,
+    "troa_time": 7.510185241699219e-05,
+    "troa_success": false
+  },
+  "improvements": [
+    "Acceptable processing overhead (-0.01s)"
+  ],
+  "regressions": []
+}

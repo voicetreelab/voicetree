@@ -7,8 +7,8 @@ from typing import Dict, Any
 
 try:
     from langgraph.graph import StateGraph, END
-    from backend.agentic_workflows.state import VoiceTreeState
-    from backend.agentic_workflows.nodes import (
+    from agentic_workflows.state import VoiceTreeState
+    from agentic_workflows.nodes import (
         segmentation_node,
         relationship_analysis_node, 
         integration_decision_node,

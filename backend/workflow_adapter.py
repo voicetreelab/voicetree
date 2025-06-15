@@ -8,10 +8,11 @@ import json
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from datetime import datetime
 
-from backend.agentic_workflows.main import VoiceTreePipeline
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager import NodeAction
+from agentic_workflows.main import VoiceTreePipeline
+from tree_manager.decision_tree_ds import DecisionTree
+from tree_manager import NodeAction
 
 
 class WorkflowMode(Enum):
@@ -53,6 +54,7 @@ class WorkflowAdapter:
         self.decision_tree = decision_tree
         self.mode = mode
         self.pipeline = VoiceTreePipeline(state_file)
+        self._incomplete_buffer = ""
     
     async def process_transcript(
         self, 
@@ -70,13 +72,18 @@ class WorkflowAdapter:
             WorkflowResult with processing outcomes
         """
         try:
+            # Prepare the full transcript with any incomplete buffer
+            full_transcript = transcript
+            if self._incomplete_buffer:
+                full_transcript = self._incomplete_buffer + " " + transcript
+            
             # Get current state snapshot for the workflow
             state_snapshot = self._prepare_state_snapshot()
             
             # Run the workflow (synchronously for now, can be made async)
             result = await asyncio.to_thread(
                 self.pipeline.run,
-                transcript
+                full_transcript
             )
             
             # Process the workflow result
@@ -87,6 +94,9 @@ class WorkflowAdapter:
                     node_actions=[],
                     error_message=result["error_message"]
                 )
+            
+            # Update incomplete buffer
+            self._incomplete_buffer = result.get("incomplete_chunk_remainder", "")
             
             # Convert workflow decisions to NodeActions
             node_actions = self._convert_to_node_actions(result)
@@ -121,15 +131,44 @@ class WorkflowAdapter:
         Returns:
             Dictionary with current tree state information
         """
-        # Get all nodes with their summaries
+        # Get all nodes with their summaries, ordered by creation time (most recent first)
         node_summaries = []
-        for node_id, node in self.decision_tree.tree.items():
-            if hasattr(node, 'name') and hasattr(node, 'summary'):
-                node_summaries.append(f"{node.name}: {node.summary}")
+        nodes_by_recency = sorted(
+            self.decision_tree.tree.items(),
+            key=lambda x: x[1].created_at if hasattr(x[1], 'created_at') else datetime.min,
+            reverse=True
+        )
+        
+        for node_id, node in nodes_by_recency:
+            if hasattr(node, 'title') and hasattr(node, 'summary'):
+                # Include more context: summary, recent activity, and content preview
+                node_info = f"- {node.title}: {node.summary}"
+                
+                # Add parent relationship context
+                if hasattr(node, 'parent_id') and node.parent_id is not None:
+                    parent_node = self.decision_tree.tree.get(node.parent_id)
+                    if parent_node and hasattr(parent_node, 'title'):
+                        node_info += f" (child of {parent_node.title})"
+                else:
+                    node_info += " (child of NO_RELEVANT_NODE)"
+                
+                # Add recent modification indicator
+                if hasattr(node, 'modified_at') and hasattr(node, 'created_at'):
+                    if node.modified_at > node.created_at:
+                        node_info += " [recently updated]"
+                
+                node_summaries.append(node_info)
+        
+        # If no nodes exist, provide clear indication
+        if not node_summaries:
+            existing_nodes_text = "No existing nodes"
+        else:
+            existing_nodes_text = "\n".join(node_summaries)
         
         return {
-            "existing_nodes": "\n".join(node_summaries),
-            "total_nodes": len(self.decision_tree.tree)
+            "existing_nodes": existing_nodes_text,
+            "total_nodes": len(self.decision_tree.tree),
+            "recent_nodes_count": min(5, len(self.decision_tree.tree))  # For context prioritization
         }
     
     def _convert_to_node_actions(self, workflow_result: Dict[str, Any]) -> List[NodeAction]:
@@ -214,4 +253,5 @@ class WorkflowAdapter:
     
     def clear_workflow_state(self) -> None:
         """Clear the workflow state"""
-        self.pipeline.clear_state() 
+        self.pipeline.clear_state()
+        self._incomplete_buffer = "" 

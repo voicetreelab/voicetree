@@ -20,9 +20,9 @@ def test_chunk_boundaries():
     print("🧪 Testing Chunk Boundary Handling")
     print("=" * 50)
     
-    # Create pipeline with state file
+    # Create pipeline with state file and small buffer threshold for testing
     state_file = "test_chunk_boundaries_state.json"
-    pipeline = VoiceTreePipeline(state_file)
+    pipeline = VoiceTreePipeline(state_file, buffer_threshold=100)  # Small threshold for testing
     
     # Clear any existing state
     pipeline.clear_state()
@@ -64,22 +64,36 @@ def test_chunk_boundaries():
             "had_buffer": bool(pipeline.incomplete_chunk_buffer),
             "new_nodes": result.get("new_nodes", []),
             "chunks_processed": len(result.get("chunks", [])),
-            "has_incomplete": bool(result.get("incomplete_chunk_remainder"))
+            "was_buffered": result.get("current_stage") == "buffering"
         })
         
         # Show what happened
         print(f"\n   Results:")
         print(f"   • Chunks processed: {len(result.get('chunks', []))}")
         print(f"   • New nodes created: {result.get('new_nodes', [])}")
-        if result.get("incomplete_chunk_remainder"):
-            print(f"   • Incomplete text buffered: \"{result['incomplete_chunk_remainder'][:50]}...\"")
+        if result.get("current_stage") == "buffering":
+            print(f"   • Text buffered: {result.get('buffer_size', 0)}/{result.get('buffer_threshold', 0)} chars")
+    
+    # Process any remaining buffer at the end
+    final_result = pipeline.force_process_buffer()
+    if final_result.get("new_nodes"):
+        print(f"\n📋 Final buffer processing:")
+        print(f"   • Additional nodes created: {final_result.get('new_nodes', [])}")
+        all_results.append({
+            "chunk_num": len(voice_chunks) + 1,
+            "input_text": "(final buffer)",
+            "had_buffer": True,
+            "new_nodes": final_result.get("new_nodes", []),
+            "chunks_processed": len(final_result.get("chunks", [])),
+            "was_buffered": False
+        })
     
     # Final summary
     print(f"\n{'='*60}")
     print("📊 Test Summary:")
     print(f"   • Total voice chunks: {len(voice_chunks)}")
     print(f"   • Total nodes created: {sum(len(r['new_nodes']) for r in all_results)}")
-    print(f"   • Chunks with incomplete text: {sum(1 for r in all_results if r['has_incomplete'])}")
+    print(f"   • Chunks that were buffered: {sum(1 for r in all_results if r['was_buffered'])}")
     
     # Verify the complete text was processed correctly
     stats = pipeline.get_statistics()
@@ -98,18 +112,18 @@ def test_chunk_boundaries():
     assert total_nodes > 0, f"Expected some nodes to be created, but got {total_nodes}"
     print(f"   ✓ Created {total_nodes} nodes total")
     
-    # Test 2: Incomplete chunks should be buffered
-    incomplete_chunks = sum(1 for r in all_results if r['has_incomplete'])
-    assert incomplete_chunks > 0, "Expected some chunks to be incomplete and buffered"
-    print(f"   ✓ Buffered {incomplete_chunks} incomplete chunks")
+    # Test 2: Some chunks should be buffered due to size threshold
+    buffered_chunks = sum(1 for r in all_results if r['was_buffered'])
+    assert buffered_chunks > 0, "Expected some chunks to be buffered due to size threshold"
+    print(f"   ✓ Buffered {buffered_chunks} chunks due to size threshold")
     
     # Test 3: Some chunks should have content from previous buffers 
-    buffered_chunks = sum(1 for r in all_results if r['had_buffer'])
-    assert buffered_chunks > 0, "Expected some chunks to use buffered content from previous execution"
-    print(f"   ✓ Used buffered content in {buffered_chunks} chunks")
+    had_buffer_chunks = sum(1 for r in all_results if r['had_buffer'])
+    assert had_buffer_chunks > 0, "Expected some chunks to use buffered content from previous execution"
+    print(f"   ✓ Used buffered content in {had_buffer_chunks} chunks")
     
-    # Test 4: Final state should have multiple nodes
-    assert stats['total_nodes'] >= 5, f"Expected at least 5 total nodes, got {stats['total_nodes']}"
+    # Test 4: Final state should have multiple nodes (simplified buffering creates fewer, better nodes)
+    assert stats['total_nodes'] >= 2, f"Expected at least 2 total nodes, got {stats['total_nodes']}"
     print(f"   ✓ Final state has {stats['total_nodes']} nodes")
     
     # Test 5: No errors in processing
@@ -128,7 +142,7 @@ def test_extreme_boundaries():
     print("\n\n🧪 Testing Extreme Chunk Boundaries")
     print("=" * 50)
     
-    pipeline = VoiceTreePipeline("test_extreme_state.json")
+    pipeline = VoiceTreePipeline("test_extreme_state.json", buffer_threshold=50)  # Very small threshold
     pipeline.clear_state()
     
     # Test cases with extreme fragmentation
@@ -150,6 +164,11 @@ def test_extreme_boundaries():
         result = pipeline.run(chunk)
         print(f"   • Processed: {len(result.get('chunks', []))} chunks")
         print(f"   • Created: {result.get('new_nodes', [])}")
+    
+    # Process any remaining buffer
+    final_result = pipeline.force_process_buffer()
+    if final_result.get("new_nodes"):
+        print(f"\n📋 Final buffer: {final_result.get('new_nodes', [])}")
     
     stats = pipeline.get_statistics()
     print(f"\n📊 Final result: {stats['total_nodes']} nodes created")

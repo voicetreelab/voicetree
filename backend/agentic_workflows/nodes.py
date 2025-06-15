@@ -29,8 +29,8 @@ def log_to_file(stage_name: str, log_type: str, content: str):
 
 # Import the LLM integration and debug logger
 try:
-    from backend.agentic_workflows.llm_integration import call_llm_structured, call_llm
-    from backend.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
+    from agentic_workflows.llm_integration import call_llm_structured, call_llm
+    from agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
 except ImportError:
     # If running from a different directory, try relative import
     try:
@@ -317,7 +317,16 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # If segmentation failed or returned no chunks, create a simple fallback
     if result.get("current_stage") == "error" or not result.get("chunks"):
         print("⚠️ Segmentation failed or returned no chunks, creating fallback segmentation")
-        transcript = state["transcript_text"].strip()
+        transcript_raw = state.get("transcript_text", "")
+        
+        # Handle case where transcript_text might be a dict or other type
+        if isinstance(transcript_raw, dict):
+            transcript = transcript_raw.get("text", str(transcript_raw)).strip()
+        elif isinstance(transcript_raw, str):
+            transcript = transcript_raw.strip()
+        else:
+            transcript = str(transcript_raw).strip()
+            
         if transcript:
             # Create a simple single chunk as fallback
             fallback_chunk = {
@@ -340,31 +349,10 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 "error_message": "Empty transcript provided for segmentation"
             }
     
-    # If segmentation was successful, filter out incomplete chunks
+    # Simplified: treat all chunks as complete since buffering is handled at pipeline level
     if result.get("chunks") and result["current_stage"] != "error":
-        complete_chunks = []
-        incomplete_chunk = None
-        
-        for chunk in result["chunks"]:
-            if chunk.get("is_complete", True):  # Default to True if not specified
-                complete_chunks.append(chunk)
-            else:
-                # Save the last incomplete chunk to carry forward
-                incomplete_chunk = chunk
-                print(f"   ⏳ Found incomplete chunk: '{chunk.get('name', 'Unnamed')[:50]}...'")
-        
-        # Update result with filtered chunks
-        result["chunks"] = complete_chunks
-        
-        # Save incomplete chunk text for next execution
-        if incomplete_chunk:
-            result["incomplete_chunk_remainder"] = incomplete_chunk.get("text", "")
-        else:
-            result["incomplete_chunk_remainder"] = None
-        
-        print(f"   ✅ Processing {len(complete_chunks)} complete chunks")
-        if incomplete_chunk:
-            print(f"   ⏳ 1 incomplete chunk saved for next execution")
+        chunks = result["chunks"]
+        print(f"   ✅ Processing {len(chunks)} complete chunks")
     
     return result
 

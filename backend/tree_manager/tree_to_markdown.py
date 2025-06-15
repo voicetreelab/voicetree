@@ -5,7 +5,7 @@ import re
 import traceback
 
 from rake_nltk import Rake
-from backend.tree_manager.utils import deduplicate_content
+from tree_manager.utils import deduplicate_content
 
 
 def generate_filename_from_keywords(node_title, max_keywords=3):

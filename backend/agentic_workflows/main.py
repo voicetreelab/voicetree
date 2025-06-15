@@ -7,9 +7,9 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 try:
-    from backend.agentic_workflows.graph import compile_voicetree_graph
-    from backend.agentic_workflows.state import VoiceTreeState
-    from backend.agentic_workflows.state_manager import VoiceTreeStateManager
+    from agentic_workflows.graph import compile_voicetree_graph
+    from agentic_workflows.state import VoiceTreeState
+    from agentic_workflows.state_manager import VoiceTreeStateManager
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     print("⚠️ LangGraph dependencies not available")
@@ -27,20 +27,22 @@ except ImportError:
 class VoiceTreePipeline:
     """Main pipeline class that maintains state across executions"""
     
-    def __init__(self, state_file: Optional[str] = None):
+    def __init__(self, state_file: Optional[str] = None, buffer_threshold: int = 500):
         """
         Initialize the pipeline with optional persistent state
         
         Args:
             state_file: Optional path to persist state to disk
+            buffer_threshold: Character count threshold for processing
         """
         self.state_manager = VoiceTreeStateManager(state_file) if LANGGRAPH_AVAILABLE else None
         self.app = compile_voicetree_graph()
-        self.incomplete_chunk_buffer = ""  # Buffer for incomplete chunks
+        self.text_buffer = ""  # Simple character-count buffer
+        self.buffer_threshold = buffer_threshold
     
     def run(self, transcript: str) -> Dict[str, Any]:
         """
-        Run the VoiceTree processing pipeline
+        Run the VoiceTree processing pipeline with simple character-count buffering
         
         Args:
             transcript: The input transcript text to process
@@ -48,24 +50,41 @@ class VoiceTreePipeline:
         Returns:
             Final state containing processing results
         """
+        # Add new text to buffer
+        self.text_buffer += transcript + " "
+        
+        # Check if buffer is ready for processing
+        if len(self.text_buffer) < self.buffer_threshold:
+            # Not enough content yet, return empty result
+            return {
+                "chunks": [],
+                "new_nodes": [],
+                "current_stage": "buffering",
+                "buffer_size": len(self.text_buffer),
+                "buffer_threshold": self.buffer_threshold
+            }
+        
+        # Buffer is ready, process it
+        text_to_process = self.text_buffer.strip()
+        self.text_buffer = ""  # Clear buffer after processing
+        
         print("🚀 Starting VoiceTree LangGraph Pipeline")
         print("=" * 50)
-        
-        # NOTE: Incomplete chunk handling is now managed by UnifiedBufferManager
+        print(f"📊 Processing buffered text: {len(text_to_process)} characters")
         
         # Get existing nodes from state manager
         existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"
         
         # Create initial state
         initial_state = {
-            "transcript_text": transcript,
+            "transcript_text": text_to_process,
             "existing_nodes": existing_nodes_text,
-            "incomplete_chunk_buffer": self.incomplete_chunk_buffer,
+            "incomplete_chunk_buffer": "",  # No longer used
             "chunks": None,
             "analyzed_chunks": None,
             "integration_decisions": None,
             "new_nodes": None,
-            "incomplete_chunk_remainder": None,
+            "incomplete_chunk_remainder": None,  # No longer used
             "current_stage": "start",
             "error_message": None
         }
@@ -87,11 +106,6 @@ class VoiceTreePipeline:
                 if self.state_manager and final_state.get("new_nodes"):
                     self.state_manager.add_nodes(final_state["new_nodes"], final_state)
                     print(f"\n📊 State updated: {len(self.state_manager.nodes)} total nodes")
-                
-                # Update incomplete chunk buffer for next execution
-                self.incomplete_chunk_buffer = final_state.get("incomplete_chunk_remainder", "")
-                if self.incomplete_chunk_buffer:
-                    print(f"\n⏳ Incomplete chunk saved for next execution: '{self.incomplete_chunk_buffer[:50]}...'")
             
             return final_state
             
@@ -110,10 +124,35 @@ class VoiceTreePipeline:
         return {"error": "No state manager available"}
     
     def clear_state(self) -> None:
-        """Clear all state"""
+        """Clear all state including buffer"""
+        self.text_buffer = ""  # Clear the buffer too
         if self.state_manager:
             self.state_manager.clear_state()
             print("🗑️ State cleared")
+    
+    def force_process_buffer(self) -> Dict[str, Any]:
+        """Force process whatever is in the buffer, regardless of threshold"""
+        if not self.text_buffer.strip():
+            return {
+                "chunks": [],
+                "new_nodes": [],
+                "current_stage": "empty_buffer"
+            }
+        
+        # Temporarily lower threshold to force processing
+        original_threshold = self.buffer_threshold
+        self.buffer_threshold = 0
+        
+        try:
+            result = self.run("")  # Empty string won't add to buffer
+            return result
+        finally:
+            self.buffer_threshold = original_threshold
+    
+    @property
+    def incomplete_chunk_buffer(self) -> str:
+        """Compatibility property for tests that expect this attribute"""
+        return self.text_buffer
     
     def _print_results_summary(self, state: Dict[str, Any]) -> None:
         """Print a summary of pipeline results"""

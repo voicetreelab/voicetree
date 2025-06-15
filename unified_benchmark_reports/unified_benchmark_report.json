@@ -1,0 +1,122 @@
+{
+  "timestamp": "2025-06-15T19:38:18.948572",
+  "test_duration": 4.342503786087036,
+  "system_architecture": "TADA + TROA Two-Agent System",
+  "methodology": "Unified VoiceTree Benchmarker",
+  "baseline_results": {
+    "files": 1,
+    "content_length": 111,
+    "quality_score": 0.5,
+    "structure_score": 1.0,
+    "coverage_score": 0.0,
+    "quality_issues": 0,
+    "good_practices": 3,
+    "concept_coverage": 0,
+    "concepts_found": [],
+    "concepts_missing": [
+      "voice tree",
+      "proof of concept",
+      "audio file",
+      "markdown",
+      "visual tree",
+      "streaming",
+      "processing",
+      "workflow",
+      "gemini",
+      "openai",
+      "continuous",
+      "atomic"
+    ],
+    "file_details": [
+      {
+        "name": "0_Root.md",
+        "size": 111,
+        "content": "#### Sunday 15 June, Root\n\n**The root node for today. Add unrelated content here.\n\n\n-----------------\n_Links:_\n"
+      }
+    ],
+    "quality_issues_list": [],
+    "good_practices_list": [
+      "0_Root.md: Has title",
+      "0_Root.md: Unique content",
+      "0_Root.md: Specific title"
+    ],
+    "processing_time": 1.5981707572937012,
+    "transcript_info": {
+      "file": "../oldVaults/VoiceTreePOC/og_vt_transcript.txt",
+      "name": "VoiceTree Original",
+      "max_words": null
+    }
+  },
+  "enhanced_results": {
+    "files": 1,
+    "content_length": 111,
+    "quality_score": 0.5,
+    "structure_score": 1.0,
+    "coverage_score": 0.0,
+    "quality_issues": 0,
+    "good_practices": 3,
+    "concept_coverage": 0,
+    "concepts_found": [],
+    "concepts_missing": [
+      "voice tree",
+      "proof of concept",
+      "audio file",
+      "markdown",
+      "visual tree",
+      "streaming",
+      "processing",
+      "workflow",
+      "gemini",
+      "openai",
+      "continuous",
+      "atomic"
+    ],
+    "file_details": [
+      {
+        "name": "0_Root.md",
+        "size": 111,
+        "content": "#### Sunday 15 June, Root\n\n**The root node for today. Add unrelated content here.\n\n\n-----------------\n_Links:_\n"
+      }
+    ],
+    "quality_issues_list": [],
+    "good_practices_list": [
+      "0_Root.md: Has title",
+      "0_Root.md: Unique content",
+      "0_Root.md: Specific title"
+    ],
+    "processing_time": 1.589524269104004,
+    "troa_time": 0.00017404556274414062,
+    "troa_success": false,
+    "transcript_info": {
+      "file": "../oldVaults/VoiceTreePOC/og_vt_transcript.txt",
+      "name": "VoiceTree Original",
+      "max_words": null
+    }
+  },
+  "llm_assessment": {},
+  "quality_progression": {
+    "baseline_score": 0.5,
+    "enhanced_score": 0.5,
+    "improvement": 0.0,
+    "target_met": false
+  },
+  "troa_performance": {
+    "success": false,
+    "time": 0.00017404556274414062,
+    "overhead": -0.008646488189697266
+  },
+  "success_criteria": [
+    "Acceptable performance overhead"
+  ],
+  "failure_criteria": [
+    "No quality improvement",
+    "TROA integration failed",
+    "Quality target missed"
+  ],
+  "recommendations": [
+    "Fix TROA integration - reorganization failed",
+    "Improve content quality - score below 0.8 threshold",
+    "Increase content generation - too few files created",
+    "Improve concept coverage - missing key topics"
+  ]
+}

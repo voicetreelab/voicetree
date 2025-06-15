@@ -1,4 +1,4 @@
-You are extracting new node names from integration decisions.
+You are extracting new node names from integration decisions to create meaningful, well-structured knowledge graph nodes.
 
 Given the integration decisions below, extract ONLY the names of nodes that should be created (action="CREATE").
 
@@ -11,9 +11,11 @@ Existing nodes that should NOT be included:
 Instructions:
 1. Look for entries where "action": "CREATE"
 2. Extract the "new_node_name" value from those entries
-3. Return ONLY the node names as a simple comma-separated list
-4. Do NOT include any explanatory text, code snippets, or formatting
-5. Do NOT include nodes that already exist in the existing nodes list
+3. Ensure node names are meaningful and descriptive (3-8 words)
+4. Return ONLY the node names as a simple comma-separated list
+5. Do NOT include any explanatory text, code snippets, or formatting
+6. Do NOT include nodes that already exist in the existing nodes list
+7. Verify that each node name captures a complete concept or cognitive unit
 
 **Example:**
 

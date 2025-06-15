@@ -1,0 +1,29 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Python Virtual Environment Rule
+
+When running any terminal commands in this VoiceTreePoc project:
+
+1. **ALWAYS** activate the virtual environment first using: `source ../.venv/bin/activate`
+2. The virtual environment is located at `../.venv/bin/activate` relative to the backend directory
+3. The venv contains all required dependencies including langgraph and langchain-core
+4. After activation, you should see `(.venv)` in the terminal prompt
+5. This applies to ALL python commands, pip installs, and script executions
+
+Example command pattern:
+```bash
+source ../.venv/bin/activate && python script_name.py
+```
+
+Never run Python commands without first activating the virtual environment in this project.
+
+## Project Context
+
+- This is the VoiceTreePoc project with TADA + TROA improvements
+- The backend directory contains the main Python code
+- Virtual env is at project root: `../.venv/`
+- Critical dependencies: langgraph, langchain-core for agentic workflows
+- Always test in venv to ensure proper dependency resolution

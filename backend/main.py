@@ -2,26 +2,36 @@ import asyncio
 import sys
 import unittest
 
-import process_transcription
-from tree_manager.workflow_tree_manager import WorkflowTreeManager
+from enhanced_transcription_processor import create_enhanced_transcription_processor
 from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from voice_to_text.voice_to_text import VoiceToTextEngine
 
+# Create enhanced system with TADA + TROA
 decision_tree = DecisionTree()
-tree_manager = WorkflowTreeManager(decision_tree, workflow_state_file="voicetree_workflow_state.json")
-converter = TreeToMarkdownConverter(decision_tree.tree)
-processor = process_transcription.TranscriptionProcessor(tree_manager,
-                                                         converter)
+processor = create_enhanced_transcription_processor(
+    decision_tree=decision_tree,
+    workflow_state_file="voicetree_enhanced_state.json",
+    enable_background_optimization=True,
+    optimization_interval_minutes=2
+)
 
 async def main():
     voice_engine = VoiceToTextEngine()
     voice_engine.start_listening()
-    while True:
-        transcription = voice_engine.process_audio_queue()
-        if transcription:
-            await processor.process_and_convert(transcription)
-        await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning
+    
+    # Start enhanced processing system
+    await processor.enhanced_tree_manager.start_enhanced_processing()
+    
+    try:
+        while True:
+            transcription = voice_engine.process_audio_queue()
+            if transcription:
+                await processor.process_and_convert(transcription)
+            await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning
+    finally:
+        # Finalize processing and stop background optimization
+        await processor.finalize()
+        await processor.enhanced_tree_manager.stop_enhanced_processing()
 
 
 if __name__ == "__main__":

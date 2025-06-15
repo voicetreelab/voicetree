@@ -1,18 +1,11 @@
-You are an expert system component responsible for deciding how to integrate analyzed conversational sub-chunks into an existing knowledge graph. Your task is to determine whether each sub-chunk should be APPENDed to an existing node or CREATE a new node, and to define precise relationships.
+You decide whether analyzed chunks should be APPENDed to existing nodes or CREATE new nodes. Focus on maintaining semantic coherence while avoiding unnecessary fragmentation.
 
-**Available Relationship Types:**
-- "part of" - when the chunk is a component or subset of the target
-- "elaborates on" - when the chunk provides more detail about the target
-- "leads to" - when the chunk describes a next step or consequence
-- "implements" - when the chunk describes how to achieve the target
-- "exemplifies" - when the chunk provides an example of the target
-- "contrasts with" - when the chunk presents an opposing view
-- "depends on" - when the chunk requires the target to exist first
-- "relates to" - when there's a general connection (use sparingly)
-- "follows" - when the chunk comes sequentially after the target
-- "includes" - when the target encompasses this chunk
+**Key Decision Principles:** 
+- **APPEND** when the chunk provides additional details, examples, or elaboration for an existing concept
+- **CREATE** when the chunk introduces a distinct new concept, process step, or cognitive unit that merits its own node
+- **Prioritize coherence** over granularity - err on the side of keeping related concepts together
 
-Your specific instructions are:
+**Instructions:**
 
 **Background:**
 You will receive a list of sub-chunks. A previous step has already analyzed each sub-chunk, identified its most relevant connection point (`relevant_node_name` - which could be an existing node, another sub-chunk name, or "NO_RELEVANT_NODE"), and determined the `relationship` type.
@@ -31,32 +24,79 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
 
 **Instructions:**
 
-1.  **Iterate through the `analyzed_sub_chunks` list.** For each sub-chunk object in the list, perform the following analysis:
-    a.  **Identify Inputs for this chunk:** Note the `name`, `text`, `relevant_node_name`, and `relationship` for the current sub-chunk.
-    b.  **Determine Action (Internal Reasoning - Do Not Output Separately):**
-        *   If `relevant_node_name` is "NO_RELEVANT_NODE", the action is **CREATE**.
-        *   If `relevant_node_name` is *not* "NO_RELEVANT_NODE", analyze the `relationship`:
-            *   **APPEND** for direct continuations, minor clarifying details, corrections, examples that don't introduce new structure/concepts. Relationships like "correction", "clarifies", "example of" (sometimes), "continues process" often fit here.
-            *   **CREATE** for distinct new concepts, steps, requirements, objectives, counter-arguments, questions, or when introducing specific items under a broader category. Relationships like "counter-argument", "new related topic", "alternative option", "blocked by", "introduces topic", "starts section", "poses question", "specifies requirements for", "identifies task for", "lists tasks for", or even "elaborates on" if the elaboration defines a significant sub-component, often fit here.
-            *   Use the `relationship` and the semantic *weight* of the `text` as guides. Does it feel like adding descriptive detail to an existing node (APPEND) or defining a new logical component/step/issue/item (CREATE)?
-    c.  **Prepare Output Object:** Based on the determined action, prepare a JSON object for this sub-chunk:
-        *   **If Action is APPEND:**
-            *   `action`: "APPEND"
-            *   `target_node`: The `relevant_node_name` from the input chunk.
-            *   `new_node_name`: `null`
-            *   `new_node_summary`: `null`
-            *   `relationship_for_edge`: `null`
-        *   **If Action is CREATE:**
-            *   `action`: "CREATE"
-            *   `target_node`: The `relevant_node_name` from the input chunk (this is the node the new node connects *to*). If `relevant_node_name` was "NO_RELEVANT_NODE", use "NO_RELEVANT_NODE" here too.
-            *   `new_node_name`: Use the `name` field from the input chunk as the proposed name for the new node.
-            *   `new_node_summary`: **MANDATORY.** Create a brief, 1-sentence summary based on the `text` of the input chunk. This field cannot be null or empty.
-            *   `relationship_for_edge`: The relationship type between the new node and the target node (e.g., "elaborates on", "exemplified by"). This is only applicable for CREATE actions.
+1. **Process each chunk in `analyzed_sub_chunks`:**
 
-IMPORTANT: For APPEND actions, even though relationship_for_edge is null, consider if the appended content represents a specific relationship (like "follows" or "implements") that could be captured in the summary.
+   **Enhanced Decision Logic:**
+   - If `relevant_node_name` is "NO_RELEVANT_NODE" → **CREATE** (new topic)
+   - Otherwise, analyze the semantic relationship and content significance:
+   
+   **APPEND when the chunk:**
+   - **"continues"** - Direct continuation of the same thought or narrative thread
+   - **"elaborates on"** - Provides additional detail, examples, or clarification for existing concept (discourse pattern: "specifically", "for example", "such as")
+   - **"exemplifies"** - Gives specific examples of an already-established concept
+   - Adds minor details, corrections, or supplementary information
+   - Provides context or background for an existing concept
+   - Offers additional perspectives on the same topic
+   - **Elaboration discourse patterns detected** - When chunk contains "specifically", "for example", "such as" - these encourage merging with the main concept
+   
+   **CREATE when the chunk:**
+   - **"implements"** - Describes concrete methods, steps, or actions (actionable content deserves its own node)
+   - **"follows"** - Represents the next distinct step in a process or logical sequence (discourse pattern: "first", "then", "next", "finally")
+   - **"part of"** - Introduces a significant component that merits detailed exploration
+   - **"leads to"** - Describes important consequences, outcomes, or results (discourse pattern: "because", "therefore", "so", "leads to")
+   - **"enables"** - Provides essential foundations or prerequisites
+   - **"addresses"** - Presents solutions to problems or responses to challenges
+   - **"contrasts with"** - Offers alternative approaches or opposing viewpoints (discourse pattern: "but", "however", "alternatively" - encourages branching)
+   - Introduces new concepts, requirements, questions, or distinct topics
+   - Contains actionable information or decision points
+   - Represents a cognitive shift or new line of thinking
+   - **Contrast discourse patterns detected** - When chunk contains "but", "however", "alternatively" - these encourage creating separate branches
 
-2.  **Final JSON Output (Output ONLY this):**
-    Combine the individual JSON objects created in step 1c for *all* sub-chunks into a single JSON object with an "integration_decisions" field containing the list. Ensure the output is strictly this object, starting with `{{` and ending with `}}`, with no preceding text or reasoning output. Include the original `name` and `text` in each object for traceability.
+2. **Generate output for each chunk:**
+
+   **For APPEND:**
+   ```json
+   {{
+     "action": "APPEND",
+     "target_node": "[relevant_node_name]",
+     "new_node_name": null,
+     "new_node_summary": null,
+     "relationship_for_edge": null,
+     "content": "• [Key insight 1]\n• [Key insight 2]\n• [Key insight 3]"
+   }}
+   ```
+   
+   **For CREATE:**
+   ```json
+   {{
+     "action": "CREATE",
+     "target_node": "[relevant_node_name or NO_RELEVANT_NODE]",
+     "new_node_name": "[chunk name]",
+     "new_node_summary": "[One-sentence summary]",
+     "relationship_for_edge": "[relationship type]",
+     "content": "• [Key insight 1]\n• [Key insight 2]\n• [Key insight 3]"
+   }}
+   ```
+
+**CRITICAL - Content Generation Rules:**
+- Generate **2-4 concise bullet points** that capture KEY INSIGHTS and ACTIONABLE INFORMATION
+- Each bullet point should be **unique and meaningful** (10-30 words)
+- **Synthesize and clarify** - Extract the essence and intent, not raw transcript fragments
+- **No repetition** - Each bullet point adds distinct, valuable information
+- Focus on **what matters most** - decisions, concrete actions, reasoning, goals, outcomes, and next steps
+- **Preserve context** - Include enough context so each bullet point is self-contained and meaningful
+- **Maintain speaker intent** - Capture the speaker's actual goals and reasoning, not just surface content
+- **Ensure completeness** - Never output "unable to extract summary" - always provide meaningful content
+- **Semantic coherence** - Ensure bullet points flow logically and maintain the speaker's thought progression
+
+**Output Format:**
+Return ONLY this JSON structure:
+```json
+{{ 
+  "integration_decisions": [
+    // ... decision objects for all chunks ...
+  ]
+}}
 
 **Example:**
 
@@ -64,7 +104,7 @@ Input `analyzed_sub_chunks`:
 `[ {{"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "...", "relevant_node_name": "Self Improvement", "relationship": "lists tasks for"}}, {{"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "...", "relevant_node_name": "Yard Work", "relationship": "identifies task for"}}, {{"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "...", "relevant_node_name": "Fence Repair Task", "relationship": "elaborates on"}} ]`
 
 Expected Output:
-`{{ "integration_decisions": [ {{"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "action": "CREATE", "target_node": "Self Improvement", "new_node_name": "Study and Gym Plan", "new_node_summary": "Lists studying and going to the gym as tasks for the day under self-improvement.", "relationship_for_edge": "lists tasks for"}}, {{"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "action": "CREATE", "target_node": "Yard Work", "new_node_name": "Fence Repair Task", "new_node_summary": "Identifies the specific yard work task of repairing the fence due to a cracking stake.", "relationship_for_edge": "identifies task for"}}, {{"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "action": "APPEND", "target_node": "Fence Repair Task", "new_node_name": null, "new_node_summary": null, "relationship_for_edge": null}} ] }}`
+`{{ "integration_decisions": [ {{"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "action": "CREATE", "target_node": "Self Improvement", "new_node_name": "Study and Gym Plan", "new_node_summary": "Lists studying and going to the gym as tasks for the day under self-improvement.", "relationship_for_edge": "lists tasks for", "content": "• Plan to study today as part of self-improvement\n• Schedule gym session for physical fitness"}}, {{"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "action": "CREATE", "target_node": "Yard Work", "new_node_name": "Fence Repair Task", "new_node_summary": "Identifies the specific yard work task of repairing the fence due to a cracking stake.", "relationship_for_edge": "identifies task for", "content": "• Fence repair needed due to cracking stake\n• Priority yard work task to address"}}, {{"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "action": "APPEND", "target_node": "Fence Repair Task", "new_node_name": null, "new_node_summary": null, "relationship_for_edge": null, "content": "• Rot identified at base of north corner post\n• Specific location and cause of damage determined"}} ] }}`
 
 
 **Inputs:**

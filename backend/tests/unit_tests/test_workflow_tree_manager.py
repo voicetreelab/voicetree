@@ -173,14 +173,16 @@ class TestWorkflowTreeManager(unittest.TestCase):
         async def async_test():
             with patch.object(self.tree_manager.workflow_adapter, 'process_transcript', 
                              return_value=mock_result) as mock_process:
-                self.tree_manager.text_buffer_size_threshold = 10
+                # Patch the buffer manager's threshold instead
+                self.tree_manager.buffer_manager.buffer_size_threshold = 10
                 
                 # Act
                 await self.tree_manager.process_voice_input("This is a test sentence.")
                 
                 # Assert - should have called the workflow when threshold is met
-                # Just verify the adapter method was called rather than checking complex state
-                self.assertTrue(mock_process.called or len(self.tree_manager.text_buffer) > 0)
+                # Check buffer manager state instead of direct text_buffer
+                buffer_stats = self.tree_manager.buffer_manager.get_buffer_stats()
+                self.assertTrue(mock_process.called or buffer_stats["text_buffer_size"] > 0)
         
         asyncio.run(async_test())
     
@@ -188,7 +190,8 @@ class TestWorkflowTreeManager(unittest.TestCase):
         """Test that voice input below threshold doesn't trigger workflow processing"""
         async def async_test():
             with patch.object(self.tree_manager.workflow_adapter, 'process_transcript') as mock_process:
-                self.tree_manager.text_buffer_size_threshold = 100  # High threshold
+                # Set high threshold on buffer manager
+                self.tree_manager.buffer_manager.buffer_size_threshold = 100  # High threshold
                 
                 # Act
                 await self.tree_manager.process_voice_input("Short text")
@@ -197,7 +200,8 @@ class TestWorkflowTreeManager(unittest.TestCase):
                 # Should not call workflow processing
                 mock_process.assert_not_called()
                 # Text should be in buffer
-                self.assertIn("Short text", self.tree_manager.text_buffer)
+                buffer_stats = self.tree_manager.buffer_manager.get_buffer_stats()
+                self.assertGreater(buffer_stats["text_buffer_size"], 0)
         
         asyncio.run(async_test())
     

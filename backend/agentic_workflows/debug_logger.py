@@ -151,16 +151,28 @@ def format_dict_compact(d: Dict[str, Any], max_items: int = 3) -> str:
             formatted_items.append(f"{repr(k)}: {v_str}")
         return "{" + ", ".join(formatted_items) + f", ...and {len(items) - max_items} more" + "}"
 
-def log_transcript_processing(transcript_text: str, file_source: str = "unknown"):
+def log_transcript_processing(transcript_text, file_source: str = "unknown"):
     """
     Log the initial transcript being processed
     
     Args:
-        transcript_text: The transcript text
+        transcript_text: The transcript text (string or dict)
         file_source: Source file path or description
     """
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_file = DEBUG_DIR / "00_transcript_input.txt"
+    
+    # Handle case where transcript_text might be a dict or other type
+    if isinstance(transcript_text, dict):
+        # If it's a dict, try to extract the text content
+        text_content = transcript_text.get("text", str(transcript_text))
+        data_type = f"dict with keys: {list(transcript_text.keys())}"
+    elif isinstance(transcript_text, str):
+        text_content = transcript_text
+        data_type = "string"
+    else:
+        text_content = str(transcript_text)
+        data_type = f"{type(transcript_text).__name__}"
     
     log_entry = f"""
 ==========================================
@@ -168,11 +180,12 @@ TRANSCRIPT INPUT - {timestamp}
 ==========================================
 
 SOURCE: {file_source}
-LENGTH: {len(transcript_text)} characters
-WORD COUNT: {len(transcript_text.split())} words
+TYPE: {data_type}
+LENGTH: {len(text_content)} characters
+WORD COUNT: {len(text_content.split())} words
 
 CONTENT:
-{transcript_text}
+{text_content}
 
 ==========================================
 
