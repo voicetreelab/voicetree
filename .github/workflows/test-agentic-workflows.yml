@@ -51,7 +51,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-asyncio
+        pip install pytest pytest-asyncio pytest-xdist
 
     - name: Verify test audio file exists
       run: |
@@ -140,10 +140,8 @@ jobs:
         cd backend/tests/integration_tests/agentic_workflows
         python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
           --test-mode=ci \
-          --api-calls \
           -v \
-          --tb=short \
-          --timeout=300
+          --tb=short
       continue-on-error: true  # Don't fail CI if API is down
     
     - name: Run audio processing tests (CI-friendly)
@@ -267,7 +265,6 @@ jobs:
       run: |
         cd backend/tests/integration_tests/agentic_workflows
         python -m pytest test_performance_benchmark.py \
-          --api-calls \
+          --test-mode=ci \
           -v \
-          --tb=short \
-          --timeout=600 
+          --tb=short 
