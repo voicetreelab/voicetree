@@ -4,7 +4,7 @@ import traceback
 from typing import List, Dict, Any
 from backend import settings
 from backend.tree_manager import NodeAction
-from backend.tree_manager.LLM_engine.LLM_API import generate_async
+from backend.agentic_workflows.infrastructure.llm_integration import call_llm
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.LLM_engine.prompts import create_context_prompt
 
@@ -53,7 +53,7 @@ class Decider:
                                                 prev_chunk,
                                                 prev_output)
 
-            response_text = await generate_async(settings.LLMTask.CLASSIFY, prompt)
+            response_text = call_llm(prompt)
             response_text = response_text.strip()
 
             # Update the decision tree with the latest chunk and output for the next iteration

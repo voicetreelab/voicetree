@@ -1,148 +1,93 @@
-# PyCharm IDE Setup for VoiceTree Tests
+# PyCharm Setup for VoiceTree Agentic Workflows
 
-This guide shows how to run VoiceTree agentic workflow tests directly from PyCharm IDE.
+This guide helps you set up PyCharm to run the VoiceTree agentic workflow tests efficiently.
 
-## 🚀 Quick Setup
+## 🏃 Quick Setup
 
-### Option 1: Environment Variables (Recommended)
+### 1. Configure Python Interpreter
+1. Go to **Settings** → **Project** → **Python Interpreter**
+2. Add your VoiceTree virtual environment (`.venv/bin/python`)
+3. Ensure `pytest`, `pytest-asyncio`, and other dependencies are installed
 
-Set these in your PyCharm run configuration:
+### 2. Configure Test Runner
+1. Go to **Settings** → **Tools** → **Python Integrated Tools**
+2. Set **Default test runner** to `pytest`
+3. Set **Working directory** to project root
 
+## 🧪 Test Run Configurations
+
+### Unit Tests (Fast Development)
+- **Configuration Name**: "Unit Tests"
+- **Target**: `backend/tests/unit_tests/`
+- **Additional Arguments**: `--disable-warnings -v`
+- **Environment Variables**: None required
+- **Working Directory**: Project root
+
+### Local Integration Tests
+- **Configuration Name**: "Integration Tests (Local)"
+- **Target**: `backend/tests/integration_tests/agentic_workflows/`
+- **Additional Arguments**: `--test-mode=local -v`
+- **Environment Variables**: `GOOGLE_API_KEY=your_api_key`
+- **Working Directory**: Project root
+
+### CI Integration Tests
+- **Configuration Name**: "Integration Tests (CI)"
+- **Target**: `backend/tests/integration_tests/agentic_workflows/`
+- **Additional Arguments**: `--test-mode=ci -v`
+- **Environment Variables**: `GOOGLE_API_KEY=your_api_key`
+- **Working Directory**: Project root
+
+## 🔧 Environment Setup
+
+### Required Environment Variables
+Create a `.env` file in your project root:
 ```bash
-# For mocked tests (fast, no API calls)
-PYTEST_TEST_MODE=mocked
-
-# For local tests with real API calls  
-PYTEST_TEST_MODE=local
-PYTEST_ALLOW_API_CALLS=true
-
-# For comprehensive CI tests
-PYTEST_TEST_MODE=ci
-PYTEST_ALLOW_API_CALLS=true
-```
-
-### Option 2: PyCharm Run Configuration
-
-1. **Right-click on a test file** → "Create 'pytest in test_...'..."
-2. **In the configuration dialog:**
-   - **Additional Arguments**: `--test-mode=mocked` (or `local`/`ci`)
-   - **Additional Arguments**: `--api-calls` (if you want real API calls)
-
-## 📋 Step-by-Step PyCharm Configuration
-
-### 1. Create Run Configuration Templates
-
-**For Mocked Tests (No API calls):**
-- Name: `VoiceTree Mocked Tests`
-- Target: `Custom`
-- Additional arguments: `--test-mode=mocked`
-- Environment variables: `PYTEST_TEST_MODE=mocked`
-
-**For Local Tests (Real API calls):**
-- Name: `VoiceTree Local Tests`  
-- Target: `Custom`
-- Additional arguments: `--test-mode=local --api-calls`
-- Environment variables: `PYTEST_TEST_MODE=local;PYTEST_ALLOW_API_CALLS=true`
-
-**For CI Tests (Full validation):**
-- Name: `VoiceTree CI Tests`
-- Target: `Custom` 
-- Additional arguments: `--test-mode=ci --api-calls`
-- Environment variables: `PYTEST_TEST_MODE=ci;PYTEST_ALLOW_API_CALLS=true`
-
-### 2. Set Project Environment Variables
-
-**File → Settings → Build, Execution, Deployment → Console → Python Console**
-
-Add these environment variables:
-```
-PYTEST_TEST_MODE=mocked
-PYTEST_ALLOW_API_CALLS=false
-```
-
-### 3. Configure Pytest as Default Runner
-
-**File → Settings → Tools → Python Integrated Tools**
-- **Default test runner**: `pytest`
-
-## 🎯 Test Modes Explained
-
-| Mode | Speed | API Calls | Use Case |
-|------|-------|-----------|----------|
-| **mocked** | ~5s | 0 | Daily development |
-| **local** | ~25s | ~8 | Pre-commit validation |
-| **ci** | ~60s | ~20 | Full validation |
-
-## 🔧 Environment Variables Reference
-
-```bash
-# Test mode (default: local)
-PYTEST_TEST_MODE=mocked|local|ci
-
-# Allow real API calls (default: false)  
-PYTEST_ALLOW_API_CALLS=true|false
-
-# Google API key (required for real API calls)
 GOOGLE_API_KEY=your_api_key_here
 ```
 
-## 🚨 Common Issues & Solutions
+### PyCharm Environment Configuration
+1. Go to **Run** → **Edit Configurations**
+2. For each test configuration, add environment variables:
+   - `GOOGLE_API_KEY`: Your API key
+   - `PYTEST_TEST_MODE`: `local` or `ci`
 
-### "Running in IDE without API calls enabled"
-**Solution**: Set `PYTEST_ALLOW_API_CALLS=true` in environment variables
+## 🚀 Development Workflow
 
-### "google.genai package not available"
-**Solution**: Make sure your virtual environment is activated and has the package:
-```bash
-pip install google-genai
-```
+### Daily Development
+1. **Write code** → Run "Unit Tests" (fast feedback)
+2. **Before commit** → Run "Integration Tests (Local)" (limited API calls)
+3. **Full validation** → Run "Integration Tests (CI)" (comprehensive)
 
-### "No option named 'api_calls'"
-**Solution**: Update to the latest `conftest.py` (this should now be fixed)
+### Debugging
+- Use PyCharm's built-in debugger with pytest configurations
+- Set breakpoints in test files or source code
+- Use "Debug" instead of "Run" for test configurations
 
-### Tests are too slow
-**Solution**: Use mocked mode: `PYTEST_TEST_MODE=mocked`
+## 📊 Performance Tips
 
-## 🎮 Running Different Test Types
+| Test Type | Speed | Use Case |
+|-----------|-------|----------|
+| Unit Tests | ~10s | Daily development |
+| Local Integration | ~25s | Pre-commit validation |
+| CI Integration | ~60s | Full system validation |
 
-### In PyCharm Test Runner
+## 🛠️ Common Issues
 
-**Right-click any test and choose:**
-- **Run**: Uses your environment variables/configuration
-- **Debug**: Same as run but with debugging enabled
+### Import Errors
+- Ensure working directory is set to project root
+- Verify Python interpreter is using the correct virtual environment
 
-### From PyCharm Terminal
+### API Key Issues
+- Check `.env` file exists and contains `GOOGLE_API_KEY`
+- Verify environment variables are set in run configuration
 
-```bash
-# Mocked tests (fast)
-make test-mocked
+### Test Discovery Issues
+- Ensure pytest is selected as test runner
+- Check that test files follow `test_*.py` naming convention
 
-# Local tests (real API calls)  
-make test-local
+## 🎯 Best Practices
 
-# CI tests (comprehensive)
-make test-ci
-```
-
-### Individual Test Files
-
-**Right-click on specific test files:**
-- `test_chunk_boundaries_adaptive.py` - Main adaptive tests
-- `test_real_examples.py` - Real-world examples
-- `test_chunk_boundaries.py` - Original comprehensive tests
-
-## 🏆 Recommended PyCharm Workflow
-
-1. **Daily development**: Use `PYTEST_TEST_MODE=mocked` as default
-2. **Before committing**: Run specific tests with `local` mode  
-3. **Debugging**: Use PyCharm debugger with `mocked` mode for speed
-4. **Final validation**: Use `ci` mode before pushing
-
-## 🔍 Debugging Tips
-
-- **Set breakpoints** in mocked mode for fastest debugging
-- **Use "Run with Coverage"** to see test coverage
-- **Check console output** for detailed test progression
-- **View test logs** in `latest_quality_log.txt`
-
-Your tests should now work perfectly in PyCharm! 🎉 
+- Use **unit tests** for rapid development iteration
+- Use **local mode** for integration validation with limited API costs
+- Use **CI mode** only for comprehensive validation
+- Set up keyboard shortcuts for frequent test configurations 

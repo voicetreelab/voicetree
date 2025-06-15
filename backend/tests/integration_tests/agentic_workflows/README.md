@@ -1,59 +1,68 @@
 # VoiceTree Agentic Workflows Testing
 
-This directory contains tests for the agentic workflows with **multi-speed testing strategy** for optimal development experience.
+This directory contains tests for the agentic workflows with **real integration testing strategy** for reliable development.
 
-## 🚀 Testing Modes
+## 🚀 Testing Philosophy
 
-### ⚡ **Mocked Mode** (Instant ~5s)
-- **Use case**: Quick development iteration, CI pre-checks
-- **Speed**: ~5 seconds  
-- **API calls**: 0 (all mocked)
-- **Chunks tested**: 10 (comprehensive logic without API cost)
+**Integration tests should test real integration, not mocked behavior.**
 
-```bash
-make test-mocked
-# OR
-pytest --test-mode=mocked -v
-```
+To avoid API costs during development, use unit tests (`pytest backend/tests/unit_tests/`) for fast iteration, and integration tests only when you need to validate real API integration.
 
-### 🏃 **Local Mode** (Fast ~25s)  
-- **Use case**: Before committing, local validation
+## 🧪 Testing Modes
+
+### 🏃 **Local Mode** (Limited API ~25s)  
+- **Use case**: Local development, before committing
 - **Speed**: ~25 seconds
-- **API calls**: ~8 real API calls  
+- **API calls**: Limited to reduce costs
 - **Chunks tested**: 2 (core functionality)
 
 ```bash
 make test-local
 # OR  
-pytest --test-mode=local --api-calls -v
+pytest --test-mode=local -v
 ```
 
 ### 🐌 **CI Mode** (Comprehensive ~60s)
 - **Use case**: CI/CD pipeline, full validation
 - **Speed**: ~60 seconds
-- **API calls**: ~20 real API calls
-- **Chunks tested**: 5 (comprehensive coverage)
+- **API calls**: Comprehensive testing
+- **Chunks tested**: 5 (full coverage)
 
 ```bash
 make test-ci
 # OR
-pytest --test-mode=ci --api-calls -v
+pytest --test-mode=ci -v
+```
+
+## ⚡ Fast Development Workflow
+
+For rapid development feedback, use unit tests instead of integration tests:
+
+```bash
+# Fast feedback during development (< 10s)
+make test-smoke
+
+# Unit tests before committing (< 45s)  
+make test-unit
+
+# Integration tests only when needed
+make test-local
 ```
 
 ## 📊 Performance Comparison
 
 | Mode | Time | API Calls | Cost | Use Case |
 |------|------|-----------|------|----------|
-| **Mocked** | ~5s | 0 | $0 | Dev iteration |
-| **Local** | ~25s | ~8 | ~$0.01 | Pre-commit |
-| **CI** | ~60s | ~20 | ~$0.03 | Full validation |
+| **Unit Tests** | ~10s | 0 | $0 | Dev iteration |
+| **Local** | ~25s | Limited | ~$0.01 | Pre-commit |
+| **CI** | ~60s | Comprehensive | ~$0.03 | Full validation |
 
 ## 🛡️ Safety Features
 
-- **API Safety**: Tests require `--api-calls` flag to make real API calls
-- **Auto-skipping**: Tests auto-skip without explicit permission
+- **API Safety**: Tests automatically manage API call volume based on mode
 - **Environment check**: Validates API keys before running
-- **Cost control**: Limited chunk counts prevent runaway costs
+- **Cost control**: Local mode has limited chunk counts
+- **Fail fast**: System crashes immediately if API not configured (no confusing TypeErrors)
 
 ## 📁 Test Files
 
@@ -70,8 +79,8 @@ pytest --test-mode=ci --api-calls -v
 ## 🔧 Configuration
 
 The testing system uses `conftest.py` to manage:
-- **Chunk counts** per mode (local: 2, ci: 5, mocked: 10)
-- **API safety** checks and flags
+- **Chunk counts** per mode (local: limited, ci: comprehensive)
+- **API call management** based on test mode
 - **Test markers** for organization
 
 ## 🚨 Common Issues
@@ -85,28 +94,28 @@ GOOGLE_API_KEY=your_api_key_here
 export GOOGLE_API_KEY="your_api_key_here"
 ```
 
-### "Skipping test that makes real API calls"
-```bash
-# Add the --api-calls flag:
-pytest --test-mode=local --api-calls -v
-```
+### Tests crashing with API errors
+This is expected behavior! The system fails fast to provide clear error messages about API configuration issues rather than returning confusing None values.
 
 ### Tests taking too long
 ```bash
-# Use mocked mode for development:
-make test-mocked
+# Use unit tests for development instead:
+make test-unit
+
+# Only run integration tests when needed:
+make test-local
 ```
 
 ## 🎯 Best Practices
 
 ### Development Workflow
-1. **Write code** → `make test-mocked` (instant feedback)
-2. **Before commit** → `make test-local` (quick validation) 
-3. **CI/CD** → `make test-ci` (comprehensive)
+1. **Write code** → `make test-unit` (fast unit tests)
+2. **Before commit** → `make test-local` (limited integration) 
+3. **CI/CD** → `make test-ci` (comprehensive integration)
 
 ### Cost Management
-- Use **mocked mode** for 90% of development
-- Use **local mode** only when needed
+- Use **unit tests** for 90% of development
+- Use **local mode** only when you need real API validation
 - **CI mode** runs automatically on main/develop branches
 
 ### Debugging
@@ -117,9 +126,24 @@ make test-mocked
 ## 🔄 CI/CD Integration
 
 The GitHub Actions workflow (`.github/workflows/test-agentic-workflows.yml`) automatically:
-- Runs **mocked tests** on all PRs (fast feedback)
-- Runs **CI tests** on main/develop branches (comprehensive)
+- Runs **unit tests** on all PRs (fastest feedback)
+- Runs **integration tests** (no API) on all PRs  
+- Runs **API integration tests** on main/develop branches (comprehensive)
 - Provides **performance benchmarks** on manual trigger
+
+## 📈 Current Architecture
+
+- **PYTEST_TEST_MODE**: `local` or `ci` (controls API call volume)
+- **No mocking**: Integration tests always use real APIs for authentic validation
+- **Fast feedback**: Unit tests provide rapid development iteration
+- **Cost control**: Local mode limits API usage, CI mode is comprehensive
+
+## 🎯 Migration Notes
+
+- **Removed**: `mocked` test mode (integration tests should test real integration)
+- **Removed**: `PYTEST_ALLOW_API_CALLS` flag (integration tests always use APIs)
+- **Added**: Clear fail-fast behavior when API not configured
+- **Philosophy**: Unit tests for speed, integration tests for real validation
 
 ## 📈 Future Improvements
 

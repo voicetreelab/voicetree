@@ -11,7 +11,7 @@
           "is_complete": true
         },
         {
-          "name": "Creating New Node About Project Planning",
+          "name": "Create New Node About Project Planning",
           "text": "I want to create a new node about project planning and management strategies.",
           "is_complete": true
         },
@@ -25,23 +25,23 @@
         {
           "name": "VoiceTree Application Comprehensive Test Introduction",
           "text": "This is a comprehensive test of the VoiceTree application and its capabilities.",
-          "reasoning": "This chunk introduces the testing phase of the VoiceTree application. Since there are no existing nodes, it's a new topic.",
+          "reasoning": "This chunk introduces the testing phase of the application. Since there are no existing nodes to relate to, it starts a new topic.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         },
         {
-          "name": "Creating New Node About Project Planning",
+          "name": "Create New Node About Project Planning",
           "text": "I want to create a new node about project planning and management strategies.",
-          "reasoning": "This chunk indicates the intention to create a new node about project planning. Since there are no existing nodes, it's a new topic.",
+          "reasoning": "This chunk expresses the intent to create a new node about project planning. Since there are no existing nodes to relate to, it starts a new topic.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         },
         {
           "name": "Project Planning Node Steps Definition",
           "text": "The first step is to define the project scope clearly, including all deliverables and timelines. The next step is to identify the key stakeholders, their roles, and responsibilities. We also need to establish communication channels and regular check-in meetings. Risk assessment and mitigation strategies should be developed early in the process. Finally, we need to set up proper documentation and version control systems.",
-          "reasoning": "This chunk elaborates on the project planning and management strategies mentioned in the previous chunk. The temporal markers 'first', 'next', and 'finally' indicate a sequential process.",
-          "relevant_node_name": "Creating New Node About Project Planning",
-          "relationship": "follows"
+          "reasoning": "This chunk defines the steps involved in project planning, directly elaborating on the previous chunk's intention to create a node about project planning.",
+          "relevant_node_name": "Create New Node About Project Planning",
+          "relationship": "elaborates on"
         }
       ],
       "integration_decisions": [
@@ -51,29 +51,28 @@
           "new_node_name": "VoiceTree Application Comprehensive Test Introduction",
           "new_node_summary": "Introduces a comprehensive test of the VoiceTree application and its capabilities.",
           "relationship_for_edge": null,
-          "content": "\u2022 VoiceTree application undergoing comprehensive testing\n\u2022 Testing aims to evaluate all application capabilities"
+          "content": "\u2022 Comprehensive test of VoiceTree application initiated\n\u2022 Testing focuses on evaluating application capabilities"
         },
         {
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Creating New Node About Project Planning",
-          "new_node_summary": "Expresses the intention to create a new node focused on project planning and management strategies.",
+          "new_node_name": "Create New Node About Project Planning",
+          "new_node_summary": "Expresses the intent to create a new node about project planning and management strategies.",
           "relationship_for_edge": null,
-          "content": "\u2022 Goal is to establish a node for project planning\n\u2022 Focus on project planning and management strategies"
+          "content": "\u2022 Goal to create a new node focused on project planning\n\u2022 Node will cover project planning and management strategies"
         },
         {
-          "action": "CREATE",
-          "target_node": "Creating New Node About Project Planning",
-          "new_node_name": "Project Planning Node Steps Definition",
-          "new_node_summary": "Defines the steps for project planning, including scope definition, stakeholder identification, communication, risk assessment, and documentation.",
-          "relationship_for_edge": "follows",
-          "content": "\u2022 Define project scope, deliverables, and timelines\n\u2022 Identify stakeholders, roles, and responsibilities\n\u2022 Establish communication channels and check-in meetings\n\u2022 Develop risk assessment and mitigation strategies"
+          "action": "APPEND",
+          "target_node": "Create New Node About Project Planning",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null,
+          "content": "\u2022 Define project scope, deliverables, and timelines as first step\n\u2022 Identify key stakeholders, roles, and responsibilities\n\u2022 Establish communication channels and regular check-in meetings\n\u2022 Develop risk assessment and mitigation strategies early on"
         }
       ],
       "new_nodes": [
         "VoiceTree Application Comprehensive Test Introduction",
-        "Creating New Node About Project Planning",
-        "Project Planning Node Steps Definition"
+        "Create New Node About Project Planning"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
@@ -81,36 +80,119 @@
     },
     {
       "transcript_text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- m\n- v\n- I\n- N\n- w\n- b\n- P\n- j\n- S\n- D\n- f",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- m\n- v\n- I\n- N\n- w\n- b\n- P\n- j",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Investor Outreach and Preparation Strategy",
-          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
+          "name": "Plan to Reach Out to Investors",
+          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup.",
+          "is_complete": true
+        },
+        {
+          "name": "Talking to Austin's Dad First",
+          "text": "I should talk to Austin's dad first since he has experience in this industry.",
+          "is_complete": true
+        },
+        {
+          "name": "Prepare Business Plan and Financial Projections",
+          "text": "I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations.",
+          "is_complete": true
+        },
+        {
+          "name": "Prepare Product Demo for Investors",
+          "text": "I should also prepare a demo of the current product to show its capabilities.",
+          "is_complete": true
+        },
+        {
+          "name": "Start Building Investor Relationships Early",
+          "text": "Building relationships with investors takes time, so I need to start early.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Investor Outreach and Preparation Strategy",
-          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
-          "reasoning": "This chunk introduces a new high-level task: investor outreach and preparation. Since there are no existing nodes to connect to, it is marked as NO_RELEVANT_NODE.",
+          "name": "Plan to Reach Out to Investors",
+          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup.",
+          "reasoning": "This chunk introduces the overall plan to engage with investors, setting the stage for subsequent actions. It's a high-level goal that the following chunks will detail.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
+        },
+        {
+          "name": "Talking to Austin's Dad First",
+          "text": "I should talk to Austin's dad first since he has experience in this industry.",
+          "reasoning": "This is a specific action that implements the broader plan of reaching out to investors. It's a concrete step to gain advice and guidance.",
+          "relevant_node_name": "Plan to Reach Out to Investors",
+          "relationship": "implements"
+        },
+        {
+          "name": "Prepare Business Plan and Financial Projections",
+          "text": "I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations.",
+          "reasoning": "Preparing a business plan is a necessary step to enable effective conversations with investors. It provides the foundation for those discussions.",
+          "relevant_node_name": "Plan to Reach Out to Investors",
+          "relationship": "enables"
+        },
+        {
+          "name": "Prepare Product Demo for Investors",
+          "text": "I should also prepare a demo of the current product to show its capabilities.",
+          "reasoning": "Preparing a product demo is another action that enables effective communication and engagement with potential investors, showcasing the product's value.",
+          "relevant_node_name": "Plan to Reach Out to Investors",
+          "relationship": "enables"
+        },
+        {
+          "name": "Start Building Investor Relationships Early",
+          "text": "Building relationships with investors takes time, so I need to start early.",
+          "reasoning": "This emphasizes the importance of starting the investor outreach process early, reinforcing the initial plan and providing a rationale for immediate action.",
+          "relevant_node_name": "Plan to Reach Out to Investors",
+          "relationship": "elaborates on"
         }
       ],
       "integration_decisions": [
         {
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Investor Outreach and Preparation Strategy",
-          "new_node_summary": "Outlines the strategy for investor outreach, including contacting advisors, preparing a business plan, and demonstrating the product.",
+          "new_node_name": "Plan to Reach Out to Investors",
+          "new_node_summary": "Outlines the plan to reach out to potential investors for guidance on next steps for the startup.",
           "relationship_for_edge": null,
-          "content": "\u2022 Initiate investor outreach to gather advice and explore funding options.\n\u2022 Consult Austin's dad for industry-specific guidance on investor relations.\n\u2022 Develop a comprehensive business plan with financial projections, market research, and competitive analysis.\n\u2022 Prepare a product demo to showcase the startup's capabilities to potential investors."
+          "content": "\u2022 Initiate contact with potential investors for startup guidance\n\u2022 Seek recommendations on next steps for the company\n\u2022 Proactive engagement to secure future funding and support"
+        },
+        {
+          "action": "CREATE",
+          "target_node": "Plan to Reach Out to Investors",
+          "new_node_name": "Talking to Austin's Dad First",
+          "new_node_summary": "Specifies the initial action of consulting Austin's dad due to his industry experience.",
+          "relationship_for_edge": "implements",
+          "content": "\u2022 Consult Austin's dad first due to his industry expertise\n\u2022 Leverage his experience for initial guidance on investor outreach\n\u2022 Gain insights from a knowledgeable source before broader engagement"
+        },
+        {
+          "action": "CREATE",
+          "target_node": "Plan to Reach Out to Investors",
+          "new_node_name": "Prepare Business Plan and Financial Projections",
+          "new_node_summary": "Highlights the need to prepare a business plan with financial projections and market analysis.",
+          "relationship_for_edge": "enables",
+          "content": "\u2022 Develop a comprehensive business plan with financial projections\n\u2022 Conduct thorough market research and competitive analysis\n\u2022 Essential preparation for effective investor conversations"
+        },
+        {
+          "action": "CREATE",
+          "target_node": "Plan to Reach Out to Investors",
+          "new_node_name": "Prepare Product Demo for Investors",
+          "new_node_summary": "Emphasizes the importance of preparing a product demo to showcase its capabilities to investors.",
+          "relationship_for_edge": "enables",
+          "content": "\u2022 Create a product demo to showcase its capabilities\n\u2022 Demonstrate the product's value and potential to investors\n\u2022 Visual aid to enhance investor understanding and interest"
+        },
+        {
+          "action": "APPEND",
+          "target_node": "Plan to Reach Out to Investors",
+          "new_node_name": null,
+          "new_node_summary": null,
+          "relationship_for_edge": null,
+          "content": "\u2022 Start building investor relationships early due to the time investment\n\u2022 Proactive engagement is crucial for long-term success\n\u2022 Early outreach maximizes opportunities for securing funding"
         }
       ],
       "new_nodes": [
-        "Investor Outreach and Preparation Strategy"
+        "Plan to Reach Out to Investors",
+        "Talking to Austin's Dad First",
+        "Prepare Business Plan and Financial Projections",
+        "Prepare Product Demo for Investors"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
@@ -118,20 +200,20 @@
     },
     {
       "transcript_text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- m\n- v\n- I\n- N\n- w\n- b\n- P\n- j\n- S\n- D\n- f\n- O",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- m\n- v\n- I\n- N\n- w\n- b\n- P\n- j\n- O\n- D\n- F\n- B\n- f",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Steps to Effectively Reach Out to Investors",
+          "name": "Investor Outreach Prep: POC Polishing Steps",
           "text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Steps to Effectively Reach Out to Investors",
+          "name": "Investor Outreach Prep: POC Polishing Steps",
           "text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
-          "reasoning": "This chunk outlines the necessary steps to prepare for investor outreach. Since there are no existing nodes, this chunk introduces a new topic.",
+          "reasoning": "This chunk outlines the necessary steps to prepare for investor outreach by polishing the Proof of Concept (POC). Since there are no existing nodes to connect to, this chunk introduces a new topic.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         }
@@ -140,23 +222,23 @@
         {
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Steps to Effectively Reach Out to Investors",
-          "new_node_summary": "Outlines the steps required to effectively reach out to investors, including POC refinement, pitch deck preparation, and user feedback collection.",
+          "new_node_name": "Investor Outreach Prep: POC Polishing Steps",
+          "new_node_summary": "Outlines the steps required to polish the Proof of Concept (POC) before reaching out to investors.",
           "relationship_for_edge": null,
-          "content": "\u2022 Polish POC: Refine UI for intuitiveness and professionalism.\n\u2022 Improve AI summarization: Enhance quality and accuracy of AI models.\n\u2022 Prepare pitch deck: Create compelling presentation materials.\n\u2022 Collect user feedback: Iterate based on user input for improvement."
+          "content": "\u2022 Refine the user interface for intuitiveness and professionalism.\n\u2022 Improve the summarization quality and accuracy of AI models.\n\u2022 Prepare a compelling pitch deck and presentation materials.\n\u2022 Collect user feedback and iterate on the POC based on it."
         }
       ],
       "new_nodes": [
-        "Steps to Effectively Reach Out to Investors"
+        "Investor Outreach Prep: POC Polishing Steps"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
       "error_message": null
     }
   ],
-  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - VoiceTree Application Comprehensive Test Introduction\n    - Creating New Node About Project Planning\n    - Project Planning Node Steps Definition    - Investor Outreach and Preparation Strategy",
+  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - VoiceTree Application Comprehensive Test Introduction\n    - Create New Node About Project Planning    - Plan to Reach Out to Investors\n    - Talking to Austin's Dad First\n    - Prepare Business Plan and Financial Projections\n    - Prepare Product Demo for Investors",
   "statistics": {
-    "total_new_nodes": 5,
+    "total_new_nodes": 7,
     "append_decisions": 0,
     "create_decisions": 0
   }

@@ -1,7 +1,7 @@
 # VoiceTree Testing Makefile
 # Make it easy to run different test modes
 
-.PHONY: help test-mocked test-local test-ci test-all clean test-smoke test-fast test-unit test-watch
+.PHONY: help test-local test-ci test-all clean test-smoke test-fast test-unit test-watch
 
 help:
 	@echo "🧪 VoiceTree Testing Commands"
@@ -13,10 +13,9 @@ help:
 	@echo "  test-unit      - 🏃 Unit tests only (< 45s)"
 	@echo "  test-watch     - 👀 Watch mode - auto-run tests on changes"
 	@echo ""
-	@echo "🧪 Full Test Modes:"
-	@echo "  test-mocked    - ⚡ Super fast tests (mocked LLM calls, ~5s)"
-	@echo "  test-local     - 🏃 Fast tests (2 chunks, real API, ~25s)"
-	@echo "  test-ci        - 🐌 Comprehensive tests (5 chunks, real API, ~60s)"
+	@echo "🧪 Integration Test Modes:"
+	@echo "  test-local     - 🏃 Local integration tests (limited API calls, ~25s)"
+	@echo "  test-ci        - 🐌 Comprehensive CI tests (full API calls, ~60s)"
 	@echo "  test-all       - 🔄 Run all test modes in sequence"
 	@echo ""
 	@echo "Utilities:"
@@ -27,6 +26,8 @@ help:
 	@echo "  make test-smoke     # Super quick smoke test (< 10s)"
 	@echo "  make test-fast      # Quick dev testing (< 30s)" 
 	@echo "  make test-unit      # Before committing (< 45s)"
+	@echo ""
+	@echo "💡 Philosophy: Unit tests for speed, integration tests for real API validation"
 
 # New fast feedback commands
 test-smoke:
@@ -47,36 +48,27 @@ test-watch:
 	@command -v ptw >/dev/null 2>&1 || { echo "Installing pytest-watch..."; pip install pytest-watch; }
 	@ptw --runner "python -m pytest -m fast --tb=short -x --disable-warnings -q"
 
-# Original test commands
-test-mocked:
-	@echo "🚀 Running mocked tests (instant)..."
-	cd backend/tests/integration_tests/agentic_workflows && \
-	python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
-		--test-mode=mocked \
-		-v
-
+# Integration test commands (real API calls)
 test-local:
-	@echo "🏃 Running local tests (2 chunks, ~25s)..."
+	@echo "🏃 Running local integration tests (limited API calls, ~25s)..."
 	@echo "💡 Tip: Make sure your .env file has GOOGLE_API_KEY set"
 	cd backend/tests/integration_tests/agentic_workflows && \
 	python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
 		--test-mode=local \
-		--api-calls \
 		-v
 
 test-ci:
-	@echo "🐌 Running CI tests (5 chunks, ~60s)..."
+	@echo "🐌 Running CI integration tests (comprehensive API calls, ~60s)..."
 	@echo "💡 Tip: This makes real API calls and takes time"
 	cd backend/tests/integration_tests/agentic_workflows && \
 	python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
 		--test-mode=ci \
-		--api-calls \
 		-v
 
 test-all:
 	@echo "🔄 Running all test modes..."
 	@echo ""
-	@make test-mocked
+	@make test-unit
 	@echo ""
 	@make test-local
 	@echo ""
@@ -102,20 +94,15 @@ requirements:
 benchmark:
 	@echo "📊 Running performance benchmarks..."
 	@echo ""
-	@echo "🚀 Mocked (baseline):"
+	@echo "🏃 Local mode (limited API calls):"
 	@time -p cd backend/tests/integration_tests/agentic_workflows && \
 		python -m pytest test_chunk_boundaries_adaptive.py::test_chunk_boundaries_adaptive \
-		--test-mode=mocked -v -q 2>/dev/null || true
+		--test-mode=local -v -q 2>/dev/null || true
 	@echo ""
-	@echo "🏃 Local mode (2 chunks):"
+	@echo "🐌 CI mode (comprehensive API calls):"
 	@time -p cd backend/tests/integration_tests/agentic_workflows && \
 		python -m pytest test_chunk_boundaries_adaptive.py::test_chunk_boundaries_adaptive \
-		--test-mode=local --api-calls -v -q 2>/dev/null || true
-	@echo ""
-	@echo "🐌 CI mode (5 chunks):"
-	@time -p cd backend/tests/integration_tests/agentic_workflows && \
-		python -m pytest test_chunk_boundaries_adaptive.py::test_chunk_boundaries_adaptive \
-		--test-mode=ci --api-calls -v -q 2>/dev/null || true
+		--test-mode=ci -v -q 2>/dev/null || true
 
 # Quick status check
 status:

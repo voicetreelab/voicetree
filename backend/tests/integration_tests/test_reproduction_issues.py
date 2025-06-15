@@ -195,26 +195,21 @@ class TestReproduceManualIssues(unittest.TestCase):
         if len(chunks) < 3:
             print(f"Warning: Only {len(chunks)} chunks created from clearly multi-idea transcript")
     
-    def test_old_llm_api_still_in_use(self):
-        """Test Issue #6: Check if old LLM API is still being used instead of agentic workflow"""
+    def test_unified_llm_integration(self):
+        """Test Issue #6 RESOLVED: Verify unified LLM integration is working"""
         async def run_test():
-            # Test if the old ContextualTreeManager (non-workflow) is being called anywhere
-            old_tree_manager = self.decision_tree
-            
-            # The issue is that summarization still uses the old LLM_engine.summarize_with_llm
-            # instead of being integrated into the agentic workflow
-            
+            # Test that ContextualTreeManager components now use unified LLM integration
             summarizer = Summarizer()
             
-            # Check if this uses the old LLM API
-            with patch('backend.tree_manager.LLM_engine.LLM_API.generate_async') as mock_old_api:
-                mock_old_api.return_value = "Mock old API response"
+            # Mock the unified LLM integration 
+            with patch('backend.agentic_workflows.infrastructure.llm_integration.call_llm') as mock_unified_api:
+                mock_unified_api.return_value = "Mock unified API response"
                 
                 result = await summarizer.summarize_with_llm("Test text", "Test history")
                 
-                if mock_old_api.called:
-                    print("WARNING: Old LLM API is still being used for summarization")
-                    print("This should be migrated to use the agentic workflow system")
+                # Verify the unified API was called (not the old wrapper)
+                self.assertTrue(mock_unified_api.called, "Unified LLM integration should be called")
+                print("✅ ContextualTreeManager now uses unified LLM integration")
         
         asyncio.run(run_test())
     

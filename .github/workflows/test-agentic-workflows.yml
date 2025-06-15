@@ -107,12 +107,20 @@ jobs:
       env:
         KMP_DUPLICATE_LIB_OK: TRUE  # Fix OpenMP library conflicts with Whisper
       run: |
+        # Run pipeline system tests (has the audio file)
         cd backend
-        python -m pytest tests/integration_tests/ \
-          -k "not api" \
+        python -m pytest pipeline_system_tests/ \
+          -k "not manual" \
           --disable-warnings \
           -v \
           --tb=short
+        # Also run integration tests that don't need audio
+        python -m pytest tests/integration_tests/ \
+          -k "not audio and not api" \
+          --disable-warnings \
+          -v \
+          --tb=short
+      timeout-minutes: 10
     
     - name: Upload integration test results
       uses: actions/upload-artifact@v4
@@ -233,9 +241,10 @@ jobs:
     - name: Run quality benchmarking
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        PYTHONPATH: ${{ github.workspace }}
       run: |
-        cd backend/benchmarker/quality_tests
-        python quality_LLM_benchmarker.py
+        # Run from project root so imports work correctly
+        python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
       timeout-minutes: 10
     
     - name: Upload quality benchmark results

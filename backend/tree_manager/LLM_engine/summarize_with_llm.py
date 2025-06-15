@@ -2,7 +2,7 @@ import logging
 import traceback
 
 from backend import settings
-from backend.tree_manager.LLM_engine.LLM_API import  generate_async
+from backend.agentic_workflows.infrastructure.llm_integration import call_llm
 from backend.tree_manager.LLM_engine.prompts import create_summarization_prompt
 
 
@@ -20,7 +20,7 @@ class Summarizer:
         """
         prompt: str = create_summarization_prompt(text, transcript_history)
         try:
-            response = await generate_async(settings.LLMTask.SUMMARIZE, prompt)
+            response = call_llm(prompt)
 
             return response.strip()
         except Exception as e:

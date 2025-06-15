@@ -1,7 +1,7 @@
 import logging
 
 from backend.settings import LLMTask
-from backend.tree_manager.LLM_engine.LLM_API import generate_async
+from backend.agentic_workflows.infrastructure.llm_integration import call_llm
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.utils import extract_summary
 
@@ -77,7 +77,7 @@ class Rewriter:
         logging.info(f"background resumm prompt: {prompt}")
 
         try:
-            response = await generate_async(LLMTask.REWRITE, prompt)
+            response = call_llm(prompt)
             return response.strip()
         except Exception as e:
             logging.error(f"Error during node rewriting: {e}")
