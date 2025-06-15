@@ -23,10 +23,10 @@ help:
 	@echo "  make test-ci        # Full validation"
 
 test-mocked:
-	@echo "🚀 Running mocked tests (instant)..."
+	@echo "🚀 Running local tests (fast)..."
 	cd backend/tests/integration_tests/agentic_workflows && \
 	python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
-		--test-mode=mocked \
+		--test-mode=local \
 		-v
 
 test-local:
