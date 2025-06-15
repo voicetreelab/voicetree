@@ -158,8 +158,13 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
         os.remove(state_file_name)
 
 
-def evaluate_tree_quality(transcript_file, transcript_name=""):
-    """Evaluates the quality of the generated tree using an LLM."""
+def evaluate_tree_quality(transcript_file, transcript_name="") -> float:
+    """
+    Evaluates the quality of the generated tree using an LLM.
+    
+    Returns:
+        Overall quality score as a float, or 0.0 if extraction failed
+    """
     # Package the Markdown output for the LLM
     packaged_output = PackageProjectForLLM.package_project(OUTPUT_DIR, ".md")
 
@@ -263,6 +268,9 @@ def evaluate_tree_quality(transcript_file, transcript_name=""):
 
     # Log the quality assessment
     evaluation = response.text.strip()
+    
+    # Extract the overall score for CI/CD purposes
+    overall_score = extract_overall_score(evaluation)
 
     # Construct the full log entry
     log_entry = (
@@ -270,6 +278,7 @@ def evaluate_tree_quality(transcript_file, transcript_name=""):
         f"Transcript: {transcript_name if transcript_name else transcript_file}\n"
         f"Git Commit: {commit_message} ({commit_hash})\n"
         f"Processing Method: Agentic Workflow (Multi-Stage)\n"
+        f"Overall Score: {overall_score}\n"
         f"Quality Score: {evaluation}\n\n"
     )
 
@@ -289,10 +298,58 @@ def evaluate_tree_quality(transcript_file, transcript_name=""):
         "quality_log_file": os.path.abspath(LATEST_QUALITY_LOG_FILE),
         "workflow_io_log": os.path.abspath(WORKFLOW_IO_LOG),
         "git_commit_hash": commit_hash,
-        "git_commit_message": commit_message
+        "git_commit_message": commit_message,
+        "overall_score": overall_score
     }
     with open(LATEST_RUN_CONTEXT_FILE, "w") as f:
         json.dump(run_context, f, indent=4)
+    
+    return overall_score
+
+
+def extract_overall_score(evaluation_text: str) -> float:
+    """
+    Extract the overall score from the LLM evaluation text.
+    
+    Args:
+        evaluation_text: The full evaluation text from the LLM
+        
+    Returns:
+        Overall score as a float, or 0.0 if not found
+    """
+    # Look for patterns like "Overall Score: 3.4", "Overall Score: 2.5 - Poor", etc.
+    patterns = [
+        r'Overall Score[:\s]+(\d+\.?\d*)',  # "Overall Score: 3.4"
+        r'Overall[:\s]+(\d+\.?\d*)',        # "Overall: 3.4"
+        r'Final Score[:\s]+(\d+\.?\d*)',    # "Final Score: 3.4"
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, evaluation_text, re.IGNORECASE)
+        if match:
+            try:
+                score = float(match.group(1))
+                print(f"📊 Extracted overall score: {score}")
+                return score
+            except ValueError:
+                continue
+    
+    # If no explicit overall score found, try to extract from the final summary
+    # Look for patterns like "2.5 - Poor", "3.4 - Acceptable", etc.
+    summary_pattern = r'(\d+\.?\d*)\s*-\s*(Poor|Acceptable|Good|Excellent|Unusable)'
+    matches = re.findall(summary_pattern, evaluation_text, re.IGNORECASE)
+    
+    if matches:
+        # Take the last match as it's likely the overall score
+        try:
+            score = float(matches[-1][0])
+            print(f"📊 Extracted score from summary: {score}")
+            return score
+        except ValueError:
+            pass
+    
+    print("⚠️ Could not extract overall score from evaluation")
+    return 0.0
 
 
 async def main():
@@ -310,6 +367,8 @@ async def main():
         # }
     ]
     
+    all_scores = []
+    
     for transcript_info in test_transcripts:
         print(f"\n{'='*60}")
         print(f"Testing: {transcript_info['name']}")
@@ -320,8 +379,34 @@ async def main():
             transcript_info['file'], 
             transcript_info['max_words']
         )
-        evaluate_tree_quality(transcript_info['file'], transcript_info['name'])
+        score = evaluate_tree_quality(transcript_info['file'], transcript_info['name'])
+        if score > 0:
+            all_scores.append(score)
+    
+    # Calculate average score and determine CI/CD success
+    if all_scores:
+        avg_score = sum(all_scores) / len(all_scores)
+        print(f"\n{'='*60}")
+        print(f"📊 QUALITY BENCHMARKING RESULTS")
+        print(f"{'='*60}")
+        print(f"Individual scores: {all_scores}")
+        print(f"Average score: {avg_score:.2f}")
+        print(f"Threshold: >3.0")
+        
+        if avg_score > 3.0:
+            print("✅ QUALITY CHECK PASSED")
+            print(f"Average score ({avg_score:.2f}) exceeds threshold (3.0)")
+            return 0  # Success
+        else:
+            print("❌ QUALITY CHECK FAILED") 
+            print(f"Average score ({avg_score:.2f}) does not exceed threshold (3.0)")
+            return 1  # Failure
+    else:
+        print("❌ QUALITY CHECK FAILED - No scores extracted")
+        return 1  # Failure
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

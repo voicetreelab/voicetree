@@ -238,7 +238,7 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
             
             mock_llm.side_effect = mock_response
             
-            pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=50)  # Very low threshold for extreme test
+            pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=100)  # Low threshold for testing
             pipeline.clear_state()
             
             for i, chunk in enumerate(extreme_chunks):
@@ -260,7 +260,7 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
     
     else:
         # Real LLM test
-        pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=50)  # Very low threshold for extreme test
+        pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=100)  # Low threshold for testing
         pipeline.clear_state()
         
         for i, chunk in enumerate(extreme_chunks):

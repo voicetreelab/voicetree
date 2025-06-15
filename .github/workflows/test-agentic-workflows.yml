@@ -131,6 +131,57 @@ jobs:
             body: '🧪 Agentic workflow tests completed! Check the "Actions" tab for detailed results.'
           })
 
+  # Quality benchmarking - only on main/develop branches after CI tests pass
+  quality-benchmark:
+    runs-on: ubuntu-latest
+    name: "Quality Benchmark (Score >3.0)"
+    needs: ci-tests
+    if: |
+      github.ref == 'refs/heads/main' || 
+      github.ref == 'refs/heads/develop'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'backend/agentic_workflows/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r backend/agentic_workflows/requirements.txt
+        pip install pytest pytest-asyncio
+    
+    - name: Run quality benchmarking
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      run: |
+        cd backend/benchmarker/quality_tests
+        python quality_LLM_benchmarker.py
+      timeout-minutes: 10
+    
+    - name: Upload quality benchmark results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: quality-benchmark-results
+        path: |
+          quality_log.txt
+          latest_quality_log.txt
+          latest_run_context.json
+          oldVaults/VoiceTreePOC/QualityTest/
+
   # Performance benchmark - only on manual trigger
   performance-test:
     runs-on: ubuntu-latest
