@@ -201,8 +201,8 @@ class TestReproduceManualIssues(unittest.TestCase):
             # Test that ContextualTreeManager components now use unified LLM integration
             summarizer = Summarizer()
             
-            # Mock the unified LLM integration 
-            with patch('backend.agentic_workflows.infrastructure.llm_integration.call_llm') as mock_unified_api:
+            # Mock the unified LLM integration at the import location
+            with patch('backend.tree_manager.LLM_engine.summarize_with_llm.call_llm') as mock_unified_api:
                 mock_unified_api.return_value = "Mock unified API response"
                 
                 result = await summarizer.summarize_with_llm("Test text", "Test history")
