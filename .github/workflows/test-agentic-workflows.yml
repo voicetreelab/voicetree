@@ -60,6 +60,13 @@ jobs:
           -v \
           --tb=short
     
+    - name: Run audio processing tests (CI-friendly)
+      run: |
+        cd backend/tests/integration_tests
+        python -m pytest test_audio_processing.py \
+          -v \
+          --tb=short
+    
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
@@ -111,6 +118,13 @@ jobs:
           --tb=short \
           --timeout=300
       continue-on-error: true  # Don't fail CI if API is down
+    
+    - name: Run audio processing tests (CI-friendly)
+      run: |
+        cd backend/tests/integration_tests
+        python -m pytest test_audio_processing.py \
+          -v \
+          --tb=short
     
     - name: Upload CI test results
       uses: actions/upload-artifact@v4

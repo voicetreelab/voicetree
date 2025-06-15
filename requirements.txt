@@ -1,5 +1,4 @@
 setuptools
-pyaudio
 SpeechRecognition
 --extra-index-url https://download.pytorch.org/whl/cu116
 torch~=2.2.0
@@ -12,3 +11,8 @@ pytest>=7.0.0
 pytest-asyncio
 google-generativeai
 openai
+aider-chat>=0.84.0  # AI coding agent for improvement analysis
+
+# Optional audio dependencies - only needed for live microphone recording
+# CI/CD can skip these since tests use pre-recorded audio files
+# pyaudio  # Uncomment for live audio recording
