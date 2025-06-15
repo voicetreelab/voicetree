@@ -7,9 +7,9 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 try:
-    from agentic_workflows.graph import compile_voicetree_graph
-    from agentic_workflows.state import VoiceTreeState
-    from agentic_workflows.state_manager import VoiceTreeStateManager
+    from backend.agentic_workflows.graph import compile_voicetree_graph
+    from backend.agentic_workflows.state import VoiceTreeState
+    from backend.agentic_workflows.state_manager import VoiceTreeStateManager
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     print("⚠️ LangGraph dependencies not available")
@@ -40,12 +40,13 @@ class VoiceTreePipeline:
         self.text_buffer = ""  # Simple character-count buffer
         self.buffer_threshold = buffer_threshold
     
-    def run(self, transcript: str) -> Dict[str, Any]:
+    def run(self, transcript: str, existing_nodes: Optional[str] = None) -> Dict[str, Any]:
         """
         Run the VoiceTree processing pipeline with simple character-count buffering
         
         Args:
             transcript: The input transcript text to process
+            existing_nodes: Current existing nodes information for context
             
         Returns:
             Final state containing processing results
@@ -72,8 +73,11 @@ class VoiceTreePipeline:
         print("=" * 50)
         print(f"📊 Processing buffered text: {len(text_to_process)} characters")
         
-        # Get existing nodes from state manager
-        existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"
+        # Use provided existing nodes or get from state manager
+        if existing_nodes is not None:
+            existing_nodes_text = existing_nodes
+        else:
+            existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"
         
         # Create initial state
         initial_state = {

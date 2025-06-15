@@ -161,8 +161,8 @@ class TestBufferOverflowProtection:
         """Test that buffer doesn't grow unbounded"""
         buffer_manager = UnifiedBufferManager(buffer_size_threshold=100)
         
-        # Try to add text that would exceed MAX_BUFFER_SIZE
-        huge_text = "x" * 3000  # Half of MAX_BUFFER_SIZE
+        # Try to add text that would exceed MAX_BUFFER_SIZE (now 500)
+        huge_text = "x" * 300  # More than half of MAX_BUFFER_SIZE (500)
         
         # Add it twice - should force processing
         result1 = buffer_manager.add_text(huge_text)

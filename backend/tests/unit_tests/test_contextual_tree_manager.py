@@ -143,17 +143,23 @@ class TestContextualTreeManager(unittest.TestCase):
     #     # mock_generate_content.assert_called_once()
 
     @patch.object(Summarizer, "summarize_with_llm", return_value="**This is a concise summary.**")
-    @patch.object(Decider, "decide_tree_action", return_value=[NodeAction(action="APPEND", concept_name="**Node 1 content**", neighbour_concept_name="**Node 1 content**", updated_summary_of_node="**This is a concise summary.**", labelled_text="", relationship_to_neighbour="", markdown_content_to_append="appended content", is_complete=True)])
-    def test_process_voice_input_append(self, mock_analyze_context, mock_summarize):
+    def test_process_voice_input_append(self, mock_summarize):
         tree_manager = ContextualTreeManager(DecisionTree())
         tree_manager.text_buffer_size_threshold = 10
         tree_manager.decision_tree.tree = {
             0: Node(name="Start", node_id=0, content="start_content", parent_id=None),
             1: Node(name="**Node 1 content**", node_id=1, content="node_1_content", parent_id=0),
         }
-        asyncio.run(tree_manager.process_voice_input("This is a test"))
-        self.assertEqual(tree_manager.decision_tree.tree[1].content,
-                         "node_1_content\nappended content")
+        
+        # Mock the specific decider instance created by ContextualTreeManager
+        with patch.object(tree_manager.decider, 'decide_tree_action', return_value=[
+            NodeAction(action="APPEND", concept_name="**Node 1 content**", neighbour_concept_name="**Node 1 content**", 
+                      updated_summary_of_node="**This is a concise summary.**", labelled_text="", 
+                      relationship_to_neighbour="", markdown_content_to_append="appended content", is_complete=True)
+        ]) as mock_analyze_context:
+            asyncio.run(tree_manager.process_voice_input("This is a test"))
+            self.assertEqual(tree_manager.decision_tree.tree[1].content,
+                             "node_1_content\nappended content")
 
     @patch.object(Summarizer, "summarize_with_llm", return_value="**This is a concise summary.**")
     @patch.object(Decider, "decide_tree_action",

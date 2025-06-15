@@ -57,15 +57,15 @@ def _load_environment() -> None:
 
 def _initialize_gemini() -> bool:
     """
-    Initialize Gemini API using the new google.genai package
+    Initialize Gemini API using google.generativeai package
     
     Returns:
         True if successfully initialized, False otherwise
     """
     try:
-        # Only use the new API
-        import google.genai as genai
-        print("✅ Google Genai API available")
+        # Use the standard Google Generative AI SDK
+        import google.generativeai as genai
+        print("✅ Google Generative AI available")
         
         # Try to get API key from environment
         api_key = os.environ.get("GOOGLE_API_KEY")
@@ -87,6 +87,8 @@ def _initialize_gemini() -> bool:
                 pass
         
         if api_key:
+            # Configure the API
+            genai.configure(api_key=api_key)
             print("✅ Gemini API configured successfully")
             return True
         else:
@@ -94,7 +96,7 @@ def _initialize_gemini() -> bool:
             return False
             
     except ImportError:
-        print("❌ google.genai package not available. Install with: pip install google-genai")
+        print("❌ google.generativeai package not available. Install with: pip install google-generativeai")
         return False
     except Exception as e:
         print(f"❌ Error initializing Gemini API: {e}")
@@ -131,7 +133,7 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         )
     
     try:
-        import google.genai as genai
+        import google.generativeai as genai
         
         schema_class = SCHEMA_MAP.get(stage_type)
         if not schema_class:
@@ -139,7 +141,7 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         
         print(f"🤖 Calling Gemini API with structured output ({model_name})...")
         
-        # Get API key
+        # Get API key and configure if needed
         api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             try:
@@ -151,18 +153,21 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         if not api_key:
             raise ValueError("No Google API key available")
         
-        # Use the new genai.Client API
-        client = genai.Client(api_key=api_key)
+        # Configure the API (safe to call multiple times)
+        genai.configure(api_key=api_key)
         
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": schema_class,
-                "max_output_tokens": 8192,
-                "temperature": 0.1,
-            }
+        # Use the standard generativeai API
+        model = genai.GenerativeModel(model_name)
+        
+        # Create generation config with structured output
+        generation_config = genai.GenerationConfig(
+            max_output_tokens=8192,
+            temperature=0.1,
+        )
+        
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config
         )
         
         # Try to use parsed response first (from new API)
@@ -225,11 +230,11 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         )
     
     try:
-        import google.genai as genai
+        import google.generativeai as genai
         
         print(f"🤖 Calling Gemini API ({model_name})...")
         
-        # Get API key
+        # Get API key and configure if needed
         api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             try:
@@ -241,16 +246,18 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         if not api_key:
             raise ValueError("No Google API key available")
         
-        # Use the new genai.Client API
-        client = genai.Client(api_key=api_key)
+        # Configure the API (safe to call multiple times)
+        genai.configure(api_key=api_key)
         
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config={
-                "max_output_tokens": 8192,
-                "temperature": 0.1,
-            }
+        # Use the standard generativeai API
+        model = genai.GenerativeModel(model_name)
+        
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=8192,
+                temperature=0.1,
+            )
         )
         
         # Check if response has text

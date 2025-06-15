@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: If you are about to run tests or run the voice tree system, first activate VENV. This rule contains instructions on how to do that.
+globs: 
 alwaysApply: false
 ---
 # Python Virtual Environment Rule

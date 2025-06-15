@@ -8,13 +8,13 @@ from typing import Set, Tuple, List
 
 import google.generativeai as genai
 
-import settings
-from tree_manager.LLM_engine.background_rewrite import Rewriter
-from tree_manager.LLM_engine.summarize_with_llm import Summarizer
-from tree_manager.LLM_engine.tree_action_decider import Decider
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.utils import extract_summary, remove_first_word, extract_complete_sentences
-from tree_manager import NodeAction
+from backend import settings
+from backend.tree_manager.LLM_engine.background_rewrite import Rewriter
+from backend.tree_manager.LLM_engine.summarize_with_llm import Summarizer
+from backend.tree_manager.LLM_engine.tree_action_decider import Decider
+from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.utils import extract_summary, remove_first_word, extract_complete_sentences
+from backend.tree_manager import NodeAction
 
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 

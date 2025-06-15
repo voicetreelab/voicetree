@@ -12,10 +12,9 @@ Instructions:
 1. Look for entries where "action": "CREATE"
 2. Extract the "new_node_name" value from those entries
 3. Ensure node names are meaningful and descriptive (3-8 words)
-4. Return ONLY the node names as a simple comma-separated list
-5. Do NOT include any explanatory text, code snippets, or formatting
-6. Do NOT include nodes that already exist in the existing nodes list
-7. Verify that each node name captures a complete concept or cognitive unit
+4. Return the node names as a JSON object with "new_nodes" array
+5. Do NOT include nodes that already exist in the existing nodes list
+6. Verify that each node name captures a complete concept or cognitive unit
 
 **Example:**
 
@@ -30,9 +29,13 @@ Instructions:
 
 **Existing nodes:** `["Project Planning", "Technical Architecture", "Security Requirements"]`
 
-**Expected output:** `Database Schema, Login System`
+**Expected output:** 
+```json
+{
+  "new_nodes": ["Database Schema", "Login System"]
+}
+```
 
-Example output format:
-Node Name 1, Node Name 2, Node Name 3
+Return ONLY valid JSON in this format. Do not include any explanatory text.
 
 New nodes to create:

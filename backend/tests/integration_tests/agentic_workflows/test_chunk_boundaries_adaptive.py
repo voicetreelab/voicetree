@@ -109,7 +109,7 @@ def _test_with_real_llm(voice_chunks, test_mode):
 def _run_test_logic(voice_chunks, test_mode, mock_llm=None):
     """Common test logic for both mocked and real tests"""
     state_file = f"test_chunk_boundaries_{test_mode}_state.json"
-    pipeline = VoiceTreePipeline(state_file)
+    pipeline = VoiceTreePipeline(state_file, buffer_threshold=100)  # Lower threshold for testing
     
     # Clear any existing state
     pipeline.clear_state()
@@ -120,6 +120,11 @@ def _run_test_logic(voice_chunks, test_mode, mock_llm=None):
     for i, chunk in enumerate(voice_chunks):
         print(f"\n   Chunk {i+1}/{len(voice_chunks)}: \"{chunk[:50]}...\"")
         result = pipeline.run(chunk)
+        
+        # If still buffering and this is the last chunk, force process the buffer
+        if i == len(voice_chunks) - 1 and result.get("current_stage") == "buffering":
+            print(f"   • Forcing buffer processing for final chunk...")
+            result = pipeline.force_process_buffer()
         
         all_results.append({
             "chunk_num": i + 1,
@@ -233,12 +238,17 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
             
             mock_llm.side_effect = mock_response
             
-            pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json")
+            pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=50)  # Very low threshold for extreme test
             pipeline.clear_state()
             
             for i, chunk in enumerate(extreme_chunks):
                 print(f"   Chunk {i+1}: \"{chunk}\"")
                 result = pipeline.run(chunk)
+                
+                # If still buffering and this is the last chunk, force process
+                if i == len(extreme_chunks) - 1 and result.get("current_stage") == "buffering":
+                    print(f"   • Forcing buffer processing for final chunk...")
+                    result = pipeline.force_process_buffer()
             
             stats = pipeline.get_statistics()
             print(f"\n📊 Final result: {stats['total_nodes']} nodes created")
@@ -250,12 +260,17 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
     
     else:
         # Real LLM test
-        pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json")
+        pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=50)  # Very low threshold for extreme test
         pipeline.clear_state()
         
         for i, chunk in enumerate(extreme_chunks):
             print(f"   Chunk {i+1}: \"{chunk}\"")
             result = pipeline.run(chunk)
+            
+            # If still buffering and this is the last chunk, force process
+            if i == len(extreme_chunks) - 1 and result.get("current_stage") == "buffering":
+                print(f"   • Forcing buffer processing for final chunk...")
+                result = pipeline.force_process_buffer()
         
         stats = pipeline.get_statistics()
         print(f"\n📊 Final result: {stats['total_nodes']} nodes created")

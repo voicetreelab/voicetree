@@ -8,7 +8,7 @@ import threading
 from typing import Optional, Tuple, List
 import re
 
-from tree_manager.utils import extract_complete_sentences
+from backend.tree_manager.utils import extract_complete_sentences
 
 
 class UnifiedBufferManager:
@@ -18,7 +18,7 @@ class UnifiedBufferManager:
     """
     
     # Constants for safety and reliability
-    MAX_BUFFER_SIZE = 5000  # Prevent unbounded memory growth
+    MAX_BUFFER_SIZE = 500  # Prevent unbounded memory growth
     ABBREV_PATTERN = re.compile(r'\b(?:Dr|Mr|Ms|Mrs|Prof|Inc|Ltd|etc|vs|i\.e|e\.g)\.$', re.IGNORECASE)
     
     def __init__(self, buffer_size_threshold: int = 500):
@@ -86,8 +86,8 @@ class UnifiedBufferManager:
     
     def _should_process_immediately(self, text: str) -> bool:
         """
-        Simple character-count based processing decision.
-        Avoids relying on punctuation due to voice-to-text inaccuracies.
+        Determine if text should be processed immediately based on multiple criteria.
+        Considers both size and sentence completeness.
         
         Args:
             text: Text to evaluate
@@ -102,8 +102,29 @@ class UnifiedBufferManager:
             logging.debug(f"Processing immediately: text size ({text_size}) >= threshold ({self.buffer_size_threshold})")
             return True
         
+        # Also process immediately if we have multiple complete sentences
+        # This handles cases like "First sentence. Second sentence! Third sentence?"
+        sentence_endings = re.findall(r'[.!?]+', text)
+        # Filter out abbreviations to avoid false positives
+        non_abbrev_endings = []
+        for match in re.finditer(r'[.!?]+', text):
+            end_pos = match.start()
+            # Get text before the punctuation to check for abbreviations
+            text_before = text[:end_pos].strip()
+            if not self.ABBREV_PATTERN.search(text_before):
+                non_abbrev_endings.append(match.group())
+        
+        if len(non_abbrev_endings) >= 2:
+            logging.debug(f"Processing immediately: found {len(non_abbrev_endings)} complete sentences")
+            return True
+        
+        # If we had an incomplete remainder, process it now that we have more text
+        if hasattr(self, '_had_incomplete_remainder') and self._had_incomplete_remainder:
+            logging.debug("Processing immediately: combining with incomplete remainder")
+            return True
+        
         # Otherwise, buffer for more content
-        logging.debug(f"Buffering text: size ({text_size}) < threshold ({self.buffer_size_threshold})")
+        logging.debug(f"Buffering text: size ({text_size}) < threshold ({self.buffer_size_threshold}), {len(non_abbrev_endings)} sentences")
         return False
     
     def _process_with_buffering(self, text: str) -> Optional[str]:
@@ -120,6 +141,13 @@ class UnifiedBufferManager:
         # Add to buffer
         self._text_buffer += text + " "
         self._transcript_history += text + " "
+        
+        # Check for buffer overflow after adding text
+        if len(self._text_buffer) > self.MAX_BUFFER_SIZE:
+            logging.warning(f"Buffer exceeded max size ({len(self._text_buffer)} > {self.MAX_BUFFER_SIZE}), forcing processing")
+            text_to_process = self._text_buffer.strip()
+            self._text_buffer = ""  # Clear buffer after processing
+            return text_to_process
         
         # Maintain transcript history window
         max_history = self.buffer_size_threshold * 3

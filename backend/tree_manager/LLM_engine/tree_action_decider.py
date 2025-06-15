@@ -1,11 +1,13 @@
 import json
 import logging
 import traceback
-from typing import List
-import settings
-from tree_manager import NodeAction
-from tree_manager.LLM_engine.LLM_API import generate_async
-from tree_manager.decision_tree_ds import DecisionTree
+from typing import List, Dict, Any
+from backend import settings
+from backend.tree_manager import NodeAction
+from backend.tree_manager.LLM_engine.LLM_API import generate_async
+from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.LLM_engine.prompts import create_context_prompt
+from backend.agentic_workflows.nodes import extract_json_from_response
 
 
 class Decider:
@@ -59,8 +61,9 @@ class Decider:
             self.update_prev_chunk(text)
             self.update_prev_output(response_text)  # Store the actions as a string
 
-            # Assuming the response is a list of dictionaries
-            extracted_concepts = json.loads(response_text)
+            # Extract JSON from response (handles markdown code fences)
+            clean_json = self._extract_json_from_response(response_text)
+            extracted_concepts = json.loads(clean_json)
 
             # Iterate through each concept
             for concept in extracted_concepts:
@@ -132,3 +135,18 @@ class Decider:
     def update_prev_output(self, output: str):
         """Updates the previous output from the LLM."""
         self._prev_output = output
+
+    def _extract_existing_nodes_info(self, decision_tree) -> str:
+        """Extract readable information about existing nodes"""
+        if not decision_tree.tree or len(decision_tree.tree) <= 1:
+            return "No existing nodes (empty tree)"
+        
+        node_info = []
+        for node_id, node in decision_tree.tree.items():
+            if node_id == 0:  # Skip root node for cleaner output
+                continue
+            
+            parent_name = "Root" if node.parent_id == 0 else decision_tree.tree.get(node.parent_id, {}).get('name', 'Unknown')
+            node_info.append(f"- **{node.name}** (child of {parent_name}): {node.summary or node.content[:100] + '...' if node.content else 'No content'}")
+        
+        return "\n".join(node_info) if node_info else "No non-root nodes"

@@ -1,12 +1,31 @@
+#!/usr/bin/env python3
 """
-Node functions for VoiceTree LangGraph workflow
-Each node represents a stage in the processing pipeline
+VoiceTree LangGraph Pipeline Nodes
+Implements the 4-stage workflow: Segmentation → Relationship Analysis → Integration Decision → Node Extraction
 """
 
-import json
+import os
 import re
+import sys
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
+
+# Add project root and backend directory to Python path for imports
+current_file = Path(__file__)
+project_root = current_file.parent.parent.parent  # Go up from backend/agentic_workflows/nodes.py to root
+backend_dir = current_file.parent.parent  # Go up to backend directory
+agentic_workflows_dir = current_file.parent  # Current directory
+
+for path_to_add in [str(project_root), str(backend_dir), str(agentic_workflows_dir)]:
+    if path_to_add not in sys.path:
+        sys.path.insert(0, path_to_add)
+
+print(f"🔧 Added paths to sys.path:")
+print(f"   Project root: {project_root}")
+print(f"   Backend dir: {backend_dir}")
+print(f"   Agentic workflows: {agentic_workflows_dir}")
+
+import json
 import logging
 
 # Set up logging
@@ -26,41 +45,106 @@ def log_to_file(stage_name: str, log_type: str, content: str):
     except Exception as e:
         logger.error(f"Failed to write to workflow_io.log: {e}")
 
+# Import the LLM integration and debug logger with comprehensive error handling
+llm_imported = False
+import_source = ""
+import_error_details = []
 
-# Import the LLM integration and debug logger
+# Try direct import first (when running from agentic_workflows directory)
 try:
-    from agentic_workflows.llm_integration import call_llm_structured, call_llm
-    from agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
-except ImportError:
-    # If running from a different directory, try relative import
+    from llm_integration import call_llm_structured, call_llm
+    from debug_logger import log_stage_input_output, log_transcript_processing
+    llm_imported = True
+    import_source = "direct relative"
+    print(f"✅ LLM integration loaded from {import_source}")
+except ImportError as e1:
+    import_error_details.append(f"direct relative: {e1}")
+    
+    # Try backend.agentic_workflows path
     try:
-        from llm_integration import call_llm_structured, call_llm
-        from debug_logger import log_stage_input_output, log_transcript_processing
-    except ImportError:
-        print("⚠️ Could not import LLM integration - using mock implementation")
+        from backend.agentic_workflows.llm_integration import call_llm_structured, call_llm
+        from backend.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
+        llm_imported = True
+        import_source = "backend.agentic_workflows"
+        print(f"✅ LLM integration loaded from {import_source}")
+    except ImportError as e2:
+        import_error_details.append(f"backend.agentic_workflows: {e2}")
         
-        # Mock debug logging
-        def log_stage_input_output(stage_name: str, inputs: dict, outputs: dict):
-            print(f"📝 (Mock) Would log {stage_name} I/O")
+        # Try agentic_workflows path  
+        try:
+            from backend.agentic_workflows.llm_integration import call_llm_structured, call_llm
+            from backend.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
+            llm_imported = True
+            import_source = "agentic_workflows"
+            print(f"✅ LLM integration loaded from {import_source}")
+        except ImportError as e3:
+            import_error_details.append(f"agentic_workflows: {e3}")
+            llm_imported = False
+
+if not llm_imported:
+    print(f"❌ LLM integration import failed! Using mock implementation.")
+    print(f"   Import attempts:")
+    for error in import_error_details:
+        print(f"     • {error}")
+    print(f"   Current working directory: {os.getcwd()}")
+    print(f"   Python paths (first 3): {sys.path[:3]}")
+    
+    # Mock debug logging
+    def log_stage_input_output(stage_name: str, inputs: dict, outputs: dict):
+        print(f"📝 (Mock) Would log {stage_name} I/O")
+    
+    def log_transcript_processing(transcript_text: str, file_source: str = "unknown"):
+        print(f"📝 (Mock) Would log transcript input")
+    
+    # Fallback mock implementation
+    def call_llm_structured(prompt: str, stage_type: str):
+        """Mock structured LLM call for testing"""
+        print(f"=== MOCK STRUCTURED LLM CALL (FALLBACK) ===")
+        print(f"Stage: {stage_type}")
+        print(f"Prompt length: {len(prompt)} characters")
+        print("===================")
         
-        def log_transcript_processing(transcript_text: str, file_source: str = "unknown"):
-            print(f"📝 (Mock) Would log transcript input")
-        
-        # Fallback mock implementation
-        def call_llm_structured(prompt: str, stage_type: str) -> dict:
-            """Mock structured LLM call for testing"""
-            print(f"=== MOCK STRUCTURED LLM CALL (FALLBACK) ===")
-            print(f"Stage: {stage_type}")
-            print(f"Prompt length: {len(prompt)} characters")
-            print("===================")
+        # Try to import Pydantic models for proper mock responses
+        try:
+            # Try different import paths for schema models
+            schema_models = None
+            for schema_import in ["schema_models", "agentic_workflows.schema_models", "backend.agentic_workflows.schema_models"]:
+                try:
+                    schema_models = __import__(schema_import, fromlist=['SegmentationResponse', 'RelationshipResponse', 'IntegrationResponse', 'NodeExtractionResponse', 'ChunkModel'])
+                    break
+                except ImportError:
+                    continue
+            
+            if schema_models:
+                # Return proper mock Pydantic models based on stage type
+                if stage_type == "segmentation":
+                    return schema_models.SegmentationResponse(
+                        chunks=[schema_models.ChunkModel(name="Mock Chunk", text="Mock text", is_complete=True)]
+                    )
+                elif stage_type == "relationship":
+                    return schema_models.RelationshipResponse(analyzed_chunks=[])
+                elif stage_type == "integration":
+                    return schema_models.IntegrationResponse(integration_decisions=[])
+                elif stage_type == "extraction":
+                    return schema_models.NodeExtractionResponse(new_nodes=[])
+                else:
+                    # Fallback to dict for unknown stages
+                    return {"mock": "response"}
+            else:
+                # If schema imports fail, return dict (will cause error but at least we'll know why)
+                print("❌ Could not import schema models for mock response")
+                return {"mock": "response"}
+                
+        except Exception as e:
+            print(f"❌ Error creating mock response: {e}")
             return {"mock": "response"}
-        
-        def call_llm(prompt: str) -> str:
-            """Mock LLM call for testing"""
-            print(f"=== MOCK LLM CALL (FALLBACK) ===")
-            print(f"Prompt length: {len(prompt)} characters")
-            print("===================")
-            return "Mock response"
+    
+    def call_llm(prompt: str) -> str:
+        """Mock LLM call for testing"""
+        print(f"=== MOCK LLM CALL (FALLBACK) ===")
+        print(f"Prompt length: {len(prompt)} characters")
+        print("===================")
+        return "Mock response"
 
 
 # Constants
@@ -303,6 +387,25 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
     if transcript_text:
         log_transcript_processing(transcript_text, "segmentation_node")
     
+    # Check for empty or too short transcript first
+    transcript_raw = state.get("transcript_text", "")
+    
+    # Handle case where transcript_text might be a dict or other type
+    if isinstance(transcript_raw, dict):
+        transcript = transcript_raw.get("text", str(transcript_raw)).strip()
+    elif isinstance(transcript_raw, str):
+        transcript = transcript_raw.strip()
+    else:
+        transcript = str(transcript_raw).strip()
+    
+    # Return error for empty transcript
+    if not transcript:
+        return {
+            **state,
+            "current_stage": "error",
+            "error_message": "Empty transcript provided for segmentation"
+        }
+    
     # Use structured output for segmentation
     result = process_llm_stage_structured(
         state=state,
@@ -317,40 +420,70 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # If segmentation failed or returned no chunks, create a simple fallback
     if result.get("current_stage") == "error" or not result.get("chunks"):
         print("⚠️ Segmentation failed or returned no chunks, creating fallback segmentation")
-        transcript_raw = state.get("transcript_text", "")
-        
-        # Handle case where transcript_text might be a dict or other type
-        if isinstance(transcript_raw, dict):
-            transcript = transcript_raw.get("text", str(transcript_raw)).strip()
-        elif isinstance(transcript_raw, str):
-            transcript = transcript_raw.strip()
-        else:
-            transcript = str(transcript_raw).strip()
             
-        if transcript:
-            # Create a simple single chunk as fallback
-            fallback_chunk = {
+        # Create a simple single chunk as fallback
+        fallback_chunk = {
+            "name": "Voice Input",
+            "text": transcript,
+            "is_complete": True
+        }
+        result = {
+            **state,
+            "chunks": [fallback_chunk],
+            "current_stage": "segmentation_complete",
+            "incomplete_chunk_remainder": None
+        }
+        print(f"   ✅ Created fallback segmentation with 1 chunk")
+    
+    # Validate and filter chunks
+    if result.get("chunks") and result["current_stage"] != "error":
+        chunks = result["chunks"]
+        valid_chunks = []
+        
+        for chunk in chunks:
+            # Check minimum content requirements
+            text = chunk.get("text", "")
+            name = chunk.get("name", "")
+            
+            # Filter out chunks that are too short or have no name
+            if len(text.strip()) >= 30 and len(name.strip()) >= 3:
+                valid_chunks.append(chunk)
+            else:
+                print(f"   ⚠️ Filtered out invalid chunk: name='{name}', text_length={len(text)}")
+        
+        # If no valid chunks remain, use fallback
+        if not valid_chunks:
+            print("   ⚠️ No valid chunks after filtering, using fallback")
+            valid_chunks = [{
                 "name": "Voice Input",
                 "text": transcript,
                 "is_complete": True
-            }
-            result = {
-                **state,
-                "chunks": [fallback_chunk],
-                "current_stage": "segmentation_complete",
-                "incomplete_chunk_remainder": None
-            }
-            print(f"   ✅ Created fallback segmentation with 1 chunk")
-        else:
-            # Empty transcript, return error
-            return {
-                **state,
-                "current_stage": "error",
-                "error_message": "Empty transcript provided for segmentation"
-            }
-    
-    # Simplified: treat all chunks as complete since buffering is handled at pipeline level
-    if result.get("chunks") and result["current_stage"] != "error":
+            }]
+        
+        result["chunks"] = valid_chunks
+        
+        # Prevent over-fragmentation by merging if too many chunks
+        if len(valid_chunks) > 15:
+            print(f"   ⚠️ Too many chunks ({len(valid_chunks)}), merging to prevent over-fragmentation")
+            merged_chunks = []
+            current_merge = {"names": [], "texts": []}
+            
+            for i, chunk in enumerate(valid_chunks):
+                current_merge["names"].append(chunk["name"])
+                current_merge["texts"].append(chunk["text"])
+                
+                # Merge every 2-3 chunks or at the end
+                if len(current_merge["names"]) >= 2 or i == len(valid_chunks) - 1:
+                    merged_chunk = {
+                        "name": " & ".join(current_merge["names"]),
+                        "text": " ".join(current_merge["texts"]),
+                        "is_complete": True
+                    }
+                    merged_chunks.append(merged_chunk)
+                    current_merge = {"names": [], "texts": []}
+            
+            result["chunks"] = merged_chunks[:15]  # Cap at 15 chunks
+        
         chunks = result["chunks"]
         print(f"   ✅ Processing {len(chunks)} complete chunks")
     
@@ -418,26 +551,27 @@ def extract_node_names(response: str) -> List[str]:
 
 def node_extraction_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Stage 4: Extract new node names from integration decisions"""
-    result = process_llm_stage_structured(
-        state=state,
-        stage_name="Node Extraction", 
-        stage_type="extraction",
-        prompt_name="node_extraction",
-        prompt_kwargs={
-            "extract": json.dumps(state["integration_decisions"], indent=2),
-            "nodes": state.get("existing_nodes", "No existing nodes"),
-        },
-        result_key="new_nodes",
-        next_stage="complete"
-    )
     
-    # Additional filtering for node names if needed
-    if result.get("new_nodes") and result["current_stage"] != "error":
-        filtered_nodes = [
-            node for node in result["new_nodes"]
-            if len(node) < MAX_NODE_NAME_LENGTH
-            and not any(phrase in node.lower() for phrase in EXCLUDED_PHRASES)
-        ]
-        result["new_nodes"] = filtered_nodes
+    # Use the reliable fallback approach: extract directly from integration decisions
+    print("🔄 Using direct extraction from integration decisions (bypassing LLM schema issues)")
+    
+    fallback_nodes = []
+    integration_decisions = state.get("integration_decisions", [])
+    
+    for decision in integration_decisions:
+        if decision.get("action") == "CREATE" and decision.get("new_node_name"):
+            node_name = decision["new_node_name"]
+            # Apply same filtering as LLM approach
+            if (len(node_name) < MAX_NODE_NAME_LENGTH and 
+                not any(phrase in node_name.lower() for phrase in EXCLUDED_PHRASES)):
+                fallback_nodes.append(node_name)
+    
+    print(f"   ✅ Extracted {len(fallback_nodes)} nodes from integration decisions: {fallback_nodes}")
+    
+    result = {
+        **state,
+        "new_nodes": fallback_nodes,
+        "current_stage": "complete"
+    }
     
     return result 

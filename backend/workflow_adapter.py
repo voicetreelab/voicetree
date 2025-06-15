@@ -10,9 +10,9 @@ from dataclasses import dataclass
 from enum import Enum
 from datetime import datetime
 
-from agentic_workflows.main import VoiceTreePipeline
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager import NodeAction
+from backend.agentic_workflows.main import VoiceTreePipeline
+from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager import NodeAction
 
 
 class WorkflowMode(Enum):
@@ -29,6 +29,79 @@ class WorkflowResult:
     node_actions: List[NodeAction]
     error_message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class IntegrationDecision:
+    """
+    Unified data structure for integration decisions that can be converted to NodeAction.
+    This eliminates the manual mapping layer by providing a shared schema.
+    """
+    name: str
+    action: str
+    target_node: Optional[str] = None
+    new_node_name: Optional[str] = None
+    new_node_summary: Optional[str] = None
+    updated_summary: Optional[str] = None
+    relationship: Optional[str] = None
+    content: Optional[str] = None
+    
+    @classmethod
+    def from_workflow_dict(cls, decision_data: Dict[str, Any]) -> 'IntegrationDecision':
+        """
+        Factory method to create IntegrationDecision from workflow output format.
+        This handles the format conversion in one place.
+        """
+        if decision_data is None:
+            raise ValueError("decision_data cannot be None")
+        
+        # Handle relationship fallback more carefully
+        relationship = decision_data.get("relationship")
+        if relationship is None:  # Only fallback if None, not empty string
+            relationship = decision_data.get("relationship_for_edge")
+        
+        return cls(
+            name=decision_data.get("name", ""),
+            action=decision_data.get("action", "").upper(),
+            target_node=decision_data.get("target_node"),
+            new_node_name=decision_data.get("new_node_name"),
+            new_node_summary=decision_data.get("new_node_summary"),
+            updated_summary=decision_data.get("updated_summary"),
+            relationship=relationship,
+            content=decision_data.get("content", "")
+        )
+    
+    def to_node_action(self) -> NodeAction:
+        """
+        Convert IntegrationDecision to NodeAction.
+        This replaces the manual mapping logic.
+        """
+        # Validate action before processing
+        if not self.action or self.action not in ("CREATE", "APPEND"):
+            raise ValueError(f"Invalid action type: '{self.action}'. Must be 'CREATE' or 'APPEND'")
+        
+        if self.action == "CREATE":
+            return NodeAction(
+                labelled_text=self.name,
+                action="CREATE",
+                concept_name=self.new_node_name or "",
+                neighbour_concept_name=self.target_node or "",
+                relationship_to_neighbour=self.relationship or "",
+                updated_summary_of_node=self.new_node_summary or "",
+                markdown_content_to_append=self.content or "",
+                is_complete=True
+            )
+        elif self.action == "APPEND":
+            return NodeAction(
+                labelled_text=self.name,
+                action="APPEND",
+                concept_name=self.target_node or "",
+                neighbour_concept_name=None,
+                relationship_to_neighbour=None,
+                updated_summary_of_node=self.updated_summary or "",
+                markdown_content_to_append=self.content or "",
+                is_complete=True
+            )
 
 
 class WorkflowAdapter:
@@ -80,11 +153,29 @@ class WorkflowAdapter:
             # Get current state snapshot for the workflow
             state_snapshot = self._prepare_state_snapshot()
             
-            # Run the workflow (synchronously for now, can be made async)
+            # Add the text to the pipeline buffer and force process it
+            # This bypasses the pipeline's internal buffering since UnifiedBufferManager already handles chunking
+            self.pipeline.text_buffer += full_transcript + " "
+            
+            # Force process the buffer regardless of threshold
             result = await asyncio.to_thread(
-                self.pipeline.run,
-                full_transcript
+                self.pipeline.force_process_buffer
             )
+            
+            # Manually set the existing_nodes in the result if it's missing
+            if result and not result.get("error_message"):
+                # Ensure the pipeline had the existing nodes information
+                if "existing_nodes" not in result or result["existing_nodes"] == "No existing nodes":
+                    # Re-run with proper existing nodes if needed
+                    self.pipeline.text_buffer = ""  # Clear buffer
+                    result = await asyncio.to_thread(
+                        lambda: self.pipeline.run("", state_snapshot["existing_nodes"])
+                    )
+                    if result and not result.get("error_message"):
+                        # Now add our actual content and process
+                        result = await asyncio.to_thread(
+                            lambda: self.pipeline.run(full_transcript, state_snapshot["existing_nodes"])
+                        )
             
             # Process the workflow result
             if result.get("error_message"):
@@ -173,7 +264,8 @@ class WorkflowAdapter:
     
     def _convert_to_node_actions(self, workflow_result: Dict[str, Any]) -> List[NodeAction]:
         """
-        Convert workflow integration decisions to NodeAction objects
+        Convert workflow integration decisions to NodeAction objects using the unified approach.
+        This eliminates the manual field mapping by using the IntegrationDecision shared schema.
         
         Args:
             workflow_result: Result from the workflow execution
@@ -181,37 +273,27 @@ class WorkflowAdapter:
         Returns:
             List of NodeAction objects
         """
-        node_actions = []
         decisions = workflow_result.get("integration_decisions", [])
+
+        # FIXED: Eliminated manual mapping using IntegrationDecision shared schema
+        # This solves the "impedance mismatch" problem by using a unified approach.
         
-        for decision in decisions:
-            action = decision.get("action", "").upper()
-            
-            if action == "CREATE":
-                node_action = NodeAction(
-                    action="CREATE",
-                    concept_name=decision.get("new_node_name", ""),
-                    neighbour_concept_name=decision.get("target_node", ""),
-                    relationship_to_neighbour=decision.get("relationship", ""),
-                    markdown_content_to_append=decision.get("content", ""),
-                    updated_summary_of_node=decision.get("new_node_summary", ""),
-                    is_complete=True,
-                    labelled_text=decision.get("name", "")
-                )
+        node_actions = []
+        for decision_data in decisions:
+            try:
+                # Convert to IntegrationDecision using the factory method
+                integration_decision = IntegrationDecision.from_workflow_dict(decision_data)
+                
+                # Convert to NodeAction using the unified conversion method
+                node_action = integration_decision.to_node_action()
                 node_actions.append(node_action)
                 
-            elif action == "APPEND":
-                node_action = NodeAction(
-                    action="APPEND",
-                    concept_name=decision.get("target_node", ""),
-                    neighbour_concept_name=None,
-                    relationship_to_neighbour=None,
-                    markdown_content_to_append=decision.get("content", ""),
-                    updated_summary_of_node=decision.get("updated_summary", ""),
-                    is_complete=True,
-                    labelled_text=decision.get("name", "")
-                )
-                node_actions.append(node_action)
+            except (ValueError, TypeError) as e:
+                # Log the error but continue processing other decisions
+                # This prevents one bad decision from breaking the entire workflow
+                print(f"Warning: Skipping invalid integration decision: {e}")
+                print(f"  Decision data: {decision_data}")
+                continue
         
         return node_actions
     

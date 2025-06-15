@@ -8,8 +8,8 @@ import asyncio
 from typing import Optional, Set, Dict, Any
 from datetime import datetime
 
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
 from tree_reorganization_agent import TreeReorganizationAgent, integrate_troa_with_workflow_tree_manager
 
 

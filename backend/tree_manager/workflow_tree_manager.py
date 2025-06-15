@@ -7,10 +7,10 @@ import logging
 import asyncio
 from typing import Optional, Set
 
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.unified_buffer_manager import UnifiedBufferManager
-from workflow_adapter import WorkflowAdapter, WorkflowMode
-import settings
+from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
+from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
+from backend import settings
 
 
 class WorkflowTreeManager:

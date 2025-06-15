@@ -6,172 +6,158 @@
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "VoiceTree Application Capabilities Test",
+          "name": "VoiceTree Application Comprehensive Test Introduction",
           "text": "This is a comprehensive test of the VoiceTree application and its capabilities.",
           "is_complete": true
         },
         {
-          "name": "Create New Node About Project Planning",
+          "name": "Creating New Node About Project Planning",
           "text": "I want to create a new node about project planning and management strategies.",
           "is_complete": true
         },
         {
-          "name": "Project Scope Definition Deliverables and Timelines",
+          "name": "Project Planning Node Steps: Scope Definition",
           "text": "The first step is to define the project scope clearly, including all deliverables and timelines.",
           "is_complete": true
         },
         {
-          "name": "Identify Key Stakeholders Roles Responsibilities",
+          "name": "Project Planning Node Steps: Stakeholder Identification",
           "text": "The next step is to identify the key stakeholders, their roles, and responsibilities.",
           "is_complete": true
         },
         {
-          "name": "Establish Communication Channels Regular Check-in Meetings",
+          "name": "Project Planning Node Steps: Communication Channels",
           "text": "We also need to establish communication channels and regular check-in meetings.",
           "is_complete": true
         },
         {
-          "name": "Risk Assessment and Mitigation Strategies",
+          "name": "Project Planning Node Steps: Risk Mitigation",
           "text": "Risk assessment and mitigation strategies should be developed early in the process.",
           "is_complete": true
         },
         {
-          "name": "Set Up Documentation and Version Control",
+          "name": "Project Planning Node Steps: Documentation Setup",
           "text": "Finally, we need to set up proper documentation and version control systems.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "VoiceTree Application Capabilities Test",
+          "name": "VoiceTree Application Comprehensive Test Introduction",
           "text": "This is a comprehensive test of the VoiceTree application and its capabilities.",
-          "reasoning": "This chunk introduces a new topic - testing the VoiceTree application. There are no existing nodes to connect to, and it doesn't relate to the other chunks in the batch yet.",
+          "reasoning": "This chunk introduces a new topic - testing the VoiceTree application. There are no existing nodes to connect to, so it's a new topic.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         },
         {
-          "name": "Create New Node About Project Planning",
+          "name": "Creating New Node About Project Planning",
           "text": "I want to create a new node about project planning and management strategies.",
-          "reasoning": "This chunk introduces the topic of project planning. It doesn't connect to the previous chunk about testing, and it sets the stage for the following chunks.",
+          "reasoning": "This chunk expresses the intent to create a new node about project planning. Since there are no existing nodes related to project planning, this is a new topic.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         },
         {
-          "name": "Project Scope Definition Deliverables and Timelines",
+          "name": "Project Planning Node Steps: Scope Definition",
           "text": "The first step is to define the project scope clearly, including all deliverables and timelines.",
-          "reasoning": "This chunk describes the first step in project planning, directly following the previous chunk's intention to create a node about project planning.",
-          "relevant_node_name": "Create New Node About Project Planning",
-          "relationship": "follows"
+          "reasoning": "This chunk describes the first step in project planning, directly continuing the thought process initiated in the previous chunk about creating a project planning node.",
+          "relevant_node_name": "Creating New Node About Project Planning",
+          "relationship": "continues"
         },
         {
-          "name": "Identify Key Stakeholders Roles Responsibilities",
+          "name": "Project Planning Node Steps: Stakeholder Identification",
           "text": "The next step is to identify the key stakeholders, their roles, and responsibilities.",
-          "reasoning": "This chunk describes the next step in project planning, following the definition of project scope.",
-          "relevant_node_name": "Project Scope Definition Deliverables and Timelines",
+          "reasoning": "This chunk describes the next step in project planning, following sequentially from the previous chunk about scope definition.",
+          "relevant_node_name": "Project Planning Node Steps: Scope Definition",
           "relationship": "follows"
         },
         {
-          "name": "Establish Communication Channels Regular Check-in Meetings",
+          "name": "Project Planning Node Steps: Communication Channels",
           "text": "We also need to establish communication channels and regular check-in meetings.",
-          "reasoning": "This chunk describes another step in project planning, following the identification of stakeholders.",
-          "relevant_node_name": "Identify Key Stakeholders Roles Responsibilities",
+          "reasoning": "This chunk describes another step in project planning, following sequentially from the previous chunk about stakeholder identification.",
+          "relevant_node_name": "Project Planning Node Steps: Stakeholder Identification",
           "relationship": "follows"
         },
         {
-          "name": "Risk Assessment and Mitigation Strategies",
+          "name": "Project Planning Node Steps: Risk Mitigation",
           "text": "Risk assessment and mitigation strategies should be developed early in the process.",
-          "reasoning": "This chunk describes another important aspect of project planning, following the establishment of communication channels.",
-          "relevant_node_name": "Establish Communication Channels Regular Check-in Meetings",
+          "reasoning": "This chunk describes another step in project planning, following sequentially from the previous chunk about communication channels.",
+          "relevant_node_name": "Project Planning Node Steps: Communication Channels",
           "relationship": "follows"
         },
         {
-          "name": "Set Up Documentation and Version Control",
+          "name": "Project Planning Node Steps: Documentation Setup",
           "text": "Finally, we need to set up proper documentation and version control systems.",
-          "reasoning": "This chunk describes the final step mentioned in project planning, following the risk assessment and mitigation strategies.",
-          "relevant_node_name": "Risk Assessment and Mitigation Strategies",
+          "reasoning": "This chunk describes the final step in project planning, following sequentially from the previous chunk about risk mitigation.",
+          "relevant_node_name": "Project Planning Node Steps: Risk Mitigation",
           "relationship": "follows"
         }
       ],
       "integration_decisions": [
         {
-          "name": "VoiceTree Application Capabilities Test",
-          "text": "This is a comprehensive test of the VoiceTree application and its capabilities.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "VoiceTree Application Capabilities Test",
-          "new_node_summary": "Initiates a comprehensive test of the VoiceTree application and its capabilities.",
+          "new_node_name": "VoiceTree Application Comprehensive Test Introduction",
+          "new_node_summary": "Introduces a comprehensive test of the VoiceTree application and its capabilities.",
           "relationship_for_edge": null,
-          "content": "\u2022 Comprehensive testing of VoiceTree application planned\n\u2022 Focus on evaluating all application capabilities\n\u2022 Goal: Thorough assessment of VoiceTree's functionality"
+          "content": "\u2022 VoiceTree application undergoing comprehensive testing\n\u2022 Testing aims to evaluate all application capabilities"
         },
         {
-          "name": "Create New Node About Project Planning",
-          "text": "I want to create a new node about project planning and management strategies.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Create New Node About Project Planning",
-          "new_node_summary": "Intention to create a new node focusing on project planning and management strategies.",
+          "new_node_name": "Creating New Node About Project Planning",
+          "new_node_summary": "Expresses the intent to create a new node focused on project planning and management strategies.",
           "relationship_for_edge": null,
-          "content": "\u2022 New node to cover project planning strategies\n\u2022 Focus on effective project management techniques\n\u2022 Goal: Establish a resource for project planning knowledge"
+          "content": "\u2022 Goal is to establish a project planning and management node\n\u2022 Node will cover relevant strategies and techniques"
         },
         {
-          "name": "Project Scope Definition Deliverables and Timelines",
-          "text": "The first step is to define the project scope clearly, including all deliverables and timelines.",
           "action": "CREATE",
-          "target_node": "Create New Node About Project Planning",
-          "new_node_name": "Project Scope Definition Deliverables and Timelines",
-          "new_node_summary": "The initial step in project planning involves clearly defining the project scope, deliverables, and timelines.",
-          "relationship_for_edge": "follows",
-          "content": "\u2022 Define project scope as first step\n\u2022 Identify all project deliverables\n\u2022 Establish realistic project timelines"
+          "target_node": "Creating New Node About Project Planning",
+          "new_node_name": "Project Planning Node Steps: Scope Definition",
+          "new_node_summary": "Defines the first step in project planning as clearly defining the project scope, deliverables, and timelines.",
+          "relationship_for_edge": "continues",
+          "content": "\u2022 Define project scope, including all deliverables\n\u2022 Establish clear project timelines from the outset"
         },
         {
-          "name": "Identify Key Stakeholders Roles Responsibilities",
-          "text": "The next step is to identify the key stakeholders, their roles, and responsibilities.",
           "action": "CREATE",
-          "target_node": "Project Scope Definition Deliverables and Timelines",
-          "new_node_name": "Identify Key Stakeholders Roles Responsibilities",
-          "new_node_summary": "The next step involves identifying key stakeholders and defining their roles and responsibilities within the project.",
+          "target_node": "Project Planning Node Steps: Scope Definition",
+          "new_node_name": "Project Planning Node Steps: Stakeholder Identification",
+          "new_node_summary": "Identifies the next step in project planning as identifying key stakeholders and their roles.",
           "relationship_for_edge": "follows",
-          "content": "\u2022 Identify key project stakeholders\n\u2022 Define roles for each stakeholder\n\u2022 Clarify stakeholder responsibilities"
+          "content": "\u2022 Identify key project stakeholders\n\u2022 Define roles and responsibilities for each stakeholder"
         },
         {
-          "name": "Establish Communication Channels Regular Check-in Meetings",
-          "text": "We also need to establish communication channels and regular check-in meetings.",
           "action": "CREATE",
-          "target_node": "Identify Key Stakeholders Roles Responsibilities",
-          "new_node_name": "Establish Communication Channels Regular Check-in Meetings",
-          "new_node_summary": "Establishing communication channels and regular check-in meetings is crucial for project success.",
+          "target_node": "Project Planning Node Steps: Stakeholder Identification",
+          "new_node_name": "Project Planning Node Steps: Communication Channels",
+          "new_node_summary": "Highlights the need to establish communication channels and regular check-in meetings in project planning.",
           "relationship_for_edge": "follows",
-          "content": "\u2022 Establish clear communication channels\n\u2022 Schedule regular project check-in meetings\n\u2022 Ensure consistent information flow"
+          "content": "\u2022 Establish clear communication channels for the project\n\u2022 Schedule regular check-in meetings with stakeholders"
         },
         {
-          "name": "Risk Assessment and Mitigation Strategies",
-          "text": "Risk assessment and mitigation strategies should be developed early in the process.",
           "action": "CREATE",
-          "target_node": "Establish Communication Channels Regular Check-in Meetings",
-          "new_node_name": "Risk Assessment and Mitigation Strategies",
-          "new_node_summary": "Developing risk assessment and mitigation strategies early in the project planning process is essential.",
+          "target_node": "Project Planning Node Steps: Communication Channels",
+          "new_node_name": "Project Planning Node Steps: Risk Mitigation",
+          "new_node_summary": "Emphasizes the importance of developing risk assessment and mitigation strategies early in project planning.",
           "relationship_for_edge": "follows",
-          "content": "\u2022 Conduct early risk assessment\n\u2022 Develop risk mitigation strategies\n\u2022 Proactively address potential project issues"
+          "content": "\u2022 Develop risk assessment strategies early in the project\n\u2022 Create mitigation plans to address potential risks"
         },
         {
-          "name": "Set Up Documentation and Version Control",
-          "text": "Finally, we need to set up proper documentation and version control systems.",
           "action": "CREATE",
-          "target_node": "Risk Assessment and Mitigation Strategies",
-          "new_node_name": "Set Up Documentation and Version Control",
-          "new_node_summary": "Setting up proper documentation and version control systems is the final step in project planning.",
+          "target_node": "Project Planning Node Steps: Risk Mitigation",
+          "new_node_name": "Project Planning Node Steps: Documentation Setup",
+          "new_node_summary": "States the final step in project planning as setting up proper documentation and version control systems.",
           "relationship_for_edge": "follows",
-          "content": "\u2022 Implement robust documentation practices\n\u2022 Establish version control systems\n\u2022 Maintain accurate project records"
+          "content": "\u2022 Set up proper project documentation\n\u2022 Implement version control systems for all documents"
         }
       ],
       "new_nodes": [
-        "VoiceTree Application Capabilities Test",
-        "Create New Node About Project Planning",
-        "Project Scope Definition Deliverables and Timelines",
-        "Identify Key Stakeholders Roles Responsibilities",
-        "Establish Communication Channels Regular Check-in Meetings",
-        "Risk Assessment and Mitigation Strategies",
-        "Set Up Documentation and Version Control"
+        "VoiceTree Application Comprehensive Test Introduction",
+        "Creating New Node About Project Planning",
+        "Project Planning Node Steps: Scope Definition",
+        "Project Planning Node Steps: Stakeholder Identification",
+        "Project Planning Node Steps: Communication Channels",
+        "Project Planning Node Steps: Risk Mitigation",
+        "Project Planning Node Steps: Documentation Setup"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
@@ -179,38 +165,36 @@
     },
     {
       "transcript_text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- b\n- N\n- w\n- P\n- j\n- S\n- D\n- f\n- v\n- m\n- I\n- K\n- E\n- M\n- U",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- m\n- v\n- I\n- N\n- w\n- b\n- P\n- j\n- S\n- D\n- f\n- M",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
-          "name": "Reaching out to potential investors plan",
+          "name": "Investor Outreach and Preparation Strategy",
           "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
           "is_complete": true
         }
       ],
       "analyzed_chunks": [
         {
-          "name": "Reaching out to potential investors plan",
+          "name": "Investor Outreach and Preparation Strategy",
           "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
-          "reasoning": "This chunk outlines a plan to reach out to potential investors, including specific steps like talking to Austin's dad, preparing a business plan, and creating a product demo. Since there are no existing nodes, it is a new topic.",
+          "reasoning": "This chunk introduces a new high-level goal (investor outreach) and outlines several steps to achieve it. Since there are no existing nodes to connect to, it is a new topic.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         }
       ],
       "integration_decisions": [
         {
-          "name": "Reaching out to potential investors plan",
-          "text": "Another important thing I will have to do is start reaching out to potential investors to see what next steps they would recommend for me and my startup. I should talk to Austin's dad first since he has experience in this industry. I also need to prepare a comprehensive business plan with financial projections. Market research and competitive analysis will be crucial for these conversations. I should also prepare a demo of the current product to show its capabilities. Building relationships with investors takes time, so I need to start early.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
-          "new_node_name": "Reaching out to potential investors plan",
-          "new_node_summary": "Outlines a plan to reach out to potential investors, including talking to Austin's dad, preparing a business plan, and creating a product demo.",
+          "new_node_name": "Investor Outreach and Preparation Strategy",
+          "new_node_summary": "Outlines the strategy for investor outreach, including initial contacts, business plan preparation, and product demo creation.",
           "relationship_for_edge": null,
-          "content": "\u2022 Initiate outreach to potential investors for guidance on next steps for the startup.\n\u2022 Consult Austin's dad, leveraging his industry experience for insights.\n\u2022 Develop a comprehensive business plan with financial projections, market research, and competitive analysis.\n\u2022 Prepare a product demo to showcase the startup's capabilities to investors."
+          "content": "\u2022 Initiate investor outreach to gather recommendations for the startup.\n\u2022 Prioritize contacting Austin's dad due to his industry experience.\n\u2022 Develop a comprehensive business plan with financial projections.\n\u2022 Prepare a product demo to showcase the startup's capabilities."
         }
       ],
       "new_nodes": [
-        "Reaching out to potential investors plan"
+        "Investor Outreach and Preparation Strategy"
       ],
       "incomplete_chunk_remainder": null,
       "current_stage": "complete",
@@ -218,7 +202,7 @@
     },
     {
       "transcript_text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
-      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- b\n- N\n- w\n- P\n- j\n- S\n- D\n- f\n- v\n- m\n- I\n- K\n- E\n- M\n- U",
+      "existing_nodes": "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k\n- V\n- i\n- c\n- A\n- p\n- l\n- m\n- v\n- I\n- N\n- w\n- b\n- P\n- j\n- S\n- D\n- f\n- M\n- O",
       "incomplete_chunk_buffer": "",
       "chunks": [
         {
@@ -231,21 +215,19 @@
         {
           "name": "Investor Outreach Preparation: Polishing POC",
           "text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
-          "reasoning": "This chunk outlines the necessary steps to prepare the Proof of Concept (POC) for investor outreach. It describes concrete actions and improvements needed, essentially detailing the implementation process for making the POC investor-ready. Since there are no existing nodes to connect to, it is a new topic.",
+          "reasoning": "This chunk outlines the necessary steps to prepare for investor outreach, specifically focusing on polishing the Proof of Concept (POC). Since there are no existing nodes, this chunk introduces a new topic.",
           "relevant_node_name": "NO_RELEVANT_NODE",
           "relationship": null
         }
       ],
       "integration_decisions": [
         {
-          "name": "Investor Outreach Preparation: Polishing POC",
-          "text": "To be able to start reaching out to investors effectively, I will first have to polish my POC significantly. This involves refining the user interface to make it more intuitive and professional. I need to improve the summarization quality and accuracy of the AI models. Making sure the application is robust and easy to use is absolutely critical. I'll also need to prepare a compelling pitch deck and presentation materials. Performance optimization and scalability testing should be completed. User feedback collection and iteration based on that feedback is important. Documentation for both users and developers needs to be comprehensive and clear.",
           "action": "CREATE",
           "target_node": "NO_RELEVANT_NODE",
           "new_node_name": "Investor Outreach Preparation: Polishing POC",
-          "new_node_summary": "Describes the necessary steps to polish the Proof of Concept (POC) for effective investor outreach, including UI refinement, AI model improvement, and documentation.",
+          "new_node_summary": "Outlines the critical steps to polish the Proof of Concept (POC) before effectively reaching out to investors.",
           "relationship_for_edge": null,
-          "content": "\u2022 Refine the POC user interface for intuitiveness and professionalism.\n\u2022 Improve the summarization quality and accuracy of AI models.\n\u2022 Prepare a compelling pitch deck and presentation materials for investors.\n\u2022 Complete performance optimization and scalability testing of the application."
+          "content": "\u2022 Refine user interface for intuitive and professional experience\n\u2022 Improve summarization quality and accuracy of AI models\n\u2022 Prepare compelling pitch deck and presentation materials\n\u2022 Collect user feedback and iterate on POC based on input"
         }
       ],
       "new_nodes": [
@@ -256,7 +238,7 @@
       "error_message": null
     }
   ],
-  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - VoiceTree Application Capabilities Test\n    - Create New Node About Project Planning\n    - Project Scope Definition Deliverables and Timelines\n    - Identify Key Stakeholders Roles Responsibilities\n    - Establish Communication Channels Regular Check-in Meetings\n    - Risk Assessment and Mitigation Strategies\n    - Set Up Documentation and Version Control    - Reaching out to potential investors plan",
+  "final_tree": "\n    Current tree nodes:\n    - Root: Today's thoughts and tasks\n        - VoiceTree Application Comprehensive Test Introduction\n    - Creating New Node About Project Planning\n    - Project Planning Node Steps: Scope Definition\n    - Project Planning Node Steps: Stakeholder Identification\n    - Project Planning Node Steps: Communication Channels\n    - Project Planning Node Steps: Risk Mitigation\n    - Project Planning Node Steps: Documentation Setup    - Investor Outreach and Preparation Strategy",
   "statistics": {
     "total_new_nodes": 9,
     "append_decisions": 0,

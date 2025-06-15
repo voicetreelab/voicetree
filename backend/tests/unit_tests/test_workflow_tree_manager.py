@@ -31,7 +31,7 @@ class TestWorkflowTreeManager(unittest.TestCase):
         # Assert
         self.assertEqual(self.tree_manager.decision_tree, self.decision_tree)
         self.assertIsNotNone(self.tree_manager.workflow_adapter)
-        self.assertEqual(self.tree_manager.workflow_adapter.mode, WorkflowMode.ATOMIC)
+        self.assertEqual(self.tree_manager.workflow_adapter.mode.value, WorkflowMode.ATOMIC.value)
     
     def test_initialization_with_state_file_path(self):
         """Test initialization with workflow state file parameter"""

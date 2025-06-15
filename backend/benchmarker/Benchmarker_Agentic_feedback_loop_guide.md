@@ -4,6 +4,41 @@
 
 This guide explains how to systematically test, debug, and continuously improve the VoiceTree agentic workflow system through automated quality assessment. The system processes voice transcripts through a 4-stage pipeline to build knowledge trees, and this guide provides both manual analysis techniques and automated scoring frameworks for building a self-improving system.
 
+## 📚 STEP 0: Project Familiarization (REQUIRED FIRST STEP)
+
+**CRITICAL**: Before running any benchmarker or making improvements, you must first understand the current project architecture and status by reading the key documentation files.
+
+### Required Reading Order:
+1. **`ARCHITECTURE_CLEANUP_SUMMARY.md`** - Understand the unified architecture and recent improvements
+2. **`TADA_TROA_SYSTEM.md`** - Learn about the two-agent system (TADA + TROA)
+3. **`VOICETREE_IMPROVEMENTS_SUMMARY.md`** - Review current status and known issues
+4. **`backend/ARCHITECTURE_SUMMARY.md`** - Backend implementation details
+
+### Key Concepts to Understand:
+- **TADA**: Tree Action Decider Agent (real-time, 2.5-3/5 quality)
+- **TROA**: Tree Reorganization Agent (background optimization, 5/5 quality)
+- **4-Stage Workflow**: Segmentation → Relationship Analysis → Integration Decision → Node Extraction
+- **Current Status**: Dependencies may need installation (langgraph, langchain-core)
+- **Quality Progression**: Voice Input → TADA (2.5-3/5) → TROA (5/5)
+
+### Architecture Quick Reference Commands:
+```bash
+# Read project documentation
+ls -la *.md
+cat ARCHITECTURE_CLEANUP_SUMMARY.md
+cat TADA_TROA_SYSTEM.md
+cat VOICETREE_IMPROVEMENTS_SUMMARY.md
+
+# Check current dependencies
+pip list | grep -E "(langgraph|langchain)"
+
+# Explore backend structure
+ls -la backend/
+ls -la backend/benchmarker/
+```
+
+**Only proceed to testing once you understand the system architecture and current status.**
+
 ## 🏗️ System Architecture Quick Reference
 
 The VoiceTree system follows this flow:

@@ -34,8 +34,6 @@ class RelationshipResponse(BaseModel):
 
 class IntegrationDecision(BaseModel):
     """Model for integration decision stage output"""
-    name: str = Field(description="Name of the chunk")
-    text: str = Field(description="Text content of the chunk")
     action: Literal["CREATE", "APPEND"] = Field(description="Whether to create new node or append to existing")
     target_node: Optional[str] = Field(description="Target node for the action")
     new_node_name: Optional[str] = Field(description="Name for new node if action is CREATE")

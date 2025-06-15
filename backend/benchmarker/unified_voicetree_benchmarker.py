@@ -38,6 +38,7 @@ import argparse
 
 # Add parent directories to path
 sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))  # Add project root
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -66,12 +67,12 @@ class UnifiedVoiceTreeBenchmarker:
             "test_modes": ["tada_baseline", "tada_troa", "quality_assessment"],
             "transcript_files": [
                 {
-                    "file": "../oldVaults/VoiceTreePOC/og_vt_transcript.txt",
+                    "file": "../../oldVaults/VoiceTreePOC/og_vt_transcript.txt",
                     "name": "VoiceTree Original",
                     "max_words": None
                 }
             ],
-            "output_base_dir": "../oldVaults/VoiceTreePOC",
+            "output_base_dir": "../../oldVaults/VoiceTreePOC",
             "enable_llm_quality_assessment": True,
             "enable_debug_analysis": True,
             "enable_comparative_analysis": True,
@@ -91,8 +92,8 @@ class UnifiedVoiceTreeBenchmarker:
         self.output_dirs = {
             "tada_baseline": f"{self.config['output_base_dir']}/UNIFIED_TADA_Baseline",
             "tada_troa": f"{self.config['output_base_dir']}/UNIFIED_TADA_TROA",
-            "debug_logs": "../agentic_workflows/debug_logs",
-            "reports": "../unified_benchmark_reports"
+            "debug_logs": "backend/agentic_workflows/debug_logs",
+            "reports": "unified_benchmark_reports"
         }
         
         # Clean and create directories
@@ -119,7 +120,7 @@ class UnifiedVoiceTreeBenchmarker:
         try:
             import google.generativeai as genai
             from google.generativeai import GenerativeModel
-            from backend import settings
+            import settings
             genai.configure(api_key=settings.GOOGLE_API_KEY)
             self.genai_available = True
             logger.info("✅ Gemini API available for quality assessment")
@@ -826,8 +827,10 @@ def main():
     
     args = parser.parse_args()
     
-    # Create config
-    config = {}
+    # Create config based on default, then override
+    benchmarker = UnifiedVoiceTreeBenchmarker()
+    config = benchmarker.config.copy()
+    
     if args.transcript:
         config["transcript_files"] = [{
             "file": args.transcript,
@@ -835,7 +838,7 @@ def main():
             "max_words": args.max_words
         }]
     
-    # Run benchmark
+    # Recreate benchmarker with updated config
     benchmarker = UnifiedVoiceTreeBenchmarker(config)
     results = asyncio.run(benchmarker.run_full_benchmark(args.modes))
     
