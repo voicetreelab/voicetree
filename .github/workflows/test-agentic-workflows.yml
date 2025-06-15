@@ -4,13 +4,15 @@ on:
   push:
     branches: [ main, develop ]
     paths:
-      - 'backend/agentic_workflows/**'
-      - 'backend/tests/integration_tests/agentic_workflows/**'
+      - 'backend/**'
+      - '*.py'
+      - '.github/**'
   pull_request:
     branches: [ main, develop ]
     paths:
-      - 'backend/agentic_workflows/**'
-      - 'backend/tests/integration_tests/agentic_workflows/**'
+      - 'backend/**'
+      - '*.py'
+      - '.github/**'
   workflow_dispatch:
     inputs:
       test_mode:
