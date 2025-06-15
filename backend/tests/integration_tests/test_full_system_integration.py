@@ -178,12 +178,12 @@ class TestFullSystemIntegration:
             
             # Test empty transcript processing
             decision_tree = DecisionTree()
-            initial_node_count = len(decision_tree.nodes)
+            initial_node_count = len(decision_tree.tree)
             
             # System should handle empty input without crashing
             print("✅ System handles edge cases without crashing")
             
-            return True
+            # Test passes if no exceptions are raised
             
         except Exception as e:
             print(f"❌ Error handling test failed: {e}")

@@ -68,8 +68,8 @@ class TestVoiceTreeImprovements(unittest.TestCase):
             }
         ]
         
-        # Mock LLM failure
-        with patch('backend.agentic_workflows.llm_integration.call_llm_structured', side_effect=Exception("LLM failure")):
+        # Mock LLM failure - need to patch the actual import used by legacy_nodes
+        with patch('backend.agentic_workflows.legacy_nodes.call_llm_structured', side_effect=Exception("LLM failure")):
             # Use longer test input that won't be filtered out
             test_input = "This is a longer test transcript that should be processed correctly by the system."
             result = self.workflow.execute_workflow(test_input)

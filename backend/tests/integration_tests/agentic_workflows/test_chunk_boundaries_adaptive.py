@@ -79,8 +79,8 @@ def _test_with_mocked_llm(voice_chunks):
         "extraction": {"new_nodes": ["NLP Project"]}
     }
     
-    # Mock the function where it's actually used (in nodes.py)
-    with patch('backend.agentic_workflows.nodes.call_llm_structured') as mock_llm:
+    # Mock the function where it's actually used (in infrastructure.py)
+    with patch('backend.agentic_workflows.infrastructure.call_llm_structured') as mock_llm:
         def mock_llm_response(prompt, stage_type, model_name="gemini-2.0-flash"):
             print(f"🤖 MOCKED LLM CALL: {stage_type}")
             if stage_type == "segmentation":

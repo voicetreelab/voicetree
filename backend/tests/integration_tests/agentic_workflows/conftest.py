@@ -19,8 +19,8 @@ def pytest_addoption(parser):
     parser.addoption(
         "--api-calls",
         action="store_true",
-        default=os.environ.get("PYTEST_ALLOW_API_CALLS", "false").lower() in ("true", "1", "yes"),
-        help="Allow real API calls (default: false for safety)"
+        default=os.environ.get("PYTEST_ALLOW_API_CALLS", "true").lower() in ("true", "1", "yes"),
+        help="Allow real API calls (default: true for development)"
     )
 
 
@@ -44,7 +44,7 @@ def allow_api_calls(request):
         return cli_allow
     except ValueError:
         # Fallback for IDE execution - check environment variable
-        ide_allow = os.environ.get("PYTEST_ALLOW_API_CALLS", "false").lower()
+        ide_allow = os.environ.get("PYTEST_ALLOW_API_CALLS", "true").lower()
         result = ide_allow in ("true", "1", "yes")
         return result
 
