@@ -3,6 +3,8 @@ description: Whenever you think have written a significant amount of code, you s
 globs: 
 alwaysApply: false
 ---
+When to use: Whenever you think have written a significant amount of code, you should review these rules.
+
 Make sure your recent changes adhere to the following rules to avoid tech-debt:
 
 1. I WILL MAKE SURE MY AGENT AFTER WRITING ANY CODE, RUNS THE PIPELINE, AND THE STATE SAYS IN A SYSTEM OF GREEN. 
@@ -22,4 +24,6 @@ Make sure your recent changes adhere to the following rules to avoid tech-debt:
 7. please don’t create temporary files, even if they are .md explanations of your work. 
 
 (n+1th rule) end every prompt with:
-First confirm you understand this task, why we are doing it, and explore and think deeply to plan a good away to approach this problem before attacking it. 
+
+
+Then once you have ensured all rules have passed, check if there are any other rules to run once rull passing pipeline has completed. 

@@ -107,6 +107,7 @@ class TestAudioProcessingCI:
         assert len(transcript) > 0
         print(f"✅ Mock audio processing returned: '{transcript[:50]}...'")
     
+    @pytest.mark.timeout(300)  # 5 minute timeout for CI
     def test_real_m4a_audio_file(self):
         """Test processing the actual .m4a test file"""
         # Path to the real test audio file
@@ -128,8 +129,9 @@ class TestAudioProcessingCI:
         print(f"✅ Real audio transcription: '{transcript[:100]}...'")
         print(f"   Full length: {len(transcript)} characters")
         
-        # Should contain some speech content (not just empty/whitespace)
+        # Verify content quality
         assert len(transcript.strip()) > 10, "Should contain meaningful speech content"
+        assert "voice" in transcript.lower() or "tree" in transcript.lower(), "Should contain expected content from test audio"
     
     def test_real_audio_chunking_simulation(self):
         """Test simulating streaming chunks from real audio transcription"""
