@@ -10,18 +10,18 @@ import sys
 from pathlib import Path
 import traceback
 
-# Add backend to path
-backend_dir = Path(__file__).parent.parent
-if str(backend_dir) not in sys.path:
-    sys.path.insert(0, str(backend_dir))
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 
 def test_core_framework():
     """Test that core framework works correctly"""
     try:
         # Test basic imports
-        from agentic_workflows.core.base_agent import BaseAgent, AgentType
-        from agentic_workflows.core.registry import AgentRegistry
+        from backend.agentic_workflows.core.base_agent import BaseAgent, AgentType
+        from backend.agentic_workflows.core.registry import AgentRegistry
         
         # Test agent types exist
         assert len([t for t in AgentType]) == 3
@@ -43,9 +43,9 @@ def test_agent_definitions():
     """Test that all agent definitions work correctly"""
     try:
         # Test individual agent imports
-        from agentic_workflows.agents.tada.definition import TADAAgent
-        from agentic_workflows.agents.troa.definition import TROAAgent
-        from agentic_workflows.agents.rewriter.definition import RewriterAgent
+        from backend.agentic_workflows.agents.tada.definition import TADAAgent
+        from backend.agentic_workflows.agents.troa.definition import TROAAgent
+        from backend.agentic_workflows.agents.rewriter.definition import RewriterAgent
         
         # Test each agent can be instantiated
         tada = TADAAgent()
@@ -79,10 +79,10 @@ def test_agent_definitions():
 def test_agent_type_patterns():
     """Test that different agent types work as expected"""
     try:
-        from agentic_workflows.agents.tada.definition import TADAAgent
-        from agentic_workflows.agents.troa.definition import TROAAgent
-        from agentic_workflows.agents.rewriter.definition import RewriterAgent
-        from agentic_workflows.core.base_agent import AgentType
+        from backend.agentic_workflows.agents.tada.definition import TADAAgent
+        from backend.agentic_workflows.agents.troa.definition import TROAAgent
+        from backend.agentic_workflows.agents.rewriter.definition import RewriterAgent
+        from backend.agentic_workflows.core.base_agent import AgentType
         
         # Test TADA (Sequential)
         tada = TADAAgent()
@@ -109,13 +109,13 @@ def test_clean_api_surface():
     """Test that the API surface is clean and minimal"""
     try:
         # Test core components can be imported
-        from agentic_workflows.core.base_agent import BaseAgent, AgentType
-        from agentic_workflows.core.registry import AgentRegistry
+        from backend.agentic_workflows.core.base_agent import BaseAgent, AgentType
+        from backend.agentic_workflows.core.registry import AgentRegistry
         
         # Test agents module structure  
-        from agentic_workflows.agents.tada import TADAAgent
-        from agentic_workflows.agents.troa import TROAAgent  
-        from agentic_workflows.agents.rewriter import RewriterAgent
+        from backend.agentic_workflows.agents.tada import TADAAgent
+        from backend.agentic_workflows.agents.troa import TROAAgent  
+        from backend.agentic_workflows.agents.rewriter import RewriterAgent
         
         # Test infrastructure directory exists (don't import to avoid dependencies)
         infra_dir = Path(__file__).parent / "infrastructure"
@@ -131,13 +131,13 @@ def test_concern_isolation():
     """Test that concerns are properly isolated"""
     try:
         # Test core framework has no agent-specific dependencies
-        from agentic_workflows.core.base_agent import BaseAgent
-        from agentic_workflows.core.registry import AgentRegistry
+        from backend.agentic_workflows.core.base_agent import BaseAgent
+        from backend.agentic_workflows.core.registry import AgentRegistry
         
         # Test agents have no infrastructure dependencies in their definitions
-        from agentic_workflows.agents.tada.definition import TADAAgent
-        from agentic_workflows.agents.troa.definition import TROAAgent
-        from agentic_workflows.agents.rewriter.definition import RewriterAgent
+        from backend.agentic_workflows.agents.tada.definition import TADAAgent
+        from backend.agentic_workflows.agents.troa.definition import TROAAgent
+        from backend.agentic_workflows.agents.rewriter.definition import RewriterAgent
         
         # Create agents without infrastructure
         tada = TADAAgent()

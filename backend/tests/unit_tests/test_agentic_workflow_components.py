@@ -8,7 +8,7 @@ class TestAgenticWorkflowComponents(unittest.TestCase):
         """Test JSON extraction from clean JSON response"""
         # This test only works if the function exists - let's make it import-safe
         try:
-            from backend.agentic_workflows.nodes import extract_json_from_response
+            from backend.agentic_workflows.legacy_nodes import extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         
@@ -28,7 +28,7 @@ class TestAgenticWorkflowComponents(unittest.TestCase):
     def test_extract_json_from_response_with_markdown_wrapper(self):
         """Test JSON extraction from markdown code blocks"""
         try:
-            from backend.agentic_workflows.nodes import extract_json_from_response
+            from backend.agentic_workflows.legacy_nodes import extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         
@@ -55,7 +55,7 @@ Additional text here.'''
     def test_extract_json_from_response_with_array(self):
         """Test JSON extraction when response contains JSON array"""
         try:
-            from backend.agentic_workflows.nodes import extract_json_from_response
+            from backend.agentic_workflows.legacy_nodes import extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         
@@ -77,7 +77,7 @@ Additional text here.'''
     def test_extract_json_from_response_with_invalid_json(self):
         """Test handling of malformed JSON"""
         try:
-            from backend.agentic_workflows.nodes import extract_json_from_response
+            from backend.agentic_workflows.legacy_nodes import extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         
@@ -94,7 +94,7 @@ Additional text here.'''
     def test_extract_json_from_response_with_no_json(self):
         """Test handling of plain text with no JSON"""
         try:
-            from backend.agentic_workflows.nodes import extract_json_from_response
+            from backend.agentic_workflows.legacy_nodes import extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         
@@ -111,7 +111,7 @@ Additional text here.'''
     def test_extract_json_from_response_with_nested_brackets(self):
         """Test handling of nested JSON structures"""
         try:
-            from backend.agentic_workflows.nodes import extract_json_from_response
+            from backend.agentic_workflows.legacy_nodes import extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         
@@ -228,7 +228,7 @@ class TestWorkflowErrorHandling(unittest.TestCase):
     def test_malformed_json_response_handling(self):
         """Test that malformed JSON responses don't crash the system"""
         try:
-            from backend.agentic_workflows.nodes import extract_json_from_response
+            from backend.agentic_workflows.legacy_nodes import extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         

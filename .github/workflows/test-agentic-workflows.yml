@@ -43,7 +43,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'backend/agentic_workflows/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
     
@@ -51,7 +51,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r backend/agentic_workflows/requirements.txt
         pip install pytest pytest-asyncio
 
     - name: Verify test audio file exists
@@ -116,7 +115,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'backend/agentic_workflows/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
     
@@ -124,7 +123,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r backend/agentic_workflows/requirements.txt
         pip install pytest pytest-asyncio
     
     - name: Verify test audio file exists
@@ -206,7 +204,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'backend/agentic_workflows/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
     
@@ -214,7 +212,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r backend/agentic_workflows/requirements.txt
         pip install pytest pytest-asyncio
     
     - name: Run quality benchmarking
@@ -237,7 +234,7 @@ jobs:
           oldVaults/VoiceTreePOC/QualityTest/
 
   # Performance benchmark - only on manual trigger
-  performance-test:
+  performance-benchmark:
     runs-on: ubuntu-latest
     name: "Performance Benchmark"
     if: github.event_name == 'workflow_dispatch'
@@ -250,27 +247,27 @@ jobs:
       with:
         python-version: "3.11"
     
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r backend/agentic_workflows/requirements.txt
-        pip install pytest pytest-asyncio pytest-benchmark
-    
+        pip install pytest pytest-asyncio
+        
     - name: Run performance benchmarks
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         cd backend/tests/integration_tests/agentic_workflows
-        echo "🚀 Mocked performance (baseline):"
-        time python -m pytest test_chunk_boundaries_adaptive.py::test_chunk_boundaries_adaptive \
-          --test-mode=mocked -v
-        
-        echo "🏃‍♂️ Local performance (2 chunks):"
-        time python -m pytest test_chunk_boundaries_adaptive.py::test_chunk_boundaries_adaptive \
-          --test-mode=local --api-calls -v
-        
-        echo "🐌 CI performance (5 chunks):"
-        time python -m pytest test_chunk_boundaries_adaptive.py::test_chunk_boundaries_adaptive \
-          --test-mode=ci --api-calls -v
-      continue-on-error: true 
+        python -m pytest test_performance_benchmark.py \
+          --api-calls \
+          -v \
+          --tb=short \
+          --timeout=600 

@@ -8,10 +8,11 @@ Bridges the gap between pure agent specification and execution.
 """
 
 from typing import Dict, Any, Optional
-from ..agent import VoiceTreeAgent
+# DISABLED: Missing VoiceTreeAgent class
+# from ..agent import VoiceTreeAgent
 from .llm_integration import call_llm_structured
 from .debug_logger import log_stage_input_output
-from ..schema_models import (
+from backend.agentic_workflows.schema_models import (
     SegmentationResponse, RelationshipResponse, 
     IntegrationResponse, NodeExtractionResponse
 )
@@ -23,13 +24,22 @@ class AgentExecutor:
     
     Takes a clean agent definition and runs it with actual LLM calls,
     state management, and logging.
+    
+    NOTE: Currently disabled due to missing VoiceTreeAgent dependency.
     """
     
-    def __init__(self, agent: Optional[VoiceTreeAgent] = None):
+    def __init__(self, agent: Optional[Any] = None):
         """Initialize with an agent definition"""
-        self.agent = agent or VoiceTreeAgent()
+        # DISABLED: Missing VoiceTreeAgent class
+        # self.agent = agent or VoiceTreeAgent()
+        self.agent = None
         self.current_stage = "start"
         self.execution_log = []
+        
+        if agent is not None:
+            print("⚠️ AgentExecutor: VoiceTreeAgent dependency is missing")
+        else:
+            print("⚠️ AgentExecutor: Currently disabled due to missing dependencies")
     
     def execute(self, initial_state: Dict[str, Any]) -> Dict[str, Any]:
         """

@@ -77,8 +77,8 @@ class TestAgenticWorkflowPipeline:
         
         required_files = [
             "main.py",
-            "nodes.py", 
-            "graph.py",
+            "legacy_nodes.py",  # Updated: nodes.py is now legacy_nodes.py
+            "legacy_graph.py",  # Updated: graph.py is now legacy_graph.py
             "state.py",
             "llm_integration.py",
             "schema_models.py"

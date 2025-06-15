@@ -5,7 +5,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from backend.agentic_workflows.nodes import segmentation_node
+from backend.agentic_workflows.legacy_nodes import segmentation_node
 from backend.agentic_workflows.llm_integration import call_llm
 
 # Test transcript
@@ -19,7 +19,7 @@ print("Testing direct LLM call...")
 print("=" * 60)
 
 # Load the segmentation prompt
-from backend.agentic_workflows.nodes import load_prompt_template
+from backend.agentic_workflows.legacy_nodes import load_prompt_template
 
 try:
     prompt_template = load_prompt_template("segmentation")
@@ -36,7 +36,7 @@ try:
     print(response[:500])
     
     # Try to extract JSON
-    from backend.agentic_workflows.nodes import extract_json_from_response
+    from backend.agentic_workflows.legacy_nodes import extract_json_from_response
     json_content = extract_json_from_response(response)
     
     print(f"\nExtracted JSON (first 500 chars):")

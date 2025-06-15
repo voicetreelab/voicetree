@@ -29,7 +29,7 @@ We have successfully implemented a comprehensive architectural cleanup that tran
 - **`backend/migration.py`** - Migration checker and helpers
 - **`backend/demo_unified_architecture.py`** - Complete working demo
 - **`backend/README_UNIFIED_ARCHITECTURE.md`** - Comprehensive documentation
-- **`requirements_unified.txt`** - Clean dependency management
+- **`requirements.txt`** - Consolidated dependency management
 
 ## 🔥 Problems Solved
 

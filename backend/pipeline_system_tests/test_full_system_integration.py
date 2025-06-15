@@ -39,7 +39,136 @@ class TestFullSystemIntegration:
             shutil.rmtree(self.temp_output_dir)
             print(f"🧹 Cleaned up test directory: {self.temp_output_dir}")
     
-    # Audio test moved to backend/pipeline_system_tests/test_full_system_integration.py
+    @pytest.mark.timeout(300)  # 5 minute timeout for full system test
+    @pytest.mark.asyncio
+    async def test_full_system_with_real_audio(self):
+        """
+        Complete system test with real .m4a audio file
+        Tests: Audio → VTT → Tree Processing → Markdown Generation
+        """
+        print("🚀 FULL SYSTEM INTEGRATION TEST")
+        print("=" * 60)
+        
+        # Set environment for stability
+        os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+        
+        try:
+            # Import all system components
+            from backend.voice_to_text.voice_to_text import VoiceToTextEngine
+            from backend.tree_manager.decision_tree_ds import DecisionTree
+            from backend.tree_manager.text_to_tree_manager import ContextualTreeManager
+            from backend.tree_manager.tree_to_markdown_converter import TreeToMarkdownConverter
+            from process_transcription import TranscriptionProcessor
+            
+            print("✅ All system components imported successfully")
+            
+            # Check for test audio file
+            test_audio_path = Path(__file__).parent / "voice_example_test_input.m4a"
+            
+            if not test_audio_path.exists():
+                pytest.skip("Real audio file not available - system test requires voice_example_test_input.m4a")
+            
+            print(f"🎵 Found test audio: {test_audio_path.name}")
+            
+            # STAGE 1: Audio to Text (VoiceToTextEngine)
+            print("\n📝 STAGE 1: Audio → Text Transcription")
+            print("-" * 50)
+            
+            voice_engine = VoiceToTextEngine()
+            transcript = voice_engine.process_audio_file(str(test_audio_path))
+            
+            assert transcript, "VoiceToTextEngine should produce transcript"
+            assert len(transcript) > 50, "Transcript should contain meaningful content"
+            
+            print(f"✅ Transcription successful: {len(transcript)} characters")
+            print(f"   Preview: '{transcript[:100]}...'")
+            
+            # STAGE 2: Tree Processing (Decision Tree + Tree Manager)
+            print("\n🌳 STAGE 2: Text → Knowledge Tree Processing")
+            print("-" * 50)
+            
+            decision_tree = DecisionTree()
+            tree_manager = ContextualTreeManager(decision_tree=decision_tree)
+            converter = TreeToMarkdownConverter(decision_tree)
+            processor = TranscriptionProcessor(tree_manager, converter, output_dir=self.temp_output_dir)
+            
+            print("✅ Tree processing components initialized")
+            
+            # Process transcript in realistic chunks (like streaming would)
+            sentences = [s.strip() + '.' for s in transcript.split('.') if s.strip()]
+            
+            print(f"📦 Processing {len(sentences)} sentence chunks...")
+            
+            for i, chunk in enumerate(sentences):
+                print(f"   Processing chunk {i+1}/{len(sentences)}: '{chunk[:40]}...'")
+                await processor.process_and_convert(chunk)
+                await asyncio.sleep(0.01)  # Small delay like real system
+            
+            # Finalize processing
+            await processor.finalize()
+            
+            print(f"✅ Tree processing complete: {len(decision_tree.nodes)} nodes created")
+            
+            # STAGE 3: Markdown Generation (Output Verification)
+            print("\n📄 STAGE 3: Tree → Markdown File Generation")
+            print("-" * 50)
+            
+            # Check that markdown files were generated
+            output_files = list(Path(self.temp_output_dir).glob("*.md"))
+            
+            assert len(output_files) > 0, "System should generate markdown files"
+            
+            print(f"✅ Generated {len(output_files)} markdown files:")
+            
+            total_content_length = 0
+            for md_file in output_files:
+                content = md_file.read_text()
+                total_content_length += len(content)
+                print(f"   📄 {md_file.name}: {len(content)} characters")
+                
+                # Basic content validation
+                assert len(content) > 0, f"Markdown file {md_file.name} should not be empty"
+                assert "###" in content or "##" in content, f"Markdown file should contain headers"
+            
+            print(f"✅ Total markdown content: {total_content_length} characters")
+            
+            # STAGE 4: System Integration Validation
+            print("\n🎯 STAGE 4: End-to-End Validation")
+            print("-" * 50)
+            
+            # Validate the complete pipeline worked
+            assert len(decision_tree.nodes) > 0, "Decision tree should contain nodes"
+            assert total_content_length > 100, "Should generate substantial markdown content"
+            
+            # Check for content transformation (audio → meaningful structure)
+            sample_content = output_files[0].read_text()
+            
+            # Should contain structured content, not just raw transcript
+            has_structure = any(marker in sample_content for marker in ["###", "- ", "Links:", "Connected to:"])
+            assert has_structure, "Generated content should have structured format, not raw transcript"
+            
+            print("✅ System integration validation passed!")
+            print(f"   Audio Input: {len(transcript)} chars")
+            print(f"   Tree Nodes: {len(decision_tree.nodes)}")
+            print(f"   Markdown Files: {len(output_files)}")
+            print(f"   Final Content: {total_content_length} chars")
+            
+            print("\n🎉 FULL SYSTEM TEST SUCCESSFUL!")
+            print("   Complete pipeline: Audio → Text → Tree → Markdown ✓")
+            
+            return {
+                "transcript_length": len(transcript),
+                "tree_nodes": len(decision_tree.nodes),
+                "markdown_files": len(output_files),
+                "total_content": total_content_length
+            }
+            
+        except ImportError as e:
+            pytest.skip(f"System test dependencies not available: {e}")
+        except Exception as e:
+            print(f"❌ System integration test failed: {e}")
+            print(f"   This indicates a break in the complete pipeline")
+            raise
     
     @pytest.mark.asyncio
     async def test_full_system_with_mocked_audio(self):

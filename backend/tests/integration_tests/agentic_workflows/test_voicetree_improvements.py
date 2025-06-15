@@ -50,7 +50,7 @@ class TestVoiceTreeImprovements(unittest.TestCase):
         
         mock_response = SegmentationResponse(chunks=mock_chunks)
         
-        with patch('agentic_workflows.nodes.call_llm_structured', return_value=mock_response):
+        with patch('backend.agentic_workflows.llm_integration.call_llm_structured', return_value=mock_response):
             result = self.workflow.execute_workflow("A long transcript with many ideas and concepts that need to be properly segmented")
             
             # Should have merged chunks to prevent over-fragmentation
@@ -69,7 +69,7 @@ class TestVoiceTreeImprovements(unittest.TestCase):
         ]
         
         # Mock LLM failure
-        with patch('agentic_workflows.nodes.call_llm_structured', side_effect=Exception("LLM failure")):
+        with patch('backend.agentic_workflows.llm_integration.call_llm_structured', side_effect=Exception("LLM failure")):
             # Use longer test input that won't be filtered out
             test_input = "This is a longer test transcript that should be processed correctly by the system."
             result = self.workflow.execute_workflow(test_input)
@@ -100,7 +100,7 @@ class TestVoiceTreeImprovements(unittest.TestCase):
         
         mock_response = IntegrationResponse(integration_decisions=[mock_decision])
         
-        with patch('agentic_workflows.nodes.call_llm_structured', return_value=mock_response):
+        with patch('backend.agentic_workflows.llm_integration.call_llm_structured', return_value=mock_response):
             result = self.workflow.execute_workflow("Quality test transcript")
             
             # Validate content quality
@@ -142,7 +142,7 @@ class TestVoiceTreeImprovements(unittest.TestCase):
                 # Other stages succeed
                 return MagicMock()
                 
-        with patch('agentic_workflows.nodes.call_llm_structured', side_effect=mock_llm_calls):
+        with patch('backend.agentic_workflows.llm_integration.call_llm_structured', side_effect=mock_llm_calls):
             result = self.workflow.execute_workflow("Test transcript with enough content to be processed successfully")
             
             # Should complete successfully with fallback content
@@ -161,7 +161,7 @@ class TestVoiceTreeImprovements(unittest.TestCase):
         
         mock_response = SegmentationResponse(chunks=short_chunks)
         
-        with patch('agentic_workflows.nodes.call_llm_structured', return_value=mock_response):
+        with patch('backend.agentic_workflows.llm_integration.call_llm_structured', return_value=mock_response):
             result = self.workflow.execute_workflow("Test transcript content that should be properly segmented")
             
             # Should filter out invalid chunks

@@ -69,7 +69,6 @@ clean:
 requirements:
 	@echo "📦 Installing/updating dependencies..."
 	pip install -r requirements.txt
-	pip install -r backend/agentic_workflows/requirements.txt
 	pip install pytest pytest-asyncio
 	@echo "✅ Dependencies updated!"
 

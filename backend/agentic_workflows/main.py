@@ -7,21 +7,15 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 try:
-    from backend.agentic_workflows.graph import compile_voicetree_graph
+    from backend.agentic_workflows.legacy_graph import compile_voicetree_graph
     from backend.agentic_workflows.state import VoiceTreeState
     from backend.agentic_workflows.state_manager import VoiceTreeStateManager
     LANGGRAPH_AVAILABLE = True
-except ImportError:
-    print("⚠️ LangGraph dependencies not available")
+except ImportError as e:
+    print(f"❌ LangGraph dependencies not available: {e}")
+    print("❌ System cannot function without LangGraph - no mock fallback allowed")
     LANGGRAPH_AVAILABLE = False
-    VoiceTreeState = dict
-    VoiceTreeStateManager = None
-    
-    def compile_voicetree_graph():
-        class MockApp:
-            def invoke(self, state):
-                return {"error_message": "LangGraph not installed. Please install: pip install langgraph langchain-core"}
-        return MockApp()
+    raise RuntimeError(f"Required dependencies missing: {e}. Please ensure all dependencies are installed properly.")
 
 
 class VoiceTreePipeline:

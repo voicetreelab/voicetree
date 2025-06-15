@@ -6,10 +6,16 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 import json
 
-from backend.agentic_workflows.graph_definition import (
-    get_workflow_definition,
-    visualize_workflow
-)
+try:
+    from ..legacy_graph_definition import (
+        get_workflow_definition,
+        visualize_workflow
+    )
+except ImportError:
+    from backend.agentic_workflows.legacy_graph_definition import (
+        get_workflow_definition,
+        visualize_workflow
+    )
 
 
 class WorkflowVisualizer:
@@ -258,6 +264,17 @@ def main():
     html_path = Path("workflow_visualization.html")
     visualizer.generate_html_visualization(html_path)
     print(f"\nHTML visualization saved to: {html_path}")
+
+
+def create_workflow_diagram() -> str:
+    """
+    Create a workflow diagram using Mermaid syntax
+    
+    Returns:
+        Mermaid diagram as string
+    """
+    visualizer = WorkflowVisualizer()
+    return visualizer.generate_mermaid_diagram()
 
 
 if __name__ == "__main__":

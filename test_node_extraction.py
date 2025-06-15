@@ -8,7 +8,7 @@ import os
 sys.path.append('../agentic_workflows')
 sys.path.append('..')
 
-from agentic_workflows.nodes import node_extraction_node
+from backend.agentic_workflows.legacy_nodes import node_extraction_node
 
 # Test integration decisions (simulating what would come from previous stage)
 test_state = {

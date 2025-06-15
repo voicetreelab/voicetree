@@ -199,7 +199,7 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
     
     if test_mode == "mocked":
         # Simple mock for extreme test
-        with patch('backend.agentic_workflows.nodes.call_llm_structured') as mock_llm:
+        with patch('backend.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
             def mock_response(prompt, stage_type, model_name="gemini-2.0-flash"):
                 from backend.agentic_workflows.schema_models import (
                     SegmentationResponse, RelationshipResponse, 

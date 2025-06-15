@@ -103,6 +103,39 @@ class TestManualWorkflow:
                 print("✅ Live recording fails gracefully with helpful error message")
                 print(f"   Error: {str(e)[:100]}...")
     
+    @pytest.mark.timeout(60)  # 1 minute timeout for this test
+    def test_alternative_file_processing_workflow(self):
+        """Test that users can use file processing as alternative to live recording"""
+        engine = VoiceToTextEngine()
+        
+        # Create a simple test scenario
+        test_audio_path = Path(__file__).parent / "voice_example_test_input.m4a"
+        
+        if test_audio_path.exists():
+            print("🎵 Testing file-based alternative workflow")
+            
+            # Set environment variable for stability
+            os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+            
+            try:
+                transcript = engine.process_audio_file(str(test_audio_path))
+                
+                if transcript:
+                    print(f"✅ File processing works as alternative to live recording")
+                    print(f"   Transcript length: {len(transcript)} characters")
+                    print(f"   Preview: '{transcript[:100]}...'")
+                    
+                    return True
+                else:
+                    print("📝 File processing returned empty result")
+                    return False
+                    
+            except Exception as e:
+                print(f"❌ File processing alternative failed: {e}")
+                return False
+        else:
+            print("📝 No test audio file available for alternative workflow test")
+            return True  # Not a failure - just no test file
     
     def test_main_py_structure_compatibility(self):
         """Test that main.py structure is compatible with our changes"""

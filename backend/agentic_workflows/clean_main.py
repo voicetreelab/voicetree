@@ -13,8 +13,8 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 
 # Clean imports - agent definition separate from infrastructure
-from .agent import VoiceTreeAgent, get_agent_definition
-from .infrastructure import AgentExecutor, VoiceTreeStateManager
+# from .agent import VoiceTreeAgent, get_agent_definition
+# from .infrastructure import AgentExecutor, VoiceTreeStateManager
 
 
 class CleanVoiceTreePipeline:
@@ -23,16 +23,23 @@ class CleanVoiceTreePipeline:
     
     The agent definition is pure (no infrastructure dependencies).
     The infrastructure handles all execution concerns.
+    
+    NOTE: This class is currently disabled due to missing dependencies.
     """
     
     def __init__(self, state_file: Optional[str] = None):
         """Initialize with clean architecture"""
-        # Pure agent definition - no infrastructure dependencies
-        self.agent = VoiceTreeAgent()
+        # DISABLED: Missing VoiceTreeAgent class
+        # self.agent = VoiceTreeAgent()
         
-        # Infrastructure for execution
-        self.executor = AgentExecutor(self.agent)
-        self.state_manager = VoiceTreeStateManager(state_file) if state_file else None
+        # DISABLED: Missing AgentExecutor class  
+        # self.executor = AgentExecutor(self.agent)
+        # self.state_manager = VoiceTreeStateManager(state_file) if state_file else None
+        
+        print("⚠️ CleanVoiceTreePipeline is currently disabled due to missing dependencies")
+        self.agent = None
+        self.executor = None
+        self.state_manager = None
         
         print("🏗️ Clean VoiceTree Pipeline Initialized")
         print(f"   • Agent stages: {len(self.agent.stages)}")
@@ -146,30 +153,28 @@ def demonstrate_clean_architecture():
     print("🏗️ VoiceTree Clean Architecture Demo")
     print("=" * 50)
     
-    # 1. Pure agent definition (no infrastructure dependencies)
-    agent = VoiceTreeAgent()
-    print(f"\n1. 📋 Pure Agent Definition:")
-    print(f"   • Stages: {len(agent.stages)}")
-    print(f"   • Transitions: {len(agent.transitions)}")
-    print(f"   • Prompts: {[s.prompt_file for s in agent.stages]}")
+    print("⚠️ Demo currently disabled due to missing dependencies:")
+    print("   • Missing VoiceTreeAgent class")
+    print("   • Missing AgentExecutor class")
+    print("   • This appears to be a design prototype that needs implementation")
     
-    # 2. Infrastructure for execution
-    executor = AgentExecutor(agent)
-    print(f"\n2. ⚙️ Infrastructure:")
-    print(f"   • Executor ready: {executor is not None}")
-    print(f"   • Agent loaded: {executor.agent is not None}")
+    # DISABLED: Missing VoiceTreeAgent class
+    # agent = VoiceTreeAgent()
+    # print(f"\n1. 📋 Pure Agent Definition:")
+    # print(f"   • Stages: {len(agent.stages)}")
+    # print(f"   • Transitions: {len(agent.transitions)}")
+    # print(f"   • Prompts: {[s.prompt_file for s in agent.stages]}")
     
-    # 3. Show the separation
-    print(f"\n3. 🔄 Clean Separation:")
-    print(f"   • Agent definition is pure - no LLM calls, no state management")
-    print(f"   • Infrastructure handles execution - LLM calls, state, logging")
+    # DISABLED: Missing AgentExecutor class
+    # executor = AgentExecutor(agent)
+    # print(f"\n2. ⚙️ Infrastructure:")
+    # print(f"   • Executor ready: {executor is not None}")
+    # print(f"   • Agent loaded: {executor.agent is not None}")
+    
+    print(f"\n🔄 Clean Architecture Concept:")
+    print(f"   • Agent definition should be pure - no LLM calls, no state management")
+    print(f"   • Infrastructure should handle execution - LLM calls, state, logging")
     print(f"   • Easy to test, modify, and understand each part independently")
-    
-    # 4. Show agent definition
-    definition = agent.get_dataflow_spec()
-    print(f"\n4. 📊 Agent Dataflow Specification:")
-    for stage in definition["stages"]:
-        print(f"   • {stage['id']}: {stage['inputs']} → {stage['output']}")
 
 
 def main():

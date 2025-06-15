@@ -73,12 +73,12 @@ python benchmark_multi_execution.py
 
 ## Requirements
 
-See `requirements.txt` for dependencies.
+See the main project `requirements.txt` for dependencies.
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies (from project root)
 pip install -r requirements.txt
 
 # Run with mock LLM responses (no API key needed)
