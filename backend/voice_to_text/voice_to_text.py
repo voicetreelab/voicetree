@@ -115,33 +115,36 @@ class VoiceToTextEngine:
     def process_audio_file(self, audio_file_path: str) -> str:
         """
         Process audio from a file instead of live recording - perfect for CI/testing!
+        Supports multiple formats: .wav, .mp3, .mp4, .m4a, .flac, etc.
         
         Args:
-            audio_file_path: Path to audio file (.wav, .mp3, .mp4, etc.)
+            audio_file_path: Path to audio file (.wav, .mp3, .mp4, .m4a, etc.)
             
         Returns:
             Transcribed text from the audio file
         """
         try:
-            with sr.AudioFile(audio_file_path) as source:
-                # Load the entire audio file
-                audio_data = self.recorder.record(source)
-                
-                # Convert to numpy array for Whisper
-                audio_np = np.frombuffer(audio_data.get_raw_data(), dtype=np.int16).astype(np.float32) / 32768.0
-                
-                # Transcribe with Whisper
-                result, info = self.audio_model.transcribe(audio_np, language="en")
-                
-                text = ""
-                for segment in result:
-                    text += segment.text.strip() + " "
-                
-                logging.info(f"Transcribed audio file {audio_file_path}: {len(text)} characters")
-                return text.strip()
+            import os
+            if not os.path.exists(audio_file_path):
+                logging.error(f"Audio file not found: {audio_file_path}")
+                return ""
+            
+            logging.info(f"Processing audio file: {audio_file_path}")
+            
+            # Use Whisper directly for better format support (handles .m4a, .mp4, etc.)
+            result, info = self.audio_model.transcribe(audio_file_path, language="en")
+            
+            text = ""
+            for segment in result:
+                text += segment.text.strip() + " "
+            
+            logging.info(f"Transcribed audio file {audio_file_path}: {len(text)} characters")
+            print(f"🎵 Transcribed {os.path.basename(audio_file_path)}: {len(text)} characters")
+            return text.strip()
                 
         except Exception as e:
             logging.error(f"Error processing audio file {audio_file_path}: {e}")
+            print(f"❌ Error processing audio file {audio_file_path}: {e}")
             return ""
 
     def process_audio_queue(self):

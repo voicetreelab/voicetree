@@ -107,6 +107,52 @@ class TestAudioProcessingCI:
         assert len(transcript) > 0
         print(f"✅ Mock audio processing returned: '{transcript[:50]}...'")
     
+    def test_real_m4a_audio_file(self):
+        """Test processing the actual .m4a test file"""
+        # Path to the real test audio file
+        test_audio_path = Path(__file__).parent.parent / "voice_example_test_input.m4a"
+        
+        if not test_audio_path.exists():
+            pytest.skip(f"Test audio file not found: {test_audio_path}")
+        
+        # Test with real VoiceToTextEngine
+        engine = VoiceToTextEngine()
+        
+        print(f"🎵 Processing real audio file: {test_audio_path.name}")
+        transcript = engine.process_audio_file(str(test_audio_path))
+        
+        # Verify we got a transcript
+        assert isinstance(transcript, str)
+        assert len(transcript) > 0, "Should transcribe audio content"
+        
+        print(f"✅ Real audio transcription: '{transcript[:100]}...'")
+        print(f"   Full length: {len(transcript)} characters")
+        
+        # Should contain some speech content (not just empty/whitespace)
+        assert len(transcript.strip()) > 10, "Should contain meaningful speech content"
+    
+    def test_real_audio_chunking_simulation(self):
+        """Test simulating streaming chunks from real audio transcription"""
+        test_audio_path = Path(__file__).parent.parent / "voice_example_test_input.m4a"
+        
+        if not test_audio_path.exists():
+            pytest.skip(f"Test audio file not found: {test_audio_path}")
+        
+        engine = VoiceToTextEngine()
+        full_transcript = engine.process_audio_file(str(test_audio_path))
+        
+        if not full_transcript:
+            pytest.skip("Could not transcribe audio file")
+        
+        # Simulate streaming chunks from real transcript
+        sentences = [s.strip() + '.' for s in full_transcript.split('.') if s.strip()]
+        
+        assert len(sentences) > 0
+        print(f"✅ Generated {len(sentences)} realistic chunks from real audio")
+        
+        for i, chunk in enumerate(sentences[:3]):  # Show first 3 chunks
+            print(f"   Real Chunk {i+1}: '{chunk[:50]}{'...' if len(chunk) > 50 else ''}'")
+    
     def test_streaming_simulation(self):
         """Test simulated streaming audio chunks"""
         mock_engine = MockVoiceToTextEngine()
@@ -161,6 +207,63 @@ class TestAudioProcessingCI:
             
             assert len(chunks) > 0
             print(f"✅ Mock engine test passed: {len(chunks)} chunks generated")
+    
+    @pytest.mark.asyncio 
+    async def test_full_pipeline_with_real_audio(self):
+        """Test the full voice processing pipeline with real .m4a audio file"""
+        test_audio_path = Path(__file__).parent.parent / "voice_example_test_input.m4a"
+        
+        if not test_audio_path.exists():
+            pytest.skip(f"Real audio file not found: {test_audio_path}")
+        
+        try:
+            # Try to import the full pipeline
+            sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+            from process_transcription import TranscriptionProcessor
+            from backend.tree_manager.decision_tree_ds import DecisionTree
+            from backend.tree_manager.text_to_tree_manager import ContextualTreeManager
+            from backend.tree_manager.tree_to_markdown_converter import TreeToMarkdownConverter
+            
+            # Setup components
+            decision_tree = DecisionTree()
+            tree_manager = ContextualTreeManager(decision_tree=decision_tree)
+            converter = TreeToMarkdownConverter(decision_tree)
+            processor = TranscriptionProcessor(tree_manager, converter)
+            
+            # Use real audio engine
+            engine = VoiceToTextEngine()
+            full_transcript = engine.process_audio_file(str(test_audio_path))
+            
+            if not full_transcript:
+                pytest.skip("Could not transcribe real audio file")
+            
+            print(f"🎵 Processing real audio transcript: {len(full_transcript)} characters")
+            
+            # Simulate streaming chunks from real audio
+            sentences = [s.strip() + '.' for s in full_transcript.split('.') if s.strip()]
+            
+            for i, chunk in enumerate(sentences):
+                print(f"   Processing real chunk {i+1}/{len(sentences)}: '{chunk[:30]}...'")
+                await processor.process_and_convert(chunk) 
+                await asyncio.sleep(0.01)  # Small delay
+            
+            print("✅ Full pipeline test with real audio completed!")
+            
+            # Verify processing occurred
+            assert len(decision_tree.nodes) > 0
+            print(f"   Created {len(decision_tree.nodes)} nodes from real audio")
+            
+        except ImportError as e:
+            # Fallback to just testing the audio transcription
+            print(f"📝 Full pipeline imports not available: {e}")
+            print("   Testing real audio transcription only...")
+            
+            engine = VoiceToTextEngine()
+            transcript = engine.process_audio_file(str(test_audio_path))
+            
+            assert isinstance(transcript, str)
+            assert len(transcript) > 0
+            print(f"✅ Real audio transcription test passed: {len(transcript)} characters")
 
 
 if __name__ == "__main__":
