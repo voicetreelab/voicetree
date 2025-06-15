@@ -7,13 +7,14 @@ import logging
 import asyncio
 from typing import Optional, Set
 
+from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
 from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
 from backend import settings
 
 
-class WorkflowTreeManager:
+class WorkflowTreeManager(TreeManagerInterface, TreeManagerMixin):
     """
     Tree manager that uses agentic workflows for processing with adaptive buffering
     """
@@ -31,7 +32,7 @@ class WorkflowTreeManager:
             workflow_state_file: Optional path to persist workflow state
         """
         self.decision_tree = decision_tree
-        self.nodes_to_update: Set[int] = set()
+        self._nodes_to_update: Set[int] = set()  # Use private attribute for interface property
         
         # Initialize unified buffer manager with adaptive processing
         self.buffer_manager = UnifiedBufferManager(
@@ -68,7 +69,7 @@ class WorkflowTreeManager:
             
             # Add root node to updates on first processing
             if self.buffer_manager.is_first_processing():
-                self.nodes_to_update.add(0)
+                self._nodes_to_update.add(0)
             
             # Process the text chunk
             await self._process_text_chunk(text_to_process, transcript_history)
@@ -110,7 +111,7 @@ class WorkflowTreeManager:
             # This was causing duplicate node creation and numbering gaps
             
             # Ensure root node is always included for markdown generation
-            self.nodes_to_update.add(0)
+            self._nodes_to_update.add(0)
             
             # Track nodes that were updated
             for action in result.node_actions:
@@ -118,11 +119,11 @@ class WorkflowTreeManager:
                     # For new nodes, we need to find their ID after creation
                     node_id = self.decision_tree.get_node_id_from_name(action.concept_name)
                     if node_id:
-                        self.nodes_to_update.add(node_id)
+                        self._nodes_to_update.add(node_id)
                 elif action.action == "APPEND":
                     node_id = self.decision_tree.get_node_id_from_name(action.concept_name)
                     if node_id:
-                        self.nodes_to_update.add(node_id)
+                        self._nodes_to_update.add(node_id)
             
             # Log metadata
             if result.metadata:
@@ -138,7 +139,7 @@ class WorkflowTreeManager:
         """Clear the workflow state and all buffers"""
         self.workflow_adapter.clear_workflow_state()
         self.buffer_manager.clear_buffers()
-        self.nodes_to_update.clear()
+        self._nodes_to_update.clear()
         logging.info("Workflow state and all buffers cleared")
     
     def save_tree_structure(self):

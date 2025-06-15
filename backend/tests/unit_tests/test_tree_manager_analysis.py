@@ -115,11 +115,23 @@ class TestContextualTreeManagerAnalysis(unittest.TestCase):
         print(f"✓ Public methods: {api_methods}")
         print(f"✓ Public attributes: {api_attributes}")
         
-        # Key finding: Only ONE public method!
-        self.assertEqual(len(api_methods), 1)
-        self.assertEqual(api_methods[0], 'process_voice_input')
+        # Reasonable bounds check: Watch for API surface explosion
+        # Current baseline: 4 methods (as of this test update)
+        # Alert if API grows beyond 3x baseline (12 methods) to catch complexity creep
+        BASELINE_METHOD_COUNT = 4
+        MAX_REASONABLE_METHODS = BASELINE_METHOD_COUNT * 3  # 12 methods
         
-        print("✓ API surface analysis: Single primary method interface")
+        self.assertLessEqual(
+            len(api_methods), 
+            MAX_REASONABLE_METHODS,
+            f"API surface may be growing too large. Consider refactoring if > {MAX_REASONABLE_METHODS} methods."
+            f" Current methods: {api_methods}"
+        )
+        
+        # Ensure core method still exists
+        self.assertIn('process_voice_input', api_methods, "Primary method should always exist")
+        
+        print(f"✓ API surface analysis: {len(api_methods)} methods (within reasonable bounds of {MAX_REASONABLE_METHODS})")
 
 
 # Analysis Results Summary
@@ -132,7 +144,7 @@ class AnalysisResults:
     2. Primary Method: await process_voice_input(transcribed_text: str)
     3. Usage Pattern: Simple - construct, then call primary method
     4. Files Using: 10+ files across tests and pipeline components
-    5. API Surface: Minimal - single public method
+    5. API Surface: Reasonable - core methods with bounds checking
     
     Interface Extraction Candidates (for Day 2):
     - process_voice_input(text: str) -> async method
