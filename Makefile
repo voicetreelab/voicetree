@@ -1,13 +1,19 @@
 # VoiceTree Testing Makefile
 # Make it easy to run different test modes
 
-.PHONY: help test-mocked test-local test-ci test-all clean
+.PHONY: help test-mocked test-local test-ci test-all clean test-smoke test-fast test-unit test-watch
 
 help:
 	@echo "🧪 VoiceTree Testing Commands"
 	@echo "=========================="
 	@echo ""
-	@echo "Test Modes:"
+	@echo "🚀 Fast Feedback (< 30s):"
+	@echo "  test-smoke     - ⚡ Critical smoke tests only (< 10s)"
+	@echo "  test-fast      - ⚡ Fast tests only (< 30s)"
+	@echo "  test-unit      - 🏃 Unit tests only (< 45s)"
+	@echo "  test-watch     - 👀 Watch mode - auto-run tests on changes"
+	@echo ""
+	@echo "🧪 Full Test Modes:"
 	@echo "  test-mocked    - ⚡ Super fast tests (mocked LLM calls, ~5s)"
 	@echo "  test-local     - 🏃 Fast tests (2 chunks, real API, ~25s)"
 	@echo "  test-ci        - 🐌 Comprehensive tests (5 chunks, real API, ~60s)"
@@ -18,15 +24,35 @@ help:
 	@echo "  requirements  - 📦 Install/update dependencies"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make test-mocked    # Quick dev testing"
-	@echo "  make test-local     # Before committing"
-	@echo "  make test-ci        # Full validation"
+	@echo "  make test-smoke     # Super quick smoke test (< 10s)"
+	@echo "  make test-fast      # Quick dev testing (< 30s)" 
+	@echo "  make test-unit      # Before committing (< 45s)"
 
+# New fast feedback commands
+test-smoke:
+	@echo "💨 Running smoke tests (< 10s)..."
+	@time python -m pytest -m "smoke or fast" --tb=short -x --disable-warnings -q
+
+test-fast:
+	@echo "⚡ Running fast tests (< 30s)..."
+	@time python -m pytest -m "fast or (unit and not slow)" --tb=short --disable-warnings
+
+test-unit:
+	@echo "🏃 Running unit tests (< 45s)..."
+	@time python -m pytest tests/unit_tests/ --tb=short --disable-warnings
+
+test-watch:
+	@echo "👀 Starting watch mode - tests will run on file changes..."
+	@echo "💡 Install: pip install pytest-watch"
+	@command -v ptw >/dev/null 2>&1 || { echo "Installing pytest-watch..."; pip install pytest-watch; }
+	@ptw --runner "python -m pytest -m fast --tb=short -x --disable-warnings -q"
+
+# Original test commands
 test-mocked:
-	@echo "🚀 Running local tests (fast)..."
+	@echo "🚀 Running mocked tests (instant)..."
 	cd backend/tests/integration_tests/agentic_workflows && \
 	python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
-		--test-mode=local \
+		--test-mode=mocked \
 		-v
 
 test-local:
@@ -69,7 +95,7 @@ clean:
 requirements:
 	@echo "📦 Installing/updating dependencies..."
 	pip install -r requirements.txt
-	pip install pytest pytest-asyncio
+	pip install pytest pytest-asyncio pytest-xdist pytest-watch
 	@echo "✅ Dependencies updated!"
 
 # Performance comparison

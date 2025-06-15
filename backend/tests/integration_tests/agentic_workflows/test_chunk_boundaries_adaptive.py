@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 Adaptive test script for chunk boundary handling in VoiceTree
-Adapts chunk count and mocking based on test mode (local/ci/mocked)
+Adapts chunk count based on test mode (local/ci)
+Integration tests always use real API calls - no mocking
 """
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
 import pytest
 
 # Add project root to path for imports
@@ -38,76 +38,18 @@ def test_chunk_boundaries_adaptive(test_mode, chunk_count):
     print(f"📊 Mode: {test_mode}")
     print(f"📊 Processing {len(voice_chunks)} chunks (API calls: {len(voice_chunks) * 4})")
     
-    # Set up mocking for mocked mode
-    if test_mode == "mocked":
-        return _test_with_mocked_llm(voice_chunks)
-    else:
-        return _test_with_real_llm(voice_chunks, test_mode)
+    # Run test with real LLM calls - will crash immediately if API not available
+    try:
+        return _run_test_logic(voice_chunks, test_mode)
+    except RuntimeError as e:
+        if "Gemini API is not available" in str(e) or "API error is unrecoverable" in str(e):
+            pytest.fail(f"Test failed due to API configuration issues: {e}")
+        else:
+            raise
 
 
-def _test_with_mocked_llm(voice_chunks):
-    """Test with mocked LLM calls"""
-    mock_responses = {
-        "segmentation": {
-            "chunks": [
-                {"name": "NLP Project", "text": "Working on NLP project with transformers", "is_complete": True}
-            ]
-        },
-        "relationship": [
-            {
-                "name": "NLP Project", 
-                "text": "Working on NLP project with transformers",
-                "reasoning": "Analyzing if this relates to existing nodes",
-                "relevant_node_name": "NO_RELEVANT_NODE", 
-                "relationship": None
-            }
-        ],
-        "integration": {
-            "integration_decisions": [
-                {
-                    "name": "NLP Project", 
-                    "text": "Working on NLP project with transformers",
-                    "action": "CREATE", 
-                    "target_node": "NO_RELEVANT_NODE",
-                    "new_node_name": "NLP Project", 
-                    "new_node_summary": "Natural language processing project",
-                    "relationship_for_edge": None,
-                    "content": "Working on NLP project with transformers"
-                }
-            ]
-        },
-        "extraction": {"new_nodes": ["NLP Project"]}
-    }
-    
-    # Mock the function where it's actually used (in infrastructure.py)
-    with patch('backend.agentic_workflows.infrastructure.call_llm_structured') as mock_llm:
-        def mock_llm_response(prompt, stage_type, model_name="gemini-2.0-flash"):
-            print(f"🤖 MOCKED LLM CALL: {stage_type}")
-            if stage_type == "segmentation":
-                from backend.agentic_workflows.schema_models import SegmentationResponse
-                return SegmentationResponse(**mock_responses["segmentation"])
-            elif stage_type == "relationship":
-                from backend.agentic_workflows.schema_models import RelationshipResponse
-                return RelationshipResponse(analyzed_chunks=mock_responses["relationship"])
-            elif stage_type == "integration":
-                from backend.agentic_workflows.schema_models import IntegrationResponse
-                return IntegrationResponse(**mock_responses["integration"])
-            elif stage_type == "extraction":
-                from backend.agentic_workflows.schema_models import NodeExtractionResponse
-                return NodeExtractionResponse(**mock_responses["extraction"])
-        
-        mock_llm.side_effect = mock_llm_response
-        
-        return _run_test_logic(voice_chunks, "mocked", mock_llm)
-
-
-def _test_with_real_llm(voice_chunks, test_mode):
-    """Test with real LLM calls"""
-    return _run_test_logic(voice_chunks, test_mode, None)
-
-
-def _run_test_logic(voice_chunks, test_mode, mock_llm=None):
-    """Common test logic for both mocked and real tests"""
+def _run_test_logic(voice_chunks, test_mode):
+    """Test logic for integration tests with real API calls"""
     state_file = f"test_chunk_boundaries_{test_mode}_state.json"
     pipeline = VoiceTreePipeline(state_file, buffer_threshold=100)  # Lower threshold for testing
     
@@ -121,10 +63,18 @@ def _run_test_logic(voice_chunks, test_mode, mock_llm=None):
         print(f"\n   Chunk {i+1}/{len(voice_chunks)}: \"{chunk[:50]}...\"")
         result = pipeline.run(chunk)
         
+        # Check if result is None (should not happen with new error handling)
+        if result is None:
+            raise RuntimeError(f"Pipeline returned None for chunk {i+1} - this should not happen with proper error handling")
+        
         # If still buffering and this is the last chunk, force process the buffer
         if i == len(voice_chunks) - 1 and result.get("current_stage") == "buffering":
             print(f"   • Forcing buffer processing for final chunk...")
             result = pipeline.force_process_buffer()
+            
+            # Check forced result as well
+            if result is None:
+                raise RuntimeError(f"Pipeline returned None after force processing - this should not happen with proper error handling")
         
         all_results.append({
             "chunk_num": i + 1,
@@ -149,11 +99,8 @@ def _run_test_logic(voice_chunks, test_mode, mock_llm=None):
     print(f"   • Total nodes created: {total_nodes}")
     print(f"   • Final state nodes: {stats['total_nodes']}")
     
-    if mock_llm:
-        print(f"   • LLM calls made: {mock_llm.call_count} (mocked)")
-    else:
-        expected_api_calls = len(voice_chunks) * 4
-        print(f"   • API calls made: ~{expected_api_calls} (real)")
+    expected_api_calls = len(voice_chunks) * 4
+    print(f"   • API calls made: ~{expected_api_calls} (real)")
     
     # Core functionality tests
     print("\n✅ Verification:")
@@ -197,69 +144,8 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
     
     print(f"📊 Processing {len(extreme_chunks)} extremely fragmented chunks")
     
-    if test_mode == "mocked":
-        # Simple mock for extreme test
-        with patch('backend.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
-            def mock_response(prompt, stage_type, model_name="gemini-2.0-flash"):
-                from backend.agentic_workflows.schema_models import (
-                    SegmentationResponse, RelationshipResponse, 
-                    IntegrationResponse, NodeExtractionResponse
-                )
-                
-                if stage_type == "segmentation":
-                    return SegmentationResponse(chunks=[
-                        {"name": "AI System", "text": "AI system text", "is_complete": True}
-                    ])
-                elif stage_type == "relationship":
-                    return RelationshipResponse(analyzed_chunks=[
-                        {
-                            "name": "AI System", 
-                            "text": "AI system text",
-                            "reasoning": "Analyzing AI system relationship",
-                            "relevant_node_name": "NO_RELEVANT_NODE", 
-                            "relationship": None
-                        }
-                    ])
-                elif stage_type == "integration":
-                    return IntegrationResponse(integration_decisions=[
-                        {
-                            "name": "AI System", 
-                            "text": "AI system text",
-                            "action": "CREATE", 
-                            "target_node": "NO_RELEVANT_NODE",
-                            "new_node_name": "AI System", 
-                            "new_node_summary": "Artificial intelligence system",
-                            "relationship_for_edge": None,
-                            "content": "AI system text"
-                        }
-                    ])
-                elif stage_type == "extraction":
-                    return NodeExtractionResponse(new_nodes=["AI System"])
-            
-            mock_llm.side_effect = mock_response
-            
-            pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=100)  # Low threshold for testing
-            pipeline.clear_state()
-            
-            for i, chunk in enumerate(extreme_chunks):
-                print(f"   Chunk {i+1}: \"{chunk}\"")
-                result = pipeline.run(chunk)
-                
-                # If still buffering and this is the last chunk, force process
-                if i == len(extreme_chunks) - 1 and result.get("current_stage") == "buffering":
-                    print(f"   • Forcing buffer processing for final chunk...")
-                    result = pipeline.force_process_buffer()
-            
-            stats = pipeline.get_statistics()
-            print(f"\n📊 Final result: {stats['total_nodes']} nodes created")
-            print(f"   • LLM calls: {mock_llm.call_count} (mocked)")
-            
-            assert stats['total_nodes'] > 0, f"Expected nodes to be created, got {stats['total_nodes']}"
-            
-            Path(f"test_extreme_{test_mode}_state.json").unlink(missing_ok=True)
-    
-    else:
-        # Real LLM test
+    # Run with real LLM calls - will crash immediately if API not available
+    try:
         pipeline = VoiceTreePipeline(f"test_extreme_{test_mode}_state.json", buffer_threshold=100)  # Low threshold for testing
         pipeline.clear_state()
         
@@ -267,10 +153,18 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
             print(f"   Chunk {i+1}: \"{chunk}\"")
             result = pipeline.run(chunk)
             
+            # Check if result is None (should not happen with new error handling)
+            if result is None:
+                raise RuntimeError(f"Pipeline returned None for chunk {i+1} - this should not happen with proper error handling")
+            
             # If still buffering and this is the last chunk, force process
             if i == len(extreme_chunks) - 1 and result.get("current_stage") == "buffering":
                 print(f"   • Forcing buffer processing for final chunk...")
                 result = pipeline.force_process_buffer()
+                
+                # Check forced result as well
+                if result is None:
+                    raise RuntimeError(f"Pipeline returned None after force processing - this should not happen with proper error handling")
         
         stats = pipeline.get_statistics()
         print(f"\n📊 Final result: {stats['total_nodes']} nodes created")
@@ -280,5 +174,11 @@ def test_extreme_boundaries_adaptive(test_mode, extreme_chunk_count):
         assert stats['total_nodes'] > 0, f"Expected nodes to be created, got {stats['total_nodes']}"
         
         Path(f"test_extreme_{test_mode}_state.json").unlink(missing_ok=True)
-    
-    print(f"✅ {test_mode.upper()} extreme fragmentation test passed!") 
+        
+        print(f"✅ {test_mode.upper()} extreme fragmentation test passed!")
+        
+    except RuntimeError as e:
+        if "Gemini API is not available" in str(e) or "API error is unrecoverable" in str(e):
+            pytest.fail(f"Test failed due to API configuration issues: {e}")
+        else:
+            raise 

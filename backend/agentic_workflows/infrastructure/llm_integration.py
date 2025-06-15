@@ -131,12 +131,15 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         ValueError: If API key is missing or stage type is unknown
     """
     if not GEMINI_AVAILABLE:
-        raise RuntimeError(
+        error_msg = (
             "❌ Gemini API is not available. Please ensure:\n"
             "1. google-generativeai package is installed: pip install google-generativeai\n"
             "2. GOOGLE_API_KEY environment variable is set\n"
             "3. API key is valid and has proper permissions"
         )
+        print(error_msg)
+        # CRASH IMMEDIATELY instead of graceful error handling
+        raise RuntimeError(error_msg)
     
     try:
         import google.generativeai as genai
@@ -157,7 +160,10 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
                 pass
         
         if not api_key:
-            raise ValueError("No Google API key available")
+            error_msg = "No Google API key available"
+            print(f"❌ {error_msg}")
+            # CRASH IMMEDIATELY - API key is required
+            raise RuntimeError(error_msg)
         
         # Configure the API (safe to call multiple times)
         genai.configure(api_key=api_key)
@@ -203,17 +209,22 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
                 parsed_response = schema_class.model_validate_json(response_text)
                 return parsed_response
             except Exception as json_error:
-                print(f"❌ JSON validation error: {json_error}")
+                error_msg = f"❌ JSON validation error: {json_error}"
+                print(error_msg)
                 print(f"Response text: {response_text}")
-                raise json_error
+                # CRASH IMMEDIATELY - malformed API response is unrecoverable
+                raise RuntimeError(f"{error_msg}\nMalformed API response - cannot continue")
         else:
-            print(f"❌ No text in response: {response}")
-            raise ValueError("No text content in Gemini response")
+            error_msg = f"❌ No text in response: {response}"
+            print(error_msg)
+            # CRASH IMMEDIATELY - empty API response is unrecoverable
+            raise RuntimeError(f"{error_msg}\nEmpty API response - cannot continue")
             
     except Exception as e:
         error_msg = f"❌ Error calling Gemini API: {str(e)}"
         print(error_msg)
-        raise RuntimeError(f"{error_msg}\nPlease check your API configuration and try again.")
+        # CRASH IMMEDIATELY - any API error is considered unrecoverable
+        raise RuntimeError(f"{error_msg}\nAPI error is unrecoverable - please check configuration and try again")
 
 
 def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
@@ -232,12 +243,15 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         RuntimeError: If Gemini API is not available or configured
     """
     if not GEMINI_AVAILABLE:
-        raise RuntimeError(
+        error_msg = (
             "❌ Gemini API is not available. Please ensure:\n"
             "1. google-generativeai package is installed: pip install google-generativeai\n"
             "2. GOOGLE_API_KEY environment variable is set\n"
             "3. API key is valid and has proper permissions"
         )
+        print(error_msg)
+        # CRASH IMMEDIATELY instead of graceful error handling
+        raise RuntimeError(error_msg)
     
     try:
         import google.generativeai as genai
@@ -254,7 +268,10 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
                 pass
         
         if not api_key:
-            raise ValueError("No Google API key available")
+            error_msg = "No Google API key available"
+            print(f"❌ {error_msg}")
+            # CRASH IMMEDIATELY - API key is required
+            raise RuntimeError(error_msg)
         
         # Configure the API (safe to call multiple times)
         genai.configure(api_key=api_key)
@@ -275,12 +292,15 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
             print(f"✅ API call successful - response length: {len(response.text)} chars")
             return response.text
         else:
-            print(f"❌ No text in response: {response}")
-            raise ValueError("No text content in Gemini response")
+            error_msg = f"❌ No text in response: {response}"
+            print(error_msg)
+            # CRASH IMMEDIATELY - empty API response is unrecoverable
+            raise RuntimeError(f"{error_msg}\nEmpty API response - cannot continue")
     except Exception as e:
         error_msg = f"❌ Error calling Gemini API: {str(e)}"
         print(error_msg)
-        raise RuntimeError(f"{error_msg}\nPlease check your API configuration and try again.")
+        # CRASH IMMEDIATELY - any API error is considered unrecoverable
+        raise RuntimeError(f"{error_msg}\nAPI error is unrecoverable - please check configuration and try again")
 
 
 

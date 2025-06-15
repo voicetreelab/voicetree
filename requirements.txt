@@ -48,6 +48,9 @@ pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-mock>=3.12.0
 pytest-timeout>=2.1.0
+pytest-xdist>=3.0.0  # Parallel test execution
+pytest-watch>=4.2.0  # Watch mode for continuous testing
+pytest-cache>=1.0  # Enhanced caching for faster reruns
 aider-chat>=0.84.0  # AI coding agent for improvement analysis
 
 # Optional: Enhanced features (commented out - uncomment if needed)

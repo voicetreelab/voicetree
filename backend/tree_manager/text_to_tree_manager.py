@@ -9,6 +9,7 @@ from typing import Set, Tuple, List
 import google.generativeai as genai
 
 from backend import settings
+from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.LLM_engine.background_rewrite import Rewriter
 from backend.tree_manager.LLM_engine.summarize_with_llm import Summarizer
 from backend.tree_manager.LLM_engine.tree_action_decider import Decider
@@ -19,7 +20,7 @@ from backend.tree_manager import NodeAction
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 
 
-class ContextualTreeManager:
+class ContextualTreeManager(TreeManagerInterface, TreeManagerMixin):
     def __init__(self, decision_tree: DecisionTree):
         self.decision_tree: DecisionTree = decision_tree
         self.text_buffer: str = ""
@@ -27,7 +28,7 @@ class ContextualTreeManager:
         self.transcript_history_up_until_curr = ""
         self.future_lookahead_history = ""
         self.text_buffer_size_threshold: int = settings.TEXT_BUFFER_SIZE_THRESHOLD
-        self.nodes_to_update: Set[int] = set()
+        self._nodes_to_update: Set[int] = set()  # Use private attribute for interface property
         self.summarizer = Summarizer()
         self.decider = Decider()
         self.rewriter = Rewriter()
@@ -114,7 +115,7 @@ class ContextualTreeManager:
 
         # Add root node to updates on first processing to ensure it gets a markdown file
         if self._first_processing:
-            self.nodes_to_update.add(0)  # Add root node
+            self._nodes_to_update.add(0)  # Add root node
             self._first_processing = False
 
         # Call decide_tree_action with the previous chunk and output for context
@@ -136,14 +137,14 @@ class ContextualTreeManager:
                     summary=node_action.updated_summary_of_node,
                     relationship_to_parent=node_action.relationship_to_neighbour
                 )
-                self.nodes_to_update.add(new_node_id)
+                self._nodes_to_update.add(new_node_id)
 
             elif node_action.action == "APPEND":
                 chosen_node_id = self.decision_tree.get_node_id_from_name(node_action.concept_name)
                 await self._append_to_node(chosen_node_id, node_action.markdown_content_to_append,
                                            node_action.updated_summary_of_node, node_action.labelled_text)
 
-                self.nodes_to_update.add(chosen_node_id)
+                self._nodes_to_update.add(chosen_node_id)
 
             else:
                 print("Warning: Unexpected mode returned from decide_tree_action")
@@ -158,4 +159,4 @@ class ContextualTreeManager:
         if self.decision_tree.tree[chosen_node_id].num_appends % settings.BACKGROUND_REWRITE_EVERY_N_APPEND == 0:
             asyncio.create_task(
                 self.rewriter.rewrite_node_in_background(self.decision_tree, chosen_node_id)).add_done_callback(
-                lambda res: self.nodes_to_update.add(chosen_node_id))
+                lambda res: self._nodes_to_update.add(chosen_node_id))
