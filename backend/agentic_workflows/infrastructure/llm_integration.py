@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, TypeVar, Type
 from dotenv import load_dotenv
 from pydantic import BaseModel
+import threading
 
 # Import our schema models
 try:
@@ -41,8 +42,10 @@ SCHEMA_MAP = {
     "extraction": NodeExtractionResponse
 }
 
-
-
+# Global singleton to ensure initialization happens only once across all imports
+_init_lock = threading.Lock()
+_global_initialized = False
+_global_gemini_available = False
 
 def _load_environment() -> None:
     """Load environment variables from .env file if it exists"""
@@ -140,9 +143,38 @@ def _initialize_gemini() -> bool:
         return False
 
 
-# Initialize on module load
-_load_environment()
-GEMINI_AVAILABLE = _initialize_gemini()
+def _ensure_global_initialization():
+    """Ensure global initialization happens only once, thread-safe."""
+    global _global_initialized, _global_gemini_available
+    
+    if _global_initialized:
+        return _global_gemini_available
+    
+    with _init_lock:
+        # Double-check pattern
+        if _global_initialized:
+            return _global_gemini_available
+        
+        # Do initialization only once
+        _load_environment()
+        _global_gemini_available = _initialize_gemini()
+        _global_initialized = True
+        
+        return _global_gemini_available
+
+# Initialize on module load (only once)
+_initialized = False
+GEMINI_AVAILABLE = False
+
+def _initialize_once():
+    """Initialize the module only once, no matter how many times it's imported."""
+    global _initialized, GEMINI_AVAILABLE
+    if not _initialized:
+        GEMINI_AVAILABLE = _ensure_global_initialization()
+        _initialized = True
+
+# Initialize immediately when module is first imported
+_initialize_once()
 
 # ONLY crash if explicitly requested to ensure API availability
 # Unit tests and non-API modules can import this without crashing
@@ -254,9 +286,9 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
             try:
                 # Try relative import first, then absolute import
                 try:
-                    from ..legacy_nodes import extract_json_from_response
+                    from ..nodes import extract_json_from_response
                 except ImportError:
-                    from backend.agentic_workflows.legacy_nodes import extract_json_from_response
+                    from backend.agentic_workflows.nodes import extract_json_from_response
                 extracted_json = extract_json_from_response(response_text)
                 if extracted_json != response_text:
                     print(f"🔧 Extracted JSON from markdown wrapper")

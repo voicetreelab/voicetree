@@ -109,9 +109,20 @@ def _initialize_gemini() -> bool:
         return False
 
 
-# Initialize on module load
-_load_environment()
-GEMINI_AVAILABLE = _initialize_gemini()
+# Initialize on module load (only once)
+_initialized = False
+GEMINI_AVAILABLE = False
+
+def _initialize_once():
+    """Initialize the module only once, no matter how many times it's imported."""
+    global _initialized, GEMINI_AVAILABLE
+    if not _initialized:
+        _load_environment()
+        GEMINI_AVAILABLE = _initialize_gemini()
+        _initialized = True
+
+# Initialize immediately when module is first imported
+_initialize_once()
 
 
 def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
@@ -193,9 +204,9 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
             try:
                 # Try relative import first, then absolute import
                 try:
-                    from .legacy_nodes import extract_json_from_response
+                    from .nodes import extract_json_from_response
                 except ImportError:
-                    from backend.agentic_workflows.legacy_nodes import extract_json_from_response
+                    from backend.agentic_workflows.nodes import extract_json_from_response
                 extracted_json = extract_json_from_response(response_text)
                 if extracted_json != response_text:
                     print(f"🔧 Extracted JSON from markdown wrapper")
