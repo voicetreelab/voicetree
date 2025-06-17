@@ -38,4 +38,14 @@
 
 **3b9f004** - Added the `faster-whisper` dependency to the requirements.txt file to enable faster and more efficient audio processing capabilities in the test suite. This change supports the new audio processing integration tests and improves the overall performance of audio-related functionality in the system.
 
-**0e5b1fd** - Modified the GitHub Actions workflow configuration to trigger the CI/CD pipeline on any Python file changes (`**/*.py`) or GitHub workflow file changes (`.github/**`). This change improves the responsiveness of the continuous integration system by ensuring tests run whenever relevant code or workflow files are modified, providing faster feedback during development cycles. 
+**0e5b1fd** - Modified the GitHub Actions workflow configuration to trigger the CI/CD pipeline on any Python file changes (`**/*.py`) or GitHub workflow file changes (`.github/**`). This change improves the responsiveness of the continuous integration system by ensuring tests run whenever relevant code or workflow files are modified, providing faster feedback during development cycles.
+
+## [Unreleased]
+
+### Added
+- **Development Documentation**: Created a comprehensive set of development README files (`README-dev.md`) for major system components to improve developer onboarding and system understanding.
+  - `README-dev.md`: Root guide and index to other documentation.
+  - `backend/README-dev.md`: Core system architecture and orchestration.
+  - `backend/tree_manager/README-dev.md`: Tree data structures and buffer management.
+  - `backend/agentic_workflows/README-dev.md`: 4-stage LLM processing pipeline.
+  - `backend/benchmarker/README-dev.md`: Quality testing and performance measurement. 
