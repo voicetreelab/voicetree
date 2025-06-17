@@ -9,12 +9,32 @@ Convert voice input into structured knowledge graphs using AI workflows.
 pip install -r requirements.txt
 source .venv/bin/activate
 
-# 2. Test instantly (< 5 seconds)
+# 2. Configure API Key (REQUIRED)
+export GOOGLE_API_KEY="your_gemini_api_key_here"
+# OR add to .env file: GOOGLE_API_KEY=your_key_here
+
+# 3. Test instantly (< 5 seconds)
 python dev-test.py --speed smoke
 
-# 3. Start coding with auto-tests
+# 4. Start coding with auto-tests
 python dev-test.py --watch --speed smoke
 ```
+
+## 🚨 Critical Dependency: Gemini API
+
+**VoiceTree requires Google's Gemini API to function.** The system will **crash immediately** if the API is not available.
+
+### API Setup
+1. Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Set the environment variable: `export GOOGLE_API_KEY="your_key_here"`
+3. Or add to `.env` file: `GOOGLE_API_KEY=your_key_here`
+
+### Crash-Fast Philosophy
+- ✅ **System starts**: API key valid and working
+- ❌ **System crashes**: API unavailable, invalid key, or quota exceeded
+- 🚫 **No graceful degradation**: The system requires AI to function
+
+This ensures you know immediately if there's an API configuration issue rather than mysterious failures later.
 
 ## 🧪 Essential Testing Commands
 

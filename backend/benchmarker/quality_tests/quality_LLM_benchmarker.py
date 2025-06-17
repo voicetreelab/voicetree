@@ -41,7 +41,7 @@ from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend import settings
-import PackageProjectForLLM
+import tools.PackageProjectForLLM as PackageProjectForLLM
 
 # Configure Gemini API
 genai.configure(api_key=settings.GOOGLE_API_KEY)
@@ -50,8 +50,8 @@ genai.configure(api_key=settings.GOOGLE_API_KEY)
 REQUESTS_PER_MINUTE = 15  # to avoid breaching 15RPM gemini limit
 SECONDS_PER_REQUEST = 60 / REQUESTS_PER_MINUTE
 OUTPUT_DIR = "oldVaults/VoiceTreePOC/QualityTest"  # Replace with your desired output directory
-QUALITY_LOG_FILE = "quality_log.txt"
-LATEST_QUALITY_LOG_FILE = "latest_quality_log.txt"
+QUALITY_LOG_FILE = "../quality_log.txt"  # Updated path to backend/benchmarker/
+LATEST_QUALITY_LOG_FILE = "../latest_quality_log.txt"
 LATEST_RUN_CONTEXT_FILE = "latest_run_context.json"
 WORKFLOW_IO_LOG = "backend/agentic_workflows/workflow_io.log"
 

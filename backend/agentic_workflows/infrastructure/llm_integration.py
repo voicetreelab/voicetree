@@ -71,10 +71,11 @@ def _initialize_gemini() -> bool:
     try:
         # Use the standard Google Generative AI SDK
         import google.generativeai as genai
-        print("✅ Google Generative AI available")
+        print("✅ Google Generative AI package available")
         
         # Try to get API key from environment
         api_key = os.environ.get("GOOGLE_API_KEY")
+        print(f"🔍 Environment check: GOOGLE_API_KEY {'found' if api_key else 'not found'}")
         
         # Try to get from settings module as fallback
         if not api_key:
@@ -89,29 +90,79 @@ def _initialize_gemini() -> bool:
                 api_key = getattr(settings, 'GOOGLE_API_KEY', None)
                 if api_key:
                     print("✅ Found API key in settings.py")
-            except ImportError:
-                pass
+                else:
+                    print("❌ No API key found in settings.py either")
+            except ImportError as e:
+                print(f"⚠️ Could not import settings.py: {e}")
         
         if api_key:
-            # Configure the API
-            genai.configure(api_key=api_key)
-            print("✅ Gemini API configured successfully")
-            return True
+            try:
+                # Configure the API
+                genai.configure(api_key=api_key)
+                
+                # Test the API key by making a minimal request
+                print("🧪 Testing API key validity...")
+                test_model = genai.GenerativeModel('gemini-2.0-flash')
+                test_response = test_model.generate_content(
+                    "Say 'API test successful'",
+                    generation_config=genai.GenerationConfig(max_output_tokens=10)
+                )
+                
+                if test_response and test_response.text:
+                    print("✅ Gemini API configured and tested successfully")
+                    return True
+                else:
+                    print("❌ API key configured but test call failed - no response text")
+                    return False
+                    
+            except Exception as api_error:
+                print(f"❌ API key configured but test call failed: {api_error}")
+                print(f"   Error type: {type(api_error).__name__}")
+                if "API_KEY_INVALID" in str(api_error):
+                    print("   → The API key appears to be invalid")
+                elif "PERMISSION_DENIED" in str(api_error):
+                    print("   → The API key lacks necessary permissions")
+                elif "QUOTA_EXCEEDED" in str(api_error):
+                    print("   → API quota exceeded")
+                return False
         else:
             print("❌ No API key found in environment variables or settings.py")
+            print("   → Set GOOGLE_API_KEY environment variable or add to backend/settings.py")
             return False
             
-    except ImportError:
-        print("❌ google.generativeai package not available. Install with: pip install google-generativeai")
+    except ImportError as e:
+        print(f"❌ google.generativeai package not available: {e}")
+        print("   → Install with: pip install google-generativeai")
         return False
     except Exception as e:
-        print(f"❌ Error initializing Gemini API: {e}")
+        print(f"❌ Unexpected error initializing Gemini API: {e}")
+        print(f"   → Error type: {type(e).__name__}")
         return False
 
 
 # Initialize on module load
 _load_environment()
 GEMINI_AVAILABLE = _initialize_gemini()
+
+# CRASH IMMEDIATELY if Gemini API is not available
+# The system is completely dependent on Gemini API - no graceful degradation
+if not GEMINI_AVAILABLE:
+    error_msg = (
+        "\n" + "="*70 + "\n"
+        "🚨 CRITICAL: GEMINI API UNAVAILABLE - SYSTEM CANNOT START\n"
+        "="*70 + "\n"
+        "The VoiceTree system is completely dependent on Google's Gemini API.\n"
+        "Check the initialization logs above for specific error details.\n\n"
+        "Most common issues:\n"
+        "• GOOGLE_API_KEY environment variable not set\n"
+        "• API key is invalid or lacks permissions\n"
+        "• google-generativeai package not installed\n"
+        "• API quota exceeded or service unavailable\n\n"
+        "Fix the issue and restart the system.\n"
+        "="*70
+    )
+    print(error_msg)
+    raise RuntimeError("GEMINI API UNAVAILABLE - CANNOT CONTINUE")
 
 
 def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
@@ -127,19 +178,12 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         Pydantic model instance with structured response
         
     Raises:
-        RuntimeError: If Gemini API is not available or configured
-        ValueError: If API key is missing or stage type is unknown
+        RuntimeError: Always crashes if called when API is unavailable
+        ValueError: If stage type is unknown
     """
+    # Double-check at runtime (should never happen due to startup crash)
     if not GEMINI_AVAILABLE:
-        error_msg = (
-            "❌ Gemini API is not available. Please ensure:\n"
-            "1. google-generativeai package is installed: pip install google-generativeai\n"
-            "2. GOOGLE_API_KEY environment variable is set\n"
-            "3. API key is valid and has proper permissions"
-        )
-        print(error_msg)
-        # CRASH IMMEDIATELY instead of graceful error handling
-        raise RuntimeError(error_msg)
+        raise RuntimeError("GEMINI API UNAVAILABLE - SYSTEM SHOULD HAVE CRASHED AT STARTUP")
     
     try:
         import google.generativeai as genai
@@ -240,18 +284,11 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         The LLM response as a string
         
     Raises:
-        RuntimeError: If Gemini API is not available or configured
+        RuntimeError: Always crashes if called when API is unavailable
     """
+    # Double-check at runtime (should never happen due to startup crash)
     if not GEMINI_AVAILABLE:
-        error_msg = (
-            "❌ Gemini API is not available. Please ensure:\n"
-            "1. google-generativeai package is installed: pip install google-generativeai\n"
-            "2. GOOGLE_API_KEY environment variable is set\n"
-            "3. API key is valid and has proper permissions"
-        )
-        print(error_msg)
-        # CRASH IMMEDIATELY instead of graceful error handling
-        raise RuntimeError(error_msg)
+        raise RuntimeError("GEMINI API UNAVAILABLE - SYSTEM SHOULD HAVE CRASHED AT STARTUP")
     
     try:
         import google.generativeai as genai

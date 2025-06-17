@@ -109,7 +109,7 @@ jobs:
           --disable-warnings \
           --timeout=120
         
-        # Run other integration tests (non-API)
+        # Run other integration tests (may include API calls)
         python -m pytest tests/integration_tests/ \
           -k "not api" \
           -v \
@@ -237,31 +237,93 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-asyncio pytest-xdist
 
-    - name: Check environment setup
+    - name: Check environment setup and API key
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         echo "🔍 Environment Check:"
         echo "Python version: $(python --version)"
         echo "Pip version: $(pip --version)"
         echo "Working directory: $(pwd)"
-        echo "GOOGLE_API_KEY set: $([[ -n "$GOOGLE_API_KEY" ]] && echo "✅ Yes" || echo "❌ No")"
-        echo "Files in backend/tests/:"
+        
+        echo ""
+        echo "🔑 API Key Check:"
+        if [[ -n "$GOOGLE_API_KEY" ]]; then
+          echo "✅ GOOGLE_API_KEY is set"
+          echo "   Length: ${#GOOGLE_API_KEY} characters"
+          echo "   First 10 chars: ${GOOGLE_API_KEY:0:10}..."
+          echo "   Last 5 chars: ...${GOOGLE_API_KEY: -5}"
+        else
+          echo "❌ GOOGLE_API_KEY is not set"
+          echo "   Repository secret may be missing or not accessible"
+        fi
+        
+        echo ""
+        echo "📦 Package Check:"
+        python -c "
+        try:
+            import google.generativeai as genai
+            print('✅ google-generativeai package available')
+            print(f'   Version: {genai.__version__}')
+        except ImportError as e:
+            print(f'❌ google-generativeai package not available: {e}')
+        "
+        
+        echo ""
+        echo "📁 File structure:"
         ls -la backend/tests/ || echo "❌ backend/tests/ not found"
     
+    - name: Test API connectivity before running tests
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      run: |
+        if [[ -z "$GOOGLE_API_KEY" ]]; then
+          echo "⚠️ GOOGLE_API_KEY not set - will skip API tests"
+          exit 0
+        fi
+        
+        echo "🧪 Testing Gemini API connectivity..."
+        cd backend
+        python -c "
+        import os
+        import sys
+        
+        # Test the LLM integration module
+        try:
+            from agentic_workflows.infrastructure.llm_integration import GEMINI_AVAILABLE, call_llm
+            print(f'Gemini available: {GEMINI_AVAILABLE}')
+            
+            if GEMINI_AVAILABLE:
+                print('✅ API initialization successful')
+                # Make a minimal test call
+                try:
+                    result = call_llm('Say hello', 'gemini-2.0-flash')
+                    print(f'✅ Test API call successful: {len(result)} chars')
+                except Exception as e:
+                    print(f'❌ Test API call failed: {e}')
+                    sys.exit(1)
+            else:
+                print('❌ API initialization failed - check logs above')
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f'❌ Failed to import LLM integration: {e}')
+            sys.exit(1)
+        "
+
     - name: Run API integration tests in CI mode
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         PYTEST_TEST_MODE: ci
       run: |
-        if [[ -z "$GOOGLE_API_KEY" ]]; then
-          echo "⚠️ GOOGLE_API_KEY not set - skipping API tests"
-          exit 0
-        fi
+        echo "🚨 CRASH-FAST MODE: API tests must pass or build fails"
+        echo "The VoiceTree system requires Gemini API to function"
+        
         cd backend/tests/integration_tests/agentic_workflows
         python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
           --test-mode=ci \
           -v \
           --tb=short
-      continue-on-error: true  # Don't fail CI if API is down
       timeout-minutes: 15  # Prevent hanging
     
     - name: Upload API test results
@@ -329,9 +391,9 @@ jobs:
       with:
         name: quality-benchmark-results
         path: |
-          quality_log.txt
-          latest_quality_log.txt
-          latest_run_context.json
+          backend/benchmarker/quality_log.txt
+          backend/benchmarker/latest_quality_log.txt
+          backend/benchmarker/quality_tests/latest_run_context.json
           oldVaults/VoiceTreePOC/QualityTest/
 
   # Performance benchmark - only on manual trigger

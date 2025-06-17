@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 import google.generativeai as genai
 from google.generativeai import GenerativeModel
 from backend import settings
-import PackageProjectForLLM
+import tools.PackageProjectForLLM as PackageProjectForLLM
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
