@@ -1,0 +1,3 @@
+file path -> short description
+ARCHITECTURE_CLEANUP_SUMMARY.md -> "todo"
+benchmarking_system_optimization.md -> "Optimize benchmarking system for per-stage scoring and automated regression detection"

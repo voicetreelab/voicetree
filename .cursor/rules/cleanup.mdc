@@ -4,7 +4,8 @@ globs:
 alwaysApply: false
 ---
 - perform a brief overall review of the final solution. be critical.
-- update task.md in current_tasks folder, if there are no more tasks left, DELETE the file so changelog.md will now be our main source of reference.
+- update any task plan md files in /current_tasks folder, if there are no more subtasks left, DELETE the file so changelog.md will now be our main source of reference.
 - update changelog.md
+- add a memory (markdown file with your knowledge) to /memories if you have learnt anything very interesting about the codebase, a gotcha, or anything that you think almost every engineer working on the system should know.
 - perform a git commit only to the files you have changed for this task
 - update any other relevant .md files if warranted, such as readme.md architctural files, etc.

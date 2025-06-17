@@ -11,7 +11,22 @@ from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
 from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
-from backend import settings
+import sys
+import os
+
+# Add project root to Python path for imports
+current_file = os.path.abspath(__file__)
+backend_dir = os.path.dirname(os.path.dirname(current_file))
+project_root = os.path.dirname(backend_dir)
+
+# Add both project root and backend to path to handle all import scenarios
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+# Now import settings - this should work from any directory
+import settings
 
 
 class WorkflowTreeManager(TreeManagerInterface, TreeManagerMixin):

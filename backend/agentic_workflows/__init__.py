@@ -1,85 +1,61 @@
 """
-Agentic Workflows - VoiceTree Processing Pipeline
+Agentic Workflows Package
 
-This module provides a workflow system for processing voice transcripts 
-into knowledge trees through a 4-stage pipeline:
+Multi-agent LLM processing pipeline for VoiceTree voice-to-knowledge-graph conversion.
 
+This package provides a 4-stage pipeline for processing voice transcripts:
 1. Segmentation - Breaking transcripts into atomic ideas
 2. Relationship Analysis - Analyzing connections to existing knowledge  
 3. Integration Decision - Deciding whether to create new nodes or append to existing ones
 4. Node Extraction - Creating the final knowledge tree structure
 
-Main API:
+Main Components:
 - VoiceTreePipeline: Main pipeline class with state management
-- run_voicetree_pipeline: Functional interface for single runs
-- Individual processing nodes: segmentation_node, relationship_analysis_node, etc.
+- Infrastructure: LLM integration, state management, debugging tools
+- Nodes: Individual processing stages
 
-Infrastructure:
-- LLM integration for Gemini API
-- State management for persistent knowledge graphs
-- Debug logging and visualization tools
+Usage:
+    from backend.agentic_workflows import VoiceTreePipeline
+    from backend.agentic_workflows.infrastructure import call_llm
 """
 
-# ==========================================
-# MAIN PIPELINE API
-# ==========================================
-
-# Main pipeline components
+# Core pipeline components
 try:
     from .main import VoiceTreePipeline, run_voicetree_pipeline
-    from .nodes import (
-        segmentation_node,
-        relationship_analysis_node, 
-        integration_decision_node,
-        node_extraction_node
-    )
     PIPELINE_AVAILABLE = True
 except ImportError:
-    # Pipeline components not available
     PIPELINE_AVAILABLE = False
     VoiceTreePipeline = None
     run_voicetree_pipeline = None
 
-# Infrastructure components
+# Infrastructure components - always try to import
 try:
     from .infrastructure import (
         call_llm,
         call_llm_structured,
         VoiceTreeStateManager,
-        log_stage_input_output,
-        log_transcript_processing,
-        create_workflow_diagram
     )
     INFRASTRUCTURE_AVAILABLE = True
 except ImportError:
     INFRASTRUCTURE_AVAILABLE = False
+    call_llm = None
+    call_llm_structured = None
+    VoiceTreeStateManager = None
 
-# ==========================================
-# EXPORTS
-# ==========================================
-
+# Export main components
 __all__ = [
-    # === MAIN PIPELINE ===
-    'VoiceTreePipeline',
-    'run_voicetree_pipeline',
+    # Main Pipeline
+    "VoiceTreePipeline", 
+    "run_voicetree_pipeline",
     
-    # === PROCESSING NODES ===
-    'segmentation_node',
-    'relationship_analysis_node',
-    'integration_decision_node',
-    'node_extraction_node',
+    # Infrastructure
+    "call_llm",
+    "call_llm_structured", 
+    "VoiceTreeStateManager",
     
-    # === INFRASTRUCTURE ===
-    'call_llm',
-    'call_llm_structured',
-    'VoiceTreeStateManager', 
-    'log_stage_input_output',
-    'log_transcript_processing',
-    'create_workflow_diagram',
-    
-    # === AVAILABILITY FLAGS ===
-    'PIPELINE_AVAILABLE',
-    'INFRASTRUCTURE_AVAILABLE'
+    # Status flags
+    "PIPELINE_AVAILABLE",
+    "INFRASTRUCTURE_AVAILABLE",
 ]
 
 # ==========================================

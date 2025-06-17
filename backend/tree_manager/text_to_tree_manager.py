@@ -8,14 +8,44 @@ from typing import Set, Tuple, List
 
 import google.generativeai as genai
 
-from backend import settings
-from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
-from backend.tree_manager.LLM_engine.background_rewrite import Rewriter
-from backend.tree_manager.LLM_engine.summarize_with_llm import Summarizer
-from backend.tree_manager.LLM_engine.tree_action_decider import Decider
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.utils import extract_summary, remove_first_word, extract_complete_sentences
-from backend.tree_manager import NodeAction
+import sys
+import os
+
+# Add project root to Python path for imports
+current_file = os.path.abspath(__file__)
+backend_dir = os.path.dirname(os.path.dirname(current_file))
+project_root = os.path.dirname(backend_dir)
+
+# Add both project root and backend to path to handle all import scenarios
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+# Now import settings - this should work from any directory
+import settings
+
+from .base import TreeManagerInterface, TreeManagerMixin
+from .LLM_engine.background_rewrite import Rewriter
+from .LLM_engine.summarize_with_llm import Summarizer
+from .LLM_engine.tree_action_decider import Decider
+from .decision_tree_ds import DecisionTree
+from .utils import extract_summary, remove_first_word, extract_complete_sentences
+
+# Import NodeAction from within module to avoid circular import
+from collections import namedtuple
+
+NodeAction = namedtuple('NodeAction',
+                        [
+                            'labelled_text',
+                            'action',
+                            'concept_name',
+                            'neighbour_concept_name',
+                            'relationship_to_neighbour',
+                            'updated_summary_of_node',
+                            'markdown_content_to_append',
+                            'is_complete'
+                        ])
 
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 

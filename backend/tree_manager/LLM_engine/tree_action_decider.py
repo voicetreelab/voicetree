@@ -2,11 +2,41 @@ import json
 import logging
 import traceback
 from typing import List, Dict, Any
-from backend import settings
-from backend.tree_manager import NodeAction
+from collections import namedtuple
+
+import sys
+import os
+
+# Add project root to Python path for imports
+current_file = os.path.abspath(__file__)
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+project_root = os.path.dirname(backend_dir)
+
+# Add both project root and backend to path to handle all import scenarios
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+# Now import settings - this should work from any directory
+import settings
+
 from backend.agentic_workflows.infrastructure.llm_integration import call_llm
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.LLM_engine.prompts import create_context_prompt
+from ..decision_tree_ds import DecisionTree
+from .prompts import create_context_prompt
+
+# Define NodeAction locally to avoid circular imports
+NodeAction = namedtuple('NodeAction',
+                        [
+                            'labelled_text',
+                            'action',
+                            'concept_name',
+                            'neighbour_concept_name',
+                            'relationship_to_neighbour',
+                            'updated_summary_of_node',
+                            'markdown_content_to_append',
+                            'is_complete'
+                        ])
 
 
 class Decider:

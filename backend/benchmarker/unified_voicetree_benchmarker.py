@@ -44,6 +44,9 @@ sys.path.append(str(Path(__file__).parent.parent.parent))  # Add project root
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Import enhanced scoring system
+from backend.benchmarker.debug_workflow import WorkflowQualityScorer, analyze_workflow_debug_logs
+
 class UnifiedVoiceTreeBenchmarker:
     """
     Single, comprehensive benchmarking system for VoiceTree
@@ -54,6 +57,9 @@ class UnifiedVoiceTreeBenchmarker:
         self.config = config or self._get_default_config()
         self.results = {}
         self.test_start_time = time.time()
+        
+        # Initialize enhanced scoring system
+        self.quality_scorer = WorkflowQualityScorer()
         
         # Setup directories
         self._setup_directories()
@@ -182,10 +188,17 @@ class UnifiedVoiceTreeBenchmarker:
             if os.path.exists("unified_tada_baseline.json"):
                 os.remove("unified_tada_baseline.json")
             
-            # Analyze results
+            # Analyze results with enhanced scoring
             results = self._analyze_output_quality(output_dir, "TADA Baseline")
             results["processing_time"] = processing_time
             results["transcript_info"] = transcript_info
+            
+            # Add enhanced workflow scoring
+            enhanced_analysis = self._run_enhanced_workflow_analysis()
+            if enhanced_analysis and "error" not in enhanced_analysis:
+                results["workflow_scores"] = enhanced_analysis.get("quality_scores", {})
+                results["overall_workflow_quality"] = enhanced_analysis.get("overall_quality", {})
+                results["workflow_recommendations"] = enhanced_analysis.get("recommendations", [])
             
             return results
             
@@ -277,12 +290,19 @@ class UnifiedVoiceTreeBenchmarker:
             if os.path.exists("unified_tada_troa.json"):
                 os.remove("unified_tada_troa.json")
             
-            # Analyze results
+            # Analyze results with enhanced scoring
             results = self._analyze_output_quality(output_dir, "TADA + TROA")
             results["processing_time"] = total_time
             results["troa_time"] = troa_time
             results["troa_success"] = troa_success
             results["transcript_info"] = transcript_info
+            
+            # Add enhanced workflow scoring
+            enhanced_analysis = self._run_enhanced_workflow_analysis()
+            if enhanced_analysis and "error" not in enhanced_analysis:
+                results["workflow_scores"] = enhanced_analysis.get("quality_scores", {})
+                results["overall_workflow_quality"] = enhanced_analysis.get("overall_quality", {})
+                results["workflow_recommendations"] = enhanced_analysis.get("recommendations", [])
             
             # Get TROA metrics if available
             if troa_success and hasattr(processor.enhanced_tree_manager, 'troa_agent'):
@@ -334,6 +354,50 @@ class UnifiedVoiceTreeBenchmarker:
             chunks.append(current_chunk.strip())
         
         return chunks
+    
+    def _run_enhanced_workflow_analysis(self) -> Optional[Dict]:
+        """Run enhanced workflow analysis with comprehensive 4-stage scoring"""
+        try:
+            logger.info("\n📊 Running Enhanced Workflow Analysis...")
+            
+            # Run the enhanced debug analysis
+            analysis = analyze_workflow_debug_logs()
+            
+            if "error" in analysis:
+                logger.warning(f"⚠️  Enhanced analysis failed: {analysis['error']}")
+                return None
+            
+            # Log enhanced scoring results
+            if "overall_quality" in analysis:
+                overall = analysis["overall_quality"]
+                logger.info(f"   Overall Quality Score: {overall.get('overall_score', 'N/A')}/100 ({overall.get('quality_grade', 'Unknown')})")
+            
+            if "quality_scores" in analysis:
+                logger.info("   Stage Scores:")
+                for stage, scores in analysis["quality_scores"].items():
+                    total_score = scores.get("total_score", 0)
+                    threshold = scores.get("regression_threshold", 10)
+                    status = "✅" if total_score >= 70 else "⚠️" if total_score >= 60 else "❌"
+                    logger.info(f"     {status} {stage.replace('_', ' ').title()}: {total_score}/100")
+                    
+                    # Log component scores for detailed insight
+                    if "component_scores" in scores:
+                        for component, score in scores["component_scores"].items():
+                            logger.info(f"       • {component.replace('_', ' ').title()}: {score:.1f}")
+            
+            if "recommendations" in analysis and analysis["recommendations"]:
+                logger.info("   Recommendations:")
+                for rec in analysis["recommendations"]:
+                    logger.info(f"     • {rec}")
+            
+            logger.info("✅ Enhanced workflow analysis complete")
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"❌ Enhanced workflow analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def _is_complete_thought(self, text: str) -> bool:
         """Determine if text represents a complete thought"""

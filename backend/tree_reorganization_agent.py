@@ -12,8 +12,23 @@ from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 import threading
 
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.tree_to_markdown import TreeToMarkdownConverter
+import sys
+import os
+
+# Add project root to Python path for imports
+current_file = os.path.abspath(__file__)
+backend_dir = os.path.dirname(current_file)
+project_root = os.path.dirname(backend_dir)
+
+# Add both project root and backend to path to handle all import scenarios
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+# Import without going through tree_manager package to avoid circular import
+from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 
 class TreeReorganizationAgent:
