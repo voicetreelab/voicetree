@@ -23,12 +23,17 @@ on:
         options:
         - ci
         - local
+      include_benchmarks:
+        description: 'Run performance benchmarks'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
-  # Unit tests - always run first (fastest feedback)
-  unit-tests:
+  # Job 1: Fast Tests (Unit + Integration without API)
+  fast-tests:
     runs-on: ubuntu-latest
-    name: "Unit Tests (Fast)"
+    name: "Fast Tests (Unit + Integration)"
     
     steps:
     - uses: actions/checkout@v4
@@ -53,171 +58,44 @@ jobs:
         pip install pytest pytest-asyncio pytest-xdist
 
     - name: Run unit tests
-      env:
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         cd backend
-        echo "🧪 Running unit tests (should not require API calls)..."
+        echo "🧪 Running unit tests (no API calls)..."
         python -m pytest tests/unit_tests/ \
           --disable-warnings \
           -v \
           --tb=short \
           --maxfail=5 \
-          --timeout=60
+          --timeout=60 \
+          -n auto
     
-    - name: Upload unit test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: unit-test-results
-        path: backend/tests/unit_tests/test-results/
-
-  # Integration tests - run after unit tests pass
-  integration-tests:
-    runs-on: ubuntu-latest
-    name: "Integration Tests (Core Pipeline)"
-    needs: unit-tests
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-asyncio pytest-xdist
-
-    - name: Run core integration tests
-      env:
-        PYTEST_TEST_MODE: ci
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    - name: Run integration tests (without API)
       run: |
         cd backend
-        echo "🧪 Running core integration tests..."
-        
-        # Focus on system integration and pipeline logic
-        python -m pytest pipeline_system_tests/test_full_system_integration.py \
-          -v \
-          --tb=short \
-          --disable-warnings \
-          --timeout=120 \
-          --maxfail=3
-        
-        # Run other integration tests (may include API calls)
+        echo "🔗 Running integration tests (mocked/offline)..."
         python -m pytest tests/integration_tests/ \
-          -k "not api" \
+          -k "not api and not requires_api" \
           -v \
           --tb=short \
           --disable-warnings \
           --timeout=60 \
-          --maxfail=3
-      timeout-minutes: 10
+          --maxfail=3 \
+          -n auto
     
-    - name: Upload integration test results
+    - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: integration-test-results
-        path: backend/tests/integration_tests/test-results/
+        name: fast-test-results
+        path: |
+          backend/tests/unit_tests/test-results/
+          backend/tests/integration_tests/test-results/
 
-  # Audio testing documentation - manual testing guidance
-  audio-testing-guide:
+  # Job 2: API Integration Tests
+  api-tests:
     runs-on: ubuntu-latest
-    name: "Audio Testing Guide"
-    if: github.event_name == 'workflow_dispatch'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Create audio testing documentation
-      run: |
-        cat > AUDIO_TESTING.md << 'EOF'
-        # 🎤 Audio Testing Guide
-        
-        ## Why Audio Tests Are Not in CI/CD
-        
-        Audio processing tests are excluded from CI/CD because they:
-        - Require heavyweight AI models (Whisper) 
-        - Need actual audio files
-        - Have threading/stability issues in containerized environments
-        - Take significant time and resources
-        
-        ## Local Audio Testing
-        
-        ### Prerequisites
-        ```bash
-        # Install audio dependencies
-        pip install -r requirements.txt
-        
-        # Ensure you have test audio files
-        # Place .m4a files in backend/pipeline_system_tests/
-        ```
-        
-        ### Manual Testing Commands
-        ```bash
-        cd backend
-        
-        # Test voice-to-text engine
-        python -c "
-        from voice_to_text.voice_to_text import VoiceToTextEngine
-        engine = VoiceToTextEngine()
-        result = engine.process_audio_file('path/to/your/audio.m4a')
-        print(f'Transcript: {result}')
-        "
-        
-        # Test full pipeline with real audio
-        python ../process_transcription.py --audio path/to/your/audio.m4a
-        ```
-        
-        ### Integration Testing
-        ```bash
-        # Test the complete pipeline
-        python -m pytest pipeline_system_tests/test_full_system_integration.py::TestFullSystemIntegration::test_full_system_with_real_audio -v -s
-        ```
-        
-        ## What CI/CD Tests Instead
-        
-        - ✅ Core tree processing logic
-        - ✅ System integration points  
-        - ✅ API workflows (with real LLM calls)
-        - ✅ Error handling and recovery
-        - ✅ Mocked pipeline components
-        
-        ## Quality Assurance
-        
-        Before releasing, manually verify:
-        1. Audio transcription works with sample files
-        2. Complete pipeline: Audio → Tree → Markdown
-        3. Real-time processing doesn't crash
-        4. Memory usage is reasonable
-        EOF
-        
-        echo "📝 Audio testing documentation created"
-        
-    - name: Upload audio testing guide
-      uses: actions/upload-artifact@v4
-      with:
-        name: audio-testing-guide
-        path: AUDIO_TESTING.md
-
-  # API integration tests - only on main/develop or manual trigger with API key
-  api-integration-tests:
-    runs-on: ubuntu-latest
-    name: "API Integration Tests (CI Mode)"
-    needs: integration-tests
+    name: "API Integration Tests"
+    needs: fast-tests
     if: |
       github.ref == 'refs/heads/main' || 
       github.ref == 'refs/heads/develop' || 
@@ -245,48 +123,13 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-asyncio pytest-xdist
 
-    - name: Check environment setup and API key
-      env:
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-      run: |
-        echo "🔍 Environment Check:"
-        echo "Python version: $(python --version)"
-        echo "Pip version: $(pip --version)"
-        echo "Working directory: $(pwd)"
-        
-        echo ""
-        echo "🔑 API Key Check:"
-        if [[ -n "$GOOGLE_API_KEY" ]]; then
-          echo "✅ GOOGLE_API_KEY is set"
-          echo "   Length: ${#GOOGLE_API_KEY} characters"
-          echo "   First 10 chars: ${GOOGLE_API_KEY:0:10}..."
-          echo "   Last 5 chars: ...${GOOGLE_API_KEY: -5}"
-        else
-          echo "❌ GOOGLE_API_KEY is not set"
-          echo "   Repository secret may be missing or not accessible"
-        fi
-        
-        echo ""
-        echo "📦 Package Check:"
-        python -c "
-        try:
-            import google.generativeai as genai
-            print('✅ google-generativeai package available')
-            print(f'   Version: {genai.__version__}')
-        except ImportError as e:
-            print(f'❌ google-generativeai package not available: {e}')
-        "
-        
-        echo ""
-        echo "📁 File structure:"
-        ls -la backend/tests/ || echo "❌ backend/tests/ not found"
-    
-    - name: Test API connectivity before running tests
+    - name: Check API connectivity
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         if [[ -z "$GOOGLE_API_KEY" ]]; then
-          echo "⚠️ GOOGLE_API_KEY not set - will skip API tests"
+          echo "⚠️ GOOGLE_API_KEY not set - skipping API tests"
+          echo "skip_api_tests=true" >> $GITHUB_ENV
           exit 0
         fi
         
@@ -295,53 +138,187 @@ jobs:
         python -c "
         import os
         import sys
-        
-        # Test the LLM integration module
         try:
             from agentic_workflows.infrastructure.llm_integration import GEMINI_AVAILABLE, call_llm
             print(f'Gemini available: {GEMINI_AVAILABLE}')
             
             if GEMINI_AVAILABLE:
-                print('✅ API initialization successful')
-                # Make a minimal test call
-                try:
-                    result = call_llm('Say hello', 'gemini-2.0-flash')
-                    print(f'✅ Test API call successful: {len(result)} chars')
-                except Exception as e:
-                    print(f'❌ Test API call failed: {e}')
-                    sys.exit(1)
+                result = call_llm('Say hello', 'gemini-2.0-flash')
+                print(f'✅ API test successful: {len(result)} chars')
             else:
-                print('❌ API initialization failed - check logs above')
+                print('❌ API initialization failed')
                 sys.exit(1)
-                
         except Exception as e:
-            print(f'❌ Failed to import LLM integration: {e}')
+            print(f'❌ API test failed: {e}')
             sys.exit(1)
         "
 
-    - name: Run API integration tests in CI mode
+    - name: Run API integration tests
+      if: env.skip_api_tests != 'true'
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        PYTEST_TEST_MODE: ci
+        PYTEST_TEST_MODE: ${{ github.event.inputs.test_mode || 'ci' }}
       run: |
-        echo "🚨 CRASH-FAST MODE: API tests must pass or build fails"
-        echo "The VoiceTree system requires Gemini API to function"
+        cd backend
+        echo "🚨 Running API integration tests..."
         
-        cd backend/tests/integration_tests/agentic_workflows
-        python -m pytest test_chunk_boundaries_adaptive.py test_real_examples.py \
-          --test-mode=ci \
+        # Core pipeline integration with real APIs
+        python -m pytest pipeline_system_tests/test_full_system_integration.py \
           -v \
-          --tb=short
-      timeout-minutes: 15  # Prevent hanging
-    
+          --tb=short \
+          --disable-warnings \
+          --timeout=120 \
+          --maxfail=3
+        
+        # Agentic workflow API tests
+        python -m pytest tests/integration_tests/agentic_workflows/ \
+          --test-mode=${{ github.event.inputs.test_mode || 'ci' }} \
+          -v \
+          --tb=short \
+          --disable-warnings \
+          --timeout=180 \
+          --maxfail=3
+      timeout-minutes: 15
+
     - name: Upload API test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: api-test-results
-        path: backend/tests/integration_tests/agentic_workflows/test-results/
+        path: |
+          backend/pipeline_system_tests/test-results/
+          backend/tests/integration_tests/agentic_workflows/test-results/
+
+  # Job 3: Quality & Performance Benchmarks
+  benchmarks:
+    runs-on: ubuntu-latest
+    name: "Quality & Performance Benchmarks"
+    needs: api-tests
+    if: |
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.include_benchmarks == 'true')
     
-    - name: Comment test results on PR
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio
+
+    - name: Run quality benchmarks
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        PYTHONPATH: ${{ github.workspace }}
+      run: |
+        echo "📊 Running quality benchmarks..."
+        python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
+      timeout-minutes: 10
+    
+    - name: Run performance benchmarks
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.include_benchmarks == 'true'
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        PYTEST_TEST_MODE: ${{ github.event.inputs.test_mode || 'ci' }}
+      run: |
+        echo "⚡ Running performance benchmarks..."
+        cd backend/tests/integration_tests/agentic_workflows
+        python -m pytest test_performance_benchmark.py \
+          --test-mode=${{ github.event.inputs.test_mode || 'ci' }} \
+          -v \
+          --tb=short
+      timeout-minutes: 10
+
+    - name: Generate test documentation
+      run: |
+        cat > TESTING_GUIDE.md << 'EOF'
+        # 🧪 VoiceTree Testing Guide
+        
+        ## Test Architecture Summary
+        
+        VoiceTree uses a 3-tier testing approach:
+        
+        ### 1. Fast Tests (< 60s)
+        - **Unit Tests**: Isolated component testing
+        - **Integration Tests**: Cross-module testing without API calls
+        - **Purpose**: Rapid development feedback
+        
+        ### 2. API Integration Tests (< 15min)
+        - **Real API Integration**: Tests with Gemini API
+        - **System Integration**: Full pipeline testing
+        - **Purpose**: Validate real-world functionality
+        
+        ### 3. Quality & Performance Benchmarks (< 20min)
+        - **Quality Scoring**: LLM output quality assessment
+        - **Performance Metrics**: Speed and efficiency testing
+        - **Purpose**: Ensure production readiness
+        
+        ## Local Development Commands
+        
+        ```bash
+        # Fast development testing
+        python dev-test.py --speed smoke     # < 10s
+        python dev-test.py --speed fast      # < 30s
+        python dev-test.py --changed         # Test only changed files
+        
+        # Comprehensive testing
+        make test-unit                       # < 45s
+        make test-local                      # Limited API calls
+        make test-ci                         # Full API testing
+        
+        # Watch mode for continuous testing
+        python dev-test.py --watch --speed smoke
+        ```
+        
+        ## CI/CD Philosophy
+        
+        - **Fail Fast**: Unit tests run first for quick feedback
+        - **API Gating**: Real API tests only on main/develop branches
+        - **Cost Control**: Limited API calls in local mode
+        - **Parallel Execution**: Maximum efficiency with job parallelization
+        
+        ## Audio Testing
+        
+        Audio processing tests are excluded from CI/CD due to:
+        - Heavy dependencies (Whisper models)
+        - Environmental instability in containers
+        - Resource requirements
+        
+        Run audio tests locally:
+        ```bash
+        python process_transcription.py --audio path/to/audio.m4a
+        ```
+        EOF
+        
+        echo "📝 Testing documentation generated"
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-results
+        path: |
+          backend/benchmarker/quality_log.txt
+          backend/benchmarker/latest_quality_log.txt
+          backend/benchmarker/quality_tests/latest_run_context.json
+          oldVaults/VoiceTreePOC/QualityTest/
+          TESTING_GUIDE.md
+    
+    - name: Comment results on PR
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
@@ -350,95 +327,5 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: '🧪 Agentic workflow tests completed! Check the "Actions" tab for detailed results.'
-          })
-
-  # Quality benchmarking - only on main/develop branches after API tests pass
-  quality-benchmark:
-    runs-on: ubuntu-latest
-    name: "Quality Benchmark (Score >3.0)"
-    needs: api-integration-tests
-    if: |
-      github.ref == 'refs/heads/main' || 
-      github.ref == 'refs/heads/develop'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-asyncio
-    
-    - name: Run quality benchmarking
-      env:
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        PYTHONPATH: ${{ github.workspace }}
-      run: |
-        # Run from project root so imports work correctly
-        python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
-      timeout-minutes: 10
-    
-    - name: Upload quality benchmark results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: quality-benchmark-results
-        path: |
-          backend/benchmarker/quality_log.txt
-          backend/benchmarker/latest_quality_log.txt
-          backend/benchmarker/quality_tests/latest_run_context.json
-          oldVaults/VoiceTreePOC/QualityTest/
-
-  # Performance benchmark - only on manual trigger
-  performance-benchmark:
-    runs-on: ubuntu-latest
-    name: "Performance Benchmark"
-    if: github.event_name == 'workflow_dispatch'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-asyncio
-        
-    - name: Run performance benchmarks
-      env:
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        PYTEST_TEST_MODE: ci
-      run: |
-        cd backend/tests/integration_tests/agentic_workflows
-        python -m pytest test_performance_benchmark.py \
-          --test-mode=ci \
-          -v \
-          --tb=short 
+            body: '✅ VoiceTree testing completed!\n\n**Fast Tests**: Unit + Integration (no API)\n**API Tests**: Real API integration\n**Benchmarks**: Quality & performance metrics\n\nCheck the "Actions" tab for detailed results and artifacts.'
+          }) 
