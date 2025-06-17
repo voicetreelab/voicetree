@@ -1,39 +1,26 @@
-# VoiceTree LangGraph Implementation
+# VoiceTree Agentic Workflows
 
-A multi-stage LangGraph pipeline for processing voice transcripts into a knowledge graph structure.
+A multi-stage AI pipeline for processing voice transcripts into knowledge graphs using LangGraph.
 
-## Overview
+## How It Works
 
-This implementation uses LangGraph to create a 4-stage pipeline that:
-1. Segments transcripts into atomic ideas
-2. Analyzes relationships with existing nodes
-3. Decides on integration actions (CREATE/APPEND)
-4. Extracts new nodes to create
+The system processes voice input through 4 stages:
+
+1. **Segmentation** - Breaks transcripts into atomic ideas
+2. **Relationship Analysis** - Analyzes connections to existing knowledge
+3. **Integration Decision** - Decides whether to create new nodes or append to existing ones
+4. **Node Extraction** - Creates the final knowledge tree structure
 
 ## Key Features
 
-- **Multi-Stage Processing**: Clear separation of concerns across 4 stages
-- **State Management**: Persistent knowledge graph that grows across executions
-- **Chunk Boundary Handling**: Properly handles incomplete sentences from voice input
-- **LLM Integration**: Uses Gemini for intelligent processing
-
-## Core Components
-
-### Pipeline Files
-- `main.py` - Main pipeline class with state management
-- `graph.py` - LangGraph workflow definition
-- `nodes.py` - Processing nodes for each stage
-- `state.py` - State schema definition
-- `state_manager.py` - Persistent state management
-- `llm_integration.py` - LLM integration layer
-
-### Prompts
-- `prompts/` - LLM prompt templates for each stage
+- **Persistent State** - Knowledge graph grows across multiple voice inputs
+- **Chunk Boundary Handling** - Handles incomplete sentences from streaming voice input
+- **LLM Integration** - Uses Gemini for intelligent processing at each stage
 
 ## Usage
 
 ```python
-from workflow.langgraph.main import VoiceTreePipeline
+from backend.agentic_workflows.main import VoiceTreePipeline
 
 # Create pipeline with persistent state
 pipeline = VoiceTreePipeline("knowledge_graph.json")
@@ -47,33 +34,22 @@ stats = pipeline.get_statistics()
 print(f"Total nodes: {stats['total_nodes']}")
 ```
 
+## Core Components
+
+- `main.py` - Main pipeline class with state management
+- `graph_definition.py` - LangGraph workflow definition
+- `nodes.py` - Processing nodes for each stage
+- `state.py` - State schema definition
+- `state_manager.py` - Persistent state management
+- `llm_integration.py` - LLM integration layer
+- `prompts/` - LLM prompt templates for each stage
+
 ## State Management
 
-The pipeline maintains state across executions:
+The pipeline maintains knowledge across executions:
 - Existing nodes are summarized and provided as context
 - New nodes are added to the persistent graph
-- Relationships are preserved between executions
-
-## Chunk Boundary Handling
-
-Handles incomplete sentences from voice input:
-- Incomplete chunks are buffered between executions
-- Only complete thoughts are processed into nodes
-- Prevents fragmentation of ideas
-
-## Testing
-
-Run tests from the tests directory:
-```bash
-cd tests
-python test_state_persistence.py
-python test_chunk_boundaries.py
-python benchmark_multi_execution.py
-```
-
-## Requirements
-
-See the main project `requirements.txt` for dependencies.
+- Relationships are preserved between voice sessions
 
 ## Quick Start
 
@@ -81,48 +57,24 @@ See the main project `requirements.txt` for dependencies.
 # Install dependencies (from project root)
 pip install -r requirements.txt
 
-# Run with mock LLM responses (no API key needed)
-python run_test.py
+# Set up API key
+export GOOGLE_API_KEY="your_gemini_api_key"
 
-# Run with real LLM integration
-# 1. Add your API key to .env file: GOOGLE_API_KEY=your_api_key_here
-# 2. Uncomment the real LLM code in llm_integration.py
-# 3. Run the test script
+# Run a test
 python run_test.py
 ```
 
-## File Structure
+## Testing
 
-- `state.py` - State schema definition
-- `nodes.py` - Node functions for each stage  
-- `graph.py` - Graph definition and flow control
-- `main.py` - Main pipeline runner
-- `llm_integration.py` - LLM API integration
-- `test_pipeline.py` - Standalone test script
-- `run_test.py` - Simple script to run the pipeline
-- `prompts/` - Individual prompt files for each stage
+Run tests from the project root:
+```bash
+# Unit tests
+python -m pytest backend/tests/unit_tests/agentic_workflows/
 
-## Usage Example
-
-```python
-from main import run_voicetree_pipeline
-
-transcript = "Today I want to work on my project..."
-existing_nodes = "Project Planning: Main project node..."
-
-result = run_voicetree_pipeline(transcript, existing_nodes)
-new_nodes = result["new_nodes"]
+# Integration tests
+python -m pytest backend/tests/integration_tests/agentic_workflows/
 ```
 
-## Key Benefits
+## Integration
 
-- **Modular**: Each stage is independently testable
-- **LLM-Friendly**: Simple files that LLMs can easily modify
-- **Production-Ready**: Error handling, state management, logging
-- **Integration-Ready**: Easy to integrate with existing VoiceTree backend
-
-## Next Steps
-
-1. Add valid API key to use real LLM integration
-2. Benchmark against single-LLM approach using quality_LLM_benchmarker.py
-3. Integrate with existing VoiceTree backend 
+This workflow system integrates with the main VoiceTree backend through the `WorkflowAdapter` class in `backend/workflow_adapter.py`. 

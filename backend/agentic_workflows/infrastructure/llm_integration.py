@@ -144,25 +144,43 @@ def _initialize_gemini() -> bool:
 _load_environment()
 GEMINI_AVAILABLE = _initialize_gemini()
 
-# CRASH IMMEDIATELY if Gemini API is not available
-# The system is completely dependent on Gemini API - no graceful degradation
-if not GEMINI_AVAILABLE:
-    error_msg = (
-        "\n" + "="*70 + "\n"
-        "🚨 CRITICAL: GEMINI API UNAVAILABLE - SYSTEM CANNOT START\n"
-        "="*70 + "\n"
-        "The VoiceTree system is completely dependent on Google's Gemini API.\n"
-        "Check the initialization logs above for specific error details.\n\n"
-        "Most common issues:\n"
-        "• GOOGLE_API_KEY environment variable not set\n"
-        "• API key is invalid or lacks permissions\n"
-        "• google-generativeai package not installed\n"
-        "• API quota exceeded or service unavailable\n\n"
-        "Fix the issue and restart the system.\n"
-        "="*70
-    )
-    print(error_msg)
-    raise RuntimeError("GEMINI API UNAVAILABLE - CANNOT CONTINUE")
+# ONLY crash if explicitly requested to ensure API availability
+# Unit tests and non-API modules can import this without crashing
+def _is_in_unit_test():
+    """Check if we're running in a unit test context."""
+    import sys
+    return 'pytest' in sys.modules and 'unit_tests' in ' '.join(sys.argv)
+
+def _ensure_api_available():
+    """Ensure API is available - crash if not."""
+    if not GEMINI_AVAILABLE:
+        # Provide more helpful error messages based on context
+        context_hint = ""
+        if _is_in_unit_test():
+            context_hint = (
+                "\n🧪 UNIT TEST CONTEXT DETECTED:\n"
+                "• Unit tests should mock LLM calls instead of making real API calls\n"
+                "• Consider using @mock.patch to mock call_llm and call_llm_structured\n"
+                "• If this is an integration test, mark it with @pytest.mark.integration\n\n"
+            )
+        
+        error_msg = (
+            "\n" + "="*70 + "\n"
+            "🚨 CRITICAL: GEMINI API UNAVAILABLE - SYSTEM CANNOT START\n"
+            "="*70 + "\n"
+            "The VoiceTree system is completely dependent on Google's Gemini API.\n"
+            "Check the initialization logs above for specific error details.\n\n"
+            "Most common issues:\n"
+            "• GOOGLE_API_KEY environment variable not set\n"
+            "• API key is invalid or lacks permissions\n"
+            "• google-generativeai package not installed\n"
+            "• API quota exceeded or service unavailable\n\n"
+            f"{context_hint}"
+            "Fix the issue and restart the system.\n"
+            "="*70
+        )
+        print(error_msg)
+        raise RuntimeError("GEMINI API UNAVAILABLE - CANNOT CONTINUE")
 
 
 def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
@@ -181,9 +199,8 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         RuntimeError: Always crashes if called when API is unavailable
         ValueError: If stage type is unknown
     """
-    # Double-check at runtime (should never happen due to startup crash)
-    if not GEMINI_AVAILABLE:
-        raise RuntimeError("GEMINI API UNAVAILABLE - SYSTEM SHOULD HAVE CRASHED AT STARTUP")
+    # Ensure API is available - crash if not
+    _ensure_api_available()
     
     try:
         import google.generativeai as genai
@@ -267,28 +284,26 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
     except Exception as e:
         error_msg = f"❌ Error calling Gemini API: {str(e)}"
         print(error_msg)
-        # CRASH IMMEDIATELY - any API error is considered unrecoverable
-        raise RuntimeError(f"{error_msg}\nAPI error is unrecoverable - please check configuration and try again")
+        # CRASH IMMEDIATELY - API errors are unrecoverable
+        raise RuntimeError(f"{error_msg}\nGemini API error - cannot continue")
 
 
 def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
     """
-    Legacy function for backward compatibility
-    Calls the LLM and returns raw text response
+    Call the LLM with a text prompt and return the response
     
     Args:
         prompt: The prompt to send to the LLM
         model_name: The model to use (default: gemini-2.0-flash)
         
     Returns:
-        The LLM response as a string
+        str: The response text from the LLM
         
     Raises:
         RuntimeError: Always crashes if called when API is unavailable
     """
-    # Double-check at runtime (should never happen due to startup crash)
-    if not GEMINI_AVAILABLE:
-        raise RuntimeError("GEMINI API UNAVAILABLE - SYSTEM SHOULD HAVE CRASHED AT STARTUP")
+    # Ensure API is available - crash if not
+    _ensure_api_available()
     
     try:
         import google.generativeai as genai
@@ -316,28 +331,31 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         # Use the standard generativeai API
         model = genai.GenerativeModel(model_name)
         
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                max_output_tokens=8192,
-                temperature=0.1,
-            )
+        # Create generation config
+        generation_config = genai.GenerationConfig(
+            max_output_tokens=8192,
+            temperature=0.1,
         )
         
-        # Check if response has text
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config
+        )
+        
         if hasattr(response, 'text') and response.text:
-            print(f"✅ API call successful - response length: {len(response.text)} chars")
-            return response.text
+            print(f"✅ API call successful - response received")
+            return response.text.strip()
         else:
             error_msg = f"❌ No text in response: {response}"
             print(error_msg)
             # CRASH IMMEDIATELY - empty API response is unrecoverable
             raise RuntimeError(f"{error_msg}\nEmpty API response - cannot continue")
+            
     except Exception as e:
         error_msg = f"❌ Error calling Gemini API: {str(e)}"
         print(error_msg)
-        # CRASH IMMEDIATELY - any API error is considered unrecoverable
-        raise RuntimeError(f"{error_msg}\nAPI error is unrecoverable - please check configuration and try again")
+        # CRASH IMMEDIATELY - API errors are unrecoverable
+        raise RuntimeError(f"{error_msg}\nGemini API error - cannot continue")
 
 
 

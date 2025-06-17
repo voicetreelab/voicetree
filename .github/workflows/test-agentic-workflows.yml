@@ -53,12 +53,17 @@ jobs:
         pip install pytest pytest-asyncio pytest-xdist
 
     - name: Run unit tests
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         cd backend
+        echo "🧪 Running unit tests (should not require API calls)..."
         python -m pytest tests/unit_tests/ \
           --disable-warnings \
           -v \
-          --tb=short
+          --tb=short \
+          --maxfail=5 \
+          --timeout=60
     
     - name: Upload unit test results
       uses: actions/upload-artifact@v4
@@ -98,6 +103,7 @@ jobs:
     - name: Run core integration tests
       env:
         PYTEST_TEST_MODE: ci
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         cd backend
         echo "🧪 Running core integration tests..."
@@ -107,7 +113,8 @@ jobs:
           -v \
           --tb=short \
           --disable-warnings \
-          --timeout=120
+          --timeout=120 \
+          --maxfail=3
         
         # Run other integration tests (may include API calls)
         python -m pytest tests/integration_tests/ \
@@ -115,7 +122,8 @@ jobs:
           -v \
           --tb=short \
           --disable-warnings \
-          --timeout=60
+          --timeout=60 \
+          --maxfail=3
       timeout-minutes: 10
     
     - name: Upload integration test results
