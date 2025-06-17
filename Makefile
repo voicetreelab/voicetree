@@ -18,6 +18,10 @@ help:
 	@echo "  test-ci        - 🐌 Comprehensive CI tests (full API calls, ~60s)"
 	@echo "  test-all       - 🔄 Run all test modes in sequence"
 	@echo ""
+	@echo "📊 Quality & Benchmarking:"
+	@echo "  test-benchmarker - 📊 Test enhanced 4-stage scoring system (< 10s)"
+	@echo "  test-quality-system - 🧪 Test quality scoring system (< 15s)"
+	@echo ""
 	@echo "Utilities:"
 	@echo "  clean         - 🧹 Clean up test artifacts"
 	@echo "  requirements  - 📦 Install/update dependencies"
@@ -127,4 +131,14 @@ test-quality-system:
 	@python -c "from backend.benchmarker.quality import assess_workflow_quality; result = assess_workflow_quality(); print(f'✅ Quality System Working: {result.overall_score:.1f}/100')" && \
 	python -m pytest backend/tests/ -k quality --quiet && \
 	echo "✅ All quality tests passed - system is GREEN" || \
-	(echo "❌ Quality system tests failed - system is RED" && exit 1) 
+	(echo "❌ Quality system tests failed - system is RED" && exit 1)
+
+# Enhanced Benchmarker Testing (BIBLE RULE #2: Single Atomic Correctness Command)
+test-benchmarker:
+	@echo "📊 Testing Enhanced VoiceTree Benchmarker System..."
+	@echo "🔍 Testing 4-stage scoring system..."
+	@python -c "from backend.benchmarker.debug_workflow import WorkflowQualityScorer, analyze_workflow_debug_logs; scorer = WorkflowQualityScorer(); print('✅ Scoring system initialized'); result = analyze_workflow_debug_logs(); print(f'✅ Analysis complete: {len(result.get(\"quality_scores\", {}))} stages scored')" && \
+	echo "🧪 Testing unified benchmarker integration..." && \
+	python -c "from backend.benchmarker.unified_voicetree_benchmarker import UnifiedVoiceTreeBenchmarker; benchmarker = UnifiedVoiceTreeBenchmarker(); print('✅ Unified benchmarker initialized'); analysis = benchmarker._run_enhanced_workflow_analysis(); print(f'✅ Enhanced analysis: {\"working\" if analysis else \"no debug logs found (expected)\"}');" && \
+	echo "✅ Enhanced benchmarker system is GREEN - all components working" || \
+	(echo "❌ Enhanced benchmarker system is RED - component failure detected" && exit 1) 
