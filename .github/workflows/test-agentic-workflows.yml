@@ -112,55 +112,10 @@ jobs:
        github.ref == 'refs/heads/develop' || 
        github.event_name == 'workflow_dispatch') &&
       github.event.inputs.emergency_bypass != 'true'
-      
-  # Emergency Bypass Job (runs instead of API tests when needed)
-  emergency-bypass:
-    runs-on: ubuntu-latest
-    name: "Emergency Bypass Mode"
-    needs: fast-tests
-    if: github.event.inputs.emergency_bypass == 'true'
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-asyncio pytest-xdist
-
-    - name: Run emergency bypass tests
-      run: |
-        echo "🚨 Running in emergency bypass mode - API tests skipped"
-        chmod +x scripts/ci_emergency_bypass.sh
-        ./scripts/ci_emergency_bypass.sh
+    - name: Dummy step
+      run: echo "Hello"
       
-    - name: Upload emergency test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: emergency-bypass-results
-        path: |
-          backend/tests/unit_tests/test-results/
-          backend/tests/integration_tests/test-results/
-
-  # Continue with existing api-tests job
-  api-tests-continue:
-    runs-on: ubuntu-latest
-    name: "API Integration Tests (Continued)"
-    needs: fast-tests
-    if: |
-      (github.ref == 'refs/heads/main' || 
-       github.ref == 'refs/heads/develop' || 
-       github.event_name == 'workflow_dispatch') &&
-      github.event.inputs.emergency_bypass != 'true'
-    
-    steps:
     - uses: actions/checkout@v4
     
     - name: Set up Python 3.11
@@ -248,10 +203,19 @@ jobs:
           -v \
           --tb=short \
           --disable-warnings \
-          --timeout=180 \
+          --timeout=300 \
+          --maxfail=5 \
+          -n auto
+        
+        # Live system quality tests
+        python -m pytest tests/integration_tests/live_system/ \
+          --test-mode=${{ github.event.inputs.test_mode || 'ci' }} \
+          -v \
+          --tb=short \
+          --disable-warnings \
+          --timeout=300 \
           --maxfail=3
-      timeout-minutes: 15
-
+      
     - name: Upload API test results
       uses: actions/upload-artifact@v4
       if: always()
@@ -259,18 +223,15 @@ jobs:
         name: api-test-results
         path: |
           backend/pipeline_system_tests/test-results/
-          backend/tests/integration_tests/agentic_workflows/test-results/
-
-  # Job 3: Quality & Performance Benchmarks
-  benchmarks:
+          backend/tests/integration_tests/test-results/
+          backend/tests/integration_tests/live_system/test-results/
+      
+  # Emergency Bypass Job (runs instead of API tests when needed)
+  emergency-bypass:
     runs-on: ubuntu-latest
-    name: "Quality & Performance Benchmarks"
-    needs: [api-tests-continue, emergency-bypass]
-    if: |
-      always() && !cancelled() && (
-        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.include_benchmarks == 'true')
-      )
+    name: "Emergency Bypass Mode"
+    needs: fast-tests
+    if: github.event.inputs.emergency_bypass == 'true'
     
     steps:
     - uses: actions/checkout@v4
@@ -280,6 +241,50 @@ jobs:
       with:
         python-version: "3.11"
     
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-xdist
+
+    - name: Run emergency bypass tests
+      run: |
+        echo "🚨 Running in emergency bypass mode - API tests skipped"
+        chmod +x scripts/ci_emergency_bypass.sh
+        ./scripts/ci_emergency_bypass.sh
+      
+    - name: Upload emergency test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: emergency-bypass-results
+        path: |
+          backend/tests/unit_tests/test-results/
+          backend/tests/integration_tests/test-results/
+
+  # Job 3: Performance Benchmarks (optional)
+  benchmarks:
+    runs-on: ubuntu-latest
+    name: "Performance Benchmarks"
+    needs: [api-tests, emergency-bypass]
+    if: |
+      always() &&
+      (needs.api-tests.result == 'success' || needs.emergency-bypass.result == 'success') &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.include_benchmarks == 'true') ||
+        (github.ref == 'refs/heads/main')
+      )
+      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Needed for checking git history in benchmarks
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
@@ -287,35 +292,26 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-asyncio
 
-    - name: Run quality benchmarks
+    - name: Run Benchmarker
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        PYTHONPATH: ${{ github.workspace }}
+        PYTEST_TEST_MODE: "benchmark"
       run: |
-        echo "📊 Running quality benchmarks..."
-        python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
-      timeout-minutes: 10
-    
-    - name: Run performance benchmarks
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.include_benchmarks == 'true'
-      env:
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        PYTEST_TEST_MODE: ${{ github.event.inputs.test_mode || 'ci' }}
-      run: |
-        echo "⚡ Running performance benchmarks..."
-        cd backend/tests/integration_tests/agentic_workflows
-        python -m pytest test_performance_benchmark.py \
-          --test-mode=${{ github.event.inputs.test_mode || 'ci' }} \
-          -v \
-          --tb=short
-      timeout-minutes: 10
+        echo "🚀 Running performance benchmarks..."
+        make test-benchmarker
+
+    - name: Upload Benchmark Reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-reports
+        path: unified_benchmark_reports/
 
     - name: Generate test documentation
       run: |

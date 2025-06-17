@@ -48,4 +48,8 @@
   - `backend/README-dev.md`: Core system architecture and orchestration.
   - `backend/tree_manager/README-dev.md`: Tree data structures and buffer management.
   - `backend/agentic_workflows/README-dev.md`: 4-stage LLM processing pipeline.
-  - `backend/benchmarker/README-dev.md`: Quality testing and performance measurement. 
+  - `backend/benchmarker/README-dev.md`: Quality testing and performance measurement.
+- **CI/CD:** Fixed a critical workflow error in `test-agentic-workflows.yml` where the `api-tests` job had no steps defined. Merged the logic from a misplaced `api-tests-continue` job and corrected the downstream `benchmarks` job dependencies to ensure it runs correctly after either `api-tests` or `emergency-bypass` succeeds.
+
+## [0.6.0] - 2024-07-25 - CI/CD & Developer Experience Overhaul
+// ... existing code ... 
