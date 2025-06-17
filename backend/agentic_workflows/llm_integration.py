@@ -113,6 +113,11 @@ def _initialize_gemini() -> bool:
 _initialized = False
 GEMINI_AVAILABLE = False
 
+# EMERGENCY CIRCUIT BREAKER: Stop repetitive error messages  
+_circuit_breaker_tripped = False
+_error_message_count = 0
+_max_error_messages = 3  # Only show error message 3 times max
+
 def _initialize_once():
     """Initialize the module only once, no matter how many times it's imported."""
     global _initialized, GEMINI_AVAILABLE
@@ -123,6 +128,14 @@ def _initialize_once():
 
 # Initialize immediately when module is first imported
 _initialize_once()
+
+
+def reset_circuit_breaker():
+    """Reset the circuit breaker - useful for tests or after fixing API issues"""
+    global _circuit_breaker_tripped, _error_message_count
+    _circuit_breaker_tripped = False
+    _error_message_count = 0
+    print("🔄 Circuit breaker reset - API calls will be attempted again")
 
 
 def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
@@ -142,15 +155,30 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         ValueError: If API key is missing or stage type is unknown
     """
     if not GEMINI_AVAILABLE:
+        global _circuit_breaker_tripped, _error_message_count
+        
+        # CIRCUIT BREAKER: If we've already tripped the circuit breaker, fail silently
+        if _circuit_breaker_tripped:
+            raise RuntimeError("API_UNAVAILABLE_CIRCUIT_BREAKER_TRIPPED")
+        
+        # Increment error message count
+        _error_message_count += 1
+        
+        # If we've hit the limit, trip the circuit breaker
+        if _error_message_count >= _max_error_messages:
+            _circuit_breaker_tripped = True
+            print("🔴 CIRCUIT BREAKER ACTIVATED - API calls suppressed to prevent log spam")
+            raise RuntimeError("API_UNAVAILABLE_CIRCUIT_BREAKER_TRIPPED")
+        
         error_msg = (
-            "❌ Gemini API is not available. Please ensure:\n"
+            f"❌ Gemini API is not available (Attempt {_error_message_count}/{_max_error_messages}). Please ensure:\n"
             "1. google-generativeai package is installed: pip install google-generativeai\n"
             "2. GOOGLE_API_KEY environment variable is set\n"
             "3. API key is valid and has proper permissions"
         )
         print(error_msg)
         # CRASH IMMEDIATELY instead of graceful error handling
-        raise RuntimeError(error_msg)
+        raise RuntimeError(f"GEMINI API UNAVAILABLE - ATTEMPT {_error_message_count}")
     
     try:
         import google.generativeai as genai
@@ -254,15 +282,30 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         RuntimeError: If Gemini API is not available or configured
     """
     if not GEMINI_AVAILABLE:
+        global _circuit_breaker_tripped, _error_message_count
+        
+        # CIRCUIT BREAKER: If we've already tripped the circuit breaker, fail silently
+        if _circuit_breaker_tripped:
+            raise RuntimeError("API_UNAVAILABLE_CIRCUIT_BREAKER_TRIPPED")
+        
+        # Increment error message count
+        _error_message_count += 1
+        
+        # If we've hit the limit, trip the circuit breaker
+        if _error_message_count >= _max_error_messages:
+            _circuit_breaker_tripped = True
+            print("🔴 CIRCUIT BREAKER ACTIVATED - API calls suppressed to prevent log spam")
+            raise RuntimeError("API_UNAVAILABLE_CIRCUIT_BREAKER_TRIPPED")
+        
         error_msg = (
-            "❌ Gemini API is not available. Please ensure:\n"
+            f"❌ Gemini API is not available (Attempt {_error_message_count}/{_max_error_messages}). Please ensure:\n"
             "1. google-generativeai package is installed: pip install google-generativeai\n"
             "2. GOOGLE_API_KEY environment variable is set\n"
             "3. API key is valid and has proper permissions"
         )
         print(error_msg)
         # CRASH IMMEDIATELY instead of graceful error handling
-        raise RuntimeError(error_msg)
+        raise RuntimeError(f"GEMINI API UNAVAILABLE - ATTEMPT {_error_message_count}")
     
     try:
         import google.generativeai as genai

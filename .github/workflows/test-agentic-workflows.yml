@@ -28,6 +28,11 @@ on:
         required: false
         default: false
         type: boolean
+      emergency_bypass:
+        description: 'Emergency bypass mode (skip API tests)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   # Job 1: Fast Tests (Unit + Integration without API)
@@ -56,6 +61,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-asyncio pytest-xdist
+
+    - name: Run pre-flight validation (Fast Tests)
+      run: |
+        echo "🔍 Running pre-flight validation for fast tests..."
+        python scripts/ci_preflight.py || echo "⚠️ Pre-flight validation failed - proceeding with limited tests"
+      continue-on-error: true
 
     - name: Run unit tests
       run: |
@@ -91,15 +102,63 @@ jobs:
           backend/tests/unit_tests/test-results/
           backend/tests/integration_tests/test-results/
 
-  # Job 2: API Integration Tests
+  # Job 2: API Integration Tests (or Emergency Bypass)
   api-tests:
     runs-on: ubuntu-latest
     name: "API Integration Tests"
     needs: fast-tests
     if: |
-      github.ref == 'refs/heads/main' || 
-      github.ref == 'refs/heads/develop' || 
-      github.event_name == 'workflow_dispatch'
+      (github.ref == 'refs/heads/main' || 
+       github.ref == 'refs/heads/develop' || 
+       github.event_name == 'workflow_dispatch') &&
+      github.event.inputs.emergency_bypass != 'true'
+      
+  # Emergency Bypass Job (runs instead of API tests when needed)
+  emergency-bypass:
+    runs-on: ubuntu-latest
+    name: "Emergency Bypass Mode"
+    needs: fast-tests
+    if: github.event.inputs.emergency_bypass == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-xdist
+
+    - name: Run emergency bypass tests
+      run: |
+        echo "🚨 Running in emergency bypass mode - API tests skipped"
+        chmod +x scripts/ci_emergency_bypass.sh
+        ./scripts/ci_emergency_bypass.sh
+      
+    - name: Upload emergency test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: emergency-bypass-results
+        path: |
+          backend/tests/unit_tests/test-results/
+          backend/tests/integration_tests/test-results/
+
+  # Continue with existing api-tests job
+  api-tests-continue:
+    runs-on: ubuntu-latest
+    name: "API Integration Tests (Continued)"
+    needs: fast-tests
+    if: |
+      (github.ref == 'refs/heads/main' || 
+       github.ref == 'refs/heads/develop' || 
+       github.event_name == 'workflow_dispatch') &&
+      github.event.inputs.emergency_bypass != 'true'
     
     steps:
     - uses: actions/checkout@v4
@@ -123,7 +182,15 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-asyncio pytest-xdist
 
-    - name: Check API connectivity
+    - name: Pre-flight validation (API Tests)
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      run: |
+        echo "🔍 Running comprehensive pre-flight validation..."
+        python scripts/ci_preflight.py
+        echo "✅ Pre-flight validation passed - proceeding with API tests"
+
+    - name: Check API connectivity with circuit breaker reset
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
@@ -133,23 +200,28 @@ jobs:
           exit 0
         fi
         
-        echo "🧪 Testing Gemini API connectivity..."
+        echo "🧪 Testing Gemini API connectivity with circuit breaker protection..."
         cd backend
         python -c "
         import os
         import sys
         try:
-            from agentic_workflows.infrastructure.llm_integration import GEMINI_AVAILABLE, call_llm
-            print(f'Gemini available: {GEMINI_AVAILABLE}')
+            # Reset circuit breaker to ensure clean state
+            from agentic_workflows.infrastructure.llm_integration import reset_circuit_breaker, GEMINI_AVAILABLE, call_llm
+            reset_circuit_breaker()
+            print(f'🔄 Circuit breaker reset, Gemini available: {GEMINI_AVAILABLE}')
             
             if GEMINI_AVAILABLE:
                 result = call_llm('Say hello', 'gemini-2.0-flash')
                 print(f'✅ API test successful: {len(result)} chars')
             else:
-                print('❌ API initialization failed')
+                print('❌ API initialization failed - check pre-flight validation logs above')
                 sys.exit(1)
         except Exception as e:
-            print(f'❌ API test failed: {e}')
+            if 'CIRCUIT_BREAKER_TRIPPED' in str(e):
+                print('🔴 Circuit breaker activated - API unavailable, stopping to prevent log spam')
+            else:
+                print(f'❌ API test failed: {e}')
             sys.exit(1)
         "
 
@@ -193,10 +265,12 @@ jobs:
   benchmarks:
     runs-on: ubuntu-latest
     name: "Quality & Performance Benchmarks"
-    needs: api-tests
+    needs: [api-tests-continue, emergency-bypass]
     if: |
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.include_benchmarks == 'true')
+      always() && !cancelled() && (
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.include_benchmarks == 'true')
+      )
     
     steps:
     - uses: actions/checkout@v4

@@ -47,6 +47,11 @@ _init_lock = threading.Lock()
 _global_initialized = False
 _global_gemini_available = False
 
+# EMERGENCY CIRCUIT BREAKER: Stop repetitive error messages
+_circuit_breaker_tripped = False
+_error_message_count = 0
+_max_error_messages = 3  # Only show error message 3 times max
+
 def _load_environment() -> None:
     """Load environment variables from .env file if it exists"""
     # Try multiple potential locations for .env file
@@ -184,9 +189,30 @@ def _is_in_unit_test():
     return 'pytest' in sys.modules and 'unit_tests' in ' '.join(sys.argv)
 
 def _ensure_api_available():
-    """Ensure API is available - crash if not."""
+    """Ensure API is available - crash if not. Includes circuit breaker to prevent spam."""
+    global _circuit_breaker_tripped, _error_message_count
+    
     if not GEMINI_AVAILABLE:
-        # Provide more helpful error messages based on context
+        # CIRCUIT BREAKER: If we've already tripped the circuit breaker, fail silently
+        if _circuit_breaker_tripped:
+            raise RuntimeError("API_UNAVAILABLE_CIRCUIT_BREAKER_TRIPPED")
+        
+        # Increment error message count
+        _error_message_count += 1
+        
+        # If we've hit the limit, trip the circuit breaker
+        if _error_message_count >= _max_error_messages:
+            _circuit_breaker_tripped = True
+            print("\n" + "="*70)
+            print("🔴 CIRCUIT BREAKER ACTIVATED - STOPPING REPETITIVE ERRORS")
+            print("="*70)
+            print("The system has attempted to access the Gemini API multiple times.")
+            print("To prevent log spam, further errors will be suppressed.")
+            print("Fix the API issue and restart the system.")
+            print("="*70)
+            raise RuntimeError("API_UNAVAILABLE_CIRCUIT_BREAKER_TRIPPED")
+        
+        # Show the detailed error message (but only first few times)
         context_hint = ""
         if _is_in_unit_test():
             context_hint = (
@@ -198,7 +224,7 @@ def _ensure_api_available():
         
         error_msg = (
             "\n" + "="*70 + "\n"
-            "🚨 CRITICAL: GEMINI API UNAVAILABLE - SYSTEM CANNOT START\n"
+            f"🚨 CRITICAL: GEMINI API UNAVAILABLE - SYSTEM CANNOT START (Attempt {_error_message_count}/{_max_error_messages})\n"
             "="*70 + "\n"
             "The VoiceTree system is completely dependent on Google's Gemini API.\n"
             "Check the initialization logs above for specific error details.\n\n"
@@ -212,7 +238,15 @@ def _ensure_api_available():
             "="*70
         )
         print(error_msg)
-        raise RuntimeError("GEMINI API UNAVAILABLE - CANNOT CONTINUE")
+        raise RuntimeError(f"GEMINI API UNAVAILABLE - ATTEMPT {_error_message_count}")
+
+
+def reset_circuit_breaker():
+    """Reset the circuit breaker - useful for tests or after fixing API issues"""
+    global _circuit_breaker_tripped, _error_message_count
+    _circuit_breaker_tripped = False
+    _error_message_count = 0
+    print("🔄 Circuit breaker reset - API calls will be attempted again")
 
 
 def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
