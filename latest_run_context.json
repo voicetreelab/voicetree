@@ -1,9 +1,0 @@
-{
-    "date": "2025-06-15 21:50:48",
-    "transcript_file": "/Users/bobbobby/repos/VoiceTreePoc/oldVaults/VoiceTreePOC/og_vt_transcript.txt",
-    "output_dir": "/Users/bobbobby/repos/VoiceTreePoc/oldVaults/VoiceTreePOC/QualityTest",
-    "quality_log_file": "/Users/bobbobby/repos/VoiceTreePoc/latest_quality_log.txt",
-    "workflow_io_log": "/Users/bobbobby/repos/VoiceTreePoc/backend/agentic_workflows/workflow_io.log",
-    "git_commit_hash": "41e00c3a34115a4ed26781878a7d0df5f923897f",
-    "git_commit_message": "TROA and TADA dual system, better self-improving feedback loop guide"
-}
