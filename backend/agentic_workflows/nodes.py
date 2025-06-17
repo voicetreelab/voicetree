@@ -50,24 +50,16 @@ llm_imported = False
 import_source = ""
 import_error_details = []
 
-# Try to import LLM integration functions (avoid multiple initialization)
+# Import LLM integration functions from infrastructure (with proper error handling)
 try:
-    # First try the new infrastructure path
     from .infrastructure.llm_integration import call_llm_structured, call_llm
     from .debug_logger import log_stage_input_output, log_transcript_processing
     llm_imported = True
     import_source = "infrastructure"
 except ImportError as e1:
     import_error_details.append(f"infrastructure: {e1}")
-    try:
-        # Fallback to legacy direct import
-        from .llm_integration import call_llm_structured, call_llm
-        from .debug_logger import log_stage_input_output, log_transcript_processing
-        llm_imported = True
-        import_source = "legacy direct"
-    except ImportError as e2:
-        import_error_details.append(f"legacy direct: {e2}")
-        llm_imported = False
+    # DO NOT FALLBACK to legacy version - it has broken error handling
+    llm_imported = False
 
 # Only print success message if import succeeded
 if llm_imported:

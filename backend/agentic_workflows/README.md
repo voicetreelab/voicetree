@@ -37,11 +37,13 @@ print(f"Total nodes: {stats['total_nodes']}")
 ## Core Components
 
 - `main.py` - Main pipeline class with state management
-- `graph_definition.py` - LangGraph workflow definition
+- `graph.py` - LangGraph workflow compilation
+- `graph_definition.py` - Workflow structure definition  
 - `nodes.py` - Processing nodes for each stage
 - `state.py` - State schema definition
 - `state_manager.py` - Persistent state management
-- `llm_integration.py` - LLM integration layer
+- `llm_integration.py` - LLM integration layer (Gemini API)
+- `infrastructure/` - Additional execution infrastructure
 - `prompts/` - LLM prompt templates for each stage
 
 ## State Management

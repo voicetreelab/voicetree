@@ -10,7 +10,7 @@ Bridges the gap between pure agent specification and execution.
 from typing import Dict, Any, Optional
 # DISABLED: Missing VoiceTreeAgent class
 # from ..agent import VoiceTreeAgent
-from .llm_integration import call_llm_structured
+from .infrastructure.llm_integration import call_llm_structured
 from .debug_logger import log_stage_input_output
 from backend.agentic_workflows.schema_models import (
     SegmentationResponse, RelationshipResponse, 

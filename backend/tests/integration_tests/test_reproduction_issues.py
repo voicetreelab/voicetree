@@ -9,7 +9,7 @@ from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.LLM_engine.summarize_with_llm import Summarizer
 from backend.agentic_workflows.main import VoiceTreePipeline, run_voicetree_pipeline
-from backend.agentic_workflows.llm_integration import call_llm_structured
+from backend.agentic_workflows.infrastructure.llm_integration import call_llm_structured
 
 
 class TestReproduceManualIssues(unittest.TestCase):
