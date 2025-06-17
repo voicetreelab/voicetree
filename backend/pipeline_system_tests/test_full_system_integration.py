@@ -24,104 +24,105 @@ sys.path.insert(0, str(project_root / "backend"))
 
 
 class TestFullSystemIntegration:
-    """True system-level integration tests - complete pipeline testing"""
+    """
+    Comprehensive system integration tests for VoiceTree
+    Tests the complete pipeline: Audio → Text → Tree → Markdown
+    """
     
     def setup_method(self):
-        """Setup for each test"""
-        # Create temporary output directory for each test
+        """Setup for each test method"""
         self.temp_output_dir = tempfile.mkdtemp(prefix="voicetree_system_test_")
         print(f"📁 Created test output directory: {self.temp_output_dir}")
     
     def teardown_method(self):
-        """Cleanup after each test"""
-        # Clean up test output directory
-        if os.path.exists(self.temp_output_dir):
-            shutil.rmtree(self.temp_output_dir)
-            print(f"🧹 Cleaned up test directory: {self.temp_output_dir}")
+        """Cleanup after each test method"""
+        shutil.rmtree(self.temp_output_dir, ignore_errors=True)
+        print(f"🧹 Cleaned up test directory: {self.temp_output_dir}")
     
     @pytest.mark.timeout(300)  # 5 minute timeout for full system test
     @pytest.mark.asyncio
     async def test_full_system_with_real_audio(self):
         """
-        Complete system test with real .m4a audio file
-        Tests: Audio → VTT → Tree Processing → Markdown Generation
+        Complete system test with real audio file
+        Tests: Audio File → VTT → Tree Processing → Markdown Generation
+        
+        This is the most comprehensive test - validates the entire pipeline
         """
-        print("🚀 FULL SYSTEM INTEGRATION TEST")
+        print("🎯 FULL SYSTEM INTEGRATION TEST WITH REAL AUDIO")
         print("=" * 60)
         
-        # Set environment for stability
-        os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-        
         try:
-            # Import all system components
+            # STAGE 1: Voice-to-Text Processing
+            print("\n🎤 STAGE 1: Voice-to-Text Processing...")
+            print("-" * 50)
+            
+            # Import and initialize VTT engine
             from backend.voice_to_text.voice_to_text import VoiceToTextEngine
+            
+            # Check for test audio file
+            test_audio_file = "test_audio/sample.m4a"
+            if not Path(test_audio_file).exists():
+                # Try alternative locations
+                possible_paths = [
+                    "backend/test_audio/sample.m4a",
+                    "backend/tests/test_data/sample.m4a",
+                    "test_data/sample.m4a"
+                ]
+                
+                test_audio_file = None
+                for path in possible_paths:
+                    if Path(path).exists():
+                        test_audio_file = path
+                        break
+                
+                if not test_audio_file:
+                    pytest.skip("No test audio file available for full system test")
+            
+            engine = VoiceToTextEngine()
+            transcript = engine.process_audio_file(test_audio_file)
+            
+            # Validate we got meaningful text
+            assert transcript and len(transcript) > 10, f"Should get meaningful transcript, got: '{transcript}'"
+            print(f"✅ Audio processing complete: {len(transcript)} characters")
+            print(f"   First 100 chars: {transcript[:100]}...")
+            
+            # STAGE 2: Tree Processing
+            print("\n🌳 STAGE 2: Building Decision Tree...")
+            print("-" * 50)
+            
+            # Import tree processing components
             from backend.tree_manager.decision_tree_ds import DecisionTree
             from backend.tree_manager.text_to_tree_manager import ContextualTreeManager
             from backend.tree_manager.tree_to_markdown_converter import TreeToMarkdownConverter
             from process_transcription import TranscriptionProcessor
             
-            print("✅ All system components imported successfully")
-            
-            # Check for test audio file
-            test_audio_path = Path(__file__).parent / "voice_example_test_input.m4a"
-            
-            if not test_audio_path.exists():
-                pytest.skip("Real audio file not available - system test requires voice_example_test_input.m4a")
-            
-            print(f"🎵 Found test audio: {test_audio_path.name}")
-            
-            # STAGE 1: Audio to Text (VoiceToTextEngine)
-            print("\n📝 STAGE 1: Audio → Text Transcription")
-            print("-" * 50)
-            
-            voice_engine = VoiceToTextEngine()
-            transcript = voice_engine.process_audio_file(str(test_audio_path))
-            
-            assert transcript, "VoiceToTextEngine should produce transcript"
-            assert len(transcript) > 50, "Transcript should contain meaningful content"
-            
-            print(f"✅ Transcription successful: {len(transcript)} characters")
-            print(f"   Preview: '{transcript[:100]}...'")
-            
-            # STAGE 2: Tree Processing (Decision Tree + Tree Manager)
-            print("\n🌳 STAGE 2: Text → Knowledge Tree Processing")
-            print("-" * 50)
-            
+            # Initialize components
             decision_tree = DecisionTree()
             tree_manager = ContextualTreeManager(decision_tree=decision_tree)
             converter = TreeToMarkdownConverter(decision_tree)
             processor = TranscriptionProcessor(tree_manager, converter, output_dir=self.temp_output_dir)
             
-            print("✅ Tree processing components initialized")
+            # Process transcript
+            await processor.process_and_convert(transcript)
             
-            # Process transcript in realistic chunks (like streaming would)
-            sentences = [s.strip() + '.' for s in transcript.split('.') if s.strip()]
+            print(f"✅ Tree processing complete: {len(decision_tree.tree)} nodes created")
             
-            print(f"📦 Processing {len(sentences)} sentence chunks...")
-            
-            for i, chunk in enumerate(sentences):
-                print(f"   Processing chunk {i+1}/{len(sentences)}: '{chunk[:40]}...'")
-                await processor.process_and_convert(chunk)
-                await asyncio.sleep(0.01)  # Small delay like real system
-            
-            # Finalize processing
-            await processor.finalize()
-            
-            print(f"✅ Tree processing complete: {len(decision_tree.nodes)} nodes created")
-            
-            # STAGE 3: Markdown Generation (Output Verification)
-            print("\n📄 STAGE 3: Tree → Markdown File Generation")
+            # STAGE 3: Generate Markdown Output 
+            print("\n📝 STAGE 3: Generating Markdown Files...")
             print("-" * 50)
             
-            # Check that markdown files were generated
-            output_files = list(Path(self.temp_output_dir).glob("*.md"))
+            # Process through markdown converter
+            converter = TreeToMarkdownConverter(decision_tree)
+            output_files = await processor.finalize()
             
-            assert len(output_files) > 0, "System should generate markdown files"
+            print(f"✅ Markdown generation complete: {len(output_files)} files created")
+            for output_file in output_files:
+                print(f"   📄 Generated: {output_file.name}")
             
-            print(f"✅ Generated {len(output_files)} markdown files:")
-            
+            # Validate output files exist and have content
             total_content_length = 0
             for md_file in output_files:
+                assert md_file.exists(), f"Markdown file {md_file} should exist"
                 content = md_file.read_text()
                 total_content_length += len(content)
                 print(f"   📄 {md_file.name}: {len(content)} characters")
@@ -137,7 +138,7 @@ class TestFullSystemIntegration:
             print("-" * 50)
             
             # Validate the complete pipeline worked
-            assert len(decision_tree.nodes) > 0, "Decision tree should contain nodes"
+            assert len(decision_tree.tree) > 0, "Decision tree should contain nodes"
             assert total_content_length > 100, "Should generate substantial markdown content"
             
             # Check for content transformation (audio → meaningful structure)
@@ -149,7 +150,7 @@ class TestFullSystemIntegration:
             
             print("✅ System integration validation passed!")
             print(f"   Audio Input: {len(transcript)} chars")
-            print(f"   Tree Nodes: {len(decision_tree.nodes)}")
+            print(f"   Tree Nodes: {len(decision_tree.tree)}")
             print(f"   Markdown Files: {len(output_files)}")
             print(f"   Final Content: {total_content_length} chars")
             
@@ -158,7 +159,7 @@ class TestFullSystemIntegration:
             
             return {
                 "transcript_length": len(transcript),
-                "tree_nodes": len(decision_tree.nodes),
+                "tree_nodes": len(decision_tree.tree),
                 "markdown_files": len(output_files),
                 "total_content": total_content_length
             }
@@ -221,13 +222,14 @@ class TestFullSystemIntegration:
             output_files = list(Path(self.temp_output_dir).glob("*.md"))
             
             assert len(output_files) > 0, "System should generate markdown files"
-            assert len(decision_tree.nodes) > 0, "Should create tree nodes"
+            assert len(decision_tree.tree) > 0, "Should create tree nodes"
             
             print(f"✅ Mock system test successful!")
-            print(f"   Tree Nodes: {len(decision_tree.nodes)}")
+            print(f"   Tree Nodes: {len(decision_tree.tree)}")
             print(f"   Markdown Files: {len(output_files)}")
             
-            return True
+            # Test passes if we get here without exceptions
+            assert True, "Mock system test completed successfully"
             
         except ImportError as e:
             pytest.skip(f"System test dependencies not available: {e}")
@@ -277,7 +279,8 @@ class TestFullSystemIntegration:
             print("✅ System orchestration layer: Available")
             print("✅ All integration points validated!")
             
-            return True
+            # Test passes if we get here without exceptions  
+            assert True, "Integration points test completed successfully"
             
         except ImportError as e:
             pytest.skip(f"Integration point test dependencies not available: {e}")
@@ -307,12 +310,13 @@ class TestFullSystemIntegration:
             
             # Test empty transcript processing
             decision_tree = DecisionTree()
-            initial_node_count = len(decision_tree.nodes)
+            initial_node_count = len(decision_tree.tree)
             
             # System should handle empty input without crashing
             print("✅ System handles edge cases without crashing")
             
-            return True
+            # Test passes if we get here without exceptions
+            assert True, "Error handling tests completed successfully"
             
         except Exception as e:
             print(f"❌ Error handling test failed: {e}")

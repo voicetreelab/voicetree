@@ -195,9 +195,9 @@ class TestAudioProcessingCI:
             
             print("✅ Full pipeline test completed successfully!")
             
-            # Verify some processing occurred
-            assert len(decision_tree.nodes) > 0
-            print(f"   Created {len(decision_tree.nodes)} nodes in decision tree")
+            # Verify decision tree integration
+            assert len(decision_tree.tree) > 0
+            print(f"   Created {len(decision_tree.tree)} nodes in decision tree")
             
         except ImportError as e:
             # If imports fail, that's OK for CI - just test the mock engine
@@ -251,9 +251,9 @@ class TestAudioProcessingCI:
             
             print("✅ Full pipeline test with real audio completed!")
             
-            # Verify processing occurred
-            assert len(decision_tree.nodes) > 0
-            print(f"   Created {len(decision_tree.nodes)} nodes from real audio")
+            # Verify decision tree integration
+            assert len(decision_tree.tree) > 0
+            print(f"   Created {len(decision_tree.tree)} nodes from real audio")
             
         except ImportError as e:
             # Fallback to just testing the audio transcription

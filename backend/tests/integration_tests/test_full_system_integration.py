@@ -92,10 +92,10 @@ class TestFullSystemIntegration:
             output_files = list(Path(self.temp_output_dir).glob("*.md"))
             
             assert len(output_files) > 0, "System should generate markdown files"
-            assert len(decision_tree.nodes) > 0, "Should create tree nodes"
+            assert len(decision_tree.tree) > 0, "Should create tree nodes"
             
             print(f"✅ Mock system test successful!")
-            print(f"   Tree Nodes: {len(decision_tree.nodes)}")
+            print(f"   Tree Nodes: {len(decision_tree.tree)}")
             print(f"   Markdown Files: {len(output_files)}")
             
             return True
