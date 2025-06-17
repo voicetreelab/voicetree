@@ -51,6 +51,26 @@ Voice Input → Transcription → 4-Stage Agentic Workflow → Knowledge Tree �
 - **`markdownTreeVault/`** - Generated knowledge tree markdown files
 - **`unified_benchmark_reports/`** - Quality assessment reports
 
+## Developer Onboarding
+
+To get a comprehensive understanding of the VoiceTree project for development, a new contributor should read the following documents in this specific order:
+
+1.  **[`README-dev.md`](README-dev.md)** (This file)
+    *   **Purpose**: High-level developer overview, directory structure, and development philosophy.
+    *   **Why first?**: Provides the map to all other documentation and key development commands.
+
+2.  **[`backend/benchmarker/Benchmarker_Agentic_feedback_loop_guide.md`](backend/benchmarker/Benchmarker_Agentic_feedback_loop_guide.md)**
+    *   **Purpose**: The primary guide for developers. It explains how to test, debug, and improve the agentic workflows.
+    *   **Why second?**: It introduces the core developer loop of testing and analysis, which is crucial for making meaningful contributions.
+
+3.  **[`backend/ARCHITECTURE_SUMMARY.md`](backend/ARCHITECTURE_SUMMARY.md)**
+    *   **Purpose**: Provides a detailed look at the backend implementation and how the components fit together.
+    *   **Why third?**: After understanding the high-level concepts and the development workflow, this document dives into the specific components and their interactions.
+    
+4. **[`DEVELOPMENT_SPEED_GUIDE.md`](DEVELOPMENT_SPEED_GUIDE.md)**
+    * **Purpose**: Explains how to run tests efficiently to get fast feedback.
+    * **Why fourth?**: Once you understand the architecture, this guide helps you become a productive developer by speeding up your test-and-debug cycles.
+
 ## Quick Start
 
 ### Prerequisites

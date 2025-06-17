@@ -3,9 +3,9 @@ description: After you have finished task
 globs: 
 alwaysApply: false
 ---
-- perform a brief overall review of the final solution. be critical.
-- update any task plan md files in /current_tasks folder, if there are no more subtasks left, DELETE the file so changelog.md will now be our main source of reference.
-- update changelog.md
-- add a memory (markdown file with your knowledge) to /memories if you have learnt anything very interesting about the codebase, a gotcha, or anything that you think almost every engineer working on the system should know.
-- perform a git commit only to the files you have changed for this task
-- update any other relevant .md files if warranted, such as readme.md architctural files, etc.
+1. perform a brief overall review of the final solution. be critical.
+2. update any task plan md files in /meta/current_tasks folder, if there are no more subtasks left, DELETE the file so changelog.md will now be our main source of reference.
+3. update changelog.md
+4. add a memory (markdown file with your knowledge) to /meta/memories if you have learnt anything very interesting about the codebase, a gotcha, or anything that you think almost every engineer working on the system should know. MEMORIES SHOULD ONLY BE SHORT FACTS, KEEP IT EXTREMELY CONCISE. EACH MEMORY MAX one paragraph.
+5. perform a git commit only to the files you have changed for this task
+6. update any other relevant .md files if warranted, such as development readme.md architctural files, etc.
