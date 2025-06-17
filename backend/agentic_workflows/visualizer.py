@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 import json
 
-from backend.agentic_workflows.legacy_graph_definition import (
+from backend.agentic_workflows.graph_definition import (
     get_workflow_definition,
     visualize_workflow
 )

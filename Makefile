@@ -119,4 +119,12 @@ status:
 	@echo ""
 	@echo "Environment:"
 	@[ -f .env ] && echo "✅ .env file exists" || echo "❌ .env file missing"
-	@[ -n "$$GOOGLE_API_KEY" ] && echo "✅ GOOGLE_API_KEY set" || echo "❌ GOOGLE_API_KEY not set" 
+	@[ -n "$$GOOGLE_API_KEY" ] && echo "✅ GOOGLE_API_KEY set" || echo "❌ GOOGLE_API_KEY not set"
+
+# Quality System Testing (BIBLE RULE #2: Single Atomic Correctness Command)
+test-quality-system:
+	@echo "🧪 Testing VoiceTree Quality Scoring System..."
+	@python -c "from backend.benchmarker.quality import assess_workflow_quality; result = assess_workflow_quality(); print(f'✅ Quality System Working: {result.overall_score:.1f}/100')" && \
+	python -m pytest backend/tests/ -k quality --quiet && \
+	echo "✅ All quality tests passed - system is GREEN" || \
+	(echo "❌ Quality system tests failed - system is RED" && exit 1) 

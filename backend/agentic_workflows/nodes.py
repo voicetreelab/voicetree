@@ -50,36 +50,28 @@ llm_imported = False
 import_source = ""
 import_error_details = []
 
-# Try direct import first (when running from agentic_workflows directory)
+# Try to import LLM integration functions (avoid multiple initialization)
 try:
-    from llm_integration import call_llm_structured, call_llm
-    from debug_logger import log_stage_input_output, log_transcript_processing
+    # First try the new infrastructure path
+    from .infrastructure.llm_integration import call_llm_structured, call_llm
+    from .debug_logger import log_stage_input_output, log_transcript_processing
     llm_imported = True
-    import_source = "direct relative"
-    print(f"✅ LLM integration loaded from {import_source}")
+    import_source = "infrastructure"
 except ImportError as e1:
-    import_error_details.append(f"direct relative: {e1}")
-    
-    # Try backend.agentic_workflows path
+    import_error_details.append(f"infrastructure: {e1}")
     try:
-        from backend.agentic_workflows.llm_integration import call_llm_structured, call_llm
-        from backend.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
+        # Fallback to legacy direct import
+        from .llm_integration import call_llm_structured, call_llm
+        from .debug_logger import log_stage_input_output, log_transcript_processing
         llm_imported = True
-        import_source = "backend.agentic_workflows"
-        print(f"✅ LLM integration loaded from {import_source}")
+        import_source = "legacy direct"
     except ImportError as e2:
-        import_error_details.append(f"backend.agentic_workflows: {e2}")
-        
-        # Try agentic_workflows path  
-        try:
-            from backend.agentic_workflows.llm_integration import call_llm_structured, call_llm
-            from backend.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
-            llm_imported = True
-            import_source = "agentic_workflows"
-            print(f"✅ LLM integration loaded from {import_source}")
-        except ImportError as e3:
-            import_error_details.append(f"agentic_workflows: {e3}")
-            llm_imported = False
+        import_error_details.append(f"legacy direct: {e2}")
+        llm_imported = False
+
+# Only print success message if import succeeded
+if llm_imported:
+    print(f"✅ LLM integration loaded from {import_source}")
 
 if not llm_imported:
     print(f"❌ LLM integration import failed! Using mock implementation.")

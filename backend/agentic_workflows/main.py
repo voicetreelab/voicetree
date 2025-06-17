@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 try:
-    from backend.agentic_workflows.legacy_graph import compile_voicetree_graph
+    from backend.agentic_workflows.graph import compile_voicetree_graph
     from backend.agentic_workflows.state import VoiceTreeState
     from backend.agentic_workflows.state_manager import VoiceTreeStateManager
     LANGGRAPH_AVAILABLE = True

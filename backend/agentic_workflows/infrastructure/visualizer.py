@@ -7,12 +7,12 @@ from pathlib import Path
 import json
 
 try:
-    from ..legacy_graph_definition import (
+    from ..graph_definition import (
         get_workflow_definition,
         visualize_workflow
     )
 except ImportError:
-    from backend.agentic_workflows.legacy_graph_definition import (
+    from backend.agentic_workflows.graph_definition import (
         get_workflow_definition,
         visualize_workflow
     )

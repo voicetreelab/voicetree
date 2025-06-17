@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import json
 
-from backend.agentic_workflows.legacy_graph_definition import (
+from backend.agentic_workflows.graph_definition import (
     get_workflow_definition,
     get_stage_by_id,
     visualize_workflow
@@ -42,7 +42,7 @@ class WorkflowInterface:
     def _get_default_executor(self) -> WorkflowExecutor:
         """Get the default LangGraph executor"""
         try:
-            from backend.agentic_workflows.legacy_graph import compile_voicetree_graph
+            from backend.agentic_workflows.graph import compile_voicetree_graph
             
             class LangGraphExecutor:
                 def __init__(self):
