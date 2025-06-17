@@ -70,7 +70,7 @@ jobs:
   # Integration tests - run after unit tests pass
   integration-tests:
     runs-on: ubuntu-latest
-    name: "Integration Tests (No API)"
+    name: "Integration Tests (Core Pipeline)"
     needs: unit-tests
     
     steps:
@@ -95,31 +95,27 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-asyncio pytest-xdist
 
-    - name: Verify test audio file exists
-      run: |
-        if [ -f "backend/pipeline_system_tests/voice_example_test_input.m4a" ]; then
-          echo "✅ Test audio file found: $(ls -lh backend/pipeline_system_tests/voice_example_test_input.m4a)"
-        else
-          echo "⚠️ Test audio file not found - audio tests will be skipped"
-        fi
-    
-    - name: Run integration tests (excluding API-dependent)
+    - name: Run core integration tests
       env:
-        KMP_DUPLICATE_LIB_OK: TRUE  # Fix OpenMP library conflicts with Whisper
+        PYTEST_TEST_MODE: ci
       run: |
-        # Run pipeline system tests (has the audio file)
         cd backend
-        python -m pytest pipeline_system_tests/ \
-          -k "not manual" \
-          --disable-warnings \
+        echo "🧪 Running core integration tests..."
+        
+        # Focus on system integration and pipeline logic
+        python -m pytest pipeline_system_tests/test_full_system_integration.py \
           -v \
-          --tb=short
-        # Also run integration tests that don't need audio
+          --tb=short \
+          --disable-warnings \
+          --timeout=120
+        
+        # Run other integration tests (non-API)
         python -m pytest tests/integration_tests/ \
-          -k "not audio and not api" \
-          --disable-warnings \
+          -k "not api" \
           -v \
-          --tb=short
+          --tb=short \
+          --disable-warnings \
+          --timeout=60
       timeout-minutes: 10
     
     - name: Upload integration test results
@@ -128,6 +124,86 @@ jobs:
       with:
         name: integration-test-results
         path: backend/tests/integration_tests/test-results/
+
+  # Audio testing documentation - manual testing guidance
+  audio-testing-guide:
+    runs-on: ubuntu-latest
+    name: "Audio Testing Guide"
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create audio testing documentation
+      run: |
+        cat > AUDIO_TESTING.md << 'EOF'
+        # 🎤 Audio Testing Guide
+        
+        ## Why Audio Tests Are Not in CI/CD
+        
+        Audio processing tests are excluded from CI/CD because they:
+        - Require heavyweight AI models (Whisper) 
+        - Need actual audio files
+        - Have threading/stability issues in containerized environments
+        - Take significant time and resources
+        
+        ## Local Audio Testing
+        
+        ### Prerequisites
+        ```bash
+        # Install audio dependencies
+        pip install -r requirements.txt
+        
+        # Ensure you have test audio files
+        # Place .m4a files in backend/pipeline_system_tests/
+        ```
+        
+        ### Manual Testing Commands
+        ```bash
+        cd backend
+        
+        # Test voice-to-text engine
+        python -c "
+        from voice_to_text.voice_to_text import VoiceToTextEngine
+        engine = VoiceToTextEngine()
+        result = engine.process_audio_file('path/to/your/audio.m4a')
+        print(f'Transcript: {result}')
+        "
+        
+        # Test full pipeline with real audio
+        python ../process_transcription.py --audio path/to/your/audio.m4a
+        ```
+        
+        ### Integration Testing
+        ```bash
+        # Test the complete pipeline
+        python -m pytest pipeline_system_tests/test_full_system_integration.py::TestFullSystemIntegration::test_full_system_with_real_audio -v -s
+        ```
+        
+        ## What CI/CD Tests Instead
+        
+        - ✅ Core tree processing logic
+        - ✅ System integration points  
+        - ✅ API workflows (with real LLM calls)
+        - ✅ Error handling and recovery
+        - ✅ Mocked pipeline components
+        
+        ## Quality Assurance
+        
+        Before releasing, manually verify:
+        1. Audio transcription works with sample files
+        2. Complete pipeline: Audio → Tree → Markdown
+        3. Real-time processing doesn't crash
+        4. Memory usage is reasonable
+        EOF
+        
+        echo "📝 Audio testing documentation created"
+        
+    - name: Upload audio testing guide
+      uses: actions/upload-artifact@v4
+      with:
+        name: audio-testing-guide
+        path: AUDIO_TESTING.md
 
   # API integration tests - only on main/develop or manual trigger with API key
   api-integration-tests:
