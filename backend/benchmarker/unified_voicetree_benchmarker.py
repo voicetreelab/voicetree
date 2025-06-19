@@ -114,7 +114,7 @@ class UnifiedVoiceTreeBenchmarker:
         """Setup all necessary imports with error handling"""
         try:
             from enhanced_transcription_processor import create_enhanced_transcription_processor
-            from tree_manager.decision_tree_ds import DecisionTree
+            from backend.tree_manager.decision_tree_ds import DecisionTree
             self.create_enhanced_transcription_processor = create_enhanced_transcription_processor
             self.DecisionTree = DecisionTree
             logger.info("✅ Core VoiceTree imports successful")

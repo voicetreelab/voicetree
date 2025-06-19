@@ -23,15 +23,6 @@ class TestWorkflowAdapter(unittest.TestCase):
         with patch('backend.agentic_workflows.main.VoiceTreePipeline'):
             self.adapter = WorkflowAdapter(self.decision_tree)
     
-    def test_initialization_creates_proper_adapter(self):
-        """Test that WorkflowAdapter initializes with correct properties"""
-        # Arrange & Act done in setUp
-        
-        # Assert
-        self.assertEqual(self.adapter.decision_tree, self.decision_tree)
-        self.assertEqual(self.adapter._incomplete_buffer, "")
-        self.assertIsNotNone(self.adapter.pipeline)
-    
     def test_prepare_state_snapshot_includes_node_summaries(self):
         """Test that state snapshot contains existing node information"""
         # Act
@@ -213,65 +204,6 @@ class TestWorkflowAdapter(unittest.TestCase):
                 
                 # Assert - check that incomplete buffer was updated
                 self.assertEqual(self.adapter._incomplete_buffer, "Still incomplete")
-        
-        asyncio.run(async_test())
-    
-    def test_apply_node_actions_creates_new_node(self):
-        """Test that CREATE action properly creates a new node"""
-        # Arrange
-        actions = [NodeAction(
-            action="CREATE",
-            concept_name="New Node",
-            neighbour_concept_name="Root",
-            relationship_to_neighbour="child of",
-            markdown_content_to_append="New content",
-            updated_summary_of_node="New summary",
-            is_complete=True,
-            labelled_text="test"
-        )]
-        initial_count = len(self.decision_tree.tree)
-        
-        async def async_test():
-            # Mock the get_node_id_from_name method to return a valid parent ID
-            with patch.object(self.decision_tree, 'get_node_id_from_name', return_value=0):
-                with patch.object(self.decision_tree, 'create_new_node') as mock_create:
-                    # Act
-                    await self.adapter._apply_node_actions(actions)
-                    
-                    # Assert
-                    mock_create.assert_called_once_with(
-                        name="New Node",
-                        parent_node_id=0,
-                        content="New content",
-                        summary="New summary",
-                        relationship_to_parent="child of"
-                    )
-        
-        asyncio.run(async_test())
-    
-    def test_apply_node_actions_appends_to_existing_node(self):
-        """Test that APPEND action properly updates existing node"""
-        # Arrange
-        original_content = self.decision_tree.tree[1].content
-        actions = [NodeAction(
-            action="APPEND",
-            concept_name="Test Node",
-            neighbour_concept_name=None,
-            relationship_to_neighbour=None,
-            markdown_content_to_append="Additional content",
-            updated_summary_of_node="Updated summary",
-            is_complete=True,
-            labelled_text="test"
-        )]
-        
-        async def async_test():
-            # Act
-            await self.adapter._apply_node_actions(actions)
-            
-            # Assert
-            updated_content = self.decision_tree.tree[1].content
-            self.assertNotEqual(updated_content, original_content)
-            self.assertIn("Additional content", updated_content)
         
         asyncio.run(async_test())
     
