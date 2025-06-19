@@ -78,7 +78,7 @@ def _initialize_gemini() -> bool:
     """
     try:
         # Use the standard Google Generative AI SDK
-        import google.generativeai as genai
+        import google.generativeai as genai #todo this seems hacky import within flow?
         print("✅ Google Generative AI package available")
         
         # Try to get API key from environment
@@ -87,21 +87,8 @@ def _initialize_gemini() -> bool:
         
         # Try to get from settings module as fallback
         if not api_key:
-            try:
-                # Add parent directories to path for imports
-                for i in range(3):
-                    parent = Path.cwd().parents[i] if i < len(Path.cwd().parents) else None
-                    if parent and parent not in sys.path:
-                        sys.path.append(str(parent))
-                
-                from backend import settings
-                api_key = getattr(settings, 'GOOGLE_API_KEY', None)
-                if api_key:
-                    print("✅ Found API key in settings.py")
-                else:
-                    print("❌ No API key found in settings.py either")
-            except ImportError as e:
-                print(f"⚠️ Could not import settings.py: {e}")
+             print("❌ No API key found in settings.py either")
+
         
         if api_key:
             try:
@@ -172,10 +159,14 @@ _initialized = False
 GEMINI_AVAILABLE = False
 
 def _initialize_once():
+    # todo: this is terrible because we call this even for unit tests which don't need api
     """Initialize the module only once, no matter how many times it's imported."""
     global _initialized, GEMINI_AVAILABLE
     if not _initialized:
-        GEMINI_AVAILABLE = _ensure_global_initialization()
+        # GEMINI_AVAILABLE = _ensure_global_initialization() # todo commented out for now
+        # what is a better way to fail fast if no API availability?
+        # if (not GEMINI_AVAILABLE):
+        #     raise "GEMINI NOT AVAILABLE"
         _initialized = True
 
 # Initialize immediately when module is first imported

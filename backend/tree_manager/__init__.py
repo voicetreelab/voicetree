@@ -1,4 +1,7 @@
 """
+
+TODO: tree_manager is becoming complex and bloated, can we break it up again into compponents 
+
 Tree Manager Package
 
 Decision tree management and processing components for VoiceTree.
