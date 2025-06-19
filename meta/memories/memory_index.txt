@@ -1,1 +1,3 @@
 file path -> short description
+
+development_best_practices.md -> "Core development principles learned from TODO analysis to prevent common mistakes"
