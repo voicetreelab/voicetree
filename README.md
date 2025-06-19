@@ -28,7 +28,6 @@ For fast development feedback, use these commands:
 
 - `python dev-test.py --speed smoke` - Quick tests (under 5 seconds)
 - `python dev-test.py --changed` - Test only your recent changes  
-- `python dev-test.py --watch --speed smoke` - Auto-run tests when files change
 
 For complete testing before commits:
 - `python dev-test.py --speed unit` - Full unit test suite

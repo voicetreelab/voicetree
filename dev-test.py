@@ -4,6 +4,8 @@ Smart Development Testing Script
 Intelligently selects and runs tests based on code changes and development context
 """
 
+#todo, this is completely unnecessary complexity
+
 import os
 import sys
 import subprocess

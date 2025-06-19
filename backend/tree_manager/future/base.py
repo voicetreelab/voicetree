@@ -41,18 +41,18 @@ class TreeManagerInterface(ABC):
         """
         self.decision_tree = decision_tree
     
-    @abstractmethod
-    async def process_voice_input(self, transcribed_text: str):
-        """
-        Process incoming transcribed voice input
-        
-        This is the core method that all tree managers must implement.
-        It processes voice transcriptions and updates the decision tree.
-        
-        Args:
-            transcribed_text: The transcribed text from voice recognition
-        """
-        pass
+    # @abstractmethod
+    # async def process_voice_input(self, transcribed_text: str):
+    #     """
+    #     Process incoming transcribed voice input
+    #
+    #     This is the core method that all tree managers must implement.
+    #     It processes voice transcriptions and updates the decision tree.
+    #
+    #     Args:
+    #         transcribed_text: The transcribed text from voice recognition
+    #     """
+    #     pass
     
     # Optional common properties that managers can override
     @property 

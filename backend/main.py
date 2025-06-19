@@ -1,8 +1,7 @@
 import asyncio
-import sys
 import unittest
 
-from enhanced_transcription_processor import create_enhanced_transcription_processor
+from backend.tree_manager.future.enhanced_transcription_processor import create_enhanced_transcription_processor
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from voice_to_text.voice_to_text import VoiceToTextEngine
 

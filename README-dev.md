@@ -109,11 +109,13 @@ export GOOGLE_API_KEY="your_gemini_api_key"
 python backend/main.py
 
 # Run quality tests (atomic test command)
-make test-benchmarker
 
-# Run specific component tests
-python -m backend.tests.unit_tests
-python -m backend.tests.integration_tests
+
+# Run unit tests
+pytest backend/tests/unit_tests
+
+# run integration testt
+pytest backend/tests/integration_tests/
 ```
 
 ## Development Philosophy

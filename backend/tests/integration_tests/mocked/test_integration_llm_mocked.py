@@ -5,7 +5,6 @@ import shutil
 from unittest.mock import patch, AsyncMock
 
 import process_transcription
-import tree_manager
 from backend.tree_manager import NodeAction
 from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree
@@ -98,29 +97,6 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             )
         ]
         
-        # Set up the mock to return these results and manually apply node actions
-        call_count = 0
-        async def mock_side_effect(*args, **kwargs):
-            nonlocal call_count
-            result = workflow_results[call_count]
-            # Manually apply node actions since we're bypassing the real WorkflowAdapter
-            for action in result.node_actions:
-                if action.action == "CREATE":
-                    parent_id = self.decision_tree.get_node_id_from_name(
-                        action.neighbour_concept_name
-                    )
-                    self.decision_tree.create_new_node(
-                        name=action.concept_name,
-                        parent_node_id=parent_id,
-                        content=action.markdown_content_to_append,
-                        summary=action.updated_summary_of_node,
-                        relationship_to_parent=action.relationship_to_neighbour
-                    )
-            call_count += 1
-            return result
-        
-        mock_process_transcript.side_effect = mock_side_effect
-
         # Test transcripts
         transcript1 = """
          This is a test of the VoiceTree application.
