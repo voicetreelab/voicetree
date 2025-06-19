@@ -32,7 +32,8 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.converter = TreeToMarkdownConverter(self.tree_data)
         self.converter.tree = self.tree_data
         self.output_dir = "test_markdown"
-        os.mkdir(self.output_dir)
+        if not os.path.exists(self.output_dir):
+            os.mkdir(self.output_dir)
 
     def tearDown(self):
         #        Clean up the temporary output directory
@@ -67,7 +68,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.tree_data[1].modified_at = datetime.now()
         nodes_to_update = {1}  # Set of nodes to update
 
-        self.converter.convert_node(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
+        self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
 
         # Check if the modified file was updated
         file_path = os.path.join(self.output_dir, self.tree_data[1].filename)

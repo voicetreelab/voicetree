@@ -2,6 +2,7 @@ import re
 
 
 def extract_summary(node_content):
+    # todo this should no longer be neccessary if we are getting LLM to return structured data.
     """
     Extract summary from node content with improved fallback logic
     """
@@ -56,33 +57,40 @@ def deduplicate_content(content):
     Returns:
         Cleaned content with duplicates removed
     """
-    if not content or not content.strip():
-        return content
+
+    # removed this since it is pointless,  we should't be explictitly deduping content
+    # let's jsut make sure our system has no duplication points in the first place
+
+
+    # if not content or not content.strip():
+    #     return content
     
-    # Split into sentences
-    sentences = re.split(r'[.!?]+', content)
-    seen_sentences = set()
-    unique_sentences = []
+    # # Split into sentences
+    # sentences = re.split(r'[.!?]+', content)
+    # seen_sentences = set()
+    # unique_sentences = []
     
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if not sentence:
-            continue
+    # for sentence in sentences:
+    #     sentence = sentence.strip()
+    #     if not sentence:
+    #         continue
             
-        # Normalize sentence for comparison (lowercase, remove extra spaces)
-        normalized = ' '.join(sentence.lower().split())
+    #     # Normalize sentence for comparison (lowercase, remove extra spaces)
+    #     normalized = ' '.join(sentence.lower().split())
         
-        # Only add if we haven't seen this sentence before
-        if normalized not in seen_sentences and len(normalized) > 5:  # Ignore very short fragments
-            seen_sentences.add(normalized)
-            unique_sentences.append(sentence)
+    #     # Only add if we haven't seen this sentence before
+    #     if normalized not in seen_sentences and len(normalized) > 5:  # Ignore very short fragments
+    #         seen_sentences.add(normalized)
+    #         unique_sentences.append(sentence)
     
-    # Rejoin sentences with proper punctuation
-    result = '. '.join(unique_sentences)
-    if result and not result.endswith('.'):
-        result += '.'
-    
-    return result
+    # # Rejoin sentences with proper punctuation
+    # result = '. '.join(unique_sentences)
+    # if result and not result.endswith('.'):
+    #     result += '.'
+
+
+
+    return content
 
 
 def extract_complete_sentences(text_chunk) -> str:
@@ -92,6 +100,9 @@ def extract_complete_sentences(text_chunk) -> str:
     Returns:
         str: The extracted complete sentences.
     """
+    # todo, this is stupid, we shouldn't be assuming any punctuation from our voice to text engine.
+    # they aren't that good at generating grammar, and it also just simplifies our system a lot if we only use a length based buffering system. so todo is remove and do that instead.
+
     # Split into sentences using nltk-like approach but simpler
     # First, handle ellipses as incomplete sentences
     if text_chunk.rstrip().endswith('...'):

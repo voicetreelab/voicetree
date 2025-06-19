@@ -113,9 +113,6 @@ jobs:
        github.event_name == 'workflow_dispatch') &&
       github.event.inputs.emergency_bypass != 'true'
     steps:
-    - name: Dummy step
-      run: echo "Hello"
-      
     - uses: actions/checkout@v4
     
     - name: Set up Python 3.11

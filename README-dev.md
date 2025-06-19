@@ -2,9 +2,17 @@
 
 ## Overview
 
-VoiceTreePoc is a voice-to-knowledge-graph system that transforms spoken input into structured markdown knowledge trees through a sophisticated 4-stage agentic workflow pipeline.
+VoiceTreePoc is a voice-to-knowledge-graph system that transforms spoken input into structured markdown knowledge trees through an agentic workflow pipeline.
 
 ## System Architecture
+
+
+### Tree-action-decider agent:
+The purpose of this agentic workflow is to proces small chunks of text (1-3 sentences) and update a tree representation of the text. 
+
+The agent has two actions either append content to an existing node, or create a new node in the tree.
+
+The agent consists of four stages, each having their own prompt.
 
 ```
 Voice Input → Transcription → 4-Stage Agentic Workflow → Knowledge Tree → Markdown Files
@@ -15,6 +23,17 @@ Voice Input → Transcription → 4-Stage Agentic Workflow → Knowledge Tree �
 2. **Relationship Analysis** - Analyzes connections to existing knowledge  
 3. **Integration Decision** - Decides CREATE vs APPEND actions
 4. **Node Extraction** - Creates final knowledge tree structure
+
+
+### tree-reorganizing-agent
+
+todo, new agent being created that automatically optimises the tree. i.e. takes (tree_structure, histortical_text) -> optimized_tree_structure. 
+
+Optimized means more understandable, more concise, better represents the structure of the ideas being solved.
+
+See /readme
+
+
 
 ## Directory Structure & Development Guides
 
