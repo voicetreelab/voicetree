@@ -58,7 +58,7 @@ def deduplicate_content(content):
         Cleaned content with duplicates removed
     """
 
-    # removed this since it is pointless,  we should't be explictitly deduping content
+    # todo: removed this since it is pointless,  we should't be explictitly deduping content
     # let's jsut make sure our system has no duplication points in the first place
 
 

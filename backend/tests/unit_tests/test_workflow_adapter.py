@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-from backend.workflow_adapter import WorkflowAdapter, WorkflowMode, WorkflowResult
+from backend.workflow_adapter import WorkflowAdapter, WorkflowResult
 from backend.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.tree_manager import NodeAction
 
@@ -21,7 +21,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         self.decision_tree.tree[1].title = "Test Node"
         
         with patch('backend.agentic_workflows.main.VoiceTreePipeline'):
-            self.adapter = WorkflowAdapter(self.decision_tree, mode=WorkflowMode.ATOMIC)
+            self.adapter = WorkflowAdapter(self.decision_tree)
     
     def test_initialization_creates_proper_adapter(self):
         """Test that WorkflowAdapter initializes with correct properties"""
@@ -29,7 +29,6 @@ class TestWorkflowAdapter(unittest.TestCase):
         
         # Assert
         self.assertEqual(self.adapter.decision_tree, self.decision_tree)
-        self.assertEqual(self.adapter.mode, WorkflowMode.ATOMIC)
         self.assertEqual(self.adapter._incomplete_buffer, "")
         self.assertIsNotNone(self.adapter.pipeline)
     

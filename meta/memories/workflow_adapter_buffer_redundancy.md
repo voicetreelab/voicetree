@@ -1,0 +1,3 @@
+# WorkflowAdapter Buffer Redundancy
+
+WorkflowAdapter maintains its own `_incomplete_buffer` in addition to UnifiedBufferManager's buffer, creating redundancy. Additionally, the `process_transcript` method can execute the workflow up to 3 times if existing_nodes is missing (lines 186-199), causing severe performance issues. The buffer management should be consolidated to use only UnifiedBufferManager, and the triple execution logic should be refactored to avoid redundant processing.
