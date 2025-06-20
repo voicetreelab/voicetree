@@ -17,13 +17,14 @@
 **Functionality**: 100% preserved with enhancements  
 
 #### **Before (Legacy Code)**:
+
 ```python
 # OLD: Complex imports with sys.path manipulation
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from backend.agentic_workflows.llm_integration import call_llm
+from backend.text_to_graph_pipeline.agentic_workflows.llm_integration import call_llm
 from backend.agentic_workflows.nodes import segmentation_node
 
 # OLD: Manual LLM calls with manual JSON parsing

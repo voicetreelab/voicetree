@@ -22,9 +22,9 @@ Usage:
 """
 
 # Import main classes for convenience
-from backend.tree_manager.future.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
+from backend.text_to_graph_pipeline.tree_manager.future import EnhancedWorkflowTreeManager
 from .decision_tree_ds import DecisionTree, Node
-from backend.tree_manager.future.base import TreeManagerInterface, TreeManagerMixin
+from backend.text_to_graph_pipeline.tree_manager.future import TreeManagerInterface, TreeManagerMixin
 
 __all__ = [
     # Tree Managers

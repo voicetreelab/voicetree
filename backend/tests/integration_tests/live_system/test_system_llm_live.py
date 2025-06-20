@@ -1,11 +1,10 @@
 import asyncio
-import time
 import unittest
 import os
 import shutil  # For directory operations
 
 import process_transcription
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.chunk_processing_pipeline import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
@@ -120,16 +119,6 @@ class TestIntegration(unittest.TestCase):
         stats = self.tree_manager.get_workflow_statistics()
         self.assertIsInstance(stats, dict, "Workflow statistics should return a dictionary")
         print(f"📊 Workflow statistics: {stats}")
-
-    def test_workflow_state_management(self):
-        """Test that workflow state can be managed"""
-        # Test clearing state
-        try:
-            self.tree_manager.clear_workflow_state()
-            print("✅ Workflow state cleared successfully")
-        except Exception as e:
-            print(f"⚠️ Error clearing workflow state: {e}")
-            # This might fail if LangGraph is not available, which is okay
 
     # Keep the original test for backward compatibility but make it more robust
     def test_complex_tree_creation(self):

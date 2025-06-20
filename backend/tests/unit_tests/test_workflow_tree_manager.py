@@ -1,7 +1,7 @@
 import asyncio
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from unittest.mock import patch
+from backend.chunk_processing_pipeline import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.workflow_adapter import WorkflowResult
 from backend.tree_manager import NodeAction

@@ -44,13 +44,13 @@ See /readme
   - Voice-to-text processing
   - Enhanced transcription processing with TADA + TROA agents
 
-- **[`backend/tree_manager/`](backend/tree_manager/README-dev.md)** - Tree data structures and buffer management
+- **[`backend/tree_manager/`](backend/text_to_graph_pipeline/tree_manager/README-dev.md)** - Tree data structures and buffer management
   - Decision tree data structures (`DecisionTree`)
   - Unified buffer management for streaming input
   - Tree-to-markdown conversion
   - Enhanced workflow integration
 
-- **[`backend/agentic_workflows/`](backend/agentic_workflows/README-dev.md)** - 4-stage LLM processing pipeline
+- **[`backend/agentic_workflows/`](backend/text_to_graph_pipeline/agentic_workflows/README-dev.md)** - 4-stage LLM processing pipeline
   - LangGraph-based workflow execution
   - State management across pipeline stages
   - LLM integration (Gemini API)
@@ -144,8 +144,8 @@ According to project memories, VoiceTree follows these key principles:
 ## Navigation
 
 - 📖 **[Backend Architecture](backend/README-dev.md)** - Core system components
-- 🌳 **[Tree Management](backend/tree_manager/README-dev.md)** - Data structures and buffer management  
-- 🤖 **[Agentic Workflows](backend/agentic_workflows/README-dev.md)** - LLM processing pipeline
+- 🌳 **[Tree Management](backend/text_to_graph_pipeline/tree_manager/README-dev.md)** - Data structures and buffer management  
+- 🤖 **[Agentic Workflows](backend/text_to_graph_pipeline/agentic_workflows/README-dev.md)** - LLM processing pipeline
 - 📊 **[Quality & Benchmarking](backend/benchmarker/README-dev.md)** - Testing and performance measurement
 
 For specific development tasks, see `meta/current_tasks/` for active work and `meta/memories/` for architectural decisions and lessons learned. 
