@@ -2,17 +2,16 @@ import asyncio
 import unittest
 import os
 import shutil
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 import process_transcription
 from backend.tree_manager import NodeAction
-from backend.chunk_processing_pipeline import WorkflowTreeManager
+from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.workflow_adapter import WorkflowResult
 
 
-# this tests integration  of system mocking our agentic_workflow output
 class TestIntegrationMockedLLM(unittest.TestCase):
     def setUp(self):
         # Reset the tree and other objects before each test
@@ -70,7 +69,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 new_nodes=["Investor Outreach"],
                 node_actions=[NodeAction(
                     labelled_text="Another thing I will have to do is start reaching out to investors",
-                    action="CREATE",
+                    action="CREATE", 
                     concept_name="Investor Outreach",
                     neighbour_concept_name="Project Planning",
                     relationship_to_neighbour="child of",
@@ -88,7 +87,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                     labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
                     action="CREATE",
                     concept_name="POC Polish",
-                    neighbour_concept_name="Investor Outreach",
+                    neighbour_concept_name="Investor Outreach", 
                     relationship_to_neighbour="child of",
                     updated_summary_of_node=self.summaries[2],
                     markdown_content_to_append=self.summaries[2],
@@ -97,7 +96,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 metadata={"chunks_processed": 1}
             )
         ]
-
+        
         # Test transcripts
         transcript1 = """
          This is a test of the VoiceTree application.

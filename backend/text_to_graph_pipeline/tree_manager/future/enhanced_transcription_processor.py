@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from backend.text_to_graph_pipeline.tree_manager.future import EnhancedWorkflowTreeManager
+from backend.tree_manager.future.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
 from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 
@@ -251,7 +251,7 @@ class TranscriptionProcessor(EnhancedTranscriptionProcessor):
             super().__init__(tree_manager, converter, output_dir)
         else:
             # Wrap regular tree manager in enhanced version
-            from backend.text_to_graph_pipeline.tree_manager.future import EnhancedWorkflowTreeManager
+            from backend.tree_manager.future.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
             
             # Create enhanced wrapper (without TROA for compatibility)
             enhanced_manager = EnhancedWorkflowTreeManager(
@@ -286,7 +286,7 @@ def create_enhanced_transcription_processor(
     Returns:
         EnhancedTranscriptionProcessor instance
     """
-    from backend.text_to_graph_pipeline.tree_manager.future import create_enhanced_tree_manager
+    from backend.tree_manager.future.enhanced_workflow_tree_manager import create_enhanced_tree_manager
     from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
     
     # Create enhanced tree manager

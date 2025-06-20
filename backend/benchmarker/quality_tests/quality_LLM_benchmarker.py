@@ -37,7 +37,7 @@ import google.generativeai as genai
 from google.generativeai import GenerativeModel
 
 from process_transcription import TranscriptionProcessor
-from backend.chunk_processing_pipeline import WorkflowTreeManager
+from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend import settings

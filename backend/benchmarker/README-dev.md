@@ -145,6 +145,6 @@ Re-run the benchmarker to verify that the changes have improved the quality scor
 ## Navigation
 
 - ← **[Backend Architecture](../README-dev.md)** - Core system overview
-- 🌳 **[Tree Manager](../text_to_graph_pipeline/tree_manager/README-dev.md)** - Data structures and buffer management
-- 🤖 **[Agentic Workflows](../text_to_graph_pipeline/agentic_workflows/README-dev.md)** - LLM processing pipeline
+- 🌳 **[Tree Manager](../tree_manager/README-dev.md)** - Data structures and buffer management
+- 🤖 **[Agentic Workflows](../agentic_workflows/README-dev.md)** - LLM processing pipeline
 - ← **[Main Guide](../../README-dev.md)** - Project overview 

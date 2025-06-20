@@ -5,10 +5,11 @@ Tests all edge cases, thread safety, and integration scenarios
 
 import pytest
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-from backend.text_buffer_manager.unified_buffer_manager import UnifiedBufferManager
+from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
 
 
 class TestUnifiedBufferManagerBasics:

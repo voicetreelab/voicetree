@@ -32,7 +32,7 @@ NodeAction = namedtuple(...)
 from backend.tree_manager import NodeAction
 
 # tree_reorganization_agent.py imports enhanced_workflow_tree_manager  
-from backend.text_to_graph_pipeline.tree_manager.future import EnhancedWorkflowTreeManager
+from backend.tree_manager.future.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
 
 # But enhanced_workflow_tree_manager imports tree_reorganization_agent!
 # → CIRCULAR IMPORT CRASH
