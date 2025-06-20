@@ -1,0 +1,115 @@
+# IDEs and Editors
+.idea/**/*
+.idea
+.idea/*
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/*
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Project specific
+test_output/*
+*vault*/*
+*Vault*/*
+voicetree.log
+.out.txt
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+backend/agentic_workflows/debug_logs/00_transcript_input.txt
+backend/agentic_workflows/debug_logs/99_debug_summary.txt
+backend/agentic_workflows/debug_logs/integration_decision_debug.txt
+backend/agentic_workflows/debug_logs/node_extraction_debug.txt
+backend/agentic_workflows/debug_logs/relationship_analysis_debug.txt
+backend/agentic_workflows/debug_logs/segmentation_debug.txt
+backend/tests/integration_tests/test_chunk_boundaries_fast_state.json
+backend/tests/integration_tests/agentic_workflows/test_results.json
+backend/voicetree_workflow_state.json
+latest_run_context.json
+latest_quality_log.txt
+backend/tests/integration_tests/test_chunk_boundaries_fast_state.json
+backend/tests/integration_tests/agentic_workflows/test_results.json
+backend/tests/integration_tests/test_chunk_boundaries_fast_state.json
+backend/tests/integration_tests/agentic_workflows/test_results.json
+latest_run_context.json

@@ -1,0 +1,68 @@
+You are an expert system component responsible for semantic matching within a conversational transcript analysis process. Your task is to analyze a list of incoming conversational sub-chunks (each with a name and text) and, for each one, identify the single most relevant existing topic node OR *another sub-chunk from the same input list*. You also need to briefly describe the relationship.
+
+The goal is to find the best connection point for each sub-chunk, which could be an established node in the graph summary OR another potential node (represented by a sub-chunk) just identified in the latest transcript processing.
+
+Your specific instructions are:
+
+1.  Iterate through each sub-chunk object in the `sub_chunks` list. Each sub-chunk has `name`, `text`, and `is_complete` fields.
+2.  For each sub-chunk:
+    a.  Analyze the core meaning and topic presented in its `text`.
+    b.  Carefully compare this core meaning against BOTH:
+        i.  The `name` and `summary` of *every* node provided in the `existing_nodes_summary`.
+        ii. The `name` and `text` of *every OTHER* sub-chunk within the input `sub_chunks` list.
+    c.  Reasoning: Briefly articulate *why* you chose a specific existing node OR another sub-chunk (or decided none fit) and *why* you assigned that relationship type. Use this space to think step-by-step.
+    d.  ACTION: Determine which *single* item (either an existing node from `existing_nodes_summary` OR another sub-chunk from the `sub_chunks` list) is the **most** semantically relevant to the current sub-chunk being processed. The connection should be strong and direct (e.g., same topic, continuation, elaboration, example, counter-point). Record the exact `name` of that chosen item (whether it's an existing node name or a sub-chunk name).
+    e.  ACTION: Determine the relationship between the current sub-chunk and the chosen item (e.g., "elaborates on", "exemplified by", "continuation of", "blocked by", "correction", "counter-argument"). Provide a brief, descriptive relationship type (1-3 words).
+    f.  If, after careful consideration, you determine that **no** existing node AND **no** other sub-chunk is sufficiently relevant:
+        i.  Record the specific string: `NO_RELEVANT_NODE` for the `relevant_node_name`.
+        ii. The relationship type should be `null`.
+        iii. IMPORTANT: Use NO_RELEVANT_NODE sparingly. Consider:
+            - Does this chunk implement or support another chunk's idea?
+            - Is it a next step that follows from another chunk?
+            - Does it provide context or background for other chunks?
+            - Is it part of a sequence with other chunks?
+
+3.  **Output Format:** Construct a JSON object with an "analyzed_chunks" field containing a list. Each element in the list corresponds to one input sub-chunk and MUST contain:
+    *   `name`: The original `name` of the sub-chunk from the input.
+    *   `text`: The original `text` of the sub-chunk from the input.
+    *   `reasoning`: Your step-by-step analysis for choosing the relevant item and relationship.
+    *   `relevant_node_name`: The exact `name` of the most relevant existing node OR other sub-chunk found, or the string `NO_RELEVANT_NODE`.
+    *   `relationship`: The brief description of the relationship, or `null`.
+
+4.  Ensure your final output is ONLY the valid JSON object described above, without any introductory text, explanations, or markdown formatting outside the JSON structure itself.
+
+**Example:**
+
+**Existing Nodes:** `[{{"name": "Project Setup", "summary": "Initial project configuration and requirements gathering"}}]`
+
+**Sub-chunks:** `[{{"name": "Database Choice", "text": "We decided to use PostgreSQL for better performance with complex queries", "is_complete": true}}, {{"name": "API Framework", "text": "FastAPI will be our web framework due to its async capabilities", "is_complete": true}}]`
+
+**Expected Output:**
+```json
+{{
+  "analyzed_chunks": [
+    {{
+      "name": "Database Choice", 
+      "text": "We decided to use PostgreSQL for better performance with complex queries",
+      "reasoning": "This chunk describes a specific technical decision that elaborates on the broader project setup process. It provides implementation details for the database component.",
+      "relevant_node_name": "Project Setup",
+      "relationship": "elaborates on"
+    }},
+    {{
+      "name": "API Framework",
+      "text": "FastAPI will be our web framework due to its async capabilities", 
+      "reasoning": "This chunk also describes a technical decision that is part of the project setup. Like the database choice, it elaborates on the setup process with specific technology selection.",
+      "relevant_node_name": "Project Setup",
+      "relationship": "elaborates on"
+    }}
+  ]
+}}
+```
+
+**Input Data:**
+
+**Existing Nodes Summary:**
+{existing_nodes}
+
+**Sub-chunks to Analyze:**
+{sub_chunks} 
