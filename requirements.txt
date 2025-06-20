@@ -1,59 +1,9 @@
-# VoiceTree Project Dependencies
-# Consolidated from requirements.txt and requirements_unified.txt
-
-# Core Python packages
 setuptools
-
-# Audio Processing & Voice Recognition
+pyaudio
 SpeechRecognition
 --extra-index-url https://download.pytorch.org/whl/cu116
-torch~=2.2.0
+torch~=2.3.0
 numpy~=1.26.4
 git+https://github.com/openai/whisper.git
-faster-whisper
-
-# Optional audio dependencies - only needed for live microphone recording
-# CI/CD can skip these since tests use pre-recorded audio files
-# pyaudio  # Uncomment for live audio recording
-
-# LLM Integration & AI Services
-google-generativeai  # Google Gemini API
-google-genai>=1.20.0  # Enhanced Google AI SDK (compatible with agentic workflows)
-openai
-langgraph>=0.1.0  # LangGraph workflow system
-langchain-core>=0.1.0  # LangChain core for agentic workflows
-
-# Data Processing & NLP
-nltk~=3.8.1
-rake-nltk
 google~=3.0.0
-
-# Data Validation & Serialization
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
-typing-extensions>=4.8.0
-
-# Configuration & Environment
-python-dotenv>=1.0.0
-
-# Async & Concurrency
-aiofiles>=23.0.0
-# asyncio  # Built-in, no need to install
-
-# Logging & Monitoring
-structlog>=23.0.0
-
-# Development & Testing
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-pytest-mock>=3.12.0
-pytest-timeout>=2.1.0
-pytest-xdist>=3.0.0  # Parallel test execution
-pytest-watch>=4.2.0  # Watch mode for continuous testing
-pytest-cache>=1.0  # Enhanced caching for faster reruns
-aider-chat>=0.84.0  # AI coding agent for improvement analysis
-
-# Optional: Enhanced features (commented out - uncomment if needed)
-# langchain>=0.1.0      # If using LangChain features
-# redis>=4.6.0          # If using Redis for caching
-# prometheus-client>=0.19.0  # If using Prometheus metrics
+nltk~=3.8.1
