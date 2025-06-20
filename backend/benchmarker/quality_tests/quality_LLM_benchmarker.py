@@ -37,9 +37,9 @@ import google.generativeai as genai
 from google.generativeai import GenerativeModel
 
 from process_transcription import TranscriptionProcessor
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend import settings
 import PackageProjectForLLM
 

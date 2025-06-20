@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timedelta
 import time
 
-from tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 
 
 class TestDecisionTree(unittest.TestCase):

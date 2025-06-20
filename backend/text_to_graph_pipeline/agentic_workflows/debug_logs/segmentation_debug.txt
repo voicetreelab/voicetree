@@ -1,0 +1,961 @@
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project for natural language processing. The system will use transfor"
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'mer models for text analysis. We need to implement entity recognition and sentiment'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' analysis features. The project deadline is next month.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'Additionally, we should consider adding multi-language support for'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' English, Spanish, and French languages.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'The'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' artificial'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' intelligence system'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' uses deep'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' learning.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' It can'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' recognize patterns'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' in data.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project for natural language processing. The system will use transfor"
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'mer models for text analysis. We need to implement entity recognition and sentiment'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' analysis features. The project deadline is next month.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'The'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' artificial'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' intelligence'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' system'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project for natural language processing. The system will use transfor"
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "\n        Today I want to work on integrating LangGraph with my voice tree system.\n        I need to create a multi-stage pipeline that can process transcripts effectively.\n        The system should segment the text, analyze relationships, make integration decisions, and extract new nodes.\n        I'm particularly interested in how well this performs compared to the existing single-LLM approach.\n        "
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ''
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: '\n    This is a test of the VoiceTree application.\n    I want to create a new node about project planning. \n    The first step is to define the project scope. \n    The next step is to identify the key stakeholders.\n    '
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me. I should talk to Austin's dad first."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "To be able to start reaching out to investors, I will first have to polish my POC. This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use. I'll also need to prepare a compelling pitch deck and presentation."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: '\n    I need to work on the VoiceTree project today.\n    First, I should integrate LangGraph to improve the workflow processing.\n    This will help with better decision making about where to place new nodes in the tree.\n    After that, I need to benchmark the performance against the current system.\n    '
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new machine learning project using Python."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'For the machine learning project, I need to implement data preprocessing.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'The Python code will use scikit-learn for the algorithms.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'Um, which means, oh, I have to do a fair bit of stuff.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "\n        Okay, so what are we doing? Um, okay, so we got a few different\n        agents running in the background we. Our first thing was making the system just generally robust.\n        getting all our tests passing one thing we still have to do is completely switch\n        over from the old LLM API in LLM engine and move it to using the agentic\n        workflow LLM integration API I think the LLM API is still used for one thing\n        which is the summarization so I don't think summarization ...[TRUNCATED]"
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:14:00
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "Hello, testing, one, two, three. Hello, test two three. My name is Manu. Okay, let's run the tests in back end."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:14:00
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'Hello? Testing, one, two, three, testing.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:14:00
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: '\n        First, I need to work on the user interface design.\n        Second, I should implement the backend API endpoints.\n        Third, we need to set up the database schema.\n        Finally, testing and deployment should be planned.\n        '
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:14:51
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project for natural language processing. The system will use transfor"
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'New NLP Project', 'text': "I'm working on a new project for natural language processing.", 'is_complete': True}
+    1: {'name': 'System Uses Transformers', 'text': 'The system will use transfor', 'is_complete': False}
+  ]
+  result_count: 2
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:14:55
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: 'mer models for text analysis. We need to implement entity recognition and sentiment'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'Text Analysis Tasks', 'text': 'mer models for text analysis. We need to implement entity recognition and sentiment', 'is_complete': False}
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:14:58
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: ' analysis features. The project deadline is next month.'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'Analysis Features, Deadline', 'text': 'analysis features. The project deadline is next month.', 'is_complete': True}
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:16:13
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'is_complete': True}
+    1: {'name': 'Voice Application Project', 'text': 'The project involves building a voice application.', 'is_complete': True}
+    2: {'name': 'System Testing Needed', 'text': 'I need to test the system to make sure it works properly.', 'is_complete': True}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 18:16:21
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'is_complete': True}
+    1: {'name': 'Voice Application', 'text': 'The project involves building a voice application.', 'is_complete': True}
+    2: {'name': 'System Testing', 'text': 'I need to test the system to make sure it works properly.', 'is_complete': True}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 20:18:28
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'is_complete': True}
+    1: {'name': 'Voice Application Project', 'text': 'The project involves building a voice application.', 'is_complete': True}
+    2: {'name': 'System Testing Needed', 'text': 'I need to test the system to make sure it works properly.', 'is_complete': True}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+SEGMENTATION STAGE DEBUG - 20:18:34
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'
+  transcript_text: "I'm working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly."
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'is_complete': True}
+    1: {'name': 'Voice Application', 'text': 'The project involves building a voice application.', 'is_complete': True}
+    2: {'name': 'System Testing', 'text': 'I need to test the system to make sure it works properly.', 'is_complete': True}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+

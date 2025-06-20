@@ -5,10 +5,10 @@ import shutil
 from unittest.mock import patch
 
 import process_transcription
-from tree_manager import NodeAction
-from tree_manager.workflow_tree_manager import WorkflowTreeManager
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.workflow_adapter import WorkflowResult
 
 

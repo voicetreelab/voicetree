@@ -7,8 +7,8 @@ import tempfile
 import os
 from pathlib import Path
 
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
-from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 
 
 async def test_workflow_manager():

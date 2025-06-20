@@ -14,7 +14,7 @@ project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directo
 sys.path.insert(0, str(project_root))
 
 # Import the main module from the backend
-from backend.agentic_workflows.main import run_voicetree_pipeline, print_detailed_results
+from backend.text_to_graph_pipeline.agentic_workflows.main import run_voicetree_pipeline, print_detailed_results
 
 def test_complex_tree_creation():
     """Test with the same examples used in the integration tests"""

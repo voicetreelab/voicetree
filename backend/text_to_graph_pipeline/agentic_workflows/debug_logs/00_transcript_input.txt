@@ -1,0 +1,14 @@
+
+==========================================
+TRANSCRIPT INPUT - 20:18:33
+==========================================
+
+SOURCE: segmentation_node
+LENGTH: 138 characters
+WORD COUNT: 25 words
+
+CONTENT:
+I'm working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly.
+
+==========================================
+

@@ -4,9 +4,9 @@ import os
 import shutil  # For directory operations
 
 from backend import process_transcription
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 class TestIntegration(unittest.TestCase):
     def setUp(self):

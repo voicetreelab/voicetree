@@ -11,7 +11,7 @@ backend_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(backend_path))
 
 try:
-    from agentic_workflows import main
+    from backend.text_to_graph_pipeline.agentic_workflows import main
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
@@ -117,7 +117,7 @@ def test_graceful_degradation_without_langgraph():
     # It should verify that the system doesn't crash and provides helpful error messages
     
     try:
-        from agentic_workflows import main
+        from backend.text_to_graph_pipeline.agentic_workflows import main
         result = main.run_voicetree_pipeline("test input", "test nodes")
         
         # Should return an error about missing dependencies

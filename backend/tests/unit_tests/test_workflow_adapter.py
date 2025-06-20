@@ -2,8 +2,8 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 from backend.workflow_adapter import WorkflowAdapter, WorkflowMode, WorkflowResult
-from backend.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.text_to_graph_pipeline.tree_manager import NodeAction
 
 
 class TestWorkflowAdapter(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         self.decision_tree.tree[0].title = "Root"
         self.decision_tree.tree[1].title = "Test Node"
         
-        with patch('backend.agentic_workflows.main.VoiceTreePipeline'):
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.main.VoiceTreePipeline'):
             self.adapter = WorkflowAdapter(self.decision_tree, mode=WorkflowMode.ATOMIC)
     
     def test_initialization_creates_proper_adapter(self):
