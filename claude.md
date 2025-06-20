@@ -36,6 +36,8 @@ export GOOGLE_API_KEY="your_gemini_api_key"  # Get from Google AI Studio
 
 ## Architecture & Code Structure
 
+Please see @current_architecture.md for a more up to date and in depth architecture review. 
+
 ### System Flow
 ```
 Voice Input → Transcription → 4-Stage Pipeline → Knowledge Tree → Markdown Files
@@ -130,3 +132,9 @@ For deeper understanding, read these files in order:
 3. `DEVELOPMENT_SPEED_GUIDE.md` - Fast testing strategies
 4. `backend/README-dev.md` - Backend architecture details
 5. Component-specific `README-dev.md` files in major directories
+
+## KEY RULES TO FOLLOW DURING DEV
+
+1. NEVER have more than 1 solution for the same problem. That means never have a new and old version at the saem time. Instead, evolve the system incrementally towards the desired state. Never have fallbacks. 
+2. Minimize added complexity to the system when new features are added. Try reduce the complexity by re-architecting, introducing abstractions that hide complexity and seperating concerns. 
+3. Add high quality unit tests for any non-trivial changes. These will undergo mutation testing so make sure they are actually testing the method well. Make sure they pass.
