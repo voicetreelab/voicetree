@@ -124,7 +124,6 @@ class WorkflowTreeManager(TreeManagerInterface, TreeManagerMixin):
             
             # NOTE: No need to apply node actions here since WorkflowAdapter already applies them in ATOMIC mode
             # This was causing duplicate node creation and numbering gaps
-            # todo avoid this fuckaround, only one mode pls
             
             # Ensure root node is always included for markdown generation
             self._nodes_to_update.add(0)

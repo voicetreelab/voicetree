@@ -9,9 +9,10 @@ The backend contains the core VoiceTree system orchestration, combining voice in
 ```
 backend/
 ├── main.py                                    # System entry point & orchestration
-├── enhanced_transcription_processor.py       # Tprocessor
+├── enhanced_transcription_processor.py       # TADA + TROA dual-agent processor
 ├── workflow_adapter.py                      # Backend ↔ Agentic workflow bridge
 ├── settings.py                             # System configuration
+├── tree_reorganization_agent.py           # Background optimization agent (TROA)
 ├── voice_to_text/                         # Voice capture & transcription
 ├── tree_manager/                          # Tree data structures & buffer management
 ├── agentic_workflows/                     # 4-stage LLM processing pipeline
@@ -21,6 +22,14 @@ backend/
 
 ## Core Components
 
+### 🚀 System Entry Points
+
+#### `main.py`
+**Purpose**: Primary system orchestration and event loop
+- Creates enhanced transcription processor with TADA + TROA agents
+- Initializes voice-to-text engine
+- Manages async processing loop with background optimization
+- Coordinates system startup and shutdown
 
 **Usage**:
 ```python
@@ -29,13 +38,54 @@ decision_tree = DecisionTree()
 processor = create_enhanced_transcription_processor(
     decision_tree=decision_tree,
     workflow_state_file="voicetree_enhanced_state.json",
-    # todo remove options: enable_background_optimization=True,
-    # todo, use BACKGROUND_REWRITE_EVERY_N_APPEND, not minutes optimization_interval_minutes=2
+    enable_background_optimization=True,
+    optimization_interval_minutes=2
 )
 
 # Start processing
 await processor.enhanced_tree_manager.start_enhanced_processing()
 ```
+
+#### `enhanced_transcription_processor.py`
+**Purpose**: Enhanced processing system with TADA + TROA agents
+- **TADA** (Tree Action Decider Agent): Real-time processing (2.5-3/5 quality)
+- **TROA** (Tree Reorganization Agent): Background optimization (5/5 quality)
+- Unified buffer management for streaming input
+- Background optimization scheduling
+
+**Key Classes**:
+- `EnhancedTranscriptionProcessor`: Main processor coordinating both agents
+- `BackgroundOptimizer`: Manages TROA background optimization cycles
+
+### 🔗 System Integration
+
+#### `workflow_adapter.py`
+**Purpose**: Bridge between VoiceTree backend and agentic workflows
+- Translates between backend `NodeAction` and workflow decision formats
+- Handles state translation and result mapping
+- Supports both atomic and streaming execution modes
+- Manages incomplete text buffering
+
+**Key Classes**:
+- `WorkflowAdapter`: Main interface between systems
+- `WorkflowResult`: Standardized result format
+- `WorkflowDecision`: Bridge format for integration decisions
+
+#### `tree_reorganization_agent.py`
+**Purpose**: Background optimization agent (TROA)
+- Analyzes tree structure for optimization opportunities
+- Performs content reorganization and hierarchy improvements
+- Maintains backward compatibility with markdown files
+- Provides 5/5 quality output through careful analysis
+
+### ⚙️ Configuration
+
+#### `settings.py`
+**Purpose**: Centralized system configuration
+- API keys and LLM settings
+- Buffer size thresholds and processing parameters
+- File paths and output directories
+- Debug and logging configuration
 
 **Key Settings**:
 - `TEXT_BUFFER_SIZE_THRESHOLD`: Character count for processing trigger
@@ -51,12 +101,12 @@ Voice Input → Transcription → Buffer Management → TADA → Quick Tree Upda
 
 ### Background Optimization (TROA)
 ```
-Periodic (every n chunks) Trigger → Tree Analysis → TROA → Optimized Tree Structure
+Periodic Trigger → Tree Analysis → TROA → Optimized Tree Structure
 ```
 
 ### Quality Progression
 ```
-Voice Input → TADA (2.5-3/5) → ocassionaly TROA (5/5) → Final Output
+Voice Input → TADA (2.5-3/5) → TROA (5/5) → Final Output
 ```
 
 ## Development Patterns

@@ -78,7 +78,6 @@ dmypy.json
 
 # Project specific
 test_output/*
-output/*
 *vault*/*
 *Vault*/*
 voicetree.log

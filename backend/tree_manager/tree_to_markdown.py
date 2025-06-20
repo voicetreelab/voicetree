@@ -53,7 +53,7 @@ class TreeToMarkdownConverter:
                     child_file_name = f"{child_id:02d}_{slugify(self.tree_data[child_id]['content'])}.md"
                     f.write(f"- child of [[{child_file_name}]]\n")
 
-    def convert_nodes(self, output_dir="markdownTreeVaultDefault", nodes_to_update=None):
+    def convert_node(self, output_dir="markdownTreeVaultDefault", nodes_to_update=None):
         """Converts the specified nodes to Markdown files."""
 
         os.makedirs(output_dir, exist_ok=True)

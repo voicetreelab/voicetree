@@ -39,7 +39,7 @@ class EnhancedTranscriptionProcessor:
         
         # Set up output directory
         if output_dir is None:
-            output_dir_base = "/Users/bobbobby/repos/VoiceTreePoc/markdownTreeVault" # todo make relative
+            output_dir_base = "/Users/bobbobby/repos/VoiceTreePoc/markdownTreeVault"
             date_str = datetime.now().strftime("%Y-%m-%d")
             output_dir = os.path.join(output_dir_base, date_str)
         
@@ -94,6 +94,11 @@ class EnhancedTranscriptionProcessor:
         """Clean up common transcription artifacts"""
         # Remove common hallucinations
         text = text.replace("Thank you.", "")
+        text = text.replace("Thanks for watching.", "")
+        text = text.replace("Please subscribe.", "")
+        
+        # Clean up extra whitespace
+        text = " ".join(text.split())
         
         return text.strip()
     
@@ -104,7 +109,7 @@ class EnhancedTranscriptionProcessor:
             nodes_to_update = self.enhanced_tree_manager.nodes_to_update
             
             if nodes_to_update:
-                self.converter.convert_nodes(
+                self.converter.convert_node(
                     output_dir=self.output_dir,
                     nodes_to_update=nodes_to_update
                 )
@@ -237,8 +242,7 @@ class TranscriptionProcessor(EnhancedTranscriptionProcessor):
     
     def __init__(self, tree_manager, converter, output_dir=None):
         """
-        Initialize with backward compatibility 
-        # todo why the hell do we need backwards compatability here? we should only ever have one option for doing something
+        Initialize with backward compatibility
         
         Args:
             tree_manager: Can be regular or enhanced tree manager

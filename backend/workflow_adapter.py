@@ -1,8 +1,6 @@
 """
 Workflow Adapter for VoiceTree
 Provides a clean interface between the VoiceTree backend and agentic workflows
-
-Why? 
 """
 
 import asyncio
@@ -15,7 +13,6 @@ from datetime import datetime
 from backend.agentic_workflows.main import VoiceTreePipeline
 from backend.tree_manager.decision_tree_ds import DecisionTree
 # Define NodeAction locally to avoid circular imports
-    # todo, we don't want multiple defintions                  can we avoid this? 
 from collections import namedtuple
 
 NodeAction = namedtuple('NodeAction',
@@ -35,7 +32,7 @@ class WorkflowMode(Enum):
     """Workflow execution modes"""
     ATOMIC = "atomic"  # State changes only after full completion
     STREAMING = "streaming"  # State changes during execution (future)
-    # TODO, WE DON"T NEED TWO DIFFERENT MODES. 
+
 
 @dataclass
 class WorkflowResult:
@@ -74,8 +71,7 @@ class IntegrationDecision:
         # Handle relationship fallback more carefully
         relationship = decision_data.get("relationship")
         if relationship is None:  # Only fallback if None, not empty string
-            relationship = decision_data.get("relationship_for_edge")#todo why the hell do we have this? 
-            # relationship_for_edge vs relationship
+            relationship = decision_data.get("relationship_for_edge")
         
         return cls(
             name=decision_data.get("name", ""),
@@ -174,18 +170,14 @@ class WorkflowAdapter:
             # This bypasses the pipeline's internal buffering since UnifiedBufferManager already handles chunking
             self.pipeline.text_buffer += full_transcript + " "
             
-            # Force process the buffer regardless of threshold. (todo What??? why do this
-            # todo let UnifiedBufferManager handle chunking for us here, then don't have a seperate "buffer" here that # just force processes????
-
+            # Force process the buffer regardless of threshold
             result = await asyncio.to_thread(
                 self.pipeline.force_process_buffer
             )
             
-
             # Manually set the existing_nodes in the result if it's missing
             if result and not result.get("error_message"):
                 # Ensure the pipeline had the existing nodes information
-                # todo: why is this if statement actually necessary? seems confusing and unnecessary
                 if "existing_nodes" not in result or result["existing_nodes"] == "No existing nodes":
                     # Re-run with proper existing nodes if needed
                     self.pipeline.text_buffer = ""  # Clear buffer
@@ -213,7 +205,6 @@ class WorkflowAdapter:
             # Convert workflow decisions to NodeActions
             node_actions = self._convert_to_node_actions(result)
             
-            # todo: don't have two different modes? Why did we even want this initially?
             # Apply changes if in atomic mode
             if self.mode == WorkflowMode.ATOMIC:
                 await self._apply_node_actions(node_actions)
@@ -262,13 +253,13 @@ class WorkflowAdapter:
                     parent_node = self.decision_tree.tree.get(node.parent_id)
                     if parent_node and hasattr(parent_node, 'title'):
                         node_info += f" (child of {parent_node.title})"
-                # else: todo don't need this
-                #     node_info += " (child of NO_RELEVANT_NODE)"
+                else:
+                    node_info += " (child of NO_RELEVANT_NODE)"
                 
-                # Add recent modification indicator. todo don't need 
-                # if hasattr(node, 'modified_at') and hasattr(node, 'created_at'):
-                #     if node.modified_at > node.created_at:
-                #         node_info += " [recently updated]"
+                # Add recent modification indicator
+                if hasattr(node, 'modified_at') and hasattr(node, 'created_at'):
+                    if node.modified_at > node.created_at:
+                        node_info += " [recently updated]"
                 
                 node_summaries.append(node_info)
         
