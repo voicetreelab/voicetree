@@ -115,7 +115,6 @@ class AgentExecutor:
     def _call_llm_for_stage(self, prompt: str, stage_id: str) -> Any:
         """Call LLM with appropriate response type for the stage"""
         # Map stage IDs to expected response types
-        # todo, this is awful, should just be defined by /agents content
         response_type_map = {
             "segmentation": "segmentation",
             "relationship_analysis": "relationship", 

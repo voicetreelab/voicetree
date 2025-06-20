@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: fast-tests
+        name: Run Fast Tests
+        entry: python dev-test.py --speed smoke
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+        verbose: true
+      - id: python-syntax
+        name: Check Python Syntax
+        entry: python -m py_compile
+        language: system
+        files: \.py$
+        stages: [pre-commit] 

@@ -22,6 +22,7 @@ Usage:
 """
 
 # Import main classes for convenience
+from .text_to_tree_manager import ContextualTreeManager
 from .workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.future.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
 from .decision_tree_ds import DecisionTree, Node
@@ -29,7 +30,8 @@ from backend.tree_manager.future.base import TreeManagerInterface, TreeManagerMi
 
 __all__ = [
     # Tree Managers
-    "WorkflowTreeManager",
+    "ContextualTreeManager",
+    "WorkflowTreeManager", 
     "EnhancedWorkflowTreeManager",
     
     # Core Data Structures
