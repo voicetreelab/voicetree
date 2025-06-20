@@ -9,7 +9,7 @@
 ### **1. Directory Context Matters for Imports**
 ```bash
 # ❌ FAILED: Running from backend/ directory  
-cd backend && python -c "from backend.tree_manager.text_to_tree_manager import ContextualTreeManager"
+cd backend && python -c "from tree_manager.text_to_tree_manager import ContextualTreeManager"
 > ModuleNotFoundError: No module named 'backend'
 
 # ✅ WORKED: Running from project root
@@ -21,18 +21,16 @@ cd .. && python -c "from backend.tree_manager.text_to_tree_manager import Contex
 
 ### **2. Circular Import Death Spirals**
 **Most Dangerous Pattern:**
-
 ```python
 # tree_manager/__init__.py imports NodeAction
 from collections import namedtuple
-
 NodeAction = namedtuple(...)
 
-# enhanced_workflow_tree_manager.py imports from backend.tree_manager
+# enhanced_workflow_tree_manager.py imports from tree_manager
 from backend.tree_manager import NodeAction
 
 # tree_reorganization_agent.py imports enhanced_workflow_tree_manager  
-from backend.tree_manager.future.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
+from backend.tree_manager.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
 
 # But enhanced_workflow_tree_manager imports tree_reorganization_agent!
 # → CIRCULAR IMPORT CRASH

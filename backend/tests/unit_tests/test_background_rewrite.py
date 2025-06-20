@@ -3,9 +3,9 @@ import logging
 import unittest
 from unittest.mock import patch, AsyncMock
 
-from backend.tree_manager.LLM_engine.background_rewrite import Rewriter
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.utils import extract_summary
+from tree_manager.LLM_engine.background_rewrite import Rewriter
+from tree_manager.decision_tree_ds import DecisionTree
+from tree_manager.utils import extract_summary
 
 
 class TestRewriter(unittest.TestCase):

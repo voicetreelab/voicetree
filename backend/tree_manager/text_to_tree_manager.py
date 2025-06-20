@@ -1,6 +1,10 @@
 import logging
+import time
+import traceback
+import re
 import asyncio
-from typing import Set
+from collections import namedtuple
+from typing import Set, Tuple, List
 
 import google.generativeai as genai
 
@@ -21,12 +25,12 @@ if backend_dir not in sys.path:
 # Now import settings - this should work from any directory
 import settings
 
-from backend.tree_manager.future.base import TreeManagerInterface, TreeManagerMixin
+from .base import TreeManagerInterface, TreeManagerMixin
 from .LLM_engine.background_rewrite import Rewriter
 from .LLM_engine.summarize_with_llm import Summarizer
 from .LLM_engine.tree_action_decider import Decider
 from .decision_tree_ds import DecisionTree
-from .utils import remove_first_word, extract_complete_sentences
+from .utils import extract_summary, remove_first_word, extract_complete_sentences
 
 # Import NodeAction from within module to avoid circular import
 from collections import namedtuple

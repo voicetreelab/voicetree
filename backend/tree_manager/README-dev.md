@@ -10,7 +10,9 @@ The tree_manager module provides the core data structures and buffer management 
 tree_manager/
 ├── decision_tree_ds.py              # Core tree data structure
 ├── unified_buffer_manager.py        # Streaming input buffer management
+├── base.py                         # Base tree manager interface
 ├── workflow_tree_manager.py        # Workflow-integrated tree manager
+├── enhanced_workflow_tree_manager.py # TADA + TROA enhanced manager
 ├── text_to_tree_manager.py         # Text processing tree manager
 ├── tree_to_markdown.py             # Tree → Markdown conversion
 ├── utils.py                        # Tree utility functions
@@ -34,7 +36,7 @@ tree_manager/
 
 **Usage**:
 ```python
-from backend.tree_manager.decision_tree_ds import DecisionTree
+from tree_manager.decision_tree_ds import DecisionTree
 
 tree = DecisionTree()
 tree.add_node("AI Research", content="Working on machine learning projects")
@@ -68,7 +70,7 @@ tree.add_child("AI Research", "Neural Networks", "Deep learning architectures")
 
 **Usage**:
 ```python
-from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
+from tree_manager.unified_buffer_manager import UnifiedBufferManager
 
 buffer_manager = UnifiedBufferManager(
     buffer_size_threshold=500,

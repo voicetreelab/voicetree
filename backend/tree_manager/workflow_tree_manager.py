@@ -4,9 +4,10 @@ Uses agentic workflows for all processing with unified buffering
 """
 
 import logging
+import asyncio
 from typing import Optional, Set, List
 
-from backend.tree_manager.future.base import TreeManagerInterface, TreeManagerMixin
+from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
 from backend.workflow_adapter import WorkflowAdapter

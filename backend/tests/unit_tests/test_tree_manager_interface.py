@@ -19,7 +19,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from backend.tree_manager.future.base import TreeManagerInterface, TreeManagerMixin
+from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.text_to_tree_manager import ContextualTreeManager
 from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager

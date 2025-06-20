@@ -10,7 +10,7 @@ from datetime import datetime
 
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
-# from backend.tree_reorganization_agent import TreeReorganizationAgent, integrate_troa_with_workflow_tree_manager
+from tree_reorganization_agent import TreeReorganizationAgent, integrate_troa_with_workflow_tree_manager
 
 
 class EnhancedWorkflowTreeManager(WorkflowTreeManager):

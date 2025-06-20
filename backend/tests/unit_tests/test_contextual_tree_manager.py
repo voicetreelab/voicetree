@@ -7,13 +7,13 @@ import time
 
 import google.generativeai as genai
 
-# from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
-from backend.tree_manager.LLM_engine.summarize_with_llm import Summarizer
-from backend.tree_manager.LLM_engine.tree_action_decider import Decider
-from backend.tree_manager.utils import extract_complete_sentences
-from backend.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.tree_manager import NodeAction
-from backend.tree_manager.text_to_tree_manager import ContextualTreeManager
+from settings import TRANSCRIPT_HISTORY_MULTIPLIER
+from tree_manager.LLM_engine.summarize_with_llm import Summarizer
+from tree_manager.LLM_engine.tree_action_decider import Decider
+from tree_manager.utils import extract_complete_sentences
+from tree_manager.decision_tree_ds import DecisionTree, Node
+from tree_manager import NodeAction
+from tree_manager.text_to_tree_manager import ContextualTreeManager
 
 
 class TestContextualTreeManager(unittest.TestCase):
