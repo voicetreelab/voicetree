@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+#t todo, wtf why do we have this? Interactions with the tree should use tree_manager
 
 class VoiceTreeStateManager:
     """Manages persistent state of the VoiceTree knowledge graph"""

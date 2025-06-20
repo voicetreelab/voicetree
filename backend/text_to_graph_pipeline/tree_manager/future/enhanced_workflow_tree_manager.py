@@ -4,12 +4,11 @@ Combines real-time processing (TADA) with background optimization (TROA)
 """
 
 import logging
-import asyncio
-from typing import Optional, Set, Dict, Any
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.chunk_processing_pipeline import WorkflowTreeManager
 # from backend.tree_reorganization_agent import TreeReorganizationAgent, integrate_troa_with_workflow_tree_manager
 
 
