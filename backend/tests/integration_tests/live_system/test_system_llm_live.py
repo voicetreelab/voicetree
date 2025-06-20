@@ -3,16 +3,16 @@ import unittest
 import os
 import shutil  # For directory operations
 
-import process_transcription
-from tree_manager.workflow_tree_manager import WorkflowTreeManager
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend import process_transcription
+from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.decision_tree = DecisionTree()
         self.tree_manager = WorkflowTreeManager(self.decision_tree)
-        self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
+        self.converter = TreeToMarkdownConverter(self.decision_tree)
         self.output_dir = "/Users/bobbobby/repos/VoiceTreePoc/test_output"
         self.cleanUp()
         self.processor = process_transcription.TranscriptionProcessor(self.tree_manager,
