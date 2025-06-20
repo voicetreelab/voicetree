@@ -40,7 +40,7 @@
 
 **0e5b1fd** - Modified the GitHub Actions workflow configuration to trigger the CI/CD pipeline on any Python file changes (`**/*.py`) or GitHub workflow file changes (`.github/**`). This change improves the responsiveness of the continuous integration system by ensuring tests run whenever relevant code or workflow files are modified, providing faster feedback during development cycles.
 
-## [UNRELEASED]
+## [Unreleased]
 
 ### Added
 - **Development Documentation**: Created a comprehensive set of development README files (`README-dev.md`) for major system components to improve developer onboarding and system understanding.
@@ -50,13 +50,6 @@
   - `backend/agentic_workflows/README-dev.md`: 4-stage LLM processing pipeline.
   - `backend/benchmarker/README-dev.md`: Quality testing and performance measurement.
 - **CI/CD:** Fixed a critical workflow error in `test-agentic-workflows.yml` where the `api-tests` job had no steps defined. Merged the logic from a misplaced `api-tests-continue` job and corrected the downstream `benchmarks` job dependencies to ensure it runs correctly after either `api-tests` or `emergency-bypass` succeeds.
-- **Architectural Plan:** Established a comprehensive and vetted plan for implementing performance and cost tracking in the agentic workflow. The plan uses a robust LangGraph callback handler to ensure maintainability and separation of concerns.
-
-### Changed
-- N/A
-
-### Fixed
-- N/A
 
 ## [0.6.0] - 2024-07-25 - CI/CD & Developer Experience Overhaul
-... existing content ...
+// ... existing code ... 
