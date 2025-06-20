@@ -1,0 +1,20 @@
+2024-07-06 14:09:18,787 - INFO - Processing transcribed text: 
+         This is a test of the VoiceTree application.
+         I want to create a new node about project planning. 
+         The first step is to define the project scope. 
+         The next step is to identify the key stakeholders.
+         
+2024-07-06 14:09:18,788 - INFO - Text buffer size is now 244 characters
+2024-07-06 14:09:18,788 - INFO - Text to process size is now 233 characters
+2024-07-06 14:09:18,788 - INFO - updating/writing markdown for nodes {0, 1}
+2024-07-06 14:09:18,788 - INFO - Processing transcribed text took: 0.0006 seconds
+2024-07-06 14:09:18,788 - INFO - Processing transcribed text: Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me. I should talk to Austin's dad first.
+2024-07-06 14:09:18,789 - INFO - Text buffer size is now 167 characters
+2024-07-06 14:09:18,789 - INFO - Text to process size is now 166 characters
+2024-07-06 14:09:18,789 - INFO - updating/writing markdown for nodes {1, 2}
+2024-07-06 14:09:18,789 - INFO - Processing transcribed text took: 0.0004 seconds
+2024-07-06 14:09:18,789 - INFO - Processing transcribed text: To be able to start reaching out to investors, I will first have to polish my POC. This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use. I'll also need to prepare a compelling pitch deck and presentation.
+2024-07-06 14:09:18,789 - INFO - Text buffer size is now 290 characters
+2024-07-06 14:09:18,789 - INFO - Text to process size is now 289 characters
+2024-07-06 14:09:18,789 - INFO - updating/writing markdown for nodes {2, 3}
+2024-07-06 14:09:18,789 - INFO - Processing transcribed text took: 0.0003 seconds
