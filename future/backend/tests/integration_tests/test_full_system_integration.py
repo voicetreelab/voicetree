@@ -15,7 +15,6 @@ import os
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import patch
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent.parent

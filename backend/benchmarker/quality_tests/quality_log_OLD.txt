@@ -1,0 +1,629 @@
+Date: 2024-06-22 18:28:28
+Git Commit: Quality tests yay (d22293e269d68a28508c7ddf1dde04739ee5322e)
+Stats: 116 append, 90 create, 21 background resumm
+Quality Score: ## Decision Tree Evaluation: Support Log Scrubbing Discussion
+
+This decision tree attempts to represent a complex conversation about data scrubbing techniques and concerns.  While it captures some key points, the tree's overall quality is hampered by inconsistencies in structure, accuracy, and relevance.
+
+Here's a breakdown based on the provided criteria:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable):**
+
+* **Positive:**  The tree successfully captures several key points, including concerns about PII removal, the desire for efficient scrubbing processes, and the potential of tools like Presidio. 
+* **Negative:**  There are instances of missing context and inaccurate connections between nodes. For example, some nodes are titled "Untitled" or contain incomplete sentences, making it difficult to understand their relevance.  Additionally, the chronological flow of the conversation isn't always reflected in the tree structure.
+
+**2. Coherence (Score: 2 - Poor):**
+
+* **Positive:** The tree attempts to group related concepts, such as those related to Presidio or file size concerns. 
+* **Negative:** The parent-child relationships between nodes often lack logical connections, making the tree difficult to navigate and understand.  The frequent use of generic titles like "Data Scrubbing Process" or "Performance Concerns" further contributes to the lack of clarity in the tree's structure.
+
+**3. Conciseness (Score: 2 - Poor):**
+
+* **Positive:** Some nodes succinctly summarize key points, like the descriptions of the JSON file's purpose and structure.
+* **Negative:**  There's significant redundancy throughout the tree, with multiple nodes repeating the same information or slight variations of it. This repetition makes the tree unnecessarily large and difficult to parse. 
+
+**4. Relevance (Score: 3 - Acceptable):**
+
+* **Positive:** The tree prioritizes some of the most crucial aspects of the conversation, such as concerns about PII removal assurance and the exploration of alternative solutions like Presidio.
+* **Negative:** The tree includes several nodes with minimal relevance to the central theme of data scrubbing.  These irrelevant nodes distract from the core discussion and make it harder to extract meaningful insights.
+
+**5. Node Structure (Score: 2 - Poor):**
+
+* **Positive:** The tree demonstrates an attempt to break down the conversation into smaller chunks of information. 
+* **Negative:**  There's a significant imbalance in node size and granularity.  Some nodes are too broad and contain unrelated information, while others are overly specific, capturing sentence fragments rather than complete ideas.  This inconsistency makes the tree feel disorganized and difficult to follow. 
+
+
+**Overall Score: 2.5 - Poor**
+
+**Summary & Areas for Improvement:**
+
+This decision tree, while showing potential, falls short in effectively representing the spoken conversation.  The lack of coherence, conciseness, and consistent node structure makes it difficult to extract meaningful insights and follow the discussion's flow. 
+
+**Key areas for improvement:**
+
+* **Enhanced Coherence:** Establish clear and logical parent-child relationships between nodes, ensuring each connection contributes to a coherent overall structure.
+* **Improved Conciseness:** Eliminate redundancy by merging or deleting nodes that repeat information, focusing on representing unique ideas only once.
+* **Refined Node Structure:**  Strive for a balance between node granularity and scope. Nodes should represent complete ideas or key discussion points, avoiding excessively broad or narrow scopes. 
+* **Contextual Accuracy:** Ensure each node's title and content accurately reflect the conversation, providing sufficient context to understand its relevance.
+* **Relevance Filtering:** Prioritize information directly related to the central theme of data scrubbing, potentially filtering out less relevant tangents or side conversations.
+
+By addressing these areas, the system can generate more informative and user-friendly decision trees, enabling efficient knowledge extraction and analysis from spoken transcripts.
+
+Date: 2024-06-28 18:05:01
+Git Commit: don't use whipser distil (6fec43eea37ff337295ac326d542f66ff2ff6412)
+Quality Score: ## Decision Tree Evaluation: Voice-to-Mind-Map System
+
+**Overall Score:** 3 - Acceptable
+
+**Summary:** The system demonstrates potential in converting spoken transcripts into a content tree, but requires significant refinement for accuracy, coherence, and relevance. While it captures some key points, the current output suffers from fragmented nodes, repetitive information, and an unclear hierarchy, hindering effective navigation and understanding. The biggest improvements should focus on semantic understanding to group related ideas and prioritize key information within a logical structure. 
+
+
+Here's a breakdown of each dimension:
+
+**1. Accuracy & Completeness (Score: 3)**
+
+* **Positive:**  The system captures many individual data points mentioned in the transcript, such as specific software names (Presidio, Jira), file sizes, and concerns about data privacy.
+* **Negative:**  It often misses the context and relationships between these points. For example, the connection between data scrubbing challenges and the exploration of Presidio as a solution isn't clearly established in the tree structure.  
+
+**2. Coherence (Score: 2)**
+
+* **Positive:** The system attempts to link nodes using "child of" references. 
+* **Negative:** These links often feel arbitrary and don't represent a logical flow of information. The frequent use of "child of [[0Saturday_22_June.md]]" for seemingly unrelated topics highlights a lack of hierarchical organization.
+
+**3. Conciseness (Score: 2)**
+
+* **Positive:**  Individual nodes are relatively short, avoiding excessively long text blocks.
+* **Negative:** The system struggles with redundancy, creating multiple nodes with very similar information. For example, the concepts of log scrubbing, data scrubbing, and PII removal are repeated across numerous nodes without clear differentiation or synthesis.
+
+**4. Relevance (Score: 2)**
+
+* **Positive:**  The system attempts to identify key phrases and concerns, such as "Data Scrubbing Challenges" or "PII Removal Assurance".
+* **Negative:**  It fails to prioritize these key points within the tree structure. Crucial information about the user's core problem (long data scrubbing process, concerns about data loss) is diluted among less important details.
+
+**5. Node Structure (Score: 3)**
+
+* **Positive:** The system generally avoids creating excessively large nodes, keeping individual text sections relatively concise.
+* **Negative:** It tends towards excessive fragmentation. Many nodes represent isolated sentences or phrases, lacking the necessary context or connection to other ideas. This results in a shallow, disjointed structure that hinders understanding. 
+
+
+**Areas for Improvement:**
+
+1. **Semantic Understanding:**  Improve the system's ability to understand the meaning and relationships between spoken words. This will enable more accurate grouping of related ideas into coherent nodes and establish meaningful hierarchical connections.
+
+2. **Key Information Prioritization:**  Develop algorithms to identify and prioritize the most crucial information within the transcript. This involves recognizing central problems, proposed solutions, and key decisions, and placing them prominently within the tree structure.
+
+3. **Node Synthesis:**  Move beyond capturing individual phrases to synthesize information into more comprehensive nodes.  This involves combining related concepts, summarizing key points, and providing necessary context for better understanding.
+
+4. **Structure Optimization:** Explore alternative tree structures or mind-mapping techniques to represent the information more effectively.  This could involve utilizing different node types, connection labels, or visual layouts to improve clarity and navigability.
+
+Date: 2024-06-28 18:14:47
+Git Commit: don't use whipser distil (6fec43eea37ff337295ac326d542f66ff2ff6412)
+Quality Score: ## Evaluation of Decision Tree Generated from Voice Transcript
+
+This voice-to-decision-tree system shows promise, but the output reveals significant room for improvement in structuring information coherently and avoiding redundancy. 
+
+Here's a detailed evaluation:
+
+**1. Accuracy & Completeness (Score: 4 - Good):**
+
+* **Positive:** The tree captures most of the key information from the transcript, including the main goal of building a voice tree proof of concept, steps involved (audio upload, conversion to markdown and visualization), and technical considerations (streaming, model selection).
+* **Negative:**  Some details are omitted, like the specific goal of Flutter integration (prize money). The tree doesn't clearly represent the connection between continuous audio processing being a "difficult problem" and the exploration of Gemini and OpenAI.
+
+**2. Coherence (Score: 2 - Poor):**
+
+* **Positive:** The tree attempts to group related concepts. For instance, nodes related to audio processing and visualization are clustered together.
+* **Negative:**  The parent-child relationships between nodes are often unclear and illogical.  Many nodes with the same name appear without a clear hierarchical structure. The "_Links:_ " section at the end of each file doesn't provide helpful navigation. 
+
+**3. Conciseness (Score: 1 - Unusable):**
+
+* **Positive:** The nodes themselves are relatively short and avoid overly verbose language.
+* **Negative:** The tree suffers from extreme redundancy.  Many nodes repeat the same information with slight variations in phrasing. For example, "Voice Tree Proof of Concept" appears as a heading in multiple files with nearly identical content. 
+
+**4. Relevance (Score: 3 - Acceptable):** 
+
+* **Positive:** The tree prioritizes the core objective: building a voice tree proof of concept. The initial steps and challenges are highlighted. 
+* **Negative:** The tree doesn't effectively distinguish between critical decisions and less important details. The exploration of Gemini and OpenAI, while relevant, seems to hold the same level of importance as the basic steps of the proof of concept. 
+
+**5. Node Structure (Score: 2 - Poor):** 
+
+* **Positive:** The tree attempts to break down the information into smaller chunks.
+* **Negative:**  The node structure is the weakest aspect.  There's a lack of clear hierarchy and organization.  The nodes often repeat information instead of building upon each other. Many nodes share the same name, creating confusion.
+
+**Overall Score: 2.4 - Poor**
+
+**Summary:** The system demonstrates an ability to extract keywords and concepts, but struggles to structure them into a coherent and meaningful decision tree. The excessive redundancy and lack of clear node relationships severely hinder the tree's usability.
+
+**Biggest Areas for Improvement:**
+
+1. **Node Structure and Hierarchy:**  The system needs a more sophisticated algorithm to determine parent-child relationships between nodes and avoid redundant information. 
+2. **Coherence:** The tree needs a logical flow, guiding the user from the main idea to supporting details and decisions.
+3. **Conciseness:**  Eliminating redundancy and ensuring each node contributes unique information is crucial. 
+4. **Linking:**  The "_Links:_" section should provide meaningful connections between related nodes to improve navigation. 
+
+By addressing these areas, the system can move from simply extracting information to synthesizing it into a truly valuable decision-making tool.
+
+Date: 2024-06-28 18:48:25
+Git Commit: avoid re-summarizing history (7d6afaa8a6efe1c583fd22b78b76c1112e97b94f)
+Quality Score: ## Evaluation of Decision Tree Generated from Voice Transcript
+
+Here's an evaluation of the provided decision tree, keeping in mind the criteria you've outlined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures the core idea of creating a voice-to-mind-map proof of concept. It correctly identifies key steps like audio conversion to markdown and visualization.
+* **Negative:** The tree misses some nuances. For instance, it doesn't clearly represent the speaker's concerns about continuous voice processing versus atomic files and how this impacts the app's architecture. It simplifies this complex issue.
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:**  Some parent-child relationships make sense (e.g., "Saturday 22 June" as the root with "Voice Tree Proof of Concept" as a child).
+* **Negative:** The tree's structure feels disjointed. The repetition of "Voice Tree Proof of Concept" with slightly different content is confusing. The connection between "Audio File Conversion POC" and "Audio File Processing" isn't clear. There's a lack of a logical flow. 
+
+**3. Conciseness (Score: 2 - Poor)**
+
+* **Positive:** Individual nodes are relatively short, which aids readability.
+* **Negative:**  Significant redundancy exists. The repetition of "Voice Tree Proof of Concept" and "Building a Proof of Concept" with overlapping content is a major issue. This makes the tree feel bloated.
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree focuses on the central theme of building a voice tree proof of concept. 
+* **Negative:** Some information feels less relevant. For example, mentioning the Flutter prize money, while interesting, doesn't directly contribute to understanding the core decision process related to the voice tree.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:**  The tree attempts to break down the task into smaller steps (e.g., saving the audio file, uploading via API).
+* **Negative:**  There's a lack of balance. Some nodes are too generic ("Audio File Processing"), while others are overly specific ("Using Google CoLab to run code"). This inconsistency hinders understanding. 
+
+**Overall Score: 2.5 - Needs Improvement**
+
+**Summary:**  While the tree captures the gist of the transcript, it falls short in terms of coherence, conciseness, and effective node structure. The biggest areas for improvement lie in:
+
+1. **Logical Flow:** The tree needs a clearer narrative flow, showing how decisions and tasks relate to each other.
+2. **Reducing Redundancy:**  Consolidating repetitive information and ensuring each node has a distinct purpose is crucial.
+3. **Balanced Node Granularity:**  Finding the right balance between broad topics and specific actions will improve clarity.
+
+The system should aim to identify the core decisions and challenges, represent their relationships accurately, and present the information in a way that is both concise and easy to follow.
+
+Date: 2024-06-28 19:15:01
+Git Commit: sentence end not on ... (ff095b087dc5c44351842316826f7d0a2647b5ed)
+Quality Score: ## Evaluation of Voice-to-Decision Tree Output
+
+Here's an evaluation of the provided Markdown output, considering the criteria you outlined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures most of the key points from the transcript, like the goal of creating a voice tree, converting audio to markdown and then to a visualization, and exploring audio streaming challenges.
+* **Negative:** Some details are omitted, particularly regarding the decision-making process. For example, the consideration of Flutter for its prize money is mentioned but not connected to a specific decision point. 
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to group related concepts into separate files. The linking between files ("_Links_") is a good attempt to show relationships.
+* **Negative:** The organization within the files feels disjointed. There's no clear flow from one idea to the next, and the parent-child relationships between nodes aren't always logical. For instance, "Audio File Conversion POC" and "Building the Proof of Concept" in "1Voice_Tree_Proof_of_Concept.md" seem more like sequential steps than hierarchical nodes.
+
+**3. Conciseness (Score: 2 - Poor)**
+
+* **Positive:**  The individual bullet points within nodes are generally concise.
+* **Negative:** There's significant redundancy in the tree. The phrase "Voice Tree Proof of Concept" appears as a heading multiple times, each time with very similar content. This repetition makes the tree harder to read and understand.
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree prioritizes the core objective: building a voice tree. The initial steps and the challenges related to audio streaming are highlighted. 
+* **Negative:**  The mention of Flutter and its prize money seems like a side note that could be omitted or integrated more meaningfully. It's unclear how it impacts the decision to build a voice tree.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to separate ideas into individual nodes. 
+* **Negative:** There's an imbalance in node size and granularity. Some nodes, like "Saturday 22 June," are too broad and lack meaningful content. Others, like the repeated "Voice Tree Proof of Concept" nodes, are too fragmented and could be consolidated. 
+
+## Overall Score: 2.6 - Needs Improvement
+
+## Summary & Areas for Improvement
+
+While the tree captures some of the transcript's content, it struggles with coherence, conciseness, and effective node structure. 
+
+**Biggest areas for improvement:**
+
+* **Improve Coherence and Flow:** Focus on creating a logical flow between nodes. Instead of separate files, consider a single tree structure where parent-child relationships clearly illustrate the decision-making process.
+* **Reduce Redundancy:** Eliminate repetitive headings and consolidate information about the "Voice Tree Proof of Concept" into a single, well-structured node.
+* **Refine Node Structure:** Aim for a balance between broad and granular nodes. Provide more context to overarching nodes like "Saturday 22 June" and group related sub-points under clear parent nodes.
+* **Clarify Relevance:**  Integrate the mention of Flutter and its prize money more meaningfully into the decision-making process, or remove it if it's not a core factor.
+
+By addressing these areas, the system can generate more coherent, concise, and insightful decision trees from spoken transcripts.
+
+Date: 2024-06-28 19:30:16
+Git Commit: fix rewriter (277f33c1fe25c51aee854ffea4af8f2f1bde5f1f)
+Quality Score: ## Evaluation of Decision Tree Generated from Spoken Transcript 
+
+Here's a detailed evaluation of the provided decision tree, following the criteria you outlined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures the main idea of creating a voice-to-mind-map proof of concept. It highlights key steps like audio upload, markdown conversion, and visualization.
+* **Negative:**  The tree misses some details and nuances from the transcript. For example, it doesn't mention the specific problem of aligning continuous voice input with the app's current requirement for atomic files. This omission could impact the user's understanding of the challenges involved.  
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:** Some parent-child relationships make sense, like the connection between "Voice Tree Proof of Concept" and "Audio File Conversion POC."
+* **Negative:** The tree's structure feels disjointed and illogical in several places. For example:
+    * "Audio File Streaming" is listed as a technical prerequisite for "Voice Tree Proof of Concept," even though the transcript suggests that streaming is a challenge to be addressed *after* the initial proof of concept.  
+    * The placement of "Saturday 22 June" as the root node is arbitrary and doesn't reflect the hierarchical relationships between other topics.
+
+**3. Conciseness (Score: 2 - Poor)**
+
+* **Positive:** Some nodes are relatively concise, like "OpenAI Voice Models."
+* **Negative:** There is significant redundancy within and between nodes. For example, "Voice Tree Proof of Concept" appears three times with nearly identical content. The repetition makes the tree difficult to read and understand quickly.
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree attempts to prioritize information by creating separate nodes for key topics like audio file streaming and conversion.
+* **Negative:** The prioritization could be improved. Several less important details (e.g., "I'm going to save this file, upload it...") clutter the tree and distract from the core ideas.  The focus on the "prize money" is also an irrelevant detail.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to separate distinct ideas into individual nodes. 
+* **Negative:** There's a significant imbalance in node size and content. Some nodes are very small and fragmented (e.g., "Building a Proof of Concept"), while others are large and contain unrelated ideas. 
+
+## **Overall Score: 2.5 - Poor**
+
+## Summary & Areas for Improvement
+
+This decision tree shows potential but needs significant improvement in coherence, conciseness, and node structure. 
+
+**Biggest areas for improvement:**
+
+1. **Logical Structure:**  Rework the hierarchy to reflect the actual flow of decisions and information in the transcript.  Consider using a timeline or flowchart approach to represent the sequence of steps involved. 
+2. **Reduce Redundancy:**  Consolidate repeated information and ensure each node provides unique value. Consider using more concise language and bullet points to summarize key takeaways.
+3. **Prioritize Information:**  Focus on the most critical decisions and challenges. Filter out unnecessary details that don't contribute to understanding the overall project plan.  
+
+By addressing these weaknesses, the tree can become a more effective tool for understanding and communicating the information presented in the transcript.
+
+Date: 2024-06-28 19:36:29
+Git Commit: fix rewriter (f52c7dbd243c6779b59cc4824f2d700a099bacf8)
+Quality Score: ## Evaluation of Voice-to-Decision Tree Output
+
+Here's an evaluation of the provided Markdown output, considering the criteria you defined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures the main points of the transcript, such as the desire to create a voice tree, convert audio to markdown and then a visual tree, and explore different technologies.  
+* **Negative:** Some details are omitted, like the specific challenges of continuous voice processing and the need to investigate whether Gemini supports audio streaming. The nuance of these points is lost. 
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:**  The individual Markdown files represent different topics from the transcript.
+* **Negative:** The parent-child relationships between nodes ("_Links_") are illogical and confusing. For example, "Audio File Conversion POC" being a prerequisite for "OpenAI Voice Models" doesn't make sense in the context of the transcript. The tree structure doesn't reflect the natural flow of thought in the audio.
+
+**3. Conciseness (Score: 4 - Good)**
+
+* **Positive:** The nodes are generally concise and avoid unnecessary repetition. Information is presented without excessive wordiness.
+* **Negative:** There's some minor redundancy, like mentioning the proof of concept goal in both "Voice Tree Proof of Concept" and "Audio File Conversion POC." 
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree focuses on the core idea of creating a voice-controlled decision tree application.
+* **Negative:** The emphasis on less important details like the use of Google CoLab for the proof of concept detracts from the overall focus on the application's core functionality and the challenges of audio processing.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to break down the information into separate nodes.
+* **Negative:** The nodes are not well-defined.  "Audio File Conversion POC" mixes the general concept with specific actions taken in Google Colab. There's a lack of clear distinction between planning, researching, and action steps, leading to poorly organized information.
+
+**Overall Score: 2.8 - Needs Significant Improvement**
+
+**Summary:**
+
+The generated tree demonstrates an attempt to capture information from the transcript, but it falls short in creating a meaningful and accurate representation of the speaker's thought process. 
+
+**Areas for Improvement:**
+
+* **Coherence and Node Structure:**  The most significant weakness lies in the organization and relationships between nodes. The system needs to better understand the flow of ideas within the audio and create a tree that logically connects different concepts.  
+* **Accuracy and Relevance:** The system should be enhanced to capture not just the key points, but also the nuances and underlying logic behind the speaker's statements. This includes accurately representing dependencies between actions and prioritizing information based on its importance to the overall goal.
+
+By addressing these areas, the system can significantly improve the quality and usefulness of the generated decision trees.
+
+Date: 2024-06-29 17:58:59
+Git Commit: fix rewriter (f52c7dbd243c6779b59cc4824f2d700a099bacf8)
+Quality Score: ## Evaluation of Voice-to-Mind-Map Output 
+
+Here's an evaluation of the provided markdown output, structured around the criteria you outlined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures the main points of the transcript, such as the desire to create a voice tree, the initial steps involved, and the exploration of audio streaming. 
+* **Negative:**  The tree misses some nuances and details. For example, the speaker's consideration of Flutter for prize money is mentioned but not well integrated into the decision-making process represented by the tree. Additionally, the specific challenges of atomic files vs. continuous audio could be clearer.
+
+**2. Coherence (Score: 4 - Good)**
+
+* **Positive:** The parent-child relationships between nodes are mostly logical. The tree flows well from the initial concept to specific challenges and proposed solutions.
+* **Negative:** The connection between "Audio File Conversion Proof of Concept" and "Audio Streaming Challenges" could be more explicit. It's clear these are related, but the tree could benefit from a more direct connection, perhaps by highlighting "Audio Streaming Challenges" as a direct sub-issue of the proof of concept.
+
+**3. Conciseness (Score: 3 - Acceptable)**
+
+* **Positive:** Each node has a distinct purpose and avoids excessive wordiness. 
+* **Negative:** There is some minor redundancy, particularly in the repetition of the user's intent to build a proof of concept.  
+
+**4. Relevance (Score: 4 - Good)**
+
+* **Positive:**  The tree prioritizes the most important information, like the core functionality of the voice tree and the technical challenges of streaming audio. 
+* **Negative:** The mention of the Google Colab notebook feels out of place. While it's part of the speaker's process, it doesn't directly contribute to understanding the core decision points related to building the voice tree.
+
+**5. Node Structure (Score: 3 - Acceptable)**
+
+* **Positive:** The tree strikes a decent balance in terms of node size. It avoids excessively large, overwhelming nodes.
+* **Negative:** The tree could benefit from a slightly more granular structure. Some nodes could be broken down further to represent individual steps or decisions more clearly. For example, "Voice Tree Proof of Concept" could be split into "Audio to Markdown Conversion" and "Markdown to Tree Visualization." 
+
+**Overall Score: 3.4 - Acceptable**
+
+**Summary & Areas for Improvement:**
+
+This voice-to-mind-map system shows promise but needs refinement to improve accuracy, conciseness, and node structure. 
+
+* **Capture More Nuances:** The system should be better at capturing smaller details and integrating them meaningfully. 
+* **Stronger Connections:** The relationships between nodes, particularly when representing challenges or sub-issues, could be more explicit.
+* **Optimized Structure:**  A slightly more granular breakdown of nodes would improve clarity and better represent the decision-making process. 
+* **Relevance Filtering:**  Filtering out less relevant information, like the specific coding environment used, would make the tree more focused.
+
+Date: 2024-06-29 18:44:12
+Git Commit: 3.4 quality score, incl all summary in prompt (25dd427089aac6464edfdaed7f6ae05e8576f273)
+Quality Score: ## Evaluation of Voice-to-Tree Markdown Output
+
+Here's an evaluation of the provided Markdown output, addressing each criteria:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures most of the key points from the transcript, such as the intention to build a voice tree, the steps involved (audio upload, conversion to markdown and visualization), and the exploration of different technologies. 
+* **Negative:**  Some nuances are lost, like the emphasis on the continuous nature of voice data and the specific problem it poses for file processing. Additionally, the connection between Gemini research and audio streaming isn't clearly represented.
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to group related concepts. For instance, "Visualization Libraries" is linked to "Voice Tree Development".
+* **Negative:** The overall structure feels disjointed. Many nodes seem like standalone thoughts rather than part of a coherent hierarchy.  The relationship between "Saturday 22 June" and "Building a Proof of Concept" is unclear. The use of "Child Of" as a link label is confusing.
+
+**3. Conciseness (Score: 2 - Poor)**
+
+* **Positive:** Some nodes, like "Gemini Research," are relatively concise.
+* **Negative:** There's significant redundancy. For example, "Building the First Node", "Building a Proof of Concept," and the content within "Voice Tree Development" all convey similar information without clear distinction.
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree focuses on the core idea of building a voice-to-tree system.
+* **Negative:** The emphasis on less important details like the use of Google CoLab detracts from the core focus. The significance of Flutter and the prize money could be clearer in relation to the main goal.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:**  The tree attempts to break down the information into smaller chunks.
+* **Negative:** Many nodes lack a clear, descriptive title. This makes it difficult to grasp the node's content at a glance. The tree doesn't effectively differentiate between high-level goals and specific tasks. For example, "Audio File Conversion POC" and "Building the First Node" could be consolidated.
+
+## Overall Score: 2.6 - Needs Improvement
+
+## Summary
+
+While the output demonstrates an attempt to structure the information, it falls short in coherence, conciseness, and node organization.  
+
+**Biggest Areas for Improvement:**
+
+* **Logical Hierarchy:**  The tree needs a clearer parent-child node structure. It should reflect the natural flow of decisions and sub-tasks within the project.
+* **Node Titles:** Nodes need descriptive titles that summarize their content effectively.
+* **Redundancy:**  Eliminate repetitive information and find ways to combine similar ideas into more comprehensive nodes.
+* **Focus:** Prioritize critical information and decisions. Downplay or omit less important details (e.g., the specific coding environment).
+
+By addressing these areas, the system can produce a significantly more useful and understandable representation of spoken transcripts.
+
+Date: 2024-07-06 14:36:37
+Git Commit: Test only one prompt (c702d8a270dc8bba4f9e3a2a65905ba31ed35d4c)
+Quality Score: ## Evaluation of Decision Tree Generated from Voice Transcript
+
+This decision tree attempts to break down a speaker's thought process about building a "voice tree" application. Here's a detailed evaluation:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures the main points of the transcript, including the overall goal (voice tree), the initial proof of concept, and considerations like audio streaming and visualization libraries. 
+* **Negative:** Some nuances are lost. For instance, the connection between continuous audio processing and the app's structure isn't fully articulated.  The mention of "prize money" for using Flutter feels disjointed.
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to group related concepts. The nodes about audio streaming and Gemini are linked, showing a chain of thought.
+* **Negative:** The overall structure lacks a clear hierarchy or flow.  The relationship between the root node ("Saturday 06 July, Root") and its child is unclear. The connection between the proof of concept and exploring Gemini isn't well established. 
+
+**3. Conciseness (Score: 3 - Acceptable)**
+
+* **Positive:** Most nodes focus on a single idea, avoiding excessive repetition. 
+* **Negative:** Some redundancy exists. The mention of the proof of concept in multiple nodes could be streamlined.
+
+**4. Relevance (Score: 2 - Poor)**
+
+* **Positive:** The tree prioritizes the core concept of building a voice tree and its proof of concept. 
+* **Negative:** The tree gives equal weight to less crucial information, such as the mention of "prize money" or the detail about saving the audio file in Google Colab. A clearer hierarchy of importance is needed. 
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to divide information into separate nodes.
+* **Negative:**  The node sizing is uneven. Some nodes are very small ("Flutter for Visualization") while others are larger and contain multiple points ("Audio to Tree Proof of Concept").  This inconsistency makes it harder to follow the tree's logic. 
+
+**Overall Score: 2.5 - Needs Significant Improvement**
+
+**Summary:**
+
+While the generated tree captures some of the spoken content, it struggles to represent the speaker's thought process coherently and effectively. The lack of a clear hierarchy, inconsistent node structure, and inclusion of less relevant details make it difficult to grasp the key takeaways.
+
+**Areas for Improvement:**
+
+* **Establish a Clear Hierarchy:** The tree needs a more logical structure, possibly starting with the main goal ("Voice Tree") as the root and branching out into sub-tasks and considerations.
+* **Improve Node Structure:**  Strive for nodes of similar size, each focusing on a single key point. Break down larger, denser nodes into more manageable chunks.
+* **Prioritize Relevance:**  Emphasize the most important decisions and outcomes.  Filter out less relevant details or group them under broader categories.
+* **Enhance Coherence:** Ensure clear and logical connections between nodes. Use linking phrases or visual cues to guide the user through the thought process.
+
+Date: 2024-07-07 17:06:25
+Git Commit: tests fixed (610f8f8732fd3234495c07a2d83f068b8319b8f4)
+Quality Score: ## Evaluation of Voice Tree Markdown Output
+
+Here's an evaluation of the provided markdown output, structured around the criteria you defined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures most of the key points from the transcript. For example, the "Voice Tree Proof of Concept" node accurately outlines the project's goal and the intended conversion process from audio to markdown to a visual tree. 
+* **Negative:**  Some details are omitted. The transcript mentions investigating specific visualization libraries and the difference between OpenAI and Gemini's audio streaming capabilities, but these nuances aren't reflected in the nodes. 
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:** The nodes themselves have a degree of internal coherence, presenting related information together. 
+* **Negative:** The linking between nodes is weak and doesn't effectively convey the relationships between ideas.  For instance, the "Flutter for Prize Money" node is linked as a "potential future use" of "Voice Tree work," which doesn't accurately represent the connection from the transcript. The connections feel more like afterthoughts than a meaningful structure.
+
+**3. Conciseness (Score: 4 - Good)**
+
+* **Positive:** The nodes are generally concise, summarizing information without unnecessary repetition. The "Audio File Streaming for 'Voice Tree' Project" node does a good job of outlining the core challenge and potential solutions succinctly.
+* **Negative:** There's room for improvement in tightening up the language. For instance, the phrase "This node explores..."  appears at the beginning of multiple nodes and could be made more concise.
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree prioritizes the core concept of the "Voice Tree" project, making it the central focus. 
+* **Negative:** The inclusion of "Sunday 07 July, Root" as a node feels unnecessary and doesn't add relevant information. The tree could benefit from focusing more tightly on the key decisions and challenges related to building the voice tree application.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to break down the information into separate nodes.
+* **Negative:**  The node structure lacks a clear hierarchy of information. There isn't a logical flow from parent nodes to child nodes, making it difficult to understand the relationships between different aspects of the project.  The relatively flat structure with weak links makes it difficult to get a clear overview of the decision-making process.
+
+**Overall Score: 2.8 - Needs Improvement**
+
+**Summary:**
+
+The generated markdown output shows promise but needs significant improvement to effectively represent the spoken transcript as a decision tree.  The biggest areas for improvement are coherence and node structure.  The current output feels more like a collection of related notes rather than a structured representation of a decision-making process.  Strengthening the links between nodes to reflect the logical flow of ideas and establishing a clearer hierarchy of information will be crucial to improving the tree's quality.
+
+Date: 2024-07-07 17:27:23
+Git Commit: prompt fixups (5139f91db6dc70efa997024aa681ba56dedd1ed8)
+Quality Score: ## Evaluation of Voice-to-Mind-Map System Output
+
+Here's an evaluation of the provided Markdown output, considering the criteria you outlined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The tree captures the main points of the transcript, including the overall goal (voice-to-tree conversion), the steps involved (audio to markdown, markdown to visualization), and the technical challenges (continuous audio processing). 
+* **Negative:** Some details are omitted. For example, the tree doesn't mention the specific visualization libraries considered or the app's reliance on continuous voice input. The transcript mentions Gemini and Open AI as potential tools, but they are not explicitly included in the outputted tree structure. 
+
+**2. Coherence (Score: 4 - Good)**
+
+* **Positive:** The parent-child relationships between nodes are logical. The "Voice Tree Proof of Concept" node branches out from the root node and is further divided into "Functionality and Technical Challenges" and "Setting up the Development Environment", reflecting a sensible flow of information.
+* **Negative:** The connection between "Flutter for UI Development" and the main "Voice Tree Proof of Concept" could be clearer. The link description "potential tool" is vague.  A more explicit connection explaining *why* Flutter is being considered would enhance coherence.
+
+**3. Conciseness (Score: 4 - Good)**
+
+* **Positive:** The tree avoids unnecessary repetition. Each node presents distinct information without redundantly stating points already covered elsewhere.
+* **Negative:** The "Setting up the Development Environment" section could be more concise. The repetition of "Google Colab" and the phrase "textbook for running code" could be streamlined.
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree focuses on the core idea of building a voice-to-tree system. It prioritizes information about the proof of concept, technical considerations, and potential tools.
+* **Negative:**  The relevance of the "Flutter for UI Development" node is not well established. While UI is important, the transcript primarily focuses on backend challenges. The tree should either provide more context for Flutter's inclusion or prioritize information more directly related to the core challenges of audio processing and visualization.
+
+**5. Node Structure (Score: 3 - Acceptable)**
+
+* **Positive:** The tree strikes a decent balance between node size and quantity. It avoids excessively large, overwhelming nodes and overly fragmented, small nodes.
+* **Negative:**  The tree could benefit from a slightly more granular structure to enhance clarity. For instance, the "Functionality and Technical Challenges" node could be split into two separate nodes for better organization. Additionally, a dedicated node for "Exploring Audio Streaming Options" could house the discussion about Gemini and OpenAI more explicitly.
+
+
+## Overall Score: 3.4 - Acceptable
+
+## Summary and Areas for Improvement:
+
+This voice-to-mind-map system demonstrates potential but needs refinement to improve accuracy, coherence, and relevance.  
+
+**Biggest Areas for Improvement:**
+
+1. **Completeness and Detail:** Capture more details from the transcript, especially regarding specific tools and challenges. For example, explicitly mention Gemini and OpenAI and elaborate on the continuous audio processing problem. 
+2. **Node Structure and Connections:**  Use a more granular node structure to improve clarity and organization. Strengthen the connection between the Flutter node and the core topic by providing better context.
+3. **Relevance:**  Ensure all nodes directly contribute to the central theme. If Flutter is crucial, explain its relevance in more detail. Otherwise, prioritize nodes that directly address the technical hurdles of the voice-to-tree conversion. 
+
+By addressing these areas, the system can produce more accurate, informative, and insightful tree representations of spoken content.
+
+Date: 2024-08-12 23:30:21
+Git Commit: MULTINODE PROMPT SORTA WORKING!!! fix errors (92f7cb834a1b1a7fe81c98385a59ff258e5d132e)
+Quality Score: ## Voice Tree Markdown Output Evaluation:
+
+Here's an evaluation of the provided Markdown output, structured around the criteria you've outlined:
+
+**1. Accuracy & Completeness (Score: 2 - Poor)**
+
+* **Positive:** The tree captures some of the high-level tasks and concepts mentioned in the transcript (e.g., "Voice Tree", "Markdown", "Vision Tree"). 
+* **Negative:**  The tree misses crucial context and connections between ideas. For example, the relationship between the "Engineering Problem" of streaming audio and its impact on the proof of concept is lost.  The tree also fragments information (e.g., "convert that markdown into a vision tree" is split into separate nodes). 
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:** The use of "_Links:_ " attempts to establish relationships between nodes.
+* **Negative:**  The links are often inaccurate or incomplete, making it hard to follow the logical flow of information. For instance, "Prize Money" being directly linked to the "root" node without context is confusing. The tree structure doesn't represent a clear decision-making process.
+
+**3. Conciseness (Score: 3 - Acceptable)**
+
+* **Positive:** The nodes themselves are relatively concise and avoid excessive wordiness.
+* **Negative:** The fragmentation of information leads to some redundancy. The splitting of key processes into multiple nodes ("Markdown", "Vision Tree") harms the overall flow.
+
+**4. Relevance (Score: 2 - Poor)**
+
+* **Positive:** The tree attempts to focus on the core idea of the "Voice Tree Proof of Concept".
+* **Negative:**  The prioritization of information is weak.  Important considerations like the streaming problem and the comparison between OpenAI and Gemini's capabilities are buried within less relevant details.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:** The tree avoids excessively large nodes by breaking down information.
+* **Negative:** The over-fragmentation creates a shallow and disconnected structure. Many nodes are too small and lack context within the broader decision-making process. The tree would benefit from grouping related concepts under more meaningful parent nodes.
+
+
+**Overall Score: 2 - Poor**
+
+**Summary:**
+
+The generated tree demonstrates a limited ability to translate the spoken transcript into a meaningful and insightful decision tree. The most significant areas for improvement lie in:
+
+* **Contextual Understanding:** The system needs a deeper understanding of the relationships between ideas in the transcript to create meaningful links and structure in the tree.
+* **Information Prioritization:** The algorithm should be able to identify and prioritize key decisions, outcomes, and arguments, placing them at appropriate levels in the tree.
+* **Node Grouping:**  The system would benefit from algorithms that can cluster related concepts into more substantial parent nodes, avoiding excessive fragmentation and improving coherence. 
+
+**Recommendation:**
+
+Focus on enhancing the system's ability to analyze the transcript for semantic relationships, argument structure, and information relevance. This will allow for the creation of a tree that accurately reflects the decision-making process and provides valuable insights into the spoken content.
+
+Date: 2024-10-17 21:24:28
+Git Commit: Use gemini pro always (716e973173e7fe292afefd7f06668fc8e407047d)
+Quality Score: ## Voice-to-Tree System Evaluation: Sample Transcript
+
+Here's an evaluation of the provided markdown output, structured around the criteria you defined:
+
+**1. Accuracy & Completeness (Score: 3 - Acceptable)**
+
+* **Positive:** The system captures the core idea of building a "voice tree" and lists several relevant sub-topics like audio processing, visualization, and using specific technologies (Flutter, Gemini). 
+* **Negative:** Some nuances are lost. The link between prize money and Flutter feels tenuous in the output, while the transcript implied a stronger connection (using Flutter might help win a prize). The dilemma of continuous voice processing vs. atomic files is poorly integrated. 
+
+**2. Coherence (Score: 2 - Poor)**
+
+* **Positive:**  Basic parent-child relationships exist (e.g., "Breakdown of voice tree work" is linked to "Working on voice tree").
+* **Negative:** The overall flow is disjointed.  The chronological order of the transcript is lost.  The relationship between files like "Tuesday 13th August" and its children is unclear. Why is "Researching Gemini's capabilities" part of a file named after a date?
+
+**3. Conciseness (Score: 2 - Poor)** 
+
+* **Positive:** Individual nodes are relatively short, avoiding overly long paragraphs.
+* **Negative:**  Significant redundancy exists. Many nodes rephrase the same information. For example, "Aim to secure prize money" is repeated verbatim. The core concept of converting audio to a tree is stated multiple times.
+
+**4. Relevance (Score: 3 - Acceptable)**
+
+* **Positive:** The tree prioritizes the main goal (building the voice tree) and identifies key technical challenges (audio streaming, visualization).
+* **Negative:** The focus is too broad. It gives equal weight to minor points (exploring Flutter) and major decisions (how to handle continuous audio).  The transcript's emphasis on the initial proof-of-concept is lost.
+
+**5. Node Structure (Score: 2 - Poor)**
+
+* **Positive:** The system attempts to break down the information into separate nodes.
+* **Negative:** Poor node naming and organization make the tree confusing.  "Tuesday 13th August" is uninformative. Many nodes are simply verb phrases ("Exploring Flutter").  Some nodes are too granular ("Prize Money Goal"), while others are too broad, cramming multiple unrelated concepts together.
+
+**Overall Score: 2.5 - Poor**
+
+**Summary & Improvement Areas:**
+
+While the system demonstrates a basic ability to extract keywords and create a rudimentary structure, the output is far from "usable" for understanding the speaker's decision-making process.  
+
+**Key areas for improvement:**
+
+* **Semantic Understanding:**  Move beyond keyword extraction to capture the true relationships between ideas. The system should understand that continuous audio processing is a *problem* in the context of building the voice tree, not just a related concept.
+* **Chronological or Logical Flow:**  Organize the tree to reflect either the temporal order of the speaker's thoughts OR a clear logical hierarchy of decisions. 
+* **Node Quality:**  Improve node naming to be more descriptive and informative. Avoid generic verbs and aim for concise summaries of the node's content.
+* **Redundancy Reduction:**  Implement mechanisms to identify and merge or eliminate redundant information. 
+
+This system requires significant refinement to produce decision trees that are accurate, coherent, and useful for analysis or visualization.
+

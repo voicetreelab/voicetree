@@ -11,11 +11,9 @@ This is what you'd call a "system test" - testing the entire integrated system.
 import pytest
 import asyncio
 import sys
-import os
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import patch
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent.parent

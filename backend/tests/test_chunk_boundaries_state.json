@@ -1,0 +1,22 @@
+{
+  "nodes": {
+    "New NLP Project": {
+      "name": "New NLP Project",
+      "created_at": "2025-06-20T18:14:54.488882",
+      "summary": "The user is starting a new project focused on natural language processing.",
+      "parent": "NO_RELEVANT_NODE",
+      "content": "I'm working on a new project for natural language processing.",
+      "source_chunk": "New NLP Project"
+    }
+  },
+  "execution_history": [
+    {
+      "timestamp": "2025-06-20T18:14:54.488891",
+      "new_nodes": [
+        "New NLP Project"
+      ],
+      "total_nodes_after": 1
+    }
+  ],
+  "last_saved": "2025-06-20T18:14:54.488898"
+}
