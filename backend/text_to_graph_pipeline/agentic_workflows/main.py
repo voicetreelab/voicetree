@@ -7,9 +7,9 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 try:
-    from backend.agentic_workflows.graph import compile_voicetree_graph
-    from backend.agentic_workflows.state import VoiceTreeState
-    from backend.agentic_workflows.state_manager import VoiceTreeStateManager
+    from backend.text_to_graph_pipeline.agentic_workflows.graph import compile_voicetree_graph
+    from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
+    from backend.text_to_graph_pipeline.agentic_workflows.state_manager import VoiceTreeStateManager
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     print("⚠️ LangGraph dependencies not available")

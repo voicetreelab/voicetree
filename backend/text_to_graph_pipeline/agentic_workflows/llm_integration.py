@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 # Import our schema models
 try:
-    from backend.agentic_workflows.schema_models import (
+    from backend.text_to_graph_pipeline.agentic_workflows.schema_models import (
         SegmentationResponse, RelationshipResponse, 
         IntegrationResponse, NodeExtractionResponse
     )
@@ -174,7 +174,7 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
             # Try to extract and fix the JSON first
             response_text = response.text
             try:
-                from backend.agentic_workflows.nodes import extract_json_from_response
+                from backend.text_to_graph_pipeline.agentic_workflows.nodes import extract_json_from_response
                 extracted_json = extract_json_from_response(response_text)
                 if extracted_json != response_text:
                     print(f"🔧 Extracted JSON from markdown wrapper")

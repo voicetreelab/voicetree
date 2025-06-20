@@ -9,9 +9,9 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from backend.agentic_workflows.main import VoiceTreePipeline
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.agentic_workflows.main import VoiceTreePipeline
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager import NodeAction
 
 
 class WorkflowMode(Enum):

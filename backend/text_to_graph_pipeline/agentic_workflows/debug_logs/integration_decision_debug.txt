@@ -1,0 +1,156 @@
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:14:53
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "New NLP Project",\n    "text": "I\'m working on a new project for natural language processing.",\n    "reasoning": "Since there are no existing nodes and no other sub-chunks to relate to, this chunk is currently isolated. It introduces a new topic, but without further context, it cannot be connected to anything.",\n    "relevant_node_name": "NO_RELEVANT_NODE",\n    "relationship": null\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'New NLP Project', 'text': "I'm working on a new project for natural language processing.", 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:14:56
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: []
+  result_count: 0
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:16:18
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "reasoning": "This is the first sub-chunk, so there are no existing nodes or other sub-chunks to relate to. It introduces the topic of a new project.",\n    "relevant_node_name": "NO_RELEVANT_NODE",\n    "relationship": null\n  },\n  {\n    "name": "Voice Application Project",\n    "text": "The project involves building a voice application.",\n    "reasoning": "This sub-chunk elaborates on the \'New Project\' sub-chunk by s...[TRUNCATED]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'action': 'CREATE', ...and 5 more}
+    1: {'name': 'Voice Application Project', 'text': 'The project involves building a voice application.', 'action': 'CREATE', ...and 5 more}
+    2: {'name': 'System Testing Needed', 'text': 'I need to test the system to make sure it works properly.', 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:16:25
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "reasoning": "This is the first sub-chunk, so there are no existing nodes or other sub-chunks to relate to. It introduces the overall context.",\n    "relevant_node_name": "NO_RELEVANT_NODE",\n    "relationship": null\n  },\n  {\n    "name": "Voice Application",\n    "text": "The project involves building a voice application.",\n    "reasoning": "This chunk specifies the type of project mentioned in the first chunk. It pr...[TRUNCATED]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'action': 'CREATE', ...and 5 more}
+    1: {'name': 'Voice Application', 'text': 'The project involves building a voice application.', 'action': 'CREATE', ...and 5 more}
+    2: {'name': 'System Testing', 'text': 'I need to test the system to make sure it works properly.', 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 20:18:32
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "reasoning": "This is the first chunk, so there are no existing nodes or other sub-chunks to relate to. It introduces the topic of a new project.",\n    "relevant_node_name": "NO_RELEVANT_NODE",\n    "relationship": null\n  },\n  {\n    "name": "Voice Application Project",\n    "text": "The project involves building a voice application.",\n    "reasoning": "This chunk specifies the type of project mentioned in the previou...[TRUNCATED]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'action': 'CREATE', ...and 5 more}
+    1: {'name': 'Voice Application Project', 'text': 'The project involves building a voice application.', 'action': 'CREATE', ...and 5 more}
+    2: {'name': 'System Testing Needed', 'text': 'I need to test the system to make sure it works properly.', 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 20:18:39
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "reasoning": "This is the first sub-chunk, so there are no existing nodes or other sub-chunks to relate to. It introduces the topic of a new project.",\n    "relevant_node_name": "NO_RELEVANT_NODE",\n    "relationship": null\n  },\n  {\n    "name": "Voice Application",\n    "text": "The project involves building a voice application.",\n    "reasoning": "This sub-chunk specifies the type of project mentioned in the first s...[TRUNCATED]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'action': 'CREATE', ...and 5 more}
+    1: {'name': 'Voice Application', 'text': 'The project involves building a voice application.', 'action': 'CREATE', ...and 5 more}
+    2: {'name': 'System Testing', 'text': 'I need to test the system to make sure it works properly.', 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+

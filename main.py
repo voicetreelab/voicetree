@@ -3,10 +3,10 @@ import unittest
 
 import process_transcription
 
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-from backend.voice_to_text.voice_to_text import VoiceToTextEngine
+from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import VoiceToTextEngine
 
 decision_tree = DecisionTree()
 tree_manager = WorkflowTreeManager(decision_tree, workflow_state_file="voicetree_workflow_state.json")

@@ -1,10 +1,10 @@
 import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
-from backend.tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.workflow_adapter import WorkflowResult, WorkflowMode
-from backend.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.tree_manager import NodeAction
 
 
 class TestWorkflowTreeManager(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestWorkflowTreeManager(unittest.TestCase):
         }
         
         # Mock the VoiceTreePipeline to avoid external dependencies
-        with patch('backend.agentic_workflows.main.VoiceTreePipeline'):
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.main.VoiceTreePipeline'):
             self.tree_manager = WorkflowTreeManager(
                 decision_tree=self.decision_tree,
                 workflow_state_file=None
@@ -36,7 +36,7 @@ class TestWorkflowTreeManager(unittest.TestCase):
     def test_initialization_with_state_file_path(self):
         """Test initialization with workflow state file parameter"""
         # Arrange & Act
-        with patch('backend.agentic_workflows.main.VoiceTreePipeline'):
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.main.VoiceTreePipeline'):
             tree_manager = WorkflowTreeManager(
                 decision_tree=self.decision_tree,
                 workflow_state_file="test_state.json"

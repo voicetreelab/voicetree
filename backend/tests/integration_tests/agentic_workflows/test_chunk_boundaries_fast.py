@@ -13,7 +13,7 @@ current_dir = Path(__file__).parent
 project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
 sys.path.insert(0, str(project_root))
 
-from backend.agentic_workflows.main import VoiceTreePipeline
+from backend.text_to_graph_pipeline.agentic_workflows.main import VoiceTreePipeline
 
 
 def test_chunk_boundaries_fast():
@@ -48,20 +48,20 @@ def test_chunk_boundaries_fast():
         "extraction": {"new_nodes": ["NLP Project", "System Architecture"]}
     }
     
-    with patch('backend.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
+    with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
         # Set up mock to return different responses based on stage_type
         def mock_llm_response(prompt, stage_type, model_name="gemini-2.0-flash"):
             if stage_type == "segmentation":
-                from backend.agentic_workflows.schema_models import SegmentationResponse
+                from backend.text_to_graph_pipeline.agentic_workflows.schema_models import SegmentationResponse
                 return SegmentationResponse(**mock_responses["segmentation"])
             elif stage_type == "relationship":
-                from backend.agentic_workflows.schema_models import RelationshipResponse
+                from backend.text_to_graph_pipeline.agentic_workflows.schema_models import RelationshipResponse
                 return RelationshipResponse(analyzed_chunks=mock_responses["relationship"])
             elif stage_type == "integration":
-                from backend.agentic_workflows.schema_models import IntegrationResponse
+                from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationResponse
                 return IntegrationResponse(**mock_responses["integration"])
             elif stage_type == "extraction":
-                from backend.agentic_workflows.schema_models import NodeExtractionResponse
+                from backend.text_to_graph_pipeline.agentic_workflows.schema_models import NodeExtractionResponse
                 return NodeExtractionResponse(**mock_responses["extraction"])
         
         mock_llm.side_effect = mock_llm_response
@@ -120,9 +120,9 @@ def test_extreme_boundaries_fast():
     print("=" * 50)
     
     # Simple mock response
-    with patch('backend.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
+    with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
         def mock_response(prompt, stage_type, model_name="gemini-2.0-flash"):
-            from backend.agentic_workflows.schema_models import (
+            from backend.text_to_graph_pipeline.agentic_workflows.schema_models import (
                 SegmentationResponse, RelationshipResponse, 
                 IntegrationResponse, NodeExtractionResponse
             )

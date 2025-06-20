@@ -9,12 +9,12 @@ from typing import Set, Tuple, List
 import google.generativeai as genai
 
 import settings
-from tree_manager.LLM_engine.background_rewrite import Rewriter
-from tree_manager.LLM_engine.summarize_with_llm import Summarizer
-from tree_manager.LLM_engine.tree_action_decider import Decider
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.utils import extract_summary, remove_first_word, extract_complete_sentences
-from tree_manager import NodeAction
+from .LLM_engine.background_rewrite import Rewriter
+from .LLM_engine.summarize_with_llm import Summarizer
+from .LLM_engine.tree_action_decider import Decider
+from .decision_tree_ds import DecisionTree
+from .utils import extract_summary, remove_first_word, extract_complete_sentences
+from . import NodeAction
 
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 

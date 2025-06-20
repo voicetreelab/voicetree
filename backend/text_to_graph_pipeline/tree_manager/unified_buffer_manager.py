@@ -7,7 +7,7 @@ import logging
 from typing import Optional, Tuple, List
 import re
 
-from backend.tree_manager.utils import extract_complete_sentences
+from backend.text_to_graph_pipeline.tree_manager.utils import extract_complete_sentences
 
 
 class UnifiedBufferManager:

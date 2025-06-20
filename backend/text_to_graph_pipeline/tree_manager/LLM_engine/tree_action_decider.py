@@ -3,9 +3,9 @@ import logging
 import traceback
 from typing import List
 import settings
-from tree_manager import NodeAction
-from tree_manager.LLM_engine.LLM_API import generate_async
-from tree_manager.decision_tree_ds import DecisionTree
+from .. import NodeAction
+from .LLM_API import generate_async
+from ..decision_tree_ds import DecisionTree
 
 
 class Decider:

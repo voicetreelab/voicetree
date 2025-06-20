@@ -7,8 +7,8 @@ import logging
 import asyncio
 from typing import Optional, Set
 
-from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.unified_buffer_manager import UnifiedBufferManager
 from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
 import settings
 

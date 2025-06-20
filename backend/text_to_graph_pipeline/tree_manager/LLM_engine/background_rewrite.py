@@ -1,9 +1,9 @@
 import logging
 
 from settings import LLMTask
-from tree_manager.LLM_engine.LLM_API import generate_async
-from tree_manager.decision_tree_ds import DecisionTree
-from tree_manager.utils import extract_summary
+from .LLM_API import generate_async
+from ..decision_tree_ds import DecisionTree
+from ..utils import extract_summary
 
 
 class Rewriter:

@@ -1,0 +1,980 @@
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "I\'m working on a new project for natural language processing. The system will use transfor",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "mer models for text analysis. We need to implement entity recognition and sentiment",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "analysis features. The project deadline is next month.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "Additionally, we should consider adding multi-language support for",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "English, Spanish, and French languages.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "The",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "artificial",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "intelligence system",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "uses deep",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "learning.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "It can",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "recognize patterns",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "in data.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "I\'m working on a new project for natural language processing. The system will use transfor",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "mer models for text analysis. We need to implement entity recognition and sentiment",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "analysis features. The project deadline is next month.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "The",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "artificial",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "intelligence",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "system",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "I\'m working on a new project for natural language processing. The system will use transfor",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: '- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- V\n- i\n- c\n- T\n- P\n- j\n- M\n- a\n- p\n- f\n- v\n- k\n- w\n- l\n- g\n- h\n- y\n- m\n- L\n- I\n- W\n- S\n- A\n- D'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "Today I want to work on integrating LangGraph with my voice tree system.\\n        I need to create a multi-stage pipeline that can process transcripts effectively.\\n        The system should segment the text, analyze relationships, make integration decisions, and extract new nodes.\\n        I\'m particularly interested in how well this performs compared to the existing single-LLM approach.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k"
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "This is a test of the VoiceTree application.\\n    I want to create a new node about project planning. \\n    The first step is to define the project scope. \\n    The next step is to identify the key stakeholders.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k"
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "Another thing I will have to do is start reaching out to investors to see what next steps they would recommend for me. I should talk to Austin\'s dad first.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: "- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- R\n- T\n- a\n- y\n- '\n- h\n- g\n- k"
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "To be able to start reaching out to investors, I will first have to polish my POC. This involves refining the user interface, improving the summarization quality, and making sure the application is robust and easy to use. I\'ll also need to prepare a compelling pitch deck and presentation.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: '- \n\n-  \n- C\n- u\n- r\n- e\n- n\n- t\n- o\n- d\n- s\n- :\n- -\n- V\n- i\n- c\n- T\n- P\n- j\n- M\n- a\n- p\n- f\n- v\n- k\n- w\n- l\n- g\n- h\n- y\n- m\n- B\n- D\n- W\n- b\n- A\n- I\n- U'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "I need to work on the VoiceTree project today.\\n    First, I should integrate LangGraph to improve the workflow processing.\\n    This will help with better decision making about where to place new nodes in the tree.\\n    After that, I need to benchmark the performance against the current system.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "I\'m working on a new machine learning project using Python.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "For the machine learning project, I need to implement data preprocessing.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "The Python code will use scikit-learn for the algorithms.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "I\'m working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "I\'m working on a new project. The project involves building a voice application. I need to test the system to make sure it works properly.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "Um, which means, oh, I have to do a fair bit of stuff.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:13:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "Okay, so what are we doing? Um, okay, so we got a few different\\n        agents running in the background we. Our first thing was making the system just generally robust.\\n        getting all our tests passing one thing we still have to do is completely switch\\n        over from the old LLM API in LLM engine and move it to using the agentic\\n        workflow LLM integration API I think the LLM API is still used for one thing\\n        which is the sum...[TRUNCATED]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:14:00
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "Hello, testing, one, two, three. Hello, test two three. My name is Manu. Okay, let\'s run the tests in back end.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:14:00
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "Hello? Testing, one, two, three, testing.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:14:00
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "Voice Input",\n    "text": "First, I need to work on the user interface design.\\n        Second, I should implement the backend API endpoints.\\n        Third, we need to set up the database schema.\\n        Finally, testing and deployment should be planned.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  exception_type: 'RuntimeError'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:14:52
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "New NLP Project",\n    "text": "I\'m working on a new project for natural language processing.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  analyzed_chunks: [
+    0: {'name': 'New NLP Project', 'text': "I'm working on a new project for natural language processing.", 'reasoning': 'Since there are no existing nodes and no other sub-chunks to relate to, this chunk is currently isol...', ...and 2 more}
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:14:56
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: '- New NLP Project: The user is starting a new project focused on natural language processing. (child of NO_RELEVANT_NODE)'
+  sub_chunks: '[]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  analyzed_chunks: []
+  result_count: 0
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:14:59
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: '- New NLP Project: The user is starting a new project focused on natural language processing. (child of NO_RELEVANT_NODE)'
+  sub_chunks: '[\n  {\n    "name": "Analysis Features, Deadline",\n    "text": "analysis features. The project deadline is next month.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  analyzed_chunks: [
+    0: {'name': 'Analysis Features, Deadline', 'text': 'analysis features. The project deadline is next month.', 'reasoning': "This chunk mentions 'analysis features' which directly relates to the NLP project. The deadline also...", ...and 2 more}
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:16:15
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "is_complete": true\n  },\n  {\n    "name": "Voice Application Project",\n    "text": "The project involves building a voice application.",\n    "is_complete": true\n  },\n  {\n    "name": "System Testing Needed",\n    "text": "I need to test the system to make sure it works properly.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  analyzed_chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'reasoning': 'This is the first sub-chunk, so there are no existing nodes or other sub-chunks to relate to. It int...', ...and 2 more}
+    1: {'name': 'Voice Application Project', 'text': 'The project involves building a voice application.', 'reasoning': "This sub-chunk elaborates on the 'New Project' sub-chunk by specifying that it is a voice applicatio...", ...and 2 more}
+    2: {'name': 'System Testing Needed', 'text': 'I need to test the system to make sure it works properly.', 'reasoning': 'This sub-chunk describes a necessary step in the project lifecycle, specifically testing. While it c...', ...and 2 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 18:16:23
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "is_complete": true\n  },\n  {\n    "name": "Voice Application",\n    "text": "The project involves building a voice application.",\n    "is_complete": true\n  },\n  {\n    "name": "System Testing",\n    "text": "I need to test the system to make sure it works properly.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  analyzed_chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'reasoning': 'This is the first sub-chunk, so there are no existing nodes or other sub-chunks to relate to. It int...', ...and 2 more}
+    1: {'name': 'Voice Application', 'text': 'The project involves building a voice application.', 'reasoning': 'This chunk specifies the type of project mentioned in the first chunk. It provides more detail about...', ...and 2 more}
+    2: {'name': 'System Testing', 'text': 'I need to test the system to make sure it works properly.', 'reasoning': "This chunk describes a task that is likely part of the 'New Project' and the 'Voice Application' dev...", ...and 2 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 20:18:29
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "is_complete": true\n  },\n  {\n    "name": "Voice Application Project",\n    "text": "The project involves building a voice application.",\n    "is_complete": true\n  },\n  {\n    "name": "System Testing Needed",\n    "text": "I need to test the system to make sure it works properly.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  analyzed_chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'reasoning': 'This is the first chunk, so there are no existing nodes or other sub-chunks to relate to. It introdu...', ...and 2 more}
+    1: {'name': 'Voice Application Project', 'text': 'The project involves building a voice application.', 'reasoning': "This chunk specifies the type of project mentioned in the previous chunk. It elaborates on the 'New ...", ...and 2 more}
+    2: {'name': 'System Testing Needed', 'text': 'I need to test the system to make sure it works properly.', 'reasoning': "This chunk describes a task related to the project. While it could be argued it relates to 'New Proj...", ...and 2 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+RELATIONSHIP_ANALYSIS STAGE DEBUG - 20:18:36
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Relationship Analysis'
+  stage_type: 'relationship'
+  prompt_name: 'relationship_analysis'
+  existing_nodes: 'No existing nodes'
+  sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "is_complete": true\n  },\n  {\n    "name": "Voice Application",\n    "text": "The project involves building a voice application.",\n    "is_complete": true\n  },\n  {\n    "name": "System Testing",\n    "text": "I need to test the system to make sure it works properly.",\n    "is_complete": true\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  analyzed_chunks: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'reasoning': 'This is the first sub-chunk, so there are no existing nodes or other sub-chunks to relate to. It int...', ...and 2 more}
+    1: {'name': 'Voice Application', 'text': 'The project involves building a voice application.', 'reasoning': 'This sub-chunk specifies the type of project mentioned in the first sub-chunk. It elaborates on the ...', ...and 2 more}
+    2: {'name': 'System Testing', 'text': 'I need to test the system to make sure it works properly.', 'reasoning': "This sub-chunk describes a task related to the project, specifically testing. It's a next step that ...", ...and 2 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+

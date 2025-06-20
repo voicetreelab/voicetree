@@ -1,0 +1,162 @@
+
+==========================================
+NODE_EXTRACTION STAGE DEBUG - 18:14:54
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Node Extraction'
+  stage_type: 'extraction'
+  prompt_name: 'node_extraction'
+  extract: '[\n  {\n    "name": "New NLP Project",\n    "text": "I\'m working on a new project for natural language processing.",\n    "action": "CREATE",\n    "target_node": "NO_RELEVANT_NODE",\n    "new_node_name": "New NLP Project",\n    "new_node_summary": "The user is starting a new project focused on natural language processing.",\n    "relationship_for_edge": null,\n    "content": "I\'m working on a new project for natural language processing."\n  }\n]'
+  nodes: 'No existing nodes'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  new_nodes: [
+    0: 'New NLP Project'
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+NODE_EXTRACTION STAGE DEBUG - 18:14:57
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Node Extraction'
+  stage_type: 'extraction'
+  prompt_name: 'node_extraction'
+  extract: '[]'
+  nodes: '- New NLP Project: The user is starting a new project focused on natural language processing. (child of NO_RELEVANT_NODE)'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  new_nodes: []
+  result_count: 0
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+NODE_EXTRACTION STAGE DEBUG - 18:16:20
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Node Extraction'
+  stage_type: 'extraction'
+  prompt_name: 'node_extraction'
+  extract: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "action": "CREATE",\n    "target_node": "NO_RELEVANT_NODE",\n    "new_node_name": "New Project",\n    "new_node_summary": "The speaker is starting a new project.",\n    "relationship_for_edge": null,\n    "content": "I\'m working on a new project."\n  },\n  {\n    "name": "Voice Application Project",\n    "text": "The project involves building a voice application.",\n    "action": "CREATE",\n    "target_node": "New Project",\n ...[TRUNCATED]'
+  nodes: 'No existing nodes'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  new_nodes: [
+    0: 'New Project'
+    1: 'Voice Application Project'
+    2: 'System Testing Needed'
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+NODE_EXTRACTION STAGE DEBUG - 18:16:26
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Node Extraction'
+  stage_type: 'extraction'
+  prompt_name: 'node_extraction'
+  extract: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "action": "CREATE",\n    "target_node": "NO_RELEVANT_NODE",\n    "new_node_name": "New Project",\n    "new_node_summary": "The speaker is starting a new project.",\n    "relationship_for_edge": null,\n    "content": "I\'m working on a new project."\n  },\n  {\n    "name": "Voice Application",\n    "text": "The project involves building a voice application.",\n    "action": "CREATE",\n    "target_node": "New Project",\n    "new_...[TRUNCATED]'
+  nodes: 'No existing nodes'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  new_nodes: [
+    0: 'New Project'
+    1: 'Voice Application'
+    2: 'System Testing'
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+NODE_EXTRACTION STAGE DEBUG - 20:18:33
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Node Extraction'
+  stage_type: 'extraction'
+  prompt_name: 'node_extraction'
+  extract: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "action": "CREATE",\n    "target_node": "NO_RELEVANT_NODE",\n    "new_node_name": "New Project",\n    "new_node_summary": "The speaker is starting a new project.",\n    "relationship_for_edge": null,\n    "content": "I\'m working on a new project."\n  },\n  {\n    "name": "Voice Application Project",\n    "text": "The project involves building a voice application.",\n    "action": "CREATE",\n    "target_node": "New Project",\n ...[TRUNCATED]'
+  nodes: 'No existing nodes'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  new_nodes: [
+    0: 'New Project'
+    1: 'Voice Application Project'
+    2: 'System Testing Needed'
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+NODE_EXTRACTION STAGE DEBUG - 20:18:39
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Node Extraction'
+  stage_type: 'extraction'
+  prompt_name: 'node_extraction'
+  extract: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "action": "CREATE",\n    "target_node": "NO_RELEVANT_NODE",\n    "new_node_name": "New Project",\n    "new_node_summary": "The speaker is starting a new project.",\n    "relationship_for_edge": null,\n    "content": "I\'m working on a new project."\n  },\n  {\n    "name": "Voice Application",\n    "text": "The project involves building a voice application.",\n    "action": "CREATE",\n    "target_node": "New Project",\n    "new_...[TRUNCATED]'
+  nodes: 'No existing nodes'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  new_nodes: [
+    0: 'New Project'
+    1: 'Voice Application'
+    2: 'System Testing'
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+
