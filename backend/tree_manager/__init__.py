@@ -22,6 +22,7 @@ Usage:
 """
 
 # Import main classes for convenience
+from .workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.future.enhanced_workflow_tree_manager import EnhancedWorkflowTreeManager
 from .decision_tree_ds import DecisionTree, Node
 from backend.tree_manager.future.base import TreeManagerInterface, TreeManagerMixin

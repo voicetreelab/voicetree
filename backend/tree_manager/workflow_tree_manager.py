@@ -8,7 +8,7 @@ from typing import Optional, Set, List
 
 from backend.tree_manager.future.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_buffer_manager.unified_buffer_manager import UnifiedBufferManager
+from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
 from backend.workflow_adapter import WorkflowAdapter
 import sys
 import os
