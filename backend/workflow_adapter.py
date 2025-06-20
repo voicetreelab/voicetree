@@ -7,7 +7,6 @@ Why?
 
 import asyncio
 import json
-import logging
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -132,7 +131,7 @@ class WorkflowAdapter:
         self, 
         decision_tree: DecisionTree,
         state_file: Optional[str] = None,
-        mode: Optional[WorkflowMode] = None  # Deprecated parameter, kept for compatibility
+        mode: WorkflowMode = WorkflowMode.ATOMIC
     ):
         """
         Initialize the workflow adapter
@@ -140,11 +139,10 @@ class WorkflowAdapter:
         Args:
             decision_tree: The VoiceTree decision tree instance
             state_file: Optional path to persist workflow state
-            mode: Deprecated - kept for backward compatibility, will be removed
+            mode: Execution mode (atomic or streaming)
         """
         self.decision_tree = decision_tree
-        if mode is not None:
-            logging.warning("WorkflowAdapter 'mode' parameter is deprecated and will be removed. STREAMING behavior is now standard.")
+        self.mode = mode
         self.pipeline = VoiceTreePipeline(state_file)
         self._incomplete_buffer = ""
     
@@ -214,6 +212,11 @@ class WorkflowAdapter:
             
             # Convert workflow decisions to NodeActions
             node_actions = self._convert_to_node_actions(result)
+            
+            # todo: don't have two different modes? Why did we even want this initially?
+            # Apply changes if in atomic mode
+            if self.mode == WorkflowMode.ATOMIC:
+                await self._apply_node_actions(node_actions)
             
             return WorkflowResult(
                 success=True,
@@ -316,8 +319,37 @@ class WorkflowAdapter:
         
         return node_actions
     
-    # Note: _apply_node_actions method removed - actions are now applied externally
-    # This provides better separation of concerns and flexibility
+    async def _apply_node_actions(self, node_actions: List[NodeAction]) -> None:
+        """
+        Apply node actions to the decision tree
+        
+        Args:
+            node_actions: List of actions to apply
+        """
+        for action in node_actions:
+            if action.action == "CREATE":
+                parent_id = self.decision_tree.get_node_id_from_name(
+                    action.neighbour_concept_name
+                )
+                self.decision_tree.create_new_node(
+                    name=action.concept_name,
+                    parent_node_id=parent_id,
+                    content=action.markdown_content_to_append,
+                    summary=action.updated_summary_of_node,
+                    relationship_to_parent=action.relationship_to_neighbour
+                )
+                
+            elif action.action == "APPEND":
+                node_id = self.decision_tree.get_node_id_from_name(
+                    action.concept_name
+                )
+                if node_id:
+                    node = self.decision_tree.tree[node_id]
+                    node.append_content(
+                        action.markdown_content_to_append,
+                        action.updated_summary_of_node,
+                        action.labelled_text
+                    )
     
     def get_workflow_statistics(self) -> Dict[str, Any]:
         """Get statistics about the workflow state"""

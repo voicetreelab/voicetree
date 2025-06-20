@@ -111,7 +111,6 @@ class UnifiedBufferManager:
             end_pos = match.start()
             # Get text before the punctuation to check for abbreviations
             text_before = text[:end_pos].strip()
-            # TODO, BUFFERING SYSTEM SHOULD NOT RELY ON PUNCTUATION!!! IT SHOULD BE SIMPLE LENGTH BASED
             if not self.ABBREV_PATTERN.search(text_before):
                 non_abbrev_endings.append(match.group())
         

@@ -9,12 +9,12 @@ This document compiles all TODO items found across the VoiceTree codebase as of 
 ## Progress Tracking
 
 ### Overall Progress
-- [x] Phase 1: Critical Architecture Fixes (8/8 tasks) ✅ STREAMING MODE COMPLETE
+- [ ] Phase 1: Critical Architecture Fixes (1/8 tasks)
 - [ ] Phase 2: Complete Core Features (0/4 tasks)
 - [ ] Phase 3: Enhancement & Polish (0/6 tasks)
 - [ ] Phase 4: Configuration & Documentation (0/8 tasks)
 
-**Total Progress: 8/26 tasks completed**
+**Total Progress: 1/26 tasks completed**
 
 ## Critical Architecture Issues
 
@@ -127,13 +127,12 @@ The system currently supports both ATOMIC and STREAMING modes, but multiple TODO
 
 ### Phase 1: Critical Architecture Fixes (Week 1)
 
-#### 1. Standardize on STREAMING mode ✅ COMPLETED
-- [x] ~~Remove ATOMIC mode code from `backend/workflow_adapter.py`~~
-- [x] ~~Remove redundant `streaming` parameter in `backend/workflow_adapter.py:114-115`~~
-- [x] ~~Update `backend/settings.py:95` to clarify execution type default as STREAMING~~
-- [x] ~~Update all references to use STREAMING only~~
-- [x] ~~Update documentation to reflect single execution mode~~
-- [x] ~~Add proper error handling to _apply_node_actions~~
+#### 1. Standardize on STREAMING mode
+- [ ] Remove ATOMIC mode code from `backend/workflow_adapter.py`
+- [ ] Remove redundant `streaming` parameter in `backend/workflow_adapter.py:114-115`
+- [ ] Update `backend/settings.py:95` to clarify execution type default as STREAMING
+- [ ] Update all references to use STREAMING only
+- [ ] Update documentation to reflect single execution mode
 
 #### 2. Fix Tree Search Performance
 - [ ] Implement hash-based node lookup in `backend/tree_manager/utils.py:28-30`

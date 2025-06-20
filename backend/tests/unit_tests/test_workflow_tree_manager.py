@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 from backend.tree_manager.workflow_tree_manager import WorkflowTreeManager
 from backend.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.workflow_adapter import WorkflowResult
+from backend.workflow_adapter import WorkflowResult, WorkflowMode
 from backend.tree_manager import NodeAction
 
 
@@ -31,6 +31,7 @@ class TestWorkflowTreeManager(unittest.TestCase):
         # Assert
         self.assertEqual(self.tree_manager.decision_tree, self.decision_tree)
         self.assertIsNotNone(self.tree_manager.workflow_adapter)
+        self.assertEqual(self.tree_manager.workflow_adapter.mode.value, WorkflowMode.ATOMIC.value)
     
     def test_initialization_with_state_file_path(self):
         """Test initialization with workflow state file parameter"""

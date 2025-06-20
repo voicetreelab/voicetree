@@ -5,12 +5,12 @@ Uses agentic workflows for all processing with unified buffering
 
 import logging
 import asyncio
-from typing import Optional, Set, List
+from typing import Optional, Set
 
 from backend.tree_manager.base import TreeManagerInterface, TreeManagerMixin
 from backend.tree_manager.decision_tree_ds import DecisionTree
 from backend.tree_manager.unified_buffer_manager import UnifiedBufferManager
-from backend.workflow_adapter import WorkflowAdapter
+from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
 import sys
 import os
 
@@ -54,10 +54,11 @@ class WorkflowTreeManager(TreeManagerInterface, TreeManagerMixin):
             buffer_size_threshold=settings.TEXT_BUFFER_SIZE_THRESHOLD
         )
         
-        # Initialize workflow adapter (actions applied externally)
+        # Initialize workflow adapter
         self.workflow_adapter = WorkflowAdapter(
             decision_tree=decision_tree,
-            state_file=workflow_state_file
+            state_file=workflow_state_file,
+            mode=WorkflowMode.ATOMIC
         )
         
         logging.info(f"WorkflowTreeManager initialized with adaptive buffering and agentic workflow")
@@ -121,8 +122,9 @@ class WorkflowTreeManager(TreeManagerInterface, TreeManagerMixin):
             incomplete_remainder = result.metadata.get("incomplete_buffer", "") if result.metadata else ""
             self.buffer_manager.set_incomplete_remainder(incomplete_remainder)
             
-            # Apply node actions (STREAMING mode returns actions without applying them)
-            await self._apply_node_actions(result.node_actions)
+            # NOTE: No need to apply node actions here since WorkflowAdapter already applies them in ATOMIC mode
+            # This was causing duplicate node creation and numbering gaps
+            # todo avoid this fuckaround, only one mode pls
             
             # Ensure root node is always included for markdown generation
             self._nodes_to_update.add(0)
@@ -171,51 +173,4 @@ class WorkflowTreeManager(TreeManagerInterface, TreeManagerMixin):
             parent_name = self.decision_tree.tree[node.parent_id].title if node.parent_id is not None else "None"
             logging.info(f"Node {node_id}: '{node.title}' (parent: '{parent_name}')")
         
-        return {"total_nodes": node_count, "root_children": root_children}
-    
-    async def _apply_node_actions(self, node_actions: List['NodeAction']) -> None:
-        """
-        Apply node actions to the decision tree with proper error handling
-        
-        Args:
-            node_actions: List of actions to apply
-        """
-        for action in node_actions:
-            try:
-                if action.action == "CREATE":
-                    parent_id = self.decision_tree.get_node_id_from_name(
-                        action.neighbour_concept_name
-                    )
-                    if parent_id is None:
-                        logging.error(f"Cannot create node '{action.concept_name}': parent '{action.neighbour_concept_name}' not found")
-                        continue
-                        
-                    self.decision_tree.create_new_node(
-                        name=action.concept_name,
-                        parent_node_id=parent_id,
-                        content=action.markdown_content_to_append,
-                        summary=action.updated_summary_of_node,
-                        relationship_to_parent=action.relationship_to_neighbour
-                    )
-                    
-                elif action.action == "APPEND":
-                    node_id = self.decision_tree.get_node_id_from_name(
-                        action.concept_name
-                    )
-                    if node_id is None:
-                        logging.error(f"Cannot append to node: '{action.concept_name}' not found")
-                        continue
-                        
-                    node = self.decision_tree.tree.get(node_id)
-                    if node is None:
-                        logging.error(f"Node {node_id} exists in index but not in tree")
-                        continue
-                        
-                    node.append_content(
-                        action.markdown_content_to_append,
-                        action.updated_summary_of_node,
-                        action.labelled_text
-                    )
-            except Exception as e:
-                logging.error(f"Error applying {action.action} action for '{getattr(action, 'concept_name', 'unknown')}': {str(e)}")
-                # Continue processing other actions rather than failing completely 
+        return {"total_nodes": node_count, "root_children": root_children} 
