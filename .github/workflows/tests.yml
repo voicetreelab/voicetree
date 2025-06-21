@@ -62,7 +62,6 @@ jobs:
   integration-tests:
     runs-on: ubuntu-latest
     name: Integration Tests
-    needs: unit-tests  # Run after unit tests pass
     
     steps:
     - uses: actions/checkout@v4
