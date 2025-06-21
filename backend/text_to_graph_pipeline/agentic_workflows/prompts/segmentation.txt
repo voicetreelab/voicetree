@@ -6,13 +6,13 @@ OUTPUT SPECIFICATION
 Output ONLY the following JSON object. Adhere strictly to this format. No extra text or markdown.
 
 
-{{{{
+{
   "chunks": [
-    {{{{"name": "Chunk 1 concise name", "text": "Chunk 1 text...", "is_complete": true}}}},
+    {"name": "Chunk 1 concise name", "text": "Chunk 1 text...", "is_complete": true},
     // ... more chunks ...
-    {{{{"name": "Final chunk concise name", "text": "Final chunk text...", "is_complete": true}}}}
+    {"name": "Final chunk concise name", "text": "Final chunk text...", "is_complete": true}
   ]
-}}}}
+}
 
 ────────────────────────────────────────
 SEGMENTATION, NAMING & EDITING RULES
@@ -55,16 +55,16 @@ EXAMPLE
 
 **Output:**
 ```json
-{{
+{
   "chunks": [
-    {{"name": "Presentation Task", "text": "Okay, so I need to finish my presentation for tomorrow's meeting. The topic is quarterly sales results.", "is_complete": true}},
-    {{"name": "Client Call", "text": "I also need to call the client about the contract renewal", "is_complete": true}},
-    {{"name": "Follow-up Meeting", "text": "and schedule that follow-up meeting we discussed.", "is_complete": true}}
+    {"name": "Presentation Task", "text": "Okay, so I need to finish my presentation for tomorrow's meeting. The topic is quarterly sales results.", "is_complete": true},
+    {"name": "Client Call", "text": "I also need to call the client about the contract renewal", "is_complete": true},
+    {"name": "Follow-up Meeting", "text": "and schedule that follow-up meeting we discussed.", "is_complete": true}
   ]
-}}
+}
 ```
 
 ────────────────────────────────────────
 TRANSCRIPT TO SEGMENT:
 ────────────────────────────────────────
-{transcript_text} 
+{{transcript_text}}

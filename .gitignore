@@ -82,6 +82,7 @@ test_output/*
 *Vault*/*
 voicetree.log
 .out.txt
+.serena/*
 
 # macOS
 .DS_Store
@@ -113,3 +114,16 @@ backend/tests/integration_tests/agentic_workflows/test_results.json
 backend/tests/integration_tests/test_chunk_boundaries_fast_state.json
 backend/tests/integration_tests/agentic_workflows/test_results.json
 latest_run_context.json
+.serena/**/*
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/*
+test_chunk_boundaries_state.json
+test_chunk_boundaries_fast_state.json
+test_extreme_fast_state.json
+test_chunk_boundaries_fast_state.json
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/relationship_analysis_debug.txt
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/node_extraction_debug.txt
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/integration_decision_debug.txt
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/integration_decision_debug.txt
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/node_extraction_debug.txt
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/node_extraction_debug.txt
+backend/text_to_graph_pipeline/agentic_workflows/debug_logs/relationship_analysis_debug.txt

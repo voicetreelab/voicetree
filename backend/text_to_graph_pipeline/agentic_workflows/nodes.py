@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import logging
 
+from .prompt_engine import PromptLoader
+
 # Set up logging
 # Get a logger instance
 logger = logging.getLogger(__name__)
@@ -67,6 +69,9 @@ except ImportError:
 PROMPT_DIR = Path(__file__).parent / "prompts"
 MAX_NODE_NAME_LENGTH = 100
 EXCLUDED_PHRASES = ["based on", "provided data", "new nodes"]
+
+# Initialize prompt loader
+prompt_loader = PromptLoader(PROMPT_DIR)
 
 
 def extract_json_from_response(response: str) -> str:
@@ -155,28 +160,6 @@ def _fix_json_response(json_text: str) -> str:
     return json_text
 
 
-def load_prompt_template(prompt_name: str) -> str:
-    """
-    Load a prompt template from the prompts directory
-    
-    Args:
-        prompt_name: Name of the prompt file (without .txt extension)
-        
-    Returns:
-        Prompt template content
-        
-    Raises:
-        FileNotFoundError: If prompt template doesn't exist
-    """
-    prompt_path = PROMPT_DIR / f"{prompt_name}.txt"
-    
-    if not prompt_path.exists():
-        raise FileNotFoundError(f"Prompt template not found: {prompt_path}")
-    
-    with open(prompt_path, 'r', encoding='utf-8') as f:
-        return f.read()
-
-
 def process_llm_stage_structured(
     state: Dict[str, Any],
     stage_name: str,
@@ -213,9 +196,8 @@ def process_llm_stage_structured(
     }
     
     try:
-        # Load and format prompt
-        prompt_template = load_prompt_template(prompt_name)
-        prompt = prompt_template.format(**prompt_kwargs)
+        # Load and format prompt using PromptLoader
+        prompt = prompt_loader.render_template(prompt_name, **prompt_kwargs)
         
         # Log input prompt
         log_to_file(stage_name, "INPUT_PROMPT", prompt)
@@ -396,7 +378,7 @@ def integration_decision_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "analyzed_sub_chunks": json.dumps(state["analyzed_chunks"], indent=2)
         },
         result_key="integration_decisions",
-        next_stage="integration_decision_complete"
+        next_stage="node_extraction"
     )
 
 
@@ -436,7 +418,7 @@ def node_extraction_node(state: Dict[str, Any]) -> Dict[str, Any]:
         stage_type="extraction",
         prompt_name="node_extraction",
         prompt_kwargs={
-            "extract": json.dumps(state["integration_decisions"], indent=2),
+            "extract": json.dumps(state.get("integration_decisions", []), indent=2),
             "nodes": state.get("existing_nodes", "No existing nodes"),
         },
         result_key="new_nodes",
