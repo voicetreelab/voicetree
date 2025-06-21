@@ -5,33 +5,13 @@ Defines the flow between processing stages
 
 from typing import Dict, Any
 
-try:
-    from langgraph.graph import StateGraph, END
-    from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
-    from backend.text_to_graph_pipeline.agentic_workflows.nodes import (
-        segmentation_node,
-        relationship_analysis_node, 
-        integration_decision_node
-    )
-    LANGGRAPH_AVAILABLE = True
-except ImportError:
-    print("⚠️ LangGraph not available, using mock implementations")
-    LANGGRAPH_AVAILABLE = False
-    
-    # Mock implementations for testing without LangGraph
-    class StateGraph:
-        def __init__(self, state_type): pass
-        def add_node(self, name, func): pass
-        def set_entry_point(self, name): pass
-        def add_conditional_edges(self, source, condition, mapping): pass
-        def compile(self): return MockApp()
-    
-    class MockApp:
-        def invoke(self, state): 
-            return {"error_message": "LangGraph not installed"}
-    
-    END = "END"
-    VoiceTreeState = dict
+from langgraph.graph import StateGraph, END
+from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
+from backend.text_to_graph_pipeline.agentic_workflows.nodes import (
+    segmentation_node,
+    relationship_analysis_node, 
+    integration_decision_node
+)
 
 
 # Stage transition mapping
@@ -65,9 +45,6 @@ def create_voicetree_graph():
     Returns:
         Configured StateGraph instance
     """
-    if not LANGGRAPH_AVAILABLE:
-        return StateGraph(dict)
-    
     # Create the state graph
     workflow = StateGraph(VoiceTreeState)
     

@@ -58,14 +58,12 @@ class TestShouldContinue:
 class TestCreateVoiceTreeGraph:
     """Test suite for create_voicetree_graph function"""
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.LANGGRAPH_AVAILABLE', False)
-    def test_returns_mock_state_graph_when_langgraph_not_available(self):
+    def test_returns_state_graph(self):
         from backend.text_to_graph_pipeline.agentic_workflows.graph import StateGraph
         
         result = create_voicetree_graph()
         assert isinstance(result, StateGraph)
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.LANGGRAPH_AVAILABLE', True)
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.StateGraph')
     def test_creates_state_graph_with_voicetree_state(self, mock_state_graph):
         mock_workflow = Mock()
@@ -76,7 +74,6 @@ class TestCreateVoiceTreeGraph:
         
         mock_state_graph.assert_called_once_with(VoiceTreeState)
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.LANGGRAPH_AVAILABLE', True)
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.StateGraph')
     def test_adds_all_three_nodes(self, mock_state_graph):
         mock_workflow = Mock()
@@ -94,7 +91,6 @@ class TestCreateVoiceTreeGraph:
         assert "relationship_analysis" in node_names
         assert "integration_decision" in node_names
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.LANGGRAPH_AVAILABLE', True)
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.StateGraph')
     def test_sets_segmentation_as_entry_point(self, mock_state_graph):
         mock_workflow = Mock()
@@ -104,7 +100,6 @@ class TestCreateVoiceTreeGraph:
         
         mock_workflow.set_entry_point.assert_called_once_with("segmentation")
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.LANGGRAPH_AVAILABLE', True)
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.StateGraph')
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.END', 'END')
     def test_adds_conditional_edges_for_all_stages(self, mock_state_graph):
@@ -131,7 +126,6 @@ class TestCreateVoiceTreeGraph:
         assert calls[2][0][0] == "integration_decision"
         assert calls[2][0][2] == {"END": "END"}
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.LANGGRAPH_AVAILABLE', True)
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.StateGraph')
     def test_returns_configured_workflow(self, mock_state_graph):
         mock_workflow = Mock()
@@ -165,39 +159,6 @@ class TestCompileVoiceTreeGraph:
         
         mock_workflow.compile.assert_called_once()
         assert result == mock_compiled
-
-
-class TestMockImplementations:
-    """Test suite for mock implementations when LangGraph is not available"""
-    
-    def test_mock_app_invoke_returns_error(self):
-        # Dynamically test based on whether langgraph is available
-        import backend.text_to_graph_pipeline.agentic_workflows.graph as graph_module
-        if not graph_module.LANGGRAPH_AVAILABLE:
-            app = graph_module.MockApp()
-            result = app.invoke({"some": "state"})
-            assert result == {"error_message": "LangGraph not installed"}
-        else:
-            # Skip test if langgraph is available
-            pytest.skip("MockApp only exists when LangGraph is not available")
-    
-    def test_mock_state_graph_methods_dont_crash(self):
-        # Dynamically test based on whether langgraph is available
-        import backend.text_to_graph_pipeline.agentic_workflows.graph as graph_module
-        if not graph_module.LANGGRAPH_AVAILABLE:
-            graph = graph_module.StateGraph(dict)
-            
-            # These should not raise exceptions
-            graph.add_node("test", lambda x: x)
-            graph.set_entry_point("test")
-            graph.add_conditional_edges("test", lambda x: "END", {"END": "END"})
-            
-            # Compile should return MockApp
-            app = graph.compile()
-            assert isinstance(app, graph_module.MockApp)
-        else:
-            # Skip test if langgraph is available
-            pytest.skip("Mock StateGraph only exists when LangGraph is not available")
 
 
 class TestStageTransitions:

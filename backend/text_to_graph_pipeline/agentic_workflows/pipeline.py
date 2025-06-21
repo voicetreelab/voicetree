@@ -4,22 +4,9 @@ VoiceTree LangGraph workflow pipeline implementation
 
 from typing import Dict, Any, List, Optional
 
-try:
-    from backend.text_to_graph_pipeline.agentic_workflows.graph import compile_voicetree_graph
-    from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
-    from backend.text_to_graph_pipeline.agentic_workflows.state_manager import VoiceTreeStateManager
-    LANGGRAPH_AVAILABLE = True
-except ImportError:
-    print("⚠️ LangGraph dependencies not available")
-    LANGGRAPH_AVAILABLE = False
-    VoiceTreeState = dict
-    VoiceTreeStateManager = None
-    
-    def compile_voicetree_graph():
-        class MockApp:
-            def invoke(self, state):
-                return {"error_message": "LangGraph not installed. Please install: pip install langgraph langchain-core"}
-        return MockApp()
+from backend.text_to_graph_pipeline.agentic_workflows.graph import compile_voicetree_graph
+from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
+from backend.text_to_graph_pipeline.agentic_workflows.state_manager import VoiceTreeStateManager
 
 
 class VoiceTreePipeline:
@@ -32,7 +19,7 @@ class VoiceTreePipeline:
         Args:
             state_file: Optional path to persist state to disk
         """
-        self.state_manager = VoiceTreeStateManager(state_file) if LANGGRAPH_AVAILABLE else None
+        self.state_manager = VoiceTreeStateManager(state_file)
         self.app = compile_voicetree_graph()
         self.incomplete_chunk_buffer = ""  # Buffer for incomplete chunks
     
