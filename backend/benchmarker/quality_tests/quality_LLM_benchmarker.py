@@ -36,8 +36,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 import google.generativeai as genai
 from google.generativeai import GenerativeModel
 
-from process_transcription import TranscriptionProcessor
-from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend import settings
@@ -94,21 +93,19 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
     import hashlib
     state_file_name = f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json"
     
-    tree_manager = ChunkProcessor(
+    processor = ChunkProcessor(
         decision_tree, 
-        workflow_state_file=state_file_name
+        converter=TreeToMarkdownConverter(decision_tree.tree),
+        workflow_state_file=state_file_name,
+        output_dir=OUTPUT_DIR
         # No need to specify buffer mode - it adapts automatically
     )
     
     # Clear any existing workflow state before processing
-    tree_manager.clear_workflow_state()
-    
-    converter = TreeToMarkdownConverter(decision_tree.tree)
+    processor.clear_workflow_state()
     
     # Setup fresh output directory
     setup_output_directory()
-    
-    processor = TranscriptionProcessor(tree_manager, converter, OUTPUT_DIR)
     
     with open(transcript_file, "r") as f:
         content = f.read()
@@ -137,7 +134,7 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
         sentence_count = buffer.count('.') + buffer.count('!') + buffer.count('?')
         
         # Process when we have enough content or multiple complete thoughts
-        if len(buffer) >= tree_manager.text_buffer_size_threshold or sentence_count >= 3:
+        if len(buffer) >= processor.text_buffer_size_threshold or sentence_count >= 3:
             # Process the current buffer
             await processor.process_and_convert(buffer.strip())
             # Reset the buffer
@@ -150,7 +147,7 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
         await processor.process_and_convert(buffer.strip())
     
     # Log workflow statistics
-    workflow_stats = tree_manager.get_workflow_statistics()
+    workflow_stats = processor.get_workflow_statistics()
     logging.info(f"Workflow statistics: {workflow_stats}")
     
     # Clean up the temporary state file

@@ -3,7 +3,6 @@ import unittest
 import os
 import shutil  # For directory operations
 
-from backend import process_transcription
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
@@ -11,13 +10,12 @@ from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToM
 class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.decision_tree = DecisionTree()
-        self.tree_manager = ChunkProcessor(self.decision_tree)
-        self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.output_dir = "/Users/bobbobby/repos/VoiceTreePoc/test_output"
         self.cleanUp()
-        self.processor = process_transcription.TranscriptionProcessor(self.tree_manager,
-                                                                      self.converter,
-                                                                      self.output_dir)
+        self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
+        self.processor = ChunkProcessor(self.decision_tree,
+                                       converter=self.converter,
+                                       output_dir=self.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
         log_file_path = "voicetree.log"
         if os.path.exists(log_file_path):

@@ -1,18 +1,16 @@
 import asyncio
 import unittest
 
-import process_transcription
-
-from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import VoiceToTextEngine
 
 decision_tree = DecisionTree()
-tree_manager = WorkflowTreeManager(decision_tree, workflow_state_file="voicetree_workflow_state.json")
 converter = TreeToMarkdownConverter(decision_tree.tree)
-processor = process_transcription.TranscriptionProcessor(tree_manager,
-                                                         converter)
+processor = ChunkProcessor(decision_tree, 
+                          converter=converter, 
+                          workflow_state_file="voicetree_workflow_state.json")
 
 async def main():
     voice_engine = VoiceToTextEngine()
