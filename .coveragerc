@@ -1,0 +1,18 @@
+[run]
+source = backend
+omit = 
+    */tests/*
+    */benchmarker/*
+    */__pycache__/*
+    */main.py
+    */voice_to_text/*
+    */llm_providers/*
+    */settings*.py
+    */*config.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
