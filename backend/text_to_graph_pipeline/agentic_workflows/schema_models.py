@@ -46,9 +46,4 @@ class IntegrationDecision(BaseModel):
 
 class IntegrationResponse(BaseModel):
     """Response model for integration decision stage"""
-    integration_decisions: List[IntegrationDecision] = Field(description="Integration decisions for each chunk")
-
-
-class NodeExtractionResponse(BaseModel):
-    """Response model for node extraction stage"""
-    new_nodes: List[str] = Field(description="List of new node names to create") 
+    integration_decisions: List[IntegrationDecision] = Field(description="Integration decisions for each chunk") 

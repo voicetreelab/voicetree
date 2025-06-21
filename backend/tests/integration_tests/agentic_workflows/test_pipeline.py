@@ -73,7 +73,7 @@ class TestAgenticWorkflowPipeline:
         """Test that required modules are available"""
         
         # Check that core modules exist
-        agentic_workflows_path = backend_path / "agentic_workflows"
+        agentic_workflows_path = backend_path / "text_to_graph_pipeline" / "agentic_workflows"
         
         required_files = [
             "main.py",
@@ -91,14 +91,13 @@ class TestAgenticWorkflowPipeline:
     def test_prompts_availability(self):
         """Test that prompt files are available"""
         
-        prompts_dir = backend_path / "agentic_workflows" / "prompts"
+        prompts_dir = backend_path / "text_to_graph_pipeline" / "agentic_workflows" / "prompts"
         assert prompts_dir.exists(), "Prompts directory missing"
         
         required_prompts = [
             "segmentation.txt",
             "relationship_analysis.txt",
-            "integration_decision.txt",
-            "node_extraction.txt"
+            "integration_decision.txt"
         ]
         
         for prompt_file in required_prompts:

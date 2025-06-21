@@ -14,7 +14,7 @@ project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directo
 sys.path.insert(0, str(project_root))
 
 # Import the main module from the backend
-from backend.text_to_graph_pipeline.agentic_workflows.main import run_voicetree_pipeline, print_detailed_results
+from backend.text_to_graph_pipeline.agentic_workflows.pipeline import run_voicetree_pipeline
 
 def test_complex_tree_creation():
     """Test with the same examples used in the integration tests"""
@@ -56,7 +56,7 @@ def test_complex_tree_creation():
     print("-" * 60)
     print(f"Input: {transcript1.strip()}")
     result1 = run_voicetree_pipeline(transcript1, existing_nodes)
-    print_detailed_results(result1)
+    print(f"\nResult 1: {len(result1.get('new_nodes', []))} new nodes created")
     results.append(result1)
     
     # Update existing nodes based on result1
@@ -68,7 +68,7 @@ def test_complex_tree_creation():
     print("-" * 60)
     print(f"Input: {transcript2.strip()}")
     result2 = run_voicetree_pipeline(transcript2, existing_nodes)
-    print_detailed_results(result2)
+    print(f"\nResult 2: {len(result2.get('new_nodes', []))} new nodes created")
     results.append(result2)
     
     # Update existing nodes based on result2
@@ -80,7 +80,7 @@ def test_complex_tree_creation():
     print("-" * 60)
     print(f"Input: {transcript3.strip()}")
     result3 = run_voicetree_pipeline(transcript3, existing_nodes)
-    print_detailed_results(result3)
+    print(f"\nResult 3: {len(result3.get('new_nodes', []))} new nodes created")
     results.append(result3)
     
     # Analyze the results
@@ -156,7 +156,7 @@ def test_single_transcript():
     
     print(f"Input: {transcript.strip()}")
     result = run_voicetree_pipeline(transcript, existing_nodes)
-    print_detailed_results(result)
+    print(f"\nCombined result: {len(result.get('new_nodes', []))} new nodes created")
     
     # Assert that we got a valid result
     assert result is not None, "Result should not be None"

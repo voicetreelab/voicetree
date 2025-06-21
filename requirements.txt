@@ -10,6 +10,8 @@ nltk~=3.8.1
 rake-nltk
 pytest>=7.0.0
 pytest-asyncio
+pytest-cov>=4.0.0
+coverage[toml]>=7.0
 google-generativeai
 openai
 pydantic-ai[gemini]

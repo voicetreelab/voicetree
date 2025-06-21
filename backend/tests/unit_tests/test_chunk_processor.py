@@ -1,9 +1,10 @@
 import asyncio
+import logging
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.workflow_adapter import WorkflowResult, WorkflowMode
+from backend.workflow_adapter import WorkflowResult
 from backend.text_to_graph_pipeline.tree_manager import NodeAction
 
 
@@ -18,7 +19,7 @@ class TestChunkProcessor(unittest.TestCase):
         }
         
         # Mock the VoiceTreePipeline to avoid external dependencies
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.main.VoiceTreePipeline'):
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline'):
             self.tree_manager = ChunkProcessor(
                 decision_tree=self.decision_tree,
                 workflow_state_file=None
@@ -31,12 +32,11 @@ class TestChunkProcessor(unittest.TestCase):
         # Assert
         self.assertEqual(self.tree_manager.decision_tree, self.decision_tree)
         self.assertIsNotNone(self.tree_manager.workflow_adapter)
-        self.assertEqual(self.tree_manager.workflow_adapter.mode, WorkflowMode.ATOMIC)
     
     def test_initialization_with_state_file_path(self):
         """Test initialization with workflow state file parameter"""
         # Arrange & Act
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.main.VoiceTreePipeline'):
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline'):
             tree_manager = ChunkProcessor(
                 decision_tree=self.decision_tree,
                 workflow_state_file="test_state.json"
@@ -179,7 +179,9 @@ class TestChunkProcessor(unittest.TestCase):
                 self.tree_manager.buffer_manager = TextBufferManager(config=test_config)
                 
                 # Act
+                logging.info("TEST: About to call process_voice_input from test")
                 await self.tree_manager.process_voice_input("This is a test sentence.")
+                logging.info("TEST: Finished calling process_voice_input from test")
                 
                 # Assert - should have called the workflow when threshold is met
                 # Just verify the adapter method was called

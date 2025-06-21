@@ -14,7 +14,7 @@ current_dir = Path(__file__).parent
 project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
 sys.path.insert(0, str(project_root))
 
-from backend.text_to_graph_pipeline.agentic_workflows.main import VoiceTreePipeline
+from backend.text_to_graph_pipeline.agentic_workflows.pipeline import VoiceTreePipeline
 
 
 @pytest.mark.api
@@ -75,8 +75,7 @@ def _test_with_mocked_llm(voice_chunks):
                     "content": "Working on NLP project with transformers"
                 }
             ]
-        },
-        "extraction": {"new_nodes": ["NLP Project"]}
+        }
     }
     
     # Mock the function where it's actually used (in nodes.py)
@@ -92,9 +91,6 @@ def _test_with_mocked_llm(voice_chunks):
             elif stage_type == "integration":
                 from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationResponse
                 return IntegrationResponse(**mock_responses["integration"])
-            elif stage_type == "extraction":
-                from backend.text_to_graph_pipeline.agentic_workflows.schema_models import NodeExtractionResponse
-                return NodeExtractionResponse(**mock_responses["extraction"])
         
         mock_llm.side_effect = mock_llm_response
         

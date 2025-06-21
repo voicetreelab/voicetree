@@ -151,7 +151,6 @@ grep -n '{[^{]' *.txt
 | `segmentation.txt` | Split transcripts into chunks | ✅ Fixed | `SegmentationResponse` |
 | `relationship_analysis.txt` | Find chunk relationships | ✅ Fixed | `RelationshipResponse` |
 | `integration_decision.txt` | Decide CREATE vs APPEND | ✅ Fixed | `IntegrationResponse` |
-| `node_extraction.txt` | Extract new node names | ✅ Fixed | `NodeExtractionResponse` |
 
 ## 🚀 Implementation Roadmap
 
