@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-from backend.workflow_adapter import WorkflowAdapter, WorkflowResult
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowAdapter, WorkflowResult
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.text_to_graph_pipeline.tree_manager import NodeAction
 
@@ -137,7 +137,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
                 # Act
                 result = await self.adapter.process_transcript("This is a test")
                 
@@ -160,7 +160,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
                 # Act
                 result = await self.adapter.process_transcript("This is a test")
                 
@@ -175,7 +175,7 @@ class TestWorkflowAdapter(unittest.TestCase):
     def test_process_transcript_handles_exception(self):
         """Test handling of exceptions during workflow execution"""
         async def async_test():
-            with patch('backend.workflow_adapter.asyncio.to_thread', side_effect=Exception("Pipeline crashed")):
+            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', side_effect=Exception("Pipeline crashed")):
                 # Act
                 result = await self.adapter.process_transcript("This is a test")
                 
@@ -197,7 +197,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.workflow_adapter.asyncio.to_thread', return_value=mock_result) as mock_to_thread:
+            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result) as mock_to_thread:
                 # Act
                 result = await self.adapter.process_transcript("This is new text")
                 

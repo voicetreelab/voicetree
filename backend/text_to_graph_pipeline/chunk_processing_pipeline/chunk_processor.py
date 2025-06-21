@@ -6,12 +6,26 @@ Processes text chunks through agentic workflows and updates the tree
 import logging
 import asyncio
 import inspect
+import time
+import traceback
+import os
+from datetime import datetime
 from typing import Optional, Set
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
-from backend.workflow_adapter import WorkflowAdapter
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from .workflow_adapter import WorkflowAdapter
 import settings
+
+# Configure logging
+logging.basicConfig(filename='../voicetree.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Output directory configuration
+output_dir_base = "/markdownTreeVault"
+date_str = datetime.now().strftime("%Y-%m-%d")
+output_dir_default = os.path.join(output_dir_base, date_str)
 
 
 class ChunkProcessor:
@@ -28,17 +42,23 @@ class ChunkProcessor:
     def __init__(
         self,
         decision_tree: DecisionTree,
-        workflow_state_file: Optional[str] = None
+        converter: Optional[TreeToMarkdownConverter] = None,
+        workflow_state_file: Optional[str] = None,
+        output_dir: str = output_dir_default
     ):
         """
-        Initialize the workflow tree manager
+        Initialize the chunk processor (combines workflow tree manager and transcription processor)
         
         Args:
             decision_tree: The decision tree instance
+            converter: Optional markdown converter (will create one if not provided)
             workflow_state_file: Optional path to persist workflow state
+            output_dir: Directory for markdown output
         """
         self.decision_tree = decision_tree
         self.nodes_to_update: Set[int] = set()
+        self.converter = converter or TreeToMarkdownConverter(decision_tree.tree)
+        self.output_dir = output_dir
         
         # Initialize text buffer manager with configuration
         buffer_config = BufferConfig(
@@ -60,6 +80,34 @@ class ChunkProcessor:
         """Backward compatibility property for buffer size threshold"""
         return self.buffer_manager.config.buffer_size_threshold
     
+    async def process_and_convert(self, text: str):
+        """
+        Process transcribed text and convert to markdown (main entry point)
+        
+        Args:
+            text: The transcribed text to process
+        """
+        try:
+            logging.info(f"Processing transcribed text: {text}")
+            text = text.replace("Thank you.", "")  # todo, whisper keeps on hallucinating thank you
+            start_time = time.time()
+
+            logging.info(f"ChunkProcessor.process_and_convert calling process_voice_input with: '{text}'")
+            await self.process_voice_input(text)
+
+            self.converter.convert_node(output_dir=self.output_dir,
+                                        nodes_to_update=self.nodes_to_update)
+
+            self.nodes_to_update.clear()
+
+            elapsed_time = time.time() - start_time
+            logging.info(f"Processing transcribed text took: {elapsed_time:.4f} seconds")
+
+        except Exception as e:
+            logging.error(
+                f"Error in process_and_convert: {e} "
+                f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
+
     async def process_voice_input(self, transcribed_text: str):
         """
         Process incoming voice input using unified buffer management
@@ -193,6 +241,16 @@ class ChunkProcessor:
         self.nodes_to_update.clear()
         logging.info("Workflow state and all buffers cleared")
     
+    async def finalize(self):
+        """Finalize processing - convert any remaining nodes to markdown"""
+        try:
+            logging.info("Finalizing transcription processing")
+            self.converter.convert_node(output_dir=self.output_dir,
+                                        nodes_to_update=self.nodes_to_update)
+            self.nodes_to_update.clear()
+        except Exception as e:
+            logging.error(f"Error in finalize: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}")
+
     def save_tree_structure(self):
         """Save the current tree structure (for benchmarking/analysis)"""
         logging.info("Saving final tree structure")
