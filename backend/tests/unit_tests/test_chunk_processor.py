@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.workflow_adapter import WorkflowResult
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
 from backend.text_to_graph_pipeline.tree_manager import NodeAction
 
 

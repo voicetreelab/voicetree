@@ -40,6 +40,7 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
 2. USE PYDANTIC AI DONE
 2. REMOVE  node_extraction.txt DONE
 3. implement better backend arch DONE
+3. PIPELINE green
 4. implement better agentic workflow arch (nodes, edges, transformers) TODO
 5. imlepement complexity score
 6. implement proper mocked system test

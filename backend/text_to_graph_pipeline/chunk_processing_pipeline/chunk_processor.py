@@ -23,7 +23,7 @@ logging.basicConfig(filename='../voicetree.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Output directory configuration
-output_dir_base = "/markdownTreeVault"
+output_dir_base = "/markdownTreeVault" # todo, move this to config file
 date_str = datetime.now().strftime("%Y-%m-%d")
 output_dir_default = os.path.join(output_dir_base, date_str)
 

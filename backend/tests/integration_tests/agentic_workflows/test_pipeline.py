@@ -10,17 +10,12 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(backend_path))
 
-try:
-    from backend.text_to_graph_pipeline.agentic_workflows import main
-    LANGGRAPH_AVAILABLE = True
-except ImportError:
-    LANGGRAPH_AVAILABLE = False
+from backend.text_to_graph_pipeline.agentic_workflows.pipeline import run_voicetree_pipeline
 
 
 class TestAgenticWorkflowPipeline:
     """Test the agentic workflow pipeline functionality"""
     
-    @pytest.mark.skipif(not LANGGRAPH_AVAILABLE, reason="LangGraph dependencies not available")
     def test_basic_pipeline(self):
         """Test the pipeline with basic input"""
         
@@ -41,7 +36,7 @@ class TestAgenticWorkflowPipeline:
         """
         
         # Run the pipeline
-        result = main.run_voicetree_pipeline(transcript, existing_nodes)
+        result = run_voicetree_pipeline(transcript, existing_nodes)
         
         # Assertions
         assert result is not None
@@ -53,11 +48,10 @@ class TestAgenticWorkflowPipeline:
             error_msg = result["error_message"]
             assert "LangGraph not installed" not in error_msg, f"Unexpected dependency error: {error_msg}"
     
-    @pytest.mark.skipif(not LANGGRAPH_AVAILABLE, reason="LangGraph dependencies not available")
     def test_empty_input_handling(self):
         """Test with empty input to check error handling"""
         
-        result = main.run_voicetree_pipeline("", "")
+        result = run_voicetree_pipeline("", "")
         
         # Should handle empty input gracefully
         assert result is not None
@@ -76,7 +70,7 @@ class TestAgenticWorkflowPipeline:
         agentic_workflows_path = backend_path / "text_to_graph_pipeline" / "agentic_workflows"
         
         required_files = [
-            "main.py",
+            "pipeline.py",
             "nodes.py", 
             "graph.py",
             "state.py",
@@ -106,28 +100,3 @@ class TestAgenticWorkflowPipeline:
             
             # Check that prompt files are not empty
             assert prompt_path.stat().st_size > 0, f"Prompt file is empty: {prompt_file}"
-
-
-@pytest.mark.skipif(LANGGRAPH_AVAILABLE, reason="Only run when LangGraph is not available")
-def test_graceful_degradation_without_langgraph():
-    """Test that the system handles missing LangGraph dependencies gracefully"""
-    
-    # This test runs when LangGraph is not available
-    # It should verify that the system doesn't crash and provides helpful error messages
-    
-    try:
-        from backend.text_to_graph_pipeline.agentic_workflows import main
-        result = main.run_voicetree_pipeline("test input", "test nodes")
-        
-        # Should return an error about missing dependencies
-        assert result is not None
-        assert isinstance(result, dict)
-        assert result.get("error_message") is not None
-        
-        error_msg = result["error_message"]
-        assert "LangGraph" in error_msg or "dependencies" in error_msg.lower()
-        
-    except ImportError:
-        # If we can't even import main, that's also acceptable
-        # as long as it's a clean ImportError
-        pass 
