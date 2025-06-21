@@ -213,7 +213,6 @@ To investigate the workflow issue:
 2. Check segmentation_debug.txt to see if chunks are correct
 3. Check relationship_analysis_debug.txt to see if relationships are found
 4. Check integration_decision_debug.txt to see if decisions make sense
-5. Check node_extraction_debug.txt to see final node extraction
 
 Look for where the content starts to diverge from the original transcript.
 

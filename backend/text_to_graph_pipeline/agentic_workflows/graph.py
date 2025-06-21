@@ -11,8 +11,7 @@ try:
     from backend.text_to_graph_pipeline.agentic_workflows.nodes import (
         segmentation_node,
         relationship_analysis_node, 
-        integration_decision_node,
-        node_extraction_node
+        integration_decision_node
     )
     LANGGRAPH_AVAILABLE = True
 except ImportError:
@@ -39,7 +38,7 @@ except ImportError:
 STAGE_TRANSITIONS = {
     "segmentation_complete": "relationship_analysis",
     "relationship_analysis_complete": "integration_decision",
-    "integration_decision_complete": "node_extraction",
+    "integration_decision_complete": END,
     "complete": END,
     "error": END
 }
@@ -76,8 +75,7 @@ def create_voicetree_graph():
     stages = [
         ("segmentation", segmentation_node),
         ("relationship_analysis", relationship_analysis_node),
-        ("integration_decision", integration_decision_node),
-        ("node_extraction", node_extraction_node)
+        ("integration_decision", integration_decision_node)
     ]
     
     # Add all nodes
