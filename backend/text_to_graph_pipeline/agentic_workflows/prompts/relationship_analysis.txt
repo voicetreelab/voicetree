@@ -33,36 +33,36 @@ Your specific instructions are:
 
 **Example:**
 
-**Existing Nodes:** `[{{"name": "Project Setup", "summary": "Initial project configuration and requirements gathering"}}]`
+**Existing Nodes:** `[{"name": "Project Setup", "summary": "Initial project configuration and requirements gathering"}]`
 
-**Sub-chunks:** `[{{"name": "Database Choice", "text": "We decided to use PostgreSQL for better performance with complex queries", "is_complete": true}}, {{"name": "API Framework", "text": "FastAPI will be our web framework due to its async capabilities", "is_complete": true}}]`
+**Sub-chunks:** `[{"name": "Database Choice", "text": "We decided to use PostgreSQL for better performance with complex queries", "is_complete": true}, {"name": "API Framework", "text": "FastAPI will be our web framework due to its async capabilities", "is_complete": true}]`
 
 **Expected Output:**
 ```json
-{{
+{
   "analyzed_chunks": [
-    {{
+    {
       "name": "Database Choice", 
       "text": "We decided to use PostgreSQL for better performance with complex queries",
       "reasoning": "This chunk describes a specific technical decision that elaborates on the broader project setup process. It provides implementation details for the database component.",
       "relevant_node_name": "Project Setup",
       "relationship": "elaborates on"
-    }},
-    {{
+    },
+    {
       "name": "API Framework",
       "text": "FastAPI will be our web framework due to its async capabilities", 
       "reasoning": "This chunk also describes a technical decision that is part of the project setup. Like the database choice, it elaborates on the setup process with specific technology selection.",
       "relevant_node_name": "Project Setup",
       "relationship": "elaborates on"
-    }}
+    }
   ]
-}}
+}
 ```
 
 **Input Data:**
 
 **Existing Nodes Summary:**
-{existing_nodes}
+{{existing_nodes}}
 
 **Sub-chunks to Analyze:**
-{sub_chunks} 
+{{sub_chunks}}
