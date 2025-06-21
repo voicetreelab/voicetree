@@ -1,0 +1,113 @@
+"""Transcript processing module for VoiceTree benchmarking."""
+
+import os
+import re
+import time
+import logging
+import hashlib
+import sys
+
+# Add parent directories to path for imports
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, backend_dir)
+
+from text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
+from text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+
+from .config import SECONDS_PER_REQUEST, OUTPUT_DIR
+from .file_utils import clear_workflow_log, setup_output_directory
+
+
+class TranscriptProcessor:
+    """Handles processing of transcripts through the VoiceTree pipeline."""
+    
+    def __init__(self):
+        self.decision_tree = None
+        self.processor = None
+        
+    def _initialize_processor(self, transcript_file):
+        """Initialize a fresh processor for a transcript."""
+        # Reset the workflow I/O log for a clean run
+        clear_workflow_log()
+        
+        # Create fresh instances for each transcript
+        self.decision_tree = DecisionTree()
+        
+        # Use a unique state file for each transcript to avoid cross-contamination
+        state_file_name = f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json"
+        
+        self.processor = ChunkProcessor(
+            self.decision_tree, 
+            converter=TreeToMarkdownConverter(self.decision_tree.tree),
+            workflow_state_file=state_file_name,
+            output_dir=OUTPUT_DIR
+        )
+        
+        # Clear any existing workflow state before processing
+        self.processor.clear_workflow_state()
+        
+        return state_file_name
+    
+    def _limit_content_by_words(self, content, max_words):
+        """Limit content to a maximum number of words."""
+        if max_words:
+            words = content.split()
+            if len(words) > max_words:
+                content = ' '.join(words[:max_words])
+                print(f"Limited transcript to {max_words} words")
+        return content
+    
+    def _create_coherent_chunks(self, content):
+        """Create coherent chunks based on sentence boundaries."""
+        sentences = re.split(r'[.!?]+', content)
+        return [s.strip() for s in sentences if s.strip()]
+    
+    async def _process_chunk_buffer(self, buffer):
+        """Process a chunk buffer with rate limiting."""
+        if buffer.strip():
+            await self.processor.process_and_convert(buffer.strip())
+            time.sleep(SECONDS_PER_REQUEST)
+    
+    async def process_transcript(self, transcript_file, max_words=None):
+        """Process a transcript file with VoiceTree using agentic workflow."""
+        # Setup fresh output directory
+        setup_output_directory()
+        
+        # Initialize processor
+        state_file_name = self._initialize_processor(transcript_file)
+        
+        try:
+            # Read and optionally limit transcript content
+            with open(transcript_file, "r") as f:
+                content = f.read()
+            
+            content = self._limit_content_by_words(content, max_words)
+            
+            # Process in coherent chunks
+            sentences = self._create_coherent_chunks(content)
+            buffer = ""
+            
+            for sentence in sentences:
+                # Add sentence to buffer
+                buffer += sentence + ". "
+                
+                # Check if buffer is ready for processing
+                sentence_count = buffer.count('.') + buffer.count('!') + buffer.count('?')
+                
+                # Process when we have enough content or multiple complete thoughts
+                if len(buffer) >= self.processor.text_buffer_size_threshold or sentence_count >= 3:
+                    await self._process_chunk_buffer(buffer)
+                    buffer = ""
+            
+            # Process any remaining content
+            await self._process_chunk_buffer(buffer)
+            
+            # Log workflow statistics
+            workflow_stats = self.processor.get_workflow_statistics()
+            logging.info(f"Workflow statistics: {workflow_stats}")
+            
+        finally:
+            # Clean up the temporary state file
+            if os.path.exists(state_file_name):
+                os.remove(state_file_name)

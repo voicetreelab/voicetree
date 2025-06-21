@@ -1,4 +1,1 @@
 file path -> short description
-ARCHITECTURE_CLEANUP_SUMMARY.md -> "todo"
-benchmarking_system_optimization.md -> "Optimize benchmarking system for per-stage scoring and automated regression detection"
-cicd_pipeline_final_solution.md -> "Eliminate 8000-line error loops and implement fail-fast CI/CD architecture with circuit breaker pattern"
