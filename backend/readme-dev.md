@@ -28,9 +28,9 @@ e.g the optimal is the following pipeline:
                                                 V
                                                 V
 voice_to_text -> text_buffer_manager -> chunk_processing_pipeline 
-                                                V
-                                                V             
-                                agentic_workflow (chunk -> decision) 
+                                                ↓
+                                         agentic_workflow 
+                                        (chunk -> decision) 
 
 ```mermaid
 flowchart TB

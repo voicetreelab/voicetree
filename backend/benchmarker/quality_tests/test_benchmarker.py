@@ -7,14 +7,14 @@ import tempfile
 import os
 from pathlib import Path
 
-from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 
 
 async def test_workflow_manager():
-    """Test that WorkflowTreeManager processes text correctly"""
+    """Test that ChunkProcessor processes text correctly"""
     
-    print("Testing WorkflowTreeManager...")
+    print("Testing ChunkProcessor...")
     
     # Create a temporary workflow state file
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp:
@@ -23,7 +23,7 @@ async def test_workflow_manager():
     try:
         # Initialize components
         decision_tree = DecisionTree()
-        tree_manager = WorkflowTreeManager(
+        tree_manager = ChunkProcessor(
             decision_tree=decision_tree,
             workflow_state_file=state_file
         )
@@ -49,7 +49,7 @@ async def test_workflow_manager():
         print(f"Total nodes created: {node_count}")
         
         if node_count > 0:
-            print("✅ WorkflowTreeManager is working correctly!")
+            print("✅ ChunkProcessor is working correctly!")
             return True
         else:
             print("❌ No nodes were created")
@@ -70,7 +70,7 @@ async def test_benchmarker_imports():
         from quality_LLM_benchmarker import (
             process_transcript_with_voicetree,
             evaluate_tree_quality,
-            WorkflowTreeManager
+            ChunkProcessor
         )
         print("✅ All imports successful!")
         return True
@@ -85,7 +85,7 @@ async def main():
     print("🧪 Testing VoiceTree Workflow Integration")
     print("=" * 60)
     
-    # Test WorkflowTreeManager
+    # Test ChunkProcessor
     workflow_test = await test_workflow_manager()
     
     # Test benchmarker imports
@@ -94,7 +94,7 @@ async def main():
     # Summary
     print("\n" + "=" * 60)
     print("Test Summary:")
-    print(f"  WorkflowTreeManager: {'✅ PASS' if workflow_test else '❌ FAIL'}")
+    print(f"  ChunkProcessor: {'✅ PASS' if workflow_test else '❌ FAIL'}")
     print(f"  Benchmarker Imports: {'✅ PASS' if import_test else '❌ FAIL'}")
     
     if workflow_test and import_test:

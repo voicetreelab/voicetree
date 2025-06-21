@@ -51,7 +51,7 @@ class VoiceTreePipeline:
         print("🚀 Starting VoiceTree LangGraph Pipeline")
         print("=" * 50)
         
-        # NOTE: Incomplete chunk handling is now managed by UnifiedBufferManager
+        # NOTE: Incomplete chunk handling is now managed by TextBufferManager
         
         # Get existing nodes from state manager
         existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"

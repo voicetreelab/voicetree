@@ -154,3 +154,106 @@ OUTPUT VARIABLES:
 
 ==========================================
 
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:44:30
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "NLP Project",\n    "text": "I\'m working on a new project for natural language processing. The system will use transfor",\n    "reasoning": "Since there are no existing nodes and no other sub-chunks to compare against, this chunk doesn\'t have a relevant node to connect to.",\n    "relevant_node_name": "NO_RELEVANT_NODE",\n    "relationship": "null"\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'NLP Project', 'text': "I'm working on a new project for natural language processing. The system will use transfor", 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:44:34
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "Text Analysis Models",\n    "text": "mer models for text analysis.",\n    "reasoning": "The sub-chunk mentions transformer models for text analysis, which directly aligns with the description of the NLP project using transformer models.",\n    "relevant_node_name": "NLP Project",\n    "relationship": "is part of"\n  }\n]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'Text Analysis Models', 'text': 'mer models for text analysis.', 'action': 'APPEND', ...and 5 more}
+  ]
+  result_count: 1
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:44:40
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "Analysis Features",\n    "text": "analysis features.",\n    "reasoning": "The phrase \'analysis features\' is very general and doesn\'t have a clear connection to the existing \'NLP Project\' node or the other sub-chunk \'Project Deadline\'. It could potentially be related to the type of project (NLP) but it\'s not a strong enough link to establish a meaningful relationship. Therefore, no relevant node can be identified.",\n    "relevant_node_name": "NO_RELEVANT_NODE",\n    "relationship"...[TRUNCATED]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'Analysis Features', 'text': 'analysis features.', 'action': 'CREATE', ...and 5 more}
+    1: {'name': 'Project Deadline', 'text': 'The project deadline is next month.', 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 2
+  result_type: 'list'
+
+==========================================
+
+
+==========================================
+INTEGRATION_DECISION STAGE DEBUG - 18:48:29
+==========================================
+
+INPUT VARIABLES:
+  stage_name: 'Integration Decision'
+  stage_type: 'integration'
+  prompt_name: 'integration_decision'
+  analyzed_sub_chunks: '[\n  {\n    "name": "New Project",\n    "text": "I\'m working on a new project.",\n    "reasoning": "This is the initial statement.  The voice application provides more detail about the project.",\n    "relevant_node_name": "Voice Application",\n    "relationship": "context for"\n  },\n  {\n    "name": "Voice Application",\n    "text": "The project involves building a voice application.",\n    "reasoning": "This chunk specifies that the project is a voice application.  It describes the nature of the new pro...[TRUNCATED]'
+  relevant_state_keys: [8 items]
+    0: 'transcript_text'
+    1: 'existing_nodes'
+    ... and 6 more items
+  ]
+
+OUTPUT VARIABLES:
+  integration_decisions: [
+    0: {'name': 'New Project', 'text': "I'm working on a new project.", 'action': 'CREATE', ...and 5 more}
+    1: {'name': 'Voice Application', 'text': 'The project involves building a voice application.', 'action': 'CREATE', ...and 5 more}
+    2: {'name': 'System Testing', 'text': 'I need to test the system to make sure it works properly.', 'action': 'CREATE', ...and 5 more}
+  ]
+  result_count: 3
+  result_type: 'list'
+
+==========================================
+

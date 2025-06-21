@@ -1,6 +1,6 @@
 
 ==========================================
-TRANSCRIPT INPUT - 20:18:33
+TRANSCRIPT INPUT - 18:48:20
 ==========================================
 
 SOURCE: segmentation_node
