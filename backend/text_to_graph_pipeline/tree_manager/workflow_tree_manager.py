@@ -8,7 +8,7 @@ import asyncio
 from typing import Optional, Set
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.unified_buffer_manager import UnifiedBufferManager
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
 from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
 import settings
 
@@ -33,10 +33,12 @@ class WorkflowTreeManager:
         self.decision_tree = decision_tree
         self.nodes_to_update: Set[int] = set()
         
-        # Initialize unified buffer manager with adaptive processing
-        self.buffer_manager = UnifiedBufferManager(
-            buffer_size_threshold=settings.TEXT_BUFFER_SIZE_THRESHOLD
+        # Initialize text buffer manager with configuration
+        buffer_config = BufferConfig(
+            buffer_size_threshold=settings.TEXT_BUFFER_SIZE_THRESHOLD,
+            transcript_history_multiplier=getattr(settings, 'TRANSCRIPT_HISTORY_MULTIPLIER', 3)
         )
+        self.buffer_manager = TextBufferManager(config=buffer_config)
         
         # Initialize workflow adapter
         self.workflow_adapter = WorkflowAdapter(
@@ -50,7 +52,7 @@ class WorkflowTreeManager:
     @property
     def text_buffer_size_threshold(self) -> int:
         """Backward compatibility property for buffer size threshold"""
-        return self.buffer_manager.buffer_size_threshold
+        return self.buffer_manager.config.buffer_size_threshold
     
     async def process_voice_input(self, transcribed_text: str):
         """
@@ -59,10 +61,10 @@ class WorkflowTreeManager:
         Args:
             transcribed_text: The transcribed text from voice recognition
         """
-        # Add text to buffer and get text ready for processing
-        text_to_process = self.buffer_manager.add_text(transcribed_text)
+        # Add text to buffer and check if ready for processing
+        result = self.buffer_manager.add_text(transcribed_text)
         
-        if text_to_process:
+        if result.is_ready and result.text:
             # Get transcript history for context
             transcript_history = self.buffer_manager.get_transcript_history()
             
@@ -71,7 +73,7 @@ class WorkflowTreeManager:
                 self.nodes_to_update.add(0)
             
             # Process the text chunk
-            await self._process_text_chunk(text_to_process, transcript_history)
+            await self._process_text_chunk(result.text, transcript_history)
     
     async def _process_text_chunk(self, text_chunk: str, transcript_history_context: str):
         """
@@ -177,7 +179,7 @@ class WorkflowTreeManager:
     def clear_workflow_state(self):
         """Clear the workflow state and all buffers"""
         self.workflow_adapter.clear_workflow_state()
-        self.buffer_manager.clear_buffers()
+        self.buffer_manager.clear()
         self.nodes_to_update.clear()
         logging.info("Workflow state and all buffers cleared")
     
