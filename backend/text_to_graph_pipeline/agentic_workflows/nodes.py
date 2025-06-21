@@ -378,60 +378,8 @@ def integration_decision_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "analyzed_sub_chunks": json.dumps(state["analyzed_chunks"], indent=2)
         },
         result_key="integration_decisions",
-        next_stage="node_extraction"
-    )
-
-
-def extract_node_names(response: str) -> List[str]:
-    """
-    Extract node names from various response formats
-    
-    Args:
-        response: LLM response containing node names
-        
-    Returns:
-        List of extracted and filtered node names
-    """
-    new_nodes = []
-    
-    # Try to find bullet points with node names
-    bullet_matches = re.findall(r'[*•]\s*([^\n*•]+)', response)
-    if bullet_matches:
-        new_nodes = [node.strip() for node in bullet_matches if node.strip()]
-    else:
-        # Fallback: try comma-separated values
-        new_nodes = [node.strip() for node in response.split(",") if node.strip()]
-    
-    # Filter out invalid nodes
-    return [
-        node for node in new_nodes
-        if len(node) < MAX_NODE_NAME_LENGTH
-        and not any(phrase in node.lower() for phrase in EXCLUDED_PHRASES)
-    ]
-
-
-def node_extraction_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Stage 4: Extract new node names from integration decisions"""
-    result = process_llm_stage_structured(
-        state=state,
-        stage_name="Node Extraction", 
-        stage_type="extraction",
-        prompt_name="node_extraction",
-        prompt_kwargs={
-            "extract": json.dumps(state.get("integration_decisions", []), indent=2),
-            "nodes": state.get("existing_nodes", "No existing nodes"),
-        },
-        result_key="new_nodes",
         next_stage="complete"
     )
-    
-    # Additional filtering for node names if needed
-    if result.get("new_nodes") and result["current_stage"] != "error":
-        filtered_nodes = [
-            node for node in result["new_nodes"]
-            if len(node) < MAX_NODE_NAME_LENGTH
-            and not any(phrase in node.lower() for phrase in EXCLUDED_PHRASES)
-        ]
-        result["new_nodes"] = filtered_nodes
-    
-    return result 
+
+
+ 
