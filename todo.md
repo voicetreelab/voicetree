@@ -35,12 +35,13 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
 
 1. Get current system extremely clean:
 
-2. Get all tests green + pipeline green. (doing, unit tests + integration tests, pipeline not yet) (doing)
+2. Get all tests green + pipeline green. (doing, unit tests + integration tests, pipeline not yet)  DONE
 2. (Implement serena) DONE
 2. USE PYDANTIC AI DONE
 2. REMOVE  node_extraction.txt DONE
 3. implement better backend arch DONE
 3. PIPELINE green
+3. benchmarker working
 4. implement better agentic workflow arch (nodes, edges, transformers) TODO
 5. imlepement complexity score
 6. implement proper mocked system test
