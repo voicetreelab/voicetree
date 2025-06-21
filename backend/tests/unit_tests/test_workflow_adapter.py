@@ -30,7 +30,6 @@ class TestWorkflowAdapter(unittest.TestCase):
         # Assert
         self.assertEqual(self.adapter.decision_tree, self.decision_tree)
         self.assertEqual(self.adapter.mode, WorkflowMode.ATOMIC)
-        self.assertEqual(self.adapter._incomplete_buffer, "")
         self.assertIsNotNone(self.adapter.pipeline)
     
     def test_prepare_state_snapshot_includes_node_summaries(self):
@@ -189,9 +188,8 @@ class TestWorkflowAdapter(unittest.TestCase):
         asyncio.run(async_test())
     
     def test_process_transcript_manages_incomplete_buffer(self):
-        """Test that incomplete buffer is properly managed across calls"""
+        """Test that incomplete buffer is properly managed through metadata"""
         # Arrange
-        self.adapter._incomplete_buffer = "Previous incomplete"
         mock_result = {
             "new_nodes": [],
             "integration_decisions": [],
@@ -202,15 +200,15 @@ class TestWorkflowAdapter(unittest.TestCase):
         async def async_test():
             with patch('backend.workflow_adapter.asyncio.to_thread', return_value=mock_result) as mock_to_thread:
                 # Act
-                await self.adapter.process_transcript("This is new text")
+                result = await self.adapter.process_transcript("This is new text")
                 
-                # Assert - check that pipeline was called with concatenated text
+                # Assert - check that pipeline was called
                 mock_to_thread.assert_called_once()
                 call_args = mock_to_thread.call_args[0]
-                self.assertEqual(call_args[1], "Previous incomplete This is new text")
+                self.assertEqual(call_args[1], "This is new text")
                 
-                # Assert - check that incomplete buffer was updated
-                self.assertEqual(self.adapter._incomplete_buffer, "Still incomplete")
+                # Assert - check that incomplete buffer is returned in metadata
+                self.assertEqual(result.metadata.get("incomplete_buffer"), "Still incomplete")
         
         asyncio.run(async_test())
     
@@ -287,9 +285,8 @@ class TestWorkflowAdapter(unittest.TestCase):
             mock_stats.assert_called_once()
     
     def test_clear_workflow_state_resets_buffer_and_pipeline(self):
-        """Test that clearing state resets both buffer and pipeline state"""
-        # Arrange
-        self.adapter._incomplete_buffer = "some text"
+        """Test that clearing state resets pipeline state"""
+        # Arrange - adapter doesn't manage buffer anymore
         
         with patch.object(self.adapter.pipeline, 'clear_state') as mock_clear:
             # Act
@@ -297,7 +294,6 @@ class TestWorkflowAdapter(unittest.TestCase):
             
             # Assert
             mock_clear.assert_called_once()
-            self.assertEqual(self.adapter._incomplete_buffer, "")
 
 
 if __name__ == "__main__":
