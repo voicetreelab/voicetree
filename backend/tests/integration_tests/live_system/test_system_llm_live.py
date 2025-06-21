@@ -12,7 +12,7 @@ class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.decision_tree = DecisionTree()
         self.tree_manager = ChunkProcessor(self.decision_tree)
-        self.converter = TreeToMarkdownConverter(self.decision_tree)
+        self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.output_dir = "/Users/bobbobby/repos/VoiceTreePoc/test_output"
         self.cleanUp()
         self.processor = process_transcription.TranscriptionProcessor(self.tree_manager,
@@ -51,7 +51,7 @@ class TestIntegration(unittest.TestCase):
             print("✅ Processing completed without errors")
         except Exception as e:
             print(f"❌ Processing failed with error: {e}")
-            # The test should not fail due to LLM issues, but we should verify the fallback works
+            self.fail(f"Processing should not fail: {e}")
             
         # Test the tree structure
         tree = self.tree_manager.decision_tree.tree
@@ -84,6 +84,17 @@ class TestIntegration(unittest.TestCase):
         if len(tree) > 1:
             print(f"🎉 LLM processing succeeded - created {len(tree)} nodes")
             
+            # Check for duplicate node names (excluding root)
+            node_names = [node.title for node_id, node in tree.items() if node_id != 0]
+            # Debug: print all nodes
+            print(f"\n📋 All nodes in tree:")
+            for node_id, node in tree.items():
+                print(f"  - ID {node_id}: '{node.title}' (parent: {node.parent_id})")
+            unique_names = set(node_names)
+            if len(node_names) != len(unique_names):
+                duplicates = [name for name in unique_names if node_names.count(name) > 1]
+                self.fail(f"Duplicate nodes found: {duplicates}. Total nodes: {len(tree)}, Unique names: {len(unique_names)}")
+            
             # Verify that at least one content node was created
             content_nodes = [node for node_id, node in tree.items() if node_id != 0 and node.content]
             self.assertGreater(len(content_nodes), 0, "At least one content node should be created")
@@ -97,13 +108,19 @@ class TestIntegration(unittest.TestCase):
                     self.assertIn(node_id, tree[parent_id].children, f"Node {node_id} should be in parent's children list")
             
             # Test markdown file creation for all nodes
+            missing_files = []
             for node_id, node_data in tree.items():
                 if node_data.filename:
                     file_path = os.path.join(self.output_dir, node_data.filename)
                     if os.path.exists(file_path):
                         print(f"✅ Markdown file exists for node {node_id}: {node_data.filename}")
                     else:
-                        print(f"⚠️ Markdown file missing for node {node_id}: {node_data.filename}")
+                        print(f"❌ Markdown file missing for node {node_id}: {node_data.filename}")
+                        missing_files.append(node_data.filename)
+            
+            # Fail if any markdown files are missing
+            if missing_files:
+                self.fail(f"Missing markdown files: {missing_files}")
         else:
             print("⚠️ LLM processing failed, but system fallback worked (only root node exists)")
             # This is still a successful test - the system should be robust to LLM failures

@@ -12,7 +12,7 @@ current_dir = Path(__file__).parent
 project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
 sys.path.insert(0, str(project_root))
 
-from backend.text_to_graph_pipeline.agentic_workflows.main import VoiceTreePipeline
+from backend.text_to_graph_pipeline.agentic_workflows.pipeline import VoiceTreePipeline
 
 
 def test_chunk_boundaries():

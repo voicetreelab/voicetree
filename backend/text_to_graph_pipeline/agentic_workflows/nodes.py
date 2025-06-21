@@ -33,7 +33,7 @@ def log_to_file(stage_name: str, log_type: str, content: str):
 try:
     from backend.text_to_graph_pipeline.agentic_workflows.llm_integration import call_llm_structured, call_llm
     from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
-except ImportError:
+except ImportError:  # pragma: no cover
     # If running from a different directory, try relative import
     try:
         from llm_integration import call_llm_structured, call_llm

@@ -13,7 +13,7 @@ current_dir = Path(__file__).parent
 project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
 sys.path.insert(0, str(project_root))
 
-from backend.text_to_graph_pipeline.agentic_workflows.main import VoiceTreePipeline
+from backend.text_to_graph_pipeline.agentic_workflows.pipeline import VoiceTreePipeline
 
 
 def test_chunk_boundaries_fast():
@@ -30,25 +30,40 @@ def test_chunk_boundaries_fast():
             ]
         },
         "relationship": [
-            {"name": "NLP Project", "relevant_node_name": "NO_RELEVANT_NODE", "relationship": None},
-            {"name": "System Architecture", "relevant_node_name": "NLP Project", "relationship": "elaborates on"}
+            {
+                "name": "NLP Project", 
+                "text": "Working on NLP project",
+                "reasoning": "This is a new project",
+                "relevant_node_name": "NO_RELEVANT_NODE", 
+                "relationship": None
+            },
+            {
+                "name": "System Architecture", 
+                "text": "The system will use transformers",
+                "reasoning": "This describes the architecture",
+                "relevant_node_name": "NLP Project", 
+                "relationship": "elaborates on"
+            }
         ],
         "integration": {
             "integration_decisions": [
                 {
                     "name": "NLP Project", "action": "CREATE", "target_node": "NO_RELEVANT_NODE",
-                    "new_node_name": "NLP Project", "new_node_summary": "Natural language processing project"
+                    "new_node_name": "NLP Project", "new_node_summary": "Natural language processing project",
+                    "content": "Working on NLP project", "text": "Working on NLP project",
+                    "relationship_for_edge": None
                 },
                 {
                     "name": "System Architecture", "action": "CREATE", "target_node": "NLP Project", 
-                    "new_node_name": "System Architecture", "new_node_summary": "Transformer-based architecture"
+                    "new_node_name": "System Architecture", "new_node_summary": "Transformer-based architecture",
+                    "content": "The system will use transformers", "text": "The system will use transformers",
+                    "relationship_for_edge": "elaborates on"
                 }
             ]
-        },
-        "extraction": {"new_nodes": ["NLP Project", "System Architecture"]}
+        }
     }
     
-    with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
+    with patch('backend.text_to_graph_pipeline.agentic_workflows.nodes.call_llm_structured') as mock_llm:
         # Set up mock to return different responses based on stage_type
         def mock_llm_response(prompt, stage_type, model_name="gemini-2.0-flash"):
             if stage_type == "segmentation":
@@ -60,9 +75,6 @@ def test_chunk_boundaries_fast():
             elif stage_type == "integration":
                 from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationResponse
                 return IntegrationResponse(**mock_responses["integration"])
-            elif stage_type == "extraction":
-                from backend.text_to_graph_pipeline.agentic_workflows.schema_models import NodeExtractionResponse
-                return NodeExtractionResponse(**mock_responses["extraction"])
         
         mock_llm.side_effect = mock_llm_response
         
@@ -103,8 +115,8 @@ def test_chunk_boundaries_fast():
         print(f"   ✓ Created {total_nodes} nodes total")
         
         # Test 3: Mock was called the expected number of times  
-        # Each chunk goes through 4 stages, so should be called 3 chunks × 4 stages = 12 times
-        expected_calls = len(voice_chunks) * 4
+        # Each chunk goes through 3 stages, so should be called 3 chunks × 3 stages = 9 times
+        expected_calls = len(voice_chunks) * 3
         assert mock_llm.call_count >= len(voice_chunks), f"Expected at least {len(voice_chunks)} LLM calls, got {mock_llm.call_count}"
         print(f"   ✓ LLM was called {mock_llm.call_count} times (mocked)")
         
@@ -120,11 +132,11 @@ def test_extreme_boundaries_fast():
     print("=" * 50)
     
     # Simple mock response
-    with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.call_llm_structured') as mock_llm:
+    with patch('backend.text_to_graph_pipeline.agentic_workflows.nodes.call_llm_structured') as mock_llm:
         def mock_response(prompt, stage_type, model_name="gemini-2.0-flash"):
             from backend.text_to_graph_pipeline.agentic_workflows.schema_models import (
                 SegmentationResponse, RelationshipResponse, 
-                IntegrationResponse, NodeExtractionResponse
+                IntegrationResponse
             )
             
             if stage_type == "segmentation":
@@ -140,8 +152,6 @@ def test_extreme_boundaries_fast():
                     {"name": "AI System", "action": "CREATE", "target_node": "NO_RELEVANT_NODE",
                      "new_node_name": "AI System", "new_node_summary": "Artificial intelligence system"}
                 ])
-            elif stage_type == "extraction":
-                return NodeExtractionResponse(new_nodes=["AI System"])
         
         mock_llm.side_effect = mock_response
         

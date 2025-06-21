@@ -1,10 +1,8 @@
 """
-Main runner for testing the VoiceTree LangGraph workflow
+VoiceTree LangGraph workflow pipeline implementation
 """
 
-import json
 from typing import Dict, Any, List, Optional
-from pathlib import Path
 
 try:
     from backend.text_to_graph_pipeline.agentic_workflows.graph import compile_voicetree_graph
@@ -73,6 +71,14 @@ class VoiceTreePipeline:
         # Run the pipeline
         try:
             final_state = self.app.invoke(initial_state)
+            
+            # Extract new nodes from integration decisions if not already present
+            if final_state.get("integration_decisions") and not final_state.get("new_nodes"):
+                new_nodes = []
+                for decision in final_state["integration_decisions"]:
+                    if decision.get("action") == "CREATE" and decision.get("new_node_name"):
+                        new_nodes.append(decision["new_node_name"])
+                final_state["new_nodes"] = new_nodes
             
             print("\n✅ Pipeline completed successfully!")
             print("=" * 50)
@@ -161,115 +167,6 @@ def run_voicetree_pipeline(
     return pipeline.run(transcript)
 
 
-def print_detailed_results(final_state: Dict[str, Any]) -> None:
-    """
-    Print detailed results from the pipeline execution
-    
-    Args:
-        final_state: The final state from pipeline execution
-    """
-    print("\n" + "=" * 60)
-    print("📋 DETAILED PIPELINE RESULTS")
-    print("=" * 60)
-    
-    if final_state.get("error_message"):
-        print(f"❌ Pipeline Error: {final_state['error_message']}")
-        return
-    
-    # Stage 1: Segmentation
-    _print_segmentation_results(final_state.get("chunks", []))
-    
-    # Stage 2: Relationship Analysis
-    _print_relationship_results(final_state.get("analyzed_chunks", []))
-    
-    # Stage 3: Integration Decisions
-    _print_integration_results(final_state.get("integration_decisions", []))
-    
-    # Stage 4: New Nodes
-    _print_new_nodes(final_state.get("new_nodes", []))
 
 
-def _print_segmentation_results(chunks: List[Dict[str, Any]]) -> None:
-    """Print segmentation stage results"""
-    print(f"\n🔵 Stage 1: Segmentation")
-    print(f"Found {len(chunks)} chunks:")
-    for i, chunk in enumerate(chunks, 1):
-        status = '✅ Complete' if chunk.get('is_complete') else '⚠️ Incomplete'
-        print(f"  {i}. {chunk.get('name', 'Unnamed')} ({status})")
-        text_preview = chunk.get('text', '')[:100]
-        if len(chunk.get('text', '')) > 100:
-            text_preview += "..."
-        print(f"     Text: {text_preview}")
-
-
-def _print_relationship_results(analyzed_chunks: List[Dict[str, Any]]) -> None:
-    """Print relationship analysis results"""
-    print(f"\n🔵 Stage 2: Relationship Analysis")
-    for i, chunk in enumerate(analyzed_chunks, 1):
-        rel_node = chunk.get('relevant_node_name', 'Unknown')
-        relationship = chunk.get('relationship', 'None')
-        print(f"  {i}. {chunk.get('name')} → {rel_node} ({relationship})")
-
-
-def _print_integration_results(decisions: List[Dict[str, Any]]) -> None:
-    """Print integration decision results"""
-    print(f"\n🔵 Stage 3: Integration Decisions")
-    for i, decision in enumerate(decisions, 1):
-        action = decision.get('action', 'Unknown')
-        target = decision.get('target_node', 'Unknown')
-        print(f"  {i}. {decision.get('name')}: {action} → {target}")
-        if action == "CREATE":
-            print(f"     New node: {decision.get('new_node_name')}")
-            summary = decision.get('new_node_summary', '')[:80]
-            if len(decision.get('new_node_summary', '')) > 80:
-                summary += "..."
-            print(f"     Summary: {summary}")
-
-
-def _print_new_nodes(new_nodes: List[str]) -> None:
-    """Print new nodes to be created"""
-    print(f"\n🔵 Stage 4: New Nodes to Create")
-    if new_nodes:
-        for i, node in enumerate(new_nodes, 1):
-            print(f"  {i}. {node}")
-    else:
-        print("  No new nodes to create")
-
-
-def main():
-    """Main function for testing"""
-    
-    # Sample test data
-    test_transcript = """
-    Today I want to work on my voice tree project. I need to add new features to make it better.
-    The main goal is to create a system that can process voice input and build knowledge graphs.
-    I should also think about how to integrate this with existing tools and frameworks.
-    """
-    
-    test_existing_nodes = [
-        "AI Projects",
-        "Voice Processing", 
-        "Knowledge Management"
-    ]
-    
-    print("🧪 Testing VoiceTree LangGraph Pipeline")
-    print("=" * 50)
-    print(f"Input transcript: {test_transcript.strip()}")
-    print(f"Existing nodes: {test_existing_nodes}")
-    
-    # Run the pipeline
-    result = run_voicetree_pipeline(test_transcript, test_existing_nodes)
-    
-    # Print detailed results
-    print_detailed_results(result)
-    
-    # Save results to file for inspection
-    output_file = "test_results.json"
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(result, f, indent=2, default=str)
-    
-    print(f"\n💾 Results saved to: {output_file}")
-
-
-if __name__ == "__main__":
-    main() 
+ 

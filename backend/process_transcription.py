@@ -27,6 +27,7 @@ class TranscriptionProcessor:
             text = text.replace("Thank you.", "") #todo, whisper keeps on hallucinating thank you
             start_time = time.time()
 
+            logging.info(f"TranscriptionProcessor.process_and_convert calling process_voice_input with: '{text}'")
             await self.tree_manager.process_voice_input(text)
 
             self.converter.convert_node(output_dir=self.output_dir,

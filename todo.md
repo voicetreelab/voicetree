@@ -34,14 +34,13 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
 - nodes, edges, data mappers 
 
 1. Get current system extremely clean:
-2. Get all tests green + pipeline green. (?)
+
+2. Get all tests green + pipeline green. (doing, unit tests + integration tests, pipeline not yet) (doing)
 2. (Implement serena) DONE
-2. USE PYDANTIC AI
-We want to change backend/text_to_graph_pipeline/agentic_workflows/llm_integration.py to instead use pydantic ai to talk to LLMS
-
-
-3. implement better backend arch DOINg
-4. implement better agentic workflow arch (nodes, edges, transformers) 
+2. USE PYDANTIC AI DONE
+2. REMOVE  node_extraction.txt DONE
+3. implement better backend arch DONE
+4. implement better agentic workflow arch (nodes, edges, transformers) TODO
 5. imlepement complexity score
 6. implement proper mocked system test
 7. implement proper live system test, two chunk processes to existing tree + quality sanity check
