@@ -1,13 +1,13 @@
 import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.workflow_adapter import WorkflowResult, WorkflowMode
 from backend.text_to_graph_pipeline.tree_manager import NodeAction
 
 
-class TestWorkflowTreeManager(unittest.TestCase):
+class TestChunkProcessor(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures"""
@@ -19,13 +19,13 @@ class TestWorkflowTreeManager(unittest.TestCase):
         
         # Mock the VoiceTreePipeline to avoid external dependencies
         with patch('backend.text_to_graph_pipeline.agentic_workflows.main.VoiceTreePipeline'):
-            self.tree_manager = WorkflowTreeManager(
+            self.tree_manager = ChunkProcessor(
                 decision_tree=self.decision_tree,
                 workflow_state_file=None
             )
     
     def test_initialization_creates_workflow_adapter(self):
-        """Test that WorkflowTreeManager properly initializes with workflow adapter"""
+        """Test that ChunkProcessor properly initializes with workflow adapter"""
         # Arrange & Act done in setUp
         
         # Assert
@@ -37,7 +37,7 @@ class TestWorkflowTreeManager(unittest.TestCase):
         """Test initialization with workflow state file parameter"""
         # Arrange & Act
         with patch('backend.text_to_graph_pipeline.agentic_workflows.main.VoiceTreePipeline'):
-            tree_manager = WorkflowTreeManager(
+            tree_manager = ChunkProcessor(
                 decision_tree=self.decision_tree,
                 workflow_state_file="test_state.json"
             )

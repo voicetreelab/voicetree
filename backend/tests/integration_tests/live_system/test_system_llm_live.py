@@ -4,14 +4,14 @@ import os
 import shutil  # For directory operations
 
 from backend import process_transcription
-from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.decision_tree = DecisionTree()
-        self.tree_manager = WorkflowTreeManager(self.decision_tree)
+        self.tree_manager = ChunkProcessor(self.decision_tree)
         self.converter = TreeToMarkdownConverter(self.decision_tree)
         self.output_dir = "/Users/bobbobby/repos/VoiceTreePoc/test_output"
         self.cleanUp()

@@ -1,6 +1,6 @@
 """
-Workflow-based Tree Manager
-Uses agentic workflows for all processing with unified buffering
+Chunk Processing Pipeline
+Processes text chunks through agentic workflows and updates the tree
 """
 
 import logging
@@ -13,9 +13,15 @@ from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
 import settings
 
 
-class WorkflowTreeManager:
+class ChunkProcessor:
     """
-    Tree manager that uses agentic workflows for processing with adaptive buffering
+    Processes text chunks through the agentic workflow pipeline.
+    
+    This class:
+    1. Receives text chunks from the buffer manager
+    2. Gathers context from the decision tree
+    3. Calls agentic workflows for processing
+    4. Updates the tree with the results
     """
     
     def __init__(
@@ -47,7 +53,7 @@ class WorkflowTreeManager:
             mode=WorkflowMode.ATOMIC
         )
         
-        logging.info(f"WorkflowTreeManager initialized with adaptive buffering and agentic workflow")
+        logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
     
     @property
     def text_buffer_size_threshold(self) -> int:

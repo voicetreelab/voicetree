@@ -37,7 +37,7 @@ import google.generativeai as genai
 from google.generativeai import GenerativeModel
 
 from process_transcription import TranscriptionProcessor
-from backend.text_to_graph_pipeline.tree_manager.workflow_tree_manager import WorkflowTreeManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend import settings
@@ -94,7 +94,7 @@ async def process_transcript_with_voicetree_limited(transcript_file, max_words=N
     import hashlib
     state_file_name = f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json"
     
-    tree_manager = WorkflowTreeManager(
+    tree_manager = ChunkProcessor(
         decision_tree, 
         workflow_state_file=state_file_name
         # No need to specify buffer mode - it adapts automatically
