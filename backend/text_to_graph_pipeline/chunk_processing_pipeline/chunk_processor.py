@@ -5,11 +5,12 @@ Processes text chunks through agentic workflows and updates the tree
 
 import logging
 import asyncio
+import inspect
 from typing import Optional, Set
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
-from backend.workflow_adapter import WorkflowAdapter, WorkflowMode
+from backend.workflow_adapter import WorkflowAdapter
 import settings
 
 
@@ -49,8 +50,7 @@ class ChunkProcessor:
         # Initialize workflow adapter
         self.workflow_adapter = WorkflowAdapter(
             decision_tree=decision_tree,
-            state_file=workflow_state_file,
-            mode=WorkflowMode.ATOMIC
+            state_file=workflow_state_file
         )
         
         logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
@@ -67,6 +67,9 @@ class ChunkProcessor:
         Args:
             transcribed_text: The transcribed text from voice recognition
         """
+        logging.info(f"process_voice_input called with text: '{transcribed_text}'")
+        logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
+        
         # Add text to buffer and check if ready for processing
         result = self.buffer_manager.add_text(transcribed_text)
         
@@ -145,6 +148,7 @@ class ChunkProcessor:
         Args:
             node_actions: List of NodeAction objects to apply
         """
+        logging.info(f"Applying {len(node_actions)} node actions")
         for action in node_actions:
             if action.action == "CREATE":
                 # Find parent node ID

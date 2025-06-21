@@ -7,17 +7,9 @@ import asyncio
 import json
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
-from enum import Enum
-
-from backend.text_to_graph_pipeline.agentic_workflows.main import VoiceTreePipeline
+from backend.text_to_graph_pipeline.agentic_workflows.pipeline import VoiceTreePipeline
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager import NodeAction
-
-
-class WorkflowMode(Enum):
-    """Workflow execution modes"""
-    ATOMIC = "atomic"  # State changes only after full completion
-    STREAMING = "streaming"  # State changes during execution (future)
 
 
 @dataclass
@@ -39,8 +31,7 @@ class WorkflowAdapter:
     def __init__(
         self, 
         decision_tree: DecisionTree,
-        state_file: Optional[str] = None,
-        mode: WorkflowMode = WorkflowMode.ATOMIC
+        state_file: Optional[str] = None
     ):
         """
         Initialize the workflow adapter
@@ -48,10 +39,8 @@ class WorkflowAdapter:
         Args:
             decision_tree: The VoiceTree decision tree instance
             state_file: Optional path to persist workflow state
-            mode: Execution mode (atomic or streaming)
         """
         self.decision_tree = decision_tree
-        self.mode = mode
         self.pipeline = VoiceTreePipeline(state_file)
     
     async def process_transcript(
@@ -91,13 +80,18 @@ class WorkflowAdapter:
             # Convert workflow decisions to NodeActions
             node_actions = self._convert_to_node_actions(result)
             
-            # Apply changes if in atomic mode
-            if self.mode == WorkflowMode.ATOMIC:
-                await self._apply_node_actions(node_actions)
+            # Extract new node names from integration decisions
+            new_nodes = []
+            for decision in result.get("integration_decisions", []):
+                if decision.get("action") == "CREATE" and decision.get("new_node_name"):
+                    new_nodes.append(decision["new_node_name"])
+            
+            # Note: In ATOMIC mode, the caller (ChunkProcessor) is responsible for applying node actions
+            # to avoid duplicate application
             
             return WorkflowResult(
                 success=True,
-                new_nodes=result.get("new_nodes", []),
+                new_nodes=new_nodes,
                 node_actions=node_actions,
                 metadata={
                     "chunks_processed": len(result.get("chunks", [])),

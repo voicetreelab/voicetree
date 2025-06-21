@@ -94,14 +94,22 @@ class DecisionTree:
         """
         # Generate a list of node titles
         node_titles = [node.title for node in self.tree.values()]
+        node_titles_lower = [title.lower() for title in node_titles]
 
         # Find the closest match to the input name
-        closest_matches = difflib.get_close_matches(name.lower(), node_titles, n=1, cutoff=0.6)
+        closest_matches = difflib.get_close_matches(name.lower(), node_titles_lower, n=1, cutoff=0.6)
 
         if closest_matches:
             # If a match is found, return the corresponding node ID
+            # Find the original title that matched
+            matched_lower = closest_matches[0]
+            for i, title_lower in enumerate(node_titles_lower):
+                if title_lower == matched_lower:
+                    original_title = node_titles[i]
+                    break
+            
             for node_id, node in self.tree.items():
-                if node.title == closest_matches[0]:
+                if node.title == original_title:
                     return node_id
 
         #todo: this won't scale
