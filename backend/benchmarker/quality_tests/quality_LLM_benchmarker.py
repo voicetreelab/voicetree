@@ -9,11 +9,11 @@ import logging
 import sys
 import os
 
-# Add parent directories to path for imports
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-sys.path.insert(0, backend_dir)
+# Add project root to path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+sys.path.insert(0, project_root)
 
-from benchmarker.quality_tests import (
+from backend.benchmarker.quality_tests import (
     DEFAULT_TEST_TRANSCRIPTS,
     TranscriptProcessor,
     QualityEvaluator

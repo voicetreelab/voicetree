@@ -44,15 +44,12 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
 3. benchmarker working DONE - need better input.txt and look through the guide.
 3. run benchmarker, is output reasonable? Can claude follow guide?
 4. implement better agentic workflow arch (nodes, edges, transformers) TODO
+
+
+# LOW PRIO
 5. imlepement complexity score
 6. implement proper mocked system test
 7. implement proper live system test, two chunk processes to existing tree + quality sanity check
-
-
-somewhere: use pydantic
-
-Make every task a 
-
 
 
 I HAD a good idea, what was it? Oh yea, complexity via mermaid diagrams, number of nodes and number of edges. mhmm not super soundx

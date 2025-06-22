@@ -58,16 +58,7 @@ class TranscriptProcessor:
                 print(f"Limited transcript to {max_words} words")
         return content
     
-    def _create_coherent_chunks(self, content):
-        """Create coherent chunks based on sentence boundaries."""
-        sentences = re.split(r'[.!?]+', content)
-        return [s.strip() for s in sentences if s.strip()]
-    
-    async def _process_chunk_buffer(self, buffer):
-        """Process a chunk buffer with rate limiting."""
-        if buffer.strip():
-            await self.processor.process_and_convert(buffer.strip())
-            time.sleep(SECONDS_PER_REQUEST)
+
     
     async def process_transcript(self, transcript_file, max_words=None):
         """Process a transcript file with VoiceTree using agentic workflow."""
@@ -84,24 +75,23 @@ class TranscriptProcessor:
             
             content = self._limit_content_by_words(content, max_words)
             
-            # Process in coherent chunks
-            sentences = self._create_coherent_chunks(content)
-            buffer = ""
+            # Process word by word to simulate streaming
+            words = content.split()
+            print(f"Processing {len(words)} words one at a time")
             
-            for sentence in sentences:
-                # Add sentence to buffer
-                buffer += sentence + ". "
+            for i, word in enumerate(words):
+                # Send each word individually, like streaming voice
+                await self.processor.process_and_convert(word + " ")
                 
-                # Check if buffer is ready for processing
-                sentence_count = buffer.count('.') + buffer.count('!') + buffer.count('?')
-                
-                # Process when we have enough content or multiple complete thoughts
-                if len(buffer) >= self.processor.text_buffer_size_threshold or sentence_count >= 3:
-                    await self._process_chunk_buffer(buffer)
-                    buffer = ""
+                # Small delay to simulate streaming (optional)
+                if i % 10 == 0:  # Rate limit every 10 words
+                    time.sleep(0.1)
             
-            # Process any remaining content
-            await self._process_chunk_buffer(buffer)
+            # FINALIZATION: Process any remaining text in the buffer
+            remaining_buffer = self.processor.buffer_manager.get_buffer()
+            if remaining_buffer:
+                print(f"Processing remaining buffer content: {len(remaining_buffer)} chars")
+                await self.processor.process_and_convert(remaining_buffer)
             
             # Log workflow statistics
             workflow_stats = self.processor.get_workflow_statistics()
