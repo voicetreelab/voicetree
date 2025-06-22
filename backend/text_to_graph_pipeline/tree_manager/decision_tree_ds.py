@@ -114,6 +114,16 @@ class DecisionTree:
 
         #todo: this won't scale
 
-        # If no match is found, return the root node ID (0)
-        logging.warning(f"Warning: No close match found for node name '{name}'. Defaulting to root node.")
+        # If no match is found, try to use the most recently modified node
+        # This is more likely to be semantically related than defaulting to root
+        recent_nodes = self.get_recent_nodes(num_nodes=5)
+        
+        if recent_nodes:
+            # you may also want to filter out root node here
+            parent_id = non_root_recent[0]
+            logging.warning(f"No close match found for node name '{name}'. Using most recent non-root node: {self.tree[parent_id].title}")
+            return parent_id
+        
+        # Only use root if there are no other nodes
+        logging.warning(f"No close match found for node name '{name}' and no recent nodes available. Defaulting to root node.")
         return 0

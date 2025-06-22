@@ -38,7 +38,7 @@ safety_settings = [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_
                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}]
 
 NUM_RECENT_NODES_INCLUDE = 10
-TEXT_BUFFER_SIZE_THRESHOLD = 250
+TEXT_BUFFER_SIZE_THRESHOLD = 183
 BACKGROUND_REWRITE_EVERY_N_APPEND = 2
 TRANSCRIPT_HISTORY_MULTIPLIER: int = 3  # todo: lower or higher?
 # lower, function of just to provide enough context to immediate text...
