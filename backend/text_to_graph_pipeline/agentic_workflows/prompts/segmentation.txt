@@ -1,85 +1,68 @@
-You are an AI expert at segmenting conversational transcripts into graph-ready chunks. Your goal is to identify complete, self-contained thoughts suitable for individual graph nodes and assign a concise name to each.
+You are an expert at segmenting voice transcripts into atomic ideas (complete thoughts) for a knowledge graph. 
+The voice transcript may also contain unfinished content, so you should also identify unfnished sentences.
 
-────────────────────────────────────────
-OUTPUT SPECIFICATION
-────────────────────────────────────────
-Output ONLY the following JSON object. Adhere strictly to this format. No extra text or markdown.
+INPUT VARIABLES:
+- transcript_text: The voice transcript to segment
 
-
-{
-  "chunks": [
-    {"name": "Chunk 1 concise name", "text": "Chunk 1 text...", "is_complete": true},
-    // ... more chunks ...
-    {"name": "Final chunk concise name", "text": "Final chunk text...", "is_complete": true}
-  ]
-}
-
-────────────────────────────────────────
-SEGMENTATION, NAMING & EDITING RULES
-────────────────────────────────────────
-1.  **Core Principle:** Each chunk must represent one **Complete Thought** - a single concept WITH enough context to stand alone as a knowledge node. The chunk must contain sufficient information to be meaningful and actionable (either as a new node or valuable addition to existing content).
-2.  **Create New Chunks on Idea Shifts:** Start a new chunk for:
-    *   New topics, objectives, requirements, or steps.
-    *   Contrasting points or counter-arguments.
-    *   Distinct examples or anecdotes (if not essential to the current point).
-    *   Specific questions or direct answers.
-    *   Explicit speaker transitions.
-3.  **Manage Sentence Flow:**
-    *   **Merge:** Keep dependent clauses/sentences together if they form one Complete Thought. If a sentence fragment lacks context (e.g., "libraries." or "different things."), merge it with surrounding text that provides meaning.
-    *   **Split:** Divide sentences with multiple distinct ideas (e.g., joined by "and," "but") *only if* each part contains enough context to be a complete thought independently.
-    *   **Attach Fillers:** Keep conversational fillers ("Okay," "Right," "Uh-huh") with the related substantive statement.
-    *   **Preserve Context:** Keep important entities (people, roles, responsibilities) with their associated actions or decisions.
-    *   **Minimum Context Rule:** Each chunk must answer "What about it?" - a chunk saying just "libraries" is useless, but "I need to look into visualization libraries" is meaningful.
-4.  **Assign Concise Name:** For each chunk created, generate a brief `name` (1-5 words) that accurately summarizes its core thought. This name will be used for linking.
-5.  **Light Editing:**
-    *   Fix obvious typos/ASR errors: e.g., stray period after a single word, duplicated words like 'the the', homophone substitutions that are nonsensical.
-    *   Perform minor adjustments for clarity, but preserve original meaning and speaker style – **do not paraphrase or summarize the main `text`**.
-
-────────────────────────────────────────
-CHUNK COMPLETENESS
-────────────────────────────────────────
-For EVERY chunk (not just the last):
-*   Set `"is_complete": false` if the chunk ends mid-thought, mid-sentence, or is clearly incomplete (e.g., "So, the doucment", "And then I", "The next thing is").
-*   Set `"is_complete": true` only if the chunk contains a complete, self-contained thought.
-*   When in doubt about completeness, mark as incomplete - it's better to accumulate text than to create low-quality nodes.
-
-────────────────────────────────────────
-CONSTRAINTS
-────────────────────────────────────────
-*   Focus solely on semantic coherence (Complete Thought principle).
-*   Do not invent or delete content from the `text`.
-*   Strictly follow the JSON output format.
-
-────────────────────────────────────────
-EXAMPLES
-────────────────────────────────────────
-**Good Example:**
-**Input:** "Okay, so I need to finish my presentation for tomorrow's meeting. The topic is quarterly sales results. I also need to call the client about the contract renewal and schedule that follow-up meeting we discussed."
-
-**Output:**
+OUTPUT FORMAT:
 ```json
 {
   "chunks": [
-    {"name": "Presentation Task", "text": "Okay, so I need to finish my presentation for tomorrow's meeting. The topic is quarterly sales results.", "is_complete": true},
-    {"name": "Client Call", "text": "I also need to call the client about the contract renewal", "is_complete": true},
-    {"name": "Follow-up Meeting", "text": "and schedule that follow-up meeting we discussed.", "is_complete": true}
+    {"name": "Brief 1-5 word label", "text": "The actual text...", "is_complete": true/false}
   ]
 }
 ```
 
+SEGMENTATION RULES:
+1. **One idea per chunk** - Each chunk must be a complete, self-contained thought that can stand alone as a knowledge node.
 
-```
+2. **Split on topic shifts** - New chunk when:
+   - New topic, task, or requirement
+   - Different example or anecdote  
+   - Question or answer
+   - Clear transition words ("also", "next", "another thing")
 
-**GOOD Output:**
+3. **Keep together** - Don't split:
+   - Dependent clauses that explain the main idea
+   - Context needed to understand the point
+   - Short filler words with their content ("Um, I need to..." stays together)
+
+4. **Completeness check** - For EVERY chunk:
+   - `is_complete: false` if it ends mid-sentence or trails off (e.g., "So, the bare", "And then I")
+   - `is_complete: true` if it's a complete thought
+   - When unsure, mark incomplete - better to wait for more context
+
+5. **Light editing** - Our voice to text may have mistakes such as mis-hearing the wrong word, hallucinating grammar, etc.
+Fix obvious transcription errors but preserve original wording
+
+EXAMPLES:
+
+transcript_text: "So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into. The first thing is I want to make a proof of concept of voice tree. So, the bare"
+
+Output:
 ```json
 {
   "chunks": [
-    {"name": "Visualization Libraries", "text": "I'll need to have a look into later on some of the visualization libraries.", "is_complete": true},
-    {"name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": true}
+    {"name": "Starting Voice Tree", "text": "So, today I'm starting work on voice tree.", "is_complete": true},
+    {"name": "Things to Look Into", "text": "Right now, there's a few different things I want to look into.", "is_complete": true},
+    {"name": "Proof of Concept", "text": "The first thing is I want to make a proof of concept of voice tree.", "is_complete": true},
+    {"name": "Incomplete Thought", "text": "So, the bare", "is_complete": false}
   ]
 }
 ```
 
+transcript_text: "I need to look into visualization libraries. Uh, converting text into a data format. But that's later."
+
+Output:
+```json
+{
+  "chunks": [
+    {"name": "Visualization Libraries", "text": "I need to look into visualization libraries.", "is_complete": true},
+    {"name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": true},
+    {"name": "Timing Note", "text": "But that's later.", "is_complete": true}
+  ]
+}
+```
 ────────────────────────────────────────
 TRANSCRIPT TO SEGMENT:
 ────────────────────────────────────────
