@@ -1,4 +1,4 @@
-You are an AI expert at segmenting conversational transcripts into graph-ready chunks. Your goal is to identify distinct, self-contained ideas suitable for individual graph nodes and assign a concise name to each.
+You are an AI expert at segmenting conversational transcripts into graph-ready chunks. Your goal is to identify complete, self-contained thoughts suitable for individual graph nodes and assign a concise name to each.
 
 ────────────────────────────────────────
 OUTPUT SPECIFICATION
@@ -17,7 +17,7 @@ Output ONLY the following JSON object. Adhere strictly to this format. No extra 
 ────────────────────────────────────────
 SEGMENTATION, NAMING & EDITING RULES
 ────────────────────────────────────────
-1.  **Core Principle:** Each chunk must represent one **Atomic Idea** (a single point, decision, question, answer, step, etc.).
+1.  **Core Principle:** Each chunk must represent one **Complete Thought** - a single concept WITH enough context to stand alone as a knowledge node. The chunk must contain sufficient information to be meaningful and actionable (either as a new node or valuable addition to existing content).
 2.  **Create New Chunks on Idea Shifts:** Start a new chunk for:
     *   New topics, objectives, requirements, or steps.
     *   Contrasting points or counter-arguments.
@@ -25,11 +25,12 @@ SEGMENTATION, NAMING & EDITING RULES
     *   Specific questions or direct answers.
     *   Explicit speaker transitions.
 3.  **Manage Sentence Flow:**
-    *   **Merge:** Keep dependent clauses/sentences together if they form one Atomic Idea.
-    *   **Split:** Divide sentences with multiple distinct ideas (e.g., joined by "and," "but") *only if* each part forms a valid Atomic Idea.
+    *   **Merge:** Keep dependent clauses/sentences together if they form one Complete Thought. If a sentence fragment lacks context (e.g., "libraries." or "different things."), merge it with surrounding text that provides meaning.
+    *   **Split:** Divide sentences with multiple distinct ideas (e.g., joined by "and," "but") *only if* each part contains enough context to be a complete thought independently.
     *   **Attach Fillers:** Keep conversational fillers ("Okay," "Right," "Uh-huh") with the related substantive statement.
     *   **Preserve Context:** Keep important entities (people, roles, responsibilities) with their associated actions or decisions.
-4.  **Assign Concise Name:** For each chunk created, generate a brief `name` (1-5 words) that accurately summarizes its core Atomic Idea. This name will be used for linking.
+    *   **Minimum Context Rule:** Each chunk must answer "What about it?" - a chunk saying just "libraries" is useless, but "I need to look into visualization libraries" is meaningful.
+4.  **Assign Concise Name:** For each chunk created, generate a brief `name` (1-5 words) that accurately summarizes its core thought. This name will be used for linking.
 5.  **Light Editing:**
     *   Fix obvious typos/ASR errors: e.g., stray period after a single word, duplicated words like 'the the', homophone substitutions that are nonsensical.
     *   Perform minor adjustments for clarity, but preserve original meaning and speaker style – **do not paraphrase or summarize the main `text`**.
@@ -44,13 +45,14 @@ Applies *only* to the very last chunk generated:
 ────────────────────────────────────────
 CONSTRAINTS
 ────────────────────────────────────────
-*   Focus solely on semantic coherence (Atomic Idea principle).
+*   Focus solely on semantic coherence (Complete Thought principle).
 *   Do not invent or delete content from the `text`.
 *   Strictly follow the JSON output format.
 
 ────────────────────────────────────────
-EXAMPLE
+EXAMPLES
 ────────────────────────────────────────
+**Good Example:**
 **Input:** "Okay, so I need to finish my presentation for tomorrow's meeting. The topic is quarterly sales results. I also need to call the client about the contract renewal and schedule that follow-up meeting we discussed."
 
 **Output:**
@@ -60,6 +62,30 @@ EXAMPLE
     {"name": "Presentation Task", "text": "Okay, so I need to finish my presentation for tomorrow's meeting. The topic is quarterly sales results.", "is_complete": true},
     {"name": "Client Call", "text": "I also need to call the client about the contract renewal", "is_complete": true},
     {"name": "Follow-up Meeting", "text": "and schedule that follow-up meeting we discussed.", "is_complete": true}
+  ]
+}
+```
+
+**Bad Example (Avoid This):**
+**Input:** "I'll need to have a look into later on some of the visualization libraries. Uh, converting text into a data format."
+
+**BAD Output:**
+```json
+{
+  "chunks": [
+    {"name": "Look Into", "text": "I'll need to have a look into later on some of the", "is_complete": false},
+    {"name": "Libraries", "text": "visualization libraries.", "is_complete": true},
+    {"name": "Converting", "text": "Uh, converting text into a data format.", "is_complete": true}
+  ]
+}
+```
+
+**GOOD Output:**
+```json
+{
+  "chunks": [
+    {"name": "Visualization Libraries", "text": "I'll need to have a look into later on some of the visualization libraries.", "is_complete": true},
+    {"name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": true}
   ]
 }
 ```

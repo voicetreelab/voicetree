@@ -160,9 +160,6 @@ class ChunkProcessor:
         if result.success:
             logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
             
-            # Update buffer manager with incomplete remainder
-            incomplete_remainder = result.metadata.get("incomplete_buffer", "") if result.metadata else ""
-            self.buffer_manager.set_incomplete_remainder(incomplete_remainder)
             
             # Apply the node actions to the decision tree
             await self._apply_node_actions_from_result(result.node_actions)

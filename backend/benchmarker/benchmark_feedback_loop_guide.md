@@ -7,8 +7,8 @@
 python -m backend.benchmarker.quality_tests.quality_LLM_benchmarker
 ```
 **Outputs:**
-- Markdown files: `oldVaults/VoiceTreePOC/QualityTest/`
-- Debug logs: `backend/agentic_workflows/debug_logs/`
+- Markdown files: `backend/oldVaults/VoiceTreePOC/QualityTest/`
+- Debug logs: `backend/text_to_graph_pipeline/agentic_workflows/debug_logs/`
 
 ### 2. Debug Workflow Analysis
 After running benchmarker:
@@ -19,6 +19,11 @@ After running benchmarker:
 ## Systematic Debug Analysis
 
 ### Debug Files & What to Check
+
+#### `00_transcript_input.txt` (CHECK FIRST!)
+- ❓ Is the CONTENT truncated mid-sentence?
+- ❓ Is LENGTH suspiciously small (e.g., 85 characters)?
+- 🚩 If yes, buffer manager is cutting text too early
 
 #### `segmentation_debug.txt`
 - ❓ Are all transcript concepts present in chunks?
@@ -77,9 +82,13 @@ Map the original transcript:
 **Look in:** `integration_decision_debug.txt` - check `content` field
 **Fix:** Update integration decision prompt
 
-### Problem: Over-fragmentation
-**Look in:** CREATE/APPEND ratio in integration decisions
-**Fix:** Improve relationship detection strength
+### Problem: Over-fragmentation (Single Word Nodes)
+**Look in:** 
+1. First check `00_transcript_input.txt` - Look for truncated CONTENT
+2. Check segmentation debug - Are chunks incomplete sentences?
+3. Check integration decisions - Many CREATE actions with minimal content?
+**Root Cause:** Text buffer truncating at ~83-85 characters, breaking sentences mid-thought
+**Fix:** Check buffer threshold settings and ensure complete sentences are processed
 
 ### Problem: Missing Content
 **Trace:** Start at segmentation → Check each stage until content disappears

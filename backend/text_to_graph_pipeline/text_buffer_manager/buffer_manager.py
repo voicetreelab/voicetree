@@ -56,7 +56,6 @@ class TextBufferManager:
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
-        self._incomplete_chunk_remainder = ""
         logging.info(f"TextBufferManager initialized with threshold: {self.config.buffer_size_threshold}")
         
     def add_text(self, text: str) -> BufferResult:
@@ -117,17 +116,12 @@ class TextBufferManager:
             return True
         return False
         
-    def set_incomplete_remainder(self, remainder: str):
-        """Set incomplete chunk remainder (compatibility method - not used in simple buffer)"""
-        self._incomplete_chunk_remainder = remainder if remainder is not None else ""
-        logging.debug(f"Set incomplete remainder: '{remainder}'")
         
     def clear(self) -> None:
         """Clear all buffers and reset state"""
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
-        self._incomplete_chunk_remainder = ""
         logging.info("Cleared all buffers")
         
     def get_stats(self) -> Dict[str, Any]:
@@ -135,7 +129,6 @@ class TextBufferManager:
         return {
             "text_buffer_size": len(self._buffer),
             "transcript_history_size": len(self._transcript_history),
-            "incomplete_remainder_size": len(self._incomplete_chunk_remainder),
             "buffer_threshold": self.config.buffer_size_threshold,
             "is_first": self._is_first_processing
         }
