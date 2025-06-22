@@ -9,7 +9,7 @@ from dataclasses import dataclass
 class BufferConfig:
     """Configuration for text buffer management"""
     
-    buffer_size_threshold: int = 83
+    buffer_size_threshold: int = 63
     transcript_history_multiplier: int = 3
     immediate_processing_size_multiplier: float = 1.5
     substantial_content_threshold: float = 0.8
