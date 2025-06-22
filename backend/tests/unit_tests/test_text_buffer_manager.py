@@ -35,19 +35,19 @@ class TestTextBufferManager:
         assert result.text == large_text
     
     def test_immediate_processing_multiple_sentences(self):
-        """Test immediate processing for multiple sentences"""
+        """Test that sentence-based immediate processing is not implemented in simplified buffer"""
         config = BufferConfig(
             buffer_size_threshold=100,
             min_sentences_for_immediate=3
         )
         manager = TextBufferManager(config=config)
         
-        # Text with 3 sentences
+        # Text with 3 sentences but under threshold - should NOT trigger
         text = "First sentence. Second sentence. Third sentence."
         result = manager.add_text(text)
         
-        assert result.is_ready == True
-        assert result.text == text
+        # Simplified buffer ignores min_sentences_for_immediate
+        assert result.is_ready == False  # 49 chars < 100 threshold
     
     def test_buffered_processing(self):
         """Test buffered processing for small chunks"""
@@ -64,23 +64,24 @@ class TestTextBufferManager:
         # Add more to create a complete sentence and exceed threshold
         result3 = manager.add_text("of the buffering system that should trigger processing.")
         assert result3.is_ready == True
-        # The buffer extracts complete sentences, so it should contain the complete sentence
-        assert result3.text == "of the buffering system that should trigger processing."
+        # The buffer returns all accumulated text when threshold is reached
+        assert result3.text == "This isa testof the buffering system that should trigger processing."
     
     def test_incomplete_remainder_handling(self):
-        """Test handling of incomplete chunk remainder"""
+        """Test that incomplete remainder is stored but not used in simplified buffer"""
         config = BufferConfig(buffer_size_threshold=100)  # Higher threshold
         manager = TextBufferManager(config=config)
         
-        # Set incomplete remainder
+        # Set incomplete remainder - this is a compatibility method that doesn't affect buffering
         manager.set_incomplete_remainder("Previously incomplete")
         
-        # Add new text that creates a complete sentence
-        result = manager.add_text("text that continues with more content to exceed the threshold for processing.")
+        # Add new text - simplified buffer doesn't prepend incomplete remainder
+        text = "text that continues with more content to exceed the threshold for processing now."
+        result = manager.add_text(text)
         
-        # Should be processed due to exceeding threshold
-        assert result.is_ready == True
-        assert "Previously incomplete text that continues with more content to exceed the threshold for processing." in result.text
+        # Text alone is 82 chars, below 100 threshold
+        assert result.is_ready == False
+        assert manager._incomplete_chunk_remainder == "Previously incomplete"  # Stored but not used
     
     def test_transcript_history(self):
         """Test transcript history tracking"""

@@ -30,6 +30,19 @@ class TextBufferManager:
     - Maintains transcript history
     - Immediate processing for text above threshold
     - Clear and simple implementation
+    
+    IMPORTANT: This buffer manager intentionally does NOT implement:
+    - Sentence-based immediate processing (min_sentences_for_immediate is ignored)
+    - Incomplete chunk remainder prepending (stored but not used in buffering)
+    - Complex sentence extraction logic
+    
+    These features were removed because:
+    1. The agentic pipeline already handles sentence boundaries intelligently
+    2. Character-based buffering is simpler and more predictable
+    3. The workflow adapter manages incomplete chunks at a higher level
+    4. Adding this complexity provides no benefit and makes the system harder to maintain
+    
+    If you're tempted to add these features back, please read buffer_manager_analysis_report.md first.
     """
     
     def __init__(self, config: Optional[BufferConfig] = None):
