@@ -67,21 +67,6 @@ class TestTextBufferManager:
         # The buffer returns all accumulated text when threshold is reached
         assert result3.text == "This isa testof the buffering system that should trigger processing."
     
-    def test_incomplete_remainder_handling(self):
-        """Test that incomplete remainder is stored but not used in simplified buffer"""
-        config = BufferConfig(buffer_size_threshold=100)  # Higher threshold
-        manager = TextBufferManager(config=config)
-        
-        # Set incomplete remainder - this is a compatibility method that doesn't affect buffering
-        manager.set_incomplete_remainder("Previously incomplete")
-        
-        # Add new text - simplified buffer doesn't prepend incomplete remainder
-        text = "text that continues with more content to exceed the threshold for processing now."
-        result = manager.add_text(text)
-        
-        # Text alone is 82 chars, below 100 threshold
-        assert result.is_ready == False
-        assert manager._incomplete_chunk_remainder == "Previously incomplete"  # Stored but not used
     
     def test_transcript_history(self):
         """Test transcript history tracking"""
@@ -105,7 +90,6 @@ class TestTextBufferManager:
         
         # Add some data
         manager.add_text("Some text")
-        manager.set_incomplete_remainder("Incomplete")
         
         # Clear
         manager.clear()
@@ -113,7 +97,6 @@ class TestTextBufferManager:
         # Verify cleared
         assert manager.get_transcript_history() == ""
         assert manager._text_buffer == ""
-        assert manager._incomplete_chunk_remainder == ""
         assert manager.is_first_processing() == True
     
     def test_buffer_stats(self):
@@ -125,7 +108,6 @@ class TestTextBufferManager:
         
         assert "text_buffer_size" in stats
         assert "transcript_history_size" in stats
-        assert "incomplete_remainder_size" in stats
         assert "buffer_threshold" in stats
         assert "is_first" in stats
     

@@ -36,8 +36,6 @@ class TestDebugBufferIssue:
                 print(f"  >>> PROCESSING: '{result.text[:50]}...'")
                 processed_chunks.append(result.text)
                 
-                # This is what happens in the real code
-                manager.set_incomplete_remainder("")
         
         print(f"\n{'=' * 60}")
         print(f"Total words: {len(test_words)}")
