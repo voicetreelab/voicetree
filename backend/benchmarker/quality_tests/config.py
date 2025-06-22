@@ -5,8 +5,8 @@ REQUESTS_PER_MINUTE = 15  # to avoid breaching 15RPM gemini limit
 SECONDS_PER_REQUEST = 60 / REQUESTS_PER_MINUTE
 
 # Directory Settings
-OUTPUT_DIR = "oldVaults/VoiceTreePOC/QualityTest"
-BACKUP_DIR_BASE = "oldVaults/VoiceTreePOC/OLDQualityTest"
+OUTPUT_DIR = "backend/oldVaults/VoiceTreePOC/QualityTest"
+BACKUP_DIR_BASE = "backend/oldVaults/VoiceTreePOC/OLDQualityTest"
 
 # File Names
 QUALITY_LOG_FILE = "quality_log.txt"
@@ -21,8 +21,8 @@ EVALUATION_MODEL = 'models/gemini-2.5-pro-preview-06-05'
 # Test Transcripts
 DEFAULT_TEST_TRANSCRIPTS = [
     {
-        "file": "oldVaults/VoiceTreePOC/og_vt_transcript.txt",
+        "file": "backend/oldVaults/VoiceTreePOC/og_vt_transcript.txt",
         "name": "VoiceTree Original",
-        "max_words": 150
+        "max_words": 63*4 + 1
     }
 ]

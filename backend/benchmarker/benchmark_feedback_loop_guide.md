@@ -13,7 +13,7 @@ python -m backend.benchmarker.quality_tests.quality_LLM_benchmarker
 ### 2. Debug Workflow Analysis
 After running benchmarker:
 1. **Check final output quality** - Read all generated .md files
-2. **Identify problems** - Missing content, poor structure, repetition
+2. **Identify problems** - Missing content, poor tree structure, repetition
 3. **Trace backwards** through debug logs to find root cause
 
 ## Systematic Debug Analysis
@@ -37,12 +37,6 @@ After running benchmarker:
 - ❓ Are content fields bullet points (not raw transcript)?
 - ❓ Do decisions match relationships?
 - 🚩 Too many CREATEs, raw transcript copying
-
-#### `node_extraction_debug.txt`
-- ❓ Are node names descriptive and specific?
-- ❓ Do names match their content?
-- 🚩 Generic names like "Things to do"
-
 ## Output Quality Checklist
 
 ### Before Analysis
@@ -91,16 +85,12 @@ Map the original transcript:
 **Trace:** Start at segmentation → Check each stage until content disappears
 **Fix:** Usually in segmentation boundaries or integration decisions
 
-### Problem: Poor Node Names
-**Look in:** `node_extraction_debug.txt`
-**Fix:** Improve extraction prompt with better examples
 
 ## Tracing Workflow
 
 Example: "Missing Streaming Audio Discussion"
 ```bash
 # Work backwards through stages
-grep -i "stream" backend/agentic_workflows/debug_logs/node_extraction_debug.txt
 grep -i "stream" backend/agentic_workflows/debug_logs/integration_decision_debug.txt
 grep -i "stream" backend/agentic_workflows/debug_logs/relationship_analysis_debug.txt
 grep -i "stream" backend/agentic_workflows/debug_logs/segmentation_debug.txt

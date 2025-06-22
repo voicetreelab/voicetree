@@ -131,10 +131,10 @@ class TestIntegration(unittest.TestCase):
         asyncio.run(self.run_complex_tree_creation())
 
     def test_workflow_statistics(self):
-        """Test that workflow statistics are available"""
-        stats = self.tree_manager.get_workflow_statistics()
-        self.assertIsInstance(stats, dict, "Workflow statistics should return a dictionary")
-        print(f"📊 Workflow statistics: {stats}")
+            """Test that workflow statistics are available"""
+            stats = self.processor.get_workflow_statistics()
+            self.assertIsInstance(stats, dict, "Workflow statistics should return a dictionary")
+            print(f"📊 Workflow statistics: {stats}")
 
     def test_workflow_state_management(self):
         """Test that workflow state can be managed"""

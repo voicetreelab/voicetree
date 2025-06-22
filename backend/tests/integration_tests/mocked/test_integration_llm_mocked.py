@@ -3,6 +3,7 @@ import unittest
 import os
 import shutil
 from unittest.mock import patch
+import pytest
 
 from backend.text_to_graph_pipeline.tree_manager import NodeAction
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
@@ -40,6 +41,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         "and presentation."
     ]
 
+    @pytest.mark.asyncio
     @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_transcript')
     async def test_complex_tree_creation_workflow(self, mock_process_transcript):
         """Test complex tree creation using the new workflow system"""
@@ -165,6 +167,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         """Test complex tree creation using workflow system"""
         asyncio.run(self.test_complex_tree_creation_workflow())
 
+    @pytest.mark.asyncio
     @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_transcript')
     async def test_complex_tree_creation_append_mode_workflow(self, mock_process_transcript):
         """Test complex tree creation with APPEND mode using the new workflow system"""
