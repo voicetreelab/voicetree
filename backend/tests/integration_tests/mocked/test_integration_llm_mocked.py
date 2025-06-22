@@ -16,7 +16,8 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         # Reset the tree and other objects before each test
 
         self.decision_tree = DecisionTree()
-        self.output_dir = "/Users/bobbobby/repos/VoiceTreePoc/test_output"
+        # Use a relative path that works on all platforms
+        self.output_dir = os.path.join(os.path.dirname(__file__), "test_output")
         self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.processor = ChunkProcessor(self.decision_tree,
                                        converter=self.converter,
@@ -149,7 +150,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             with open(file_path, "r") as f:
                 content = f.read().lower()  # Convert content to lowercase
                 # a Check for parent link
-                parent_id = self.tree_manager.decision_tree.get_parent_id(node_id)
+                parent_id = self.decision_tree.get_parent_id(node_id)
                 if parent_id is not None:
                     parent_filename = tree[parent_id].filename
                     self.assertIn(f"- child of [[{parent_filename}]]".lower(), content,
@@ -275,7 +276,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             with open(file_path, "r") as f:
                 content = f.read().lower()  # Convert content to lowercase
                 # a Check for parent link
-                parent_id = self.tree_manager.decision_tree.get_parent_id(node_id)
+                parent_id = self.decision_tree.get_parent_id(node_id)
                 if parent_id is not None:
                     parent_filename = tree[parent_id].filename
                     self.assertIn(f"- child of [[{parent_filename}]]".lower(), content,

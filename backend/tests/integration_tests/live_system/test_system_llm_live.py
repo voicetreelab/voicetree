@@ -10,7 +10,8 @@ from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToM
 class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.decision_tree = DecisionTree()
-        self.output_dir = "/Users/bobbobby/repos/VoiceTreePoc/test_output"
+        # Use a relative path that works on all platforms
+        self.output_dir = os.path.join(os.path.dirname(__file__), "test_output")
         self.cleanUp()
         self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.processor = ChunkProcessor(self.decision_tree,
@@ -52,7 +53,7 @@ class TestIntegration(unittest.TestCase):
             self.fail(f"Processing should not fail: {e}")
             
         # Test the tree structure
-        tree = self.tree_manager.decision_tree.tree
+        tree = self.decision_tree.tree
         print(f"📊 Tree has {len(tree)} nodes")
 
         # Basic assertions - the system should at least create a root node
@@ -63,8 +64,8 @@ class TestIntegration(unittest.TestCase):
         root_node = tree[0]
         self.assertEqual(root_node.id, 0, "Root node should have ID 0.")
         
-        # Test that the workflow manager is properly configured
-        self.assertIsNotNone(self.tree_manager.workflow_adapter, "Workflow adapter should be initialized.")
+        # Test that the processor is properly configured
+        self.assertIsNotNone(self.processor, "Chunk processor should be initialized.")
         
         # Test markdown file creation - at least root should have a file
         root_filename = root_node.filename

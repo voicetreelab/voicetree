@@ -125,6 +125,14 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
     except Exception as e:
         error_msg = f"❌ Error calling Gemini API: {str(e)}"
         print(error_msg)
+        
+        # If it's a validation error, provide more specific guidance
+        if "validation error" in str(e).lower() or "field required" in str(e).lower():
+            print(f"📝 Validation error details: The LLM response didn't match expected schema for {stage_type}")
+            print(f"   Expected schema: {schema_class.__name__}")
+            if hasattr(e, '__cause__') and hasattr(e.__cause__, 'errors'):
+                print(f"   Validation errors: {e.__cause__.errors()}")
+        
         raise RuntimeError(f"{error_msg}\nPlease check your API configuration and try again.")
 
 
