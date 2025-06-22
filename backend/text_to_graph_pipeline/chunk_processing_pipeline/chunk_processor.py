@@ -62,8 +62,7 @@ class ChunkProcessor:
         
         # Initialize text buffer manager with configuration
         buffer_config = BufferConfig(
-            buffer_size_threshold=settings.TEXT_BUFFER_SIZE_THRESHOLD,
-            transcript_history_multiplier=getattr(settings, 'TRANSCRIPT_HISTORY_MULTIPLIER', 3)
+            buffer_size_threshold=settings.TEXT_BUFFER_SIZE_THRESHOLD
         )
         self.buffer_manager = TextBufferManager(config=buffer_config)
         
