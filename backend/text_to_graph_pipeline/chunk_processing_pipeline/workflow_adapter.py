@@ -147,8 +147,8 @@ class WorkflowAdapter:
                     action="CREATE",
                     concept_name=decision.get("new_node_name", ""),
                     neighbour_concept_name=decision.get("target_node", ""),
-                    relationship_to_neighbour=decision.get("relationship", ""),
-                    markdown_content_to_append=decision.get("content", ""),
+                    relationship_to_neighbour=decision.get("relationship_for_edge", ""),
+                    markdown_content_to_append=decision.get("content", decision.get("text", "")),
                     updated_summary_of_node=decision.get("new_node_summary", ""),
                     is_complete=True,
                     labelled_text=decision.get("name", "")

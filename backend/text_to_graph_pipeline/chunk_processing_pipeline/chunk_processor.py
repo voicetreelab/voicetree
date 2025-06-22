@@ -72,6 +72,9 @@ class ChunkProcessor:
             state_file=workflow_state_file
         )
         
+        # Track incomplete chunks from previous processing
+        self.incomplete_chunk_remainder = ""
+        
         logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
     
     @property
@@ -117,6 +120,11 @@ class ChunkProcessor:
         logging.info(f"process_voice_input called with text: '{transcribed_text}'")
         logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
         
+        # Prepend any incomplete chunk remainder to the new text
+        if self.incomplete_chunk_remainder:
+            transcribed_text = self.incomplete_chunk_remainder + " " + transcribed_text
+            self.incomplete_chunk_remainder = ""
+        
         # Add text to buffer and check if ready for processing
         result = self.buffer_manager.add_text(transcribed_text)
         
@@ -160,6 +168,11 @@ class ChunkProcessor:
         if result.success:
             logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
             
+            # Update incomplete chunk remainder from workflow metadata
+            if result.metadata and "incomplete_buffer" in result.metadata:
+                self.incomplete_chunk_remainder = result.metadata["incomplete_buffer"]
+                if self.incomplete_chunk_remainder:
+                    logging.info(f"Saving incomplete chunk remainder from workflow: '{self.incomplete_chunk_remainder}'")
             
             # Apply the node actions to the decision tree
             await self._apply_node_actions_from_result(result.node_actions)

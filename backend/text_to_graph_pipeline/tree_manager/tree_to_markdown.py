@@ -81,9 +81,15 @@ class TreeToMarkdownConverter:
                         f.write(f"{clean_content}\n\n\n-----------------\n_Links:_\n")
 
                         # Add child links
-                        # for child_id in node_data['children']:
-                        #     child_file_name = self.tree_data[child_id.filename
-                        #     f.write(f"- parent of [[{child_file_name}]]\n")
+                        for child_id in node_data.children:
+                            child_node = self.tree_data.get(child_id)
+                            if child_node:
+                                child_file_name = child_node.filename
+                                # Get the relationship from child's perspective
+                                child_relationship = "child of"
+                                if child_id in self.tree_data and node_id in self.tree_data[child_id].relationships:
+                                    child_relationship = self.tree_data[child_id].relationships[node_id]
+                                f.write(f"- parent of [[{child_file_name}]] ({child_relationship} this node)\n")
 
                         # add parent backlinks
                         parent_id = self.get_parent_id(node_id)
@@ -93,7 +99,7 @@ class TreeToMarkdownConverter:
                             try:
                                 relationship_to_parent = self.tree_data[node_id].relationships[parent_id]
                             except Exception as e:
-                                logging.error("Cparent relationship not in tree_data")
+                                logging.error("Parent relationship not in tree_data")
                             f.write(f"- {relationship_to_parent} [[{parent_file_name}]]\n")
 
                 except (FileNotFoundError, IOError, OSError) as e:
