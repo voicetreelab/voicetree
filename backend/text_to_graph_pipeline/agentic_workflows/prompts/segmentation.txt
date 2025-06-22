@@ -36,11 +36,12 @@ SEGMENTATION, NAMING & EDITING RULES
     *   Perform minor adjustments for clarity, but preserve original meaning and speaker style – **do not paraphrase or summarize the main `text`**.
 
 ────────────────────────────────────────
-FINAL CHUNK COMPLETENESS
+CHUNK COMPLETENESS
 ────────────────────────────────────────
-Applies *only* to the very last chunk generated:
-*   Set `"is_complete": false` **only if** it ends mid-thought (e.g., trails off, cut mid-sentence, incomplete phrase).
-*   Otherwise, set `"is_complete": true`.
+For EVERY chunk (not just the last):
+*   Set `"is_complete": false` if the chunk ends mid-thought, mid-sentence, or is clearly incomplete (e.g., "So, the doucment", "And then I", "The next thing is").
+*   Set `"is_complete": true` only if the chunk contains a complete, self-contained thought.
+*   When in doubt about completeness, mark as incomplete - it's better to accumulate text than to create low-quality nodes.
 
 ────────────────────────────────────────
 CONSTRAINTS
@@ -66,18 +67,7 @@ EXAMPLES
 }
 ```
 
-**Bad Example (Avoid This):**
-**Input:** "I'll need to have a look into later on some of the visualization libraries. Uh, converting text into a data format."
 
-**BAD Output:**
-```json
-{
-  "chunks": [
-    {"name": "Look Into", "text": "I'll need to have a look into later on some of the", "is_complete": false},
-    {"name": "Libraries", "text": "visualization libraries.", "is_complete": true},
-    {"name": "Converting", "text": "Uh, converting text into a data format.", "is_complete": true}
-  ]
-}
 ```
 
 **GOOD Output:**
