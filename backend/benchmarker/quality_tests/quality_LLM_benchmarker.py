@@ -2,6 +2,8 @@
 Quality benchmarker for VoiceTree system.
 
 This module runs VoiceTree on sample input and uses an LLM to rate the quality of the output.
+
+MAKE SURE TO RUN FROM PROJECT ROOT
 """
 
 import asyncio

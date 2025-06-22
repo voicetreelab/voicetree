@@ -136,7 +136,7 @@ jobs:
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
-        python backend/benchmarker/quality_LLM_benchmarker.py
+        python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
     
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
