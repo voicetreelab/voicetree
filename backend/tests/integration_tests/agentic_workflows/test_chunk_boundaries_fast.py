@@ -145,12 +145,26 @@ def test_extreme_boundaries_fast():
                 ])
             elif stage_type == "relationship":
                 return RelationshipResponse(analyzed_chunks=[
-                    {"name": "AI System", "relevant_node_name": "NO_RELEVANT_NODE", "relationship": None}
+                    {
+                        "name": "AI System", 
+                        "text": "AI system text",
+                        "reasoning": "This is a single fragment that doesn't relate to any existing nodes",
+                        "relevant_node_name": "NO_RELEVANT_NODE", 
+                        "relationship": None
+                    }
                 ])
             elif stage_type == "integration":
                 return IntegrationResponse(integration_decisions=[
-                    {"name": "AI System", "action": "CREATE", "target_node": "NO_RELEVANT_NODE",
-                     "new_node_name": "AI System", "new_node_summary": "Artificial intelligence system"}
+                    {
+                        "name": "AI System", 
+                        "text": "AI system text",
+                        "action": "CREATE", 
+                        "target_node": None,
+                        "new_node_name": "AI System", 
+                        "new_node_summary": "Artificial intelligence system",
+                        "relationship_for_edge": None,
+                        "content": "AI system text"
+                    }
                 ])
         
         mock_llm.side_effect = mock_response

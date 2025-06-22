@@ -126,3 +126,4 @@ backend/text_to_graph_pipeline/agentic_workflows/debug_logs/node_extraction_debu
 backend/text_to_graph_pipeline/agentic_workflows/debug_logs/relationship_analysis_debug.txt
 test_chunk_boundaries_quick_state.json
 backend/oldVaults/*
+backend/tests/integration_tests/live_system/test_output/*

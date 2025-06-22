@@ -22,14 +22,14 @@ Your specific instructions are:
             - Does it provide context or background for other chunks?
             - Is it part of a sequence with other chunks?
 
-3.  **Output Format:** Construct a JSON object with an "analyzed_chunks" field containing a list. Each element in the list corresponds to one input sub-chunk and MUST contain:
-    *   `name`: The original `name` of the sub-chunk from the input.
-    *   `text`: The original `text` of the sub-chunk from the input.
-    *   `reasoning`: Your step-by-step analysis for choosing the relevant item and relationship.
-    *   `relevant_node_name`: The exact `name` of the most relevant existing node OR other sub-chunk found, or the string `NO_RELEVANT_NODE`.
-    *   `relationship`: The brief description of the relationship, or `null`.
+3.  **Output Format:** Construct a JSON object with an "analyzed_chunks" field containing a list. Each element in the list corresponds to one input sub-chunk and MUST contain ALL of the following fields (no fields can be omitted):
+    *   `name`: The original `name` of the sub-chunk from the input (required, string).
+    *   `text`: The original `text` of the sub-chunk from the input (required, string).
+    *   `reasoning`: Your step-by-step analysis for choosing the relevant item and relationship (required, string).
+    *   `relevant_node_name`: The exact `name` of the most relevant existing node OR other sub-chunk found, or the string `NO_RELEVANT_NODE` (required, string).
+    *   `relationship`: The brief description of the relationship (string), or `null` if no relevant node (use JSON null, not the string "null").
 
-4.  Ensure your final output is ONLY the valid JSON object described above, without any introductory text, explanations, or markdown formatting outside the JSON structure itself.
+4.  Ensure that EVERY element in "analyzed_chunks" contains ALL five fields listed above. Missing any field will cause validation errors. Ensure your final output is ONLY the valid JSON object described above, without any introductory text, explanations, or markdown formatting outside the JSON structure itself.
 
 **Example:**
 
