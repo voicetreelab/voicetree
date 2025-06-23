@@ -1,0 +1,1 @@
+Okay you did a great job compressing the segmentation prompt whilst maintaining the same logic / expected LLM output, but makign it more concise and easy for the LLM to follow. let's see if we can do similar to the other prompts in 

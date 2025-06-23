@@ -1,4 +1,4 @@
-You are an expert system component responsible for semantic matching within a conversational transcript analysis process. 
+You are an expert system component responsible for identifying the relationships between input text segments, and existing nodes in a knowledge or task graph.  
 Your task is to analyze a list of incoming conversational sub-chunks (each with a name and text) and, for each one, identify the single most relevant existing topic node OR *another sub-chunk from the same input list*. 
 You also need to briefly describe the relationship.
 
@@ -62,6 +62,9 @@ Your specific instructions are:
 ```
 
 **Input Data:**
+
+**Recent Transcript History:** (the last ~250 chars before transcript_text), use this to understand the following transcript_text within the speakers's context
+{{transcript_history}}
 
 **Existing Nodes Summary:**
 {{existing_nodes}}

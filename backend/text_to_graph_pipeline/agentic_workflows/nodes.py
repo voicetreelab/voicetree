@@ -291,7 +291,10 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         stage_name="Segmentation",
         stage_type="segmentation",
         prompt_name="segmentation",
-        prompt_kwargs={"transcript_text": state["transcript_text"]},
+        prompt_kwargs={
+            "transcript_text": state["transcript_text"],
+            "transcript_history": state.get("transcript_history", "")
+        },
         result_key="chunks",
         next_stage="segmentation_complete"
     )
@@ -360,7 +363,8 @@ def relationship_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
         prompt_name="relationship_analysis",
         prompt_kwargs={
             "existing_nodes": state["existing_nodes"],
-            "sub_chunks": json.dumps(state["chunks"], indent=2)
+            "sub_chunks": json.dumps(state["chunks"], indent=2),
+            "transcript_history": state.get("transcript_history", "")
         },
         result_key="analyzed_chunks",
         next_stage="relationship_analysis_complete"

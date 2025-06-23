@@ -13,7 +13,7 @@ import google.generativeai as genai
 from google.generativeai import GenerativeModel
 import PackageProjectForLLM
 
-import settings
+from backend import settings
 from .config import (
     OUTPUT_DIR, EVALUATION_MODEL, QUALITY_LOG_FILE, 
     LATEST_QUALITY_LOG_FILE

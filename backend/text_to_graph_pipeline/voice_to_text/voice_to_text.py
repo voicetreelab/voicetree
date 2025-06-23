@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime, timedelta
 from queue import Queue
 
-import settings
+from backend import settings
 
 
 class VoiceToTextEngine:

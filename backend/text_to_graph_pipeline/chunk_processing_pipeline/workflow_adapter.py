@@ -65,7 +65,8 @@ class WorkflowAdapter:
             # Run the workflow (synchronously for now, can be made async)
             result = await asyncio.to_thread(
                 self.pipeline.run,
-                transcript
+                transcript,
+                context
             )
             
             # Process the workflow result

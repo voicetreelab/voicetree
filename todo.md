@@ -40,9 +40,11 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
 2. USE PYDANTIC AI DONE
 2. REMOVE  node_extraction.txt DONE
 3. implement better backend arch DONE
-3. PIPELINE green (just integration tests )
-3. benchmarker working DONE - need better input.txt and look through the guide.
-3. run benchmarker, is output reasonable? Can claude follow guide?
+3. PIPELINE green (just integration tests ) DONE
+3. benchmarker working DONE
+3. run benchmarker, is output reasonable? Can claude follow guide? DONE
+3. Improve system to have sound behaviour from benchmark outputs DOING
+  - Need to undertsand if their is a low complexity solution for TADA. Wait till thought complete with cheap model?
 4. implement better agentic workflow arch (nodes, edges, transformers) TODO
 
 

@@ -119,10 +119,12 @@ class DecisionTree:
         recent_nodes = self.get_recent_nodes(num_nodes=5)
         
         if recent_nodes:
-            # you may also want to filter out root node here
-            parent_id = non_root_recent[0]
-            logging.warning(f"No close match found for node name '{name}'. Using most recent non-root node: {self.tree[parent_id].title}")
-            return parent_id
+            # Filter out root node
+            non_root_recent = [node_id for node_id in recent_nodes if node_id != 0]
+            if non_root_recent:
+                parent_id = non_root_recent[0]
+                logging.warning(f"No close match found for node name '{name}'. Using most recent non-root node: {self.tree[parent_id].title}")
+                return parent_id
         
         # Only use root if there are no other nodes
         logging.warning(f"No close match found for node name '{name}' and no recent nodes available. Defaulting to root node.")

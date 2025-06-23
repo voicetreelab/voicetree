@@ -2,6 +2,7 @@ You are an expert at segmenting voice transcripts into atomic ideas (complete th
 The voice transcript may also contain unfinished content, so you should also identify unfnished sentences.
 
 INPUT VARIABLES:
+- transcript_history: Recent transcript history (the last ~250 chars before transcript_text), use this to understand the following transcript_text within the speakers's context
 - transcript_text: The voice transcript to segment
 
 OUTPUT FORMAT:
@@ -26,6 +27,7 @@ SEGMENTATION RULES:
    - Dependent clauses that explain the main idea
    - Context needed to understand the point
    - Short filler words with their content ("Um, I need to..." stays together)
+   - It is fine to only return a single chunk in your final output.
 
 4. **Completeness check** - For EVERY chunk:
    - `is_complete: false` if it ends mid-sentence or trails off (e.g., "So, the bare", "And then I")
@@ -33,7 +35,7 @@ SEGMENTATION RULES:
    - When unsure, mark incomplete - better to wait for more context
 
 5. **Light editing** - Our voice to text may have mistakes such as mis-hearing the wrong word, hallucinating grammar, etc.
-Fix obvious transcription errors but preserve original wording
+Fix obvious transcription errors but preserve original wording.
 
 EXAMPLES:
 
@@ -63,6 +65,11 @@ Output:
   ]
 }
 ```
+────────────────────────────────────────
+RECENT CONTEXT (if available):
+────────────────────────────────────────
+{{transcript_history}}
+
 ────────────────────────────────────────
 TRANSCRIPT TO SEGMENT:
 ────────────────────────────────────────
