@@ -16,14 +16,14 @@ from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Decisio
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from .workflow_adapter import WorkflowAdapter
-import settings
+from backend import settings
 
 # Configure logging
 logging.basicConfig(filename='../voicetree.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Output directory configuration
-output_dir_base = "/markdownTreeVault" # todo, move this to config file
+output_dir_base = "markdownTreeVault" # todo, move this to config file
 date_str = datetime.now().strftime("%Y-%m-%d")
 output_dir_default = os.path.join(output_dir_base, date_str)
 
@@ -180,18 +180,6 @@ class ChunkProcessor:
             # Ensure root node is always included for markdown generation
             self.nodes_to_update.add(0)
             
-            # Track nodes that were updated
-            for action in result.node_actions:
-                if action.action == "CREATE":
-                    # For new nodes, we need to find their ID after creation
-                    node_id = self.decision_tree.get_node_id_from_name(action.concept_name)
-                    if node_id:
-                        self.nodes_to_update.add(node_id)
-                elif action.action == "APPEND":
-                    node_id = self.decision_tree.get_node_id_from_name(action.concept_name)
-                    if node_id:
-                        self.nodes_to_update.add(node_id)
-            
             # Log metadata
             if result.metadata:
                 logging.info(f"Workflow metadata: {result.metadata}")
@@ -224,6 +212,8 @@ class ChunkProcessor:
                     relationship_to_parent=action.relationship_to_neighbour
                 )
                 logging.info(f"Created new node '{action.concept_name}' with ID {new_node_id}")
+                # Add the new node to the update set
+                self.nodes_to_update.add(new_node_id)
                 
             elif action.action == "APPEND":
                 # Find target node and append content
@@ -236,6 +226,8 @@ class ChunkProcessor:
                         action.labelled_text
                     )
                     logging.info(f"Appended content to node '{action.concept_name}' (ID {node_id})")
+                    # Add the updated node to the update set
+                    self.nodes_to_update.add(node_id) #todo maybe we could hide this within the append_content method. Or track recently_updated_nodes there.
                 else:
                     logging.warning(f"Could not find node '{action.concept_name}' for APPEND action")
     

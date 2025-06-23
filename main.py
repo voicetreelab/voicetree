@@ -1,16 +1,22 @@
 import asyncio
 import unittest
+import tempfile
+import os
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import VoiceToTextEngine
 
+# Create temp directory for workflow state
+temp_dir = tempfile.mkdtemp()
+workflow_state_file = os.path.join(temp_dir, "voicetree_workflow_state.json")
+
 decision_tree = DecisionTree()
 converter = TreeToMarkdownConverter(decision_tree.tree)
 processor = ChunkProcessor(decision_tree, 
                           converter=converter, 
-                          workflow_state_file="voicetree_workflow_state.json")
+                          workflow_state_file=workflow_state_file)
 
 async def main():
     voice_engine = VoiceToTextEngine()
@@ -31,4 +37,11 @@ if __name__ == "__main__":
 
     # if not unit_tests_results.wasSuccessful() or not integration_tests_results:
     #     sys.exit("Unit tests failed. Exiting.")
-    asyncio.run(main())
+    
+    try:
+        asyncio.run(main())
+    finally:
+        # Clean up temp files
+        import shutil
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)

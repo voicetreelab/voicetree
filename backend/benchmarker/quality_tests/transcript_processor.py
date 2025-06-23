@@ -6,6 +6,7 @@ import time
 import logging
 import hashlib
 import sys
+import tempfile
 
 # Add parent directories to path for imports
 backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -34,8 +35,9 @@ class TranscriptProcessor:
         # Create fresh instances for each transcript
         self.decision_tree = DecisionTree()
         
-        # Use a unique state file for each transcript to avoid cross-contamination
-        state_file_name = f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json"
+        # Use a unique state file in temp directory for each transcript to avoid cross-contamination
+        temp_dir = tempfile.gettempdir()
+        state_file_name = os.path.join(temp_dir, f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json")
         
         self.processor = ChunkProcessor(
             self.decision_tree, 
@@ -81,7 +83,7 @@ class TranscriptProcessor:
             
             for i, word in enumerate(words):
                 # Send each word individually, like streaming voice
-                await self.processor.process_and_convert(word + " ")
+                await self.processor.process_voice_input(word + " ")
                 
                 # Small delay to simulate streaming (optional)
                 if i % 10 == 0:  # Rate limit every 10 words
@@ -91,7 +93,10 @@ class TranscriptProcessor:
             remaining_buffer = self.processor.buffer_manager.get_buffer()
             if remaining_buffer:
                 print(f"Processing remaining buffer content: {len(remaining_buffer)} chars")
-                await self.processor.process_and_convert(remaining_buffer)
+                await self.processor.process_voice_input(remaining_buffer)
+            
+            # Convert all accumulated nodes to markdown
+            await self.processor.finalize()
             
             # Log workflow statistics
             workflow_stats = self.processor.get_workflow_statistics()

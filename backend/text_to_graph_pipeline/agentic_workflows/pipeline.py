@@ -23,12 +23,13 @@ class VoiceTreePipeline:
         self.app = compile_voicetree_graph()
         self.incomplete_chunk_buffer = ""  # Buffer for incomplete chunks
     
-    def run(self, transcript: str) -> Dict[str, Any]:
+    def run(self, transcript: str, transcript_history: Optional[str] = None) -> Dict[str, Any]:
         """
         Run the VoiceTree processing pipeline
         
         Args:
             transcript: The input transcript text to process
+            transcript_history: Optional context from previous transcripts
             
         Returns:
             Final state containing processing results
@@ -44,6 +45,7 @@ class VoiceTreePipeline:
         # Create initial state
         initial_state = {
             "transcript_text": transcript,
+            "transcript_history": transcript_history or "",
             "existing_nodes": existing_nodes_text,
             "incomplete_chunk_buffer": self.incomplete_chunk_buffer,
             "chunks": None,
@@ -60,11 +62,12 @@ class VoiceTreePipeline:
             final_state = self.app.invoke(initial_state)
             
             # Extract new nodes from integration decisions if not already present
-            if final_state.get("integration_decisions") and not final_state.get("new_nodes"):
+            if not final_state.get("new_nodes"):
                 new_nodes = []
-                for decision in final_state["integration_decisions"]:
-                    if decision.get("action") == "CREATE" and decision.get("new_node_name"):
-                        new_nodes.append(decision["new_node_name"])
+                if final_state.get("integration_decisions"):
+                    for decision in final_state["integration_decisions"]:
+                        if decision.get("action") == "CREATE" and decision.get("new_node_name"):
+                            new_nodes.append(decision["new_node_name"])
                 final_state["new_nodes"] = new_nodes
             
             print("\n✅ Pipeline completed successfully!")

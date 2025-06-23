@@ -56,7 +56,7 @@ class TestWorkflowAdapter(unittest.TestCase):
                     "action": "CREATE",
                     "new_node_name": "New Concept",
                     "target_node": "Root",
-                    "relationship": "child of",
+                    "relationship_for_edge": "child of",
                     "content": "New content",
                     "new_node_summary": "New summary",
                     "name": "chunk1"
@@ -127,7 +127,7 @@ class TestWorkflowAdapter(unittest.TestCase):
                 "action": "CREATE",
                 "new_node_name": "New Concept",
                 "target_node": "Root",
-                "relationship": "child of",
+                "relationship_for_edge": "child of",
                 "content": "New content",
                 "new_node_summary": "New summary",
                 "name": "chunk1"

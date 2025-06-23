@@ -3,11 +3,18 @@
 ## Executive Summary
 
 During benchmarker testing, we identified three critical issues affecting the quality of the generated knowledge tree:
-1. Missing relationship links in markdown files
-2. Incorrect tree structure (wrong parent-child connections)
-3. Text scrambling (sentences from different parts being merged)
+1. Missing relationship links in markdown files ✅ FIXED
+2. Incorrect tree structure (wrong parent-child connections) ⚠️ PARTIALLY FIXED
+3. Text scrambling (sentences from different parts being merged) ✅ FIXED
 
-Despite implementing several fixes, the core issues persist due to fundamental architectural problems with how text is buffered and processed.
+Key improvements implemented:
+- Relationship names now display correctly in markdown
+- Text no longer scrambles between different contexts
+- Incomplete chunks can be properly identified and deferred
+- Parent resolution uses recent nodes instead of defaulting to root
+
+Remaining issue identified:
+- Prompts lack transcript history context, causing suboptimal segmentation decisions (e.g., "So, the bare" marked as complete)
 
 ## Implementation Status
 
@@ -18,26 +25,17 @@ Despite implementing several fixes, the core issues persist due to fundamental a
 - [x] Updated workflow to filter incomplete chunks before processing
 - [x] Fixed relationship extraction bug (changed parent_id to node_id) ✅ WORKING
 - [x] Fixed relationship field name mismatch (relationship → relationship_for_edge) ✅ WORKING
+TODO, why didn't the previous two bugs give us an error? Either during execution or during tests.
+
 
 ### Pending Implementation
-- [ ] Update segmentation prompt to handle arbitrary buffers intelligently
-- [ ] Implement single-prompt solution for complete idea extraction
+- [x] Update segmentation prompt to handle arbitrary buffers intelligently ✅ DONE (allow any chunk to be incomplete)
+- [x] Add transcript history context to segmentation and relationship analysis prompts
 - [x] Fix parent node resolution to use recent nodes instead of defaulting to root ✅ WORKING
-- [ ] Add safety limits for remainder accumulation
+- [ ] Add safety limits for remainder accumulation (first understand if this is actually necessary)
 - [x] Run benchmarker to verify fixes work correctly ✅ DONE
 
 ## Problems Initially Identified
-
-### 1. Missing Relationships in Markdown Files ✅ FIXED
-**Symptom:** Root node (0_Root.md) displays "_Links:_" but no actual links are shown.
-
-**Status:** Fixed! Root node now shows:
-```markdown
-_Links:_
-- parent of [[1_Starting_Voice_Tree_Work.md]] (introduces topic this node)
-```
-
-Relationship names are now appearing correctly.
 
 ### 2. Wrong Tree Structure ⚠️ PARTIALLY FIXED
 **Symptom:** Nodes connected to wrong parents, defaulting to root when correct parent not found.
@@ -239,8 +237,69 @@ After implementing fixes:
 4. Ensure incomplete chunks are held until complete
 5. Validate tree structure matches transcript narrative flow
 
+## Additional Issues Identified
+
+### 4. Title-Content Mismatch in Generated Markdown Files
+
+**Symptom:** The markdown files have titles (###) that don't match the content style. For example:
+- Title: "The speaker wants to create a proof of concept for the voice tree." (third-person summary)
+- Content: "The first thing is I want to make a proof of concept of voice tree." (first-person transcript)
+
+**Root Cause Analysis:**
+
+The issue stems from a design mismatch in the agentic workflow:
+
+1. **Integration Decision stage** generates:
+   - `new_node_summary`: A descriptive summary (e.g., "The speaker wants to create a proof of concept")
+   - The actual transcript text is passed as content
+
+2. **Markdown generation** (tree_to_markdown.py) uses:
+   - `node_data.summary` as the title (### heading)
+   - `node_data.content` as the body text
+
+This creates confusing markdown files where:
+- Titles are third-person interpretive summaries
+- Content is first-person verbatim transcript
+- Some titles are incomplete phrases like "So, that's the first thing I want to do"
+- Information is lost or misrepresented in the title
+
+**Impact:**
+- Poor user experience when reading generated markdown
+- Confusion about whether the system is transcribing or summarizing
+- Loss of context when titles don't accurately represent content
+
+**Suggested Solutions:**
+
+1. **Option A: Extract Key Phrases for Titles**
+   - Use the node name or extract a key phrase from the actual content
+   - Keep the style consistent (first-person if transcript is first-person)
+   - Example: "Making a Proof of Concept" instead of "The speaker wants to create a proof of concept"
+
+2. **Option B: Rewrite Content to Match Summary Style**
+   - Transform the transcript content to match the third-person summary style
+   - This would be a larger change requiring additional LLM processing
+
+3. **Option C: Use Node Names as Titles**
+   - The `action.concept_name` (e.g., "Proof of Concept") could be the title
+   - Keep summaries as metadata but not as the visible title
+
+**Recommended Implementation (Option A):**
+
+```python
+# In tree_to_markdown.py, modify the title generation:
+if not node_data.content or "###" not in node_data.content:
+    # Use the node name instead of summary for consistency
+    title = node_data.title if hasattr(node_data, 'title') else node_data.summary
+    # Or extract first sentence/phrase from content
+    f.write(f"### {title}\n\n")
+```
+
+This would ensure titles and content are stylistically consistent, improving readability and user understanding.
+
 ## Conclusion
 
 The current issues stem from trying to force semantic coherence at the wrong layer of the system. The buffer should provide semantically complete chunks to the workflow, not character-counted fragments. This architectural mismatch causes cascading failures throughout the pipeline, resulting in scrambled text and broken relationships.
 
-The recommended approach is to move intelligence earlier in the pipeline - smart buffering that respects linguistic boundaries rather than trying to reconstruct meaning from arbitrary fragments.
+Additionally, the mismatch between summary-style titles and transcript-style content creates confusion in the final output. The system needs to maintain consistency in how it presents information to users.
+
+The recommended approach is to move intelligence earlier in the pipeline - smart buffering that respects linguistic boundaries rather than trying to reconstruct meaning from arbitrary fragments, and ensuring output consistency between titles and content.

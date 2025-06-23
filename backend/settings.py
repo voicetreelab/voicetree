@@ -1,45 +1,39 @@
+"""
+Central settings file for VoiceTree
+Imports and assembles configurations from various modules
+"""
+
 import os
-from enum import Enum
-import google.generativeai as genai
+from backend.text_to_graph_pipeline.text_buffer_manager import BufferConfig
+from backend.text_to_graph_pipeline.voice_to_text.voice_config import VoiceConfig
+from backend.text_to_graph_pipeline.tree_manager.tree_config import TreeConfig
+from backend.text_to_graph_pipeline.agentic_workflows.llm_config import LLMConfig
 
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+# Environment variables
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-GOOGLE_API_KEY=os.getenv("GOOGLE_API_KEY")
+# Module configurations with environment overrides
+buffer_config = BufferConfig(
+    buffer_size_threshold=int(os.getenv("BUFFER_SIZE_THRESHOLD", 183)),
+    transcript_history_multiplier=int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 3))
+)
 
+voice_config = VoiceConfig(
+    model=os.getenv("VOICE_MODEL", "large-v3")
+)
 
-class LLMTask(Enum):
-    SUMMARIZE = "summarize"
-    REWRITE = "rewrite"
-    CLASSIFY = "classify"
+tree_config = TreeConfig(
+    num_recent_nodes_include=int(os.getenv("NUM_RECENT_NODES", 10)),
+    background_rewrite_every_n_append=int(os.getenv("BACKGROUND_REWRITE_FREQUENCY", 2))
+)
 
+llm_config = LLMConfig()  # Uses defaults, can be customized
 
-class AvailableModels(Enum):
-    PRO = genai.GenerativeModel("models/gemini-2.5-pro-preview-06-05")
-    FLASH = genai.GenerativeModel("models/gemini-2.0-flash")
-
-
-LLM_PARAMETERS = {
-    LLMTask.SUMMARIZE: {"temperature": 0.3},
-    LLMTask.CLASSIFY: {"temperature": 0.2},
-    LLMTask.REWRITE: {"temperature": 0.4}
-}
-
-VOICE_MODEL = "large-v3"  # opt: distil-large-v3, large-v3
-
-LLM_MODELS = {
-    LLMTask.SUMMARIZE: AvailableModels.PRO.value,
-    LLMTask.CLASSIFY: AvailableModels.PRO.value,
-    LLMTask.REWRITE: AvailableModels.PRO.value,
-}
-
-safety_settings = [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                   {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                   {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                   {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}]
-
-NUM_RECENT_NODES_INCLUDE = 10
-TEXT_BUFFER_SIZE_THRESHOLD = 183
-BACKGROUND_REWRITE_EVERY_N_APPEND = 2
-TRANSCRIPT_HISTORY_MULTIPLIER: int = 3  # todo: lower or higher?
-# lower, function of just to provide enough context to immediate text...
-# higher, llm uses it more as an overview of the whole context to meeting
+# Backward compatibility exports
+VOICE_MODEL = voice_config.model
+TEXT_BUFFER_SIZE_THRESHOLD = buffer_config.buffer_size_threshold
+TRANSCRIPT_HISTORY_MULTIPLIER = buffer_config.transcript_history_multiplier
+NUM_RECENT_NODES_INCLUDE = tree_config.num_recent_nodes_include
+BACKGROUND_REWRITE_EVERY_N_APPEND = tree_config.background_rewrite_every_n_append

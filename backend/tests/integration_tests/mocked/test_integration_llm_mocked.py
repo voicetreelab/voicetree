@@ -24,6 +24,9 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                                        converter=self.converter,
                                        output_dir=self.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Clear any workflow state from previous tests
+        self.processor.clear_workflow_state()
 
         log_file_path = "voicetree.log"  # todo change this from default, make it a test.log
         if os.path.exists(log_file_path):
@@ -47,7 +50,19 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         """Test complex tree creation using the new workflow system"""
         
         # Mock workflow responses for each transcript processing
-        mock_process_transcript.side_effect = [
+        def mock_side_effect(*args, **kwargs):
+            call_num = mock_process_transcript.call_count - 1  # Subtract 1 because call_count has already been incremented
+            print(f"\nMock call #{call_num + 1}")
+            print(f"  transcript: {kwargs.get('transcript', args[0] if args else 'N/A')[:100]}...")
+            if call_num < len(mock_responses):
+                response = mock_responses[call_num]
+                print(f"  returning response with nodes: {response.new_nodes}")
+                return response
+            else:
+                # If we run out of mocked responses, return a default
+                return WorkflowResult(success=False, error_message="No more mock responses")
+            
+        mock_responses = [
             # First transcript response
             WorkflowResult(
                 success=True,
@@ -64,39 +79,44 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 )],
                 metadata={"chunks_processed": 1}
             ),
-            # Second transcript response
+            # Second transcript response - handles combined transcript 2 + 3
             WorkflowResult(
                 success=True,
-                new_nodes=["Investor Outreach"],
-                node_actions=[NodeAction(
-                    labelled_text="Another thing I will have to do is start reaching out to investors",
-                    action="CREATE", 
-                    concept_name="Investor Outreach",
-                    neighbour_concept_name="Project Planning",
-                    relationship_to_neighbour="child of",
-                    updated_summary_of_node=self.summaries[1],
-                    markdown_content_to_append=self.summaries[1],
-                    is_complete=True
-                )],
-                metadata={"chunks_processed": 1}
+                new_nodes=["Investor Outreach", "POC Polish"],
+                node_actions=[
+                    NodeAction(
+                        labelled_text="Another thing I will have to do is start reaching out to investors",
+                        action="CREATE", 
+                        concept_name="Investor Outreach",
+                        neighbour_concept_name="Project Planning",
+                        relationship_to_neighbour="child of",
+                        updated_summary_of_node=self.summaries[1],
+                        markdown_content_to_append=self.summaries[1],
+                        is_complete=True
+                    ),
+                    NodeAction(
+                        labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
+                        action="CREATE",
+                        concept_name="POC Polish",
+                        neighbour_concept_name="Investor Outreach", 
+                        relationship_to_neighbour="child of",
+                        updated_summary_of_node=self.summaries[2],
+                        markdown_content_to_append=self.summaries[2],
+                        is_complete=True
+                    )
+                ],
+                metadata={"chunks_processed": 2}
             ),
-            # Third transcript response
+            # Third transcript response - empty since buffer handles the content
             WorkflowResult(
                 success=True,
-                new_nodes=["POC Polish"],
-                node_actions=[NodeAction(
-                    labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
-                    action="CREATE",
-                    concept_name="POC Polish",
-                    neighbour_concept_name="Investor Outreach", 
-                    relationship_to_neighbour="child of",
-                    updated_summary_of_node=self.summaries[2],
-                    markdown_content_to_append=self.summaries[2],
-                    is_complete=True
-                )],
-                metadata={"chunks_processed": 1}
+                new_nodes=[],
+                node_actions=[],
+                metadata={"chunks_processed": 0}
             )
         ]
+        
+        mock_process_transcript.side_effect = mock_side_effect
         
         # Test transcripts
         transcript1 = """
@@ -120,12 +140,38 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         )
 
         # Process the transcripts
+        print("Processing transcript 1...")
         await self.processor.process_and_convert(transcript1)
+        print(f"After transcript 1: nodes = {list(self.decision_tree.tree.keys())}")
+        
+        print("Processing transcript 2...")
         await self.processor.process_and_convert(transcript2)
+        print(f"After transcript 2: nodes = {list(self.decision_tree.tree.keys())}")
+        
+        print("Processing transcript 3...")
         await self.processor.process_and_convert(transcript3)
+        print(f"After transcript 3: nodes = {list(self.decision_tree.tree.keys())}")
+        
+        # IMPORTANT: Process any remaining buffer content
+        remaining_buffer = self.processor.buffer_manager.get_buffer()
+        if remaining_buffer:
+            print(f"Processing remaining buffer: {len(remaining_buffer)} chars")
+            await self.processor.process_voice_input(remaining_buffer)
+        
+        # Finalize to ensure all nodes are converted to markdown
+        await self.processor.finalize()
+        print(f"After finalization: nodes = {list(self.decision_tree.tree.keys())}")
+        
+        # Check mock call count
+        print(f"\nMock process_transcript called {mock_process_transcript.call_count} times")
         
         # Assertions
         tree = self.decision_tree.tree
+
+        # Debug: Print tree state
+        print(f"\nTree nodes: {list(tree.keys())}")
+        for node_id, node in tree.items():
+            print(f"  Node {node_id}: {node.title} (parent: {self.decision_tree.get_parent_id(node_id)})")
 
         # 1. Check the Number of Nodes (should be 4)
         self.assertEqual(len(tree), 4, "The tree should have 4 nodes.")
@@ -173,7 +219,14 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         """Test complex tree creation with APPEND mode using the new workflow system"""
         
         # Mock workflow responses showing APPEND behavior
-        mock_process_transcript.side_effect = [
+        def mock_side_effect(*args, **kwargs):
+            call_num = mock_process_transcript.call_count - 1
+            if call_num < len(mock_responses):
+                return mock_responses[call_num]
+            else:
+                return WorkflowResult(success=False, error_message="No more mock responses")
+                
+        mock_responses = [
             # First transcript response
             WorkflowResult(
                 success=True,
@@ -190,39 +243,45 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 )],
                 metadata={"chunks_processed": 1}
             ),
-            # Second transcript response - APPEND to existing node
+            # Second transcript response - handles combined transcript 2 + 3
+            # APPEND to existing node then CREATE new node
             WorkflowResult(
                 success=True,
-                new_nodes=[],  # No new nodes created, just appending
-                node_actions=[NodeAction(
-                    labelled_text="Another thing I will have to do is start reaching out to investors",
-                    action="APPEND",
-                    concept_name="Project Planning",
-                    neighbour_concept_name="Project Planning",
-                    relationship_to_neighbour="append to",
-                    updated_summary_of_node=self.summaries[1],
-                    markdown_content_to_append=self.summaries[1],
-                    is_complete=True
-                )],
-                metadata={"chunks_processed": 1}
+                new_nodes=["POC Polish"],  # Only the new node
+                node_actions=[
+                    NodeAction(
+                        labelled_text="Another thing I will have to do is start reaching out to investors",
+                        action="APPEND",
+                        concept_name="Project Planning",
+                        neighbour_concept_name="Project Planning",
+                        relationship_to_neighbour="append to",
+                        updated_summary_of_node=self.summaries[1],
+                        markdown_content_to_append=self.summaries[1],
+                        is_complete=True
+                    ),
+                    NodeAction(
+                        labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
+                        action="CREATE",
+                        concept_name="POC Polish",
+                        neighbour_concept_name="Project Planning",
+                        relationship_to_neighbour="child of",
+                        updated_summary_of_node=self.summaries[2],
+                        markdown_content_to_append=self.summaries[2],
+                        is_complete=True
+                    )
+                ],
+                metadata={"chunks_processed": 2}
             ),
-            # Third transcript response - CREATE new node
+            # Third transcript response - empty since buffer handles the content
             WorkflowResult(
                 success=True,
-                new_nodes=["POC Polish"],
-                node_actions=[NodeAction(
-                    labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
-                    action="CREATE",
-                    concept_name="POC Polish",
-                    neighbour_concept_name="Project Planning",
-                    relationship_to_neighbour="child of",
-                    updated_summary_of_node=self.summaries[2],
-                    markdown_content_to_append=self.summaries[2],
-                    is_complete=True
-                )],
-                metadata={"chunks_processed": 1}
+                new_nodes=[],
+                node_actions=[],
+                metadata={"chunks_processed": 0}
             )
         ]
+        
+        mock_process_transcript.side_effect = mock_side_effect
         
         # Test transcripts
         transcript1 = """
@@ -249,6 +308,14 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         await self.processor.process_and_convert(transcript1)
         await self.processor.process_and_convert(transcript2)
         await self.processor.process_and_convert(transcript3)
+        
+        # IMPORTANT: Process any remaining buffer content
+        remaining_buffer = self.processor.buffer_manager.get_buffer()
+        if remaining_buffer:
+            await self.processor.process_voice_input(remaining_buffer)
+        
+        # Finalize to ensure all nodes are converted to markdown
+        await self.processor.finalize()
         
         # Assertions
         tree = self.decision_tree.tree
