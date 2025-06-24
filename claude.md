@@ -17,13 +17,10 @@ pytest backend/tests/unit_tests
 pytest backend/tests/integration_tests/
 
 # run benchmarker
-```
-
-### Quality Testing
-```bash
-# Run quality benchmarker (generates output and debug logs)
 python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
 ```
+
+All tests and scripts should always be run from the root directory for consistency.
 
 ### Environment Setup
 ```bash

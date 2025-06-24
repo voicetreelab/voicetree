@@ -42,9 +42,30 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
 3. implement better backend arch DONE
 3. PIPELINE green (just integration tests ) DONE
 3. benchmarker working DONE
-3. run benchmarker, is output reasonable? Can claude follow guide? DONE
+3. run benchmarker, is output reasonable? Can claude follow guide? 
+Problems with benchmarker:
+- Sometimes output not generated (WHY NOT?). 
+- Also, can we please send output to the same folder as the benchmarker, i.e. benchmarker/output (and have input in a sibling input folder)
+- Debug logs growing indefintely: backend/text_to_graph_pipeline/agentic_workflows/debug_logs 
+- debug logs contain stupid """  stage_name: 'Segmentation'
+  stage_type: 'segmentation'
+  prompt_name: 'segmentation'""" we shouldn't even have these three different duplicated names. Make sure system only uses one.
+- segmentation prompt is compressing subchunks / segments with "..." e.g.  """OUTPUT VARIABLES:
+  chunks: [
+    0: {'name': 'Markdown Conversion', 'text': 'And I want first, I want it to build into markdown, convert that into markdown, and then I want to c...', 'is_complete': True}
+    1: {'name': 'First Task', 'text': "So, that's the first thing I want to do.", 'is_complete': True}
+    2: {'name': 'Incomplete Thought', 'text': 'Uh,', 'is_complete': False}
+  ]"""
+    - could this be because of a predefined output token length?
+    - how can we encourage the prompt not to do this. Or is it better to restructure it to return something else 
+
+
 3. Improve system to have sound behaviour from benchmark outputs DOING
-  - Need to undertsand if their is a low complexity solution for TADA. Wait till thought complete with cheap model?
+  - Need to undertsand if their is a low complexity solution for TADA. Wait till thought complete with cheap model? Punctuation?
+  - Compress prompts
+  - Better examples 
+
+
 4. implement better agentic workflow arch (nodes, edges, transformers) TODO
 
 - Remove test_chunk_boundaries.py and replace with 
