@@ -21,7 +21,7 @@ EVALUATION_MODEL = 'models/gemini-2.5-pro-preview-06-05'
 # Test Transcripts
 DEFAULT_TEST_TRANSCRIPTS = [
     {
-        "file": "oldVaults/VoiceTreePOC/og_vt_transcript.txt",
+        "file": "backend/benchmarker/quality_tests/og_vt_transcript.txt",
         "name": "VoiceTree Original",
         "max_words": 63*8 + 1
     }
