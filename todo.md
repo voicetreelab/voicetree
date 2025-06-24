@@ -47,6 +47,7 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
   - Need to undertsand if their is a low complexity solution for TADA. Wait till thought complete with cheap model?
 4. implement better agentic workflow arch (nodes, edges, transformers) TODO
 
+- Remove test_chunk_boundaries.py and replace with 
 
 # LOW PRIO
 5. imlepement complexity score

@@ -1,0 +1,229 @@
+"""
+Integration test for chunk boundary handling with full pipeline including markdown generation.
+Uses mocked LLM responses for deterministic testing.
+"""
+
+import os
+import shutil
+from pathlib import Path
+from unittest.mock import patch
+import pytest
+
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
+from backend.text_to_graph_pipeline.tree_manager import NodeAction
+
+
+class TestChunkBoundariesIntegration:
+    """Test chunk boundary handling through the full pipeline with markdown generation"""
+    
+    @pytest.fixture
+    def setup_test_environment(self, tmp_path):
+        """Set up test environment with proper cleanup"""
+        # Create test output directory
+        output_dir = tmp_path / "test_markdown_output"
+        output_dir.mkdir(exist_ok=True)
+        
+        # Initialize components
+        decision_tree = DecisionTree()
+        converter = TreeToMarkdownConverter(decision_tree.tree)
+        processor = ChunkProcessor(
+            decision_tree,
+            converter=converter,
+            output_dir=str(output_dir),
+            workflow_state_file=str(tmp_path / "test_workflow_state.json")
+        )
+        
+        # Clear any existing state
+        processor.clear_workflow_state()
+        
+        yield {
+            "processor": processor,
+            "decision_tree": decision_tree,
+            "output_dir": output_dir,
+            "converter": converter
+        }
+        
+        # Cleanup is handled by tmp_path fixture
+    
+    @pytest.mark.asyncio
+    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_transcript')
+    async def test_chunk_boundaries_with_markdown_generation(self, mock_process_transcript, setup_test_environment):
+        """Test that chunk boundaries are handled correctly and markdown files are generated"""
+        
+        env = setup_test_environment
+        processor = env["processor"]
+        decision_tree = env["decision_tree"]
+        output_dir = env["output_dir"]
+        
+        # Simple mock that returns appropriate responses based on the content
+        def mock_side_effect(transcript, *args, **kwargs):
+            print(f"\nMock called with transcript: '{transcript[:80]}...'")
+            
+            # First call - NLP project creation
+            if "natural language processing" in transcript:
+                return WorkflowResult(
+                    success=True,
+                    new_nodes=["NLP Project"],
+                    node_actions=[NodeAction(
+                        labelled_text=transcript,
+                        action="CREATE",
+                        concept_name="NLP Project",
+                        neighbour_concept_name="Root",
+                        relationship_to_neighbour="child of",
+                        updated_summary_of_node="## NLP Project\n\nDeveloping a natural language processing system using transformers.",
+                        markdown_content_to_append="## NLP Project\n\nDeveloping a natural language processing system using transformers.",
+                        is_complete=True
+                    )],
+                    metadata={"chunks_processed": 1}
+                )
+            # Second call - features and architecture
+            elif "entity recognition" in transcript or "features" in transcript:
+                return WorkflowResult(
+                    success=True,
+                    new_nodes=["System Features"],
+                    node_actions=[NodeAction(
+                        labelled_text=transcript,
+                        action="CREATE",
+                        concept_name="System Features",
+                        neighbour_concept_name="NLP Project",
+                        relationship_to_neighbour="child of",
+                        updated_summary_of_node="## System Features\n\nKey features including entity recognition, sentiment analysis, and document classification.",
+                        markdown_content_to_append="## System Features\n\nKey features including entity recognition, sentiment analysis, and document classification.",
+                        is_complete=True
+                    )],
+                    metadata={"chunks_processed": 1}
+                )
+            else:
+                return WorkflowResult(success=False, error_message="Unexpected transcript")
+        
+        mock_process_transcript.side_effect = mock_side_effect
+        
+        # Test chunks that simulate real voice input with arbitrary boundaries
+        # Buffer threshold is 183, so we need chunks that will trigger processing
+        voice_chunks = [
+            # Chunk 1: Long enough to exceed buffer threshold (200+ chars)
+            "I'm working on a new project for natural language processing. This is a complex system that requires careful planning and architecture. The system will use state-of-the-art transformer",
+            # Chunk 2: Completes previous word + adds new content (190+ chars)  
+            " models for text analysis and processing. We need to implement several key features including entity recognition, sentiment analysis, and document classification capabilities",
+            # Chunk 3: Additional content that will trigger another process
+            " for our enterprise clients. The project deadline is next month and we need to ensure all components are properly tested and integrated before deployment."
+        ]
+        
+        # Process each chunk
+        for i, chunk in enumerate(voice_chunks):
+            print(f"\nProcessing chunk {i+1}: '{chunk[:50]}...' ({len(chunk)} chars)")
+            await processor.process_and_convert(chunk)
+        
+        # Process any remaining buffer content
+        remaining_buffer = processor.buffer_manager.get_buffer()
+        if remaining_buffer:
+            print(f"\nProcessing remaining buffer: {len(remaining_buffer)} chars")
+            await processor.process_voice_input(remaining_buffer)
+        
+        # Finalize to ensure all nodes are converted to markdown
+        await processor.finalize()
+        
+        # Verify the tree structure
+        tree = decision_tree.tree
+        assert len(tree) >= 2, f"Expected at least 2 nodes (root + 1 created), got {len(tree)}"
+        
+        # Verify markdown files were created
+        markdown_files = list(output_dir.glob("*.md"))
+        assert len(markdown_files) >= 1, f"Expected at least 1 markdown file, found {len(markdown_files)}"
+        
+        # Verify that files contain expected content
+        all_content = ""
+        for md_file in markdown_files:
+            content = md_file.read_text()
+            all_content += content.lower()
+            print(f"\nMarkdown file {md_file.name} contains {len(content)} chars")
+        
+        # Verify key content appears somewhere in the generated files
+        assert "nlp" in all_content or "natural language" in all_content, "NLP content not found in any markdown file"
+        
+        # Verify that chunks were processed correctly despite boundaries
+        assert mock_process_transcript.call_count >= 1, "Expected at least 1 workflow call"
+        print(f"\nTotal workflow calls: {mock_process_transcript.call_count}")
+    
+    @pytest.mark.asyncio 
+    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_transcript')
+    async def test_extreme_fragmentation_handling(self, mock_process_transcript, setup_test_environment):
+        """Test handling of extremely fragmented input"""
+        
+        env = setup_test_environment
+        processor = env["processor"]
+        decision_tree = env["decision_tree"]
+        
+        # Mock a simple response that accumulates fragments
+        mock_process_transcript.return_value = WorkflowResult(
+            success=True,
+            new_nodes=["AI System"],
+            node_actions=[NodeAction(
+                labelled_text="The artificial intelligence system uses deep learning",
+                action="CREATE",
+                concept_name="AI System",
+                neighbour_concept_name="Root",
+                relationship_to_neighbour="child of",
+                updated_summary_of_node="## AI System\n\nDeep learning artificial intelligence system.",
+                markdown_content_to_append="## AI System\n\nDeep learning artificial intelligence system.",
+                is_complete=True
+            )],
+            metadata={"chunks_processed": 1}
+        )
+        
+        # Extremely fragmented chunks that will eventually exceed buffer threshold
+        # We need to accumulate at least 183 characters
+        extreme_chunks = [
+            "The",
+            " artificial",
+            " intelligence",
+            " system",
+            " uses",
+            " deep",
+            " learning",
+            " techniques",
+            " for",
+            " natural",
+            " language",
+            " understanding",
+            " and",
+            " generation.",
+            " It",
+            " processes",
+            " vast",
+            " amounts",
+            " of",
+            " textual",
+            " data",
+            " to",
+            " extract",
+            " meaningful",
+            " insights",
+            " and",
+            " patterns",
+            " from",
+            " unstructured",
+            " information."
+        ]
+        
+        # Process all chunks
+        for chunk in extreme_chunks:
+            await processor.process_and_convert(chunk)
+        
+        # Process remaining buffer
+        remaining = processor.buffer_manager.get_buffer()
+        if remaining:
+            await processor.process_voice_input(remaining)
+        
+        await processor.finalize()
+        
+        # Verify that despite extreme fragmentation, content was processed
+        tree = decision_tree.tree
+        assert len(tree) >= 2, "Expected at least root + 1 created node"
+        
+        # Verify the accumulated text was eventually processed
+        # The mock should have been called at least once when buffer threshold was reached
+        assert mock_process_transcript.call_count >= 1, "Workflow should have been called at least once"
