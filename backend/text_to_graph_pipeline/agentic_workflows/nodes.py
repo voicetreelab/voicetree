@@ -160,6 +160,37 @@ def _fix_json_response(json_text: str) -> str:
     return json_text
 
 
+def process_llm_stage(
+    state: Dict[str, Any],
+    stage_id: str,
+    prompt_kwargs: Dict[str, Any],
+    result_key: str,
+    next_stage: str
+) -> Dict[str, Any]:
+    """
+    Process an LLM stage using a single stage identifier.
+    
+    Args:
+        state: Current pipeline state
+        stage_id: The stage identifier (e.g., "segmentation", "relationship_analysis")
+        prompt_kwargs: Arguments to format the prompt template
+        result_key: Key to store the result in state
+        next_stage: Name of the next stage
+        
+    Returns:
+        Updated state dictionary
+    """
+    return process_llm_stage_structured(
+        state=state,
+        stage_name=stage_id,  # Use stage_id directly as the name
+        stage_type=stage_id,  # Use stage_id for schema lookup too
+        prompt_name=stage_id,  # Prompt files are named after stage_id
+        prompt_kwargs=prompt_kwargs,
+        result_key=result_key,
+        next_stage=next_stage
+    )
+
+
 def process_llm_stage_structured(
     state: Dict[str, Any],
     stage_name: str,
@@ -184,13 +215,13 @@ def process_llm_stage_structured(
     Returns:
         Updated state dictionary
     """
-    print(f"🔵 Stage: {stage_name}")
+    # Format stage name for display (e.g., "relationship_analysis" -> "Relationship Analysis")
+    display_name = stage_name.replace("_", " ").title()
+    print(f"🔵 Stage: {display_name}")
     
     # Log the input variables for debugging
     debug_inputs = {
-        "stage_name": stage_name,
-        "stage_type": stage_type,
-        "prompt_name": prompt_name,
+        "stage": stage_name,  # Use single consolidated name
         **prompt_kwargs,
         "relevant_state_keys": [k for k in state.keys() if k not in ["current_stage", "error_message"]]
     }
@@ -200,13 +231,13 @@ def process_llm_stage_structured(
         prompt = prompt_loader.render_template(prompt_name, **prompt_kwargs)
         
         # Log input prompt
-        log_to_file(stage_name, "INPUT_PROMPT", prompt)
+        log_to_file(display_name, "INPUT_PROMPT", prompt)
         
         # Call LLM with structured output
         response = call_llm_structured(prompt, stage_type)
         
         # Log structured response
-        log_to_file(stage_name, "STRUCTURED_RESPONSE", response.model_dump_json(indent=2))
+        log_to_file(display_name, "STRUCTURED_RESPONSE", response.model_dump_json(indent=2))
         
         # Extract the relevant data from the response
         if hasattr(response, result_key):
@@ -233,7 +264,7 @@ def process_llm_stage_structured(
             result = result.model_dump()
         
         # Log the final result
-        log_to_file(stage_name, "FINAL_RESULT", str(result)[:500] + "..." if len(str(result)) > 500 else str(result))
+        log_to_file(display_name, "FINAL_RESULT", str(result)[:500] + "..." if len(str(result)) > 500 else str(result))
         
         # Prepare the final state
         final_state = {
@@ -255,11 +286,11 @@ def process_llm_stage_structured(
         return final_state
         
     except Exception as e:
-        error_msg = f"{stage_name} failed: {str(e)}"
+        error_msg = f"{display_name} failed: {str(e)}"
         print(f"❌ {error_msg}")
         
         # For debugging, log the full error details
-        log_to_file(stage_name, "ERROR", f"Exception: {str(e)}\nState: {state}")
+        log_to_file(display_name, "ERROR", f"Exception: {str(e)}\nState: {state}")
         
         # Log debug information for errors too
         debug_outputs = {
@@ -286,11 +317,9 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
         log_transcript_processing(transcript_text, "segmentation_node")
     
     # Use structured output for segmentation
-    result = process_llm_stage_structured(
+    result = process_llm_stage(
         state=state,
-        stage_name="Segmentation",
-        stage_type="segmentation",
-        prompt_name="segmentation",
+        stage_id="segmentation",
         prompt_kwargs={
             "transcript_text": state["transcript_text"],
             "transcript_history": state.get("transcript_history", "")
@@ -356,11 +385,9 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 def relationship_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Stage 2: Analyze relationships between chunks and existing nodes"""
-    return process_llm_stage_structured(
+    return process_llm_stage(
         state=state,
-        stage_name="Relationship Analysis",
-        stage_type="relationship",
-        prompt_name="relationship_analysis",
+        stage_id="relationship_analysis",
         prompt_kwargs={
             "existing_nodes": state["existing_nodes"],
             "sub_chunks": json.dumps(state["chunks"], indent=2),
@@ -373,11 +400,9 @@ def relationship_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 def integration_decision_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """Stage 3: Decide whether to APPEND or CREATE for each chunk"""
-    return process_llm_stage_structured(
+    return process_llm_stage(
         state=state,
-        stage_name="Integration Decision",
-        stage_type="integration",
-        prompt_name="integration_decision",
+        stage_id="integration_decision",
         prompt_kwargs={
             "analyzed_sub_chunks": json.dumps(state["analyzed_chunks"], indent=2)
         },

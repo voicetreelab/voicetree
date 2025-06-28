@@ -322,8 +322,8 @@ class TestRelationshipAnalysisNode:
         # Verify the call
         mock_process.assert_called_once()
         call_args = mock_process.call_args[1]
-        assert call_args["stage_name"] == "Relationship Analysis"
-        assert call_args["stage_type"] == "relationship"
+        assert call_args["stage_name"] == "relationship_analysis"
+        assert call_args["stage_type"] == "relationship_analysis"
         assert call_args["prompt_name"] == "relationship_analysis"
         assert call_args["result_key"] == "analyzed_chunks"
         
@@ -369,8 +369,8 @@ class TestIntegrationDecisionNode:
         # Verify the call
         mock_process.assert_called_once()
         call_args = mock_process.call_args[1]
-        assert call_args["stage_name"] == "Integration Decision"
-        assert call_args["stage_type"] == "integration"
+        assert call_args["stage_name"] == "integration_decision"
+        assert call_args["stage_type"] == "integration_decision"
         assert call_args["prompt_name"] == "integration_decision"
         assert call_args["result_key"] == "integration_decisions"
         assert call_args["next_stage"] == "complete"
