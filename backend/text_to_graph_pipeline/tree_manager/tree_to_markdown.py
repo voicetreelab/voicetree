@@ -101,6 +101,10 @@ class TreeToMarkdownConverter:
                             except Exception as e:
                                 logging.error("Parent relationship not in tree_data")
                             f.write(f"- {relationship_to_parent} [[{parent_file_name}]]\n")
+                        
+                        # Flush to ensure immediate file visibility
+                        f.flush()
+                        os.fsync(f.fileno())
 
                 except (FileNotFoundError, IOError, OSError) as e:
                     logging.error(
