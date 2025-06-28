@@ -14,11 +14,22 @@ DEBUG_DIR = Path(__file__).parent / "debug_logs"
 DEBUG_DIR.mkdir(exist_ok=True)
 
 def clear_debug_logs():
-    """Clear all existing debug log files"""
+    """
+    Clear all existing debug log files.
+    
+    Note: This should only be called manually when starting a new benchmarker session.
+    Individual transcript runs will append to existing logs to preserve the full history.
+    """
     if DEBUG_DIR.exists():
         for file in DEBUG_DIR.glob("*.txt"):
             file.unlink()
     print(f"🗑️ Cleared debug logs in {DEBUG_DIR}")
+    
+def manual_clear_debug_logs():
+    """
+    Manually clear debug logs - call this at the start of benchmarker runs if needed.
+    """
+    clear_debug_logs()
 
 def log_stage_input_output(stage_name: str, inputs: Dict[str, Any], outputs: Dict[str, Any]):
     """
@@ -80,29 +91,17 @@ def format_variables(variables: Dict[str, Any]) -> str:
             formatted_lines.append(f"  {key}: {repr(formatted_value)}")
             
         elif isinstance(value, list):
-            # Format lists nicely
+            # Format lists nicely - show ALL items without truncation
             if len(value) == 0:
                 formatted_lines.append(f"  {key}: []")
-            elif len(value) <= 3:
-                # Show small lists completely
-                formatted_lines.append(f"  {key}: [")
+            else:
+                # Show all items in the list
+                formatted_lines.append(f"  {key}: [{len(value)} items]")
                 for i, item in enumerate(value):
                     if isinstance(item, dict):
                         formatted_lines.append(f"    {i}: {format_dict_compact(item)}")
                     else:
                         formatted_lines.append(f"    {i}: {repr(item)}")
-                formatted_lines.append("  ]")
-            else:
-                # Show first few items of large lists
-                formatted_lines.append(f"  {key}: [{len(value)} items]")
-                for i in range(min(2, len(value))):
-                    item = value[i]
-                    if isinstance(item, dict):
-                        formatted_lines.append(f"    {i}: {format_dict_compact(item)}")
-                    else:
-                        formatted_lines.append(f"    {i}: {repr(item)}")
-                if len(value) > 2:
-                    formatted_lines.append(f"    ... and {len(value) - 2} more items")
                 formatted_lines.append("  ]")
                 
         elif isinstance(value, dict):
@@ -115,13 +114,12 @@ def format_variables(variables: Dict[str, Any]) -> str:
     
     return "\n".join(formatted_lines) if formatted_lines else "  (no variables)"
 
-def format_dict_compact(d: Dict[str, Any], max_items: int = 3) -> str:
+def format_dict_compact(d: Dict[str, Any]) -> str:
     """
-    Format a dictionary in a compact way
+    Format a dictionary showing all items
     
     Args:
         d: Dictionary to format
-        max_items: Maximum number of items to show
         
     Returns:
         Compact string representation
@@ -130,26 +128,15 @@ def format_dict_compact(d: Dict[str, Any], max_items: int = 3) -> str:
         return "{}"
     
     items = list(d.items())
-    if len(items) <= max_items:
-        # Show all items
-        formatted_items = []
-        for k, v in items:
-            if isinstance(v, str) and len(v) > 200:
-                v_str = repr(v[:200] + "...[DEBUG_TRUNCATED]")
-            else:
-                v_str = repr(v)
-            formatted_items.append(f"{repr(k)}: {v_str}")
-        return "{" + ", ".join(formatted_items) + "}"
-    else:
-        # Show first few items
-        formatted_items = []
-        for k, v in items[:max_items]:
-            if isinstance(v, str) and len(v) > 200:
-                v_str = repr(v[:200] + "...[DEBUG_TRUNCATED]")
-            else:
-                v_str = repr(v)
-            formatted_items.append(f"{repr(k)}: {v_str}")
-        return "{" + ", ".join(formatted_items) + f", ...and {len(items) - max_items} more" + "}"
+    # Show all items without truncation
+    formatted_items = []
+    for k, v in items:
+        if isinstance(v, str) and len(v) > 200:
+            v_str = repr(v[:200] + "...[DEBUG_TRUNCATED]")
+        else:
+            v_str = repr(v)
+        formatted_items.append(f"{repr(k)}: {v_str}")
+    return "{" + ", ".join(formatted_items) + "}"
 
 def log_transcript_processing(transcript_text: str, file_source: str = "unknown"):
     """
@@ -159,11 +146,19 @@ def log_transcript_processing(transcript_text: str, file_source: str = "unknown"
         transcript_text: The transcript text
         file_source: Source file path or description
     """
-    # Clear all debug logs at the start of each new execution
-    clear_debug_logs()
+    # Don't clear logs automatically - preserve all executions during benchmarker runs
     
-    timestamp = datetime.now().strftime("%H:%M:%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_file = DEBUG_DIR / "00_transcript_input.txt"
+    
+    # Add a separator for new execution without clearing previous logs
+    separator = f"""
+
+##########################################################
+# NEW TRANSCRIPT EXECUTION - {timestamp}
+##########################################################
+
+"""
     
     log_entry = f"""
 ==========================================
@@ -181,7 +176,9 @@ CONTENT:
 
 """
     
-    with open(log_file, "w", encoding="utf-8") as f:
+    # Append to file instead of overwriting
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(separator)
         f.write(log_entry)
     
     print(f"📝 Logged transcript input to {log_file.name}")
@@ -212,10 +209,13 @@ Total Debug Files: {len(log_files)}
 
 To investigate the workflow issue:
 
-1. Start with 00_transcript_input.txt to see the original input
+1. Start with 00_transcript_input.txt to see ALL transcript inputs (logs accumulate across runs)
 2. Check segmentation_debug.txt to see if chunks are correct
 3. Check relationship_analysis_debug.txt to see if relationships are found
 4. Check integration_decision_debug.txt to see if decisions make sense
+
+NOTE: Debug logs now accumulate across multiple runs. Look for separator lines
+with timestamps to distinguish between different executions.
 
 Look for where the content starts to diverge from the original transcript.
 

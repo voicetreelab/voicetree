@@ -11,7 +11,7 @@ sys.path.insert(0, backend_dir)
 
 import google.generativeai as genai
 from google.generativeai import GenerativeModel
-import PackageProjectForLLM
+import tools.PackageProjectForLLM
 
 from backend import settings
 from .config import (
@@ -56,7 +56,7 @@ class QualityEvaluator:
     
     def _package_output(self):
         """Package the Markdown output for evaluation."""
-        return PackageProjectForLLM.package_project(OUTPUT_DIR, ".md")
+        return tools.PackageProjectForLLM.package_project(OUTPUT_DIR, ".md")
     
     def _generate_log_entry(self, transcript_name, transcript_file, evaluation):
         """Generate a log entry for the quality assessment."""

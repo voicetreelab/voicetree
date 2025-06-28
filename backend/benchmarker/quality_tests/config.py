@@ -23,6 +23,6 @@ DEFAULT_TEST_TRANSCRIPTS = [
     {
         "file": "backend/benchmarker/input/og_vt_transcript.txt",
         "name": "VoiceTree Original",
-        "max_words": 63*8 + 1
+        "max_words": 63*5 + 1
     }
 ]

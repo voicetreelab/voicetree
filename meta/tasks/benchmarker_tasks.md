@@ -14,7 +14,7 @@
 - [ ] **Fix segmentation prompt truncating text with '...'**
   - Example: `'text': 'And I want first, I want it to build into markdown, convert that into markdown, and then I want to c...'`
   - Investigate if this is due to predefined output token length
-  - Consider restructuring to return delimiter locations instead of full text
+  - Consider restructuring to return delimiter locations instead of full text, or maybe we can reconstruct the full sentence deterministically based on the clues 
 
 ## Medium Priority
 
