@@ -129,3 +129,4 @@ test_chunk_boundaries_quick_state.json
 backend/oldVaults/*
 backend/tests/integration_tests/live_system/test_output/*
 .DS_Store
+backend/benchmarker/output/*
