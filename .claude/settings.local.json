@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest backend/tests/integration_tests/test_incomplete_chunk_handling.py -v)",
+      "Bash(python -m pytest backend/tests/integration_tests/test_incomplete_chunk_handling.py::TestIncompleteChunkHandling::test_incomplete_chunk_not_duplicated -v)",
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}

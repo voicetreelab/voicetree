@@ -21,7 +21,6 @@ class VoiceTreePipeline:
         """
         self.state_manager = VoiceTreeStateManager(state_file)
         self.app = compile_voicetree_graph()
-        self.incomplete_chunk_buffer = ""  # Buffer for incomplete chunks
     
     def run(self, transcript: str, transcript_history: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -38,6 +37,7 @@ class VoiceTreePipeline:
         print("=" * 50)
         
         # NOTE: Incomplete chunk handling is now managed by TextBufferManager
+        # The pipeline only returns incomplete_chunk_remainder for the buffer manager to store
         
         # Get existing nodes from state manager
         existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"
@@ -47,7 +47,7 @@ class VoiceTreePipeline:
             "transcript_text": transcript,
             "transcript_history": transcript_history or "",
             "existing_nodes": existing_nodes_text,
-            "incomplete_chunk_buffer": self.incomplete_chunk_buffer,
+            "incomplete_chunk_buffer": None,  # Deprecated - buffer manager handles this
             "chunks": None,
             "analyzed_chunks": None,
             "integration_decisions": None,
@@ -84,10 +84,9 @@ class VoiceTreePipeline:
                     self.state_manager.add_nodes(final_state["new_nodes"], final_state)
                     print(f"\n📊 State updated: {len(self.state_manager.nodes)} total nodes")
                 
-                # Update incomplete chunk buffer for next execution
-                self.incomplete_chunk_buffer = final_state.get("incomplete_chunk_remainder", "")
-                if self.incomplete_chunk_buffer:
-                    print(f"\n⏳ Incomplete chunk saved for next execution: '{self.incomplete_chunk_buffer[:50]}...'")
+                # Log if there's an incomplete chunk (buffer manager will handle it)
+                if final_state.get("incomplete_chunk_remainder"):
+                    print(f"\n⏳ Incomplete chunk detected: '{final_state['incomplete_chunk_remainder'][:50]}...'")
             
             return final_state
             
