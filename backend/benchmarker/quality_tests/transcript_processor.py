@@ -83,7 +83,7 @@ class TranscriptProcessor:
             
             for i, word in enumerate(words):
                 # Send each word individually, like streaming voice
-                await self.processor.process_voice_input(word + " ")
+                await self.processor.process_and_convert(word + " ")
                 
                 # Small delay to simulate streaming (optional)
                 if i % 10 == 0:  # Rate limit every 10 words
@@ -93,7 +93,7 @@ class TranscriptProcessor:
             remaining_buffer = self.processor.buffer_manager.get_buffer()
             if remaining_buffer:
                 print(f"Processing remaining buffer content: {len(remaining_buffer)} chars")
-                await self.processor.process_voice_input(remaining_buffer)
+                await self.processor.process_and_convert(remaining_buffer)
             
             # Convert all accumulated nodes to markdown
             await self.processor.finalize()
