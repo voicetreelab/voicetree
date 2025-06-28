@@ -12,15 +12,6 @@ since after this vibecodign went way too hard
       - can't just give it a yolo task like implement TROA (sysstem got so messed up from that)
        
 
-- or push through
-
-- why go back and re-implement. changes compound
-
-- okay, let's try this. If within an hour, the output is actually quality wise fine stay and push throuhg. 
-
-- but  remember as well from the old commit there have been no actual functional changes, just slop. yes but some stuff nicely done like the agentic architecture
-
-
 Plan: first get our integration & system tests working
 
 - Live system test should test the more general case,
@@ -29,12 +20,8 @@ Plan: first get our integration & system tests working
   (so that the next chunk will hopefully finish off the last sentence)
 
 
-SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
-
-- nodes, edges, data mappers 
 
 1. Get current system extremely clean:
-
 2. Get all tests green + pipeline green. (doing, unit tests + integration tests, pipeline not yet)  DONE
 2. (Implement serena) DONE
 2. USE PYDANTIC AI DONE
@@ -44,7 +31,7 @@ SOMEHOW FIND THE FUCKING ABSTRACTION SYSTEM
 3. benchmarker working DONE
 3. run benchmarker, is output reasonable? Can claude follow guide? 
 Problems with benchmarker:
-- Sometimes output not generated (WHY NOT?). 
+- Sometimes output not generated (WHY NOT?). (if it doesn't happen again don't worry) 
 - Also, can we please send output to the same folder as the benchmarker, i.e. benchmarker/output (and have input in a sibling input folder)
 - Debug logs growing indefintely: backend/text_to_graph_pipeline/agentic_workflows/debug_logs 
 - debug logs contain stupid """  stage_name: 'Segmentation'
@@ -57,7 +44,8 @@ Problems with benchmarker:
     2: {'name': 'Incomplete Thought', 'text': 'Uh,', 'is_complete': False}
   ]"""
     - could this be because of a predefined output token length?
-    - how can we encourage the prompt not to do this. Or is it better to restructure it to return something else 
+    - how can we encourage the prompt not to do this. Or is it better to restructure it to return something else and not try get it copy word for word, e.g. it could output the delimeter locatinos for the segments. 
+  - Relationships, for some reason we are over spamming parent links, e.g. see [text](markdownTreeVault/2025-06-22/2_VoiceTree_for_Therapy.md) should o
 
 
 3. Improve system to have sound behaviour from benchmark outputs DOING

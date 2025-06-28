@@ -28,8 +28,8 @@ DEFAULT_MODEL = "gemini-2.0-flash"
 # Schema mapping for different workflow stages
 SCHEMA_MAP = {
     "segmentation": SegmentationResponse,
-    "relationship": RelationshipResponse,
-    "integration": IntegrationResponse
+    "relationship_analysis": RelationshipResponse,
+    "integration_decision": IntegrationResponse
 }
 
 
