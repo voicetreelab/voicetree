@@ -42,7 +42,7 @@ jobs:
         # Install requirements except audio-related packages
         cat requirements.txt | grep -v "pyaudio" | grep -v "SpeechRecognition" | grep -v "whisper" | pip install -r /dev/stdin
 
-    - name: Run unit tests
+    - name: Run unit tests with coverage
       run: |
         python -m pytest backend/tests/unit_tests/ \
           --disable-warnings \
@@ -50,7 +50,9 @@ jobs:
           --tb=short \
           --maxfail=10 \
           --timeout=60 \
-          -n auto
+          -n auto \
+          --cov=backend \
+          --cov-fail-under=80
     
     - name: Upload test results
       uses: actions/upload-artifact@v4

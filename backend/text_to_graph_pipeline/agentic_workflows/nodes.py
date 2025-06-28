@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 import logging
 
 from .prompt_engine import PromptLoader
+from .state import VoiceTreeState
 
 # Set up logging
 # Get a logger instance
@@ -161,12 +162,12 @@ def _fix_json_response(json_text: str) -> str:
 
 
 def process_llm_stage(
-    state: Dict[str, Any],
+    state: VoiceTreeState,
     stage_id: str,
     prompt_kwargs: Dict[str, Any],
     result_key: str,
     next_stage: str
-) -> Dict[str, Any]:
+) -> VoiceTreeState:
     """
     Process an LLM stage using a single stage identifier.
     
@@ -192,14 +193,14 @@ def process_llm_stage(
 
 
 def process_llm_stage_structured(
-    state: Dict[str, Any],
+    state: VoiceTreeState,
     stage_name: str,
     stage_type: str,
     prompt_name: str,
     prompt_kwargs: Dict[str, Any],
     result_key: str,
     next_stage: str
-) -> Dict[str, Any]:
+) -> VoiceTreeState:
     """
     Generic function to process an LLM stage with structured output
     
@@ -308,8 +309,10 @@ def process_llm_stage_structured(
         }
 
 
-def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Stage 1: Segment transcript into atomic idea chunks"""
+def segmentation_node(state: VoiceTreeState) -> VoiceTreeState:
+    """
+    Stage 1: Segment transcript into atomic idea chunks
+    """
     
     # Log the transcript being processed
     transcript_text = state.get("transcript_text", "")
@@ -383,8 +386,10 @@ def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def relationship_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Stage 2: Analyze relationships between chunks and existing nodes"""
+def relationship_analysis_node(state: VoiceTreeState) -> VoiceTreeState:
+    """
+    Stage 2: Analyze relationships between chunks and existing nodes
+    """
     return process_llm_stage(
         state=state,
         stage_id="relationship_analysis",
@@ -398,8 +403,10 @@ def relationship_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-def integration_decision_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Stage 3: Decide whether to APPEND or CREATE for each chunk"""
+def integration_decision_node(state: VoiceTreeState) -> VoiceTreeState:
+    """
+    Stage 3: Decide whether to APPEND or CREATE for each chunk
+    """
     return process_llm_stage(
         state=state,
         stage_id="integration_decision",

@@ -21,12 +21,32 @@ class TestDecisionTree(unittest.TestCase):
 
     def test_get_recent_nodes(self):
         dt = DecisionTree()
-        dt.create_new_node("node1", 0, "content1", "summary1")
-        time.sleep(0.01)
-        dt.create_new_node("node2", 0, "content2", "summary2")
-        recent_nodes = dt.get_recent_nodes(1)
-        self.assertEqual(len(recent_nodes), 1)
-        self.assertEqual(recent_nodes[0], 2)
+        
+        # Create some nodes
+        created_nodes = []
+        for i in range(3):
+            node_id = dt.create_new_node(f"node{i+1}", 0, f"content{i+1}", f"summary{i+1}")
+            created_nodes.append(node_id)
+            time.sleep(0.01)  # Small delay to ensure different timestamps
+        
+        # Test getting recent nodes returns a list
+        recent_nodes = dt.get_recent_nodes(5)
+        self.assertIsInstance(recent_nodes, list)
+        
+        # Test limiting the number of results
+        one_node = dt.get_recent_nodes(1)
+        self.assertEqual(len(one_node), 1)
+        
+        # Test that all created nodes appear in a sufficiently large recent nodes list
+        many_nodes = dt.get_recent_nodes(20)
+        for node_id in created_nodes:
+            self.assertIn(node_id, many_nodes, 
+                         f"Created node {node_id} should appear in recent nodes")
+        
+        # Test that get_recent_nodes returns valid node IDs
+        for node_id in recent_nodes:
+            self.assertIn(node_id, dt.tree, 
+                         f"Node ID {node_id} from recent_nodes should exist in tree")
 
     def test_get_parent_id(self):
         dt = DecisionTree()

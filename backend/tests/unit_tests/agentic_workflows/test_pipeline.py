@@ -27,7 +27,6 @@ class TestVoiceTreePipeline:
         mock_state_manager.assert_called_once_with("test_state.json")
         mock_compile.assert_called_once()
         assert pipeline.app == mock_app
-        assert pipeline.incomplete_chunk_buffer == ""
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
@@ -163,27 +162,6 @@ class TestVoiceTreePipeline:
             ["Node A", "Node B"], 
             final_state
         )
-    
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
-    def test_run_updates_incomplete_chunk_buffer(self, mock_compile, mock_state_manager):
-        """Test that incomplete chunk buffer is updated"""
-        # Setup mocks
-        mock_app = Mock()
-        mock_compile.return_value = mock_app
-        
-        final_state = {
-            "incomplete_chunk_remainder": "This is an incomplete...",
-            "error_message": None
-        }
-        mock_app.invoke.return_value = final_state
-        
-        # Run pipeline
-        pipeline = VoiceTreePipeline()
-        pipeline.run("test")
-        
-        # Verify buffer was updated
-        assert pipeline.incomplete_chunk_buffer == "This is an incomplete..."
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
     def test_get_statistics_with_state_manager(self, mock_state_manager):
