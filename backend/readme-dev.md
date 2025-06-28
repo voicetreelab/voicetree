@@ -1,29 +1,7 @@
 # Backend - Core System Architecture
 
-## Overview
-
-see diagram
-
 ## Architecture
 
-```
-backend/
-├── main.py                                    # System entry point & orchestration
-├── enhanced_transcription_processor.py       # Tprocessor
-├── workflow_adapter.py                      # Backend ↔ Agentic workflow bridge
-├── settings.py                             # System configuration
-├── voice_to_text/                         # Voice capture & transcription
-├── tree_manager/                          # Tree data structures & buffer management
-├── agentic_workflows/                     # 4-stage LLM processing pipeline
-├── benchmarker/                          # Quality testing & performance measurement
-└── tests/                               # Unit & integration tests
-```
-
-## diagram
-
-all I actually want here is a simple ascii diagram of how the components relate to each other
-
-e.g the optimal is the following pipeline:
                                 tree_manager (get & set tree state)
                                                 V
                                                 V
@@ -46,3 +24,20 @@ flowchart TB
     style AW fill:#4fc3f7
     style TM fill:#29b6f6
 ```
+
+- **[`backend/text_to_graph_pipeline/tree_manager/`](backend/text_to_graph_pipeline/tree_manager/README-dev.md)** - Tree data structures and buffer management
+  - Decision tree data structures (`DecisionTree`)
+  - Unified buffer management for streaming input
+  - Tree-to-markdown conversion
+
+- **[`backend/text_to_graph_pipeline/agentic_workflows/`](backend/text_to_graph_pipeline/agentic_workflows/README-dev.md)** - 4-stage LLM processing pipeline
+  - LangGraph-based workflow execution
+  - State management across pipeline stages
+  - LLM integration (Gemini API)
+  - Workflow visualization and debugging
+
+- **[`backend/benchmarker/`](backend/benchmarker/README-dev.md)** - Quality testing and performance measurement
+  - 4-stage quality scoring framework
+  - Automated benchmarking system
+  - Performance regression detection
+  - Debugging and analysis tools
