@@ -33,10 +33,10 @@ Plan: first get our integration & system tests working
 Problems with benchmarker:
 - Sometimes output not generated (WHY NOT?). (if it doesn't happen again don't worry) 
 - Also, can we please send output to the same folder as the benchmarker, i.e. benchmarker/output (and have input in a sibling input folder)
-- Debug logs growing indefintely: backend/text_to_graph_pipeline/agentic_workflows/debug_logs 
-- debug logs contain stupid """  stage_name: 'Segmentation'
+- ~~Debug logs growing indefintely: backend/text_to_graph_pipeline/agentic_workflows/debug_logs~~ DONE - simplified to clear logs at start of each execution
+- ~~debug logs contain stupid """  stage_name: 'Segmentation'
   stage_type: 'segmentation'
-  prompt_name: 'segmentation'""" we shouldn't even have these three different duplicated names. Make sure system only uses one.
+  prompt_name: 'segmentation'""" we shouldn't even have these three different duplicated names. Make sure system only uses one.~~ DONE - removed all redundant mappings
 - segmentation prompt is compressing subchunks / segments with "..." e.g.  """OUTPUT VARIABLES:
   chunks: [
     0: {'name': 'Markdown Conversion', 'text': 'And I want first, I want it to build into markdown, convert that into markdown, and then I want to c...', 'is_complete': True}
