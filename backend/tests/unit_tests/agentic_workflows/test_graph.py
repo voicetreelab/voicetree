@@ -66,12 +66,13 @@ class TestCreateVoiceTreeGraph:
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.StateGraph')
     def test_creates_state_graph_with_voicetree_state(self, mock_state_graph):
+        from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
         mock_workflow = Mock()
         mock_state_graph.return_value = mock_workflow
         
-        from backend.text_to_graph_pipeline.agentic_workflows.graph import VoiceTreeState
         create_voicetree_graph()
         
+        # Should use VoiceTreeState for type safety
         mock_state_graph.assert_called_once_with(VoiceTreeState)
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.graph.StateGraph')

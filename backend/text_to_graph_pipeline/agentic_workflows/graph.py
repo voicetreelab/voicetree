@@ -6,7 +6,7 @@ Defines the flow between processing stages
 from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
-from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
+from .state import VoiceTreeState
 from backend.text_to_graph_pipeline.agentic_workflows.nodes import (
     segmentation_node,
     relationship_analysis_node, 
@@ -45,7 +45,7 @@ def create_voicetree_graph():
     Returns:
         Configured StateGraph instance
     """
-    # Create the state graph
+    # Create the state graph with proper type checking
     workflow = StateGraph(VoiceTreeState)
     
     # Define pipeline stages

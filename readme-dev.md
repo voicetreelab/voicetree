@@ -96,12 +96,6 @@ python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
 
 All tests and scripts should always be run from the root directory for consistency.
 
-## Development Philosophy
-
-### Key Rules
-1. **Single Solution Principle**: Never have more than 1 solution for the same problem. Instead, evolve the system incrementally towards the desired state. Never have fallbacks.
-2. **Minimize Complexity**: When adding features, reduce complexity by re-architecting, introducing abstractions that hide complexity and separating concerns.
-3. **Quality Testing**: Add high quality unit tests for any non-trivial changes. These will undergo mutation testing.
 
 ### Quality Debugging Workflow
 1. Run benchmarker to generate output: `python -m backend.benchmarker.quality_tests.quality_LLM_benchmarker`

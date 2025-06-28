@@ -1,146 +1,111 @@
 """
-Unit tests for the VoiceTree state management
+Unit tests for the VoiceTree state schema and validation
 """
 
 import pytest
-from typing import Dict, Any
-
-from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
+from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState, validate_state
 
 
 class TestVoiceTreeState:
-    """Test the VoiceTreeState TypedDict"""
+    """Test suite for VoiceTreeState TypedDict"""
     
-    def test_state_creation(self):
-        """Test creating a valid state object"""
-        state: VoiceTreeState = {
-            "transcript_text": "Test transcript",
-            "existing_nodes": "Node1: Description",
-            "incomplete_chunk_buffer": "Partial text",
-            "chunks": [{"name": "chunk1", "text": "content"}],
-            "analyzed_chunks": [{"name": "chunk1", "relationships": []}],
-            "integration_decisions": [{"action": "CREATE"}],
-            "new_nodes": ["NewNode1"],
-            "incomplete_chunk_remainder": "Leftover",
-            "current_stage": "complete",
-            "error_message": None
+    def test_voicetree_state_has_required_fields(self):
+        """Test that VoiceTreeState has all required fields defined"""
+        # Get the annotations from the TypedDict
+        annotations = VoiceTreeState.__annotations__
+        
+        # Required fields that must be present
+        required_fields = {
+            'transcript_text',
+            'transcript_history',
+            'existing_nodes',
+            'chunks',
+            'analyzed_chunks',
+            'integration_decisions',
+            'new_nodes',
+            'incomplete_chunk_remainder',
+            'current_stage',
+            'error_message'
         }
         
-        # TypedDict allows dict operations
-        assert state["transcript_text"] == "Test transcript"
-        assert state["current_stage"] == "complete"
-        assert len(state["chunks"]) == 1
+        # Check all required fields are in the annotations
+        for field in required_fields:
+            assert field in annotations, f"Missing required field: {field}"
     
-    def test_state_partial_creation(self):
-        """Test creating state with only required fields"""
-        # In TypedDict with total=True (default), all fields are required
-        # But our VoiceTreeState allows Optional fields
-        minimal_state: VoiceTreeState = {
-            "transcript_text": "Test",
-            "existing_nodes": "",
-            "incomplete_chunk_buffer": None,
-            "chunks": None,
-            "analyzed_chunks": None,
-            "integration_decisions": None,
-            "new_nodes": None,
-            "incomplete_chunk_remainder": None,
-            "current_stage": "initial",
-            "error_message": None
-        }
+    def test_voicetree_state_field_types(self):
+        """Test that fields have the correct types"""
+        annotations = VoiceTreeState.__annotations__
         
-        assert minimal_state["transcript_text"] == "Test"
-        assert minimal_state["chunks"] is None
-    
-    def test_state_update(self):
-        """Test updating state values"""
-        state: VoiceTreeState = {
-            "transcript_text": "Initial",
-            "existing_nodes": "",
-            "incomplete_chunk_buffer": None,
-            "chunks": None,
-            "analyzed_chunks": None,
-            "integration_decisions": None,
-            "new_nodes": None,
-            "incomplete_chunk_remainder": None,
-            "current_stage": "initial",
-            "error_message": None
-        }
-        
-        # Update state
-        state["current_stage"] = "segmentation_complete"
-        state["chunks"] = [{"name": "chunk1", "text": "content"}]
-        
-        assert state["current_stage"] == "segmentation_complete"
-        assert len(state["chunks"]) == 1
-    
-    def test_state_stage_progression(self):
-        """Test typical stage progression values"""
-        stages = [
-            "initial",
-            "segmentation_complete",
-            "relationship_analysis_complete",
-            "complete",
-            "error"
-        ]
-        
-        for stage in stages:
-            state: VoiceTreeState = {
-                "transcript_text": "",
-                "existing_nodes": "",
-                "incomplete_chunk_buffer": None,
-                "chunks": None,
-                "analyzed_chunks": None,
-                "integration_decisions": None,
-                "new_nodes": None,
-                "incomplete_chunk_remainder": None,
-                "current_stage": stage,
-                "error_message": None
-            }
-            assert state["current_stage"] == stage
-    
-    def test_state_error_handling(self):
-        """Test state with error information"""
-        state: VoiceTreeState = {
-            "transcript_text": "Test",
-            "existing_nodes": "",
-            "incomplete_chunk_buffer": None,
-            "chunks": None,
-            "analyzed_chunks": None,
-            "integration_decisions": None,
-            "new_nodes": None,
-            "incomplete_chunk_remainder": None,
-            "current_stage": "error",
-            "error_message": "Processing failed: Invalid input"
-        }
-        
-        assert state["current_stage"] == "error"
-        assert "Processing failed" in state["error_message"]
-    
-    def test_state_type_annotations(self):
-        """Test that type annotations work correctly"""
-        # This test verifies the type hints are correct
-        # It won't fail at runtime but helps IDEs and type checkers
-        
-        def process_state(state: VoiceTreeState) -> str:
-            """Example function using VoiceTreeState type"""
-            return state["current_stage"]
-        
-        test_state: VoiceTreeState = {
-            "transcript_text": "Test",
-            "existing_nodes": "",
-            "incomplete_chunk_buffer": None,
-            "chunks": None,
-            "analyzed_chunks": None,
-            "integration_decisions": None,
-            "new_nodes": None,
-            "incomplete_chunk_remainder": None,
-            "current_stage": "test",
-            "error_message": None
-        }
-        
-        result = process_state(test_state)
-        assert result == "test"
+        # Check specific field types
+        assert annotations['transcript_text'] == str
+        assert annotations['transcript_history'] == str
+        assert annotations['existing_nodes'] == str
+        assert annotations['current_stage'] == str
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+class TestValidateState:
+    """Test suite for validate_state function"""
+    
+    def test_validate_state_with_valid_state(self):
+        """Test that validation passes with all required fields"""
+        valid_state = {
+            'transcript_text': 'test',
+            'transcript_history': 'history',
+            'existing_nodes': 'nodes',
+            'current_stage': 'start'
+        }
+        # Should not raise any exception
+        validate_state(valid_state)
+    
+    def test_validate_state_automatically_detects_required_fields(self):
+        """Test that validation automatically detects required vs optional fields"""
+        # This state has all required fields but missing optional ones
+        valid_state = {
+            'transcript_text': 'test',
+            'transcript_history': 'history', 
+            'existing_nodes': 'nodes',
+            'current_stage': 'start'
+            # Missing optional fields: chunks, analyzed_chunks, etc
+        }
+        # Should not raise exception since optional fields can be omitted
+        validate_state(valid_state)
+    
+    def test_validate_state_missing_transcript_text(self):
+        """Test that validation fails when transcript_text is missing"""
+        invalid_state = {
+            'transcript_history': 'history',
+            'existing_nodes': 'nodes',
+            'current_stage': 'start'
+        }
+        with pytest.raises(KeyError) as exc_info:
+            validate_state(invalid_state)
+        assert 'transcript_text' in str(exc_info.value)
+        assert 'Missing required state fields' in str(exc_info.value)
+    
+    def test_validate_state_missing_multiple_fields(self):
+        """Test that validation reports all missing fields"""
+        invalid_state = {
+            'current_stage': 'start'
+        }
+        with pytest.raises(KeyError) as exc_info:
+            validate_state(invalid_state)
+        error_message = str(exc_info.value)
+        assert 'transcript_text' in error_message
+        assert 'transcript_history' in error_message
+        assert 'existing_nodes' in error_message
+        assert 'VoiceTreeState' in error_message
+        assert 'pipeline.py' in error_message
+    
+    def test_validate_state_with_optional_fields(self):
+        """Test that validation passes with optional fields as None"""
+        valid_state = {
+            'transcript_text': 'test',
+            'transcript_history': 'history',
+            'existing_nodes': 'nodes',
+            'current_stage': 'start',
+            'chunks': None,
+            'analyzed_chunks': None,
+            'error_message': None
+        }
+        # Should not raise any exception
+        validate_state(valid_state)

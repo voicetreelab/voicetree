@@ -8,20 +8,27 @@ VoiceTree is a Python backend system that converts voice input into structured g
 
 ## Essential Commands
 
-See "Essential Commands" section in README-dev.md for development testing commands.
+# Run unit tests
+pytest backend/tests/unit_tests
 
-### Environment Setup
-```bash
-# Install dependencies
-pip install -r requirements.txt
+# Run integration tests
+pytest backend/tests/integration_tests/
 
-# Required: Set Google Gemini API key
-export GOOGLE_API_KEY="your_gemini_api_key"  # Get from Google AI Studio
+# Run benchmarker for quality testing
+python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
 ```
+
 
 ## Architecture & Code Structure
 
 For detailed architecture information, see the "Current Architecture" section in README-dev.md.
+
+## Development Philosophy
+
+### Key Rules
+1. **Single Solution Principle**: Never have more than 1 solution for the same problem. Instead, evolve the system incrementally towards the desired state. Never have fallbacks.
+2. **Minimize Complexity**: When adding features, reduce complexity by re-architecting, introducing abstractions that hide complexity and separating concerns.
+3. **Quality Testing**: Add high quality unit tests for any non-trivial changes. These will undergo mutation testing. However, keep the tests general enough that minor changes (non functional) don't break the unit tests. Make sure all added tests are providing real value, and not just overhead and complexity.
 
 ## Development Guidelines
 

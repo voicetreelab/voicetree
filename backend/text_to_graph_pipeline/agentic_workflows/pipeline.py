@@ -5,8 +5,8 @@ VoiceTree LangGraph workflow pipeline implementation
 from typing import Dict, Any, List, Optional
 
 from backend.text_to_graph_pipeline.agentic_workflows.graph import compile_voicetree_graph
-from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState
 from backend.text_to_graph_pipeline.agentic_workflows.state_manager import VoiceTreeStateManager
+from backend.text_to_graph_pipeline.agentic_workflows.state import VoiceTreeState, validate_state
 
 
 class VoiceTreePipeline:
@@ -31,7 +31,7 @@ class VoiceTreePipeline:
             transcript_history: Optional context from previous transcripts
             
         Returns:
-            Final state containing processing results
+            Final state dict with processing results
         """
         print("🚀 Starting VoiceTree LangGraph Pipeline")
         print("=" * 50)
@@ -42,12 +42,11 @@ class VoiceTreePipeline:
         # Get existing nodes from state manager
         existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"
         
-        # Create initial state
-        initial_state = {
+        # Create initial state matching VoiceTreeState schema
+        initial_state: VoiceTreeState = {
             "transcript_text": transcript,
             "transcript_history": transcript_history or "",
             "existing_nodes": existing_nodes_text,
-            "incomplete_chunk_buffer": None,  # Deprecated - buffer manager handles this
             "chunks": None,
             "analyzed_chunks": None,
             "integration_decisions": None,
@@ -56,6 +55,9 @@ class VoiceTreePipeline:
             "current_stage": "start",
             "error_message": None
         }
+        
+        # Validate state to catch missing fields early
+        validate_state(initial_state)
         
         # Run the pipeline
         try:
