@@ -13,53 +13,12 @@ from typing import Dict, Any, List
 DEBUG_DIR = Path(__file__).parent / "debug_logs"
 DEBUG_DIR.mkdir(exist_ok=True)
 
-# Configuration for log rotation
-MAX_LOG_SIZE_MB = 1  # Maximum size of each log file in MB
-MAX_LOG_FILES = 2     # Maximum number of log files to keep per stage
-
 def clear_debug_logs():
     """Clear all existing debug log files"""
     if DEBUG_DIR.exists():
         for file in DEBUG_DIR.glob("*.txt"):
             file.unlink()
     print(f"🗑️ Cleared debug logs in {DEBUG_DIR}")
-
-def rotate_log_if_needed(log_file: Path):
-    """
-    Rotate log file if it exceeds MAX_LOG_SIZE_MB
-    
-    Args:
-        log_file: Path to the log file to check
-    """
-    if not log_file.exists():
-        return
-        
-    # Check file size
-    file_size_mb = log_file.stat().st_size / (1024 * 1024)
-    if file_size_mb < MAX_LOG_SIZE_MB:
-        return
-    
-    # Need to rotate - find existing rotated files
-    base_name = log_file.stem
-    rotated_files = sorted([f for f in DEBUG_DIR.glob(f"{base_name}.*.txt")], 
-                          key=lambda f: int(f.stem.split('.')[-1]) if f.stem.split('.')[-1].isdigit() else 0)
-    
-    # Remove oldest files if we have too many
-    while len(rotated_files) >= MAX_LOG_FILES - 1:
-        oldest = rotated_files.pop(0)
-        oldest.unlink()
-        print(f"🗑️ Removed old log file: {oldest.name}")
-    
-    # Determine next rotation number
-    next_num = 1
-    if rotated_files:
-        last_num = int(rotated_files[-1].stem.split('.')[-1])
-        next_num = last_num + 1
-    
-    # Rotate current file
-    new_name = DEBUG_DIR / f"{base_name}.{next_num}.txt"
-    log_file.rename(new_name)
-    print(f"🔄 Rotated log file: {log_file.name} → {new_name.name}")
 
 def log_stage_input_output(stage_name: str, inputs: Dict[str, Any], outputs: Dict[str, Any]):
     """
@@ -72,9 +31,6 @@ def log_stage_input_output(stage_name: str, inputs: Dict[str, Any], outputs: Dic
     """
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_file = DEBUG_DIR / f"{stage_name}_debug.txt"
-    
-    # Check if rotation is needed before writing
-    rotate_log_if_needed(log_file)
     
     # Format the log entry
     log_entry = f"""
@@ -203,6 +159,9 @@ def log_transcript_processing(transcript_text: str, file_source: str = "unknown"
         transcript_text: The transcript text
         file_source: Source file path or description
     """
+    # Clear all debug logs at the start of each new execution
+    clear_debug_logs()
+    
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_file = DEBUG_DIR / "00_transcript_input.txt"
     

@@ -6,9 +6,10 @@
   - Sometimes output not generated - need to determine root cause
   - Only investigate if it happens again
 
-- [ ] **Fix debug logs growing indefinitely**
-  - Location: `backend/text_to_graph_pipeline/agentic_workflows/debug_logs`
-  - Need to implement log rotation or cleanup mechanism
+- [x] **Fix debug logs growing indefinitely**
+  - ~~Location: `backend/text_to_graph_pipeline/agentic_workflows/debug_logs`~~
+  - ~~Need to implement log rotation or cleanup mechanism~~
+  - DONE: Simplified to clear all logs at start of each execution
 
 - [ ] **Fix segmentation prompt truncating text with '...'**
   - Example: `'text': 'And I want first, I want it to build into markdown, convert that into markdown, and then I want to c...'`
