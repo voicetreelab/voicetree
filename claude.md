@@ -66,7 +66,6 @@ flowchart TB
 1. **Segmentation** - Breaks transcript into atomic idea chunks
 2. **Relationship Analysis** - Analyzes connections to existing nodes
 3. **Integration Decision** - Decides CREATE vs APPEND actions  
-4. **Node Extraction** - Creates final tree structure (todo, unnecessary this was just for testing)
 
 ### Key Components
 - `backend/main.py` - System entry point
@@ -81,21 +80,9 @@ flowchart TB
 
 ### Two-Agent System
 - **TADA (Tree-Action-Decider-Agent)**: Real-time processing, 2.5-3/5 quality
-- **TROA (Tree-Reorganization-Agent)**: Background optimization, take the mediocre tree, to a much better quality, by having acccess to the full transcript history at once.
+- **(future) TROA (Tree-Reorganization-Agent)**: Background optimization, take the mediocre tree, to a much better quality, by having acccess to the full transcript history at once.
 
 ## Development Guidelines
-
-### Testing Strategy
-- **Development / pre-commit**: Use smoke tests (under 10 seconds)
-- **Pre-push**: Use integration tests (under 2 minutes)
-- **CI/CD**: Full test suite with API tests
-
-### Test Markers
-```python
-@pytest.mark.unit       # Isolated unit tests
-@pytest.mark.integration # Integration tests
-@pytest.mark.api        # Real API calls (expensive)
-@pytest.mark.slow       # > 5 seconds
 ```
 
 ### Quality Debugging Workflow
@@ -111,7 +98,7 @@ flowchart TB
   - Primary: `gemini-2.5-pro-preview-06-05`
   - Fast: `gemini-2.0-flash`
 - **Voice Model**: `large-v3` (alt: `distil-large-v3`)
-- **Buffer Threshold**: 83 characters
+- **Buffer Threshold**: 183 characters, or about 1-3 sentences.
 - **Recent Nodes Context**: 10
 
 ## Recent Changes & Gotchas
@@ -125,8 +112,7 @@ flowchart TB
 
 For deeper understanding, read these files in order:
 1. `README-dev.md` - High-level developer overview
-2. `backend/benchmarker/Benchmarker_Agentic_feedback_loop_guide.md` - Primary developer guide
-3. `DEVELOPMENT_SPEED_GUIDE.md` - Fast testing strategies
+2. `backend/benchmarker/Benchmarker_Agentic_feedback_loop_guide.md` - Primary developer guide for improving system and handling benchmarker results.
 4. `backend/README-dev.md` - Backend architecture details
 5. Component-specific `README-dev.md` files in major directories
 
