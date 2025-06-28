@@ -62,11 +62,11 @@ class WorkflowAdapter:
             # Get current state snapshot for the workflow
             state_snapshot = self._prepare_state_snapshot()
             
-            # Run the workflow (synchronously for now, can be made async)
+            # Run the workflow with both transcript and transcript_history
             result = await asyncio.to_thread(
                 self.pipeline.run,
                 transcript,
-                context
+                context  # This is the transcript_history from buffer manager
             )
             
             # Process the workflow result

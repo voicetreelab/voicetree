@@ -90,13 +90,13 @@ class TranscriptProcessor:
                     time.sleep(0.1)
             
             # FINALIZATION: Process any remaining text in the buffer
-            remaining_buffer = self.processor.buffer_manager.get_buffer()
-            if remaining_buffer:
-                print(f"Processing remaining buffer content: {len(remaining_buffer)} chars")
-                await self.processor.process_and_convert(remaining_buffer)
+            # remaining_buffer = self.processor.buffer_manager.get_buffer()
+            # if remaining_buffer:
+            #     print(f"Processing remaining buffer content: {len(remaining_buffer)} chars")
+            #     await self.processor.process_and_convert(remaining_buffer)
             
             # Convert all accumulated nodes to markdown
-            await self.processor.finalize()
+            # await self.processor.finalize() todo should be unnecessary
             
             # Log workflow statistics
             workflow_stats = self.processor.get_workflow_statistics()

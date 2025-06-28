@@ -72,9 +72,6 @@ class ChunkProcessor:
             state_file=workflow_state_file
         )
         
-        # Track incomplete chunks from previous processing
-        self.incomplete_chunk_remainder = ""
-        
         logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
     
     @property
@@ -120,13 +117,9 @@ class ChunkProcessor:
         logging.info(f"process_voice_input called with text: '{transcribed_text}'")
         logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
         
-        # Prepend any incomplete chunk remainder to the new text
-        if self.incomplete_chunk_remainder:
-            transcribed_text = self.incomplete_chunk_remainder + " " + transcribed_text
-            self.incomplete_chunk_remainder = ""
-        
-        # Add text to buffer and check if ready for processing
-        result = self.buffer_manager.add_text(transcribed_text)
+        # Use the new buffer manager API to handle incomplete chunks properly
+        # This prevents duplication by using the buffer manager's clean API
+        result = self.buffer_manager.add_text_with_incomplete(transcribed_text)
         
         if result.is_ready and result.text:
             # Get transcript history for context
@@ -168,11 +161,12 @@ class ChunkProcessor:
         if result.success:
             logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
             
-            # Update incomplete chunk remainder from workflow metadata
+            # Update incomplete chunk in buffer manager using the clean API
             if result.metadata and "incomplete_buffer" in result.metadata:
-                self.incomplete_chunk_remainder = result.metadata["incomplete_buffer"]
-                if self.incomplete_chunk_remainder:
-                    logging.info(f"Saving incomplete chunk remainder from workflow: '{self.incomplete_chunk_remainder}'")
+                incomplete_text = result.metadata["incomplete_buffer"]
+                if incomplete_text:
+                    self.buffer_manager.set_incomplete_chunk(incomplete_text)
+                    logging.info(f"Saved incomplete chunk to buffer manager: '{incomplete_text[:50]}...'")
             
             # Apply the node actions to the decision tree
             await self._apply_node_actions_from_result(result.node_actions)

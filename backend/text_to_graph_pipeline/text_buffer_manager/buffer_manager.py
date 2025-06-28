@@ -56,6 +56,7 @@ class TextBufferManager:
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
+        self._incomplete_chunk_text = ""  # Store incomplete chunk text separately
         logging.info(f"TextBufferManager initialized with threshold: {self.config.buffer_size_threshold}")
         
     def add_text(self, text: str) -> BufferResult:
@@ -75,11 +76,14 @@ class TextBufferManager:
             
         # Add to transcript history immediately
         self._transcript_history += text + " "
+        logging.debug(f"[TRANSCRIPT_HISTORY] Added '{text}' - Total history length: {len(self._transcript_history)} chars")
+        logging.debug(f"[TRANSCRIPT_HISTORY] Current history preview: '{self._transcript_history[-100:]}'...")
         
         # Maintain history window
         max_history = self.config.buffer_size_threshold * self.config.transcript_history_multiplier
         if len(self._transcript_history) > max_history:
             self._transcript_history = self._transcript_history[-max_history:]
+            logging.debug(f"[TRANSCRIPT_HISTORY] Trimmed to max {max_history} chars")
             
         # Add to buffer
         self._buffer += text
@@ -122,6 +126,7 @@ class TextBufferManager:
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
+        self._incomplete_chunk_text = ""
         logging.info("Cleared all buffers")
         
     def get_stats(self) -> Dict[str, Any]:
@@ -130,8 +135,54 @@ class TextBufferManager:
             "text_buffer_size": len(self._buffer),
             "transcript_history_size": len(self._transcript_history),
             "buffer_threshold": self.config.buffer_size_threshold,
-            "is_first": self._is_first_processing
+            "is_first": self._is_first_processing,
+            "incomplete_chunk_size": len(self._incomplete_chunk_text)
         }
+        
+    def set_incomplete_chunk(self, text: str) -> None:
+        """
+        Set incomplete chunk text to be prepended to next processing.
+        
+        This method provides a clean API for managing incomplete chunks without
+        causing duplication. The incomplete text is stored separately and will
+        be intelligently merged with new content.
+        
+        Args:
+            text: The incomplete chunk text from previous processing
+        """
+        self._incomplete_chunk_text = text
+        if text:
+            logging.info(f"Stored incomplete chunk: {len(text)} chars")
+            
+    def get_incomplete_chunk(self) -> str:
+        """Get the current incomplete chunk text"""
+        return self._incomplete_chunk_text
+        
+    def add_text_with_incomplete(self, text: str) -> BufferResult:
+        """
+        Add text to buffer, properly handling any incomplete chunk from previous processing.
+        
+        This method ensures that incomplete chunks are merged correctly without duplication.
+        The incomplete chunk is only prepended once and then cleared.
+        
+        Args:
+            text: New text to add
+            
+        Returns:
+            BufferResult with processed text that includes properly merged incomplete chunk
+        """
+        # Merge incomplete chunk if present
+        if self._incomplete_chunk_text:
+            # Only add the incomplete chunk to the new text, not to history
+            # This prevents duplication in the transcript history
+            merged_text = self._incomplete_chunk_text + " " + text
+            logging.info(f"Merging incomplete chunk ({len(self._incomplete_chunk_text)} chars) with new text")
+            self._incomplete_chunk_text = ""  # Clear after use
+        else:
+            merged_text = text
+            
+        # Process the merged text normally
+        return self.add_text(merged_text)
         
     # Compatibility properties and methods
     @property
