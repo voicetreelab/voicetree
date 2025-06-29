@@ -25,7 +25,7 @@ class TestIncompleteChunkHandling:
     
     @pytest.fixture
     def mock_workflow_result(self):
-        """Create a mock workflow result with incomplete chunk"""
+        """Create a mock workflow result with completed text"""
         from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
         return WorkflowResult(
             success=True,
@@ -34,7 +34,8 @@ class TestIncompleteChunkHandling:
             metadata={
                 "chunks_processed": 3,
                 "decisions_made": 1,
-                "incomplete_buffer": "I'm going to save this file, upload it with the file API, and then"
+                "incomplete_buffer": "I'm going to save this file, upload it with the file API, and then",  # Legacy
+                "completed_text": "Cool, so I've opened the Colab. And I'm going to try run now this audio."  # New approach
             }
         )
     
@@ -52,10 +53,34 @@ class TestIncompleteChunkHandling:
         # Set a low buffer threshold to trigger processing immediately
         chunk_processor.buffer_manager.config.buffer_size_threshold = 50
         
+        # Create dynamic mock that returns appropriate results for each call
+        call_count = 0
+        
+        def dynamic_workflow_result(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            
+            from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
+            
+            if call_count == 1:
+                # First call - process initial text, leave incomplete part
+                return mock_workflow_result
+            else:
+                # Second call - process the combined incomplete + new text
+                return WorkflowResult(
+                    success=True,
+                    new_nodes=[],
+                    node_actions=[],
+                    metadata={
+                        "chunks_processed": 1,
+                        "completed_text": "I'm going to save this file, upload it with the file API, and then run the example audio to text. Cool, let's try that."
+                    }
+                )
+        
         # Mock the workflow adapter to return our test result
         with patch.object(chunk_processor.workflow_adapter, 'process_transcript', 
                          new_callable=AsyncMock) as mock_process:
-            mock_process.return_value = mock_workflow_result
+            mock_process.side_effect = dynamic_workflow_result
             
             # First transcript ends with incomplete chunk
             first_transcript = "Cool, so I've opened the Colab. And I'm going to try run now this audio. I'm going to save this file, upload it with the file API, and then"
@@ -66,8 +91,10 @@ class TestIncompleteChunkHandling:
             # Verify workflow was called
             assert mock_process.call_count >= 1
             
-            # Verify the incomplete chunk was stored in buffer manager
-            assert chunk_processor.buffer_manager.get_incomplete_chunk() == "I'm going to save this file, upload it with the file API, and then"
+            # Verify the buffer contains the unprocessed text
+            # The buffer should have the incomplete portion after completed text is flushed
+            expected_buffer = "I'm going to save this file, upload it with the file API, and then"
+            assert expected_buffer in chunk_processor.buffer_manager.get_buffer()
             
             # Second transcript continues the thought
             second_transcript = "run the example audio to text. Cool, let's try that."
@@ -84,8 +111,8 @@ class TestIncompleteChunkHandling:
                 count = processed_text.count("I'm going to save this file, upload it with the file API, and then")
                 assert count == 1, f"Incomplete chunk appeared {count} times, expected 1. Text: {processed_text}"
                 
-                # Verify the text was properly merged
-                expected_merged = "I'm going to save this file, upload it with the file API, and then run the example audio to text. Cool, let's try that."
+                # Verify the text was properly merged (note: no space added between chunks)
+                expected_merged = "I'm going to save this file, upload it with the file API, and thenrun the example audio to text. Cool, let's try that."
                 assert expected_merged in processed_text
     
     @pytest.mark.asyncio
@@ -131,31 +158,28 @@ class TestIncompleteChunkHandling:
                 assert "Third text." in context
     
     @pytest.mark.asyncio
-    async def test_buffer_manager_api_prevents_duplication(self):
-        """Test that BufferManager API correctly prevents duplication"""
+    async def test_fuzzy_matching_prevents_duplication(self):
+        """Test that fuzzy matching correctly prevents duplication"""
         
         # Create buffer manager with low threshold for testing
         config = BufferConfig(buffer_size_threshold=50)
         buffer_manager = TextBufferManager(config)
         
-        # Set an incomplete chunk
-        incomplete = "I'm going to save this file"
-        buffer_manager.set_incomplete_chunk(incomplete)
+        # Simulate scenario where LLM slightly modifies text
+        buffer_manager._buffer = "The cat sat on the mat. And then something else"
         
-        # Add new text that continues the thought
-        new_text = "and upload it with the file API"
-        result = buffer_manager.add_text_with_incomplete(new_text)
+        # Flush completed text with minor LLM modification
+        buffer_manager.flush_completed_text("The cat sits on the mat.")  # "sat" changed to "sits"
         
-        # Verify incomplete chunk was cleared
-        assert buffer_manager.get_incomplete_chunk() == ""
+        # Verify only the unprocessed portion remains
+        assert buffer_manager.get_buffer() == "And then something else"
         
-        # Verify the merged text doesn't have duplication
-        if result.is_ready:
-            assert result.text.count(incomplete) == 1
+        # Test with punctuation differences
+        buffer_manager._buffer = "Hello, world! How are you?"
+        buffer_manager.flush_completed_text("Hello world.")  # Different punctuation
         
-        # Verify transcript history doesn't have duplication
-        history = buffer_manager.get_transcript_history()
-        assert history.count(incomplete) == 1
+        # Verify correct removal despite punctuation differences
+        assert buffer_manager.get_buffer() == "How are you?"
     
     @pytest.mark.asyncio 
     async def test_empty_transcript_history_fixed(self, mock_decision_tree):
@@ -197,6 +221,57 @@ class TestIncompleteChunkHandling:
             assert captured_state['transcript_history'] != ""
             assert captured_state['transcript_history'] is not None
             assert "This is test text" in captured_state['transcript_history']
+    
+    @pytest.mark.asyncio
+    async def test_fuzzy_matching_workflow_integration(self, mock_decision_tree):
+        """Test complete workflow with fuzzy matching for LLM text modifications"""
+        
+        # Create chunk processor
+        chunk_processor = ChunkProcessor(
+            decision_tree=mock_decision_tree,
+            converter=Mock(),
+            workflow_state_file=None
+        )
+        
+        # Set threshold to force processing
+        chunk_processor.buffer_manager.config.buffer_size_threshold = 30
+        
+        # Track workflow calls
+        workflow_calls = []
+        
+        def mock_process_transcript(transcript, context):
+            workflow_calls.append({
+                'transcript': transcript,
+                'context': context
+            })
+            # Simulate LLM modifying the text slightly
+            if "Hello world" in transcript:
+                completed = "Hello, world!"  # Added punctuation
+            else:
+                completed = transcript
+                
+            from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
+            return WorkflowResult(
+                success=True,
+                new_nodes=[],
+                node_actions=[],
+                metadata={
+                    "completed_text": completed,
+                    "chunks_processed": 1
+                }
+            )
+        
+        with patch.object(chunk_processor.workflow_adapter, 'process_transcript',
+                         new_callable=AsyncMock, side_effect=mock_process_transcript):
+            
+            # Process text that will be modified by LLM
+            await chunk_processor.process_voice_input("Hello world. This is incomplete")
+            
+            # Buffer should only contain the incomplete part
+            # Even though LLM changed "Hello world." to "Hello, world!"
+            buffer_content = chunk_processor.buffer_manager.get_buffer()
+            assert "Hello world" not in buffer_content
+            assert "This is incomplete" in buffer_content
 
 
 if __name__ == "__main__":

@@ -117,9 +117,8 @@ class ChunkProcessor:
         logging.info(f"process_voice_input called with text: '{transcribed_text}'")
         logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
         
-        # Use the new buffer manager API to handle incomplete chunks properly
-        # This prevents duplication by using the buffer manager's clean API
-        result = self.buffer_manager.add_text_with_incomplete(transcribed_text)
+        # Add text to buffer - incomplete text is maintained internally
+        result = self.buffer_manager.add_text(transcribed_text)
         
         if result.is_ready and result.text:
             # Get transcript history for context
@@ -161,12 +160,15 @@ class ChunkProcessor:
         if result.success:
             logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
             
-            # Update incomplete chunk in buffer manager using the clean API
-            if result.metadata and "incomplete_buffer" in result.metadata:
-                incomplete_text = result.metadata["incomplete_buffer"]
-                if incomplete_text:
-                    self.buffer_manager.set_incomplete_chunk(incomplete_text)
-                    logging.info(f"Saved incomplete chunk to buffer manager: '{incomplete_text[:50]}...'")
+            # Flush completed text from buffer
+            if result.metadata and "completed_text" in result.metadata:
+                completed_text = result.metadata["completed_text"]
+                self.buffer_manager.flush_completed_text(completed_text)
+                if completed_text:
+                    logging.info(f"Flushed completed text: '{completed_text[:50]}...'")
+            else:
+                # No completed text information, log warning
+                logging.warning("Workflow didn't return completed text information")
             
             # Apply the node actions to the decision tree
             await self._apply_node_actions_from_result(result.node_actions)

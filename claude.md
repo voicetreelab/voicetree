@@ -26,9 +26,10 @@ For detailed architecture information, see the "Current Architecture" section in
 ## Development Philosophy
 
 ### Key Rules
-1. **Single Solution Principle**: Never have more than 1 solution for the same problem. Instead, evolve the system incrementally towards the desired state. Never have fallbacks.
+1. **Single Solution Principle**: Never have more than 1 solution for the same problem. Instead, evolve the system incrementally towards the desired state. Never have fallbacks. Do not keep legacy or deprecated code in the codebase.
 2. **Minimize Complexity**: When adding features, reduce complexity by re-architecting, introducing abstractions that hide complexity and separating concerns.
 3. **Quality Testing**: Add high quality unit tests for any non-trivial changes. These will undergo mutation testing. However, keep the tests general enough that minor changes (non functional) don't break the unit tests. Make sure all added tests are providing real value, and not just overhead and complexity.
+4. **Fail Fast**: No complex error handling during development
 
 ## Development Guidelines
 
