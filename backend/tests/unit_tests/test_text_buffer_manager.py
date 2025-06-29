@@ -3,6 +3,7 @@ Unit tests for TextBufferManager
 """
 
 import pytest
+import logging
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
 
 
@@ -120,3 +121,110 @@ class TestTextBufferManager:
         
         result = manager.add_text(None)
         assert result.is_ready == False
+        
+        
+    def test_flush_completed_text_basic(self):
+        """Test basic flushing of completed text"""
+        manager = TextBufferManager()
+        
+        # Add text to buffer
+        manager._buffer = "Hello world. How are you?"
+        
+        # Flush completed text
+        manager.flush_completed_text("Hello world.")
+        
+        # Buffer should only have remaining text
+        assert manager.get_buffer() == "How are you?"
+        
+    def test_flush_completed_text_with_new_content(self):
+        """Test that new content added during processing is preserved"""
+        manager = TextBufferManager()
+        
+        # Initial buffer state
+        manager._buffer = "Hello world. How are you today?"
+        
+        # Workflow processed only part of it
+        manager.flush_completed_text("Hello world.")
+        
+        # Buffer should preserve the rest
+        assert manager.get_buffer() == "How are you today?"
+        
+    def test_flush_completed_text_fuzzy_whitespace(self):
+        """Test fuzzy matching handles whitespace differences"""
+        manager = TextBufferManager()
+        
+        # Buffer has different whitespace
+        manager._buffer = "Hello    world.   How are you?"
+        
+        # Completed text has normalized whitespace
+        manager.flush_completed_text("Hello world.")
+        
+        # Should still match and remove correctly
+        assert manager.get_buffer() == "How are you?"
+        
+        
+    def test_flush_completed_text_not_found_raises(self):
+        """Test that low similarity raises an error during development"""
+        manager = TextBufferManager()
+        
+        # Buffer has some text
+        manager._buffer = "Something completely different"
+        
+        # Try to flush text that doesn't exist in buffer
+        # This should raise an error because similarity is too low
+        with pytest.raises(RuntimeError) as excinfo:
+            manager.flush_completed_text("Hello world")
+        
+        assert "Failed to find completed text in buffer" in str(excinfo.value)
+        assert "Best similarity was only" in str(excinfo.value)
+        
+    def test_flush_completed_text_minor_llm_modifications(self):
+        """Test fuzzy matching handles minor LLM modifications"""
+        manager = TextBufferManager()
+        
+        # Test punctuation changes
+        manager._buffer = "Hello, world! How are you?"
+        manager.flush_completed_text("Hello world.")  # Different punctuation
+        assert manager.get_buffer() == "How are you?"
+        
+        # Test minor word changes
+        manager._buffer = "The cat sat on the mat. Next sentence."
+        manager.flush_completed_text("The cat sits on the mat.")  # "sat" -> "sits"
+        assert manager.get_buffer() == "Next sentence."
+        
+    def test_flush_completed_text_middle_of_buffer(self):
+        """Test removing text from middle of buffer"""
+        manager = TextBufferManager()
+        
+        # Buffer has unfinished text on both sides
+        manager._buffer = "Still typing... The cat sat on the mat. And then we"
+        
+        # Flush the completed middle part
+        manager.flush_completed_text("The cat sat on the mat.")
+        
+        # Should preserve both unfinished parts (normalized whitespace)
+        assert " ".join(manager.get_buffer().split()) == "Still typing... And then we"
+        
+    def test_flush_completed_text_variable_length(self):
+        """Test handling different length matches"""
+        manager = TextBufferManager()
+        
+        # LLM slightly expanded text
+        manager._buffer = "Hello my world. How are you?"
+        manager.flush_completed_text("Hello world.")  # Missing "my"
+        
+        # Should still match with high similarity and remove the longer version
+        assert manager.get_buffer() == "How are you?"
+        
+    def test_flush_completed_text_major_difference_raises(self):
+        """Test that major differences raise an error"""
+        manager = TextBufferManager()
+        
+        # Completely different text
+        manager._buffer = "The quick brown fox jumps over the lazy dog."
+        
+        # Should raise because similarity is too low
+        with pytest.raises(RuntimeError) as excinfo:
+            manager.flush_completed_text("Hello world.")
+            
+        assert "Failed to find completed text" in str(excinfo.value)

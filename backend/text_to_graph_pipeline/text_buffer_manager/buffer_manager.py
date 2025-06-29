@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass
 
 from .buffer_config import BufferConfig
+from .fuzzy_text_matcher import FuzzyTextMatcher
 
 
 @dataclass
@@ -56,7 +57,7 @@ class TextBufferManager:
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
-        self._incomplete_chunk_text = ""  # Store incomplete chunk text separately
+        self._fuzzy_matcher = FuzzyTextMatcher(similarity_threshold=0.8)
         logging.info(f"TextBufferManager initialized with threshold: {self.config.buffer_size_threshold}")
         
     def add_text(self, text: str) -> BufferResult:
@@ -96,11 +97,9 @@ class TextBufferManager:
         return BufferResult(is_ready=False, text="")
         
     def _process_buffer(self) -> BufferResult:
-        """Process the current buffer content"""
+        """Process the current buffer content without clearing it"""
         text_to_process = self._buffer
-        self._buffer = ""
-        
-        # Don't mark as processed in is_first_processing - let that method handle it
+        # DO NOT clear buffer here - it will be updated by flush_completed_text
         
         logging.info(f"Processing buffer: {len(text_to_process)} chars")
         return BufferResult(is_ready=True, text=text_to_process)
@@ -126,7 +125,6 @@ class TextBufferManager:
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
-        self._incomplete_chunk_text = ""
         logging.info("Cleared all buffers")
         
     def get_stats(self) -> Dict[str, Any]:
@@ -136,53 +134,47 @@ class TextBufferManager:
             "transcript_history_size": len(self._transcript_history),
             "buffer_threshold": self.config.buffer_size_threshold,
             "is_first": self._is_first_processing,
-            "incomplete_chunk_size": len(self._incomplete_chunk_text)
+            "incomplete_chunk_size": 0  # Deprecated - buffer maintains incomplete text internally
         }
         
-    def set_incomplete_chunk(self, text: str) -> None:
-        """
-        Set incomplete chunk text to be prepended to next processing.
         
-        This method provides a clean API for managing incomplete chunks without
-        causing duplication. The incomplete text is stored separately and will
-        be intelligently merged with new content.
+    def flush_completed_text(self, completed_text: str) -> None:
+        """
+        Remove completed text from buffer using fuzzy matching.
+        
+        This method uses fuzzy matching to find and remove text that was
+        successfully processed by the workflow, handling minor LLM modifications.
         
         Args:
-            text: The incomplete chunk text from previous processing
+            completed_text: The text that was successfully processed by the workflow
         """
-        self._incomplete_chunk_text = text
-        if text:
-            logging.info(f"Stored incomplete chunk: {len(text)} chars")
+        if not completed_text:
+            logging.debug("No completed text to flush")
+            return
             
-    def get_incomplete_chunk(self) -> str:
-        """Get the current incomplete chunk text"""
-        return self._incomplete_chunk_text
-        
-    def add_text_with_incomplete(self, text: str) -> BufferResult:
-        """
-        Add text to buffer, properly handling any incomplete chunk from previous processing.
-        
-        This method ensures that incomplete chunks are merged correctly without duplication.
-        The incomplete chunk is only prepended once and then cleared.
-        
-        Args:
-            text: New text to add
+        if not self._buffer:
+            logging.warning("flush_completed_text called with empty buffer")
+            return
             
-        Returns:
-            BufferResult with processed text that includes properly merged incomplete chunk
-        """
-        # Merge incomplete chunk if present
-        if self._incomplete_chunk_text:
-            # Only add the incomplete chunk to the new text, not to history
-            # This prevents duplication in the transcript history
-            merged_text = self._incomplete_chunk_text + " " + text
-            logging.info(f"Merging incomplete chunk ({len(self._incomplete_chunk_text)} chars) with new text")
-            self._incomplete_chunk_text = ""  # Clear after use
+        # Use fuzzy matcher to remove the text
+        result, success = self._fuzzy_matcher.remove_matched_text(self._buffer, completed_text)
+        
+        if success:
+            self._buffer = result
+            logging.info(f"Successfully flushed completed text, {len(self._buffer)} chars remain in buffer")
         else:
-            merged_text = text
+            # TODO: Add more robust error handling here for production
+            # For now, crash during development to catch issues
+            match = self._fuzzy_matcher.find_best_match(completed_text, self._buffer)
+            best_score = match[2] if match else 0
             
-        # Process the merged text normally
-        return self.add_text(merged_text)
+            error_msg = (f"Failed to find completed text in buffer. "
+                        f"Best similarity was only {best_score:.2%}. This indicates a system issue.\n"
+                        f"Completed text: '{completed_text[:100]}...'\n"
+                        f"Buffer content: '{self._buffer[:100]}...'")
+            logging.error(error_msg)
+            raise RuntimeError(error_msg)
+    
         
     # Compatibility properties and methods
     @property

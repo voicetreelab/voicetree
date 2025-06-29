@@ -91,22 +91,26 @@ class TestTranscriptHistoryAccumulation:
         processor.workflow_adapter.process_transcript = original_process
     
     def test_buffer_manager_history_with_incomplete_chunks(self):
-        """Test that incomplete chunk handling doesn't break transcript history"""
-        config = BufferConfig(buffer_size_threshold=20)
+        """Test that fuzzy matching doesn't break transcript history"""
+        config = BufferConfig(buffer_size_threshold=30)
         buffer_manager = TextBufferManager(config=config)
         
-        # Add text and set incomplete chunk
-        buffer_manager.add_text("First part of text ")
-        buffer_manager.set_incomplete_chunk("incomplete")
+        # Add text that will trigger processing
+        result1 = buffer_manager.add_text("First part of text that is long enough ")
+        assert result1.is_ready  # Should trigger processing
         
-        # Add more text with incomplete
-        result = buffer_manager.add_text_with_incomplete("continuation")
+        # Simulate flushing completed text with minor modification
+        buffer_manager.flush_completed_text("First part of text that is long enough")
         
-        # Verify history contains all text
+        # Add more text
+        result2 = buffer_manager.add_text("continuation of the text")
+        
+        # Verify history contains all text without duplication
         history = buffer_manager.get_transcript_history()
         assert "First part of text" in history
         assert "continuation" in history
-        # Note: incomplete chunk should not duplicate in history
+        # Count occurrences - should only appear once
+        assert history.count("First part of text") == 1
         
     def test_history_accumulation_across_buffer_cycles(self):
         """Test history accumulation across multiple buffer processing cycles"""

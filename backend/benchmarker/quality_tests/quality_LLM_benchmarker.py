@@ -6,6 +6,11 @@ This module runs VoiceTree on sample input and uses an LLM to rate the quality o
 MAKE SURE TO RUN FROM PROJECT ROOT
 """
 
+import sys
+import os
+# Add project root to Python path to allow running with: python backend/benchmarker/...
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+
 import asyncio
 import logging
 

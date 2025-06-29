@@ -97,7 +97,8 @@ class WorkflowAdapter:
                 metadata={
                     "chunks_processed": len(result.get("chunks", [])),
                     "decisions_made": len(result.get("integration_decisions", [])),
-                    "incomplete_buffer": result.get("incomplete_chunk_remainder", "")
+                    "incomplete_buffer": result.get("incomplete_chunk_remainder", ""),
+                    "completed_text": self._extract_completed_text(result)
                 }
             )
             
@@ -108,6 +109,32 @@ class WorkflowAdapter:
                 node_actions=[],
                 error_message=f"Workflow execution failed: {str(e)}"
             )
+    
+    def _extract_completed_text(self, workflow_result: Dict[str, Any]) -> str:
+        """
+        Extract the text that was successfully processed from the chunks.
+        
+        This joins all the text from completed chunks to identify what portion
+        of the original transcript was successfully processed.
+        
+        Args:
+            workflow_result: Result from the workflow execution
+            
+        Returns:
+            The concatenated text from all completed chunks
+        """
+        chunks = workflow_result.get("chunks", [])
+        if not chunks:
+            return ""
+            
+        # Join all completed chunk texts with a space
+        completed_texts = []
+        for chunk in chunks:
+            text = chunk.get("text", "").strip()
+            if text:
+                completed_texts.append(text)
+                
+        return " ".join(completed_texts) if completed_texts else ""
     
     def _prepare_state_snapshot(self) -> Dict[str, Any]:
         """

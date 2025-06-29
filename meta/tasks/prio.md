@@ -11,6 +11,8 @@ Possible tasks:
 
 What do we actually want?
 
+- first, we need to fix the bugs, still duplication with transcript history, and actual input, we may need to do a manual debug of our system. 
+
 - our TADA system healthy, benchmark 3.5/5
     - Currently at 3/5, benchmarker says node fragmentation biggest problem
     - need to understand debug logs, but they are weird, are they reseeting after runs? "The voice is, uh," appears 7 times,
