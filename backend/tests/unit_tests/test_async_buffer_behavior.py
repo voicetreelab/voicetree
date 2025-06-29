@@ -4,7 +4,6 @@ Test async behavior of buffer manager
 
 import asyncio
 import pytest
-import time
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
 
 
