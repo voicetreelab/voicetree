@@ -25,12 +25,6 @@ def clear_debug_logs():
             file.unlink()
     print(f"🗑️ Cleared debug logs in {DEBUG_DIR}")
     
-def manual_clear_debug_logs():
-    """
-    Manually clear debug logs - call this at the start of benchmarker runs if needed.
-    """
-    clear_debug_logs()
-
 def log_stage_input_output(stage_name: str, inputs: Dict[str, Any], outputs: Dict[str, Any]):
     """
     Log the input and output variables for a workflow stage
