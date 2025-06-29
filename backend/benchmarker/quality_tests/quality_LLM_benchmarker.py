@@ -8,13 +8,8 @@ MAKE SURE TO RUN FROM PROJECT ROOT
 
 import asyncio
 import logging
-import sys
-import os
 
-# Add project root to path for imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
-sys.path.insert(0, project_root)
-
+from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
 from backend.benchmarker.quality_tests import (
     DEFAULT_TEST_TRANSCRIPTS,
     TranscriptProcessor,
@@ -34,6 +29,8 @@ async def run_quality_benchmark(test_transcripts=None):
     """
     if test_transcripts is None:
         test_transcripts = DEFAULT_TEST_TRANSCRIPTS
+
+    clear_debug_logs()
     
     processor = TranscriptProcessor()
     evaluator = QualityEvaluator()

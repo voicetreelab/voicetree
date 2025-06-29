@@ -2,12 +2,7 @@
 
 import os
 import logging
-import sys
 from datetime import datetime
-
-# Add parent directories to path for imports
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-sys.path.insert(0, backend_dir)
 
 import google.generativeai as genai
 from google.generativeai import GenerativeModel

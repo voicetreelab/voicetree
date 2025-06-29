@@ -1,20 +1,14 @@
 """Transcript processing module for VoiceTree benchmarking."""
 
 import os
-import re
 import time
 import logging
 import hashlib
-import sys
 import tempfile
 
-# Add parent directories to path for imports
-backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-sys.path.insert(0, backend_dir)
-
-from text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 from .config import SECONDS_PER_REQUEST, OUTPUT_DIR
 from .file_utils import clear_workflow_log, setup_output_directory
