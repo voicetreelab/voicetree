@@ -60,7 +60,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 return response
             else:
                 # If we run out of mocked responses, return a default
-                return WorkflowResult(success=False, error_message="No more mock responses")
+                return WorkflowResult(success=False, new_nodes=[], node_actions=[], error_message="No more mock responses")
             
         mock_responses = [
             # First transcript response
@@ -224,7 +224,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             if call_num < len(mock_responses):
                 return mock_responses[call_num]
             else:
-                return WorkflowResult(success=False, error_message="No more mock responses")
+                return WorkflowResult(success=False, new_nodes=[], node_actions=[], error_message="No more mock responses")
                 
         mock_responses = [
             # First transcript response
