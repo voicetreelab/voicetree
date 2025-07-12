@@ -47,7 +47,7 @@ async def run_quality_benchmark(test_transcripts=None):
 
         content = processor._limit_content_by_words(transcript_info['file'],
                                                               transcript_info.get('max_words'))
-
+        # this actually runs VoiceTree on the transcript
         await processor.process_transcript(
             content
         )

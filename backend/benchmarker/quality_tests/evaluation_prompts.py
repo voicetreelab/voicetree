@@ -40,7 +40,13 @@ Pay special attention to:
 """
 
 FINAL_INSTRUCTION = """
-Evaluate the tree. Please also include one final overall score, and a short summary of where the biggest areas for improvement are.
+Evaluate the tree. 
+
+IMPORTANT: Start your response with these two lines:
+Overall Score: X/5 (Rating)
+Summary: [One sentence summary of the biggest areas for improvement]
+
+Then provide your detailed evaluation addressing each criterion.
 """
 
 

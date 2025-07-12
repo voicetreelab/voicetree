@@ -57,21 +57,17 @@ class QualityEvaluator:
         """Generate a log entry for the quality assessment."""
         commit_hash, commit_message = get_git_info()
         
-        # Extract overall score and summary from evaluation
+        # Extract overall score and summary from first two lines
+        lines = evaluation.split('\n')
         overall_score = "Unknown"
-        summary = ""
+        summary = "No summary provided"
         
-        # Look for the overall score in the evaluation
-        if "Overall Score:" in evaluation:
-            score_line = [line for line in evaluation.split('\n') if 'Overall Score:' in line]
-            if score_line:
-                overall_score = score_line[0].split('Overall Score:')[1].strip()
-        
-        # Look for summary or biggest areas for improvement
-        if "### **Biggest Areas for Improvement:**" in evaluation:
-            summary_start = evaluation.find("### **Biggest Areas for Improvement:**")
-            summary = evaluation[summary_start:].split('\n')[1:4]  # Get first 3 improvement points
-            summary = " | ".join([s.strip() for s in summary if s.strip()])
+        # Extract from first few lines
+        for i, line in enumerate(lines[:5]):  # Check first 5 lines to be safe
+            if line.startswith("Overall Score:"):
+                overall_score = line.replace("Overall Score:", "").strip()
+            elif line.startswith("Summary:"):
+                summary = line.replace("Summary:", "").strip()
         
         # Concise one-line format for quality_log.txt
         concise_entry = (
@@ -79,7 +75,7 @@ class QualityEvaluator:
             f"{transcript_name if transcript_name else 'Unknown'} | "
             f"{commit_hash[:10]} | "
             f"{overall_score} | "
-            f"{summary[:150]}...\n"
+            f"{summary}\n"
         )
         
         # Detailed format for latest_quality_log.txt
