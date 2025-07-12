@@ -44,21 +44,22 @@ async def run_quality_benchmark(test_transcripts=None):
         print(f"\n{'='*60}")
         print(f"Testing: {transcript_info['name']}")
         print(f"{'='*60}\n")
-        
-        # Process transcript
+
+        content = processor._limit_content_by_words(transcript_info['file'],
+                                                              transcript_info.get('max_words'))
+
         await processor.process_transcript(
-            transcript_info['file'], 
-            transcript_info.get('max_words')
+            content
         )
         
         # Evaluate quality
         evaluator.evaluate_tree_quality(
-            transcript_info['file'], 
+            content, 
             transcript_info['name']
         )
         
         print(f"\nEvaluation completed for {transcript_info['name']}")
-        print("See quality_log.txt and latest_quality_log.txt for results.")
+        print("See backend/benchmarker/logs/quality_log.txt and backend/benchmarker/logs/latest_quality_log.txt for results.")
 
 
 async def main():

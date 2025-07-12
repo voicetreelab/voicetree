@@ -11,7 +11,7 @@ Possible tasks:
 
 What do we actually want?
 
-- first, we need to fix the bugs, still duplication with transcript history, and actual input, we may need to do a manual debug of our system. 
+- first, we need to fix the bugs, still duplication with transcript history, and actual input, we may need to do a manual debug of our system. DONE.
 
 - our TADA system healthy, benchmark 3.5/5
     - Currently at 3/5, benchmarker says node fragmentation biggest problem
