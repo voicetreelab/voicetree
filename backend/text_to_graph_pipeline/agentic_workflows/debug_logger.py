@@ -78,8 +78,8 @@ def format_variables(variables: Dict[str, Any]) -> str:
             
         if isinstance(value, str):
             # Truncate very long strings
-            if len(value) > 1000:
-                formatted_value = value[:1000] + "...[DEBUG_TRUNCATED]"
+            if len(value) > 3000:
+                formatted_value = value[:3000] + "...[DEBUG_TRUNCATED]"
             else:
                 formatted_value = value
             formatted_lines.append(f"  {key}: {repr(formatted_value)}")
@@ -94,6 +94,9 @@ def format_variables(variables: Dict[str, Any]) -> str:
                 for i, item in enumerate(value):
                     if isinstance(item, dict):
                         formatted_lines.append(f"    {i}: {format_dict_compact(item)}")
+                    elif hasattr(item, 'model_dump'):
+                        # Handle Pydantic models
+                        formatted_lines.append(f"    {i}: {format_dict_compact(item.model_dump())}")
                     else:
                         formatted_lines.append(f"    {i}: {repr(item)}")
                 formatted_lines.append("  ]")
@@ -120,6 +123,10 @@ def format_dict_compact(d: Dict[str, Any]) -> str:
     """
     if not d:
         return "{}"
+    
+    # Handle Pydantic models by converting to dict
+    if hasattr(d, 'model_dump'):
+        d = d.model_dump()
     
     items = list(d.items())
     # Show all items without truncation
