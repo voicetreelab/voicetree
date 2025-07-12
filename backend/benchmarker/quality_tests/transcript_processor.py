@@ -56,6 +56,36 @@ class TranscriptProcessor:
     
 
     
+    async def process_content(self, content, transcript_identifier):
+        """Process transcript content with VoiceTree using agentic workflow."""
+        # Setup fresh output directory
+        setup_output_directory()
+        
+        # Initialize processor
+        state_file_name = self._initialize_processor(transcript_identifier)
+        
+        try:
+            # Process word by word to simulate streaming
+            words = content.split()
+            print(f"Processing {len(words)} words one at a time")
+            
+            for i, word in enumerate(words):
+                # Send each word individually, like streaming voice
+                await self.processor.process_and_convert(word + " ")
+                
+                # Small delay to simulate streaming (optional)
+                if i % 30 == 0:  # Rate limit every 10 words
+                    time.sleep(0.05)
+            
+            # Log workflow statistics
+            workflow_stats = self.processor.get_workflow_statistics()
+            logging.info(f"Workflow statistics: {workflow_stats}")
+            
+        finally:
+            # Clean up the temporary state file
+            if os.path.exists(state_file_name):
+                os.remove(state_file_name)
+    
     async def process_transcript(self, transcript_file, max_words=None):
         """Process a transcript file with VoiceTree using agentic workflow."""
         # Setup fresh output directory
