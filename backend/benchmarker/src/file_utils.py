@@ -28,7 +28,10 @@ def setup_output_directory():
         
         # Also move the log file if it exists
         if os.path.exists(VOICETREE_LOG_FILE):
-            shutil.move(VOICETREE_LOG_FILE, os.path.join(backup_dir, VOICETREE_LOG_FILE))
+            # Create the subdirectory structure in the backup location
+            log_backup_path = os.path.join(backup_dir, VOICETREE_LOG_FILE)
+            os.makedirs(os.path.dirname(log_backup_path), exist_ok=True)
+            shutil.move(VOICETREE_LOG_FILE, log_backup_path)
             
         # Clear the output directory for a fresh run
         shutil.rmtree(OUTPUT_DIR)

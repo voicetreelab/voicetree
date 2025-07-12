@@ -71,7 +71,7 @@ async def main():
     """Main entry point for quality benchmarking."""
     # Configure logging - use benchmarker-specific log file
     from backend.benchmarker.src.config import VOICETREE_LOG_FILE
-    setup_logging(VOICETREE_LOG_FILE, console_level=logging.INFO)
+    setup_logging(VOICETREE_LOG_FILE, console_level=logging.ERROR)
     
     # You can customize test transcripts here or use defaults
     await run_quality_benchmark()
