@@ -14,7 +14,7 @@ class TestChunkProcessor(unittest.TestCase):
         """Set up test fixtures"""
         self.decision_tree = DecisionTree()
         self.decision_tree.tree = {
-            0: Node(name="Root", node_id=0, content="root content", summary="Root node", parent_id=None),
+            0: Node(name="Parent Node", node_id=0, content="parent content", summary="Parent node", parent_id=None),
             1: Node(name="Test Node", node_id=1, content="test content", summary="Test summary", parent_id=0),
         }
         

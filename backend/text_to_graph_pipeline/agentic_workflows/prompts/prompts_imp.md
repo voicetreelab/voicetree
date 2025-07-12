@@ -7,7 +7,7 @@ TODO
     also don't include is_complete true in input to future prompts 
 
 
-2. better format for input nodes (name + summary)
+2. better format for input nodes (name + summary) provide this to ALL prompts if relevant 
 
 3. circular references within input nodes 
 
@@ -19,3 +19,8 @@ If we decompose into work items first, and have W1, W2, W1, do we merge W1 befor
 5. if last sentence doesn't make complete senese within context, defer processing by setting incomplete.
 
 (leaving some unprocessed content?)
+
+6. remove root node
+
+7. fix relationships when NO_RELEVANT_NODE
+

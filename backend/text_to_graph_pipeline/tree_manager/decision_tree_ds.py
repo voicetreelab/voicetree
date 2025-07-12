@@ -37,21 +37,13 @@ class Node:
 
 class DecisionTree:
     def __init__(self):
-        today_pretty_print_date = datetime.now().strftime("%A %d %B")
-        today_root_node_content = f"""
-#### {today_pretty_print_date}, Root\n
-**The root node for today. Add unrelated content here.**
-"""
-        self.tree: Dict[int, Node] = {
-            0: Node("Root", 0, today_root_node_content, summary="The default root node for today's work.",
-                    parent_id=None)  # Create root node
-        }
-        self.next_node_id: int = 1
+        self.tree: Dict[int, Node] = {}
+        self.next_node_id: int = 0
 
-    def create_new_node(self, name: str, parent_node_id: int, content: str, summary : str, relationship_to_parent: str = "child of") -> int:
-        if parent_node_id not in self.tree:
+    def create_new_node(self, name: str, parent_node_id: int | None, content: str, summary : str, relationship_to_parent: str = "child of") -> int:
+        if parent_node_id is not None and parent_node_id not in self.tree:
             logging.error(f"Error: Trying to create a node with non-existent parent ID: {parent_node_id}")
-            parent_node_id = 0
+            parent_node_id = None
 
         # Check if a similar node already exists as a child of this parent
         existing_child_id = self._find_similar_child(name, parent_node_id)
@@ -62,11 +54,13 @@ class DecisionTree:
         # Only get and increment node_id after validation passes
         new_node_id = self.next_node_id
         new_node = Node(name, new_node_id, content, parent_id=parent_node_id)
-        new_node.relationships[parent_node_id] = relationship_to_parent
+        if parent_node_id is not None:
+            new_node.relationships[parent_node_id] = relationship_to_parent
         
         # Only increment after we successfully create the node
         self.tree[new_node_id] = new_node
-        self.tree[parent_node_id].children.append(new_node_id)
+        if parent_node_id is not None:
+            self.tree[parent_node_id].children.append(new_node_id)
         self.tree[new_node_id].summary = summary if summary else extract_summary(content)
         
         # Increment AFTER successful creation
@@ -74,7 +68,7 @@ class DecisionTree:
 
         return new_node_id
 
-    def _find_similar_child(self, name: str, parent_node_id: int, similarity_threshold: float = 0.8) -> Optional[int]:
+    def _find_similar_child(self, name: str, parent_node_id: int | None, similarity_threshold: float = 0.8) -> Optional[int]:
         """
         Check if a similar node already exists as a child of the given parent.
         
@@ -86,7 +80,7 @@ class DecisionTree:
         Returns:
             Node ID of similar child if found, None otherwise
         """
-        if parent_node_id not in self.tree:
+        if parent_node_id is None or parent_node_id not in self.tree:
             return None
             
         parent_node = self.tree[parent_node_id]
@@ -131,7 +125,7 @@ class DecisionTree:
                 return parent_id
         return None
 
-    def get_node_id_from_name(self, name: str) -> int:
+    def get_node_id_from_name(self, name: str) -> int | None:
         """
         Search the tree for the node with the name most similar to the input name.
         Uses fuzzy matching to find the closest match.
@@ -140,7 +134,7 @@ class DecisionTree:
             name (str): The name of the node to find.
 
         Returns:
-            int: The ID of the closest matching node, or 0 if no close match is found.
+            int | None: The ID of the closest matching node, or None if no close match is found.
         """
         # Generate a list of node titles
         node_titles = [node.title for node in self.tree.values()]
@@ -165,17 +159,14 @@ class DecisionTree:
         #todo: this won't scale
 
         # If no match is found, try to use the most recently modified node
-        # This is more likely to be semantically related than defaulting to root
+        # This is more likely to be semantically related
         recent_nodes = self.get_recent_nodes(num_nodes=5)
         
         if recent_nodes:
-            # Filter out root node
-            non_root_recent = [node_id for node_id in recent_nodes if node_id != 0]
-            if non_root_recent:
-                parent_id = non_root_recent[0]
-                logging.warning(f"No close match found for node name '{name}'. Using most recent non-root node: {self.tree[parent_id].title}")
-                return parent_id
+            parent_id = recent_nodes[0]
+            logging.warning(f"No close match found for node name '{name}'. Using most recent node: {self.tree[parent_id].title}")
+            return parent_id
         
-        # Only use root if there are no other nodes
-        logging.warning(f"No close match found for node name '{name}' and no recent nodes available. Defaulting to root node.")
-        return 0
+        # Return None if there are no nodes at all
+        logging.warning(f"No close match found for node name '{name}' and no nodes exist in the tree.")
+        return None

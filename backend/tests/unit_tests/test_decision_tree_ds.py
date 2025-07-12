@@ -8,24 +8,30 @@ from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Decisio
 class TestDecisionTree(unittest.TestCase):
     def test_append_to_node(self):
         dt = DecisionTree()
-        dt.create_new_node("test_node", 0, "test_content", "test_summary")
-        dt.tree[1].append_content("appended content", "appended_summary")
-        self.assertIn("appended content", dt.tree[1].content)
+        node_id = dt.create_new_node("test_node", None, "test_content", "test_summary")
+        dt.tree[node_id].append_content("appended content", "appended_summary")
+        self.assertIn("appended content", dt.tree[node_id].content)
 
     def test_create_new_node(self):
         dt = DecisionTree()
-        new_node_id = dt.create_new_node("test_node", 0, "test_content", "test_summary")
-        self.assertEqual(new_node_id, 1)
-        self.assertIn(1, dt.tree)
-        self.assertEqual(dt.tree[1].parent_id, 0)
+        new_node_id = dt.create_new_node("test_node", None, "test_content", "test_summary")
+        self.assertEqual(new_node_id, 0)
+        self.assertIn(0, dt.tree)
+        self.assertEqual(dt.tree[0].parent_id, None)
 
     def test_get_recent_nodes(self):
         dt = DecisionTree()
         
         # Create some nodes
         created_nodes = []
-        for i in range(3):
-            node_id = dt.create_new_node(f"node{i+1}", 0, f"content{i+1}", f"summary{i+1}")
+        # Create first node with no parent
+        first_node_id = dt.create_new_node("node1", None, "content1", "summary1")
+        created_nodes.append(first_node_id)
+        time.sleep(0.01)  # Small delay to ensure different timestamps
+        
+        # Create subsequent nodes with first node as parent
+        for i in range(1, 3):
+            node_id = dt.create_new_node(f"node{i+1}", first_node_id, f"content{i+1}", f"summary{i+1}")
             created_nodes.append(node_id)
             time.sleep(0.01)  # Small delay to ensure different timestamps
         
@@ -50,10 +56,10 @@ class TestDecisionTree(unittest.TestCase):
 
     def test_get_parent_id(self):
         dt = DecisionTree()
-        dt.create_new_node("node1", 0, "content1", "summary1")
-        dt.create_new_node("node2", 1, "content2", "summary2")
-        parent_id = dt.get_parent_id(2)
-        self.assertEqual(parent_id, 1)
+        node1_id = dt.create_new_node("node1", None, "content1", "summary1")
+        node2_id = dt.create_new_node("node2", node1_id, "content2", "summary2")
+        parent_id = dt.get_parent_id(node2_id)
+        self.assertEqual(parent_id, node1_id)
 
 
 if __name__ == "__main__":

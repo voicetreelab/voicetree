@@ -71,7 +71,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                     labelled_text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
                     action="CREATE",
                     concept_name="Project Planning",
-                    neighbour_concept_name="Root",
+                    neighbour_concept_name=None,
                     relationship_to_neighbour="child of",
                     updated_summary_of_node=self.summaries[0],
                     markdown_content_to_append=self.summaries[0],
@@ -173,8 +173,8 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         for node_id, node in tree.items():
             print(f"  Node {node_id}: {node.title} (parent: {self.decision_tree.get_parent_id(node_id)})")
 
-        # 1. Check the Number of Nodes (should be 4)
-        self.assertEqual(len(tree), 4, "The tree should have 4 nodes.")
+        # 1. Check the Number of Nodes (should be 3 without root)
+        self.assertEqual(len(tree), 3, "The tree should have 3 nodes.")
 
         # 2. Verify Node Content Using Keywords
         project_planning_node_id = self.assert_node_content_contains(tree, ["project", "planning"])
@@ -182,9 +182,9 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         poc_node_id = self.assert_node_content_contains(tree, ["poc"])
 
         # 3.  Check Parent-Child Relationships
-        root_node_children = tree[0].children
-        self.assertIn(project_planning_node_id, root_node_children,
-                      "Node 'project planning' should be a child of the root node.")
+        # Project Planning should have no parent (it's the top-level node)
+        self.assertIsNone(self.decision_tree.get_parent_id(project_planning_node_id),
+                      "Node 'project planning' should have no parent.")
         self.assertIn(investors_node_id, tree[project_planning_node_id].children,
                       "Node 'investors' should be a child of 'project planning'.")
         self.assertIn(poc_node_id, tree[investors_node_id].children,
@@ -235,7 +235,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                     labelled_text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
                     action="CREATE",
                     concept_name="Project Planning",
-                    neighbour_concept_name="Root",
+                    neighbour_concept_name=None,
                     relationship_to_neighbour="child of",
                     updated_summary_of_node=self.summaries[0],
                     markdown_content_to_append=self.summaries[0],
@@ -320,8 +320,8 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         # Assertions
         tree = self.decision_tree.tree
 
-        # 1. Check the Number of Nodes (should be 3 due to APPEND behavior)
-        self.assertEqual(len(tree), 3, "The tree should have 3 nodes (due to APPEND).")
+        # 1. Check the Number of Nodes (should be 2 due to APPEND behavior and no root)
+        self.assertEqual(len(tree), 2, "The tree should have 2 nodes (due to APPEND and no root).")
 
         # 2. Verify Node Content Using Keywords
         project_planning_node_id = self.assert_node_content_contains(tree, ["project", "planning"]) 
@@ -332,9 +332,9 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         self.assertEqual(investors_node_id, project_planning_node_id)
 
         # 3.  Check Parent-Child Relationship
-        root_node_children = tree[0].children
-        self.assertIn(project_planning_node_id, root_node_children,
-                      "Node 'project planning' should be a child of the root node.")
+        # Project Planning should have no parent (it's the top-level node)
+        self.assertIsNone(self.decision_tree.get_parent_id(project_planning_node_id),
+                      "Node 'project planning' should have no parent.")
         self.assertIn(poc_node_id, tree[investors_node_id].children,
                       "Node 'polish my POC' should be a child of 'investors'.")
 
@@ -377,16 +377,17 @@ class TestIntegrationMockedLLM(unittest.TestCase):
 
     def get_keywords_for_node(self, node_id):
         """Returns a list of keywords to check for in the Markdown file content."""
-        if node_id == 0:
-            return ["today"]  # Keywords for the root node
-        elif node_id == 1:
-            return ["project", "planning"]
-        elif node_id == 2:
-            return ["investor"]
-        elif node_id == 3:
-            return ["poc"]
-        else:
-            return []  # No specific keywords for other nodes
+        # Since we don't have a fixed root anymore, we need to check by content
+        tree = self.decision_tree.tree
+        if node_id in tree:
+            content = tree[node_id].content.lower()
+            if "project" in content and "planning" in content:
+                return ["project", "planning"]
+            elif "investor" in content:
+                return ["investor"]
+            elif "poc" in content:
+                return ["poc"]
+        return []  # No specific keywords for other nodes
 
     def print_tree(self, tree, node_id=0, indent=0):
         """Prints a simple text-based representation of the tree."""

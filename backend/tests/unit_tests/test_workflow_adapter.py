@@ -13,11 +13,11 @@ class TestWorkflowAdapter(unittest.TestCase):
         self.decision_tree = DecisionTree()
         # Override the default tree with test nodes that have proper names and summaries
         self.decision_tree.tree = {
-            0: Node(name="Root", node_id=0, content="root content", summary="Root summary", parent_id=None),
+            0: Node(name="Parent Node", node_id=0, content="parent content", summary="Parent summary", parent_id=None),
             1: Node(name="Test Node", node_id=1, content="test content", summary="Test summary", parent_id=0),
         }
         # Fix the node names to match what we expect
-        self.decision_tree.tree[0].title = "Root"
+        self.decision_tree.tree[0].title = "Parent Node"
         self.decision_tree.tree[1].title = "Test Node"
         
         with patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline'):

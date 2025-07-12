@@ -193,11 +193,9 @@ class ChunkProcessor:
         for action in node_actions:
             if action.action == "CREATE":
                 # Find parent node ID
-                parent_id = 0  # Default to root
+                parent_id = None  # No default parent
                 if action.neighbour_concept_name and action.neighbour_concept_name != "Root":
                     parent_id = self.decision_tree.get_node_id_from_name(action.neighbour_concept_name)
-                    if parent_id is None:
-                        parent_id = 0  # Fallback to root if parent not found
                 
                 # Create new node
                 new_node_id = self.decision_tree.create_new_node(
