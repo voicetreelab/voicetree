@@ -81,6 +81,8 @@ class TreeToMarkdownConverter:
                         f.write(f"{clean_content}\n\n\n-----------------\n_Links:_\n")
 
                         # Add child links
+                        if node_data.children:
+                            f.write(f"Children:\n")
                         for child_id in node_data.children:
                             child_node = self.tree_data.get(child_id)
                             if child_node:
@@ -89,10 +91,13 @@ class TreeToMarkdownConverter:
                                 child_relationship = "child of"
                                 if child_id in self.tree_data and node_id in self.tree_data[child_id].relationships:
                                     child_relationship = self.tree_data[child_id].relationships[node_id]
-                                f.write(f"- parent of [[{child_file_name}]] ({child_relationship} this node)\n")
+                                f.write(f"- [[{child_file_name}]] {child_relationship} (this node)\n")
 
                         # add parent backlinks
                         parent_id = self.get_parent_id(node_id)
+                        if parent_id:
+                            f.write(f"Parents:\n")
+
                         if parent_id is not None:
                             parent_file_name = self.tree_data[parent_id].filename
                             relationship_to_parent = "child of"

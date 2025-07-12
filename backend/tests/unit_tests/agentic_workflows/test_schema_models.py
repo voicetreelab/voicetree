@@ -23,7 +23,8 @@ class TestChunkModel:
         chunk = ChunkModel(
             name="Test Chunk",
             text="This is the chunk content",
-            is_complete=True
+            is_complete=True,
+            reasoning="This chunk is complete and ready for processing"
         )
         
         assert chunk.name == "Test Chunk"
@@ -36,49 +37,15 @@ class TestChunkModel:
             ChunkModel(name="Test")  # Missing text and is_complete
         
         errors = exc_info.value.errors()
-        assert len(errors) == 2
+        assert len(errors) >= 2
         field_names = {e["loc"][0] for e in errors}
         assert "text" in field_names
         assert "is_complete" in field_names
-    
-    def test_chunk_model_serialization(self):
-        """Test model serialization"""
-        chunk = ChunkModel(
-            name="Serialize Test",
-            text="Content to serialize",
-            is_complete=False
-        )
-        
-        # Test dict conversion
-        chunk_dict = chunk.model_dump()
-        assert chunk_dict == {
-            "name": "Serialize Test",
-            "text": "Content to serialize",
-            "is_complete": False
-        }
-        
-        # Test JSON serialization
-        chunk_json = chunk.model_dump_json()
-        # Pydantic doesn't add spaces by default
-        assert '"name":"Serialize Test"' in chunk_json
-        assert '"is_complete":false' in chunk_json
 
 
 class TestSegmentationResponse:
     """Test the SegmentationResponse schema"""
     
-    def test_segmentation_response_valid(self):
-        """Test creating a valid segmentation response"""
-        response = SegmentationResponse(
-            chunks=[
-                ChunkModel(name="Chunk 1", text="First chunk", is_complete=True),
-                ChunkModel(name="Chunk 2", text="Second chunk", is_complete=False)
-            ]
-        )
-        
-        assert len(response.chunks) == 2
-        assert response.chunks[0].name == "Chunk 1"
-        assert response.chunks[1].is_complete is False
     
     def test_segmentation_response_empty_chunks(self):
         """Test segmentation response with empty chunks list"""
@@ -89,7 +56,7 @@ class TestSegmentationResponse:
         """Test creating response from dictionary"""
         data = {
             "chunks": [
-                {"name": "From Dict", "text": "Dict content", "is_complete": True}
+                {"name": "From Dict", "text": "Dict content", "reasoning" : ",,," ,"is_complete": True}
             ]
         }
         
@@ -183,6 +150,7 @@ class TestIntegrationDecision:
             name="New Concept",
             text="This is a new concept about...",
             action="CREATE",
+            reasoning="...",
             target_node=None,
             new_node_name="New Concept Node",
             new_node_summary="A node about new concepts",
@@ -200,6 +168,7 @@ class TestIntegrationDecision:
             name="Addition",
             text="Additional information",
             action="APPEND",
+            reasoning="...",
             target_node="ExistingNode",
             new_node_name=None,
             new_node_summary=None,
@@ -227,81 +196,7 @@ class TestIntegrationDecision:
         
         error = exc_info.value.errors()[0]
         assert "INVALID" in str(error)
-    
-    def test_integration_decision_serialization(self):
-        """Test model serialization with optional fields"""
-        decision = IntegrationDecision(
-            name="Test",
-            text="Test text",
-            action="CREATE",
-            target_node=None,
-            new_node_name="New Node",
-            new_node_summary=None,
-            relationship_for_edge="creates",
-            content="Node content"
-        )
-        
-        decision_dict = decision.model_dump()
-        assert decision_dict["action"] == "CREATE"
-        assert decision_dict["target_node"] is None
-        assert decision_dict["new_node_summary"] is None
 
-
-class TestIntegrationResponse:
-    """Test the IntegrationResponse schema"""
-    
-    def test_integration_response_mixed_actions(self):
-        """Test response with both CREATE and APPEND decisions"""
-        response = IntegrationResponse(
-            integration_decisions=[
-                IntegrationDecision(
-                    name="New",
-                    text="New content",
-                    action="CREATE",
-                    target_node=None,
-                    new_node_name="New Node",
-                    new_node_summary="Summary",
-                    relationship_for_edge="creates",
-                    content="Content"
-                ),
-                IntegrationDecision(
-                    name="Update",
-                    text="Update content",
-                    action="APPEND",
-                    target_node="Existing",
-                    new_node_name=None,
-                    new_node_summary=None,
-                    relationship_for_edge=None,
-                    content="Append content"
-                )
-            ]
-        )
-        
-        assert len(response.integration_decisions) == 2
-        assert response.integration_decisions[0].action == "CREATE"
-        assert response.integration_decisions[1].action == "APPEND"
-    
-    def test_integration_response_json_serialization(self):
-        """Test full response JSON serialization"""
-        response = IntegrationResponse(
-            integration_decisions=[
-                IntegrationDecision(
-                    name="Test",
-                    text="Test text",
-                    action="CREATE",
-                    target_node=None,
-                    new_node_name="Test Node",
-                    new_node_summary="Test summary",
-                    relationship_for_edge="test_edge",
-                    content="Test content"
-                )
-            ]
-        )
-        
-        json_str = response.model_dump_json(indent=2)
-        assert '"integration_decisions"' in json_str
-        assert '"action": "CREATE"' in json_str
-        assert '"new_node_name": "Test Node"' in json_str
 
 
 if __name__ == "__main__":

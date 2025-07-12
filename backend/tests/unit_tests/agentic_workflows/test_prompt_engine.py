@@ -64,7 +64,7 @@ class TestPromptTemplate:
     
     def test_from_file(self):
         """Test loading template from file"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
             f.write("Template content: {{variable}}")
             temp_path = f.name
         
@@ -84,7 +84,7 @@ class TestPromptLoader:
         """Test loading templates from a directory"""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a test template file
-            template_path = Path(temp_dir) / "test_template.txt"
+            template_path = Path(temp_dir) / "test_template.md"
             template_path.write_text("Hello {{name}}!")
             
             loader = PromptLoader(temp_dir)
@@ -97,7 +97,7 @@ class TestPromptLoader:
         """Test the render_template convenience method"""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a test template file
-            template_path = Path(temp_dir) / "greeting.txt"
+            template_path = Path(temp_dir) / "greeting.md"
             template_path.write_text("{{greeting}} {{name}}!")
             
             loader = PromptLoader(temp_dir)
@@ -108,7 +108,7 @@ class TestPromptLoader:
     def test_template_caching(self):
         """Test that templates are cached after first load"""
         with tempfile.TemporaryDirectory() as temp_dir:
-            template_path = Path(temp_dir) / "cached.txt"
+            template_path = Path(temp_dir) / "cached.md"
             template_path.write_text("Original: {{value}}")
             
             loader = PromptLoader(temp_dir)

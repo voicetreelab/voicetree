@@ -48,7 +48,12 @@ class TestLLMIntegration:
         # Mock the response
         mock_output = SegmentationResponse(
             chunks=[
-                ChunkModel(name="test", text="test text", is_complete=True)
+                ChunkModel(
+                    reasoning="Test reasoning for chunk segmentation",
+                    name="test",
+                    text="test text",
+                    is_complete=True
+                )
             ]
         )
         

@@ -48,6 +48,16 @@ class TestIntegration(unittest.TestCase):
         try:
             await self.processor.process_and_convert(transcript)
             print("✅ Processing completed without errors")
+            
+            # Process any remaining buffer content
+            remaining_buffer = self.processor.buffer_manager.get_buffer()
+            if remaining_buffer:
+                print(f"📝 Processing remaining buffer: {len(remaining_buffer)} chars")
+                await self.processor.process_voice_input(remaining_buffer)
+            
+            # Finalize to ensure all nodes are converted
+            await self.processor.finalize()
+            print("✅ Finalization completed")
         except Exception as e:
             print(f"❌ Processing failed with error: {e}")
             self.fail(f"Processing should not fail: {e}")
@@ -56,35 +66,32 @@ class TestIntegration(unittest.TestCase):
         tree = self.decision_tree.tree
         print(f"📊 Tree has {len(tree)} nodes")
 
-        # Basic assertions - the system should at least create a root node
-        self.assertGreaterEqual(len(tree), 1, "The tree should have at least the root node.")
-        
-        # Verify root node exists
-        self.assertIn(0, tree, "Root node (ID 0) should exist.")
-        root_node = tree[0]
-        self.assertEqual(root_node.id, 0, "Root node should have ID 0.")
+        # Basic assertions - the system should create at least one node
+        self.assertGreaterEqual(len(tree), 1, "The tree should have at least one node.")
         
         # Test that the processor is properly configured
         self.assertIsNotNone(self.processor, "Chunk processor should be initialized.")
         
-        # Test markdown file creation - at least root should have a file
-        root_filename = root_node.filename
-        if root_filename:
-            root_file_path = os.path.join(self.output_dir, root_filename)
-            if os.path.exists(root_file_path):
-                print(f"✅ Root markdown file created: {root_filename}")
-                with open(root_file_path, "r") as f:
-                    content = f.read()
-                    self.assertGreater(len(content), 0, "Root markdown file should not be empty")
-            else:
-                print(f"⚠️ Root markdown file not found: {root_file_path}")
+        # Test markdown file creation - at least one node should have a file
+        if len(tree) > 0:
+            first_node = list(tree.values())[0]
+            first_filename = first_node.filename
+            if first_filename:
+                first_file_path = os.path.join(self.output_dir, first_filename)
+                if os.path.exists(first_file_path):
+                    print(f"✅ First node markdown file created: {first_filename}")
+                    with open(first_file_path, "r") as f:
+                        content = f.read()
+                        self.assertGreater(len(content), 0, "First node markdown file should not be empty")
+                else:
+                    print(f"⚠️ First node markdown file not found: {first_file_path}")
         
-        # If the LLM processing succeeded, we should have more than just the root
-        if len(tree) > 1:
+        # If the LLM processing succeeded, we should have at least one node
+        if len(tree) >= 1:
             print(f"🎉 LLM processing succeeded - created {len(tree)} nodes")
             
-            # Check for duplicate node names (excluding root)
-            node_names = [node.title for node_id, node in tree.items() if node_id != 0]
+            # Check for duplicate node names
+            node_names = [node.title for node_id, node in tree.items()]
             # Debug: print all nodes
             print(f"\n📋 All nodes in tree:")
             for node_id, node in tree.items():
@@ -95,14 +102,13 @@ class TestIntegration(unittest.TestCase):
                 self.fail(f"Duplicate nodes found: {duplicates}. Total nodes: {len(tree)}, Unique names: {len(unique_names)}")
             
             # Verify that at least one content node was created
-            content_nodes = [node for node_id, node in tree.items() if node_id != 0 and node.content]
+            content_nodes = [node for node_id, node in tree.items() if node.content]
             self.assertGreater(len(content_nodes), 0, "At least one content node should be created")
             
             # Verify parent-child relationships are valid
             for node_id, node in tree.items():
-                if node_id != 0:  # Non-root nodes
+                if node.parent_id is not None:  # Nodes with parents
                     parent_id = node.parent_id
-                    self.assertIsNotNone(parent_id, f"Node {node_id} should have a parent")
                     self.assertIn(parent_id, tree, f"Parent {parent_id} of node {node_id} should exist in tree")
                     self.assertIn(node_id, tree[parent_id].children, f"Node {node_id} should be in parent's children list")
             
@@ -121,8 +127,9 @@ class TestIntegration(unittest.TestCase):
             if missing_files:
                 self.fail(f"Missing markdown files: {missing_files}")
         else:
-            print("⚠️ LLM processing failed, but system fallback worked (only root node exists)")
-            # This is still a successful test - the system should be robust to LLM failures
+            print("⚠️ No nodes were created")
+            # The test should fail if no nodes are created
+            self.fail("No nodes were created by the workflow")
 
         print("🎯 Integration test completed successfully!")
 
@@ -140,7 +147,7 @@ class TestIntegration(unittest.TestCase):
         """Test that workflow state can be managed"""
         # Test clearing state
         try:
-            self.tree_manager.clear_workflow_state()
+            self.processor.clear_workflow_state()
             print("✅ Workflow state cleared successfully")
         except Exception as e:
             print(f"⚠️ Error clearing workflow state: {e}")
