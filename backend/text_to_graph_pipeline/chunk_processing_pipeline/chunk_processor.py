@@ -10,17 +10,15 @@ import time
 import traceback
 import os
 from datetime import datetime
-from typing import Optional, Set
+from typing import Optional, Set, List
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
 from .workflow_adapter import WorkflowAdapter
 from backend import settings
 
-# Configure logging
-logging.basicConfig(filename='../voicetree.log', level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Output directory configuration
 output_dir_base = "markdownTreeVault" # todo, move this to config file
@@ -91,7 +89,7 @@ class ChunkProcessor:
             text = text.replace("Thank you.", "")  # todo, whisper keeps on hallucinating thank you
             start_time = time.time()
 
-            logging.info(f"ChunkProcessor.process_and_convert calling process_voice_input with: '{text}'")
+            # logging.info(f"ChunkProcessor.process_and_convert calling process_voice_input with: '{text}'")
             await self.process_voice_input(text)
 
             self.converter.convert_node(output_dir=self.output_dir,
@@ -114,8 +112,8 @@ class ChunkProcessor:
         Args:
             transcribed_text: The transcribed text from voice recognition
         """
-        logging.info(f"process_voice_input called with text: '{transcribed_text}'")
-        logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
+        # logging.info(f"process_voice_input called with text: '{transcribed_text}'")
+        # logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
         
         # Add text to buffer - incomplete text is maintained internally
         result = self.buffer_manager.add_text(transcribed_text)
@@ -170,8 +168,8 @@ class ChunkProcessor:
                 # No completed text information, log warning
                 logging.warning("Workflow didn't return completed text information")
             
-            # Apply the node actions to the decision tree
-            await self._apply_node_actions_from_result(result.node_actions)
+            # Apply the integration decisions to the decision tree
+            await self._apply_integration_decisions(result.integration_decisions)
             
             # Ensure root node is always included for markdown generation
             self.nodes_to_update.add(0)
@@ -182,48 +180,49 @@ class ChunkProcessor:
         else:
             logging.error(f"Workflow failed: {result.error_message}")
     
-    async def _apply_node_actions_from_result(self, node_actions):
+    async def _apply_integration_decisions(self, integration_decisions: List[IntegrationDecision]):
         """
-        Apply node actions from workflow result to the decision tree
+        Apply integration decisions from workflow result to the decision tree
         
         Args:
-            node_actions: List of NodeAction objects to apply
+            integration_decisions: List of IntegrationDecision objects to apply
         """
-        logging.info(f"Applying {len(node_actions)} node actions")
-        for action in node_actions:
-            if action.action == "CREATE":
-                # Find parent node ID
-                parent_id = None  # No default parent
-                if action.neighbour_concept_name and action.neighbour_concept_name != "Root":
-                    parent_id = self.decision_tree.get_node_id_from_name(action.neighbour_concept_name)
+        logging.info(f"Applying {len(integration_decisions)} integration decisions")
+        for decision in integration_decisions:
+            if decision.action == "CREATE":
+                # Find parent node ID from name
+                # or none if not specified
+                parent_id = None  
+                if decision.target_node:
+                    parent_id = self.decision_tree.get_node_id_from_name(decision.target_node)
                 
                 # Create new node
                 new_node_id = self.decision_tree.create_new_node(
-                    name=action.concept_name,
+                    name=decision.new_node_name,
                     parent_node_id=parent_id,
-                    content=action.markdown_content_to_append,
-                    summary=action.updated_summary_of_node,
-                    relationship_to_parent=action.relationship_to_neighbour
+                    content=decision.content,
+                    summary=decision.new_node_summary,
+                    relationship_to_parent=decision.relationship_for_edge
                 )
-                logging.info(f"Created new node '{action.concept_name}' with ID {new_node_id}")
+                logging.info(f"Created new node '{decision.new_node_name}' with ID {new_node_id}")
                 # Add the new node to the update set
                 self.nodes_to_update.add(new_node_id)
                 
-            elif action.action == "APPEND":
+            elif decision.action == "APPEND":
                 # Find target node and append content
-                node_id = self.decision_tree.get_node_id_from_name(action.concept_name)
+                node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
                 if node_id is not None:
                     node = self.decision_tree.tree[node_id]
                     node.append_content(
-                        action.markdown_content_to_append,
-                        action.updated_summary_of_node,
-                        action.labelled_text
+                        decision.content,
+                        None,  # APPEND decisions don't have new_node_summary in IntegrationDecision
+                        decision.name  # Use the chunk name as the label
                     )
-                    logging.info(f"Appended content to node '{action.concept_name}' (ID {node_id})")
+                    logging.info(f"Appended content to node '{decision.target_node}' (ID {node_id})")
                     # Add the updated node to the update set
                     self.nodes_to_update.add(node_id) #todo maybe we could hide this within the append_content method. Or track recently_updated_nodes there.
                 else:
-                    logging.warning(f"Could not find node '{action.concept_name}' for APPEND action")
+                    logging.warning(f"Could not find node '{decision.target_node}' for APPEND action")
     
     def get_workflow_statistics(self) -> dict:
         """Get statistics from the workflow adapter"""

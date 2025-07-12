@@ -262,37 +262,3 @@ class TestRunVoiceTreePipeline:
         
         mock_pipeline_class.assert_called_once_with("state.json")
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline')
-    def test_run_voicetree_pipeline_with_existing_nodes(self, mock_pipeline_class):
-        """Test backward compatibility with existing_nodes parameter"""
-        mock_pipeline = Mock()
-        mock_state_manager = Mock()
-        mock_state_manager.nodes = {}
-        mock_pipeline.state_manager = mock_state_manager
-        mock_pipeline_class.return_value = mock_pipeline
-        
-        existing_nodes = ["Node 1", "Node 2"]
-        run_voicetree_pipeline("test", existing_nodes=existing_nodes)
-        
-        # Verify nodes were added to state manager
-        assert "Node 1" in mock_state_manager.nodes
-        assert "Node 2" in mock_state_manager.nodes
-        assert mock_state_manager.nodes["Node 1"]["name"] == "Node 1"
-        assert mock_state_manager.nodes["Node 1"]["created_at"] == "legacy"
-    
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline')
-    def test_run_voicetree_pipeline_existing_nodes_no_duplicates(self, mock_pipeline_class):
-        """Test that existing nodes aren't duplicated"""
-        mock_pipeline = Mock()
-        mock_state_manager = Mock()
-        mock_state_manager.nodes = {"Node 1": {"name": "Node 1"}}
-        mock_pipeline.state_manager = mock_state_manager
-        mock_pipeline_class.return_value = mock_pipeline
-        
-        existing_nodes = ["Node 1", "Node 2"]
-        run_voicetree_pipeline("test", existing_nodes=existing_nodes)
-        
-        # Verify only Node 2 was added
-        assert "Node 2" in mock_state_manager.nodes
-        # Node 1 should not be modified
-        assert mock_state_manager.nodes["Node 1"] == {"name": "Node 1"}

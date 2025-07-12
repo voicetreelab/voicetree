@@ -32,14 +32,6 @@ Provide a detailed evaluation of the tree's quality, addressing each of the crit
  then work out the best answer in a step-by-step way to be sure we have the right answer. 
 """
 
-SPECIAL_ATTENTION = """
-Pay special attention to:
-- Node fragmentation (e.g., '50,000' split into '50' and '000' nodes)
-- Circular or illogical parent-child relationships
-- Whether technical concepts are properly grouped together
-- If the tree captures the main narrative flow of the conversation
-"""
-
 FINAL_INSTRUCTION = """
 Evaluate the tree. 
 
@@ -80,7 +72,6 @@ def build_evaluation_prompt(transcript_content, packaged_output, prompts_content
         f"```{packaged_output}```\n\n"
         f"{EVALUATION_CRITERIA}\n"
         f"{FINAL_INSTRUCTION}\n\n"
-        f"{SPECIAL_ATTENTION}"
     )
     
     return prompt

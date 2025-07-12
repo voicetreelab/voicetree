@@ -4,20 +4,17 @@ Provides a clean interface between the VoiceTree backend and agentic workflows
 """
 
 import asyncio
-import json
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from backend.text_to_graph_pipeline.agentic_workflows.pipeline import VoiceTreePipeline
+from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager import NodeAction
-
-
 @dataclass
 class WorkflowResult:
     """Result from workflow execution"""
     success: bool
     new_nodes: List[str]
-    node_actions: List[NodeAction]
+    integration_decisions: List[IntegrationDecision]
     error_message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -59,8 +56,8 @@ class WorkflowAdapter:
             WorkflowResult with processing outcomes
         """
         try:
-            # Get current state snapshot for the workflow
-            state_snapshot = self._prepare_state_snapshot()
+            # Prepare state for the workflow (this updates internal state)
+            self._prepare_state_snapshot()
             
             # Run the workflow with both transcript and transcript_history
             result = await asyncio.to_thread(
@@ -74,29 +71,31 @@ class WorkflowAdapter:
                 return WorkflowResult(
                     success=False,
                     new_nodes=[],
-                    node_actions=[],
+                    integration_decisions=[],
                     error_message=result["error_message"]
                 )
             
-            # Convert workflow decisions to NodeActions
-            node_actions = self._convert_to_node_actions(result)
+            # Get integration decisions and convert to Pydantic models
+            integration_decisions_raw = result.get("integration_decisions", [])
+            integration_decisions = [
+                IntegrationDecision(**decision) for decision in integration_decisions_raw
+            ]
             
             # Extract new node names from integration decisions
             new_nodes = []
-            for decision in result.get("integration_decisions", []):
-                if decision.get("action") == "CREATE" and decision.get("new_node_name"):
-                    new_nodes.append(decision["new_node_name"])
+            for decision in integration_decisions:
+                if decision.action == "CREATE" and decision.new_node_name:
+                    new_nodes.append(decision.new_node_name)
             
-            # Note: In ATOMIC mode, the caller (ChunkProcessor) is responsible for applying node actions
-            # to avoid duplicate application
+
             
             return WorkflowResult(
                 success=True,
                 new_nodes=new_nodes,
-                node_actions=node_actions,
+                integration_decisions=integration_decisions,
                 metadata={
                     "chunks_processed": len(result.get("chunks", [])),
-                    "decisions_made": len(result.get("integration_decisions", [])),
+                    "decisions_made": len(integration_decisions),
                     "incomplete_buffer": result.get("incomplete_chunk_remainder", ""),
                     "completed_text": self._extract_completed_text(result)
                 }
@@ -106,7 +105,7 @@ class WorkflowAdapter:
             return WorkflowResult(
                 success=False,
                 new_nodes=[],
-                node_actions=[],
+                integration_decisions=[],
                 error_message=f"Workflow execution failed: {str(e)}"
             )
     
@@ -154,82 +153,7 @@ class WorkflowAdapter:
             "total_nodes": len(self.decision_tree.tree)
         }
     
-    def _convert_to_node_actions(self, workflow_result: Dict[str, Any]) -> List[NodeAction]:
-        """
-        Convert workflow integration decisions to NodeAction objects
-        
-        Args:
-            workflow_result: Result from the workflow execution
-            
-        Returns:
-            List of NodeAction objects
-        """
-        node_actions = []
-        decisions = workflow_result.get("integration_decisions", [])
-        
-        for decision in decisions:
-            action = decision.get("action", "").upper()
-            
-            if action == "CREATE":
-                node_action = NodeAction(
-                    action="CREATE",
-                    concept_name=decision.get("new_node_name", ""),
-                    neighbour_concept_name=decision.get("target_node", ""),
-                    relationship_to_neighbour=decision.get("relationship_for_edge", ""),
-                    markdown_content_to_append=decision.get("content", decision.get("text", "")),
-                    updated_summary_of_node=decision.get("new_node_summary", ""),
-                    is_complete=True,
-                    labelled_text=decision.get("name", "")
-                )
-                node_actions.append(node_action)
-                
-            elif action == "APPEND":
-                node_action = NodeAction(
-                    action="APPEND",
-                    concept_name=decision.get("target_node", ""),
-                    neighbour_concept_name=None,
-                    relationship_to_neighbour=None,
-                    markdown_content_to_append=decision.get("content", ""),
-                    updated_summary_of_node=decision.get("updated_summary", ""),
-                    is_complete=True,
-                    labelled_text=decision.get("name", "")
-                )
-                node_actions.append(node_action)
-        
-        return node_actions
-    
-    async def _apply_node_actions(self, node_actions: List[NodeAction]) -> None:
-        """
-        Apply node actions to the decision tree
-        
-        Args:
-            node_actions: List of actions to apply
-        """
-        for action in node_actions:
-            if action.action == "CREATE":
-                parent_id = self.decision_tree.get_node_id_from_name(
-                    action.neighbour_concept_name
-                )
-                self.decision_tree.create_new_node(
-                    name=action.concept_name,
-                    parent_node_id=parent_id,
-                    content=action.markdown_content_to_append,
-                    summary=action.updated_summary_of_node,
-                    relationship_to_parent=action.relationship_to_neighbour
-                )
-                
-            elif action.action == "APPEND":
-                node_id = self.decision_tree.get_node_id_from_name(
-                    action.concept_name
-                )
-                if node_id:
-                    node = self.decision_tree.tree[node_id]
-                    node.append_content(
-                        action.markdown_content_to_append,
-                        action.updated_summary_of_node,
-                        action.labelled_text
-                    )
-    
+    # when applying actions, if target node is null, don't try force finding it.
     def get_workflow_statistics(self) -> Dict[str, Any]:
         """Get statistics about the workflow state"""
         return self.pipeline.get_statistics()

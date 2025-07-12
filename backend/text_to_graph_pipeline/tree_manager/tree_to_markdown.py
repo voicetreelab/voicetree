@@ -96,7 +96,7 @@ class TreeToMarkdownConverter:
                         # add parent backlinks
                         parent_id = self.get_parent_id(node_id)
                         if parent_id:
-                            f.write(f"Parents:\n")
+                            f.write(f"Parent:\n")
 
                         if parent_id is not None:
                             parent_file_name = self.tree_data[parent_id].filename

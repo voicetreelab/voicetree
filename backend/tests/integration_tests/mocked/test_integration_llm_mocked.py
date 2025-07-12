@@ -5,7 +5,7 @@ import shutil
 from unittest.mock import patch
 import pytest
 
-from backend.text_to_graph_pipeline.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
@@ -60,22 +60,23 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 return response
             else:
                 # If we run out of mocked responses, return a default
-                return WorkflowResult(success=False, new_nodes=[], node_actions=[], error_message="No more mock responses")
+                return WorkflowResult(success=False, new_nodes=[], integration_decisions=[], error_message="No more mock responses")
             
         mock_responses = [
             # First transcript response
             WorkflowResult(
                 success=True,
                 new_nodes=["Project Planning"],
-                node_actions=[NodeAction(
-                    labelled_text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
+                integration_decisions=[IntegrationDecision(
+                    name="Project Planning",
+                    text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
+                    reasoning="Creating project planning node",
                     action="CREATE",
-                    concept_name="Project Planning",
-                    neighbour_concept_name=None,
-                    relationship_to_neighbour="child of",
-                    updated_summary_of_node=self.summaries[0],
-                    markdown_content_to_append=self.summaries[0],
-                    is_complete=True
+                    target_node=None,
+                    new_node_name="Project Planning",
+                    new_node_summary=self.summaries[0],
+                    relationship_for_edge="child of",
+                    content=self.summaries[0]
                 )],
                 metadata={"chunks_processed": 1}
             ),
@@ -83,26 +84,28 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=["Investor Outreach", "POC Polish"],
-                node_actions=[
-                    NodeAction(
-                        labelled_text="Another thing I will have to do is start reaching out to investors",
+                integration_decisions=[
+                    IntegrationDecision(
+                        name="Investor Outreach",
+                        text="Another thing I will have to do is start reaching out to investors",
+                        reasoning="Creating investor outreach node",
                         action="CREATE", 
-                        concept_name="Investor Outreach",
-                        neighbour_concept_name="Project Planning",
-                        relationship_to_neighbour="child of",
-                        updated_summary_of_node=self.summaries[1],
-                        markdown_content_to_append=self.summaries[1],
-                        is_complete=True
+                        target_node="Project Planning",
+                        new_node_name="Investor Outreach",
+                        new_node_summary=self.summaries[1],
+                        relationship_for_edge="child of",
+                        content=self.summaries[1]
                     ),
-                    NodeAction(
-                        labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
+                    IntegrationDecision(
+                        name="POC Polish",
+                        text="To be able to start reaching out to investors, I will first have to polish my POC",
+                        reasoning="Creating POC polish node",
                         action="CREATE",
-                        concept_name="POC Polish",
-                        neighbour_concept_name="Investor Outreach", 
-                        relationship_to_neighbour="child of",
-                        updated_summary_of_node=self.summaries[2],
-                        markdown_content_to_append=self.summaries[2],
-                        is_complete=True
+                        target_node="Investor Outreach", 
+                        new_node_name="POC Polish",
+                        new_node_summary=self.summaries[2],
+                        relationship_for_edge="child of",
+                        content=self.summaries[2]
                     )
                 ],
                 metadata={"chunks_processed": 2}
@@ -111,7 +114,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=[],
-                node_actions=[],
+                integration_decisions=[],
                 metadata={"chunks_processed": 0}
             )
         ]
@@ -224,22 +227,23 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             if call_num < len(mock_responses):
                 return mock_responses[call_num]
             else:
-                return WorkflowResult(success=False, new_nodes=[], node_actions=[], error_message="No more mock responses")
+                return WorkflowResult(success=False, new_nodes=[], integration_decisions=[], error_message="No more mock responses")
                 
         mock_responses = [
             # First transcript response
             WorkflowResult(
                 success=True,
                 new_nodes=["Project Planning"],
-                node_actions=[NodeAction(
-                    labelled_text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
+                integration_decisions=[IntegrationDecision(
+                    name="Project Planning",
+                    text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
+                    reasoning="Creating project planning node",
                     action="CREATE",
-                    concept_name="Project Planning",
-                    neighbour_concept_name=None,
-                    relationship_to_neighbour="child of",
-                    updated_summary_of_node=self.summaries[0],
-                    markdown_content_to_append=self.summaries[0],
-                    is_complete=True
+                    target_node=None,
+                    new_node_name="Project Planning",
+                    new_node_summary=self.summaries[0],
+                    relationship_for_edge="child of",
+                    content=self.summaries[0]
                 )],
                 metadata={"chunks_processed": 1}
             ),
@@ -248,26 +252,28 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=["POC Polish"],  # Only the new node
-                node_actions=[
-                    NodeAction(
-                        labelled_text="Another thing I will have to do is start reaching out to investors",
+                integration_decisions=[
+                    IntegrationDecision(
+                        name="Investor Outreach Info",
+                        text="Another thing I will have to do is start reaching out to investors",
+                        reasoning="Appending to project planning",
                         action="APPEND",
-                        concept_name="Project Planning",
-                        neighbour_concept_name="Project Planning",
-                        relationship_to_neighbour="append to",
-                        updated_summary_of_node=self.summaries[1],
-                        markdown_content_to_append=self.summaries[1],
-                        is_complete=True
+                        target_node="Project Planning",
+                        new_node_name=None,
+                        new_node_summary=None,
+                        relationship_for_edge=None,
+                        content=self.summaries[1]
                     ),
-                    NodeAction(
-                        labelled_text="To be able to start reaching out to investors, I will first have to polish my POC",
+                    IntegrationDecision(
+                        name="POC Polish",
+                        text="To be able to start reaching out to investors, I will first have to polish my POC",
+                        reasoning="Creating POC polish node",
                         action="CREATE",
-                        concept_name="POC Polish",
-                        neighbour_concept_name="Project Planning",
-                        relationship_to_neighbour="child of",
-                        updated_summary_of_node=self.summaries[2],
-                        markdown_content_to_append=self.summaries[2],
-                        is_complete=True
+                        target_node="Project Planning",
+                        new_node_name="POC Polish",
+                        new_node_summary=self.summaries[2],
+                        relationship_for_edge="child of",
+                        content=self.summaries[2]
                     )
                 ],
                 metadata={"chunks_processed": 2}
@@ -276,7 +282,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=[],
-                node_actions=[],
+                integration_decisions=[],
                 metadata={"chunks_processed": 0}
             )
         ]

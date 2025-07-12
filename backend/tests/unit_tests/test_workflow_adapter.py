@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowAdapter, WorkflowResult
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.text_to_graph_pipeline.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
 
 
 class TestWorkflowAdapter(unittest.TestCase):
@@ -47,10 +47,10 @@ class TestWorkflowAdapter(unittest.TestCase):
         # Since our test nodes may not have proper name attributes, just check it's not empty
         # In a real scenario, this would contain formatted node information
     
-    def test_convert_to_node_actions_handles_create_decision(self):
-        """Test conversion of CREATE workflow decision to NodeAction"""
+    def test_process_transcript_converts_to_integration_decisions(self):
+        """Test that workflow result properly converts to IntegrationDecision objects"""
         # Arrange
-        workflow_result = {
+        mock_result = {
             "integration_decisions": [
                 {
                     "action": "CREATE",
@@ -59,64 +59,69 @@ class TestWorkflowAdapter(unittest.TestCase):
                     "relationship_for_edge": "child of",
                     "content": "New content",
                     "new_node_summary": "New summary",
-                    "name": "chunk1"
+                    "name": "chunk1",
+                    "text": "test text",
+                    "reasoning": "test reasoning"
                 }
-            ]
+            ],
+            "chunks": []
         }
         
-        # Act
-        node_actions = self.adapter._convert_to_node_actions(workflow_result)
+        async def async_test():
+            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+                # Act
+                result = await self.adapter.process_transcript("Test transcript")
+                
+                # Assert
+                self.assertEqual(len(result.integration_decisions), 1)
+                decision = result.integration_decisions[0]
+                self.assertIsInstance(decision, IntegrationDecision)
+                self.assertEqual(decision.action, "CREATE")
+                self.assertEqual(decision.new_node_name, "New Concept")
+                self.assertEqual(decision.target_node, "Root")
+                self.assertEqual(decision.relationship_for_edge, "child of")
+                self.assertEqual(decision.content, "New content")
+                self.assertEqual(decision.new_node_summary, "New summary")
+                self.assertEqual(decision.name, "chunk1")
         
-        # Assert
-        self.assertEqual(len(node_actions), 1)
-        action = node_actions[0]
-        self.assertEqual(action.action, "CREATE")
-        self.assertEqual(action.concept_name, "New Concept")
-        self.assertEqual(action.neighbour_concept_name, "Root")
-        self.assertEqual(action.relationship_to_neighbour, "child of")
-        self.assertEqual(action.markdown_content_to_append, "New content")
-        self.assertEqual(action.updated_summary_of_node, "New summary")
-        self.assertTrue(action.is_complete)
-        self.assertEqual(action.labelled_text, "chunk1")
+        asyncio.run(async_test())
     
-    def test_convert_to_node_actions_handles_append_decision(self):
-        """Test conversion of APPEND workflow decision to NodeAction"""
+    def test_process_transcript_handles_append_decisions(self):
+        """Test handling of APPEND workflow decisions"""
         # Arrange
-        workflow_result = {
+        mock_result = {
             "integration_decisions": [
                 {
                     "action": "APPEND",
                     "target_node": "Test Node",
                     "content": "Additional content",
-                    "updated_summary": "Updated summary",
-                    "name": "chunk2"
+                    "name": "chunk2",
+                    "text": "test text",
+                    "reasoning": "test reasoning",
+                    "new_node_name": None,
+                    "new_node_summary": None,
+                    "relationship_for_edge": None
                 }
-            ]
+            ],
+            "chunks": []
         }
         
-        # Act
-        node_actions = self.adapter._convert_to_node_actions(workflow_result)
+        async def async_test():
+            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+                # Act
+                result = await self.adapter.process_transcript("Test transcript")
+                
+                # Assert
+                self.assertEqual(len(result.integration_decisions), 1)
+                decision = result.integration_decisions[0]
+                self.assertIsInstance(decision, IntegrationDecision)
+                self.assertEqual(decision.action, "APPEND")
+                self.assertEqual(decision.target_node, "Test Node")
+                self.assertEqual(decision.content, "Additional content")
+                self.assertIsNone(decision.new_node_name)
         
-        # Assert
-        self.assertEqual(len(node_actions), 1)
-        action = node_actions[0]
-        self.assertEqual(action.action, "APPEND")
-        self.assertEqual(action.concept_name, "Test Node")
-        self.assertIsNone(action.neighbour_concept_name)
-        self.assertEqual(action.markdown_content_to_append, "Additional content")
-        self.assertEqual(action.updated_summary_of_node, "Updated summary")
-        self.assertTrue(action.is_complete)
+        asyncio.run(async_test())
     
-    def test_convert_to_node_actions_handles_empty_decisions(self):
-        """Test handling of workflow result with no decisions"""
-        # Arrange
-        workflow_result = {"integration_decisions": []}
-        
-        # Act
-        node_actions = self.adapter._convert_to_node_actions(workflow_result)
-        
-        # Assert
-        self.assertEqual(len(node_actions), 0)
     
     def test_process_transcript_success(self):
         """Test successful transcript processing with mocked workflow"""
@@ -130,7 +135,9 @@ class TestWorkflowAdapter(unittest.TestCase):
                 "relationship_for_edge": "child of",
                 "content": "New content",
                 "new_node_summary": "New summary",
-                "name": "chunk1"
+                "name": "chunk1",
+                "text": "test text",
+                "reasoning": "test reasoning"
             }],
             "chunks": [{"name": "chunk1", "text": "test text"}],
             "incomplete_chunk_remainder": ""
@@ -144,7 +151,7 @@ class TestWorkflowAdapter(unittest.TestCase):
                 # Assert
                 self.assertTrue(result.success)
                 self.assertEqual(result.new_nodes, ["New Concept"])
-                self.assertEqual(len(result.node_actions), 1)
+                self.assertEqual(len(result.integration_decisions), 1)
                 self.assertIsNone(result.error_message)
                 self.assertIn("chunks_processed", result.metadata)
                 self.assertEqual(result.metadata["chunks_processed"], 1)
@@ -168,7 +175,7 @@ class TestWorkflowAdapter(unittest.TestCase):
                 self.assertFalse(result.success)
                 self.assertEqual(result.error_message, "Workflow failed due to LLM timeout")
                 self.assertEqual(result.new_nodes, [])
-                self.assertEqual(result.node_actions, [])
+                self.assertEqual(result.integration_decisions, [])
         
         asyncio.run(async_test())
     

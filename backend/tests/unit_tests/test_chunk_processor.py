@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
-from backend.text_to_graph_pipeline.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
 
 
 class TestChunkProcessor(unittest.TestCase):
@@ -63,15 +63,16 @@ class TestChunkProcessor(unittest.TestCase):
         mock_result = WorkflowResult(
             success=True,
             new_nodes=["New Node"],
-            node_actions=[NodeAction(
+            integration_decisions=[IntegrationDecision(
                 action="CREATE",
-                concept_name="New Node",
-                neighbour_concept_name="Root",
-                relationship_to_neighbour="child of",
-                markdown_content_to_append="New content",
-                updated_summary_of_node="New summary",
-                is_complete=True,
-                labelled_text="test"
+                name="test",
+                text="test text",
+                reasoning="test reasoning",
+                new_node_name="New Node",
+                target_node="Root",
+                relationship_for_edge="child of",
+                content="New content",
+                new_node_summary="New summary"
             )],
             metadata={"chunks_processed": 1}
         )
@@ -93,15 +94,16 @@ class TestChunkProcessor(unittest.TestCase):
         mock_result = WorkflowResult(
             success=True,
             new_nodes=[],
-            node_actions=[NodeAction(
+            integration_decisions=[IntegrationDecision(
                 action="APPEND",
-                concept_name="Test Node",
-                neighbour_concept_name=None,
-                relationship_to_neighbour=None,
-                markdown_content_to_append="Additional content",
-                updated_summary_of_node="Updated summary",
-                is_complete=True,
-                labelled_text="test"
+                name="test",
+                text="test text",
+                reasoning="test reasoning",
+                target_node="Test Node",
+                content="Additional content",
+                new_node_name=None,
+                new_node_summary=None,
+                relationship_for_edge=None
             )]
         )
         
@@ -123,7 +125,7 @@ class TestChunkProcessor(unittest.TestCase):
         mock_result = WorkflowResult(
             success=False,
             new_nodes=[],
-            node_actions=[],
+            integration_decisions=[],
             error_message="Workflow failed"
         )
         
@@ -167,7 +169,7 @@ class TestChunkProcessor(unittest.TestCase):
         mock_result = WorkflowResult(
             success=True,
             new_nodes=["Test Concept"],
-            node_actions=[]
+            integration_decisions=[]
         )
         
         async def async_test():
@@ -218,15 +220,16 @@ class TestChunkProcessor(unittest.TestCase):
         mock_result = WorkflowResult(
             success=True,
             new_nodes=[],
-            node_actions=[NodeAction(
+            integration_decisions=[IntegrationDecision(
                 action="APPEND",
-                concept_name="Test Node",
-                neighbour_concept_name=None,
-                relationship_to_neighbour=None,
-                markdown_content_to_append="Content",
-                updated_summary_of_node="Summary",
-                is_complete=True,
-                labelled_text="test"
+                name="test",
+                text="test text",
+                reasoning="test reasoning",
+                target_node="Test Node",
+                content="Content",
+                new_node_name=None,
+                new_node_summary=None,
+                relationship_for_edge=None
             )]
         )
         

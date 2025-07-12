@@ -101,7 +101,7 @@ class TextBufferManager:
         text_to_process = self._buffer
         # DO NOT clear buffer here - it will be updated by flush_completed_text
         
-        logging.info(f"Processing buffer: {len(text_to_process)} chars")
+        logging.info(f"Processing buffer: {len(text_to_process)} chars: {text_to_process}")
         return BufferResult(is_ready=True, text=text_to_process)
         
     def get_buffer(self) -> str:
