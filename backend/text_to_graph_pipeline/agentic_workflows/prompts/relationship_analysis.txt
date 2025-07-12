@@ -13,30 +13,37 @@ For each sub-chunk:
     
     3.  ACTION: Determine which single item (either an existing node from `existing_nodes_summary` OR another sub-chunk from the `sub_chunks` list) is the most semantically relevant to the current sub-chunk being processed. Record the exact `name` of that chosen item.
 
-    4.  ACTION: Determine the relationship between the current sub-chunk and the chosen item (e.
-    g., "is a subtask of", "is a possible root cause for the bug", "is blocked by", "counter-argument"). Provide this as a concise relationship type/desciption).
+    4.  ACTION: Determine the relationship between the current sub-chunk and the chosen item. To create a good relationship description:
+        - Think of it as filling in the blank: "[current chunk name] _______ [relevant node/chunk name]"
+        - The relationship should form a coherent sentence when read this way
+        - Examples: 
+          - "Database Choice" **selects technology for** "Database Architecture"
+          - "Bug Fix #123" **resolves issue described in** "Error Report"
+        - Focus on the directional nature of the relationship from the current chunk TO the relevant item
+        - Keep it concise (2-5 words)
 
-    5. before witing your final answer for 3. and 4. use the "reasoning" field in your output to start brainstorming the ideal answer. Try first actually understand what the chunk is trying to say, and how this is related to other existing ideas in nodes/chunks. What is the essence of its connection? Is it adding more detail/context, is it a subtask or follow-on task, is it correcting previous content etc.?
+    5. before writing your final answer for 3. and 4. use the "reasoning" field in your JSON output for each chunk to start brainstorming the ideal answer. Try first actually understand what the chunk is trying to say, and how this is related to other existing ideas in nodes/chunks. What is the essence of its connection? Is it adding more detail/context, is it a subtask or follow-on task, is it correcting previous content etc.?
 
-    f.  If, after careful consideration, you determine that **no** existing node AND **no** other sub-chunk is sufficiently relevant:
+    6.  If, after careful consideration, you determine that **no** existing node AND **no** other sub-chunk is sufficiently relevant:
         i.  Record the specific string: `NO_RELEVANT_NODE` for the `relevant_node_name`.
         ii. The relationship type should be `null`.
 
 
-3.  **Output Format:** Construct a JSON object with an "analyzed_chunks" field containing a list. Each element in the list corresponds to one input sub-chunk and MUST contain ALL of the following fields (no fields can be omitted):
+**Output Format:** Construct a JSON object with an "analyzed_chunks" field containing a list. Each element in the list corresponds to one input sub-chunk and MUST contain ALL of the following fields (no fields can be omitted):
     *   `name`: The original `name` of the sub-chunk from the input (required, string).
     *   `text`: The original `text` of the sub-chunk from the input (required, string).
     *   `reasoning`: Your step-by-step analysis for choosing the relevant item and relationship (required, string).
     *   `relevant_node_name`: The exact `name` of the most relevant existing node OR other sub-chunk found, or the string `NO_RELEVANT_NODE` (required, string).
     *   `relationship`: The brief description of the relationship (string), or `null` if no relevant node (use JSON null, not the string "null").
 
-4.  Ensure that EVERY element in "analyzed_chunks" contains ALL five fields listed above. Missing any field will cause validation errors. Ensure your final output is ONLY the valid JSON object described above.
+
+Ensure that EVERY element in "analyzed_chunks" contains ALL five fields listed above. Missing any field will cause validation errors. Ensure your final output is ONLY the valid JSON object described above.
 
 **Example:**
 
-**Existing Nodes:** `[{"name": "Project Setup", "summary": "Initial project configuration and requirements gathering"}]`
+**Existing Nodes:** `[{"name": "Project Setup", "summary": "Initial project configuration and requirements gathering"}, {"name": "Database Architecture", "summary": "Database design patterns and technology selection criteria"}]`
 
-**Sub-chunks:** `[{"name": "Database Choice", "text": "We decided to use PostgreSQL for better performance with complex queries"}, {"name": "API Framework", "text": "FastAPI will be our web framework due to its async capabilities"}]`
+**Sub-chunks:** `[{"name": "Database Choice", "text": "We decided to use PostgreSQL for better performance with complex queries"}, {"name": "API Framework", "text": "FastAPI will be our web framework due to its async capabilities"}, {"name": "Postgres Configuration", "text": "For our PostgreSQL setup, we need to tune the query planner settings and enable parallel query execution"}]`
 
 **Expected Output:**
 ```json
@@ -45,16 +52,23 @@ For each sub-chunk:
     {
       "name": "Database Choice", 
       "text": "We decided to use PostgreSQL for better performance with complex queries",
-      "reasoning": "This chunk describes a specific technical decision that elaborates on the broader project setup process. It provides implementation details for the database component.",
-      "relevant_node_name": "Project Setup",
-      "relationship": "elaborates on"
+      "reasoning": "This chunk describes a specific database technology selection. It directly relates to the existing Database Architecture node as it's making a concrete choice based on the architectural criteria.",
+      "relevant_node_name": "Database Architecture",
+      "relationship": "selects technology for"
     },
     {
       "name": "API Framework",
       "text": "FastAPI will be our web framework due to its async capabilities", 
-      "reasoning": "This chunk also describes a technical decision that is part of the project setup. Like the database choice, it elaborates on the setup process with specific technology selection.",
+      "reasoning": "This chunk describes a technical decision about the web framework. It's part of the broader project setup and configuration process, making it most relevant to the Project Setup node.",
       "relevant_node_name": "Project Setup",
-      "relationship": "elaborates on"
+      "relationship": "defines web framework for"
+    },
+    {
+      "name": "Postgres Configuration",
+      "text": "For our PostgreSQL setup, we need to tune the query planner settings and enable parallel query execution",
+      "reasoning": "This chunk provides specific configuration details for PostgreSQL. It's most directly related to the Database Choice sub-chunk from this same input, as it's expanding on the PostgreSQL decision with implementation specifics.",
+      "relevant_node_name": "Database Choice",
+      "relationship": "specifies configuration settings for"
     }
   ]
 }
@@ -63,7 +77,7 @@ For each sub-chunk:
 **Input Data:**
 
 **Recent Transcript History:** (the last ~250 chars before transcript_text), use this to understand the following transcript_text within the speakers's context
-{{transcript_history}}
+...{{transcript_history}}...
 
 **Existing Nodes Summary:**
 {{existing_nodes}}
