@@ -1,1 +1,0 @@
-- Fix problem wiht mentioning parent nodes.

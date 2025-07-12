@@ -74,7 +74,7 @@ class PromptLoader:
             PromptTemplate instance
         """
         if template_name not in self._templates:
-            file_path = self.prompts_dir / f"{template_name}.txt"
+            file_path = self.prompts_dir / f"{template_name}.md"
             if not file_path.exists():
                 raise FileNotFoundError(f"Template file not found: {file_path}")
             

@@ -45,8 +45,7 @@ Output:
 ```json
 {
   "chunks": [
-    {"name": "Starting Voice Tree", "text": "So, today I'm starting work on voice tree.", "is_complete": true},
-    {"name": "Things to Look Into", "text": "Right now, there's a few different things I want to look into.", "is_complete": true},
+    {"name": "Starting Voice Tree", "text": "So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into.", "is_complete": true},
     {"name": "Proof of Concept", "text": "The first thing is I want to make a proof of concept of voice tree.", "is_complete": true},
     {"name": "Incomplete Thought", "text": "So, the bare", "is_complete": false}
   ]
