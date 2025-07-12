@@ -85,7 +85,7 @@ class ChunkProcessor:
             text: The transcribed text to process
         """
         try:
-            logging.info(f"Processing transcribed text: {text}")
+            # logging.info(f"Processing transcribed text: {text}")
             text = text.replace("Thank you.", "")  # todo, whisper keeps on hallucinating thank you
             start_time = time.time()
 
@@ -98,7 +98,7 @@ class ChunkProcessor:
             self.nodes_to_update.clear()
 
             elapsed_time = time.time() - start_time
-            logging.info(f"Processing transcribed text took: {elapsed_time:.4f} seconds")
+            # logging.info(f"Processing transcribed text took: {elapsed_time:.4f} seconds")
 
         except Exception as e:
             logging.error(
