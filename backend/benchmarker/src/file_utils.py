@@ -5,10 +5,9 @@ import shutil
 from datetime import datetime
 import subprocess
 import json
-import logging
 
 from .config import (
-    OUTPUT_DIR, BACKUP_DIR_BASE, VOICETREE_LOG_FILE,
+    OUTPUT_DIR, BACKUP_DIR_BASE,
     LATEST_RUN_CONTEXT_FILE, WORKFLOW_IO_LOG
 )
 
@@ -26,17 +25,6 @@ def setup_output_directory():
         print(f"Backing up existing output from {OUTPUT_DIR} to {backup_dir}")
         shutil.copytree(OUTPUT_DIR, backup_dir)
         
-        # Copy the log file to backup if it exists, then truncate it
-        if os.path.exists(VOICETREE_LOG_FILE):
-            # Create the subdirectory structure in the backup location
-            log_backup_path = os.path.join(backup_dir, VOICETREE_LOG_FILE)
-            os.makedirs(os.path.dirname(log_backup_path), exist_ok=True)
-            shutil.copy2(VOICETREE_LOG_FILE, log_backup_path)
-            
-            # Truncate the existing log file to start fresh
-            with open(VOICETREE_LOG_FILE, 'w') as f:
-                pass  # This clears the file
-            
         # Clear the output directory for a fresh run
         shutil.rmtree(OUTPUT_DIR)
         
