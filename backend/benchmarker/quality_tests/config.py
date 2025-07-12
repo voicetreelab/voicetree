@@ -1,9 +1,5 @@
 """Configuration settings for quality benchmarking."""
 
-# API Settings
-REQUESTS_PER_MINUTE = 60  # to avoid breaching 15RPM gemini limit (OLD)
-SECONDS_PER_REQUEST = 60 / REQUESTS_PER_MINUTE
-
 # Directory Settings
 OUTPUT_DIR = "backend/benchmarker/output"
 BACKUP_DIR_BASE = "backend/benchmarker/output_backups"
@@ -23,6 +19,6 @@ DEFAULT_TEST_TRANSCRIPTS = [
     {
         "file": "backend/benchmarker/input/og_vt_transcript.txt",
         "name": "VoiceTree Original",
-        "max_words": 63*5 + 1
+        "max_words": 63*2 + 1
     }
 ]
