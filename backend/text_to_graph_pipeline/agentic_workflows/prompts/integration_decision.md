@@ -14,8 +14,8 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
     *   `name`: The concise name given to the sub-chunk.
     *   `text`: The text content of the sub-chunk.
     *   `relevant_node_name`: The name of the most relevant existing node OR another sub-chunk name, OR the string "NO_RELEVANT_NODE".
-    *   `relationship`: The relationship type (e.g., "elaborates on", "counter-argument"), OR `null`.
-    *   (It might also contain `reasoning` from the previous step, which you can ignore).
+    *   `relationship`: The relationship type (e.g., "is a counter-argument to"), OR `null`.
+    *   `reasoning` from the previous step.
 
 **Instructions:**
 
