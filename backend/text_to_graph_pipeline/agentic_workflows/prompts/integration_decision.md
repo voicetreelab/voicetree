@@ -21,20 +21,25 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
 
 1.  **Iterate through the `analyzed_sub_chunks` list.** For each sub-chunk object in the list, perform the following analysis:
     a.  **Identify Inputs for this chunk:** Note the `name`, `text`, `relevant_node_name`, and `relationship` for the current sub-chunk.
-    b.  **Determine Action (Internal Reasoning - Do Not Output Separately):**
+    b.  **First, reason through the decision:** Before determining any action, use the `reasoning` field in your JSON output as a brainstorming section:
+        *   What is the core content and purpose of this chunk?
+        *   What is the relationship type and what does it suggest about independence vs. continuation?
+        *   Does this chunk introduce new structure/concepts or just add details to existing ones?
+    c.  **Then, based on your reasoning, determine the Action:**
         *   If `relevant_node_name` is "NO_RELEVANT_NODE", the action is **CREATE**.
-        *   If `relevant_node_name` is *not* "NO_RELEVANT_NODE", analyze the `relationship`:
+        *   If `relevant_node_name` is *not* "NO_RELEVANT_NODE", analyze based on your reasoning:
             *   **APPEND** for direct continuations, minor clarifying details, corrections, examples that don't introduce new structure/concepts. Relationships like "correction", "clarifies", "example of" (sometimes), "continues process" often fit here.
             *   **CREATE** for distinct new concepts, steps, requirements, objectives, counter-arguments, questions, or when introducing specific items under a broader category. Relationships like "counter-argument", "new related topic", "alternative option", "blocked by", "introduces topic", "starts section", "poses question", "specifies requirements for", "identifies task for", "lists tasks for", or even "elaborates on" if the elaboration defines a significant sub-component, often fit here.
-            *   Use the `relationship` and the semantic *weight* of the `text` as guides. Does it feel like adding descriptive detail to an existing node (APPEND) or defining a new logical component/step/issue/item (CREATE)?
-    c.  **Prepare Output Object:** Based on the determined action, prepare a JSON object for this sub-chunk:
+    d.  **Prepare Output Object:** Based on the determined action, prepare a JSON object for this sub-chunk:
         *   **If Action is APPEND:**
+            *   `reasoning`: Your analysis from step b that led to the APPEND decision (MUST come first in the object).
             *   `action`: "APPEND"
             *   `target_node`: The `relevant_node_name` from the input chunk.
             *   `new_node_name`: `null`
             *   `new_node_summary`: `null`
             *   `relationship_for_edge`: `null`
         *   **If Action is CREATE:**
+            *   `reasoning`: Your analysis from step b that led to the CREATE decision (MUST come first in the object).
             *   `action`: "CREATE"
             *   `target_node`: The `relevant_node_name` from the input chunk (this is the node the new node connects *to*). If `relevant_node_name` was "NO_RELEVANT_NODE", use "NO_RELEVANT_NODE" here too.
             *   `new_node_name`: Use the `name` field from the input chunk as the proposed name for the new node.
@@ -52,7 +57,7 @@ Input `analyzed_sub_chunks`:
 `[ {"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "...", "relevant_node_name": "Self Improvement", "relationship": "lists tasks for"}, {"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "...", "relevant_node_name": "Yard Work", "relationship": "identifies task for"}, {"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "...", "relevant_node_name": "Fence Repair Task", "relationship": "elaborates on"} ]`
 
 Expected Output:
-`{ "integration_decisions": [ {"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "action": "CREATE", "target_node": "Self Improvement", "new_node_name": "Study and Gym Plan", "new_node_summary": "Lists studying and going to the gym as tasks for the day under self-improvement.", "relationship_for_edge": "lists tasks for"}, {"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "action": "CREATE", "target_node": "Yard Work", "new_node_name": "Fence Repair Task", "new_node_summary": "Identifies the specific yard work task of repairing the fence due to a cracking stake.", "relationship_for_edge": "identifies task for"}, {"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "action": "APPEND", "target_node": "Fence Repair Task", "new_node_name": null, "new_node_summary": null, "relationship_for_edge": null} ] }`
+`{ "integration_decisions": [ {"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "This chunk introduces specific tasks (studying and gym) under the broader self-improvement category. The relationship 'lists tasks for' indicates these are distinct activities with their own scope. These warrant their own node rather than just being appended to the general Self Improvement node.", "action": "CREATE", "target_node": "Self Improvement", "new_node_name": "Study and Gym Plan", "new_node_summary": "Lists studying and going to the gym as tasks for the day under self-improvement.", "relationship_for_edge": "lists tasks for"}, {"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "This identifies a specific yard work task with its own scope and details. The relationship 'identifies task for' suggests this is a distinct task that needs tracking. It's not just a general comment about yard work but a concrete task with its own requirements.", "action": "CREATE", "target_node": "Yard Work", "new_node_name": "Fence Repair Task", "new_node_summary": "Identifies the specific yard work task of repairing the fence due to a cracking stake.", "relationship_for_edge": "identifies task for"}, {"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "This chunk provides specific diagnostic information about the fence repair task. The relationship 'elaborates on' and the content itself show this is clarifying detail about the existing task, not introducing a new subtask or concept. It adds supporting information without creating new structure.", "action": "APPEND", "target_node": "Fence Repair Task", "new_node_name": null, "new_node_summary": null, "relationship_for_edge": null} ] }`
 
 
 **Inputs:**

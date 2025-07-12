@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class ChunkModel(BaseModel):
     """Model for segmentation stage output"""
+    reasoning: str = Field(description="Analysis of why this is segmented as a distinct chunk and completeness assessment")
     name: str = Field(description="Concise name for the chunk (1-5 words)")
     text: str = Field(description="The actual text content of the chunk")
     is_complete: bool = Field(description="Whether this chunk represents a complete thought")
@@ -36,6 +37,7 @@ class IntegrationDecision(BaseModel):
     """Model for integration decision stage output"""
     name: str = Field(description="Name of the chunk")
     text: str = Field(description="Text content of the chunk")
+    reasoning: str = Field(description="Analysis that led to the integration decision")
     action: Literal["CREATE", "APPEND"] = Field(description="Whether to create new node or append to existing")
     target_node: Optional[str] = Field(description="Target node for the action")
     new_node_name: Optional[str] = Field(description="Name for new node if action is CREATE")

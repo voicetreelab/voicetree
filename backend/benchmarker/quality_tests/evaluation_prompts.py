@@ -9,6 +9,7 @@ Here are the criteria for evaluating tree quality:
 * **Coherence:** The tree should be structured logically, with clear parent-child relationships between nodes. The connections between nodes should be meaningful and easy to follow.
 * **Conciseness:**  The tree should be free of redundancy. Each node should contain unique information and avoid repeating points already covered in other nodes.
 * **Relevance:**  The tree should prioritize the most important information from the transcript, focusing on key decisions and outcomes.
+* **relationship between nodes:** The tree should establish clear relationships between nodes, ensuring that parent-child connections make sense and reflect the logical flow of the conversation.
 * **Node Structure:** The tree should effectively separate distinct ideas into individual nodes.  There should be a balance between the number of nodes and their size.  Avoid creating too few large, unfocused nodes or too many small, fragmented nodes.  
 
 ## Scoring:
@@ -43,7 +44,7 @@ FINAL_INSTRUCTION = """
 Evaluate the tree. 
 
 IMPORTANT: Start your response with these two lines:
-Overall Score: X/5 (Rating)
+Overall Score: X/5 (Rating) this should be decimal average of all the dimensions.
 Summary: [One sentence summary of the biggest areas for improvement]
 
 Then provide your detailed evaluation addressing each criterion.

@@ -9,12 +9,19 @@ OUTPUT FORMAT:
 ```json
 {
   "chunks": [
-    {"name": "Brief 1-5 word label", "text": "The actual text...", "is_complete": true/false}
+    {"reasoning": "Analysis of why this is segmented as a distinct chunk and completeness assessment", "name": "Brief 1-5 word label", "text": "The actual text...", "is_complete": true/false}
   ]
 }
 ```
 
-SEGMENTATION RULES:
+SEGMENTATION PROCESS:
+For each potential chunk, FIRST use the `reasoning` field as brainstorming section to analyze:
+- Try understand the actual meaning of the content within the context
+- Where are the natural boundaries between distinct ideas or work-items (problems, solutions, questions)?
+- What parts are likely be unfinished?
+
+THEN apply these segmentation rules based on your reasoning:
+
 1. **One idea per chunk** - Each chunk must be a complete, self-contained thought that can stand alone as a knowledge node.
 
 2. **Split on topic shifts** - New chunk when:
@@ -45,9 +52,9 @@ Output:
 ```json
 {
   "chunks": [
-    {"name": "Starting Voice Tree", "text": "So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into.", "is_complete": true},
-    {"name": "Proof of Concept", "text": "The first thing is I want to make a proof of concept of voice tree.", "is_complete": true},
-    {"name": "Incomplete Thought", "text": "So, the bare", "is_complete": false}
+    {"reasoning": "This introduces the main topic (voice tree project) and sets up context about exploring different aspects. It's a complete thought that stands alone.", "name": "Starting Voice Tree", "text": "So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into.", "is_complete": true},
+    {"reasoning": "This shifts to a specific task - creating a proof of concept. It's a distinct action item separate from the general introduction, forming its own complete thought.", "name": "Proof of Concept", "text": "The first thing is I want to make a proof of concept of voice tree.", "is_complete": true},
+    {"reasoning": "This segment cuts off mid-sentence after 'bare', clearly incomplete. Waiting for more context to understand what aspect of the proof of concept is being discussed.", "name": "Incomplete Thought", "text": "So, the bare", "is_complete": false}
   ]
 }
 ```
@@ -58,9 +65,9 @@ Output:
 ```json
 {
   "chunks": [
-    {"name": "Visualization Libraries", "text": "I need to look into visualization libraries.", "is_complete": true},
-    {"name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": true},
-    {"name": "Timing Note", "text": "But that's later.", "is_complete": true}
+    {"reasoning": "This is a distinct task about researching visualization libraries. It's a complete, self-contained thought.", "name": "Visualization Libraries", "text": "I need to look into visualization libraries.", "is_complete": true},
+    {"reasoning": "this could be introducing a separate task about data format conversion. It's grammatically informal but arguably conceptually complete. Since it is borderline, let's default to waiting for more input later to see if it gets completed", "name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": false},
+    {"reasoning": "This seems to be referring back to the same task about researching visualization libraries. It's a complete thought.", "name": "Mermaid Visualization", "text": "Oh yea, Myles mentioned Mermaid as a good visualization option", "is_complete": true},
   ]
 }
 ```
