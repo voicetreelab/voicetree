@@ -30,7 +30,7 @@ SEGMENTATION RULES:
    - It is fine to only return a single chunk in your final output.
 
 4. **Completeness check** - For EVERY chunk:
-   - `is_complete: false` if it ends mid-sentence or trails off (e.g., "So, the bare", "And then I")
+   - `is_complete: false` if it ends mid-sentence or doesn't yet make sense within the context (e.g., "So, that's going to be something that", "And then we will build")
    - `is_complete: true` if it's a complete thought
    - When unsure, mark incomplete - better to wait for more context
 
