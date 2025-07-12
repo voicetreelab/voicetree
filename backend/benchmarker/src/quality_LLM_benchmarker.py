@@ -15,7 +15,7 @@ import asyncio
 import logging
 
 from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
-from backend.benchmarker.quality_tests import (
+from backend.benchmarker.src import (
     DEFAULT_TEST_TRANSCRIPTS,
     TranscriptProcessor,
     QualityEvaluator

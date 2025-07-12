@@ -4,7 +4,7 @@
 
 ### 1. Full System Benchmarker (Recommended)
 ```bash
-python -m backend.benchmarker.quality_tests.quality_LLM_benchmarker
+python -m backend.benchmarker.src.quality_LLM_benchmarker
 ```
 **Outputs:**
 - Markdown files: `backend/oldVaults/VoiceTreePOC/QualityTest/`

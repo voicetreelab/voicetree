@@ -91,14 +91,14 @@ pytest backend/tests/unit_tests
 pytest backend/tests/integration_tests/
 
 # Run benchmarker for quality testing
-python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
+python backend/benchmarker/src/quality_LLM_benchmarker.py
 ```
 
 All tests and scripts should always be run from the root directory for consistency.
 
 
 ### Quality Debugging Workflow
-1. Run benchmarker to generate output: `python -m backend.benchmarker.quality_tests.quality_LLM_benchmarker`
+1. Run benchmarker to generate output: `python -m backend.benchmarker.src.quality_LLM_benchmarker`
 2. Check generated markdown files in `output/` directory
 3. Identify quality issues (missing content, poor structure)
 4. Review debug logs in `output/debug_output_[timestamp]/`
