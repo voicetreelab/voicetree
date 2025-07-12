@@ -13,7 +13,7 @@ from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Decisio
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
-from backend.text_to_graph_pipeline.tree_manager import NodeAction
+from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
 
 
 class TestChunkBoundariesIntegration:
@@ -67,15 +67,16 @@ class TestChunkBoundariesIntegration:
                 return WorkflowResult(
                     success=True,
                     new_nodes=["NLP Project"],
-                    node_actions=[NodeAction(
-                        labelled_text=transcript,
+                    integration_decisions=[IntegrationDecision(
+                        name="NLP Project",
+                        text=transcript,
+                        reasoning="Creating NLP project node",
                         action="CREATE",
-                        concept_name="NLP Project",
-                        neighbour_concept_name="Root",
-                        relationship_to_neighbour="child of",
-                        updated_summary_of_node="## NLP Project\n\nDeveloping a natural language processing system using transformers.",
-                        markdown_content_to_append="## NLP Project\n\nDeveloping a natural language processing system using transformers.",
-                        is_complete=True
+                        target_node="Root",
+                        new_node_name="NLP Project",
+                        new_node_summary="## NLP Project\n\nDeveloping a natural language processing system using transformers.",
+                        relationship_for_edge="child of",
+                        content="## NLP Project\n\nDeveloping a natural language processing system using transformers."
                     )],
                     metadata={"chunks_processed": 1}
                 )
@@ -84,15 +85,16 @@ class TestChunkBoundariesIntegration:
                 return WorkflowResult(
                     success=True,
                     new_nodes=["System Features"],
-                    node_actions=[NodeAction(
-                        labelled_text=transcript,
+                    integration_decisions=[IntegrationDecision(
+                        name="System Features",
+                        text=transcript,
+                        reasoning="Creating features node",
                         action="CREATE",
-                        concept_name="System Features",
-                        neighbour_concept_name="NLP Project",
-                        relationship_to_neighbour="child of",
-                        updated_summary_of_node="## System Features\n\nKey features including entity recognition, sentiment analysis, and document classification.",
-                        markdown_content_to_append="## System Features\n\nKey features including entity recognition, sentiment analysis, and document classification.",
-                        is_complete=True
+                        target_node="NLP Project",
+                        new_node_name="System Features",
+                        new_node_summary="## System Features\n\nKey features including entity recognition, sentiment analysis, and document classification.",
+                        relationship_for_edge="child of",
+                        content="## System Features\n\nKey features including entity recognition, sentiment analysis, and document classification."
                     )],
                     metadata={"chunks_processed": 1}
                 )
@@ -161,15 +163,16 @@ class TestChunkBoundariesIntegration:
         mock_process_transcript.return_value = WorkflowResult(
             success=True,
             new_nodes=["AI System"],
-            node_actions=[NodeAction(
-                labelled_text="The artificial intelligence system uses deep learning",
+            integration_decisions=[IntegrationDecision(
+                name="AI System",
+                text="The artificial intelligence system uses deep learning",
+                reasoning="Creating AI system node",
                 action="CREATE",
-                concept_name="AI System",
-                neighbour_concept_name="Root",
-                relationship_to_neighbour="child of",
-                updated_summary_of_node="## AI System\n\nDeep learning artificial intelligence system.",
-                markdown_content_to_append="## AI System\n\nDeep learning artificial intelligence system.",
-                is_complete=True
+                target_node="Root",
+                new_node_name="AI System",
+                new_node_summary="## AI System\n\nDeep learning artificial intelligence system.",
+                relationship_for_edge="child of",
+                content="## AI System\n\nDeep learning artificial intelligence system."
             )],
             metadata={"chunks_processed": 1}
         )

@@ -42,14 +42,15 @@ class DecisionTree:
 
     def create_new_node(self, name: str, parent_node_id: int | None, content: str, summary : str, relationship_to_parent: str = "child of") -> int:
         if parent_node_id is not None and parent_node_id not in self.tree:
-            logging.error(f"Error: Trying to create a node with non-existent parent ID: {parent_node_id}")
+            logging.error(f"Warning: Trying to create a node with non-existent parent ID: {parent_node_id}")
             parent_node_id = None
 
         # Check if a similar node already exists as a child of this parent
-        existing_child_id = self._find_similar_child(name, parent_node_id)
-        if existing_child_id is not None:
-            logging.info(f"Found existing similar child node '{self.tree[existing_child_id].title}' (ID: {existing_child_id}) under parent {parent_node_id}. Returning existing node instead of creating duplicate.")
-            return existing_child_id
+        # todo, temp remove since unnec complexity for now.
+        # existing_child_id = self._find_similar_child(name, parent_node_id)
+        # if existing_child_id is not None:
+        #     logging.info(f"Found existing similar child node '{self.tree[existing_child_id].title}' (ID: {existing_child_id}) under parent {parent_node_id}. Returning existing node instead of creating duplicate.")
+        #     return existing_child_id
 
         # Only get and increment node_id after validation passes
         new_node_id = self.next_node_id
@@ -61,6 +62,7 @@ class DecisionTree:
         self.tree[new_node_id] = new_node
         if parent_node_id is not None:
             self.tree[parent_node_id].children.append(new_node_id)
+
         self.tree[new_node_id].summary = summary if summary else extract_summary(content)
         
         # Increment AFTER successful creation

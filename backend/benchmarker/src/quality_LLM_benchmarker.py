@@ -15,6 +15,7 @@ import asyncio
 import logging
 
 from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
+from backend.logging_config import setup_logging
 from backend.benchmarker.src import (
     DEFAULT_TEST_TRANSCRIPTS,
     TranscriptProcessor,
@@ -68,11 +69,9 @@ async def run_quality_benchmark(test_transcripts=None):
 
 async def main():
     """Main entry point for quality benchmarking."""
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    # Configure logging - use benchmarker-specific log file
+    from backend.benchmarker.src.config import VOICETREE_LOG_FILE
+    setup_logging(VOICETREE_LOG_FILE, console_level=logging.INFO)
     
     # You can customize test transcripts here or use defaults
     await run_quality_benchmark()

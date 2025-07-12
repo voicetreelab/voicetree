@@ -40,6 +40,7 @@ class VoiceTreePipeline:
         # The pipeline only returns incomplete_chunk_remainder for the buffer manager to store
         
         # Get existing nodes from state manager
+        # todo, this should be passed in as a parameter instead to avoid coupling
         existing_nodes_text = self.state_manager.get_node_summaries() if self.state_manager else "No existing nodes"
         
         # Create initial state matching VoiceTreeState schema
@@ -143,17 +144,18 @@ def run_voicetree_pipeline(
     # Create a temporary pipeline instance
     pipeline = VoiceTreePipeline(state_file)
     
-    # If existing_nodes provided, add them to state manager (for backward compatibility)
-    if existing_nodes and pipeline.state_manager:
-        for node in existing_nodes:
-            if node not in pipeline.state_manager.nodes:
-                pipeline.state_manager.nodes[node] = {
-                    "name": node,
-                    "created_at": "legacy",
-                    "summary": "",
-                    "parent": None,
-                    "content": ""
-                }
+    # # If existing_nodes provided, add them to state manager (for backward compatibility)
+    # todo comment out to see if we can remove this
+    # if existing_nodes and pipeline.state_manager:
+    #     for node in existing_nodes:
+    #         if node not in pipeline.state_manager.nodes:
+    #             pipeline.state_manager.nodes[node] = {
+    #                 "name": node,
+    #                 "created_at": "legacy",
+    #                 "summary": "",
+    #                 "parent": None,
+    #                 "content": ""
+    #             }
     
     return pipeline.run(transcript)
 

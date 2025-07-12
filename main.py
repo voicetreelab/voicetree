@@ -2,12 +2,17 @@ import asyncio
 import unittest
 import tempfile
 import os
+import logging
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import VoiceToTextEngine
 from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
+from backend.logging_config import setup_logging
+
+# Configure logging
+logger = setup_logging('voicetree.log', console_level=logging.ERROR)
 
 # Create temp directory for workflow state
 temp_dir = tempfile.mkdtemp()
@@ -33,8 +38,8 @@ async def main():
 
 
 if __name__ == "__main__":
-    unit_tests = unittest.TestLoader().discover('backend/tests/unit_tests')
-    unit_tests_results = unittest.TextTestRunner().run(unit_tests)
+    # unit_tests = unittest.TestLoader().discover('backend/tests/unit_tests')
+    # unit_tests_results = unittest.TextTestRunner().run(unit_tests)
     #
     # integration_tests = unittest.TestLoader().discover('tests/integration_tests/mocked')
     # integration_tests_results = unittest.TextTestRunner().run(integration_tests)
