@@ -57,7 +57,33 @@ class QualityEvaluator:
         """Generate a log entry for the quality assessment."""
         commit_hash, commit_message = get_git_info()
         
-        log_entry = (
+        # Extract overall score and summary from evaluation
+        overall_score = "Unknown"
+        summary = ""
+        
+        # Look for the overall score in the evaluation
+        if "Overall Score:" in evaluation:
+            score_line = [line for line in evaluation.split('\n') if 'Overall Score:' in line]
+            if score_line:
+                overall_score = score_line[0].split('Overall Score:')[1].strip()
+        
+        # Look for summary or biggest areas for improvement
+        if "### **Biggest Areas for Improvement:**" in evaluation:
+            summary_start = evaluation.find("### **Biggest Areas for Improvement:**")
+            summary = evaluation[summary_start:].split('\n')[1:4]  # Get first 3 improvement points
+            summary = " | ".join([s.strip() for s in summary if s.strip()])
+        
+        # Concise one-line format for quality_log.txt
+        concise_entry = (
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
+            f"{transcript_name if transcript_name else 'Unknown'} | "
+            f"{commit_hash[:10]} | "
+            f"{overall_score} | "
+            f"{summary[:150]}...\n"
+        )
+        
+        # Detailed format for latest_quality_log.txt
+        detailed_entry = (
             f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"Transcript: {transcript_name if transcript_name else transcript_file}\n"
             f"Git Commit: {commit_message} ({commit_hash})\n"
@@ -65,29 +91,28 @@ class QualityEvaluator:
             f"Quality Score: {evaluation}\n\n"
         )
         
-        return log_entry, commit_hash, commit_message
+        return concise_entry, detailed_entry, commit_hash, commit_message
     
-    def _write_logs(self, log_entry):
+    def _write_logs(self, concise_entry, detailed_entry):
         """Write evaluation to log files."""
-        # Write to the main historical quality log file (append)
-        with open(QUALITY_LOG_FILE, "a") as log_file:
-            log_file.write(log_entry)
+        # Ensure the logs directory exists
+        os.makedirs(os.path.dirname(QUALITY_LOG_FILE), exist_ok=True)
         
-        # Write to a separate file for just the latest log (overwrite)
+        # Write concise entry to the main historical quality log file (append)
+        with open(QUALITY_LOG_FILE, "a") as log_file:
+            log_file.write(concise_entry)
+        
+        # Write detailed entry to the latest log file (overwrite)
         with open(LATEST_QUALITY_LOG_FILE, "w") as log_file:
-            log_file.write(log_entry)
+            log_file.write(detailed_entry)
     
-    def evaluate_tree_quality(self, transcript_file, transcript_name=""):
+    def evaluate_tree_quality(self, transcript_content, transcript_name=""):
         """Evaluate the quality of the generated tree using an LLM."""
         # Package the output
         packaged_output = self._package_output()
         
         # Load workflow prompts
         prompts_content = self._load_workflow_prompts()
-        
-        # Read transcript content
-        with open(transcript_file, 'r') as f:
-            transcript_content = f.read()
         
         # Build evaluation prompt
         prompt = build_evaluation_prompt(
@@ -102,13 +127,13 @@ class QualityEvaluator:
         response = self.model.generate_content(prompt)
         evaluation = response.text.strip()
         
-        # Generate and write log entry
-        log_entry, commit_hash, commit_message = self._generate_log_entry(
-            transcript_name, transcript_file, evaluation
+        # Generate and write log entries
+        concise_entry, detailed_entry, commit_hash, commit_message = self._generate_log_entry(
+            transcript_name, "", evaluation
         )
-        self._write_logs(log_entry)
+        self._write_logs(concise_entry, detailed_entry)
         
         # Save run context
-        save_run_context(transcript_file, commit_hash, commit_message)
+        save_run_context("", commit_hash, commit_message)
         
         return evaluation
