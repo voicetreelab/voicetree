@@ -16,5 +16,6 @@ we either allow relationshiper to re-merge, or change integration prompt to be m
 
 If we decompose into work items first, and have W1, W2, W1, do we merge W1 before giving to relationshipper?
 
+5. if last sentence doesn't make complete senese within context, defer processing by setting incomplete.
 
 (leaving some unprocessed content?)
