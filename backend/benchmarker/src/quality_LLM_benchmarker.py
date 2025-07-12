@@ -12,12 +12,6 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 import asyncio
-import logging
-
-# Set up logging BEFORE importing other modules that might use logging
-from backend.logging_config import setup_logging
-from backend.benchmarker.src.config import VOICETREE_LOG_FILE
-logger = setup_logging(VOICETREE_LOG_FILE, console_level=logging.ERROR)
 
 from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
 from backend.benchmarker.src import (
@@ -73,9 +67,6 @@ async def run_quality_benchmark(test_transcripts=None):
 
 async def main():
     """Main entry point for quality benchmarking."""
-    # Log that benchmarker has started (logging was already configured at module level)
-    logging.info("Benchmarker started")
-    
     # You can customize test transcripts here or use defaults
     await run_quality_benchmark()
 

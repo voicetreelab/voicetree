@@ -30,7 +30,7 @@ class TestIncompleteChunkHandling:
         return WorkflowResult(
             success=True,
             new_nodes=["Save and Upload File"],
-            node_actions=[],
+            integration_decisions=[],
             metadata={
                 "chunks_processed": 3,
                 "decisions_made": 1,
@@ -70,7 +70,7 @@ class TestIncompleteChunkHandling:
                 return WorkflowResult(
                     success=True,
                     new_nodes=[],
-                    node_actions=[],
+                    integration_decisions=[],
                     metadata={
                         "chunks_processed": 1,
                         "completed_text": "I'm going to save this file, upload it with the file API, and then run the example audio to text. Cool, let's try that."
@@ -135,7 +135,7 @@ class TestIncompleteChunkHandling:
             mock_process.return_value = Mock(
                 success=True,
                 new_nodes=[],
-                node_actions=[],
+                integration_decisions=[],
                 metadata={}
             )
             
@@ -254,7 +254,7 @@ class TestIncompleteChunkHandling:
             return WorkflowResult(
                 success=True,
                 new_nodes=[],
-                node_actions=[],
+                integration_decisions=[],
                 metadata={
                     "completed_text": completed,
                     "chunks_processed": 1
