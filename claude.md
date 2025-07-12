@@ -15,7 +15,7 @@ pytest backend/tests/unit_tests
 pytest backend/tests/integration_tests/
 
 # Run benchmarker for quality testing
-python backend/benchmarker/quality_tests/quality_LLM_benchmarker.py
+python backend/benchmarker/src/quality_LLM_benchmarker.py
 ```
 
 

@@ -42,7 +42,7 @@
 - [x] **Fix benchmarker processing buffer twice**
   - ~~Issue: TranscriptProcessor processes remaining buffer content after word-by-word processing~~
   - ~~This causes duplicate content in the test output~~
-  - ~~Location: `backend/benchmarker/quality_tests/transcript_processor.py` line 96~~
+  - ~~Location: `backend/benchmarker/src/transcript_processor.py` line 96~~
   - ~~Solution: Remove the redundant buffer processing or ensure it's not duplicating content~~
   - FIXED: Redundant buffer processing has been commented out
 
