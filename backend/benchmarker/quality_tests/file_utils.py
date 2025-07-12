@@ -18,10 +18,10 @@ def setup_output_directory():
     if os.path.exists(OUTPUT_DIR):
         # Create a timestamped backup directory name
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = f"{BACKUP_DIR_BASE}_{timestamp}"
+        backup_dir = os.path.join(BACKUP_DIR_BASE, f"backup_{timestamp}")
         
         # Ensure the base backup directory exists
-        os.makedirs(os.path.dirname(BACKUP_DIR_BASE), exist_ok=True)
+        os.makedirs(BACKUP_DIR_BASE, exist_ok=True)
         
         print(f"Backing up existing output from {OUTPUT_DIR} to {backup_dir}")
         shutil.copytree(OUTPUT_DIR, backup_dir)

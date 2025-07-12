@@ -10,7 +10,7 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor im
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
-from .config import SECONDS_PER_REQUEST, OUTPUT_DIR
+from .config import OUTPUT_DIR
 from .file_utils import clear_workflow_log, setup_output_directory
 
 
@@ -80,8 +80,8 @@ class TranscriptProcessor:
                 await self.processor.process_and_convert(word + " ")
                 
                 # Small delay to simulate streaming (optional)
-                if i % 10 == 0:  # Rate limit every 10 words
-                    time.sleep(0.1)
+                if i % 30 == 0:  # Rate limit every 10 words
+                    time.sleep(0.05)
             
             # FINALIZATION: Process any remaining text in the buffer
             # remaining_buffer = self.processor.buffer_manager.get_buffer()
