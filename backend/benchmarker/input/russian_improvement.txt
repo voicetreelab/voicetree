@@ -1,0 +1,45 @@
+ okay I want to test
+ Something right now what we're doing well
+ We are working on VoiceTree.
+ Yes, we are working on VoiceTree.
+ We are improving voice tree. We have recently made architecture
+ a real improvement to voice trick but now we want to make actual accuracy and quality in
+ Improvements to voice tree
+ We have three different ideas to improve the quality.
+ of voice tray these are it
+ Changes to the agentic workflow and the prompts the first one is doing work item based segmentation
+ This means that we segment chunks into sub-chunks
+ where each sub-chunk should represent a work item.
+ item in the sense of Jira, i.e. a task. Task can be a problem, a solution, a question.
+ and all the relevant context. I played around with making manual
+ trees on paper and I realized that almost everything can be represented as a work item.
+ for example a question can be a work item and when there is something that is
+ not represented by a work item you can make
+ a synthetic or ghost work item. For example, at the start of a meeting when you are talking
+ to your colleague about your kids and picking them up from school and other bullshit.
+ This can be, uh, you can make synthetic work items.
+ called becoming friends with colleague or connecting with colleague
+ That is the work item. That is the point of this conversation.
+ Okay, now the reason we want to do work item based segmentation
+ because currently the prompt yes the prompt
+ the prompt well
+ And the prompt for segmentation is not very good.
+ I'm a fucker duck.
+ Well...
+ Yeah, let me see
+ Sorry, we are having interruption because the voice tree system is not actually working
+ It is just making
+ Bullshit I would say just content with new node name very bad very bad
+ Thank you.
+ So let me just tell my agent what is happening.
+ we have a bigger problem right now and all the output is just messed up and junk like
+ Voice tree system no longer actually working.
+ But no error in the wall.
+ Do you know what is happening?
+ Okay, let me run my rerun only.
+ Um...
+ this is gonna run the integration tests
+ Also see
+ Thank you.
+ Okay, well...
+ Let's just first get our system back together.

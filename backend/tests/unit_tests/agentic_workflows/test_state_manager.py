@@ -10,7 +10,7 @@ from datetime import datetime
 import tempfile
 import os
 
-from backend.text_to_graph_pipeline.agentic_workflows.state_manager import VoiceTreeStateManager
+from backend.text_to_graph_pipeline.agentic_workflows.core.state_manager import VoiceTreeStateManager
 
 
 class TestVoiceTreeStateManager:
@@ -88,7 +88,7 @@ class TestVoiceTreeStateManager:
         assert "- Child Node: Subtopic (child of Root Node)" in summaries
         assert "- Simple Node" in summaries
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.state_manager.datetime')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.state_manager.datetime')
     def test_add_nodes_basic(self, mock_datetime):
         """Test adding new nodes"""
         mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T12:00:00"
@@ -114,7 +114,7 @@ class TestVoiceTreeStateManager:
         assert manager.nodes["Node1"]["created_at"] == "2024-01-01T12:00:00"
         assert len(manager.execution_history) == 1
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.state_manager.datetime')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.state_manager.datetime')
     def test_add_nodes_with_parent(self, mock_datetime):
         """Test adding nodes with parent relationships"""
         mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T12:00:00"
@@ -135,7 +135,7 @@ class TestVoiceTreeStateManager:
         assert manager.nodes["Child"]["parent"] == "Parent"
     
     @patch('builtins.open', new_callable=mock_open)
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.state_manager.datetime')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.state_manager.datetime')
     def test_add_nodes_saves_state(self, mock_datetime, mock_file):
         """Test that adding nodes saves state when state file is configured"""
         mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T12:00:00"
@@ -157,7 +157,7 @@ class TestVoiceTreeStateManager:
         assert manager.nodes["Node1"]["summary"] == ""
         assert manager.nodes["Node1"]["parent"] is None
     
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.state_manager.datetime')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.state_manager.datetime')
     def test_update_node(self, mock_datetime):
         """Test updating an existing node"""
         mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T13:00:00"
@@ -215,7 +215,7 @@ class TestVoiceTreeStateManager:
         assert related == []
     
     @patch('builtins.open', new_callable=mock_open)
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.state_manager.datetime')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.state_manager.datetime')
     def test_save_state(self, mock_datetime, mock_file):
         """Test saving state to file"""
         mock_datetime.now.return_value.isoformat.return_value = "2024-01-01T12:00:00"

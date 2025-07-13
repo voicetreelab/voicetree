@@ -8,7 +8,7 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor im
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import VoiceToTextEngine
-from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
+from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import clear_debug_logs
 from backend.logging_config import setup_logging
 
 # Configure logging

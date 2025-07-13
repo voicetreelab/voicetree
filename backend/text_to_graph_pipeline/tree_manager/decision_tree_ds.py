@@ -54,7 +54,7 @@ class DecisionTree:
 
         # Only get and increment node_id after validation passes
         new_node_id = self.next_node_id
-        new_node = Node(name, new_node_id, content, parent_id=parent_node_id)
+        new_node = Node(name, new_node_id, content, summary, parent_id=parent_node_id)
         if parent_node_id is not None:
             new_node.relationships[parent_node_id] = relationship_to_parent
         

@@ -1,17 +1,18 @@
-import asyncio
-import unittest
 import os
 import shutil  # For directory operations
+import pytest
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
-class TestIntegration(unittest.TestCase):
-    def setUp(self):
+
+class TestIntegration:
+    @pytest.fixture(autouse=True)
+    def setup_method(self, tmp_path):
         self.decision_tree = DecisionTree()
-        # Use a relative path that works on all platforms
-        self.output_dir = os.path.join(os.path.dirname(__file__), "test_output")
+        # Use pytest's tmp_path for test output
+        self.output_dir = str(tmp_path / "test_output")
         self.cleanUp()
         self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
         self.processor = ChunkProcessor(self.decision_tree,
@@ -60,17 +61,17 @@ class TestIntegration(unittest.TestCase):
             print("✅ Finalization completed")
         except Exception as e:
             print(f"❌ Processing failed with error: {e}")
-            self.fail(f"Processing should not fail: {e}")
+            pytest.fail(f"Processing should not fail: {e}")
             
         # Test the tree structure
         tree = self.decision_tree.tree
         print(f"📊 Tree has {len(tree)} nodes")
 
         # Basic assertions - the system should create at least one node
-        self.assertGreaterEqual(len(tree), 1, "The tree should have at least one node.")
+        assert len(tree) >= 1, "The tree should have at least one node."
         
         # Test that the processor is properly configured
-        self.assertIsNotNone(self.processor, "Chunk processor should be initialized.")
+        assert self.processor is not None, "Chunk processor should be initialized."
         
         # Test markdown file creation - at least one node should have a file
         if len(tree) > 0:
@@ -82,7 +83,31 @@ class TestIntegration(unittest.TestCase):
                     print(f"✅ First node markdown file created: {first_filename}")
                     with open(first_file_path, "r") as f:
                         content = f.read()
-                        self.assertGreater(len(content), 0, "First node markdown file should not be empty")
+                        assert len(content) > 0, "First node markdown file should not be empty"
+                        
+                        # Verify content contains actual words from the transcript
+                        transcript_words = set(transcript.lower().split())
+                        content_words = set(content.lower().split())
+                        common_words = transcript_words & content_words
+                        
+                        # Remove common stop words that might coincidentally match
+                        stop_words = {'the', 'a', 'an', 'is', 'it', 'to', 'and', 'or', 'of', 'in', 'on', 'i'}
+                        meaningful_common_words = common_words - stop_words
+                        
+                        # Calculate percentage of meaningful transcript words found in content
+                        meaningful_transcript_words = transcript_words - stop_words
+                        if meaningful_transcript_words:
+                            percentage = len(meaningful_common_words) / len(meaningful_transcript_words) * 100
+                            print(f"📊 Content contains {percentage:.1f}% of meaningful transcript words")
+                            print(f"   Common words: {meaningful_common_words}")
+                            
+                            # Ensure at least 10% of meaningful words from transcript appear in content
+                            assert percentage >= 10, f"Content should contain at least 10% of transcript words, but only contains {percentage:.1f}%"
+                        
+                        # Also check that we don't have template variables
+                        template_vars = ['new_node_name', 'new_node_summary', 'content', 'reasoning']
+                        for var in template_vars:
+                            assert var not in content, f"Content should not contain template variable '{var}'"
                 else:
                     print(f"⚠️ First node markdown file not found: {first_file_path}")
         
@@ -99,18 +124,18 @@ class TestIntegration(unittest.TestCase):
             unique_names = set(node_names)
             if len(node_names) != len(unique_names):
                 duplicates = [name for name in unique_names if node_names.count(name) > 1]
-                self.fail(f"Duplicate nodes found: {duplicates}. Total nodes: {len(tree)}, Unique names: {len(unique_names)}")
+                pytest.fail(f"Duplicate nodes found: {duplicates}. Total nodes: {len(tree)}, Unique names: {len(unique_names)}")
             
             # Verify that at least one content node was created
             content_nodes = [node for node_id, node in tree.items() if node.content]
-            self.assertGreater(len(content_nodes), 0, "At least one content node should be created")
+            assert len(content_nodes) > 0, "At least one content node should be created"
             
             # Verify parent-child relationships are valid
             for node_id, node in tree.items():
                 if node.parent_id is not None:  # Nodes with parents
                     parent_id = node.parent_id
-                    self.assertIn(parent_id, tree, f"Parent {parent_id} of node {node_id} should exist in tree")
-                    self.assertIn(node_id, tree[parent_id].children, f"Node {node_id} should be in parent's children list")
+                    assert parent_id in tree, f"Parent {parent_id} of node {node_id} should exist in tree"
+                    assert node_id in tree[parent_id].children, f"Node {node_id} should be in parent's children list"
             
             # Test markdown file creation for all nodes
             missing_files = []
@@ -125,22 +150,23 @@ class TestIntegration(unittest.TestCase):
             
             # Fail if any markdown files are missing
             if missing_files:
-                self.fail(f"Missing markdown files: {missing_files}")
+                pytest.fail(f"Missing markdown files: {missing_files}")
         else:
             print("⚠️ No nodes were created")
             # The test should fail if no nodes are created
-            self.fail("No nodes were created by the workflow")
+            pytest.fail("No nodes were created by the workflow")
 
         print("🎯 Integration test completed successfully!")
 
-    def test_workflow_integration(self):
+    @pytest.mark.asyncio
+    async def test_workflow_integration(self):
         """Test the overall workflow integration"""
-        asyncio.run(self.run_complex_tree_creation())
+        await self.run_complex_tree_creation()
 
     def test_workflow_statistics(self):
             """Test that workflow statistics are available"""
             stats = self.processor.get_workflow_statistics()
-            self.assertIsInstance(stats, dict, "Workflow statistics should return a dictionary")
+            assert isinstance(stats, dict), "Workflow statistics should return a dictionary"
             print(f"📊 Workflow statistics: {stats}")
 
     def test_workflow_state_management(self):
@@ -154,6 +180,7 @@ class TestIntegration(unittest.TestCase):
             # This might fail if LangGraph is not available, which is okay
 
     # Keep the original test for backward compatibility but make it more robust
-    def test_complex_tree_creation(self):
+    @pytest.mark.asyncio
+    async def test_complex_tree_creation(self):
         """Legacy test method - runs the new workflow integration test"""
-        self.test_workflow_integration()
+        await self.run_complex_tree_creation()

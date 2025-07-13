@@ -97,12 +97,8 @@ class Agent:
                     
                     # Check if this is a file reference or inline template
                     if not template.strip().startswith('{') and '\n' not in template:
-                        # Looks like a filename, try to load it
-                        try:
-                            prompt = prompt_loader.render_template(pname, **state)
-                        except:
-                            # Fall back to treating as inline template
-                            prompt = template.format(**state)
+                        # Looks like a filename, load it
+                        prompt = prompt_loader.render_template(pname, **state)
                     else:
                         # Inline template
                         prompt = template.format(**state)
