@@ -114,7 +114,7 @@ class VoiceTreePipeline:
         print(f"   • Analyzed chunks: {len(state.get('analyzed_chunks', []))}")
         print(f"   • Integration decisions: {len(state.get('integration_decisions', []))}")
         print(f"   • New nodes to create: {len(state.get('new_nodes', []))}")
-        print(f"   • Append actions: {len(state.get('new_nodes', []))}") 
+        # print(f"   • Append actions: {len(state.get('', []))}") 
 
         if state.get("new_nodes"):
             print(f"   • New node names: {', '.join(state['new_nodes'])}")

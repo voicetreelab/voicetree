@@ -91,6 +91,7 @@ class ChunkProcessor:
 
             # logging.info(f"ChunkProcessor.process_and_convert calling process_voice_input with: '{text}'")
             await self.process_voice_input(text)
+            
 
             self.converter.convert_node(output_dir=self.output_dir,
                                         nodes_to_update=self.nodes_to_update)
@@ -236,6 +237,12 @@ class ChunkProcessor:
         """Finalize processing - convert any remaining nodes to markdown"""
         try:
             logging.info("Finalizing transcription processing")
+            
+            # Check if there's anything in the buffer that wasn't processed
+            final_buffer = self.buffer_manager.get_buffer()
+            if final_buffer:
+                logging.warning(f"WARNING: Buffer still has {len(final_buffer)} chars during finalize")
+            
             self.converter.convert_node(output_dir=self.output_dir,
                                         nodes_to_update=self.nodes_to_update)
             self.nodes_to_update.clear()
