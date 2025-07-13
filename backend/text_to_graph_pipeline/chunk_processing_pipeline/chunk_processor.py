@@ -210,6 +210,10 @@ class ChunkProcessor:
                 
             elif decision.action == "APPEND":
                 # Find target node and append content
+                if not decision.target_node:
+                    logging.warning(f"APPEND decision for '{decision.name}' has no target_node - skipping")
+                    continue
+                    
                 node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
                 if node_id is not None:
                     node = self.decision_tree.tree[node_id]

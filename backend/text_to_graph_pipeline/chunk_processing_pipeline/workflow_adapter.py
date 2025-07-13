@@ -77,9 +77,12 @@ class WorkflowAdapter:
             
             # Get integration decisions and convert to Pydantic models
             integration_decisions_raw = result.get("integration_decisions", [])
-            integration_decisions = [
-                IntegrationDecision(**decision) for decision in integration_decisions_raw
-            ]
+            integration_decisions = []
+            for decision in integration_decisions_raw:
+                # Convert "NO_RELEVANT_NODE" to None for cleaner downstream handling
+                if decision.get("target_node") == "NO_RELEVANT_NODE":
+                    decision["target_node"] = None
+                integration_decisions.append(IntegrationDecision(**decision))
             
             # Extract new node names from integration decisions
             new_nodes = []
@@ -144,7 +147,7 @@ class WorkflowAdapter:
         """
         # Get all nodes with their summaries
         node_summaries = []
-        for node_id, node in self.decision_tree.tree.items():
+        for node in self.decision_tree.tree.values():
             if hasattr(node, 'name') and hasattr(node, 'summary'):
                 node_summaries.append(f"{node.name}: {node.summary}")
         
