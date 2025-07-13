@@ -12,12 +12,12 @@ from pydantic_ai.models.gemini import GeminiModel
 
 # Import our schema models
 try:
-    from backend.text_to_graph_pipeline.agentic_workflows.schema_models import (
+    from backend.text_to_graph_pipeline.agentic_workflows.models import (
         SegmentationResponse, RelationshipResponse, 
         IntegrationResponse
     )
 except ImportError:
-    from schema_models import (
+    from models import (
         SegmentationResponse, RelationshipResponse,
         IntegrationResponse
     )

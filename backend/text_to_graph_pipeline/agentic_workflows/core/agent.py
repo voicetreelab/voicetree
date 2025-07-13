@@ -85,7 +85,7 @@ class Agent:
         graph = StateGraph(self.state_schema)
         
         # Create prompt loader
-        prompt_loader = PromptLoader(Path(__file__).parent / "prompts")
+        prompt_loader = PromptLoader(Path(__file__).parent.parent / "prompts")
         
         # Add each prompt as a node
         for prompt_name in self.prompts:

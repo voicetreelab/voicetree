@@ -5,7 +5,7 @@ import shutil
 from unittest.mock import patch
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
