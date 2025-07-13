@@ -2,7 +2,6 @@
 
 import os
 import time
-import logging
 import hashlib
 import tempfile
 
@@ -67,28 +66,36 @@ class TranscriptProcessor:
         try:
             # Process word by word to simulate streaming
             words = content.split()
-            print(f"Processing {len(words)} words one at a time")
+            print(f"Processing {len(words)} words ({len(content)} chars total)")
             
             for i, word in enumerate(words):
                 # Send each word individually, like streaming voice
                 await self.processor.process_and_convert(word + " ")
                 
                 # Small delay to simulate streaming (optional)
-                if i % 30 == 0:  # Rate limit every 10 words
+                if i % 30 == 0:  # Rate limit every 30 words
                     time.sleep(0.05)
             
             # FINALIZATION: Process any remaining text in the buffer
             remaining_buffer = self.processor.buffer_manager.get_buffer()
             if remaining_buffer:
-                print(f"Processing remaining buffer content: {len(remaining_buffer)} chars")
-                await self.processor.process_and_convert(remaining_buffer)
+                print(f"Processing remaining buffer: {len(remaining_buffer)} chars")
+                
+                # Get transcript history for context
+                transcript_history = self.processor.buffer_manager.get_transcript_history()
+                
+                # Directly process the remaining buffer as a chunk, bypassing the buffer manager
+                await self.processor._process_text_chunk(remaining_buffer, transcript_history)
+                
+                # Clear the buffer since we processed it
+                self.processor.buffer_manager.clear()
             
             # Convert all accumulated nodes to markdown
             await self.processor.finalize()
             
             # Log workflow statistics
             workflow_stats = self.processor.get_workflow_statistics()
-            logging.info(f"Workflow statistics: {workflow_stats}")
+            print(f"Completed. Stats: {workflow_stats}")
             
         finally:
             # Clean up the temporary state file

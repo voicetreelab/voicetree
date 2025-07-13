@@ -1,322 +1,420 @@
-# Agent Abstraction Architecture (Minimal)
+# Agent Architecture Using LangGraph
 
-This document describes a minimal abstraction layer for building agentic workflows in VoiceTree.
+This document describes how to better organize agentic workflows in VoiceTree by embracing LangGraph rather than hiding it.
 
-## Core Concepts
+## Core Philosophy: Embrace LangGraph, Don't Hide It
 
-Core components and infrastructure:
+Instead of creating another abstraction layer, we organize our code to work WITH LangGraph:
 
 ```mermaid
 graph TB
-    subgraph "Core Abstraction"
-        A[Agent]
-        N[Node]
-        E[Edge]
+    subgraph "Agents"
+        VTA[VoiceTreeAgent]
+        TRA[TreeReorgAgent]
     end
     
-    subgraph "Infrastructure"
+    subgraph "Shared Components"
+        NF[NodeFactory]
         PE[PromptEngine]
         SM[StateManager]
         DL[DebugLogger]
-        LC[LLMConfig]
     end
     
-    subgraph "Implementation"
-        VTA[VoiceTreeAgent]
+    subgraph "LangGraph Features"
+        SG[StateGraph]
+        CP[Checkpointing]
+        ST[Streaming]
+        PL[Parallel]
     end
     
-    subgraph "External Dependencies"
-        LG[LangGraph]
+    subgraph "External"
         PA[PydanticAI]
     end
     
-    A --> N
-    A --> E
-    VTA --> A
-    VTA --> PE
-    VTA --> SM
-    VTA --> DL
-    VTA --> LC
-    A --> LG
-    VTA --> PA
+    VTA --> SG
+    VTA --> NF
+    TRA --> SG
+    TRA --> NF
     
-    style A fill:#f9f,stroke:#333,stroke-width:4px
-    style PE fill:#ffa,stroke:#333,stroke-width:2px
-    style SM fill:#aff,stroke:#333,stroke-width:2px
+    NF --> PE
+    NF --> DL
+    
+    SG --> CP
+    SG --> ST
+    SG --> PL
+    
+    style SG fill:#f9f,stroke:#333,stroke-width:4px
+    style NF fill:#ffa,stroke:#333,stroke-width:2px
 ```
 
-## Class Structure
+## Agents as First-Class Citizens
 
-```mermaid
-classDiagram
-    class Agent {
-        <<abstract>>
-        +name: str
-        +nodes: Dict[str, Node]
-        +edges: List[Edge]
-        +state_manager: StateManager
-        +debug_logger: DebugLogger
-        +compile() Any
-        +run(initial_state) Dict
-        +test_node(node_id, input_state) Dict
-        #create_llm_caller(node)* Callable
-    }
-    
-    class Node {
-        +id: str
-        +prompt_template: str
-        +processor: Callable
-        +output_schema: Type[BaseModel]
-        +llm_config: LLMConfig
-    }
-    
-    class Edge {
-        +source: str
-        +target: str
-        +condition: Callable
-        +transformer: Callable
-    }
-    
-    class VoiceTreeAgent {
-        +prompt_engine: PromptEngine
-        +create_llm_caller(node) Callable
-    }
-    
-    class PromptEngine {
-        +load_template(name) PromptTemplate
-        +render(template, kwargs) str
-    }
-    
-    class StateManager {
-        +nodes: Dict[str, NodeInfo]
-        +add_nodes(names, state)
-        +get_node_summaries() str
-        +save(path)
-        +load(path)
-    }
-    
-    class DebugLogger {
-        +log_stage(stage, input, output)
-        +write_debug_file(stage)
-    }
-    
-    class LLMConfig {
-        +model: str
-        +temperature: float
-        +task_type: str
-    }
-    
-    Agent <|-- VoiceTreeAgent
-    Agent --> Node
-    Agent --> Edge
-    Agent --> StateManager
-    Agent --> DebugLogger
-    VoiceTreeAgent --> PromptEngine
-    Node --> LLMConfig
-```
-
-## Simplest API
-
-### Define and Run an Agent
+Each agent IS a specific workflow, not a builder:
 
 ```python
-# Option 1: Just use dictionaries (recommended)
-agent = VoiceTreeAgent(
-    name="Pipeline",
-    nodes={
-        "segmentation": {
-            "output_schema": SegmentationSchema
-        },
-        "relationship_analysis": {
-            "output_schema": RelationshipAnalysisSchema
-        },
-        "integration_decision": {
-            "output_schema": IntegrationDecisionSchema
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.filesystem import FileSystemCheckpointer
+
+class VoiceTreeAgent:
+    """Agent that processes voice transcripts into tree nodes"""
+    
+    def __init__(self):
+        self.graph = StateGraph(VoiceTreeState)
+        self.node_factory = NodeFactory()
+        self._setup_workflow()
+    
+    def _setup_workflow(self):
+        """Define the workflow for this agent"""
+        # Add nodes using factory
+        self.graph.add_node(
+            "segmentation",
+            self.node_factory.create_llm_node(
+                prompt_template="segmentation",
+                output_schema=SegmentationSchema
+            )
+        )
+        
+        self.graph.add_node(
+            "relationship_analysis",
+            self.node_factory.create_llm_node(
+                prompt_template="relationship_analysis",
+                output_schema=RelationshipAnalysisSchema
+            )
+        )
+        
+        # Add edges (transformations happen in nodes)
+        self.graph.set_entry_point("segmentation")
+        self.graph.add_edge("segmentation", "relationship_analysis")
+        self.graph.add_edge("relationship_analysis", END)
+    
+    def compile(self, checkpointer=None) -> CompiledGraph:
+        """Compile the agent's workflow"""
+        if checkpointer is None:
+            checkpointer = FileSystemCheckpointer("./checkpoints")
+        return self.graph.compile(checkpointer=checkpointer)
+    
+    def run(self, transcript: str, existing_nodes: str = "") -> Dict[str, Any]:
+        """Run the agent"""
+        app = self.compile()
+        return app.invoke({
+            "transcript_text": transcript,
+            "existing_nodes": existing_nodes
+        })
+```
+
+## NodeFactory: Reducing Boilerplate
+
+The NodeFactory creates standardized nodes without hiding LangGraph:
+
+```python
+class NodeFactory:
+    """Factory for creating common node patterns"""
+    
+    def __init__(self, prompt_engine: PromptEngine, debug_logger: DebugLogger):
+        self.prompt_engine = prompt_engine
+        self.debug_logger = debug_logger
+    
+    def create_llm_node(
+        self,
+        prompt_template: str,
+        output_schema: Type[BaseModel],
+        llm_config: Optional[LLMConfig] = None
+    ) -> Callable:
+        """Create a node that calls an LLM with structured output"""
+        
+        def node_fn(state: BaseModel) -> Dict[str, Any]:
+            # Log input
+            self.debug_logger.log_stage(prompt_template, "input", state)
+            
+            # Render prompt
+            prompt = self.prompt_engine.render(prompt_template, state.model_dump())
+            
+            # Call LLM with PydanticAI
+            agent = Agent(
+                llm_config.model if llm_config else "gpt-4o",
+                result_type=output_schema
+            )
+            result = agent.run_sync(prompt)
+            
+            # Log output
+            self.debug_logger.log_stage(prompt_template, "output", result.data)
+            
+            # Update state
+            return {"current_stage": prompt_template, **result.data.model_dump()}
+        
+        return node_fn
+    
+    def create_parallel_node(
+        self,
+        process_fn: Callable,
+        items_key: str = "chunks"
+    ) -> Callable:
+        """Create a node that processes items in parallel"""
+        
+        async def parallel_node(state: BaseModel) -> Dict[str, Any]:
+            items = getattr(state, items_key, [])
+            
+            # Process in parallel using asyncio
+            tasks = [process_fn(item) for item in items]
+            results = await asyncio.gather(*tasks)
+            
+            return {items_key: results}
+        
+        return parallel_node
+    
+    def create_transformer_node(
+        self,
+        name: str,
+        transform_fn: Callable[[BaseModel], Dict[str, Any]],
+        next_node: str
+    ) -> Callable:
+        """Create a node that transforms data before passing to next node"""
+        
+        def transformer_node(state: BaseModel) -> Dict[str, Any]:
+            # Log transformation
+            self.debug_logger.log_stage(f"{name}_transform", "input", state)
+            
+            # Apply transformation
+            transformed = transform_fn(state)
+            
+            # Log output
+            self.debug_logger.log_stage(f"{name}_transform", "output", transformed)
+            
+            return transformed
+        
+        return transformer_node
+```
+
+## Handling Data Transformation Between Nodes
+
+Since LangGraph doesn't support transformations in edges, we use these patterns:
+
+### Pattern 1: Transform Inside Target Node
+```python
+def relationship_analysis_node(state: VoiceTreeState) -> Dict[str, Any]:
+    # Transform: Filter only complete chunks
+    complete_chunks = [c for c in state.chunks if c.get("is_complete", False)]
+    
+    # Process only complete chunks
+    result = process_chunks(complete_chunks)
+    return {"analyzed_chunks": result}
+```
+
+### Pattern 2: Dedicated Transformer Nodes
+```python
+# Add transformer node between stages
+builder.graph.add_node(
+    "filter_chunks",
+    node_factory.create_transformer_node(
+        name="filter_chunks",
+        transform_fn=lambda state: {
+            "chunks": [c for c in state.chunks if c.get("is_complete", False)]
         }
-    },
-    edges=[
-        ("start", "segmentation"),
-        ("segmentation", "relationship_analysis"),
-        ("relationship_analysis", "integration_decision"),
-        ("integration_decision", "end")
-    ]
-)
-
-result = agent.run({
-    "transcript_text": "User input here",
-    "existing_nodes": "Node1, Node2"
-})
-```
-
-### Convention-based Approach
-
-```python
-# Even cleaner: The agent automatically infers:
-# - prompt_template from node ID (e.g., "segmentation" uses "segmentation" prompt)
-# - display name from node ID (e.g., "relationship_analysis" becomes "Relationship Analysis")
-
-agent = VoiceTreeAgent(
-    name="Pipeline",
-    nodes={
-        "segmentation": SegmentationSchema,
-        "relationship_analysis": RelationshipAnalysisSchema,
-        "integration_decision": IntegrationDecisionSchema
-    },
-    edges=[
-        ("start", "segmentation"),
-        ("segmentation", "relationship_analysis"),
-        ("relationship_analysis", "integration_decision"),
-        ("integration_decision", "end")
-    ]
-)
-```
-
-### Custom Node Example
-
-```python
-# Only specify overrides when needed
-agent = VoiceTreeAgent(
-    name="CustomPipeline",
-    nodes={
-        "translate": {
-            "output_schema": TranslationSchema,
-            "prompt_template": "custom_translate_prompt"  # Override only when different from ID
-        },
-        "review": ReviewSchema  # Use defaults for everything
-    },
-    edges=[("start", "translate"), ("translate", "review"), ("review", "end")]
-)
-```
-
-## What This Solves
-
-### Current Pain (300+ lines of boilerplate):
-```python
-def segmentation_node(state: VoiceTreeState) -> VoiceTreeState:
-    return process_llm_stage_structured(
-        state=state,
-        stage_name="segmentation",
-        stage_type="segmentation",
-        prompt_name="segmentation",
-        prompt_kwargs={
-            "transcript": state.get("transcript_text", ""),
-            "max_node_name_length": MAX_NODE_NAME_LENGTH,
-            "excluded_phrases": ", ".join(EXCLUDED_PHRASES)
-        },
-        result_key="chunks",
-        next_stage="segmentation_complete"
     )
-
-# Plus manual graph construction...
-graph = StateGraph(VoiceTreeState)
-graph.add_node("segmentation", segmentation_node)
-# ... etc
-```
-
-### New Way (Define once, declaratively):
-```python
-agent = VoiceTreeAgent(
-    name="Pipeline",
-    nodes={"segmentation": SegmentationSchema},
-    edges=[("start", "segmentation"), ("segmentation", "end")]
 )
+
+# Wire it between nodes
+builder.graph.add_edge("segmentation", "filter_chunks")
+builder.graph.add_edge("filter_chunks", "relationship_analysis")
 ```
 
-## Testing
-
+### Pattern 3: Composable Node Decorators
 ```python
-# Mock agent for testing
-class TestAgent(VoiceTreeAgent):
-    def __init__(self, name, nodes, edges, mock_responses):
-        super().__init__(name, nodes, edges)
-        self.mock_responses = mock_responses
+def with_transformation(transform_fn: Callable):
+    """Decorator to add transformation to a node"""
+    def decorator(node_fn: Callable):
+        def wrapped(state: BaseModel) -> Dict[str, Any]:
+            # Transform input
+            transformed_state = transform_fn(state)
+            # Run original node
+            return node_fn(transformed_state)
+        return wrapped
+    return decorator
+
+# Usage
+@with_transformation(lambda s: filter_complete_chunks(s))
+def relationship_analysis_node(state):
+    # Works with already filtered chunks
+    pass
+```
+
+### Pattern 4: State Schema with Computed Properties
+```python
+class VoiceTreeState(BaseModel):
+    chunks: List[ChunkModel] = []
     
-    def create_llm_caller(self, node):
-        def mock_caller(state):
-            return self.mock_responses.get(node.id, {})
-        return mock_caller
+    @computed_field
+    @property
+    def complete_chunks(self) -> List[ChunkModel]:
+        """Auto-computed filtered chunks"""
+        return [c for c in self.chunks if c.is_complete]
+    
+    @computed_field
+    @property
+    def incomplete_chunks(self) -> List[ChunkModel]:
+        """Auto-computed incomplete chunks"""
+        return [c for c in self.chunks if not c.is_complete]
+```
 
-# Test usage
-agent = TestAgent(
-    "Test Pipeline",
-    nodes={"segmentation": SegmentationSchema},
-    edges=[("start", "segmentation"), ("segmentation", "end")],
-    mock_responses={"segmentation": {"chunks": [{"name": "Test"}]}}
+### Real Example: VoiceTree Data Flow
+```python
+class VoiceTreeAgent:
+    def _setup_workflow(self):
+        # Segmentation outputs all chunks (complete and incomplete)
+        self.graph.add_node("segmentation", ...)
+        
+        # Relationship analysis only processes complete chunks
+        self.graph.add_node(
+            "relationship_analysis",
+            self.node_factory.create_llm_node(
+                prompt_template="relationship_analysis",
+                output_schema=RelationshipAnalysisSchema,
+                pre_transform=lambda state: {
+                    **state.model_dump(),
+                    "chunks": state.complete_chunks  # Use computed property
+                }
+            )
+        )
+        
+        # Integration decision gets all analyzed chunks
+        self.graph.add_node("integration_decision", ...)
+```
+
+### Example: Tree Reorganization Agent
+```python
+class TreeReorgAgent:
+    """Agent that analyzes and reorganizes the knowledge tree"""
+    
+    def __init__(self, decision_tree: DecisionTree):
+        self.decision_tree = decision_tree
+        self.graph = StateGraph(TreeReorgState)
+        self.node_factory = NodeFactory()
+        self._setup_workflow()
+    
+    def _setup_workflow(self):
+        # Analyze current tree structure
+        self.graph.add_node(
+            "analyze_tree",
+            self.node_factory.create_llm_node(
+                prompt_template="analyze_tree_structure",
+                output_schema=TreeAnalysisSchema
+            )
+        )
+        
+        # Plan reorganization
+        self.graph.add_node(
+            "plan_reorg",
+            self.node_factory.create_llm_node(
+                prompt_template="plan_tree_reorg",
+                output_schema=ReorgPlanSchema
+            )
+        )
+        
+        # Execute changes (with side effects)
+        self.graph.add_node(
+            "execute_reorg",
+            self._create_execution_node()
+        )
+        
+        # Define flow
+        self.graph.set_entry_point("analyze_tree")
+        self.graph.add_edge("analyze_tree", "plan_reorg")
+        self.graph.add_edge("plan_reorg", "execute_reorg")
+        self.graph.add_edge("execute_reorg", END)
+```
+
+## Using LangGraph Features
+
+### 1. Checkpointing for Resumability
+```python
+# Enable checkpointing
+checkpointer = FileSystemCheckpointer("./checkpoints")
+app = builder.build().compile(checkpointer=checkpointer)
+
+# Resume from checkpoint
+config = {"configurable": {"thread_id": "session-123"}}
+state = app.get_state(config)
+app.invoke(state.values, config)
+```
+
+### 2. Streaming for Real-time Updates
+```python
+# Stream results as they process
+async for chunk in app.astream(initial_state):
+    print(f"Stage: {chunk['current_stage']}")
+    if 'chunks' in chunk:
+        print(f"Found {len(chunk['chunks'])} chunks")
+```
+
+### 3. Parallel Processing
+```python
+# Process multiple chunks in parallel
+builder.graph.add_node(
+    "parallel_analysis",
+    node_factory.create_parallel_node(
+        process_fn=analyze_chunk,
+        items_key="chunks"
+    )
 )
-
-result = agent.run({"transcript_text": "test"})
-assert "chunks" in result
 ```
 
-## Implementation Notes
-
-The `Agent` base class will:
-1. Accept nodes and edges in constructor
-2. Auto-compile to LangGraph on first run
-3. Handle all boilerplate (error handling, logging, state updates)
-4. Provide `test_node()` for isolated testing
-
-The `VoiceTreeAgent` subclass will:
-1. Implement `create_llm_caller()` for PydanticAI integration
-2. Handle prompt rendering and response parsing
-3. Maintain backward compatibility with existing system
-
-## Benefits
-
-1. **Minimal concepts** - Agent = Workflow (no artificial separation)
-2. **Declarative** - Define structure, not implementation
-3. **No boilerplate** - Agent handles all repetitive code
-4. **Easy testing** - Simple mocking strategy
-5. **Gradual migration** - Can coexist with current implementation
-
-## Infrastructure Components
-
-### PromptEngine
-Handles prompt template loading and rendering with custom `{{variable}}` syntax:
+### 4. Human-in-the-Loop
 ```python
-# Templates use {{}} to avoid conflicts with JSON examples
-template = "Analyze: {{transcript}}\nMax length: {{max_length}}"
-```
+# Add approval step
+from langgraph.prebuilt import ToolExecutor, HumanApproval
 
-### StateManager
-Persists agent state across executions:
-```python
-agent = VoiceTreeAgent(
-    name="Pipeline",
-    nodes={"segmentation": SegmentationSchema},
-    state_manager=StateManager("voicetree_state.json")  # Optional persistence
+builder.graph.add_node(
+    "approve_decisions",
+    HumanApproval(
+        tools=[approve_tool, reject_tool],
+        description="Review integration decisions"
+    )
 )
 ```
 
-### DebugLogger
-Automatic debug logging for every node:
+## Testing Strategy
+
+Test using LangGraph's built-in capabilities:
+
 ```python
-# Automatically logs to debug files:
-# - logs/segmentation_input.log
-# - logs/segmentation_output.log
-# - logs/debug_summary.log
+def test_voicetree_agent():
+    """Test using LangGraph's testing features"""
+    agent = VoiceTreeAgent()
+    
+    # Test with mock checkpointer
+    mock_checkpointer = MemorySaver()
+    test_app = agent.compile(checkpointer=mock_checkpointer)
+    
+    # Run and inspect state at each step
+    config = {"configurable": {"thread_id": "test-1"}}
+    result = test_app.invoke(test_input, config)
+    
+    # Inspect intermediate states
+    states = list(mock_checkpointer.list(config))
+    assert len(states) == 3  # segmentation, analysis, decision
 ```
 
-### LLMConfig
-Per-node LLM configuration:
-```python
-nodes = {
-    "segmentation": {
-        "output_schema": SegmentationSchema,
-        "llm_config": {"model": "gpt-4o", "temperature": 0.3}
-    },
-    "creative_writing": {
-        "output_schema": WritingSchema,
-        "llm_config": {"model": "gpt-4o-mini", "temperature": 0.9}
-    }
-}
-```
+## Benefits of This Approach
 
-## What We're NOT Building
+1. **No Hidden Features** - Full access to LangGraph's power
+2. **Less Code** - NodeFactory reduces boilerplate without abstraction
+3. **Better Testing** - Use LangGraph's testing utilities
+4. **Future-Proof** - New LangGraph features automatically available
+5. **Cleaner Organization** - Each agent is a clear, self-contained workflow
 
-- No workflow builders or factories
-- No complex type systems
-- No workflow inheritance
-- No visual designers
+## What We're NOT Doing
 
-Just a simple way to define agents without boilerplate.
+- NOT creating another graph abstraction
+- NOT hiding LangGraph behind interfaces
+- NOT reimplementing existing features
+- NOT limiting access to advanced features
+
+## Migration Path
+
+1. **Phase 1**: Create NodeFactory to reduce boilerplate
+2. **Phase 2**: Refactor current pipeline into VoiceTreeAgent class
+3. **Phase 3**: Add checkpointing and streaming
+4. **Phase 4**: Implement parallel processing where beneficial
+5. **Phase 5**: Create new agents (TreeReorgAgent, etc.) following same pattern
+
+This approach gives us clean code organization while fully embracing LangGraph's capabilities.
