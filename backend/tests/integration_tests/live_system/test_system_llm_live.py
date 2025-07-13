@@ -1,10 +1,14 @@
 import os
 import shutil  # For directory operations
 import pytest
+import nest_asyncio
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+
+# Apply nest_asyncio to allow nested event loops
+nest_asyncio.apply()
 
 
 class TestIntegration:
@@ -23,6 +27,12 @@ class TestIntegration:
         if os.path.exists(log_file_path):
             with open(log_file_path, 'w') as f:
                 f.truncate()
+        
+        # Yield control to the test
+        yield
+        
+        # Cleanup after test
+        self.processor.clear_workflow_state()
 
     def cleanUp(self):
         # Clean up the test output directory
@@ -179,8 +189,3 @@ class TestIntegration:
             print(f"⚠️ Error clearing workflow state: {e}")
             # This might fail if LangGraph is not available, which is okay
 
-    # Keep the original test for backward compatibility but make it more robust
-    @pytest.mark.asyncio
-    async def test_complex_tree_creation(self):
-        """Legacy test method - runs the new workflow integration test"""
-        await self.run_complex_tree_creation()

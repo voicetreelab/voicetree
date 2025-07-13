@@ -3,7 +3,6 @@ Workflow Adapter for VoiceTree
 Provides a clean interface between the VoiceTree backend and agentic workflows
 """
 
-import asyncio
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
@@ -62,8 +61,8 @@ class WorkflowAdapter:
             existing_nodes = self.state_manager.get_node_summaries() if self.state_manager else self._get_node_summaries()
             
             # Run the agent directly
-            result = await asyncio.to_thread(
-                self.agent.run,
+            # Use a synchronous call in the current thread to avoid event loop conflicts
+            result = self.agent.run(
                 transcript=transcript,
                 transcript_history=context,  # This is the transcript_history from buffer manager
                 existing_nodes=existing_nodes

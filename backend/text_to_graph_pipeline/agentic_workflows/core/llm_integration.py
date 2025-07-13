@@ -75,6 +75,7 @@ def _get_api_key() -> Optional[str]:
 _load_environment()
 
 
+
 def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
     """
     Call the LLM with structured output using Pydantic schemas
