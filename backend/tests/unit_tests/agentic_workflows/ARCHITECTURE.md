@@ -54,6 +54,8 @@ classDiagram
         +name: str
         +nodes: Dict[str, Node]
         +edges: List[Edge]
+        +state_manager: StateManager
+        +debug_logger: DebugLogger
         +compile() Any
         +run(initial_state) Dict
         +test_node(node_id, input_state) Dict
@@ -62,10 +64,10 @@ classDiagram
     
     class Node {
         +id: str
-        +name: str
         +prompt_template: str
         +processor: Callable
         +output_schema: Type[BaseModel]
+        +llm_config: LLMConfig
     }
     
     class Edge {
@@ -76,12 +78,41 @@ classDiagram
     }
     
     class VoiceTreeAgent {
+        +prompt_engine: PromptEngine
         +create_llm_caller(node) Callable
+    }
+    
+    class PromptEngine {
+        +load_template(name) PromptTemplate
+        +render(template, kwargs) str
+    }
+    
+    class StateManager {
+        +nodes: Dict[str, NodeInfo]
+        +add_nodes(names, state)
+        +get_node_summaries() str
+        +save(path)
+        +load(path)
+    }
+    
+    class DebugLogger {
+        +log_stage(stage, input, output)
+        +write_debug_file(stage)
+    }
+    
+    class LLMConfig {
+        +model: str
+        +temperature: float
+        +task_type: str
     }
     
     Agent <|-- VoiceTreeAgent
     Agent --> Node
     Agent --> Edge
+    Agent --> StateManager
+    Agent --> DebugLogger
+    VoiceTreeAgent --> PromptEngine
+    Node --> LLMConfig
 ```
 
 ## Simplest API
@@ -237,6 +268,49 @@ The `VoiceTreeAgent` subclass will:
 3. **No boilerplate** - Agent handles all repetitive code
 4. **Easy testing** - Simple mocking strategy
 5. **Gradual migration** - Can coexist with current implementation
+
+## Infrastructure Components
+
+### PromptEngine
+Handles prompt template loading and rendering with custom `{{variable}}` syntax:
+```python
+# Templates use {{}} to avoid conflicts with JSON examples
+template = "Analyze: {{transcript}}\nMax length: {{max_length}}"
+```
+
+### StateManager
+Persists agent state across executions:
+```python
+agent = VoiceTreeAgent(
+    name="Pipeline",
+    nodes={"segmentation": SegmentationSchema},
+    state_manager=StateManager("voicetree_state.json")  # Optional persistence
+)
+```
+
+### DebugLogger
+Automatic debug logging for every node:
+```python
+# Automatically logs to debug files:
+# - logs/segmentation_input.log
+# - logs/segmentation_output.log
+# - logs/debug_summary.log
+```
+
+### LLMConfig
+Per-node LLM configuration:
+```python
+nodes = {
+    "segmentation": {
+        "output_schema": SegmentationSchema,
+        "llm_config": {"model": "gpt-4o", "temperature": 0.3}
+    },
+    "creative_writing": {
+        "output_schema": WritingSchema,
+        "llm_config": {"model": "gpt-4o-mini", "temperature": 0.9}
+    }
+}
+```
 
 ## What We're NOT Building
 

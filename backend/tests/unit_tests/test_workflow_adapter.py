@@ -139,7 +139,7 @@ class TestWorkflowAdapter(unittest.TestCase):
                 "text": "test text",
                 "reasoning": "test reasoning"
             }],
-            "chunks": [{"name": "chunk1", "text": "test text", "is_complete": true}]
+            "chunks": [{"name": "chunk1", "text": "test text", "is_complete": True}]
         }
         
         async def async_test():
