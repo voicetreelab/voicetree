@@ -301,7 +301,7 @@ class TestRelationshipAnalysisNode:
         """Test relationship analysis node"""
         state = {
             "existing_nodes": "Node1: Description",
-            "chunks": [{"name": "Test", "text": "Content"}]
+            "chunks": [{"name": "Test", "text": "Content", "is_complete": True}]
         }
         
         expected_response = {
@@ -330,7 +330,7 @@ class TestRelationshipAnalysisNode:
         # Verify prompt kwargs
         prompt_kwargs = call_args["prompt_kwargs"]
         assert prompt_kwargs["existing_nodes"] == "Node1: Description"
-        assert json.loads(prompt_kwargs["sub_chunks"]) == [{"name": "Test", "text": "Content"}]
+        assert json.loads(prompt_kwargs["sub_chunks"]) == [{"name": "Test", "text": "Content", "is_complete": True}]
 
 
 class TestIntegrationDecisionNode:
