@@ -31,39 +31,10 @@ def log_to_file(stage_name: str, log_type: str, content: str):
 
 
 # Import the LLM integration and debug logger
-try:
-    from backend.text_to_graph_pipeline.agentic_workflows.llm_integration import call_llm_structured, call_llm
-    from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
-except ImportError:  # pragma: no cover
-    # If running from a different directory, try relative import
-    try:
-        from llm_integration import call_llm_structured, call_llm
-        from debug_logger import log_stage_input_output, log_transcript_processing
-    except ImportError:
-        print("⚠️ Could not import LLM integration - using mock implementation")
-        
-        # Mock debug logging
-        def log_stage_input_output(stage_name: str, inputs: dict, outputs: dict):
-            print(f"📝 (Mock) Would log {stage_name} I/O")
-        
-        def log_transcript_processing(transcript_text: str, file_source: str = "unknown"):
-            print(f"📝 (Mock) Would log transcript input")
-        
-        # Fallback mock implementation
-        def call_llm_structured(prompt: str, stage_type: str) -> dict:
-            """Mock structured LLM call for testing"""
-            print(f"=== MOCK STRUCTURED LLM CALL (FALLBACK) ===")
-            print(f"Stage: {stage_type}")
-            print(f"Prompt length: {len(prompt)} characters")
-            print("===================")
-            return {"mock": "response"}
-        
-        def call_llm(prompt: str) -> str:
-            """Mock LLM call for testing"""
-            print(f"=== MOCK LLM CALL (FALLBACK) ===")
-            print(f"Prompt length: {len(prompt)} characters")
-            print("===================")
-            return "Mock response"
+from backend.text_to_graph_pipeline.agentic_workflows.llm_integration import call_llm_structured, call_llm
+
+from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import log_stage_input_output, log_transcript_processing
+
 
 
 # Constants
@@ -218,7 +189,7 @@ def process_llm_stage_structured(
     """
     # Format stage name for display (e.g., "relationship_analysis" -> "Relationship Analysis")
     display_name = stage_name.replace("_", " ").title()
-    print(f"🔵 Stage: {display_name}")
+    # print(f"🔵 Stage: {display_name}")
     
     # Log the input variables for debugging
     debug_inputs = {
@@ -379,7 +350,7 @@ def segmentation_node(state: VoiceTreeState) -> VoiceTreeState:
         else:
             result["incomplete_chunk_remainder"] = None
         
-        print(f"   ✅ Processing {len(complete_chunks)} complete chunks")
+        # print(f"   ✅ Processing {len(complete_chunks)} complete chunks")
         if incomplete_chunk:
             print(f"   ⏳ 1 incomplete chunk saved for next execution")
     

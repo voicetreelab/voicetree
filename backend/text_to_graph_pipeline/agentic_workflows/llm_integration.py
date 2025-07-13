@@ -103,7 +103,6 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
             "2. API key is defined in settings.py"
         )
     
-    print(f"🤖 Calling Gemini API with structured output ({model_name})...")
     
     try:
         # Create a model instance without api_key parameter
@@ -119,7 +118,7 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         # Run the agent synchronously
         result = agent.run_sync(prompt)
         
-        print(f"✅ API call successful - structured response received")
+        # print(f"✅ API call successful - structured response received")
         return result.data
         
     except Exception as e:
@@ -159,7 +158,6 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
             "2. API key is defined in settings.py"
         )
     
-    print(f"🤖 Calling Gemini API ({model_name})...")
     
     try:
         # Create a model instance without api_key parameter
@@ -175,7 +173,7 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
         # Run the agent synchronously
         result = agent.run_sync(prompt)
         
-        print(f"✅ API call successful - response length: {len(result.data)} chars")
+        # print(f"✅ API call successful - response length: {len(result.data)} chars")
         return result.data
         
     except Exception as e:

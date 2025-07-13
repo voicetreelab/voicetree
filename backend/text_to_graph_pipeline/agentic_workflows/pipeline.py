@@ -33,8 +33,6 @@ class VoiceTreePipeline:
         Returns:
             Final state dict with processing results
         """
-        print("🚀 Starting VoiceTree LangGraph Pipeline")
-        print("=" * 50)
         
         # NOTE: Incomplete chunk handling is now managed by TextBufferManager
         # The pipeline only returns incomplete_chunk_remainder for the buffer manager to store
@@ -73,8 +71,8 @@ class VoiceTreePipeline:
                             new_nodes.append(decision["new_node_name"])
                 final_state["new_nodes"] = new_nodes
             
-            print("\n✅ Pipeline completed successfully!")
-            print("=" * 50)
+            # print("\n✅ Pipeline completed successfully!")
+            # print("=" * 50)
             
             # Print results summary
             if final_state.get("error_message"):

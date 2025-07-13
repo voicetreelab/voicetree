@@ -49,19 +49,19 @@ def build_evaluation_prompt(transcript_content, packaged_output, prompts_content
         f"I have a system which converts in real-time, spoken voice into a content tree (similar to a mind-map).\n"
     )
     
-    if prompts_content:
-        prompt += (
-            "This system uses an agentic workflow with several prompts to achieve its goal. "
-            "For your reference, here are the prompts used in the workflow:\n\n"
-            f"```\n{prompts_content}```\n\n"
-        )
+    # if prompts_content:
+    #     prompt += (
+    #         "This system uses an agentic workflow with several prompts to achieve its goal. "
+    #         "For your reference, here are the prompts used in the workflow:\n\n"
+    #         f"```\n{prompts_content}```\n\n"
+    #     )
     
-    prompt += (
-        "Now, please evaluate the quality of the output (Markdown files) generated from the following transcript"
-    )
+    # prompt += (
+    #     "Now, please evaluate the quality of the output (Markdown files) generated from the following transcript"
+    # )
     
-    if prompts_content:
-        prompt += ", keeping in mind the prompts that were used to generate it"
+    # if prompts_content:
+    #     prompt += ", keeping in mind the prompts that were used to generate it"
     
     prompt += (
         ".\n\n"

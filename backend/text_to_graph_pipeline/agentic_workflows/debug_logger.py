@@ -57,7 +57,6 @@ OUTPUT VARIABLES:
     with open(log_file, "a", encoding="utf-8") as f:
         f.write(log_entry)
     
-    print(f"📝 Logged {stage_name} I/O to {log_file.name}")
 
 def format_variables(variables: Dict[str, Any]) -> str:
     """
@@ -182,7 +181,6 @@ CONTENT:
         f.write(separator)
         f.write(log_entry)
     
-    print(f"📝 Logged transcript input to {log_file.name}")
 
 def create_debug_summary():
     """
