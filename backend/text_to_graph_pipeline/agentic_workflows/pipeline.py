@@ -34,8 +34,8 @@ class VoiceTreePipeline:
             Final state dict with processing results
         """
         
-        # NOTE: Incomplete chunk handling is now managed by TextBufferManager
-        # The pipeline only returns incomplete_chunk_remainder for the buffer manager to store
+        # NOTE: Incomplete text handling is managed by TextBufferManager
+        # The buffer accumulates text until threshold is reached
         
         # Get existing nodes from state manager
         # todo, this should be passed in as a parameter instead to avoid coupling
@@ -50,7 +50,6 @@ class VoiceTreePipeline:
             "analyzed_chunks": None,
             "integration_decisions": None,
             "new_nodes": None,
-            "incomplete_chunk_remainder": None,
             "current_stage": "start",
             "error_message": None
         }
@@ -85,9 +84,6 @@ class VoiceTreePipeline:
                     self.state_manager.add_nodes(final_state["new_nodes"], final_state)
                     print(f"\n📊 State updated: {len(self.state_manager.nodes)} total nodes")
                 
-                # Log if there's an incomplete chunk (buffer manager will handle it)
-                if final_state.get("incomplete_chunk_remainder"):
-                    print(f"\n⏳ Incomplete chunk detected: '{final_state['incomplete_chunk_remainder'][:50]}...'")
             
             return final_state
             
@@ -118,7 +114,8 @@ class VoiceTreePipeline:
         print(f"   • Analyzed chunks: {len(state.get('analyzed_chunks', []))}")
         print(f"   • Integration decisions: {len(state.get('integration_decisions', []))}")
         print(f"   • New nodes to create: {len(state.get('new_nodes', []))}")
-        
+        print(f"   • Append actions: {len(state.get('new_nodes', []))}") 
+
         if state.get("new_nodes"):
             print(f"   • New node names: {', '.join(state['new_nodes'])}")
 

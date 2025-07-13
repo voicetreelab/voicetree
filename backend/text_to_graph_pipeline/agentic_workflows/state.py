@@ -26,9 +26,6 @@ class VoiceTreeState(TypedDict):
     # Stage 4: Node extraction output (final)
     new_nodes: Optional[List[str]]
     
-    # Processing metadata
-    incomplete_chunk_remainder: Optional[str]  # Incomplete chunk to carry forward to next execution
-    
     # Metadata
     current_stage: str
     error_message: Optional[str]

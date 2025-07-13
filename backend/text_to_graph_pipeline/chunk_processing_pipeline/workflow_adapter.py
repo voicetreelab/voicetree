@@ -99,7 +99,6 @@ class WorkflowAdapter:
                 metadata={
                     "chunks_processed": len(result.get("chunks", [])),
                     "decisions_made": len(integration_decisions),
-                    "incomplete_buffer": result.get("incomplete_chunk_remainder", ""),
                     "completed_text": self._extract_completed_text(result)
                 }
             )
@@ -114,29 +113,31 @@ class WorkflowAdapter:
     
     def _extract_completed_text(self, workflow_result: Dict[str, Any]) -> str:
         """
-        Extract the text that was successfully processed from the chunks.
+        Extract ALL text that was segmented by the workflow.
         
-        This joins all the text from completed chunks to identify what portion
-        of the original transcript was successfully processed.
+        This includes ALL chunks (both complete and incomplete) to ensure
+        we don't reprocess the same text. Incomplete chunks won't be processed
+        further in the pipeline, but we still need to flush them from the buffer.
         
         Args:
             workflow_result: Result from the workflow execution
             
         Returns:
-            The concatenated text from all completed chunks
+            The concatenated text from all segmented chunks
         """
+        # Get ALL chunks from segmentation (both complete and incomplete)
         chunks = workflow_result.get("chunks", [])
         if not chunks:
             return ""
             
-        # Join all completed chunk texts with a space
-        completed_texts = []
+        # Extract text from all chunks
+        all_texts = []
         for chunk in chunks:
             text = chunk.get("text", "").strip()
             if text:
-                completed_texts.append(text)
+                all_texts.append(text)
                 
-        return " ".join(completed_texts) if completed_texts else ""
+        return " ".join(all_texts) if all_texts else ""
     
     def _prepare_state_snapshot(self) -> Dict[str, Any]:
         """
