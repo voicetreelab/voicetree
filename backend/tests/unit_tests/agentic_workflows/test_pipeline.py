@@ -16,7 +16,7 @@ class TestVoiceTreePipeline:
     """Test suite for VoiceTreePipeline class"""
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voice_tree_agent')
     def test_init_with_state_file(self, mock_compile, mock_state_manager):
         """Test initialization with state file"""
         mock_app = Mock()
@@ -29,7 +29,7 @@ class TestVoiceTreePipeline:
         assert pipeline.app == mock_app
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voice_tree_agent')
     def test_init_without_state_file(self, mock_compile, mock_state_manager):
         """Test initialization without state file"""
         mock_app = Mock()
@@ -43,7 +43,7 @@ class TestVoiceTreePipeline:
         mock_compile.assert_called_once()
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voice_tree_agent')
     def test_run_successful(self, mock_compile, mock_state_manager):
         """Test successful pipeline run"""
         # Setup mocks
@@ -81,7 +81,7 @@ class TestVoiceTreePipeline:
         assert initial_state["existing_nodes"] == "Node 1, Node 2"
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voice_tree_agent')
     def test_run_with_error(self, mock_compile, mock_state_manager):
         """Test pipeline run with error"""
         # Setup mocks
@@ -104,7 +104,7 @@ class TestVoiceTreePipeline:
         assert result["transcript_text"] == "test transcript"
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voice_tree_agent')
     def test_run_extracts_new_nodes_from_decisions(self, mock_compile, mock_state_manager):
         """Test that new nodes are extracted from integration decisions"""
         # Setup mocks
@@ -131,12 +131,12 @@ class TestVoiceTreePipeline:
         pipeline = VoiceTreePipeline()
         result = pipeline.run("test")
         
-        # Verify new nodes were extracted
+        # Verify new nodes were extracted using the helper function
         assert "new_nodes" in result
         assert result["new_nodes"] == ["Node A", "Node B"]
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voice_tree_agent')
     def test_run_updates_state_manager(self, mock_compile, mock_state_manager):
         """Test that state manager is updated with new nodes"""
         # Setup mocks
@@ -216,7 +216,7 @@ class TestVoiceTreePipeline:
         mock_state_manager_instance.clear_state.assert_called_once()
     
     @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreeStateManager')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voicetree_graph')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.compile_voice_tree_agent')
     def test_print_results_summary(self, mock_compile, mock_state_manager):
         """Test _print_results_summary method"""
         pipeline = VoiceTreePipeline()

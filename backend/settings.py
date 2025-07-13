@@ -7,7 +7,7 @@ import os
 from backend.text_to_graph_pipeline.text_buffer_manager import BufferConfig
 from backend.text_to_graph_pipeline.voice_to_text.voice_config import VoiceConfig
 from backend.text_to_graph_pipeline.tree_manager.tree_config import TreeConfig
-from backend.text_to_graph_pipeline.agentic_workflows.llm_config import LLMConfig
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_config import LLMConfig
 
 # Environment variables
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")

@@ -6,10 +6,10 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pydantic import BaseModel
 
-from backend.text_to_graph_pipeline.agentic_workflows.llm_integration import (
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
     call_llm, call_llm_structured, _get_api_key
 )
-from backend.text_to_graph_pipeline.agentic_workflows.schema_models import (
+from backend.text_to_graph_pipeline.agentic_workflows.models import (
     SegmentationResponse, ChunkModel
 )
 

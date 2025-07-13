@@ -6,8 +6,9 @@ Provides a clean interface between the VoiceTree backend and agentic workflows
 import asyncio
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
-from backend.text_to_graph_pipeline.agentic_workflows.pipeline import VoiceTreePipeline
-from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
+from backend.text_to_graph_pipeline.agentic_workflows.core.state_manager import VoiceTreeStateManager
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 @dataclass
 class WorkflowResult:
@@ -38,7 +39,8 @@ class WorkflowAdapter:
             state_file: Optional path to persist workflow state
         """
         self.decision_tree = decision_tree
-        self.pipeline = VoiceTreePipeline(state_file)
+        self.agent = VoiceTreeAgent()
+        self.state_manager = VoiceTreeStateManager(state_file) if state_file else None
     
     async def process_transcript(
         self, 
@@ -56,15 +58,20 @@ class WorkflowAdapter:
             WorkflowResult with processing outcomes
         """
         try:
-            # Prepare state for the workflow (this updates internal state)
-            self._prepare_state_snapshot()
+            # Get existing nodes for context
+            existing_nodes = self.state_manager.get_node_summaries() if self.state_manager else self._get_node_summaries()
             
-            # Run the workflow with both transcript and transcript_history
+            # Run the agent directly
             result = await asyncio.to_thread(
-                self.pipeline.run,
-                transcript,
-                context  # This is the transcript_history from buffer manager
+                self.agent.run,
+                transcript=transcript,
+                transcript_history=context,  # This is the transcript_history from buffer manager
+                existing_nodes=existing_nodes
             )
+            
+            # Update state manager if present
+            if self.state_manager and result.get("new_nodes"):
+                self.state_manager.add_nodes(result["new_nodes"], result)
             
             # Process the workflow result
             if result.get("error_message"):
@@ -139,29 +146,28 @@ class WorkflowAdapter:
                 
         return " ".join(complete_texts) if complete_texts else ""
     
-    def _prepare_state_snapshot(self) -> Dict[str, Any]:
+    def _get_node_summaries(self) -> str:
         """
-        Prepare a state snapshot for the workflow
+        Get node summaries from decision tree
         
         Returns:
-            Dictionary with current tree state information
+            String with node summaries
         """
-        # Get all nodes with their summaries
         node_summaries = []
         for node in self.decision_tree.tree.values():
             if hasattr(node, 'name') and hasattr(node, 'summary'):
                 node_summaries.append(f"{node.name}: {node.summary}")
         
-        return {
-            "existing_nodes": "\n".join(node_summaries),
-            "total_nodes": len(self.decision_tree.tree)
-        }
+        return "\n".join(node_summaries) if node_summaries else "No existing nodes"
     
     # when applying actions, if target node is null, don't try force finding it.
     def get_workflow_statistics(self) -> Dict[str, Any]:
         """Get statistics about the workflow state"""
-        return self.pipeline.get_statistics()
+        if self.state_manager:
+            return self.state_manager.get_statistics()
+        return {"error": "No state manager configured"}
     
     def clear_workflow_state(self) -> None:
         """Clear the workflow state"""
-        self.pipeline.clear_state() 
+        if self.state_manager:
+            self.state_manager.clear_state() 

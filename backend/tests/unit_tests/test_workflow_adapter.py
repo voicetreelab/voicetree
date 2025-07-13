@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowAdapter, WorkflowResult
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
 
 
 class TestWorkflowAdapter(unittest.TestCase):

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
-from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
 
 
 class TestChunkProcessor(unittest.TestCase):
@@ -18,8 +18,9 @@ class TestChunkProcessor(unittest.TestCase):
             1: Node(name="Test Node", node_id=1, content="test content", summary="Test summary", parent_id=0),
         }
         
-        # Mock the VoiceTreePipeline to avoid external dependencies
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline'):
+        # Mock the agent and state manager to avoid external dependencies
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree.VoiceTreeAgent'), \
+             patch('backend.text_to_graph_pipeline.agentic_workflows.core.state_manager.VoiceTreeStateManager'):
             self.tree_manager = ChunkProcessor(
                 decision_tree=self.decision_tree,
                 workflow_state_file=None
@@ -36,7 +37,8 @@ class TestChunkProcessor(unittest.TestCase):
     def test_initialization_with_state_file_path(self):
         """Test initialization with workflow state file parameter"""
         # Arrange & Act
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline'):
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree.VoiceTreeAgent'), \
+             patch('backend.text_to_graph_pipeline.agentic_workflows.core.state_manager.VoiceTreeStateManager'):
             tree_manager = ChunkProcessor(
                 decision_tree=self.decision_tree,
                 workflow_state_file="test_state.json"

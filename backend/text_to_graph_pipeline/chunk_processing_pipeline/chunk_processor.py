@@ -15,7 +15,7 @@ from typing import Optional, Set, List
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-from backend.text_to_graph_pipeline.agentic_workflows.schema_models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
 from .workflow_adapter import WorkflowAdapter
 from backend import settings
 
