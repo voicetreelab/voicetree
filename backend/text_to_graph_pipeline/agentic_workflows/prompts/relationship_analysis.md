@@ -9,7 +9,7 @@ For each sub-chunk:
     1.  Analyze the core meaning and topic presented in its `text`.
     2.  Carefully compare this core meaning against BOTH:
         i.  The `name` and `summary` of *every* node provided in the `existing_nodes_summary`.
-        ii. The `name` and `text` of *every OTHER* sub-chunk within the input `sub_chunks` list.
+        ii. The `name` and `text` of *every PRECEDING* sub-chunk within the input `sub_chunks` list (only those that appear BEFORE the current chunk).
     
     3.  ACTION: Determine which single item (either an existing node from `existing_nodes_summary` OR another sub-chunk from the `sub_chunks` list) is the most semantically relevant to the current sub-chunk being processed. Record the exact `name` of that chosen item.
 

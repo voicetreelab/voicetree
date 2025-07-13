@@ -138,6 +138,10 @@ class DecisionTree:
         Returns:
             int | None: The ID of the closest matching node, or None if no close match is found.
         """
+        # Handle None or empty name
+        if not name:
+            return None
+            
         # Generate a list of node titles
         node_titles = [node.title for node in self.tree.values()]
         node_titles_lower = [title.lower() for title in node_titles]
