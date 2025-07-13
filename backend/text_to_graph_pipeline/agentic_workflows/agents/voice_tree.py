@@ -79,6 +79,11 @@ class VoiceTreeAgent(Agent):
         Returns:
             Complete processing results including extracted new nodes
         """
+        from ..core.debug_logger import log_transcript_processing
+        
+        # Log the transcript being processed
+        log_transcript_processing(transcript, "VoiceTreeAgent.run")
+        
         # Create initial state
         initial_state: VoiceTreeState = {
             "transcript_text": transcript,
@@ -103,6 +108,10 @@ class VoiceTreeAgent(Agent):
             # Extract new nodes from decisions if not already present
             if not result.get("new_nodes") and result.get("integration_decisions"):
                 result["new_nodes"] = self._extract_new_nodes(result["integration_decisions"])
+            
+            # Create debug summary
+            from ..core.debug_logger import create_debug_summary
+            create_debug_summary()
                 
             return result
             
