@@ -155,8 +155,8 @@ class WorkflowAdapter:
         """
         node_summaries = []
         for node in self.decision_tree.tree.values():
-            if hasattr(node, 'name') and hasattr(node, 'summary'):
-                node_summaries.append(f"{node.name}: {node.summary}")
+            if hasattr(node, 'title') and hasattr(node, 'summary'): # todo, title or name?
+                node_summaries.append(f"{node.title}: {node.summary}")
         
         return "\n".join(node_summaries) if node_summaries else "No existing nodes"
     

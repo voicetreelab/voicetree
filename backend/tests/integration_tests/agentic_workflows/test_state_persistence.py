@@ -11,7 +11,7 @@ current_dir = Path(__file__).parent
 project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
 sys.path.insert(0, str(project_root))
 
-from backend.text_to_graph_pipeline.agentic_workflows.pipeline import VoiceTreePipeline
+from backend.tests.integration_tests.agentic_workflows.test_helpers import PipelineHelper
 
 
 def test_state_persistence():
@@ -21,7 +21,7 @@ def test_state_persistence():
     
     # Create pipeline with state file
     state_file = "test_state.json"
-    pipeline = VoiceTreePipeline(state_file)
+    pipeline = PipelineHelper(state_file)
     
     # Clear any existing state
     pipeline.clear_state()
@@ -64,7 +64,7 @@ def test_state_persistence():
     
     # Test persistence by creating new pipeline instance
     print("\n🔄 Testing persistence with new pipeline instance...")
-    pipeline2 = VoiceTreePipeline(state_file)
+    pipeline2 = PipelineHelper(state_file)
     stats_reloaded = pipeline2.get_statistics()
     
     print(f"Nodes after reload: {stats_reloaded.get('total_nodes', 0)}")

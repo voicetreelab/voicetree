@@ -195,10 +195,10 @@ class TestIncompleteChunkHandling:
         # Set low threshold to trigger processing
         chunk_processor.buffer_manager.config.buffer_size_threshold = 20
         
-        # Mock the pipeline run method to capture state
+        # Mock the agent run method to capture state
         captured_state = None
         
-        def capture_state(transcript, transcript_history=None):
+        def capture_state(transcript, transcript_history=None, existing_nodes=None):
             nonlocal captured_state
             captured_state = {
                 'transcript': transcript,
@@ -210,7 +210,7 @@ class TestIncompleteChunkHandling:
                 'new_nodes': []
             }
         
-        with patch.object(chunk_processor.workflow_adapter.pipeline, 'run', 
+        with patch.object(chunk_processor.workflow_adapter.agent, 'run', 
                          side_effect=capture_state):
             
             # Process some text

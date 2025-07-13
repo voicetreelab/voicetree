@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 import asyncio
 
-from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
+from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import clear_debug_logs
 from backend.logging_config import setup_logging
 from backend.benchmarker.src import (
     DEFAULT_TEST_TRANSCRIPTS,

@@ -36,13 +36,13 @@ class TestLLMIntegration:
 
     def test_call_llm_structured_no_api_key(self):
         """Test call_llm_structured without API key"""
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration._get_api_key', 
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration._get_api_key', 
                   return_value=None):
             with pytest.raises(ValueError, match="No Google API key available"):
                 call_llm_structured("test prompt", "segmentation")
 
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.Agent')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.GeminiModel')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration.Agent')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration.GeminiModel')
     def test_call_llm_structured_success(self, mock_model_class, mock_agent_class):
         """Test successful call_llm_structured"""
         # Mock the response
@@ -64,7 +64,7 @@ class TestLLMIntegration:
         mock_agent.run_sync.return_value = mock_result
         mock_agent_class.return_value = mock_agent
         
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration._get_api_key', 
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration._get_api_key', 
                   return_value='test_key'):
             result = call_llm_structured("test prompt", "segmentation")
             
@@ -77,8 +77,8 @@ class TestLLMIntegration:
             mock_model_class.assert_called_once_with("gemini-2.0-flash")
             mock_agent.run_sync.assert_called_once_with("test prompt")
 
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.Agent')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.GeminiModel')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration.Agent')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration.GeminiModel')
     def test_call_llm_success(self, mock_model_class, mock_agent_class):
         """Test successful call_llm"""
         # Mock the response
@@ -89,7 +89,7 @@ class TestLLMIntegration:
         mock_agent.run_sync.return_value = mock_result
         mock_agent_class.return_value = mock_agent
         
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration._get_api_key', 
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration._get_api_key', 
                   return_value='test_key'):
             result = call_llm("test prompt")
             
@@ -102,20 +102,20 @@ class TestLLMIntegration:
 
     def test_call_llm_no_api_key(self):
         """Test call_llm without API key"""
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration._get_api_key', 
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration._get_api_key', 
                   return_value=None):
             with pytest.raises(ValueError, match="No Google API key available"):
                 call_llm("test prompt")
 
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.Agent')
-    @patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration.GeminiModel')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration.Agent')
+    @patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration.GeminiModel')
     def test_call_llm_api_error(self, mock_model_class, mock_agent_class):
         """Test call_llm with API error"""
         mock_agent = MagicMock()
         mock_agent.run_sync.side_effect = Exception("API Error")
         mock_agent_class.return_value = mock_agent
         
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.llm_integration._get_api_key', 
+        with patch('backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration._get_api_key', 
                   return_value='test_key'):
             with pytest.raises(RuntimeError, match="Error calling Gemini API"):
                 call_llm("test prompt")

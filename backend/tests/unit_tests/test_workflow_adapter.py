@@ -20,8 +20,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         self.decision_tree.tree[0].title = "Parent Node"
         self.decision_tree.tree[1].title = "Test Node"
         
-        with patch('backend.text_to_graph_pipeline.agentic_workflows.pipeline.VoiceTreePipeline'):
-            self.adapter = WorkflowAdapter(self.decision_tree)
+        self.adapter = WorkflowAdapter(self.decision_tree)
     
     def test_initialization_creates_proper_adapter(self):
         """Test that WorkflowAdapter initializes with correct properties"""
@@ -29,23 +28,21 @@ class TestWorkflowAdapter(unittest.TestCase):
         
         # Assert
         self.assertEqual(self.adapter.decision_tree, self.decision_tree)
-        self.assertIsNotNone(self.adapter.pipeline)
+        self.assertIsNotNone(self.adapter.agent)
+        self.assertIsNone(self.adapter.state_manager)  # No state file provided
     
-    def test_prepare_state_snapshot_includes_node_summaries(self):
-        """Test that state snapshot contains existing node information"""
+    def test_get_node_summaries(self):
+        """Test that node summaries are properly formatted"""
         # Act
-        snapshot = self.adapter._prepare_state_snapshot()
+        summaries = self.adapter._get_node_summaries()
         
         # Assert
-        self.assertIn("existing_nodes", snapshot)
-        self.assertIn("total_nodes", snapshot)
-        self.assertEqual(snapshot["total_nodes"], 2)
-        
-        # The existing_nodes should be a string representation
-        existing_nodes = snapshot["existing_nodes"]
-        self.assertIsInstance(existing_nodes, str)
-        # Since our test nodes may not have proper name attributes, just check it's not empty
-        # In a real scenario, this would contain formatted node information
+        self.assertIsInstance(summaries, str)
+        # Should contain our test nodes
+        self.assertIn("Parent Node", summaries)
+        self.assertIn("Test Node", summaries)
+        self.assertIn("Parent summary", summaries)
+        self.assertIn("Test summary", summaries)
     
     def test_process_transcript_converts_to_integration_decisions(self):
         """Test that workflow result properly converts to IntegrationDecision objects"""
@@ -68,7 +65,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+            with patch.object(self.adapter.agent, 'run', return_value=mock_result):
                 # Act
                 result = await self.adapter.process_transcript("Test transcript")
                 
@@ -107,7 +104,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+            with patch.object(self.adapter.agent, 'run', return_value=mock_result):
                 # Act
                 result = await self.adapter.process_transcript("Test transcript")
                 
@@ -143,7 +140,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+            with patch.object(self.adapter.agent, 'run', return_value=mock_result):
                 # Act
                 result = await self.adapter.process_transcript("This is a test")
                 
@@ -166,7 +163,7 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result):
+            with patch.object(self.adapter.agent, 'run', return_value=mock_result):
                 # Act
                 result = await self.adapter.process_transcript("This is a test")
                 
@@ -181,7 +178,7 @@ class TestWorkflowAdapter(unittest.TestCase):
     def test_process_transcript_handles_exception(self):
         """Test handling of exceptions during workflow execution"""
         async def async_test():
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', side_effect=Exception("Pipeline crashed")):
+            with patch.object(self.adapter.agent, 'run', side_effect=Exception("Pipeline crashed")):
                 # Act
                 result = await self.adapter.process_transcript("This is a test")
                 
@@ -202,14 +199,14 @@ class TestWorkflowAdapter(unittest.TestCase):
         }
         
         async def async_test():
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.asyncio.to_thread', return_value=mock_result) as mock_to_thread:
+            with patch.object(self.adapter.agent, 'run', return_value=mock_result) as mock_run:
                 # Act
                 result = await self.adapter.process_transcript("This is new text")
                 
-                # Assert - check that pipeline was called
-                mock_to_thread.assert_called_once()
-                call_args = mock_to_thread.call_args[0]
-                self.assertEqual(call_args[1], "This is new text")
+                # Assert - check that agent was called
+                mock_run.assert_called_once()
+                call_kwargs = mock_run.call_args[1]
+                self.assertEqual(call_kwargs['transcript'], "This is new text")
                 
                 # Assert - check that no incomplete buffer in metadata
                 self.assertNotIn("incomplete_buffer", result.metadata)
@@ -217,29 +214,21 @@ class TestWorkflowAdapter(unittest.TestCase):
         asyncio.run(async_test())
     
     
-    def test_get_workflow_statistics_delegates_to_pipeline(self):
-        """Test that statistics retrieval delegates to pipeline"""
-        # Arrange
-        expected_stats = {"total_nodes": 5, "total_executions": 3}
+    def test_get_workflow_statistics_without_state_manager(self):
+        """Test that statistics retrieval returns error when no state manager"""
+        # Act
+        stats = self.adapter.get_workflow_statistics()
         
-        with patch.object(self.adapter.pipeline, 'get_statistics', return_value=expected_stats) as mock_stats:
-            # Act
-            stats = self.adapter.get_workflow_statistics()
-            
-            # Assert
-            self.assertEqual(stats, expected_stats)
-            mock_stats.assert_called_once()
+        # Assert
+        self.assertIn("error", stats)
+        self.assertEqual(stats["error"], "No state manager configured")
     
-    def test_clear_workflow_state_resets_buffer_and_pipeline(self):
-        """Test that clearing state resets pipeline state"""
-        # Arrange - adapter doesn't manage buffer anymore
+    def test_clear_workflow_state_without_state_manager(self):
+        """Test that clearing state works even without state manager"""
+        # Act - should not raise an exception
+        self.adapter.clear_workflow_state()
         
-        with patch.object(self.adapter.pipeline, 'clear_state') as mock_clear:
-            # Act
-            self.adapter.clear_workflow_state()
-            
-            # Assert
-            mock_clear.assert_called_once()
+        # Assert - nothing to assert, just ensuring no exception
 
 
 if __name__ == "__main__":

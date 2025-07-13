@@ -13,8 +13,8 @@ current_dir = Path(__file__).parent
 project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
 sys.path.insert(0, str(project_root))
 
-# Import the main module from the backend
-from backend.text_to_graph_pipeline.agentic_workflows.pipeline import run_voicetree_pipeline
+# Import the agent directly
+from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
 
 def test_complex_tree_creation():
     """Test with the same examples used in the integration tests"""
@@ -55,7 +55,8 @@ def test_complex_tree_creation():
     print("\n📝 Processing Transcript 1: Project Planning")
     print("-" * 60)
     print(f"Input: {transcript1.strip()}")
-    result1 = run_voicetree_pipeline(transcript1, existing_nodes)
+    agent = VoiceTreeAgent()
+    result1 = agent.run(transcript1, existing_nodes=existing_nodes)
     print(f"\nResult 1: {len(result1.get('new_nodes', []))} new nodes created")
     results.append(result1)
     
@@ -67,7 +68,7 @@ def test_complex_tree_creation():
     print("\n📝 Processing Transcript 2: Reaching Out to Investors")
     print("-" * 60)
     print(f"Input: {transcript2.strip()}")
-    result2 = run_voicetree_pipeline(transcript2, existing_nodes)
+    result2 = agent.run(transcript2, existing_nodes=existing_nodes)
     print(f"\nResult 2: {len(result2.get('new_nodes', []))} new nodes created")
     results.append(result2)
     
@@ -79,7 +80,7 @@ def test_complex_tree_creation():
     print("\n📝 Processing Transcript 3: Polishing the POC")
     print("-" * 60)
     print(f"Input: {transcript3.strip()}")
-    result3 = run_voicetree_pipeline(transcript3, existing_nodes)
+    result3 = agent.run(transcript3, existing_nodes=existing_nodes)
     print(f"\nResult 3: {len(result3.get('new_nodes', []))} new nodes created")
     results.append(result3)
     
@@ -155,7 +156,8 @@ def test_single_transcript():
     """
     
     print(f"Input: {transcript.strip()}")
-    result = run_voicetree_pipeline(transcript, existing_nodes)
+    agent = VoiceTreeAgent()
+    result = agent.run(transcript, existing_nodes=existing_nodes)
     print(f"\nCombined result: {len(result.get('new_nodes', []))} new nodes created")
     
     # Assert that we got a valid result

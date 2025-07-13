@@ -10,7 +10,7 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
 
 **Input:**
 
-*   `analyzed_sub_chunks`: A JSON list where each object represents a sub-chunk and contains:
+*   `analyzed_chunks`: A JSON list where each object represents a sub-chunk and contains:
     *   `name`: The concise name given to the sub-chunk.
     *   `text`: The text content of the sub-chunk.
     *   `relevant_node_name`: The name of the most relevant existing node OR another sub-chunk name, OR the string "NO_RELEVANT_NODE".
@@ -19,7 +19,7 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
 
 **Instructions:**
 
-1.  **Iterate through the `analyzed_sub_chunks` list.** For each sub-chunk object in the list, perform the following analysis:
+1.  **Iterate through the `analyzed_chunks` list.** For each sub-chunk object in the list, perform the following analysis:
     a.  **Identify Inputs for this chunk:** Note the `name`, `text`, `relevant_node_name`, and `relationship` for the current sub-chunk.
     b.  **First, reason through the decision:** Before determining any action, use the `reasoning` field in your JSON output as a brainstorming section:
         *   What is the core content and purpose of this chunk?
@@ -53,7 +53,7 @@ IMPORTANT: For APPEND actions, even though relationship_for_edge is null, consid
 
 **Example:**
 
-Input `analyzed_sub_chunks`:
+Input `analyzed_chunks`:
 `[ {"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "...", "relevant_node_name": "Self Improvement", "relationship": "lists tasks for"}, {"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "...", "relevant_node_name": "Yard Work", "relationship": "identifies task for"}, {"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "...", "relevant_node_name": "Fence Repair Task", "relationship": "elaborates on"} ]`
 
 Expected Output:
@@ -62,7 +62,7 @@ Expected Output:
 
 **Inputs:**
 
-**analyzed_sub_chunks:**
+**analyzed_chunks:**
 ```json
-{{analyzed_sub_chunks}}
+{{analyzed_chunks}}
 ```

@@ -83,4 +83,4 @@ Ensure that EVERY element in "analyzed_chunks" contains ALL five fields listed a
 {{existing_nodes}}
 
 **Sub-chunks to Analyze:**
-{{sub_chunks}}
+{{chunks}}
