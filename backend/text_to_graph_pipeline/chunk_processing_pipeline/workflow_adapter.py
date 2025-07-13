@@ -41,7 +41,7 @@ class WorkflowAdapter:
         self.agent = VoiceTreeAgent()
         self.state_manager = VoiceTreeStateManager(state_file) if state_file else None
     
-    async def process_transcript(
+    def process_transcript(
         self, 
         transcript: str,
         context: Optional[str] = None

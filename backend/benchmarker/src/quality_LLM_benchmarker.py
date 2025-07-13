@@ -11,8 +11,6 @@ import os
 # Add project root to Python path to allow running with: python backend/benchmarker/...
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-import asyncio
-
 from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import clear_debug_logs
 from backend.logging_config import setup_logging
 from backend.benchmarker.src import (
@@ -22,7 +20,7 @@ from backend.benchmarker.src import (
 )
 
 
-async def run_quality_benchmark(test_transcripts=None):
+def run_quality_benchmark(test_transcripts=None):
     """
     Run quality benchmarking on specified transcripts.
     
@@ -54,7 +52,7 @@ async def run_quality_benchmark(test_transcripts=None):
         content = processor._limit_content_by_words(content, transcript_info.get('max_words'))
         
         # this actually runs VoiceTree on the transcript
-        await processor.process_content(
+        processor.process_content(
             content,
             transcript_info['file']  # use file path as identifier
         )
@@ -69,11 +67,11 @@ async def run_quality_benchmark(test_transcripts=None):
         print("See backend/benchmarker/logs/quality_log.txt and backend/benchmarker/logs/latest_quality_log.txt for results.")
 
 
-async def main():
+def main():
     """Main entry point for quality benchmarking."""
     # You can customize test transcripts here or use defaults
-    await run_quality_benchmark()
+    run_quality_benchmark()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
