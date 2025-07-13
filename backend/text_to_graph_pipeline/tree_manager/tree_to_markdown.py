@@ -86,19 +86,22 @@ class TreeToMarkdownConverter:
                         for child_id in node_data.children:
                             child_node = self.tree_data.get(child_id)
                             if child_node:
+                                if not child_node.filename:
+                                    logging.warning(f"Child node {child_id} missing filename")
+                                    continue
                                 child_file_name = child_node.filename
                                 # Get the relationship from child's perspective
                                 child_relationship = "child of"
                                 if child_id in self.tree_data and node_id in self.tree_data[child_id].relationships:
                                     child_relationship = self.tree_data[child_id].relationships[node_id]
                                 f.write(f"- [[{child_file_name}]] {child_relationship} (this node)\n")
+                            else:
+                                logging.error(f"Child node {child_id} not found in tree_data")
 
                         # add parent backlinks
                         parent_id = self.get_parent_id(node_id)
-                        if parent_id:
-                            f.write(f"Parent:\n")
-
                         if parent_id is not None:
+                            f.write(f"Parent:\n")
                             parent_file_name = self.tree_data[parent_id].filename
                             relationship_to_parent = "child of"
                             try:
