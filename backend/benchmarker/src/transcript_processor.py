@@ -55,7 +55,7 @@ class TranscriptProcessor:
     
 
     
-    async def process_content(self, content, transcript_identifier):
+    def process_content(self, content, transcript_identifier):
         """Process transcript content with VoiceTree using agentic workflow."""
         # Setup fresh output directory
         setup_output_directory()
@@ -70,7 +70,7 @@ class TranscriptProcessor:
             
             for i, word in enumerate(words):
                 # Send each word individually, like streaming voice
-                await self.processor.process_and_convert(word + " ")
+                self.processor.process_and_convert_sync(word + " ")
                 
                 # Small delay to simulate streaming (optional)
                 if i % 30 == 0:  # Rate limit every 30 words
@@ -85,13 +85,13 @@ class TranscriptProcessor:
                 transcript_history = self.processor.buffer_manager.get_transcript_history()
                 
                 # Directly process the remaining buffer as a chunk, bypassing the buffer manager
-                await self.processor._process_text_chunk(remaining_buffer, transcript_history)
+                self.processor._process_text_chunk_sync(remaining_buffer, transcript_history)
                 
                 # Clear the buffer since we processed it
                 self.processor.buffer_manager.clear()
             
             # Convert all accumulated nodes to markdown
-            await self.processor.finalize()
+            self.processor.finalize_sync()
             
             # Log workflow statistics
             workflow_stats = self.processor.get_workflow_statistics()

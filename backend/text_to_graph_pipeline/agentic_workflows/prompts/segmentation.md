@@ -1,4 +1,4 @@
-You are an expert at segmenting voice transcripts into atomic ideas (complete thoughts) for a knowledge graph. 
+You are an expert at segmenting voice transcripts into atomic ideas (complete thoughts) for a knowledge/task graph. 
 The voice transcript may also contain unfinished content, so you should also identify unfnished sentences.
 
 INPUT VARIABLES:
@@ -66,7 +66,7 @@ Output:
 {
   "chunks": [
     {"reasoning": "This is a distinct task about researching visualization libraries. It's a complete, self-contained thought.", "name": "Visualization Libraries", "text": "I need to look into visualization libraries.", "is_complete": true},
-    {"reasoning": "this could be introducing a separate task about data format conversion. It's grammatically informal but arguably conceptually complete. Since it is borderline, let's default to waiting for more input later to see if it gets completed", "name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": false},
+    {"reasoning": "this could be introducing a separate task about data format conversion. It's grammatically informal but arguably conceptually complete. Since it is borderline, let's default to waiting for more input later to see if the meaning changes", "name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": false},
     {"reasoning": "This seems to be referring back to the same task about researching visualization libraries. It's a complete thought.", "name": "Mermaid Visualization", "text": "Oh yea, Myles mentioned Mermaid as a good visualization option", "is_complete": true},
   ]
 }

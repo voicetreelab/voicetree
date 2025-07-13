@@ -1,4 +1,5 @@
-You are an expert system component responsible for deciding how to integrate analyzed conversational sub-chunks into an existing knowledge graph. 
+You are an expert system component responsible for deciding how to integrate analyzed conversational sub-chunks into an existing knowledge/task graph. 
+
 Your task is to determine whether each sub-chunk should be APPENDed to an existing node or CREATE a new node,
 
 

@@ -147,7 +147,7 @@ class ChunkProcessor:
         logging.info("Processing text chunk with agentic workflow")
         
         # Process through workflow
-        result = await self.workflow_adapter.process_transcript(
+        result = self.workflow_adapter.process_transcript(
             transcript=text_chunk,
             context=transcript_history_context
         )
@@ -166,7 +166,7 @@ class ChunkProcessor:
                 logging.warning("Workflow didn't return completed text information")
             
             # Apply the integration decisions to the decision tree
-            await self._apply_integration_decisions(result.integration_decisions)
+            self._apply_integration_decisions(result.integration_decisions)
             
             # Log metadata
             if result.metadata:
@@ -174,7 +174,7 @@ class ChunkProcessor:
         else:
             logging.error(f"Workflow failed: {result.error_message}")
     
-    async def _apply_integration_decisions(self, integration_decisions: List[IntegrationDecision]):
+    def _apply_integration_decisions(self, integration_decisions: List[IntegrationDecision]):
         """
         Apply integration decisions from workflow result to the decision tree
         
@@ -264,4 +264,71 @@ class ChunkProcessor:
             parent_name = self.decision_tree.tree[node.parent_id].title if node.parent_id is not None else "None"
             logging.info(f"Node {node_id}: '{node.title}' (parent: '{parent_name}')")
         
-        return {"total_nodes": node_count, "root_children": root_children} 
+        return {"total_nodes": node_count, "root_children": root_children}
+    
+    # Synchronous versions for benchmarking (no microphone blocking)
+    def process_and_convert_sync(self, text: str):
+        """Synchronous version of process_and_convert for benchmarking"""
+        try:
+            start_time = time.time()
+            self.process_voice_input_sync(text)
+            
+            self.converter.convert_node(output_dir=self.output_dir,
+                                        nodes_to_update=self.nodes_to_update)
+            self.nodes_to_update.clear()
+            
+            elapsed_time = time.time() - start_time
+        except Exception as e:
+            logging.error(
+                f"Error in process_and_convert_sync: {e} "
+                f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
+    
+    def process_voice_input_sync(self, transcribed_text: str):
+        """Synchronous version of process_voice_input for benchmarking"""
+        result = self.buffer_manager.add_text(transcribed_text)
+        
+        if result.is_ready and result.text:
+            transcript_history = self.buffer_manager.get_transcript_history()
+            self._process_text_chunk_sync(result.text, transcript_history)
+    
+    def _process_text_chunk_sync(self, text_chunk: str, transcript_history_context: str):
+        """Synchronous version of _process_text_chunk for benchmarking"""
+        logging.info("Processing text chunk with agentic workflow (sync)")
+        
+        # Process through workflow
+        result = self.workflow_adapter.process_transcript(
+            transcript=text_chunk,
+            context=transcript_history_context
+        )
+        
+        if result.success:
+            logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
+            
+            # Flush completed text from buffer
+            if result.metadata and "completed_text" in result.metadata:
+                completed_text = result.metadata["completed_text"]
+                self.buffer_manager.flush_completed_text(completed_text)
+                if completed_text:
+                    logging.info(f"Flushed completed text: '{completed_text[:50]}...'")
+            else:
+                logging.info("No completed text to flush from buffer")
+            
+            # Apply integration decisions
+            self._apply_integration_decisions(result.integration_decisions)
+        else:
+            logging.error(f"Workflow failed: {result.error_message}")
+    
+    def finalize_sync(self):
+        """Synchronous version of finalize for benchmarking"""
+        try:
+            logging.info("Finalizing transcription processing (sync)")
+            
+            final_buffer = self.buffer_manager.get_buffer()
+            if final_buffer:
+                logging.warning(f"WARNING: Buffer still has {len(final_buffer)} chars during finalize")
+            
+            self.converter.convert_node(output_dir=self.output_dir,
+                                        nodes_to_update=self.nodes_to_update)
+            self.nodes_to_update.clear()
+        except Exception as e:
+            logging.error(f"Error in finalize_sync: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}") 
