@@ -113,31 +113,31 @@ class WorkflowAdapter:
     
     def _extract_completed_text(self, workflow_result: Dict[str, Any]) -> str:
         """
-        Extract ALL text that was segmented by the workflow.
+        Extract ONLY text from complete chunks that were segmented by the workflow.
         
-        This includes ALL chunks (both complete and incomplete) to ensure
-        we don't reprocess the same text. Incomplete chunks won't be processed
-        further in the pipeline, but we still need to flush them from the buffer.
+        Incomplete chunks should remain in the buffer to be combined with the
+        next transcript segment, so we only flush text from complete chunks.
         
         Args:
             workflow_result: Result from the workflow execution
             
         Returns:
-            The concatenated text from all segmented chunks
+            The concatenated text from complete chunks only
         """
-        # Get ALL chunks from segmentation (both complete and incomplete)
+        # Get all chunks from segmentation
         chunks = workflow_result.get("chunks", [])
         if not chunks:
             return ""
             
-        # Extract text from all chunks
-        all_texts = []
+        # Extract text ONLY from complete chunks
+        complete_texts = []
         for chunk in chunks:
-            text = chunk.get("text", "").strip()
-            if text:
-                all_texts.append(text)
+            if chunk.get("is_complete", False):
+                text = chunk.get("text", "").strip()
+                if text:
+                    complete_texts.append(text)
                 
-        return " ".join(all_texts) if all_texts else ""
+        return " ".join(complete_texts) if complete_texts else ""
     
     def _prepare_state_snapshot(self) -> Dict[str, Any]:
         """
