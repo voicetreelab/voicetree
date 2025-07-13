@@ -17,6 +17,8 @@ class TestChunkProcessor(unittest.TestCase):
             0: Node(name="Parent Node", node_id=0, content="parent content", summary="Parent node", parent_id=None),
             1: Node(name="Test Node", node_id=1, content="test content", summary="Test summary", parent_id=0),
         }
+        # Set next_node_id to 2 since we already have nodes 0 and 1
+        self.decision_tree.next_node_id = 2
         
         # Mock the agent and state manager to avoid external dependencies
         with patch('backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree.VoiceTreeAgent'), \
@@ -243,6 +245,47 @@ class TestChunkProcessor(unittest.TestCase):
                 
                 # Assert - node should be tracked for updates
                 self.assertIn(1, self.tree_manager.nodes_to_update)
+        
+        asyncio.run(async_test())
+    
+    def test_create_node_adds_parent_to_update_set(self):
+        """Test that creating a child node also adds parent to nodes_to_update"""
+        # Arrange
+        mock_result = WorkflowResult(
+            success=True,
+            new_nodes=["Child Node"],
+            integration_decisions=[IntegrationDecision(
+                action="CREATE",
+                name="test",
+                text="test text",
+                reasoning="test reasoning",
+                new_node_name="Child Node",
+                target_node="Test Node",  # Parent is node with ID 1
+                relationship_for_edge="child of",
+                content="Child content",
+                new_node_summary="Child summary"
+            )],
+            metadata={"chunks_processed": 1}
+        )
+        
+        async def async_test():
+            with patch.object(self.tree_manager.workflow_adapter, 'process_transcript', 
+                             return_value=mock_result) as mock_process:
+                # Clear any existing nodes_to_update
+                self.tree_manager.nodes_to_update.clear()
+                
+                # Act
+                await self.tree_manager._process_with_workflow("test text", "history")
+                
+                # Assert - both new child (ID 2) and parent (ID 1) should be in update set
+                self.assertEqual(len(self.tree_manager.nodes_to_update), 2, 
+                               f"Expected 2 nodes in update set, got: {self.tree_manager.nodes_to_update}")
+                self.assertIn(1, self.tree_manager.nodes_to_update, "Parent node should be in update set")
+                self.assertIn(2, self.tree_manager.nodes_to_update, "New child node should be in update set")
+                
+                # Verify the parent node actually has the child
+                parent_node = self.tree_manager.decision_tree.tree[1]
+                self.assertIn(2, parent_node.children, "Parent should have new child in children list")
         
         asyncio.run(async_test())
 
