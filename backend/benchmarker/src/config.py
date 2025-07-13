@@ -16,8 +16,8 @@ EVALUATION_MODEL = 'models/gemini-2.5-pro-preview-06-05'
 # Test Transcripts
 DEFAULT_TEST_TRANSCRIPTS = [
     {
-        "file": "backend/benchmarker/input/ilan_transcript.txt",
-        "name": "Ilan Original",
+        "file": "backend/benchmarker/input/og_vt_transcript.txt",
+        "name": "VT Original",
         "max_words": 63*4 + 1
     }
 ]
