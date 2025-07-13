@@ -92,6 +92,11 @@ class Agent:
             
             def make_node_fn(pname: str):  # Closure to capture prompt_name
                 def node_fn(state: Dict[str, Any]) -> Dict[str, Any]:
+                    from .debug_logger import log_stage_input_output
+                    
+                    # Log inputs
+                    debug_inputs = dict(state)
+                    
                     # Get the prompt template
                     template = self.prompts[pname]
                     
@@ -116,6 +121,13 @@ class Agent:
                         response_dict = response.model_dump()
                     else:
                         response_dict = response
+                    
+                    # Log outputs
+                    debug_outputs = {
+                        **response_dict,
+                        "current_stage": pname + "_complete"
+                    }
+                    log_stage_input_output(pname, debug_inputs, debug_outputs)
                         
                     # Update state with response
                     return {
