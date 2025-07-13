@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 import asyncio
 
 from backend.text_to_graph_pipeline.agentic_workflows.debug_logger import clear_debug_logs
+from backend.logging_config import setup_logging
 from backend.benchmarker.src import (
     DEFAULT_TEST_TRANSCRIPTS,
     TranscriptProcessor,
@@ -34,6 +35,9 @@ async def run_quality_benchmark(test_transcripts=None):
     if test_transcripts is None:
         test_transcripts = DEFAULT_TEST_TRANSCRIPTS
 
+    # Set up logging
+    setup_logging()
+    
     clear_debug_logs()
     
     processor = TranscriptProcessor()

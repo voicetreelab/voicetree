@@ -122,10 +122,6 @@ class ChunkProcessor:
             # Get transcript history for context
             transcript_history = self.buffer_manager.get_transcript_history()
             
-            # Add root node to updates on first processing
-            if self.buffer_manager.is_first_processing():
-                self.nodes_to_update.add(0)
-            
             # Process the text chunk
             await self._process_text_chunk(result.text, transcript_history)
     
@@ -170,9 +166,6 @@ class ChunkProcessor:
             
             # Apply the integration decisions to the decision tree
             await self._apply_integration_decisions(result.integration_decisions)
-            
-            # Ensure root node is always included for markdown generation
-            self.nodes_to_update.add(0)
             
             # Log metadata
             if result.metadata:

@@ -139,8 +139,7 @@ class TestWorkflowAdapter(unittest.TestCase):
                 "text": "test text",
                 "reasoning": "test reasoning"
             }],
-            "chunks": [{"name": "chunk1", "text": "test text"}],
-            "incomplete_chunk_remainder": ""
+            "chunks": [{"name": "chunk1", "text": "test text", "is_complete": true}]
         }
         
         async def async_test():
@@ -193,14 +192,13 @@ class TestWorkflowAdapter(unittest.TestCase):
         
         asyncio.run(async_test())
     
-    def test_process_transcript_manages_incomplete_buffer(self):
-        """Test that incomplete buffer is properly managed through metadata"""
+    def test_process_transcript_without_incomplete_buffer(self):
+        """Test that workflow runs without incomplete buffer tracking"""
         # Arrange
         mock_result = {
             "new_nodes": [],
             "integration_decisions": [],
-            "chunks": [],
-            "incomplete_chunk_remainder": "Still incomplete"
+            "chunks": []
         }
         
         async def async_test():
@@ -213,8 +211,8 @@ class TestWorkflowAdapter(unittest.TestCase):
                 call_args = mock_to_thread.call_args[0]
                 self.assertEqual(call_args[1], "This is new text")
                 
-                # Assert - check that incomplete buffer is returned in metadata
-                self.assertEqual(result.metadata.get("incomplete_buffer"), "Still incomplete")
+                # Assert - check that no incomplete buffer in metadata
+                self.assertNotIn("incomplete_buffer", result.metadata)
         
         asyncio.run(async_test())
     

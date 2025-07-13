@@ -1,8 +1,8 @@
 We want to improve the organisation of 
   backend/tests/unit_tests/agentic_workflows/ It is currently a 
-  bit of a mess. We want a clean abstraction whee you can seperate the
+  bit of a mess. A junior engineer wrote it. We want a clean abstraction whee you can seperate the
    concept of an agent, from the rest of the logic and utility required to 
-  run an agent.
+  run an agent. We want this to have minimal complexity, a very simple API hiding all the complexity, making it easy  to work with.
   
 This abstraction may be along the lines of: an AGENT is defined by its WORKFLOW, which has 
  NODES (prompt templates) and EDGES (relationship to another prompt template, plus the data transformer method)
@@ -14,8 +14,6 @@ some things we want:
 - provides a good testing framework where one can easily test the input to the agent + expected output from agent (live api system tests at the level of an agent)
 
 Some rules to follow:
-
-2. I WILL STILL FOLLOW CONTINOUS IMPROVMENT OF THE SYSTEM, TESTABLE AND EVOLVEABLE. ANY CHANGE WILL HAVE TEST COVERAGE
 
 4. MORE IS NOT ALWAYS BETTER, ANY CHANGE SHOULD BE BALANCED WITH THE TECH DEBT OF ADDING MORE COMPLEXITY.
 

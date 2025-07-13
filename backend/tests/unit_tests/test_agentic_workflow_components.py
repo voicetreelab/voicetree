@@ -57,16 +57,14 @@ class TestWorkflowDataStructures(unittest.TestCase):
             ],
             "chunks": [
                 {"name": "chunk1", "text": "Some text", "is_complete": True}
-            ],
-            "incomplete_chunk_remainder": ""
+            ]
         }
         
         # Verify all expected keys exist and have correct types
         expected_types = {
             "new_nodes": list,
             "integration_decisions": list,
-            "chunks": list,
-            "incomplete_chunk_remainder": str
+            "chunks": list
         }
         
         for key, expected_type in expected_types.items():

@@ -63,7 +63,6 @@ class TestVoiceTreePipeline:
                 {"action": "APPEND", "target_node": "Node 1"}
             ],
             "new_nodes": ["New Node 1"],
-            "incomplete_chunk_remainder": "",
             "current_stage": "complete",
             "error_message": None
         }

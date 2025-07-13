@@ -256,10 +256,10 @@ class TestSegmentationNode:
         
         result = segmentation_node(state)
         
-        # Should filter out incomplete chunks
-        assert len(result["chunks"]) == 1
+        # Should NOT filter out incomplete chunks anymore
+        assert len(result["chunks"]) == 2
         assert result["chunks"][0]["name"] == "Complete"
-        assert result["incomplete_chunk_remainder"] == "Not done"
+        assert result["chunks"][1]["name"] == "Incomplete"
     
     @patch("backend.text_to_graph_pipeline.agentic_workflows.nodes.process_llm_stage_structured")
     def test_segmentation_fallback_on_error(self, mock_process):

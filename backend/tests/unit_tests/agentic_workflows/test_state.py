@@ -23,7 +23,6 @@ class TestVoiceTreeState:
             'analyzed_chunks',
             'integration_decisions',
             'new_nodes',
-            'incomplete_chunk_remainder',
             'current_stage',
             'error_message'
         }

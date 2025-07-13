@@ -316,8 +316,7 @@ def segmentation_node(state: VoiceTreeState) -> VoiceTreeState:
             result = {
                 **state,
                 "chunks": [fallback_chunk],
-                "current_stage": "segmentation_complete",
-                "incomplete_chunk_remainder": None
+                "current_stage": "segmentation_complete"
             }
             print(f"   ✅ Created fallback segmentation with 1 chunk")
         else:
@@ -328,31 +327,8 @@ def segmentation_node(state: VoiceTreeState) -> VoiceTreeState:
                 "error_message": "Empty transcript provided for segmentation"
             }
     
-    # If segmentation was successful, filter out incomplete chunks
-    if result.get("chunks") and result["current_stage"] != "error":
-        complete_chunks = []
-        incomplete_chunk = None
-        
-        for chunk in result["chunks"]:
-            if chunk.get("is_complete", True):  # Default to True if not specified
-                complete_chunks.append(chunk)
-            else:
-                # Save the last incomplete chunk to carry forward
-                incomplete_chunk = chunk
-                print(f"   ⏳ Found incomplete chunk: '{chunk.get('name', 'Unnamed')[:50]}...'")
-        
-        # Update result with filtered chunks
-        result["chunks"] = complete_chunks
-        
-        # Save incomplete chunk text for next execution
-        if incomplete_chunk:
-            result["incomplete_chunk_remainder"] = incomplete_chunk.get("text", "")
-        else:
-            result["incomplete_chunk_remainder"] = None
-        
-        # print(f"   ✅ Processing {len(complete_chunks)} complete chunks")
-        if incomplete_chunk:
-            print(f"   ⏳ 1 incomplete chunk saved for next execution")
+    # Pass all chunks to the next stage - let downstream stages handle incomplete thoughts
+    # The buffer manager ensures we have enough text before processing
     
     return result
 
@@ -360,13 +336,30 @@ def segmentation_node(state: VoiceTreeState) -> VoiceTreeState:
 def relationship_analysis_node(state: VoiceTreeState) -> VoiceTreeState:
     """
     Stage 2: Analyze relationships between chunks and existing nodes
+    Only processes complete chunks - incomplete chunks are filtered out
     """
+    # Filter out incomplete chunks before processing
+    all_chunks = state.get("chunks", [])
+    complete_chunks = [chunk for chunk in all_chunks if chunk.get("is_complete", False)]
+    incomplete_count = len(all_chunks) - len(complete_chunks)
+    
+    if incomplete_count > 0:
+        print(f"   ⏳ Filtering out {incomplete_count} incomplete chunk(s) from relationship analysis")
+    
+    # If no complete chunks, skip this stage
+    if not complete_chunks:
+        return {
+            **state,
+            "analyzed_chunks": [],
+            "current_stage": "relationship_analysis_complete"
+        }
+    
     return process_llm_stage(
         state=state,
         stage_id="relationship_analysis",
         prompt_kwargs={
             "existing_nodes": state["existing_nodes"],
-            "sub_chunks": json.dumps(state["chunks"], indent=2),
+            "sub_chunks": json.dumps(complete_chunks, indent=2),  # Only pass complete chunks
             "transcript_history": state.get("transcript_history", "")
         },
         result_key="analyzed_chunks",
