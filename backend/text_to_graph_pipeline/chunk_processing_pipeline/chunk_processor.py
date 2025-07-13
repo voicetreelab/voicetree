@@ -202,6 +202,11 @@ class ChunkProcessor:
                 # Add the new node to the update set
                 self.nodes_to_update.add(new_node_id)
                 
+                # Also add the parent node to update set so its child links are updated
+                if parent_id is not None:
+                    self.nodes_to_update.add(parent_id)
+                    logging.info(f"Added parent node (ID {parent_id}) to update set to refresh child links")
+                
             elif decision.action == "APPEND":
                 # Find target node and append content
                 if not decision.target_node:
