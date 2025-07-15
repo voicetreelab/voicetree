@@ -7,6 +7,8 @@ import sys
 import os
 from pathlib import Path
 import json
+import asyncio
+import pytest
 
 # Add project root to path for imports
 current_dir = Path(__file__).parent
@@ -16,7 +18,8 @@ sys.path.insert(0, str(project_root))
 # Import the agent directly
 from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
 
-def test_complex_tree_creation():
+@pytest.mark.asyncio
+async def test_complex_tree_creation():
     """Test with the same examples used in the integration tests"""
     
     print("🧪 Testing VoiceTree LangGraph Pipeline with Real Integration Test Examples")
@@ -56,7 +59,7 @@ def test_complex_tree_creation():
     print("-" * 60)
     print(f"Input: {transcript1.strip()}")
     agent = VoiceTreeAgent()
-    result1 = agent.run(transcript1, existing_nodes=existing_nodes)
+    result1 = await agent.run(transcript1, existing_nodes=existing_nodes)
     print(f"\nResult 1: {len(result1.get('new_nodes', []))} new nodes created")
     results.append(result1)
     
@@ -68,7 +71,7 @@ def test_complex_tree_creation():
     print("\n📝 Processing Transcript 2: Reaching Out to Investors")
     print("-" * 60)
     print(f"Input: {transcript2.strip()}")
-    result2 = agent.run(transcript2, existing_nodes=existing_nodes)
+    result2 = await agent.run(transcript2, existing_nodes=existing_nodes)
     print(f"\nResult 2: {len(result2.get('new_nodes', []))} new nodes created")
     results.append(result2)
     
@@ -80,7 +83,7 @@ def test_complex_tree_creation():
     print("\n📝 Processing Transcript 3: Polishing the POC")
     print("-" * 60)
     print(f"Input: {transcript3.strip()}")
-    result3 = agent.run(transcript3, existing_nodes=existing_nodes)
+    result3 = await agent.run(transcript3, existing_nodes=existing_nodes)
     print(f"\nResult 3: {len(result3.get('new_nodes', []))} new nodes created")
     results.append(result3)
     
@@ -135,7 +138,8 @@ def test_complex_tree_creation():
         assert result is not None, f"Result {i+1} is None"
         assert "chunks" in result, f"Result {i+1} missing 'chunks' field"
 
-def test_single_transcript():
+@pytest.mark.asyncio
+async def test_single_transcript():
     """Test with a single transcript for quick testing"""
     
     print("\n🧪 Quick Test with Single Transcript")
@@ -157,19 +161,30 @@ def test_single_transcript():
     
     print(f"Input: {transcript.strip()}")
     agent = VoiceTreeAgent()
-    result = agent.run(transcript, existing_nodes=existing_nodes)
-    print(f"\nCombined result: {len(result.get('new_nodes', []))} new nodes created")
+    result = await agent.run(transcript, existing_nodes=existing_nodes)
     
-    # Assert that we got a valid result
-    assert result is not None, "Result should not be None"
-    assert "chunks" in result, "Result should contain 'chunks' field"
-    assert len(result.get("chunks", [])) > 0, "Should have processed at least one chunk"
+    if result is None:
+        print("\nResult is None - likely due to LLM API error")
+        # Still want to assert so the test fails properly
+        assert result is not None, "Result should not be None (check LLM API connection)"
+    else:
+        new_nodes = result.get('new_nodes')
+        if new_nodes is None:
+            new_nodes = []
+        print(f"\nCombined result: {len(new_nodes)} new nodes created")
+        
+        # Assert that we got a valid result
+        assert "chunks" in result, "Result should contain 'chunks' field"
+        chunks = result.get("chunks")
+        if chunks is None:
+            chunks = []
+        assert len(chunks) > 0, "Should have processed at least one chunk"
 
 if __name__ == "__main__":
     # Run the complex test with multiple transcripts
     print("Running complex tree creation test...")
-    test_complex_tree_creation()
+    asyncio.run(test_complex_tree_creation())
     
     # Run a simple single transcript test
     print("\n" + "="*80)
-    test_single_transcript()
+    asyncio.run(test_single_transcript())
