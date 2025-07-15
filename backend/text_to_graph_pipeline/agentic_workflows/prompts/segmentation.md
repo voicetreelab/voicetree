@@ -41,8 +41,13 @@ THEN apply these segmentation rules based on your reasoning:
    - `is_complete: true` if it's a complete thought
    - When unsure, mark incomplete - better to wait for more context
 
-5. **Light editing** - Our voice to text may have mistakes such as mis-hearing the wrong word, hallucinating grammar, etc.
-Fix obvious transcription errors but preserve original wording.
+5. **Light editing** - Our voice to text transcription may have mistakes. First try understand the intended meaning of the text within the context (transcript history), then fix these common errors such that the output text represent the intended meaning with minimal changes:
+   - Accidentally repeated words: "may  may be caausing" → "may be causing"
+   - Wrong homophones in context: "there" vs "their", "to" vs "too"
+   - Missing words: Add only if obvious from context (e.g., "I working on" → "I'm working on")
+   - Likely hallucinations and filler words ("um", "you know", etc.)
+   - Grammar: Minimum changes to improve grammar, but retain the intended meaning.
+   - Preserve: Speaker's natural style, intentional repetition, emphasis
 
 EXAMPLES:
 
@@ -66,7 +71,7 @@ Output:
 {
   "chunks": [
     {"reasoning": "This is a distinct task about researching visualization libraries. It's a complete, self-contained thought.", "name": "Visualization Libraries", "text": "I need to look into visualization libraries.", "is_complete": true},
-    {"reasoning": "this could be introducing a separate task about data format conversion. It's grammatically informal but arguably conceptually complete. Since it is borderline, let's default to waiting for more input later to see if the meaning changes", "name": "Text Conversion", "text": "Uh, converting text into a data format.", "is_complete": false},
+    {"reasoning": "this could be introducing a separate task about data format conversion. It's grammatically informal but arguably conceptually complete. Since it is borderline, let's default to waiting for more input later to see if the meaning changes", "name": "Text Conversion", "text": "converting text into a data format.", "is_complete": false},
     {"reasoning": "This seems to be referring back to the same task about researching visualization libraries. It's a complete thought.", "name": "Mermaid Visualization", "text": "Oh yea, Myles mentioned Mermaid as a good visualization option", "is_complete": true},
   ]
 }

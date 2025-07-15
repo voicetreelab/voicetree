@@ -21,7 +21,7 @@ buffer_config = BufferConfig(
 )
 
 voice_config = VoiceConfig(
-    model=os.getenv("VOICE_MODEL", "large-v3")
+    model=os.getenv("VOICE_MODEL", "mobiuslabsgmbh/faster-whisper-large-v3-turbo")
 )
 
 tree_config = TreeConfig(
