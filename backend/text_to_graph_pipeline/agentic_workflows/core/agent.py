@@ -91,7 +91,7 @@ class Agent:
         for prompt_name in self.prompts:
             
             def make_node_fn(pname: str):  # Closure to capture prompt_name
-                def node_fn(state: Dict[str, Any]) -> Dict[str, Any]:
+                async def node_fn(state: Dict[str, Any]) -> Dict[str, Any]:
                     from .debug_logger import log_stage_input_output
                     
                     # Log inputs
@@ -114,7 +114,7 @@ class Agent:
                         response = llm_client.call(prompt, output_schema=output_schema)
                     else:
                         # Use default integration
-                        response = call_llm_structured(prompt, pname)
+                        response = await call_llm_structured(prompt, pname)
                     
                     # Convert response to dict if needed
                     if hasattr(response, 'model_dump'):
@@ -147,7 +147,7 @@ class Agent:
                 transformer_name = f"{from_prompt}_to_{to_prompt}_transform"
                 
                 def make_transformer(t: Callable):
-                    def transformer_node(state: Dict[str, Any]) -> Dict[str, Any]:
+                    async def transformer_node(state: Dict[str, Any]) -> Dict[str, Any]:
                         return t(state)
                     return transformer_node
                     

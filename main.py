@@ -1,5 +1,4 @@
 import asyncio
-import unittest
 import tempfile
 import os
 import logging
@@ -30,11 +29,13 @@ async def main():
     
     voice_engine = VoiceToTextEngine()
     voice_engine.start_listening()
+    
     while True:
         transcription = voice_engine.process_audio_queue()
         if transcription:
+            # Use the async version directly - no thread pool needed
             await processor.process_and_convert(transcription)
-        await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning
+        await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning  # Small delay to prevent CPU spinning
 
 
 if __name__ == "__main__":

@@ -66,7 +66,7 @@ class VoiceTreeAgent(Agent):
             "analyzed_chunks": filtered_analyzed
         }
         
-    def run(self, transcript: str, transcript_history: Optional[str] = None, 
+    async def run(self, transcript: str, transcript_history: Optional[str] = None, 
             existing_nodes: Optional[str] = None) -> Dict[str, Any]:
         """
         Run the agent with proper initialization and result extraction
@@ -103,7 +103,7 @@ class VoiceTreeAgent(Agent):
         try:
             # Compile and run
             app = self.compile()
-            result = app.invoke(initial_state)
+            result = await app.ainvoke(initial_state)
             
             # Extract new nodes from decisions if not already present
             if not result.get("new_nodes") and result.get("integration_decisions"):

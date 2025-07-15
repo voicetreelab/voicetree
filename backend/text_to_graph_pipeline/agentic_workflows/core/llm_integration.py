@@ -76,7 +76,7 @@ _load_environment()
 
 
 
-def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
+async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
     """
     Call the LLM with structured output using Pydantic schemas
     
@@ -116,8 +116,8 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
             system_prompt="You are a helpful assistant that provides structured responses."
         )
         
-        # Run the agent synchronously
-        result = agent.run_sync(prompt)
+        # Run the agent asynchronously
+        result = await agent.run(prompt)
         
         # print(f"✅ API call successful - structured response received")
         return result.data
@@ -136,7 +136,7 @@ def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_
         raise RuntimeError(f"{error_msg}\nPlease check your API configuration and try again.")
 
 
-def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
+async def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
     """
     Legacy function for backward compatibility
     Calls the LLM and returns raw text response
@@ -171,8 +171,8 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
             system_prompt="You are a helpful assistant."
         )
         
-        # Run the agent synchronously
-        result = agent.run_sync(prompt)
+        # Run the agent asynchronously
+        result = await agent.run(prompt)
         
         # print(f"✅ API call successful - response length: {len(result.data)} chars")
         return result.data

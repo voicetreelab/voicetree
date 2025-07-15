@@ -41,7 +41,7 @@ class WorkflowAdapter:
         self.agent = VoiceTreeAgent()
         self.state_manager = VoiceTreeStateManager(state_file) if state_file else None
     
-    def process_transcript(
+    async def process_transcript(
         self, 
         transcript: str,
         context: Optional[str] = None
@@ -60,9 +60,8 @@ class WorkflowAdapter:
             # Get existing nodes for context
             existing_nodes = self.state_manager.get_node_summaries() if self.state_manager else self._get_node_summaries()
             
-            # Run the agent directly
-            # Use a synchronous call in the current thread to avoid event loop conflicts
-            result = self.agent.run(
+            # Run the agent asynchronously
+            result = await self.agent.run(
                 transcript=transcript,
                 transcript_history=context,  # This is the transcript_history from buffer manager
                 existing_nodes=existing_nodes

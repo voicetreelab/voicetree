@@ -20,7 +20,7 @@ from backend.benchmarker.src import (
 )
 
 
-def run_quality_benchmark(test_transcripts=None):
+async def run_quality_benchmark(test_transcripts=None):
     """
     Run quality benchmarking on specified transcripts.
     
@@ -52,7 +52,7 @@ def run_quality_benchmark(test_transcripts=None):
         content = processor._limit_content_by_words(content, transcript_info.get('max_words'))
         
         # this actually runs VoiceTree on the transcript
-        processor.process_content(
+        await processor.process_content(
             content,
             transcript_info['file']  # use file path as identifier
         )
@@ -67,11 +67,12 @@ def run_quality_benchmark(test_transcripts=None):
         print("See backend/benchmarker/logs/quality_log.txt and backend/benchmarker/logs/latest_quality_log.txt for results.")
 
 
-def main():
+async def main():
     """Main entry point for quality benchmarking."""
     # You can customize test transcripts here or use defaults
-    run_quality_benchmark()
+    await run_quality_benchmark()
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
