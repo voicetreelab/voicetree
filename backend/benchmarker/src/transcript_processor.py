@@ -13,6 +13,8 @@ from .config import OUTPUT_DIR
 from .file_utils import clear_workflow_log, setup_output_directory
 
 
+import asyncio
+
 class TranscriptProcessor:
     """Handles processing of transcripts through the VoiceTree pipeline."""
     
@@ -55,7 +57,7 @@ class TranscriptProcessor:
     
 
     
-    def process_content(self, content, transcript_identifier):
+    async def process_content(self, content, transcript_identifier):
         """Process transcript content with VoiceTree using agentic workflow."""
         # Setup fresh output directory
         setup_output_directory()
@@ -70,11 +72,11 @@ class TranscriptProcessor:
             
             for i, word in enumerate(words):
                 # Send each word individually, like streaming voice
-                self.processor.process_and_convert_sync(word + " ")
+                await self.processor.process_and_convert(word + " ")
                 
                 # Small delay to simulate streaming (optional)
                 if i % 30 == 0:  # Rate limit every 30 words
-                    time.sleep(0.05)
+                    await asyncio.sleep(0.05)
             
             # FINALIZATION: Process any remaining text in the buffer
             remaining_buffer = self.processor.buffer_manager.get_buffer()
@@ -85,13 +87,13 @@ class TranscriptProcessor:
                 transcript_history = self.processor.buffer_manager.get_transcript_history()
                 
                 # Directly process the remaining buffer as a chunk, bypassing the buffer manager
-                self.processor._process_text_chunk_sync(remaining_buffer, transcript_history)
+                await self.processor._process_text_chunk(remaining_buffer, transcript_history)
                 
                 # Clear the buffer since we processed it
                 self.processor.buffer_manager.clear()
             
             # Convert all accumulated nodes to markdown
-            self.processor.finalize_sync()
+            await self.processor.finalize()
             
             # Log workflow statistics
             workflow_stats = self.processor.get_workflow_statistics()
