@@ -9,6 +9,7 @@ from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import V
 from backend.text_to_graph_pipeline.agentic_workflows.core.state_manager import VoiceTreeStateManager
 from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_node_summaries
 @dataclass
 class WorkflowResult:
     """Result from workflow execution"""
@@ -58,7 +59,7 @@ class WorkflowAdapter:
         """
         try:
             # Get existing nodes for context
-            existing_nodes = self.state_manager.get_node_summaries() if self.state_manager else self._get_node_summaries()
+            existing_nodes = self.state_manager.get_node_summaries() if self.state_manager else get_node_summaries(self.decision_tree)
             
             # Run the agent asynchronously
             result = await self.agent.run(
@@ -144,19 +145,6 @@ class WorkflowAdapter:
                 
         return " ".join(complete_texts) if complete_texts else ""
     
-    def _get_node_summaries(self) -> str:
-        """
-        Get node summaries from decision tree
-        
-        Returns:
-            String with node summaries
-        """
-        node_summaries = []
-        for node in self.decision_tree.tree.values():
-            if hasattr(node, 'title') and hasattr(node, 'summary'): # todo, title or name?
-                node_summaries.append(f"{node.title}: {node.summary}")
-        
-        return "\n".join(node_summaries) if node_summaries else "No existing nodes"
     
     # when applying actions, if target node is null, don't try force finding it.
     def get_workflow_statistics(self) -> Dict[str, Any]:
