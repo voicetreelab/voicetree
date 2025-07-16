@@ -3,22 +3,25 @@ Chunk Processing Pipeline
 Processes text chunks through agentic workflows and updates the tree
 """
 
-import logging
 import asyncio
 import inspect
+import logging
+import os
 import time
 import traceback
-import os
 from datetime import datetime
-from typing import Optional, Set, List
+from typing import List, Optional, Set
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-from .workflow_adapter import WorkflowAdapter
-from .apply_tree_actions import TreeActionApplier
 from backend import settings
+from backend.text_to_graph_pipeline.text_buffer_manager import \
+    TextBufferManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+    TreeToMarkdownConverter
 
+from .apply_tree_actions import TreeActionApplier
+from .workflow_adapter import WorkflowAdapter
 
 # Output directory configuration
 output_dir_base = "markdownTreeVault" # todo, move this to config file
@@ -41,7 +44,6 @@ class ChunkProcessor:
         self,
         decision_tree: DecisionTree,
         converter: Optional[TreeToMarkdownConverter] = None,
-        workflow_state_file: Optional[str] = None,
         output_dir: str = output_dir_default
     ):
         """
@@ -50,7 +52,6 @@ class ChunkProcessor:
         Args:
             decision_tree: The decision tree instance
             converter: Optional markdown converter (will create one if not provided)
-            workflow_state_file: Optional path to persist workflow state
             output_dir: Directory for markdown output
         """
         self.decision_tree = decision_tree
@@ -64,8 +65,7 @@ class ChunkProcessor:
         
         # Initialize workflow adapter
         self.workflow_adapter = WorkflowAdapter(
-            decision_tree=decision_tree,
-            state_file=workflow_state_file
+            decision_tree=decision_tree
         )
         
         # Initialize tree action applier
@@ -78,7 +78,7 @@ class ChunkProcessor:
         """Backward compatibility property for buffer size threshold"""
         return self.buffer_manager.bufferFlushLength
     
-    async def process_and_convert(self, text: str):
+    async def process_new_text_and_update_markdown(self, text: str):
         """
         Process transcribed text and convert to markdown (main entry point)
         
@@ -131,16 +131,6 @@ class ChunkProcessor:
     
     async def _process_text_chunk(self, text_chunk: str, transcript_history_context: str):
         """
-        Process a text chunk using the agentic workflow
-        
-        Args:
-            text_chunk: The chunk of text to process
-            transcript_history_context: Historical context
-        """
-        await self._process_with_workflow(text_chunk, transcript_history_context)
-    
-    async def _process_with_workflow(self, text_chunk: str, transcript_history_context: str):
-        """
         Process text using the agentic workflow
         
         Args:
@@ -150,7 +140,7 @@ class ChunkProcessor:
         logging.info("Processing text chunk with agentic workflow")
         print("Buffer full, sending to agentic workflow, text length: {text_chunk_len}", len(text_chunk)) 
         # Process through workflow
-        result = await self.workflow_adapter.process_transcript(
+        result = await self.workflow_adapter.process_full_buffer(
             transcript=text_chunk,
             context=transcript_history_context
         )

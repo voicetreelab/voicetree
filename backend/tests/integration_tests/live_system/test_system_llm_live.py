@@ -1,11 +1,15 @@
 import os
 import shutil  # For directory operations
-import pytest
-import nest_asyncio
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+import nest_asyncio
+import pytest
+
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
+    ChunkProcessor
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+    TreeToMarkdownConverter
 
 # Apply nest_asyncio to allow nested event loops
 nest_asyncio.apply()
@@ -57,7 +61,7 @@ class TestIntegration:
 
         # Process the transcript
         try:
-            await self.processor.process_and_convert(transcript)
+            await self.processor.process_new_text_and_update_markdown(transcript)
             print("✅ Processing completed without errors")
             
             # Process any remaining buffer content

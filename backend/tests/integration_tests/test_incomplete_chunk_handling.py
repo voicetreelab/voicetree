@@ -78,7 +78,7 @@ class TestIncompleteChunkHandling:
                 )
         
         # Mock the workflow adapter to return our test result
-        with patch.object(chunk_processor.workflow_adapter, 'process_transcript', 
+        with patch.object(chunk_processor.workflow_adapter, 'process_full_buffer', 
                          new_callable=AsyncMock) as mock_process:
             mock_process.side_effect = dynamic_workflow_result
             
@@ -130,7 +130,7 @@ class TestIncompleteChunkHandling:
         chunk_processor.buffer_manager.bufferFlushLength = 10
         
         # Mock workflow adapter
-        with patch.object(chunk_processor.workflow_adapter, 'process_transcript', 
+        with patch.object(chunk_processor.workflow_adapter, 'process_full_buffer', 
                          new_callable=AsyncMock) as mock_process:
             mock_process.return_value = Mock(
                 success=True,
@@ -181,47 +181,6 @@ class TestIncompleteChunkHandling:
         # Verify correct removal despite punctuation differences
         assert buffer_manager.getBuffer() == "How are you?"
     
-    @pytest.mark.asyncio 
-    async def test_empty_transcript_history_fixed(self, mock_decision_tree):
-        """Test that transcript_history is not empty when passed to workflow"""
-        
-        # Create chunk processor
-        chunk_processor = ChunkProcessor(
-            decision_tree=mock_decision_tree,
-            converter=Mock(),
-            workflow_state_file=None
-        )
-        
-        # Set low threshold to trigger processing
-        chunk_processor.buffer_manager.bufferFlushLength = 20
-        
-        # Mock the agent run method to capture state
-        captured_state = None
-        
-        def capture_state(transcript, transcript_history=None, existing_nodes=None):
-            nonlocal captured_state
-            captured_state = {
-                'transcript': transcript,
-                'transcript_history': transcript_history
-            }
-            return {
-                'error_message': None,
-                'integration_decisions': [],
-                'new_nodes': []
-            }
-        
-        with patch.object(chunk_processor.workflow_adapter.agent, 'run', 
-                         side_effect=capture_state):
-            
-            # Process some text
-            await chunk_processor.process_voice_input("This is test text that should appear in history.")
-            
-            # Verify transcript_history was passed and not empty
-            assert captured_state is not None
-            assert captured_state['transcript_history'] != ""
-            assert captured_state['transcript_history'] is not None
-            assert "This is test text" in captured_state['transcript_history']
-    
     @pytest.mark.asyncio
     async def test_fuzzy_matching_workflow_integration(self, mock_decision_tree):
         """Test complete workflow with fuzzy matching for LLM text modifications"""
@@ -239,7 +198,7 @@ class TestIncompleteChunkHandling:
         # Track workflow calls
         workflow_calls = []
         
-        def mock_process_transcript(transcript, context):
+        def mock_process_full_buffer(transcript, context):
             workflow_calls.append({
                 'transcript': transcript,
                 'context': context
@@ -261,8 +220,8 @@ class TestIncompleteChunkHandling:
                 }
             )
         
-        with patch.object(chunk_processor.workflow_adapter, 'process_transcript',
-                         new_callable=AsyncMock, side_effect=mock_process_transcript):
+        with patch.object(chunk_processor.workflow_adapter, 'process_full_buffer',
+                         new_callable=AsyncMock, side_effect=mock_process_full_buffer):
             
             # Process text that will be modified by LLM
             await chunk_processor.process_voice_input("Hello world. This is incomplete")

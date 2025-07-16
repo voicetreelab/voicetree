@@ -1,15 +1,21 @@
 import asyncio
-import unittest
 import os
 import shutil
+import unittest
 from unittest.mock import patch
+
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
+from backend.text_to_graph_pipeline.agentic_workflows.models import \
+    IntegrationDecision
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
+    ChunkProcessor
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import \
+    WorkflowResult
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+    TreeToMarkdownConverter
 
 
 class TestIntegrationMockedLLM(unittest.TestCase):
@@ -45,13 +51,13 @@ class TestIntegrationMockedLLM(unittest.TestCase):
     ]
 
     @pytest.mark.asyncio
-    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_transcript')
-    async def test_complex_tree_creation_workflow(self, mock_process_transcript):
+    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_full_buffer')
+    async def test_complex_tree_creation_workflow(self, mock_process_full_buffer):
         """Test complex tree creation using the new workflow system"""
         
         # Mock workflow responses for each transcript processing
         def mock_side_effect(*args, **kwargs):
-            call_num = mock_process_transcript.call_count - 1  # Subtract 1 because call_count has already been incremented
+            call_num = mock_process_full_buffer.call_count - 1  # Subtract 1 because call_count has already been incremented
             print(f"\nMock call #{call_num + 1}")
             print(f"  transcript: {kwargs.get('transcript', args[0] if args else 'N/A')[:100]}...")
             if call_num < len(mock_responses):
@@ -119,7 +125,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             )
         ]
         
-        mock_process_transcript.side_effect = mock_side_effect
+        mock_process_full_buffer.side_effect = mock_side_effect
         
         # Test transcripts
         transcript1 = """
@@ -144,15 +150,15 @@ class TestIntegrationMockedLLM(unittest.TestCase):
 
         # Process the transcripts
         print("Processing transcript 1...")
-        await self.processor.process_and_convert(transcript1)
+        await self.processor.process_new_text_and_update_markdown(transcript1)
         print(f"After transcript 1: nodes = {list(self.decision_tree.tree.keys())}")
         
         print("Processing transcript 2...")
-        await self.processor.process_and_convert(transcript2)
+        await self.processor.process_new_text_and_update_markdown(transcript2)
         print(f"After transcript 2: nodes = {list(self.decision_tree.tree.keys())}")
         
         print("Processing transcript 3...")
-        await self.processor.process_and_convert(transcript3)
+        await self.processor.process_new_text_and_update_markdown(transcript3)
         print(f"After transcript 3: nodes = {list(self.decision_tree.tree.keys())}")
         
         # IMPORTANT: Process any remaining buffer content
@@ -166,7 +172,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         print(f"After finalization: nodes = {list(self.decision_tree.tree.keys())}")
         
         # Check mock call count
-        print(f"\nMock process_transcript called {mock_process_transcript.call_count} times")
+        print(f"\nMock process_full_buffer called {mock_process_full_buffer.call_count} times")
         
         # Assertions
         tree = self.decision_tree.tree
@@ -217,13 +223,13 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         asyncio.run(self.test_complex_tree_creation_workflow())
 
     @pytest.mark.asyncio
-    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_transcript')
-    async def test_complex_tree_creation_append_mode_workflow(self, mock_process_transcript):
+    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_full_buffer')
+    async def test_complex_tree_creation_append_mode_workflow(self, mock_process_full_buffer):
         """Test complex tree creation with APPEND mode using the new workflow system"""
         
         # Mock workflow responses showing APPEND behavior
         def mock_side_effect(*args, **kwargs):
-            call_num = mock_process_transcript.call_count - 1
+            call_num = mock_process_full_buffer.call_count - 1
             if call_num < len(mock_responses):
                 return mock_responses[call_num]
             else:
@@ -287,7 +293,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             )
         ]
         
-        mock_process_transcript.side_effect = mock_side_effect
+        mock_process_full_buffer.side_effect = mock_side_effect
         
         # Test transcripts
         transcript1 = """
@@ -311,9 +317,9 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         )
 
         # Process the transcripts
-        await self.processor.process_and_convert(transcript1)
-        await self.processor.process_and_convert(transcript2)
-        await self.processor.process_and_convert(transcript3)
+        await self.processor.process_new_text_and_update_markdown(transcript1)
+        await self.processor.process_new_text_and_update_markdown(transcript2)
+        await self.processor.process_new_text_and_update_markdown(transcript3)
         
         # IMPORTANT: Process any remaining buffer content
         remaining_buffer = self.processor.buffer_manager.get_buffer()

@@ -1,14 +1,19 @@
 import asyncio
-import tempfile
-import os
 import logging
+import os
+import tempfile
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import VoiceToTextEngine
-from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import clear_debug_logs
 from backend.logging_config import setup_logging
+from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
+    clear_debug_logs
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
+    ChunkProcessor
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+    TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import \
+    VoiceToTextEngine
 
 # Configure logging
 logger = setup_logging('voicetree.log', console_level=logging.ERROR)
@@ -34,7 +39,7 @@ async def main():
         transcription = voice_engine.process_audio_queue()
         if transcription:
             # Use the async version directly - no thread pool needed
-            await processor.process_and_convert(transcription)
+            await processor.process_new_text_and_update_markdown(transcription)
         await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning  # Small delay to prevent CPU spinning
 
 
