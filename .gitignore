@@ -132,3 +132,4 @@ backend/tests/integration_tests/live_system/test_output/*
 backend/benchmarker/output/*
 backend/benchmarker/output*/*
 backend/text_to_graph_pipeline/agentic_workflows/core/debug_logs/*
+backend/tests/integration_tests/agentic_workflows/.obsidian/*
