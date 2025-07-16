@@ -4,34 +4,27 @@ Test helpers for integration tests
 
 from typing import Dict, Any, Optional, List
 from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
-from backend.text_to_graph_pipeline.agentic_workflows.core.state_manager import VoiceTreeStateManager
 
 
 class PipelineHelper:
-    """Simple test helper that combines agent + state management for tests"""
+    """Simple test helper for running the voice tree agent"""
     
     def __init__(self, state_file: Optional[str] = None):
         self.agent = VoiceTreeAgent()
-        self.state_manager = VoiceTreeStateManager(state_file) if state_file else None
+        # state_file parameter kept for backward compatibility but no longer used
         
-    def run(self, transcript: str) -> Dict[str, Any]:
-        """Run agent with state management"""
-        existing_nodes = self.state_manager.get_node_summaries() if self.state_manager else ""
+    def run(self, transcript: str, existing_nodes: str = "") -> Dict[str, Any]:
+        """Run agent - workflow is now stateless"""
         result = self.agent.run(transcript, existing_nodes=existing_nodes)
-        
-        if self.state_manager and result.get("new_nodes"):
-            self.state_manager.add_nodes(result["new_nodes"], result)
-            
         return result
     
     def get_statistics(self) -> Dict[str, Any]:
-        if self.state_manager:
-            return self.state_manager.get_statistics()
-        return {"error": "No state manager"}
+        # Workflow is now stateless, return empty stats
+        return {"message": "Workflow is stateless - no statistics to report"}
     
     def clear_state(self) -> None:
-        if self.state_manager:
-            self.state_manager.clear_state()
+        # No state to clear - workflow is now stateless
+        pass
 
 
 def verify_content_coverage(transcript: str, nodes_content: List[str], min_coverage_ratio: float = 0.1) -> tuple[bool, float, str]:

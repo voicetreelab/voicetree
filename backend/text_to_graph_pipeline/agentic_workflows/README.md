@@ -25,7 +25,6 @@ graph TB
         State[state.py<br/>VoiceTreeState]
         LLM[llm_integration.py<br/>LLM Calls]
         PE[prompt_engine.py<br/>Template Loading]
-        SM[state_manager.py<br/>Persistence]
         DL[debug_logger.py<br/>Debug Utils]
     end
     
