@@ -6,7 +6,7 @@ PUBLIC:
 - addText(text) -> void
 - getBufferTextWhichShouldBeProcessed() -> buffer text or ""
 - flushCompletelyProcessedText(text) -> remaining buffer contents
-- getTranscriptHistory(maxLength:int) ->
+- get_transcript_history(maxLength:int) ->
 
 
 PRIVATE:
@@ -16,7 +16,9 @@ PRIVATE:
 """
 
 import pytest
-from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import TextBufferManager
+
+from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import \
+    TextBufferManager
 
 
 class TestTextBufferManager:
@@ -111,7 +113,7 @@ should work for one word at start / middle / end of buffer. Should work for sent
         assert remaining.strip().startswith("This is a test")
     
     def test_get_transcript_history_with_max_length(self):
-        """Test that getTranscriptHistory returns limited history based on maxLength"""
+        """Test that get_transcript_history returns limited history based on maxLength"""
         buffer_manager = TextBufferManager()
         buffer_manager.init(bufferFlushLength=50)
         
@@ -122,12 +124,12 @@ should work for one word at start / middle / end of buffer. Should work for sent
         buffer_manager.addText(" Fourth sentence.")
         
         # Get full history
-        full_history = buffer_manager.getTranscriptHistory(maxLength=None)
+        full_history = buffer_manager.get_transcript_history(maxLength=None)
         # Should not add unnecessary spaces
         assert full_history == "First sentence. Second sentence. Third sentence. Fourth sentence."
         
         # Get limited history
-        limited_history = buffer_manager.getTranscriptHistory(maxLength=20)
+        limited_history = buffer_manager.get_transcript_history(maxLength=20)
         assert len(limited_history) <= 20
         # Should return the most recent characters
         assert "Fourth sentence" in limited_history

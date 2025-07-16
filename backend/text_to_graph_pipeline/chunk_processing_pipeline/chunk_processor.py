@@ -124,7 +124,7 @@ class ChunkProcessor:
         text_to_process = self.buffer_manager.getBufferTextWhichShouldBeProcessed()
         if text_to_process:
             # Get transcript history for context
-            transcript_history = self.buffer_manager.getTranscriptHistory()
+            transcript_history = self.buffer_manager.get_transcript_history()
             
             # Process the text chunk
             await self._process_text_chunk(text_to_process, transcript_history)
