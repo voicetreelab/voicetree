@@ -220,9 +220,9 @@ Look for where the content starts to diverge from the original transcript.
 
 ==========================================
 """
-    
+
     with open(summary_file, "w", encoding="utf-8") as f:
         f.write(summary_content)
     
-    print(f"📋 Created debug summary at {summary_file.name}")
-    print(f"🔍 Debug logs available in: {DEBUG_DIR}") 
+    # print(f"📋 Created debug summary at {summary_file.name}")
+    # print(f"🔍 Debug logs available in: {DEBUG_DIR}") 

@@ -1,0 +1,121 @@
+"""
+Tree Action Application Module
+Handles applying integration decisions to the decision tree
+"""
+
+import logging
+from typing import List, Set
+
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
+
+
+class TreeActionApplier:
+    """
+    Applies tree actions (CREATE, APPEND) to the decision tree.
+    
+    This class encapsulates the logic for modifying the tree structure
+    based on integration decisions from agentic workflows.
+    """
+    
+    def __init__(self, decision_tree: DecisionTree):
+        """
+        Initialize the TreeActionApplier
+        
+        Args:
+            decision_tree: The decision tree instance to apply actions to
+        """
+        self.decision_tree = decision_tree
+        self.nodes_to_update: Set[int] = set()
+    
+    def apply_integration_decisions(self, integration_decisions: List[IntegrationDecision]) -> Set[int]:
+        """
+        Apply integration decisions from workflow result to the decision tree
+        
+        Args:
+            integration_decisions: List of IntegrationDecision objects to apply
+            
+        Returns:
+            Set of node IDs that were updated
+        """
+        self.nodes_to_update.clear()
+        logging.info(f"Applying {len(integration_decisions)} integration decisions")
+        
+        for decision in integration_decisions:
+            if decision.action == "CREATE":
+                self._apply_create_action(decision)
+            elif decision.action == "APPEND":
+                self._apply_append_action(decision)
+            else:
+                logging.warning(f"Unknown action type: {decision.action}")
+        
+        return self.nodes_to_update.copy()
+    
+    def _apply_create_action(self, decision: IntegrationDecision):
+        """
+        Apply a CREATE action to create a new node in the tree
+        
+        Args:
+            decision: The IntegrationDecision with CREATE action
+        """
+        # Find parent node ID from name or none if not specified
+        parent_id = None  
+        if decision.target_node:
+            parent_id = self.decision_tree.get_node_id_from_name(decision.target_node)
+        
+        # Create new node
+        new_node_id = self.decision_tree.create_new_node(
+            name=decision.new_node_name,
+            parent_node_id=parent_id,
+            content=decision.content,
+            summary=decision.new_node_summary,
+            relationship_to_parent=decision.relationship_for_edge
+        )
+        logging.info(f"Created new node '{decision.new_node_name}' with ID {new_node_id}")
+        
+        # Add the new node to the update set
+        self.nodes_to_update.add(new_node_id)
+        
+        # Also add the parent node to update set so its child links are updated
+        if parent_id is not None:
+            self.nodes_to_update.add(parent_id)
+            logging.info(f"Added parent node (ID {parent_id}) to update set to refresh child links")
+    
+    def _apply_append_action(self, decision: IntegrationDecision):
+        """
+        Apply an APPEND action to append content to an existing node
+        
+        Args:
+            decision: The IntegrationDecision with APPEND action
+        """
+        # Find target node and append content
+        if not decision.target_node:
+            logging.warning(f"APPEND decision for '{decision.name}' has no target_node - skipping")
+            return
+            
+        node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
+        if node_id is not None:
+            node = self.decision_tree.tree[node_id]
+            node.append_content(
+                decision.content,
+                None,  # APPEND decisions don't have new_node_summary in IntegrationDecision
+                decision.name  # Use the chunk name as the label
+            )
+            logging.info(f"Appended content to node '{decision.target_node}' (ID {node_id})")
+            # Add the updated node to the update set
+            self.nodes_to_update.add(node_id)
+        else:
+            logging.warning(f"Could not find node '{decision.target_node}' for APPEND action")
+    
+    def get_nodes_to_update(self) -> Set[int]:
+        """
+        Get the set of node IDs that need to be updated
+        
+        Returns:
+            Set of node IDs
+        """
+        return self.nodes_to_update.copy()
+    
+    def clear_nodes_to_update(self):
+        """Clear the set of nodes to update"""
+        self.nodes_to_update.clear()

@@ -13,10 +13,10 @@ from datetime import datetime
 from typing import Optional, Set, List
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
 from .workflow_adapter import WorkflowAdapter
+from .apply_tree_actions import TreeActionApplier
 from backend import settings
 
 
@@ -59,10 +59,8 @@ class ChunkProcessor:
         self.output_dir = output_dir
         
         # Initialize text buffer manager with configuration
-        buffer_config = BufferConfig(
-            buffer_size_threshold=settings.TEXT_BUFFER_SIZE_THRESHOLD
-        )
-        self.buffer_manager = TextBufferManager(config=buffer_config)
+        self.buffer_manager = TextBufferManager()
+        self.buffer_manager.init(bufferFlushLength=settings.TEXT_BUFFER_SIZE_THRESHOLD)
         
         # Initialize workflow adapter
         self.workflow_adapter = WorkflowAdapter(
@@ -70,12 +68,15 @@ class ChunkProcessor:
             state_file=workflow_state_file
         )
         
+        # Initialize tree action applier
+        self.tree_action_applier = TreeActionApplier(decision_tree)
+        
         logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
     
     @property
     def text_buffer_size_threshold(self) -> int:
         """Backward compatibility property for buffer size threshold"""
-        return self.buffer_manager.config.buffer_size_threshold
+        return self.buffer_manager.bufferFlushLength
     
     async def process_and_convert(self, text: str):
         """
@@ -117,14 +118,16 @@ class ChunkProcessor:
         # logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
         
         # Add text to buffer - incomplete text is maintained internally
-        result = self.buffer_manager.add_text(transcribed_text)
+        self.buffer_manager.addText(transcribed_text)
         
-        if result.is_ready and result.text:
+        # Check if buffer is ready to be processed
+        text_to_process = self.buffer_manager.getBufferTextWhichShouldBeProcessed()
+        if text_to_process:
             # Get transcript history for context
-            transcript_history = self.buffer_manager.get_transcript_history()
+            transcript_history = self.buffer_manager.getTranscriptHistory()
             
             # Process the text chunk
-            await self._process_text_chunk(result.text, transcript_history)
+            await self._process_text_chunk(text_to_process, transcript_history)
     
     async def _process_text_chunk(self, text_chunk: str, transcript_history_context: str):
         """
@@ -145,7 +148,7 @@ class ChunkProcessor:
             transcript_history_context: Historical context
         """
         logging.info("Processing text chunk with agentic workflow")
-        
+        print("Buffer full, sending to agentic workflow, text length: {text_chunk_len}", len(text_chunk)) 
         # Process through workflow
         result = await self.workflow_adapter.process_transcript(
             transcript=text_chunk,
@@ -158,7 +161,7 @@ class ChunkProcessor:
             # Flush completed text from buffer
             if result.metadata and "completed_text" in result.metadata:
                 completed_text = result.metadata["completed_text"]
-                self.buffer_manager.flush_completed_text(completed_text)
+                self.buffer_manager.flushCompletelyProcessedText(completed_text)
                 if completed_text:
                     logging.info(f"Flushed completed text: '{completed_text[:50]}...'")
             else:
@@ -166,7 +169,8 @@ class ChunkProcessor:
                 logging.warning("Workflow didn't return completed text information")
             
             # Apply the integration decisions to the decision tree
-            self._apply_integration_decisions(result.integration_decisions)
+            updated_nodes = self.tree_action_applier.apply_integration_decisions(result.integration_decisions)
+            self.nodes_to_update.update(updated_nodes)
             
             # Log metadata
             if result.metadata:
@@ -174,58 +178,6 @@ class ChunkProcessor:
         else:
             logging.error(f"Workflow failed: {result.error_message}")
     
-    def _apply_integration_decisions(self, integration_decisions: List[IntegrationDecision]):
-        """
-        Apply integration decisions from workflow result to the decision tree
-        
-        Args:
-            integration_decisions: List of IntegrationDecision objects to apply
-        """
-        logging.info(f"Applying {len(integration_decisions)} integration decisions")
-        for decision in integration_decisions:
-            if decision.action == "CREATE":
-                # Find parent node ID from name
-                # or none if not specified
-                parent_id = None  
-                if decision.target_node:
-                    parent_id = self.decision_tree.get_node_id_from_name(decision.target_node)
-                
-                # Create new node
-                new_node_id = self.decision_tree.create_new_node(
-                    name=decision.new_node_name,
-                    parent_node_id=parent_id,
-                    content=decision.content,
-                    summary=decision.new_node_summary,
-                    relationship_to_parent=decision.relationship_for_edge
-                )
-                logging.info(f"Created new node '{decision.new_node_name}' with ID {new_node_id}")
-                # Add the new node to the update set
-                self.nodes_to_update.add(new_node_id)
-                
-                # Also add the parent node to update set so its child links are updated
-                if parent_id is not None:
-                    self.nodes_to_update.add(parent_id)
-                    logging.info(f"Added parent node (ID {parent_id}) to update set to refresh child links")
-                
-            elif decision.action == "APPEND":
-                # Find target node and append content
-                if not decision.target_node:
-                    logging.warning(f"APPEND decision for '{decision.name}' has no target_node - skipping")
-                    continue
-                    
-                node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
-                if node_id is not None:
-                    node = self.decision_tree.tree[node_id]
-                    node.append_content(
-                        decision.content,
-                        None,  # APPEND decisions don't have new_node_summary in IntegrationDecision
-                        decision.name  # Use the chunk name as the label
-                    )
-                    logging.info(f"Appended content to node '{decision.target_node}' (ID {node_id})")
-                    # Add the updated node to the update set
-                    self.nodes_to_update.add(node_id) #todo maybe we could hide this within the append_content method. Or track recently_updated_nodes there.
-                else:
-                    logging.warning(f"Could not find node '{decision.target_node}' for APPEND action")
     
     def get_workflow_statistics(self) -> dict:
         """Get statistics from the workflow adapter"""
@@ -244,7 +196,7 @@ class ChunkProcessor:
             logging.info("Finalizing transcription processing")
             
             # Check if there's anything in the buffer that wasn't processed
-            final_buffer = self.buffer_manager.get_buffer()
+            final_buffer = self.buffer_manager.getBuffer()
             if final_buffer:
                 logging.warning(f"WARNING: Buffer still has {len(final_buffer)} chars during finalize")
             
