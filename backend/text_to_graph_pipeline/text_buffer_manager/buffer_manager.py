@@ -101,11 +101,35 @@ class TextBufferManager:
             match = self._fuzzy_matcher.find_best_match(text, self._buffer)
             best_score = match[2] if match else 0
             
+            # Show more detail for debugging
+            completed_preview = text[:200] + ("..." if len(text) > 200 else "")
+            buffer_preview = self._buffer[:200] + ("..." if len(self._buffer) > 200 else "")
+            
             error_msg = (f"Failed to find completed text in buffer. "
                         f"Best similarity was only {best_score:.0f}%. This indicates a system issue.\n"
-                        f"Completed text: '{text[:100]}...'\n"
-                        f"Buffer content: '{self._buffer[:100]}...'")
+                        f"Completed text ({len(text)} chars): '{completed_preview}'\n"
+                        f"Buffer content ({len(self._buffer)} chars): '{buffer_preview}'")
             logging.error(error_msg)
+            
+            # Additional debug info
+            if text[:50] == self._buffer[:50]:
+                logging.error("Note: Texts have same start (first 50 chars)")
+                if self._buffer.startswith(text):
+                    logging.error("Buffer starts with completed text - this should have been found!")
+                elif text in self._buffer:
+                    idx = self._buffer.index(text)
+                    logging.error(f"Completed text found in buffer at position {idx}")
+                else:
+                    logging.error("Completed text is NOT a substring of buffer")
+                    # Find where they diverge
+                    for i in range(min(len(text), len(self._buffer))):
+                        if i >= len(text) or i >= len(self._buffer) or text[i] != self._buffer[i]:
+                            logging.error(f"First difference at position {i}")
+                            if i < len(text) and i < len(self._buffer):
+                                logging.error(f"Completed[{i}]: '{text[i]}' (ord={ord(text[i])})")
+                                logging.error(f"Buffer[{i}]: '{self._buffer[i]}' (ord={ord(self._buffer[i])})")
+                            break
+            
             raise RuntimeError(error_msg)
             
         return self._buffer
