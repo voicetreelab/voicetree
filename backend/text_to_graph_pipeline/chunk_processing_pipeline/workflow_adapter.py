@@ -111,7 +111,7 @@ class WorkflowAdapter:
                 metadata={
                     "chunks_processed": len(result.get("chunks", [])),
                     "decisions_made": len(integration_decisions),
-                    "completed_text": self._extract_completed_text(result)
+                    "completed_chunks": self._extract_completed_chunks(result)
                 }
             )
             
@@ -123,33 +123,32 @@ class WorkflowAdapter:
                 error_message=f"Workflow execution failed: {str(e)}"
             )
     
-    def _extract_completed_text(self, workflow_result: Dict[str, Any]) -> str:
+    
+    def _extract_completed_chunks(self, workflow_result: Dict[str, Any]) -> List[str]:
         """
-        Extract ONLY text from complete chunks that were segmented by the workflow.
+        Extract text from complete chunks as a list.
         
-        Incomplete chunks should remain in the buffer to be combined with the
-        next transcript segment, so we only flush text from complete chunks.
+        Each complete chunk should be removed from the buffer individually
+        to handle non-contiguous chunks correctly.
         
         Args:
             workflow_result: Result from the workflow execution
             
         Returns:
-            The concatenated text from complete chunks only
+            List of texts from complete chunks
         """
-        # Get all chunks from segmentation
         chunks = workflow_result.get("chunks", [])
         if not chunks:
-            return ""
+            return []
             
-        # Extract text ONLY from complete chunks
         complete_texts = []
         for chunk in chunks:
             if chunk.get("is_complete", False):
                 text = chunk.get("text", "")
                 if text:
                     complete_texts.append(text)
-                
-        return "".join(complete_texts) if complete_texts else ""
+                    
+        return complete_texts
     
     
     # when applying actions, if target node is null, don't try force finding it.

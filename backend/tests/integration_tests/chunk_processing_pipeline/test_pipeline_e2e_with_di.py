@@ -89,6 +89,21 @@ class MockVoiceTreeAgent:
                     existing_node_names.append(node_name)
         
         # Simulate chunking - split transcript into 1-5 random chunks
+        # Handle empty transcript
+        if not transcript.strip():
+            return {
+                "chunks": [],
+                "integration_decisions": [],
+                "current_stage": "complete",
+                "error_message": None
+            }
+        
+        num_chunks = random.randint(1, min(5, max(1, len(transcript) // 50)))
+        
+        chunks = []
+        integration_decisions = []
+        
+        # Simulate chunking - split transcript into 1-5 random chunks
         words = transcript.split()
         
         # Handle empty transcript

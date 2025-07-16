@@ -154,16 +154,19 @@ class ChunkProcessor:
         if result.success:
             logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
             
-            # Flush completed text from buffer
-            if result.metadata and "completed_text" in result.metadata:
-                completed_text = result.metadata["completed_text"]
-                if completed_text:  # Only flush if there's actual completed text
-                    self.buffer_manager.flushCompletelyProcessedText(completed_text)
-                    logging.info(f"Flushed completed text: '{completed_text[:50]}...'")
+            # Flush completed chunks from buffer individually
+            if result.metadata and "completed_chunks" in result.metadata:
+                completed_chunks = result.metadata["completed_chunks"]
+                if completed_chunks:
+                    # Remove each complete chunk from the buffer individually
+                    for chunk_text in completed_chunks:
+                        if chunk_text:
+                            self.buffer_manager.flushCompletelyProcessedText(chunk_text)
+                            logging.info(f"Flushed chunk: '{chunk_text[:50]}...'")
+                    logging.info(f"Total chunks flushed: {len(completed_chunks)}")
                 else:
-                    logging.warning("Workflow returned empty completed text - buffer unchanged")
-            else:
-                # No completed text information, log warning
+                    logging.warning("Workflow returned empty completed chunks - buffer unchanged")
+            elif result.metadata and "completed_text" in result.metadata:
                 logging.warning("Workflow didn't return completed text information")
             
             # Apply the integration decisions to the decision tree
