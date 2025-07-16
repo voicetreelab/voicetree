@@ -39,7 +39,6 @@ class TranscriptProcessor:
         self.processor = ChunkProcessor(
             self.decision_tree, 
             converter=TreeToMarkdownConverter(self.decision_tree.tree),
-            workflow_state_file=state_file_name,
             output_dir=OUTPUT_DIR
         )
         
