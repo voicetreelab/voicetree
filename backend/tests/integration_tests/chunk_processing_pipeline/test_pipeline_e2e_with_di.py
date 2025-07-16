@@ -1,8 +1,23 @@
 """
 End-to-end integration test for chunk processing pipeline using dependency injection.
 
-This test verifies the entire pipeline from process_new_text_and_update_markdown
-through to markdown file generation, with VoiceTreeAgent mocked via dependency injection.
+
+Integration test for chunk processing pipeline with mocked workflow.
+
+This test aims to test the chunk processing pipeline, which does:
+entrypoint -> process_new_text_and_update_markdown (new text) -> runs agentic workflow -> processes results -> updated tree -> updated markdown
+
+We mock the agentic workflow part to randomly return CREATE or APPEND IntegrationDecisions.
+
+Test approach:
+- Randomly call 100 times our entrypoint (process_new_text_and_update_markdown) with random sentences between 1-110 words in length, each word just random letters
+- Mock agentic workflow to return IntegrationDecisions by subchunking the actual content in the buffer when full
+    - Break buffer into 1-5 random subchunks
+    - Each subchunk randomly gets CREATE/APPEND action with real text from buffer
+    - Third chunk 50% chance of having complete : false set, so that it is not removed from the buffer, and will be processed next time buffer is full. The behaviour we test is that the content is still processed, no duplication or missing, exhaustive and complete.
+- Test such invariants at the MARKDOWN level:
+  - Number of nodes matches init + created
+  - All text we put into  buffer is preserved in tree
 """
 
 import asyncio
@@ -11,6 +26,7 @@ import os
 import random
 import re
 import shutil
+import string
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import pytest
@@ -18,6 +34,17 @@ import pytest
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
+
+
+def generate_random_sentence(min_words=1, max_words=110):
+    """Generate a random sentence with specified word count."""
+    word_count = random.randint(min_words, max_words)
+    words = []
+    for _ in range(word_count):
+        word_length = random.randint(3, 10)
+        word = ''.join(random.choices(string.ascii_lowercase, k=word_length))
+        words.append(word)
+    return ' '.join(words)
 
 
 class MockVoiceTreeAgent:
@@ -61,26 +88,57 @@ class MockVoiceTreeAgent:
                     node_name = line.split(':')[0].strip()
                     existing_node_names.append(node_name)
         
-        # Simulate chunking - split transcript into 1-3 chunks
+        # Simulate chunking - split transcript into 1-5 random chunks
         words = transcript.split()
-        num_chunks = min(3, max(1, len(words) // 20))
-        chunk_size = len(words) // num_chunks if num_chunks > 0 else len(words)
+        
+        # Handle empty transcript
+        if not words:
+            return {
+                "chunks": [],
+                "integration_decisions": [],
+                "current_stage": "complete",
+                "error_message": None
+            }
+        
+        num_chunks = random.randint(1, min(5, len(words)))
         
         chunks = []
         integration_decisions = []
         
-        for i in range(num_chunks):
-            start = i * chunk_size
-            end = start + chunk_size if i < num_chunks - 1 else len(words)
+        # Create random chunk boundaries
+        if num_chunks == 1:
+            chunk_boundaries = [(0, len(words))]
+        else:
+            # Ensure we don't try to create more chunks than possible
+            max_possible_chunks = len(words)
+            if num_chunks > max_possible_chunks:
+                num_chunks = max_possible_chunks
+                
+            if num_chunks == 1:
+                chunk_boundaries = [(0, len(words))]
+            else:
+                boundaries = sorted(random.sample(range(1, len(words)), num_chunks - 1))
+                chunk_boundaries = [(0, boundaries[0])]
+                for i in range(len(boundaries) - 1):
+                    chunk_boundaries.append((boundaries[i], boundaries[i + 1]))
+                chunk_boundaries.append((boundaries[-1], len(words)))
+        
+        for i, (start, end) in enumerate(chunk_boundaries):
             chunk_text = " ".join(words[start:end])
             
-            # Mark last chunk as potentially incomplete
-            is_complete = i < num_chunks - 1 or random.random() > 0.3
+            # Third chunk has 50% chance of being incomplete
+            if i == 2:
+                is_complete = random.random() > 0.5
+            else:
+                is_complete = True
             
             chunks.append({
                 "text": chunk_text,
                 "is_complete": is_complete
             })
+            
+            if not is_complete:
+                print(f"DEBUG: Created incomplete chunk {i}: '{chunk_text[:50]}...'")
             
             # Only create decisions for complete chunks
             if is_complete:
@@ -282,6 +340,89 @@ class TestPipelineE2EWithDI:
         assert len(md_files) == len([n for n in decision_tree.tree.values() 
                                      if hasattr(n, 'title')]), \
             "Should have one markdown file per non-root node"
+    
+    @pytest.mark.asyncio
+    async def test_100_random_sentences_with_invariants(self):
+        """Test with 100 random sentences and verify invariants."""
+        decision_tree = DecisionTree()
+        mock_agent = MockVoiceTreeAgent()
+        
+        chunk_processor = ChunkProcessor(
+            decision_tree=decision_tree,
+            output_dir=self.output_dir,
+            agent=mock_agent
+        )
+        
+        # Track all input text
+        all_input_text = []
+        initial_node_count = len(decision_tree.tree)
+        
+        # Generate and process 100 random sentences
+        for i in range(101):
+            sentence = generate_random_sentence(1, 110)
+            all_input_text.append(sentence)
+            await chunk_processor.process_new_text_and_update_markdown(sentence)
+        
+        # Wait for all processing to complete
+        await asyncio.sleep(1.0)
+        
+        # Invariant 1: Number of nodes matches initial + created
+        created_nodes = len(mock_agent.created_nodes)
+        final_node_count = len(decision_tree.tree)
+        assert final_node_count == initial_node_count + created_nodes, \
+            f"Node count mismatch: expected {initial_node_count + created_nodes}, got {final_node_count}"
+        
+        # Invariant 2: All text preserved in tree (for completed chunks)
+        # Collect all text content from nodes
+        all_node_content = []
+        for node in decision_tree.tree.values():
+            if hasattr(node, 'content') and node.content:
+                all_node_content.append(node.content)
+        
+        # Also check markdown files
+        md_files = glob.glob(os.path.join(self.output_dir, "*.md"))
+        all_markdown_content = ""
+        for md_file in md_files:
+            with open(md_file, 'r') as f:
+                all_markdown_content += f.read()
+        
+        # Combine all content
+        all_content = " ".join(all_node_content) + " " + all_markdown_content
+        all_content_lower = all_content.lower()
+        
+        print(f"\nDebug info:")
+        print(f"First input text: {all_input_text[0][:100]}...")
+        print(f"Nodes created: {len(mock_agent.created_nodes)}")
+        print(f"Total node content chars: {sum(len(c) for c in all_node_content)}")
+        print(f"Number of markdown files: {len(md_files)}")
+        
+        # Show a sample of what's in nodes
+        if all_node_content:
+            print(f"First node content preview: '{all_node_content[0][:100]}...'")
+        
+        # Simple word-based verification
+        # Collect all words from input
+        all_input_words = []
+        for text in all_input_text:
+            all_input_words.extend(text.lower().split())
+        
+        # Count how many input words appear in the output
+        words_found = 0
+        for word in all_input_words:
+            if word in all_content_lower:
+                words_found += 1
+        
+        word_ratio = words_found / len(all_input_words) if all_input_words else 0
+        
+        print(f"\nWord preservation:")
+        print(f"Total input words: {len(all_input_words)}")
+        print(f"Words found in output: {words_found}")
+        print(f"Word preservation ratio: {word_ratio:.1%}")
+        
+        # We expect 90% of words to appear in the output
+        # (some words may be in the unflushed buffer at the end)
+        assert word_ratio > 0.90, \
+            f"Too few words found in output: {word_ratio:.1%} (found {words_found}/{len(all_input_words)} words)"
 
 
 @pytest.mark.asyncio

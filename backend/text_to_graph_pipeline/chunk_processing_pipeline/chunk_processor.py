@@ -157,9 +157,11 @@ class ChunkProcessor:
             # Flush completed text from buffer
             if result.metadata and "completed_text" in result.metadata:
                 completed_text = result.metadata["completed_text"]
-                self.buffer_manager.flushCompletelyProcessedText(completed_text)
-                if completed_text:
+                if completed_text:  # Only flush if there's actual completed text
+                    self.buffer_manager.flushCompletelyProcessedText(completed_text)
                     logging.info(f"Flushed completed text: '{completed_text[:50]}...'")
+                else:
+                    logging.warning("Workflow returned empty completed text - buffer unchanged")
             else:
                 # No completed text information, log warning
                 logging.warning("Workflow didn't return completed text information")

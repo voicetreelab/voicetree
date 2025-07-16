@@ -102,7 +102,7 @@ class TextBufferManager:
             best_score = match[2] if match else 0
             
             error_msg = (f"Failed to find completed text in buffer. "
-                        f"Best similarity was only {best_score:.2%}. This indicates a system issue.\n"
+                        f"Best similarity was only {best_score:.0f}%. This indicates a system issue.\n"
                         f"Completed text: '{text[:100]}...'\n"
                         f"Buffer content: '{self._buffer[:100]}...'")
             logging.error(error_msg)

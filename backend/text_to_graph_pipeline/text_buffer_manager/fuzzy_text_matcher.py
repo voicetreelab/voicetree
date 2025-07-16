@@ -7,8 +7,9 @@ whitespace differences, minor word modifications).
 """
 
 from typing import Tuple, Optional
-from difflib import SequenceMatcher
 import logging
+from rapidfuzz import fuzz
+from rapidfuzz.fuzz import partial_ratio_alignment
 
 
 class FuzzyTextMatcher:
@@ -22,13 +23,14 @@ class FuzzyTextMatcher:
     - Text length variations (within reasonable bounds)
     """
     
-    def __init__(self, similarity_threshold: float = 0.8):
+    def __init__(self, similarity_threshold: float = 80):
         """
         Initialize the fuzzy text matcher.
         
         Args:
-            similarity_threshold: Minimum similarity score (0-1) required for a match.
-                                Default is 0.8 (80% similarity).
+            similarity_threshold: Minimum similarity score (0-100) required for a match.
+                                Default is 80 (80% similarity).
+                                Note: RapidFuzz uses 0-100 scale, not 0-1.
         """
         self.similarity_threshold = similarity_threshold
         
@@ -36,8 +38,7 @@ class FuzzyTextMatcher:
         """
         Find the best match for target_text within source_text using fuzzy matching.
         
-        Uses a variable-length sliding window approach to handle text that may have
-        been slightly modified by an LLM during processing.
+        Uses RapidFuzz's partial_ratio_alignment for efficient fuzzy substring matching.
         
         Args:
             target_text: The text to search for (e.g., completed text from workflow)
@@ -49,39 +50,30 @@ class FuzzyTextMatcher:
         """
         if not target_text or not source_text:
             return None
+        
+        # First try exact substring match for performance
+        if target_text in source_text:
+            start = source_text.index(target_text)
+            end = start + len(target_text)
+            logging.info(f"Found exact match at position {start}-{end}")
+            return (start, end, 100.0)
+        
+        # Use RapidFuzz's partial_ratio_alignment for fuzzy substring matching
+        # This finds the best matching substring in source_text
+        alignment = partial_ratio_alignment(target_text, source_text)
+        score = alignment.score
+        
+        if score >= self.similarity_threshold:
+            # Get the aligned substring positions
+            start = alignment.dest_start
+            end = alignment.dest_end
             
-        target_len = len(target_text)
-        source_len = len(source_text)
-        
-        # Search for windows 80% to 120% of target text length
-        min_window = int(target_len * 0.8)
-        max_window = min(int(target_len * 1.2), source_len)
-        
-        best_score = 0
-        best_start = 0
-        best_end = 0
-        
-        # Try different window sizes
-        for window_size in range(min_window, max_window + 1):
-            # Slide this window size across the source text
-            for start in range(source_len - window_size + 1):
-                window = source_text[start:start + window_size]
-                
-                # Calculate similarity score
-                score = self._calculate_similarity(target_text, window)
-                
-                if score > best_score:
-                    best_score = score
-                    best_start = start
-                    best_end = start + window_size
-        
-        # Extend match to include trailing punctuation if present
-        if best_score >= self.similarity_threshold:
-            while best_end < source_len and source_text[best_end] in '.!?,;:':
-                best_end += 1
-                
-            logging.info(f"Found match with {best_score:.2%} similarity at position {best_start}-{best_end}")
-            return (best_start, best_end, best_score)
+            # Extend match to include trailing punctuation if present
+            while end < len(source_text) and source_text[end] in '.!?,;:':
+                end += 1
+            
+            logging.info(f"Found fuzzy match with {score:.2%} similarity at position {start}-{end}")
+            return (start, end, score)
         
         return None
         
@@ -114,19 +106,15 @@ class FuzzyTextMatcher:
         """
         Calculate similarity score between two texts.
         
-        Uses difflib's SequenceMatcher for robust character-level comparison
-        that handles most LLM modifications well.
+        Uses RapidFuzz for fast and robust comparison.
         
         Args:
             text1: First text to compare
             text2: Second text to compare
             
         Returns:
-            Similarity score between 0 and 1, where 1 is perfect match
+            Similarity score between 0 and 100, where 100 is perfect match
         """
-        # Normalize whitespace but preserve other differences
-        t1 = " ".join(text1.split())
-        t2 = " ".join(text2.split())
-        
-        # Use SequenceMatcher's ratio - handles typos, punctuation changes, etc.
-        return SequenceMatcher(None, t1, t2).ratio()
+        # Use RapidFuzz's ratio for general similarity
+        # Note: RapidFuzz returns scores 0-100, not 0-1
+        return fuzz.ratio(text1, text2)
