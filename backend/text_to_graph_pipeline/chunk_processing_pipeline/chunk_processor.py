@@ -10,7 +10,10 @@ import os
 import time
 import traceback
 from datetime import datetime
-from typing import List, Optional, Set
+from typing import TYPE_CHECKING, Any, List, Optional, Set
+
+if TYPE_CHECKING:
+    from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
 
 from backend import settings
 from backend.text_to_graph_pipeline.text_buffer_manager import \
@@ -44,7 +47,8 @@ class ChunkProcessor:
         self,
         decision_tree: DecisionTree,
         converter: Optional[TreeToMarkdownConverter] = None,
-        output_dir: str = output_dir_default
+        output_dir: str = output_dir_default,
+        agent: Optional["VoiceTreeAgent"] = None
     ):
         """
         Initialize the chunk processor (combines workflow tree manager and transcription processor)
@@ -53,6 +57,7 @@ class ChunkProcessor:
             decision_tree: The decision tree instance
             converter: Optional markdown converter (will create one if not provided)
             output_dir: Directory for markdown output
+            agent: Optional VoiceTreeAgent instance for testing
         """
         self.decision_tree = decision_tree
         self.nodes_to_update: Set[int] = set()
@@ -65,7 +70,8 @@ class ChunkProcessor:
         
         # Initialize workflow adapter
         self.workflow_adapter = WorkflowAdapter(
-            decision_tree=decision_tree
+            decision_tree=decision_tree,
+            agent=agent
         )
         
         # Initialize tree action applier
@@ -138,7 +144,7 @@ class ChunkProcessor:
             transcript_history_context: Historical context
         """
         logging.info("Processing text chunk with agentic workflow")
-        print("Buffer full, sending to agentic workflow, text length: {text_chunk_len}", len(text_chunk)) 
+        print(f"Buffer full, sending to agentic workflow, text length: {len(text_chunk)}") 
         # Process through workflow
         result = await self.workflow_adapter.process_full_buffer(
             transcript=text_chunk,
