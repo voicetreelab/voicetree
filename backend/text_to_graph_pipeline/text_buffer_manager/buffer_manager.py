@@ -43,7 +43,7 @@ class TextBufferManager:
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
-        self._fuzzy_matcher = FuzzyTextMatcher(similarity_threshold=0.8)
+        self._fuzzy_matcher = FuzzyTextMatcher(similarity_threshold=80)
         self.bufferFlushLength = 0  # Will be set by init() method
         
     def init(self, bufferFlushLength: int) -> None:
