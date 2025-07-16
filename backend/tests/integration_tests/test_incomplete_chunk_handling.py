@@ -7,7 +7,7 @@ import pytest
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager, BufferConfig
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 
 
@@ -51,7 +51,7 @@ class TestIncompleteChunkHandling:
         )
         
         # Set a low buffer threshold to trigger processing immediately
-        chunk_processor.buffer_manager.config.buffer_size_threshold = 50
+        chunk_processor.buffer_manager.bufferFlushLength = 50
         
         # Create dynamic mock that returns appropriate results for each call
         call_count = 0
@@ -127,7 +127,7 @@ class TestIncompleteChunkHandling:
         )
         
         # Configure buffer to process immediately
-        chunk_processor.buffer_manager.config.buffer_size_threshold = 10
+        chunk_processor.buffer_manager.bufferFlushLength = 10
         
         # Mock workflow adapter
         with patch.object(chunk_processor.workflow_adapter, 'process_transcript', 
@@ -162,24 +162,24 @@ class TestIncompleteChunkHandling:
         """Test that fuzzy matching correctly prevents duplication"""
         
         # Create buffer manager with low threshold for testing
-        config = BufferConfig(buffer_size_threshold=50)
-        buffer_manager = TextBufferManager(config)
+        buffer_manager = TextBufferManager()
+        buffer_manager.init(bufferFlushLength=50)
         
         # Simulate scenario where LLM slightly modifies text
         buffer_manager._buffer = "The cat sat on the mat. And then something else"
         
         # Flush completed text with minor LLM modification
-        buffer_manager.flush_completed_text("The cat sits on the mat.")  # "sat" changed to "sits"
+        buffer_manager.flushCompletelyProcessedText("The cat sits on the mat.")  # "sat" changed to "sits"
         
         # Verify only the unprocessed portion remains
-        assert buffer_manager.get_buffer() == "And then something else"
+        assert buffer_manager.getBuffer() == "And then something else"
         
         # Test with punctuation differences
         buffer_manager._buffer = "Hello, world! How are you?"
-        buffer_manager.flush_completed_text("Hello world.")  # Different punctuation
+        buffer_manager.flushCompletelyProcessedText("Hello world.")  # Different punctuation
         
         # Verify correct removal despite punctuation differences
-        assert buffer_manager.get_buffer() == "How are you?"
+        assert buffer_manager.getBuffer() == "How are you?"
     
     @pytest.mark.asyncio 
     async def test_empty_transcript_history_fixed(self, mock_decision_tree):
@@ -193,7 +193,7 @@ class TestIncompleteChunkHandling:
         )
         
         # Set low threshold to trigger processing
-        chunk_processor.buffer_manager.config.buffer_size_threshold = 20
+        chunk_processor.buffer_manager.bufferFlushLength = 20
         
         # Mock the agent run method to capture state
         captured_state = None
@@ -234,7 +234,7 @@ class TestIncompleteChunkHandling:
         )
         
         # Set threshold to force processing
-        chunk_processor.buffer_manager.config.buffer_size_threshold = 30
+        chunk_processor.buffer_manager.bufferFlushLength = 30
         
         # Track workflow calls
         workflow_calls = []

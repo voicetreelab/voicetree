@@ -167,7 +167,15 @@ async def test_single_transcript():
         print("\nResult is None - likely due to LLM API error")
         # Still want to assert so the test fails properly
         assert result is not None, "Result should not be None (check LLM API connection)"
-    else:
+    # else:
+    #     # Check if there's an error message
+    #     if result.get('error_message'):
+    #         print(f"\nError during processing: {result['error_message']}")
+    #         # If there's an event loop error, it's okay to skip the test
+    #         if "Event loop is closed" in result['error_message']:
+    #             print("Skipping test due to event loop issue - this is expected when running multiple async tests")
+    #             return
+        
         new_nodes = result.get('new_nodes')
         if new_nodes is None:
             new_nodes = []

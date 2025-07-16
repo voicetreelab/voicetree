@@ -5,18 +5,8 @@ Provides a clean interface for text buffering and chunk processing
 
 import logging
 from typing import Optional, Dict, Any
-from dataclasses import dataclass
 
-from .buffer_config import BufferConfig
 from .fuzzy_text_matcher import FuzzyTextMatcher
-
-
-@dataclass
-class BufferResult:
-    """Result from buffer processing"""
-    text: Optional[str] = None
-    is_ready: bool = False
-    stats: Dict[str, Any] = None
 
 
 class TextBufferManager:
@@ -46,42 +36,35 @@ class TextBufferManager:
     If you're tempted to add these features back, please read buffer_manager_analysis_report.md first.
     """
     
-    def __init__(self, config: Optional[BufferConfig] = None):
+    def __init__(self):
         """
         Initialize the buffer manager.
-        
-        Args:
-            config: Optional BufferConfig object
         """
-        self.config = config or BufferConfig()
         self._buffer = ""
         self._transcript_history = ""
         self._is_first_processing = True
         self._fuzzy_matcher = FuzzyTextMatcher(similarity_threshold=0.8)
-        logging.info(f"TextBufferManager initialized with threshold: {self.config.buffer_size_threshold}")
+        self.bufferFlushLength = 0  # Will be set by init() method
         
-    def add_text(self, text: str) -> BufferResult:
-        """
-        Add text to the buffer and process if threshold is reached.
+    def init(self, bufferFlushLength: int) -> None:
+        """Initialize with a specific buffer flush length"""
+        self.bufferFlushLength = bufferFlushLength
+        logging.info(f"TextBufferManager initialized with threshold: {self.bufferFlushLength}")
         
-        Args:
-            text: Text to add to the buffer
-            
-        Returns:
-            BufferResult with is_ready flag and text to process
-        """
+    def addText(self, text: str) -> None:
+        """Add text to buffer (new API)"""
         # Skip empty or whitespace-only text
         if not text or not text.strip():
             logging.debug("Skipping empty/whitespace text")
-            return BufferResult(is_ready=False, text="")
+            return
             
         # Add to transcript history immediately
-        self._transcript_history += text + " "
+        self._transcript_history += text
         logging.debug(f"[TRANSCRIPT_HISTORY] Added '{text}' - Total history length: {len(self._transcript_history)} chars")
         logging.debug(f"[TRANSCRIPT_HISTORY] Current history preview: '{self._transcript_history[-100:]}'...")
         
-        # Maintain history window
-        max_history = self.config.buffer_size_threshold * self.config.transcript_history_multiplier
+        # Maintain history window (10x buffer size)
+        max_history = self.bufferFlushLength * 10
         if len(self._transcript_history) > max_history:
             self._transcript_history = self._transcript_history[-max_history:]
             logging.debug(f"[TRANSCRIPT_HISTORY] Trimmed to max {max_history} chars")
@@ -90,74 +73,24 @@ class TextBufferManager:
         self._buffer += text
         logging.debug(f"Added '{text}' to buffer. Buffer size: {len(self._buffer)}")
         
-        # Check if we should process
-        if len(self._buffer) >= self.config.buffer_size_threshold:
-            return self._process_buffer()
-            
-        return BufferResult(is_ready=False, text="")
+    def getBufferTextWhichShouldBeProcessed(self) -> str:
+        """Get buffer text if it should be processed, otherwise empty string"""
+        if len(self._buffer) >= self.bufferFlushLength:
+            return self._buffer
+        return ""
         
-    def _process_buffer(self) -> BufferResult:
-        """Process the current buffer content without clearing it"""
-        text_to_process = self._buffer
-        # DO NOT clear buffer here - it will be updated by flush_completed_text
-        
-        logging.info(f"Processing buffer: {len(text_to_process)} chars: {text_to_process}")
-        return BufferResult(is_ready=True, text=text_to_process)
-        
-    def get_buffer(self) -> str:
-        """Get current buffer content without modifying it"""
-        return self._buffer
-        
-    def get_transcript_history(self) -> str:
-        """Get the complete transcript history"""
-        return self._transcript_history
-        
-    def is_first_processing(self) -> bool:
-        """Check if this is the first time processing"""
-        if self._is_first_processing:
-            self._is_first_processing = False
-            return True
-        return False
-        
-        
-    def clear(self) -> None:
-        """Clear all buffers and reset state"""
-        self._buffer = ""
-        self._transcript_history = ""
-        self._is_first_processing = True
-        logging.info("Cleared all buffers")
-        
-    def get_stats(self) -> Dict[str, Any]:
-        """Get current buffer statistics"""
-        return {
-            "text_buffer_size": len(self._buffer),
-            "transcript_history_size": len(self._transcript_history),
-            "buffer_threshold": self.config.buffer_size_threshold,
-            "is_first": self._is_first_processing,
-            "incomplete_chunk_size": 0  # Deprecated - buffer maintains incomplete text internally
-        }
-        
-        
-    def flush_completed_text(self, completed_text: str) -> None:
-        """
-        Remove completed text from buffer using fuzzy matching.
-        
-        This method uses fuzzy matching to find and remove text that was
-        successfully processed by the workflow, handling minor LLM modifications.
-        
-        Args:
-            completed_text: The text that was successfully processed by the workflow
-        """
-        if not completed_text:
+    def flushCompletelyProcessedText(self, text: str) -> str:
+        """Remove processed text from buffer and return remaining contents"""
+        if not text:
             logging.debug("No completed text to flush")
-            return
+            return self._buffer
             
         if not self._buffer:
-            logging.warning("flush_completed_text called with empty buffer")
-            return
+            logging.warning("flushCompletelyProcessedText called with empty buffer")
+            return self._buffer
             
         # Use fuzzy matcher to remove the text
-        result, success = self._fuzzy_matcher.remove_matched_text(self._buffer, completed_text)
+        result, success = self._fuzzy_matcher.remove_matched_text(self._buffer, text)
         
         if success:
             self._buffer = result
@@ -165,16 +98,37 @@ class TextBufferManager:
         else:
             # TODO: Add more robust error handling here for production
             # For now, crash during development to catch issues
-            match = self._fuzzy_matcher.find_best_match(completed_text, self._buffer)
+            match = self._fuzzy_matcher.find_best_match(text, self._buffer)
             best_score = match[2] if match else 0
             
             error_msg = (f"Failed to find completed text in buffer. "
                         f"Best similarity was only {best_score:.2%}. This indicates a system issue.\n"
-                        f"Completed text: '{completed_text[:100]}...'\n"
+                        f"Completed text: '{text[:100]}...'\n"
                         f"Buffer content: '{self._buffer[:100]}...'")
             logging.error(error_msg)
             raise RuntimeError(error_msg)
-    
+            
+        return self._buffer
+        
+    def getBuffer(self) -> str:
+        """Get current buffer content (new API)"""
+        return self._buffer
+        
+    def getTranscriptHistory(self, maxLength: Optional[int] = None) -> str:
+        """Get transcript history with optional length limit"""
+        if maxLength is None:
+            return self._transcript_history
+        if maxLength == 0:
+            return ""
+        # Return the last maxLength characters
+        return self._transcript_history[-maxLength:] if len(self._transcript_history) > maxLength else self._transcript_history
+        
+    def clear(self) -> None:
+        """Clear all buffers and reset state"""
+        self._buffer = ""
+        self._transcript_history = ""
+        self._is_first_processing = True
+        logging.info("Cleared all buffers")
         
     # Compatibility properties and methods
     @property
@@ -186,3 +140,7 @@ class TextBufferManager:
     def _text_buffer(self, value: str):
         """Compatibility setter for tests"""
         self._buffer = value
+        
+    def get_buffer(self) -> str:
+        """Compatibility method for old API - delegates to getBuffer()"""
+        return self.getBuffer()
