@@ -55,8 +55,20 @@ class FuzzyTextMatcher:
         if target_text in source_text:
             start = source_text.index(target_text)
             end = start + len(target_text)
+            
+            # Extend match to include trailing punctuation if present
+            while end < len(source_text) and source_text[end] in '.!?,;:':
+                end += 1
+                
             logging.info(f"Found exact match at position {start}-{end}")
             return (start, end, 100.0)
+        
+        # Check if the entire texts are similar enough (handles punctuation differences)
+        overall_similarity = fuzz.ratio(target_text, source_text)
+        if overall_similarity >= self.similarity_threshold and len(target_text) >= len(source_text) * 0.8:
+            # If the texts are very similar overall and target is most of source,
+            # consider it a full match
+            return (0, len(source_text), overall_similarity)
         
         # Use RapidFuzz's partial_ratio_alignment for fuzzy substring matching
         # This finds the best matching substring in source_text
@@ -69,10 +81,13 @@ class FuzzyTextMatcher:
             end = alignment.dest_end
             
             # Extend match to include trailing punctuation if present
+            original_end = end
             while end < len(source_text) and source_text[end] in '.!?,;:':
                 end += 1
+            if end > original_end:
+                logging.debug(f"Extended match from {original_end} to {end} to include punctuation")
             
-            logging.info(f"Found fuzzy match with {score:.2%} similarity at position {start}-{end}")
+            logging.info(f"Found fuzzy match with {score:.2f} similarity at position {start}-{end}")
             return (start, end, score)
         
         return None
@@ -99,7 +114,7 @@ class FuzzyTextMatcher:
             result = result.strip()
             return (result, True)
         else:
-            logging.warning(f"No match found above {self.similarity_threshold:.0%} threshold")
+            logging.warning(f"No match found above {self.similarity_threshold}% threshold")
             return (source_text, False)
     
     def _calculate_similarity(self, text1: str, text2: str) -> float:
