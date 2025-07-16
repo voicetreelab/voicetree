@@ -1,19 +1,21 @@
 """Transcript processing module for VoiceTree benchmarking."""
 
-import os
-import time
+import asyncio
 import hashlib
+import os
 import tempfile
+import time
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
+    ChunkProcessor
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+    TreeToMarkdownConverter
 
 from .config import OUTPUT_DIR
 from .file_utils import clear_workflow_log, setup_output_directory
 
-
-import asyncio
 
 class TranscriptProcessor:
     """Handles processing of transcripts through the VoiceTree pipeline."""
@@ -72,7 +74,7 @@ class TranscriptProcessor:
             
             for i, word in enumerate(words):
                 # Send each word individually, like streaming voice
-                await self.processor.process_and_convert(word + " ")
+                await self.processor.process_new_text_and_update_markdown(word + " ")
                 
                 # Small delay to simulate streaming (optional)
                 if i % 30 == 0:  # Rate limit every 30 words

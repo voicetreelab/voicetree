@@ -3,13 +3,19 @@ Workflow Adapter for VoiceTree
 Provides a clean interface between the VoiceTree backend and agentic workflows
 """
 
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
-from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
-from backend.text_to_graph_pipeline.agentic_workflows.core.state_manager import VoiceTreeStateManager
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_node_summaries
+from typing import Any, Dict, List, Optional
+
+from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import \
+    VoiceTreeAgent
+from backend.text_to_graph_pipeline.agentic_workflows.models import \
+    IntegrationDecision
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_functions import \
+    get_node_summaries
+
+
 @dataclass
 class WorkflowResult:
     """Result from workflow execution"""
@@ -28,21 +34,18 @@ class WorkflowAdapter:
     
     def __init__(
         self, 
-        decision_tree: DecisionTree,
-        state_file: Optional[str] = None
+        decision_tree: DecisionTree
     ):
         """
         Initialize the workflow adapter
         
         Args:
             decision_tree: The VoiceTree decision tree instance
-            state_file: Optional path to persist workflow state
         """
         self.decision_tree = decision_tree
         self.agent = VoiceTreeAgent()
-        self.state_manager = VoiceTreeStateManager(state_file) if state_file else None
     
-    async def process_transcript(
+    async def process_full_buffer(
         self, 
         transcript: str,
         context: Optional[str] = None
@@ -59,7 +62,7 @@ class WorkflowAdapter:
         """
         try:
             # Get existing nodes for context
-            existing_nodes = self.state_manager.get_node_summaries() if self.state_manager else get_node_summaries(self.decision_tree)
+            existing_nodes = get_node_summaries(self.decision_tree, max_nodes=10)
             
             # Run the agent asynchronously
             result = await self.agent.run(
@@ -67,10 +70,11 @@ class WorkflowAdapter:
                 transcript_history=context,  # This is the transcript_history from buffer manager
                 existing_nodes=existing_nodes
             )
+
+            # ideally here we should just have result: IntegrationDecision[]
+            # also, IntegrationDecision should probs be renamed to TreeAction since that better represents what it is
             
-            # Update state manager if present
-            if self.state_manager and result.get("new_nodes"):
-                self.state_manager.add_nodes(result["new_nodes"], result)
+            # No state manager - workflow is now a pure function
             
             # Process the workflow result
             if result.get("error_message"):
@@ -149,11 +153,13 @@ class WorkflowAdapter:
     # when applying actions, if target node is null, don't try force finding it.
     def get_workflow_statistics(self) -> Dict[str, Any]:
         """Get statistics about the workflow state"""
-        if self.state_manager:
-            return self.state_manager.get_statistics()
-        return {"error": "No state manager configured"}
+        # Since workflow is now stateless, return tree statistics instead
+        return {
+            "total_nodes": len(self.decision_tree.tree),
+            "message": "Workflow is stateless - showing tree statistics"
+        }
     
     def clear_workflow_state(self) -> None:
         """Clear the workflow state"""
-        if self.state_manager:
-            self.state_manager.clear_state() 
+        # No state to clear - workflow is now stateless
+        pass 
