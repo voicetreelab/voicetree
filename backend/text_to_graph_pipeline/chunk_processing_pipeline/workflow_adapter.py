@@ -34,16 +34,18 @@ class WorkflowAdapter:
     
     def __init__(
         self, 
-        decision_tree: DecisionTree
+        decision_tree: DecisionTree,
+        agent: Optional[VoiceTreeAgent] = None
     ):
         """
         Initialize the workflow adapter
         
         Args:
             decision_tree: The VoiceTree decision tree instance
+            agent: Optional VoiceTreeAgent instance (will create one if not provided)
         """
         self.decision_tree = decision_tree
-        self.agent = VoiceTreeAgent()
+        self.agent = agent or VoiceTreeAgent()
     
     async def process_full_buffer(
         self, 
