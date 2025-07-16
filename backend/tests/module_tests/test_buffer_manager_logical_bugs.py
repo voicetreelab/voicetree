@@ -3,7 +3,9 @@ Tests for potential logical bugs in TextBufferManager
 """
 
 import pytest
-from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import TextBufferManager
+
+from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import \
+    TextBufferManager
 
 
 class TestTextBufferManagerLogicalBugs:
@@ -64,7 +66,7 @@ class TestTextBufferManagerLogicalBugs:
         buffer_manager.flushCompletelyProcessedText("Sentence 1.")
         
         # Transcript history still contains flushed text
-        history = buffer_manager.getTranscriptHistory()
+        history = buffer_manager.get_transcript_history()
         assert "Sentence 0." in history  # Already flushed but still in history
         assert "Sentence 1." in history  # Already flushed but still in history
         

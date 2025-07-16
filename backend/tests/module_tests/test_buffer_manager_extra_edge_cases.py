@@ -3,7 +3,9 @@ Extra edge case tests for TextBufferManager
 """
 
 import pytest
-from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import TextBufferManager
+
+from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import \
+    TextBufferManager
 
 
 class TestTextBufferManagerEdgeCases:
@@ -76,12 +78,12 @@ class TestTextBufferManagerEdgeCases:
             buffer_manager.flushCompletelyProcessedText("A slow red turtle crawls under the active cat")
             
     def test_transcript_history_with_zero_length(self):
-        """Test getTranscriptHistory with maxLength=0"""
+        """Test get_transcript_history with maxLength=0"""
         buffer_manager = TextBufferManager()
         buffer_manager.init(bufferFlushLength=50)
         buffer_manager.addText("Hello world")
         
-        history = buffer_manager.getTranscriptHistory(maxLength=0)
+        history = buffer_manager.get_transcript_history(maxLength=0)
         assert history == ""
         
     def test_transcript_history_larger_than_actual(self):
@@ -90,7 +92,7 @@ class TestTextBufferManagerEdgeCases:
         buffer_manager.init(bufferFlushLength=50)
         buffer_manager.addText("Short")
         
-        history = buffer_manager.getTranscriptHistory(maxLength=1000)
+        history = buffer_manager.get_transcript_history(maxLength=1000)
         assert history == "Short"
         
     def test_unicode_handling(self):
@@ -141,7 +143,7 @@ class TestTextBufferManagerEdgeCases:
         assert before == after
         
         # Transcript history shouldn't affect buffer
-        _ = buffer_manager.getTranscriptHistory(maxLength=5)
+        _ = buffer_manager.get_transcript_history(maxLength=5)
         assert buffer_manager.getBuffer() == after
         
     # Commented out due to performance issues with fuzzy matcher on very long text

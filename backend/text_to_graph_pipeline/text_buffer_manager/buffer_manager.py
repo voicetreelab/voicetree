@@ -4,7 +4,7 @@ Provides a clean interface for text buffering and chunk processing
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from .fuzzy_text_matcher import FuzzyTextMatcher
 
@@ -114,7 +114,7 @@ class TextBufferManager:
         """Get current buffer content (new API)"""
         return self._buffer
         
-    def getTranscriptHistory(self, maxLength: Optional[int] = None) -> str:
+    def get_transcript_history(self, maxLength: Optional[int] = None) -> str:
         """Get transcript history with optional length limit"""
         if maxLength is None:
             return self._transcript_history
