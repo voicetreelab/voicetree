@@ -18,3 +18,4 @@ google-generativeai
 openai
 pydantic-ai[gemini]
 langgraph
+rapidfuzz>=3.0.0

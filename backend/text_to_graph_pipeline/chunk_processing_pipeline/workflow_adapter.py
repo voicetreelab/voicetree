@@ -145,11 +145,11 @@ class WorkflowAdapter:
         complete_texts = []
         for chunk in chunks:
             if chunk.get("is_complete", False):
-                text = chunk.get("text", "").strip()
+                text = chunk.get("text", "")
                 if text:
                     complete_texts.append(text)
                 
-        return " ".join(complete_texts) if complete_texts else ""
+        return "".join(complete_texts) if complete_texts else ""
     
     
     # when applying actions, if target node is null, don't try force finding it.
