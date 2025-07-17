@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "zen": {
+      "command": "/Users/bobbobby/repos/VoiceTreePoc/.venv/bin/uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/BeehiveInnovations/zen-mcp-server.git",
+        "zen-mcp-server"
+      ],
+      "env": {
+        "GEMINI_API_KEY": "YOUR_GEMINI_API_KEY"
+      }
+    }
+  }
+}

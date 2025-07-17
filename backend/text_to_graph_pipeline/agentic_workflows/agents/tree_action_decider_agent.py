@@ -2,19 +2,17 @@
 VoiceTree agent implementation - self-contained with complete workflow
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from langgraph.graph import END
 
 from ..core.agent import Agent
 from ..core.state import VoiceTreeState, validate_state
-from ..models import (
-    SegmentationResponse,
-    RelationshipResponse, 
-    IntegrationResponse
-)
+from ..models import (IntegrationResponse, RelationshipResponse,
+                      SegmentationResponse)
 
 
-class VoiceTreeAgent(Agent):
+class TreeActionDeciderAgent(Agent):
     """Self-contained VoiceTree agent with complete workflow"""
     
     def __init__(self):
@@ -80,7 +78,7 @@ class VoiceTreeAgent(Agent):
             Complete processing results including extracted new nodes
         """
         from ..core.debug_logger import log_transcript_processing
-        
+
         # Log the transcript being processed
         log_transcript_processing(transcript, "VoiceTreeAgent.run")
         
@@ -129,21 +127,3 @@ class VoiceTreeAgent(Agent):
             if decision.get("action") == "CREATE" and decision.get("new_node_name"):
                 new_nodes.append(decision["new_node_name"])
         return new_nodes
-
-
-# Backward compatibility functions
-def create_voice_tree_agent() -> VoiceTreeAgent:
-    """Create a VoiceTree agent instance"""
-    return VoiceTreeAgent()
-
-
-def compile_voice_tree_agent():
-    """Create and compile the VoiceTree agent"""
-    agent = VoiceTreeAgent()
-    return agent.compile()
-
-
-def extract_new_nodes_from_decisions(decisions: List[Dict[str, Any]]) -> List[str]:
-    """Legacy function - use agent._extract_new_nodes instead"""
-    agent = VoiceTreeAgent()
-    return agent._extract_new_nodes(decisions)
