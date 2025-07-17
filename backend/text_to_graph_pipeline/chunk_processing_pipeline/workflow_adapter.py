@@ -6,8 +6,8 @@ Provides a clean interface between the VoiceTree backend and agentic workflows
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import \
-    VoiceTreeAgent
+from backend.text_to_graph_pipeline.agentic_workflows.agents.tree_action_decider_agent import \
+    TreeActionDeciderAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import \
     IntegrationDecision
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
@@ -35,7 +35,7 @@ class WorkflowAdapter:
     def __init__(
         self, 
         decision_tree: DecisionTree,
-        agent: Optional[VoiceTreeAgent] = None
+        agent: Optional[TreeActionDeciderAgent] = None
     ):
         """
         Initialize the workflow adapter
@@ -45,7 +45,7 @@ class WorkflowAdapter:
             agent: Optional VoiceTreeAgent instance (will create one if not provided)
         """
         self.decision_tree = decision_tree
-        self.agent = agent or VoiceTreeAgent()
+        self.agent = agent or TreeActionDeciderAgent()
     
     async def process_full_buffer(
         self, 

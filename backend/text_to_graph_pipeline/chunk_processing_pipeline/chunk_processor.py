@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional, Set
 
 if TYPE_CHECKING:
-    from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
+    from backend.text_to_graph_pipeline.agentic_workflows.agents.tree_action_decider_agent import TreeActionDeciderAgent
 
 from backend import settings
 from backend.text_to_graph_pipeline.text_buffer_manager import \
@@ -48,7 +48,7 @@ class ChunkProcessor:
         decision_tree: DecisionTree,
         converter: Optional[TreeToMarkdownConverter] = None,
         output_dir: str = output_dir_default,
-        agent: Optional["VoiceTreeAgent"] = None
+        agent: Optional["TreeActionDeciderAgent"] = None
     ):
         """
         Initialize the chunk processor (combines workflow tree manager and transcription processor)
