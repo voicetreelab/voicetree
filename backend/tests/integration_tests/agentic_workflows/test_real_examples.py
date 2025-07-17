@@ -3,11 +3,12 @@
 Test the VoiceTree LangGraph pipeline with real examples from the integration tests
 """
 
-import sys
-import os
-from pathlib import Path
-import json
 import asyncio
+import json
+import os
+import sys
+from pathlib import Path
+
 import pytest
 
 # Add project root to path for imports
@@ -16,7 +17,9 @@ project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directo
 sys.path.insert(0, str(project_root))
 
 # Import the agent directly
-from backend.text_to_graph_pipeline.agentic_workflows.agents.voice_tree import VoiceTreeAgent
+from backend.text_to_graph_pipeline.agentic_workflows.agents.tree_action_decider_agent import \
+    TreeActionDeciderAgent
+
 
 @pytest.mark.asyncio
 async def test_complex_tree_creation():
@@ -58,7 +61,7 @@ async def test_complex_tree_creation():
     print("\n📝 Processing Transcript 1: Project Planning")
     print("-" * 60)
     print(f"Input: {transcript1.strip()}")
-    agent = VoiceTreeAgent()
+    agent = TreeActionDeciderAgent()
     result1 = await agent.run(transcript1, existing_nodes=existing_nodes)
     print(f"\nResult 1: {len(result1.get('new_nodes', []))} new nodes created")
     results.append(result1)
@@ -160,7 +163,7 @@ async def test_single_transcript():
     """
     
     print(f"Input: {transcript.strip()}")
-    agent = VoiceTreeAgent()
+    agent = TreeActionDeciderAgent()
     result = await agent.run(transcript, existing_nodes=existing_nodes)
     
     if result is None:
