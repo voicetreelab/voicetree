@@ -86,7 +86,9 @@ Progress notes:
 2. Implement UPDATE action support in TreeActionApplier
 
 Progress notes:
-- 
+- Commit e53411f: Fixed model mismatch - created CreateAction model for optimizer output
+- Commit e53411f: Updated prompts and tests to use CreateAction instead of IntegrationDecision
+- Commit e53411f: Wrote tests for TreeActionApplier UPDATE support (not passing yet)
 
 ### Phase 3: Agents
 Note: renaming TreeActionDeciderAgent to AppendToRelevantNodeAgent.
