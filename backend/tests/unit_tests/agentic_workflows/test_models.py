@@ -19,26 +19,25 @@ class TestChunkModel:
     def test_chunk_model_valid(self):
         """Test creating a valid chunk model"""
         chunk = ChunkModel(
-            name="Test Chunk",
             text="This is the chunk content",
             is_complete=True,
             reasoning="This chunk is complete and ready for processing"
         )
         
-        assert chunk.name == "Test Chunk"
         assert chunk.text == "This is the chunk content"
         assert chunk.is_complete is True
+        assert chunk.reasoning == "This chunk is complete and ready for processing"
     
     def test_chunk_model_missing_fields(self):
         """Test validation errors for missing required fields"""
         with pytest.raises(ValidationError) as exc_info:
-            ChunkModel(name="Test")  # Missing text and is_complete
+            ChunkModel(text="Test")  # Missing is_complete and reasoning
         
         errors = exc_info.value.errors()
         assert len(errors) >= 2
         field_names = {e["loc"][0] for e in errors}
-        assert "text" in field_names
         assert "is_complete" in field_names
+        assert "reasoning" in field_names
 
 
 class TestSegmentationResponse:
@@ -54,13 +53,14 @@ class TestSegmentationResponse:
         """Test creating response from dictionary"""
         data = {
             "chunks": [
-                {"name": "From Dict", "text": "Dict content", "reasoning" : ",,," ,"is_complete": True}
+                {"text": "Dict content", "reasoning" : ",,," ,"is_complete": True}
             ]
         }
         
         response = SegmentationResponse(**data)
         assert len(response.chunks) == 1
-        assert response.chunks[0].name == "From Dict"
+        assert response.chunks[0].text == "Dict content"
+        assert response.chunks[0].is_complete is True
 
 
 class TestRelationshipAnalysis:

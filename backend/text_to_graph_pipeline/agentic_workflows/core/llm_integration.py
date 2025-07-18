@@ -33,6 +33,11 @@ SCHEMA_MAP = {
     "identify_target_node": None  # Will be set dynamically when needed
 }
 
+# Model cache to reuse instances for better performance
+# TODO: If tests start showing order-dependent behavior, add a fixture to clear
+# this cache between tests. For now, keeping it simple.
+_MODEL_CACHE = {}
+
 
 def _load_environment() -> None:
     """Load environment variables from .env file if it exists"""
@@ -121,8 +126,11 @@ async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DE
     
     
     try:
-        # Create a model instance without api_key parameter
-        model = GeminiModel(model_name)
+        # Reuse model instance to avoid "Event loop is closed" errors
+        if model_name not in _MODEL_CACHE:
+            _MODEL_CACHE[model_name] = GeminiModel(model_name)
+        
+        model = _MODEL_CACHE[model_name]
         
         # Create an agent with the specific output type
         agent = Agent(
@@ -176,8 +184,11 @@ async def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
     
     
     try:
-        # Create a model instance without api_key parameter
-        model = GeminiModel(model_name)
+        # Reuse model instance to avoid "Event loop is closed" errors
+        if model_name not in _MODEL_CACHE:
+            _MODEL_CACHE[model_name] = GeminiModel(model_name)
+        
+        model = _MODEL_CACHE[model_name]
         
         # Create an agent with string output
         agent = Agent(
