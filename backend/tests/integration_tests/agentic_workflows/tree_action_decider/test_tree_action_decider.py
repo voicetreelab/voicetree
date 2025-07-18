@@ -1,5 +1,8 @@
 """
-Tests common input patterns, problems, and invariants
+Tests common input patterns, problems, and invariants.
+
+THis test should test that AppendToRelevantNodeAgent + SingleAbstractionOptimiserAgent work well together, and that the overal flow with both of them gives us the output and behaviours we want.
+
 
 First, some deterministic inpputs, and deterministic + fuzzy output checking:
 
