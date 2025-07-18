@@ -69,6 +69,7 @@ Progress notes:
 - Commit 4c20a15: Added behavioral tests for get_neighbors() and update_node() methods in test_decision_tree_ds.py
 - Commit 4c20a15: Added new tree action models (UPDATE, SPLIT) and pipeline stage models to models.py
 - Commit 4c20a15: Removed name field from ChunkModel to align with new segmentation approach
+- Commit 74a98ff: Implemented get_neighbors() and update_node() methods in DecisionTree class (delegated to sub-agent)
 
 ### Phase 2: Prompts
 0. Create input/fuzzy(output) test cases for the each of the prompts:
