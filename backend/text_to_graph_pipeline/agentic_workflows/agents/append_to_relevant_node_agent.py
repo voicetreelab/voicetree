@@ -36,14 +36,12 @@ class AppendToRelevantNodeAgent(Agent):
         # Step 1: Segment the text into atomic ideas
         self.add_prompt(
             "segmentation",
-            "segmentation",  # References prompts/segmentation.md
             SegmentationResponse
         )
         
         # Step 2: Identify target nodes for each segment
         self.add_prompt(
             "identify_target_node",
-            "identify_target_node",  # References prompts/identify_target_node.md
             TargetNodeResponse
         )
         
