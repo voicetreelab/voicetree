@@ -146,12 +146,25 @@ class Agent:
                 # Create an intermediate transformer node
                 transformer_name = f"{from_prompt}_to_{to_prompt}_transform"
                 
-                def make_transformer(t: Callable):
+                def make_transformer(t: Callable, from_p: str, to_p: str):
                     async def transformer_node(state: Dict[str, Any]) -> Dict[str, Any]:
-                        return t(state)
+                        # Debug logging for transformer
+                        from .debug_logger import log_stage_input_output
+                        transformer_name_local = f"{from_p}_to_{to_p}_transform"
+                        
+                        # Log what we receive
+                        print(f"\nDEBUG: Transformer {transformer_name_local} received state:")
+                        print(f"  - current_stage: {state.get('current_stage')}")
+                        print(f"  - has chunks: {'chunks' in state and state['chunks'] is not None}")
+                        if 'chunks' in state and state['chunks'] is not None:
+                            print(f"  - chunks count: {len(state['chunks'])}")
+                        
+                        result = t(state)
+                        log_stage_input_output(transformer_name_local, state, result)
+                        return result
                     return transformer_node
                     
-                graph.add_node(transformer_name, make_transformer(transform))
+                graph.add_node(transformer_name, make_transformer(transform, from_prompt, to_prompt))
                 graph.add_edge(from_prompt, transformer_name)
                 graph.add_edge(transformer_name, to_prompt if to_prompt != END else END)
             else:

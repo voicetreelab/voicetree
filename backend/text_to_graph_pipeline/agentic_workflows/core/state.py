@@ -14,7 +14,8 @@ class AppendToRelevantNodeAgentState(TypedDict):
     existing_nodes: str  # JSON string of existing nodes
     
     # Intermediate outputs
-    segments: Optional[List[Dict[str, Any]]]  # From segmentation
+    chunks: Optional[List[Dict[str, Any]]]  # From segmentation (raw chunks)
+    segments: Optional[List[Dict[str, Any]]]  # Filtered chunks for target identification
     target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target
 
 
