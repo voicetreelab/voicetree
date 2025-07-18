@@ -53,13 +53,13 @@ Each node should represent a single "work item" that could stand alone as a tick
 ```json
 {
   "optimization_decision": {
-    "reasoning": "Detailed analysis of the node's current state and why the chosen action optimizes its abstraction level",
-    "action": <action_object_or_null>
+    "reasoning": "Detailed analysis of the node's current state and why the chosen actions optimize its abstraction level",
+    "actions": [<list_of_actions>]
   }
 }
 ```
 
-Where action is ONE of:
+Where actions is a list that can contain:
 
 ### UPDATE Action:
 ```json
@@ -71,27 +71,29 @@ Where action is ONE of:
 }
 ```
 
-### SPLIT Action:
+### CREATE Action (for splitting):
 ```json
 {
-  "action": "SPLIT",
-  "node_id": <node_id>,
-  "new_nodes": [
-    {
-      "name": "Child Node Name",
-      "content": "Content for this child node",
-      "summary": "Summary of this child's content",
-      "parent_name": "Name of parent (can be the original node name or another new node)",
-      "relationship": "Relationship to parent (e.g., 'subtask of', 'implements', 'solves')"
-    }
-  ]
+  "action": "CREATE",
+  "target_node_name": "Parent Node Name",
+  "new_node_name": "Child Node Name",
+  "content": "Content for this child node",
+  "summary": "Summary of this child's content",
+  "relationship": "Relationship to parent (e.g., 'subtask of', 'implements', 'solves')"
 }
 ```
 
 ### No Action:
 ```json
-null
+{
+  "optimization_decision": {
+    "reasoning": "Analysis showing why no optimization is needed",
+    "actions": []
+  }
+}
 ```
+
+Note: SPLIT operations are implemented as one UPDATE action (to update the parent) followed by multiple CREATE actions (for the children).
 
 ## Examples
 
@@ -111,40 +113,46 @@ neighbors: [{"id": 4, "name": "Project Planning", "summary": "High-level project
 {
   "optimization_decision": {
     "reasoning": "This node contains four distinct work items: environment setup, database configuration, deployment pipeline, and authentication setup. Each represents a separate task that would be tracked independently. Splitting improves clarity and allows focused work on each area. The current node name 'System Setup' serves well as a parent abstraction.",
-    "action": {
-      "action": "SPLIT",
-      "node_id": 5,
-      "new_nodes": [
-        {
-          "name": "Development Environment",
-          "content": "Configure the development environment with Node.js and npm",
-          "summary": "Node.js development environment setup",
-          "parent_name": "System Setup",
-          "relationship": "subtask of"
-        },
-        {
-          "name": "Database Configuration", 
-          "content": "PostgreSQL setup with specific performance tuning",
-          "summary": "PostgreSQL database setup and optimization",
-          "parent_name": "System Setup",
-          "relationship": "subtask of"
-        },
-        {
-          "name": "CI/CD Pipeline",
-          "content": "Frontend deployment using GitHub Actions CI/CD pipeline",
-          "summary": "Automated deployment pipeline configuration",
-          "parent_name": "System Setup",
-          "relationship": "subtask of"
-        },
-        {
-          "name": "OAuth2 Authentication",
-          "content": "Implement OAuth2 authentication with Google and GitHub providers",
-          "summary": "OAuth2 setup for user authentication",
-          "parent_name": "System Setup",
-          "relationship": "subtask of"
-        }
-      ]
-    }
+    "actions": [
+      {
+        "action": "UPDATE",
+        "node_id": 5,
+        "new_content": "System setup encompasses development environment, database configuration, deployment pipeline, and authentication setup.",
+        "new_summary": "High-level system setup and configuration tasks"
+      },
+      {
+        "action": "CREATE",
+        "target_node_name": "System Setup",
+        "new_node_name": "Development Environment",
+        "content": "Configure the development environment with Node.js and npm",
+        "summary": "Node.js development environment setup",
+        "relationship": "subtask of"
+      },
+      {
+        "action": "CREATE",
+        "target_node_name": "System Setup",
+        "new_node_name": "Database Configuration",
+        "content": "PostgreSQL setup with specific performance tuning",
+        "summary": "PostgreSQL database setup and optimization",
+        "relationship": "subtask of"
+      },
+      {
+        "action": "CREATE",
+        "target_node_name": "System Setup",
+        "new_node_name": "CI/CD Pipeline",
+        "content": "Frontend deployment using GitHub Actions CI/CD pipeline",
+        "summary": "Automated deployment pipeline configuration",
+        "relationship": "subtask of"
+      },
+      {
+        "action": "CREATE",
+        "target_node_name": "System Setup",
+        "new_node_name": "OAuth2 Authentication",
+        "content": "Implement OAuth2 authentication with Google and GitHub providers",
+        "summary": "OAuth2 setup for user authentication",
+        "relationship": "subtask of"
+      }
+    ]
   }
 }
 ```
@@ -165,7 +173,7 @@ neighbors: [{"id": 11, "name": "Performance Optimization", "summary": "System pe
 {
   "optimization_decision": {
     "reasoning": "This node represents a single cohesive work item - implementing a caching strategy. All content relates to the same abstraction (caching), with different cache types serving the unified goal of performance improvement. The summary accurately captures both the approach and impact. Splitting would fragment a coherent solution.",
-    "action": null
+    "actions": []
   }
 }
 ```
@@ -186,12 +194,14 @@ neighbors: [{"id": 7, "name": "Backend Architecture", "summary": "Server-side de
 {
   "optimization_decision": {
     "reasoning": "The content is cohesive around API design but poorly organized and the summary is inadequate. The content mixes endpoint definitions, authentication, and response format decisions. Reorganizing with a better structure and comprehensive summary improves clarity without splitting.",
-    "action": {
-      "action": "UPDATE",
-      "node_id": 8,
-      "new_content": "REST API Design:\n\nEndpoints:\n- GET /users - List all users\n- POST /users - Create new user\n- GET /users/:id - Get specific user\n\nAuthentication:\n- JWT tokens with 24-hour expiration\n\nResponse Format:\n- JSON with consistent error structure\n- CORS enabled for frontend access",
-      "new_summary": "REST API design with user endpoints, JWT authentication, and JSON response format"
-    }
+    "actions": [
+      {
+        "action": "UPDATE",
+        "node_id": 8,
+        "new_content": "REST API Design:\n\nEndpoints:\n- GET /users - List all users\n- POST /users - Create new user\n- GET /users/:id - Get specific user\n\nAuthentication:\n- JWT tokens with 24-hour expiration\n\nResponse Format:\n- JSON with consistent error structure\n- CORS enabled for frontend access",
+        "new_summary": "REST API design with user endpoints, JWT authentication, and JSON response format"
+      }
+    ]
   }
 }
 ```

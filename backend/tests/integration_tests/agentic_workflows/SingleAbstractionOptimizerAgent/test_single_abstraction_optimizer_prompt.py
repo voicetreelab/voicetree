@@ -7,7 +7,7 @@ import pytest
 import asyncio
 from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import get_llm
 from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptEngine
-from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse, SplitAction, UpdateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse, UpdateAction, CreateAction
 
 
 class TestSingleAbstractionOptimizerPrompt:
@@ -64,17 +64,20 @@ class TestSingleAbstractionOptimizerPrompt:
         result = OptimizationResponse.model_validate_json(response.content)
         
         # Assertions
-        assert result.optimization_decision.action is not None
-        assert isinstance(result.optimization_decision.action, SplitAction)
-        assert result.optimization_decision.action.action == "SPLIT"
-        assert result.optimization_decision.action.node_id == node_id
+        assert len(result.optimization_decision.actions) > 0
+        
+        # Should have UPDATE action for parent and CREATE actions for children
+        update_actions = [a for a in result.optimization_decision.actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in result.optimization_decision.actions if isinstance(a, CreateAction)]
+        
+        assert len(update_actions) == 1  # Should update the parent node
+        assert update_actions[0].node_id == node_id
         
         # Should create multiple child nodes
-        assert len(result.optimization_decision.action.new_nodes) >= 3
+        assert len(create_actions) >= 3
         
         # Check that nodes cover the different concepts
-        node_names = [n.name.lower() for n in result.optimization_decision.action.new_nodes]
-        node_contents = [n.content.lower() for n in result.optimization_decision.action.new_nodes]
+        node_names = [a.new_node_name.lower() for a in create_actions]
         
         # Should have nodes for database, frontend, auth
         assert any("database" in name or "postgres" in name for name in node_names)
@@ -123,12 +126,13 @@ class TestSingleAbstractionOptimizerPrompt:
         result = OptimizationResponse.model_validate_json(response.content)
         
         # Assertions - should not split this cohesive node
-        # Could be None (no action) or UPDATE (to improve summary)
-        if result.optimization_decision.action is not None:
-            assert isinstance(result.optimization_decision.action, UpdateAction)
-            assert result.optimization_decision.action.action == "UPDATE"
+        # Could be empty list (no action) or single UPDATE (to improve summary)
+        if len(result.optimization_decision.actions) > 0:
+            assert len(result.optimization_decision.actions) == 1
+            assert isinstance(result.optimization_decision.actions[0], UpdateAction)
+            assert result.optimization_decision.actions[0].action == "UPDATE"
             # If updating, should maintain the cohesive nature
-            assert "authentication" in result.optimization_decision.action.new_summary.lower()
+            assert "authentication" in result.optimization_decision.actions[0].new_summary.lower()
     
     async def test_update_poorly_summarized_node(self, llm, prompt_engine):
         """Test updating a node with poor summary/content organization"""
@@ -166,15 +170,19 @@ class TestSingleAbstractionOptimizerPrompt:
         result = OptimizationResponse.model_validate_json(response.content)
         
         # Assertions
-        assert result.optimization_decision.action is not None
+        assert len(result.optimization_decision.actions) > 0
         
-        if isinstance(result.optimization_decision.action, UpdateAction):
-            # Should improve the summary
-            assert len(result.optimization_decision.action.new_summary) > len(node_summary)
-            assert "caching" in result.optimization_decision.action.new_summary.lower()
-            # Should mention the performance improvement
-            assert any(word in result.optimization_decision.action.new_summary.lower() 
-                      for word in ["performance", "response", "optimization", "200ms", "speed"])
+        # Should have exactly one UPDATE action
+        assert len(result.optimization_decision.actions) == 1
+        action = result.optimization_decision.actions[0]
+        assert isinstance(action, UpdateAction)
+        
+        # Should improve the summary
+        assert len(action.new_summary) > len(node_summary)
+        assert "caching" in action.new_summary.lower()
+        # Should mention the performance improvement
+        assert any(word in action.new_summary.lower() 
+                  for word in ["performance", "response", "optimization", "200ms", "speed"])
 
 
 if __name__ == "__main__":
