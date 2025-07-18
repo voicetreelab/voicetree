@@ -82,6 +82,12 @@ Note these tests should actually call the LLM.
 2. Create identify_target_node.md (simplified relationship_analysis)
 3. Create single_abstraction_optimizer.md (with techniques from math doc)
 
+Progress notes:
+- Commit e6b4db2: Created test cases for identify_target_node and single_abstraction_optimizer prompts
+- Commit e6b4db2: Modified segmentation.md to remove name field (delegated to sub-agent)
+- Commit e6b4db2: Created identify_target_node.md prompt (delegated to sub-agent)
+- Commit e6b4db2: Created single_abstraction_optimizer.md incorporating VoiceTree_Math optimization techniques
+
 ### Phase 3: Agents
 Note: renaming TreeActionDeciderAgent to AppendToRelevantNodeAgent.
 The combination of AppendToRelevantNodeAgent and SingleAbstractionOptimizerAgent will be called TreeActionDeciderAgent.
