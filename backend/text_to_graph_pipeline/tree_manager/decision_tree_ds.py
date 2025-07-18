@@ -176,3 +176,75 @@ class DecisionTree:
         # Return None if there are no nodes at all
         logging.warning(f"No close match found for node name '{name}' and no nodes exist in the tree.")
         return None
+
+    def get_neighbors(self, node_id: int) -> List[Dict]:
+        """
+        Returns immediate neighbors (parent, siblings, children) with summaries.
+        
+        Args:
+            node_id: The ID of the node to get neighbors for
+            
+        Returns:
+            List of dictionaries with structure:
+            {"id": int, "name": str, "summary": str, "relationship": str}
+            Where relationship is "parent", "sibling", or "child"
+        """
+        if node_id not in self.tree:
+            raise KeyError(f"Node {node_id} not found in tree")
+            
+        neighbors = []
+        node = self.tree[node_id]
+        
+        # Get parent
+        if node.parent_id is not None and node.parent_id in self.tree:
+            parent_node = self.tree[node.parent_id]
+            neighbors.append({
+                "id": node.parent_id,
+                "name": parent_node.title,
+                "summary": parent_node.summary,
+                "relationship": "parent"
+            })
+            
+            # Get siblings (other children of the same parent)
+            for sibling_id in parent_node.children:
+                if sibling_id != node_id and sibling_id in self.tree:
+                    sibling_node = self.tree[sibling_id]
+                    neighbors.append({
+                        "id": sibling_id,
+                        "name": sibling_node.title,
+                        "summary": sibling_node.summary,
+                        "relationship": "sibling"
+                    })
+        
+        # Get children
+        for child_id in node.children:
+            if child_id in self.tree:
+                child_node = self.tree[child_id]
+                neighbors.append({
+                    "id": child_id,
+                    "name": child_node.title,
+                    "summary": child_node.summary,
+                    "relationship": "child"
+                })
+        
+        return neighbors
+
+    def update_node(self, node_id: int, content: str, summary: str) -> None:
+        """
+        Replaces a node's content and summary completely.
+        
+        Args:
+            node_id: The ID of the node to update
+            content: The new content to replace existing content
+            summary: The new summary to replace existing summary
+            
+        Raises:
+            KeyError: If the node_id doesn't exist in the tree
+        """
+        if node_id not in self.tree:
+            raise KeyError(f"Node {node_id} not found in tree")
+            
+        node = self.tree[node_id]
+        node.content = content
+        node.summary = summary
+        node.modified_at = datetime.now()

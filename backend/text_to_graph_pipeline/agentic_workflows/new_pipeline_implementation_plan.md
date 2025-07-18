@@ -66,7 +66,9 @@ We will be following TDD for this project. A slightly different take on TDD wher
    - Handle SPLIT in TreeActionApplier (create nodes first, then relationships)
 
 Progress notes:
-- 
+- Commit 4c20a15: Added behavioral tests for get_neighbors() and update_node() methods in test_decision_tree_ds.py
+- Commit 4c20a15: Added new tree action models (UPDATE, SPLIT) and pipeline stage models to models.py
+- Commit 4c20a15: Removed name field from ChunkModel to align with new segmentation approach
 
 ### Phase 2: Prompts
 0. Create input/fuzzy(output) test cases for the each of the prompts:
