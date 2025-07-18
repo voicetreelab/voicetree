@@ -6,6 +6,31 @@ from typing import List, Dict, Any, Optional
 from typing_extensions import TypedDict
 
 
+class AppendToRelevantNodeAgentState(TypedDict):
+    """State for AppendToRelevantNodeAgent workflow"""
+    # Input
+    transcript_text: str
+    transcript_history: str
+    existing_nodes: str  # JSON string of existing nodes
+    
+    # Intermediate outputs
+    segments: Optional[List[Dict[str, Any]]]  # From segmentation
+    target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target
+
+
+class SingleAbstractionOptimizerAgentState(TypedDict):
+    """State for SingleAbstractionOptimizerAgent workflow"""
+    # Input
+    node_id: int
+    node_name: str
+    node_content: str
+    node_summary: str
+    neighbors: str  # JSON string of neighbor nodes
+    
+    # Output
+    optimization_decision: Optional[Dict[str, Any]]
+
+
 class VoiceTreeState(TypedDict):
     """State that flows through the VoiceTree processing pipeline"""
     

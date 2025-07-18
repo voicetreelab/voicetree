@@ -56,4 +56,4 @@ class TestSingleAbstractionOptimizerAgent:
     # Test Case 3: The Simple Cleanup (Update Only)
     # Behavior: A node is cohesive, but its name/summary is poor or its content is disorganized.
     # Setup:
-    # - Input Node: {id: 10, name: "Stuff", content: "
+    # - Input Node: {id: 10, name: "Stuff", content:... 

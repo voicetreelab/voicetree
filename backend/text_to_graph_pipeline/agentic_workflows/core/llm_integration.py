@@ -4,7 +4,7 @@ LLM integration for VoiceTree LangGraph workflow using PydanticAI
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Type
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic_ai import Agent
@@ -29,7 +29,8 @@ DEFAULT_MODEL = "gemini-2.0-flash"
 SCHEMA_MAP = {
     "segmentation": SegmentationResponse,
     "relationship_analysis": RelationshipResponse,
-    "integration_decision": IntegrationResponse
+    "integration_decision": IntegrationResponse,
+    "identify_target_node": None  # Will be set dynamically when needed
 }
 
 
@@ -76,7 +77,7 @@ _load_environment()
 
 
 
-async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL) -> BaseModel:
+async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DEFAULT_MODEL, output_schema: Type[BaseModel] = None) -> BaseModel:
     """
     Call the LLM with structured output using Pydantic schemas
     
@@ -84,6 +85,7 @@ async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DE
         prompt: The prompt to send to the LLM
         stage_type: The workflow stage type (segmentation, relationship, integration, extraction)
         model_name: The model to use (default: gemini-2.0-flash)
+        output_schema: Optional override for the output schema
         
     Returns:
         Pydantic model instance with structured response
@@ -92,9 +94,13 @@ async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DE
         RuntimeError: If Gemini API is not available or configured
         ValueError: If API key is missing or stage type is unknown
     """
-    schema_class = SCHEMA_MAP.get(stage_type)
-    if not schema_class:
-        raise ValueError(f"Unknown stage type: {stage_type}")
+    # Use provided schema or look up from map
+    if output_schema:
+        schema_class = output_schema
+    else:
+        schema_class = SCHEMA_MAP.get(stage_type)
+        if not schema_class:
+            raise ValueError(f"Unknown stage type: {stage_type}")
     
     api_key = _get_api_key()
     if not api_key:

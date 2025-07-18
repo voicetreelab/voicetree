@@ -9,11 +9,6 @@
 - **ID-based operations**: Models updated to use node IDs instead of names
 - **Tests**: All infrastructure tests passing (DecisionTree methods, TreeActionApplier UPDATE, unified action model)
 
-### ❌ Not Started
-- **Phase 1 Cleanup**: Remove all legacy code (name-based lookups, `IntegrationDecision`, multiple apply methods)
-- **Phase 2 Agents**: `AppendToRelevantNodeAgent`, `SingleAbstractionOptimizerAgent`, new `TreeActionDeciderAgent`
-- **Phase 3 Integration**: Update `ChunkProcessor` and E2E tests
-
 ## Key Clarifications
 
 1. **AppendAction model needed** - Clean separation: `AppendAction` for adding to existing nodes, `CreateAction` for new nodes, `UpdateAction` for modifications
@@ -44,11 +39,12 @@ Progress notes:
 - Removed name-based fallback in `_apply_create_action_from_optimizer()`
 - Created behavioral tests that verify ID-only operations work correctly
 
-### Phase 2: Agent Implementation (TDD)
-1. [ ] Run existing tests for `AppendToRelevantNodeAgent` (expect failure)
-2. [ ] Implement `AppendToRelevantNodeAgent`
+### Phase 2: Agent Implementation (TDD) 🔄 IN PROGRESS
+1. [x] Run existing tests for `AppendToRelevantNodeAgent` (expect failure)
+2. [x] Implement `AppendToRelevantNodeAgent`
    - Input: raw text + tree state
-   - Output: List[TargetNodeIdentification | CreateAction]
+   - Output: List[Union[AppendAction, CreateAction]]
+   - Status: Implementation complete, debugging LLM integration
 3. [ ] Run existing tests for `SingleAbstractionOptimizerAgent` (expect failure)
 4. [ ] Implement `SingleAbstractionOptimizerAgent`
    - Input: node_id + tree state
@@ -57,7 +53,18 @@ Progress notes:
 6. [ ] Implement new `TreeActionDeciderAgent`
    - Orchestrates: text → placement → apply → optimization → final actions
 
-Progress notes:
+Progress notes (2025-07-18):
+- Created state schemas: `AppendToRelevantNodeAgentState` and `SingleAbstractionOptimizerAgentState` in core/state.py
+- Implemented `AppendToRelevantNodeAgent` with:
+  - Two-prompt workflow (segmentation → identify_target_node)
+  - Transform function to filter incomplete segments
+  - Translation layer converting `TargetNodeIdentification` to `AppendAction`/`CreateAction`
+- Created comprehensive test suite with 7 test cases covering all scenarios
+- Updated `llm_integration.py` to support dynamic schema mapping for new stage types
+- Created detailed TDD implementation plan in `phase2_tdd_implementation_plan.md`
+
+Current blocker:
+- Segmentation stage returning no chunks - need to debug prompt rendering and LLM response parsing
 
 ### Phase 3: Integration
 1. [ ] Update `ChunkProcessor` to use new agent
@@ -68,4 +75,8 @@ Progress notes:
 - **Stateless agents**: Pure functions that propose actions
 - **ID-only operations**: No fuzzy name matching in pipeline
 - **Two-step flow**: Fast placement → Thoughtful optimization
-- **Action types**: `TargetNodeIdentification` (append), `CreateAction` (new), `UpdateAction` (modify)
+- **Final Action Types (for TreeActionApplier)**: `AppendAction` (add to existing), `CreateAction` (new node), `UpdateAction` (modify node)
+
+## Progress Log
+- Phase 1 completed - Commit 0f6b453: Clean foundation with ID-only operations
+- Phase 2 in progress - 2025-07-18: AppendToRelevantNodeAgent implemented, debugging LLM integration
