@@ -24,14 +24,14 @@ I want to improve my agentic workflow for
 
 
   here is a plan for the steps required to change our current pipeline, to the new 
-  pipeline. @backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_progress_2.md
-  They also reference a planning document @backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_plan_v2.md
+  pipeline. @backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_progress.md
+
 
   Note there already has been significant progress by engineer. The have documented their progress in @new_pipeline
 
   Get all the context you need, ask clarifying 
   questions, and ultrathink so that we can 
-  update th immplemetnation plan for engineering this 
+  update and then execute the implemetnation plan for engineering this 
   new workflow/pipeline :D
 
 
