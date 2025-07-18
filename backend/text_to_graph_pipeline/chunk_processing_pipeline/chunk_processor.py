@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional, Set
 
 if TYPE_CHECKING:
-    from backend.text_to_graph_pipeline.agentic_workflows.agents.tree_action_decider_agent import TreeActionDeciderAgent
+    from backend.text_to_graph_pipeline.orchestration.tree_action_decider import TreeActionDecider
 
 from backend import settings
 from backend.text_to_graph_pipeline.text_buffer_manager import \
@@ -48,7 +48,7 @@ class ChunkProcessor:
         decision_tree: DecisionTree,
         converter: Optional[TreeToMarkdownConverter] = None,
         output_dir: str = output_dir_default,
-        agent: Optional["TreeActionDeciderAgent"] = None
+        agent: Optional["TreeActionDecider"] = None
     ):
         """
         Initialize the chunk processor (combines workflow tree manager and transcription processor)
@@ -57,7 +57,7 @@ class ChunkProcessor:
             decision_tree: The decision tree instance
             converter: Optional markdown converter (will create one if not provided)
             output_dir: Directory for markdown output
-            agent: Optional VoiceTreeAgent instance for testing
+            agent: Optional TreeActionDecider instance for testing
         """
         self.decision_tree = decision_tree
         self.nodes_to_update: Set[int] = set()
@@ -169,8 +169,8 @@ class ChunkProcessor:
             elif result.metadata and "completed_text" in result.metadata:
                 logging.warning("Workflow didn't return completed text information")
             
-            # Apply the integration decisions to the decision tree
-            updated_nodes = self.tree_action_applier.apply_integration_decisions(result.integration_decisions)
+            # Apply the tree actions to the decision tree
+            updated_nodes = self.tree_action_applier.apply(result.tree_actions)
             self.nodes_to_update.update(updated_nodes)
             
             # Log metadata
