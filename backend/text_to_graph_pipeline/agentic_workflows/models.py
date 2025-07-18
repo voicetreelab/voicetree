@@ -37,26 +37,6 @@ class RelationshipResponse(BaseModel):
     analyzed_chunks: List[RelationshipAnalysis] = Field(description="Analysis results for each chunk")
 
 
-class IntegrationDecision(BaseModel):
-    """Model for integration decision stage output"""
-    name: str = Field(description="Name of the chunk")
-    text: str = Field(description="Text content of the chunk")
-    reasoning: str = Field(description="Analysis that led to the integration decision")
-    action: Literal["CREATE", "APPEND"] = Field(description="Whether to create new node or append to existing")
-    # Legacy name-based fields (deprecated)
-    target_node: Optional[str] = Field(default=None, description="Target node name (deprecated, use target_node_id)")
-    # New ID-based fields
-    target_node_id: Optional[int] = Field(default=None, description="Target node ID for APPEND action")
-    parent_node_id: Optional[int] = Field(default=None, description="Parent node ID for CREATE action (-1 for root)")
-    new_node_name: Optional[str] = Field(default=None, description="Name for new node if action is CREATE")
-    new_node_summary: Optional[str] = Field(default=None, description="Summary for new node if action is CREATE")
-    relationship_for_edge: Optional[str] = Field(default=None, description="Relationship description for new edges")
-    content: str = Field(description="Content to add to the node")
-
-
-class IntegrationResponse(BaseModel):
-    """Response model for integration decision stage"""
-    integration_decisions: List[IntegrationDecision] = Field(description="Integration decisions for each chunk")
 
 
 class NodeSummary(BaseModel):
@@ -86,6 +66,13 @@ class CreateAction(BaseTreeAction):
     content: str = Field(description="Content for the new node")
     summary: str = Field(description="Summary for the new node")
     relationship: str = Field(description="Relationship to parent (e.g., 'subtask of')")
+
+
+class AppendAction(BaseTreeAction):
+    """Model for APPEND action - adds content to existing node"""
+    action: Literal["APPEND"] = Field(description="Action type")
+    target_node_id: int = Field(description="ID of node to append content to")
+    content: str = Field(description="Content to append to the node")
 
 
 class OptimizationDecision(BaseModel):
@@ -129,4 +116,10 @@ class TargetNodeIdentification(BaseModel):
 
 class TargetNodeResponse(BaseModel):
     """Response model for identify target node stage"""
-    target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment") 
+    target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment")
+
+
+# Temporary placeholder - to be removed when old TreeActionDeciderAgent is replaced
+class IntegrationResponse(BaseModel):
+    """DEPRECATED: Placeholder for old pipeline compatibility"""
+    pass 
