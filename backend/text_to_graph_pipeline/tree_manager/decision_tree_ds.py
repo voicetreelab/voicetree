@@ -27,9 +27,8 @@ class Node:
         self.summary: str = summary
         self.num_appends: int = 0
 
-    def append_content(self, new_content: str, summary:str, transcript: str = ""):
+    def append_content(self, new_content: str, transcript: str = ""):
         self.content += "\n" + new_content
-        self.summary = summary if summary else extract_summary(new_content)
         self.transcript_history += transcript + "... "
         self.modified_at = datetime.now()
         self.num_appends += 1

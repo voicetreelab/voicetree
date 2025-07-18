@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess  # Import subprocess for running shell commands
 
 
@@ -34,4 +35,13 @@ def package_project(project_dir, file_extension=".py"):
     return out
 
 if __name__ == "__main__":
-    print(package_project("/backend/tree_manager"))
+    if len(sys.argv) < 2:
+        print("Usage: python PackageProjectForLLM.py FOLDER")
+        sys.exit(1)
+    
+    folder_path = sys.argv[1]
+    if not os.path.exists(folder_path):
+        print(f"Error: The folder '{folder_path}' does not exist.")
+        sys.exit(1)
+    
+    print(package_project(folder_path))

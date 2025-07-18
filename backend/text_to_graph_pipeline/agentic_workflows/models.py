@@ -6,6 +6,11 @@ from typing import List, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
 
+class BaseTreeAction(BaseModel):
+    """Base class for all tree actions"""
+    action: str = Field(description="Action type")
+
+
 class ChunkModel(BaseModel):
     """Model for segmentation stage output"""
     reasoning: str = Field(description="Analysis of why this is segmented as a distinct chunk and completeness assessment")
@@ -38,10 +43,14 @@ class IntegrationDecision(BaseModel):
     text: str = Field(description="Text content of the chunk")
     reasoning: str = Field(description="Analysis that led to the integration decision")
     action: Literal["CREATE", "APPEND"] = Field(description="Whether to create new node or append to existing")
-    target_node: Optional[str] = Field(description="Target node for the action")
-    new_node_name: Optional[str] = Field(description="Name for new node if action is CREATE")
-    new_node_summary: Optional[str] = Field(description="Summary for new node if action is CREATE")
-    relationship_for_edge: Optional[str] = Field(description="Relationship description for new edges")
+    # Legacy name-based fields (deprecated)
+    target_node: Optional[str] = Field(default=None, description="Target node name (deprecated, use target_node_id)")
+    # New ID-based fields
+    target_node_id: Optional[int] = Field(default=None, description="Target node ID for APPEND action")
+    parent_node_id: Optional[int] = Field(default=None, description="Parent node ID for CREATE action (-1 for root)")
+    new_node_name: Optional[str] = Field(default=None, description="Name for new node if action is CREATE")
+    new_node_summary: Optional[str] = Field(default=None, description="Summary for new node if action is CREATE")
+    relationship_for_edge: Optional[str] = Field(default=None, description="Relationship description for new edges")
     content: str = Field(description="Content to add to the node")
 
 
@@ -58,7 +67,7 @@ class NodeSummary(BaseModel):
     relationship: str = Field(description="Relationship to the target node (parent/sibling/child)")
 
 
-class UpdateAction(BaseModel):
+class UpdateAction(BaseTreeAction):
     """Model for UPDATE tree action"""
     action: Literal["UPDATE"] = Field(description="Action type")
     node_id: int = Field(description="ID of node to update")
@@ -66,10 +75,13 @@ class UpdateAction(BaseModel):
     new_summary: str = Field(description="New summary to replace existing summary")
 
 
-class CreateAction(BaseModel):
+class CreateAction(BaseTreeAction):
     """Model for CREATE action in optimization context"""
     action: Literal["CREATE"] = Field(description="Action type")
-    target_node_name: str = Field(description="Name of parent node")
+    # Legacy name-based field (deprecated)
+    target_node_name: Optional[str] = Field(default=None, description="Name of parent node (deprecated, use parent_node_id)")
+    # New ID-based field
+    parent_node_id: Optional[int] = Field(default=None, description="ID of parent node (-1 for root)")
     new_node_name: str = Field(description="Name for the new node")
     content: str = Field(description="Content for the new node")
     summary: str = Field(description="Summary for the new node")
@@ -94,8 +106,25 @@ class TargetNodeIdentification(BaseModel):
     """Model for identifying target node for a segment"""
     text: str = Field(description="Text content of the segment")
     reasoning: str = Field(description="Analysis for choosing the target node")
-    target_node_name: str = Field(description="Name of target node (existing or hypothetical new node)")
+    target_node_id: int = Field(description="ID of target node (use -1 for new nodes)")
     is_new_node: bool = Field(description="Whether this is a new node to be created")
+    new_node_name: Optional[str] = Field(default=None, description="Name for new node (required if is_new_node=True)")
+    
+    @property
+    def target_node_name(self) -> Optional[str]:
+        """Backward compatibility property"""
+        return self.new_node_name if self.is_new_node else None
+    
+    def model_post_init(self, __context):
+        """Validate that new nodes have names and existing nodes have valid IDs"""
+        if self.is_new_node:
+            if self.target_node_id != -1:
+                raise ValueError("New nodes must have target_node_id=-1")
+            if not self.new_node_name:
+                raise ValueError("new_node_name is required when is_new_node=True")
+        else:
+            if self.target_node_id == -1:
+                raise ValueError("Existing nodes must have positive target_node_id")
 
 
 class TargetNodeResponse(BaseModel):
