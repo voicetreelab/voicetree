@@ -2,14 +2,13 @@
 Pydantic models for VoiceTree agentic workflow structured output
 """
 
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
 
 class ChunkModel(BaseModel):
     """Model for segmentation stage output"""
     reasoning: str = Field(description="Analysis of why this is segmented as a distinct chunk and completeness assessment")
-    name: str = Field(description="Concise name for the chunk (1-5 words)")
     text: str = Field(description="The actual text content of the chunk")
     is_complete: bool = Field(description="Whether this chunk represents a complete thought")
 
@@ -48,4 +47,62 @@ class IntegrationDecision(BaseModel):
 
 class IntegrationResponse(BaseModel):
     """Response model for integration decision stage"""
-    integration_decisions: List[IntegrationDecision] = Field(description="Integration decisions for each chunk") 
+    integration_decisions: List[IntegrationDecision] = Field(description="Integration decisions for each chunk")
+
+
+class NodeSummary(BaseModel):
+    """Summary information about a node for neighbor context"""
+    id: int = Field(description="Node ID")
+    name: str = Field(description="Node name")
+    summary: str = Field(description="Node summary")
+    relationship: str = Field(description="Relationship to the target node (parent/sibling/child)")
+
+
+class UpdateAction(BaseModel):
+    """Model for UPDATE tree action"""
+    action: Literal["UPDATE"] = Field(description="Action type")
+    node_id: int = Field(description="ID of node to update")
+    new_content: str = Field(description="New content to replace existing content")
+    new_summary: str = Field(description="New summary to replace existing summary")
+
+
+class NewNodeForSplit(BaseModel):
+    """Model for a new node created during SPLIT action"""
+    name: str = Field(description="Name of the new node")
+    content: str = Field(description="Content of the new node")
+    summary: str = Field(description="Summary of the new node")
+    parent_name: str = Field(description="Name of parent node (can reference other new nodes)")
+    relationship: str = Field(description="Relationship to parent node")
+
+
+class SplitAction(BaseModel):
+    """Model for SPLIT tree action"""
+    action: Literal["SPLIT"] = Field(description="Action type")
+    node_id: int = Field(description="ID of node to split (becomes parent)")
+    new_nodes: List[NewNodeForSplit] = Field(description="New nodes to create from the split")
+
+
+class OptimizationDecision(BaseModel):
+    """Model for single abstraction optimization output"""
+    reasoning: str = Field(description="Analysis that led to the optimization decision")
+    action: Union[UpdateAction, SplitAction, None] = Field(
+        description="The optimization action to take, or None if no optimization needed"
+    )
+
+
+class OptimizationResponse(BaseModel):
+    """Response model for single abstraction optimization stage"""
+    optimization_decision: OptimizationDecision = Field(description="The optimization decision")
+
+
+class TargetNodeIdentification(BaseModel):
+    """Model for identifying target node for a segment"""
+    text: str = Field(description="Text content of the segment")
+    reasoning: str = Field(description="Analysis for choosing the target node")
+    target_node_name: str = Field(description="Name of target node (existing or hypothetical new node)")
+    is_new_node: bool = Field(description="Whether this is a new node to be created")
+
+
+class TargetNodeResponse(BaseModel):
+    """Response model for identify target node stage"""
+    target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment") 
