@@ -28,6 +28,7 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
         *   Does this chunk introduce new structure/concepts or just add details to existing ones?
     c.  **Then, based on your reasoning, determine the Action:**
         *   If `relevant_node_name` is "NO_RELEVANT_NODE", the action is **CREATE**.
+        *   Consider the existing nodes summary to understand the scope and content of nodes when making APPEND vs CREATE decisions.
         *   If `relevant_node_name` is *not* "NO_RELEVANT_NODE", analyze based on your reasoning:
             *   **APPEND** for direct continuations, minor clarifying details, corrections, examples that don't introduce new structure/concepts. Relationships like "correction", "clarifies", "example of" (sometimes), "continues process" often fit here.
             *   **CREATE** for distinct new concepts, steps, requirements, objectives, counter-arguments, questions, or when introducing specific items under a broader category. Relationships like "counter-argument", "new related topic", "alternative option", "blocked by", "introduces topic", "starts section", "poses question", "specifies requirements for", "identifies task for", "lists tasks for", or even "elaborates on" if the elaboration defines a significant sub-component, often fit here.
@@ -39,6 +40,7 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
             *   `new_node_name`: `null`
             *   `new_node_summary`: `null`
             *   `relationship_for_edge`: `null`
+            *   `content`: The `text` field from the input chunk (the actual text content to append).
         *   **If Action is CREATE:**
             *   `reasoning`: Your analysis from step b that led to the CREATE decision (MUST come first in the object).
             *   `action`: "CREATE"
@@ -46,6 +48,7 @@ Process the entire input list of sub-chunks. For **each** sub-chunk, decide whet
             *   `new_node_name`: Use the `name` field from the input chunk as the proposed name for the new node.
             *   `new_node_summary`: **MANDATORY.** Create a brief, 1-sentence summary based on the `text` of the input chunk. This field cannot be null or empty.
             *   `relationship_for_edge`: The relationship type between the new node and the target node (e.g., "elaborates on", "exemplified by"). This is only applicable for CREATE actions.
+            *   `content`: The `text` field from the input chunk (the actual text content for the new node).
 
 IMPORTANT: For APPEND actions, even though relationship_for_edge is null, consider if the appended content represents a specific relationship (like "follows" or "implements") that could be captured in the summary.
 
@@ -58,10 +61,13 @@ Input `analyzed_chunks`:
 `[ {"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "...", "relevant_node_name": "Self Improvement", "relationship": "lists tasks for"}, {"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "...", "relevant_node_name": "Yard Work", "relationship": "identifies task for"}, {"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "...", "relevant_node_name": "Fence Repair Task", "relationship": "elaborates on"} ]`
 
 Expected Output:
-`{ "integration_decisions": [ {"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "This chunk introduces specific tasks (studying and gym) under the broader self-improvement category. The relationship 'lists tasks for' indicates these are distinct activities with their own scope. These warrant their own node rather than just being appended to the general Self Improvement node.", "action": "CREATE", "target_node": "Self Improvement", "new_node_name": "Study and Gym Plan", "new_node_summary": "Lists studying and going to the gym as tasks for the day under self-improvement.", "relationship_for_edge": "lists tasks for"}, {"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "This identifies a specific yard work task with its own scope and details. The relationship 'identifies task for' suggests this is a distinct task that needs tracking. It's not just a general comment about yard work but a concrete task with its own requirements.", "action": "CREATE", "target_node": "Yard Work", "new_node_name": "Fence Repair Task", "new_node_summary": "Identifies the specific yard work task of repairing the fence due to a cracking stake.", "relationship_for_edge": "identifies task for"}, {"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "This chunk provides specific diagnostic information about the fence repair task. The relationship 'elaborates on' and the content itself show this is clarifying detail about the existing task, not introducing a new subtask or concept. It adds supporting information without creating new structure.", "action": "APPEND", "target_node": "Fence Repair Task", "new_node_name": null, "new_node_summary": null, "relationship_for_edge": null} ] }`
+`{ "integration_decisions": [ {"name": "Study and Gym Plan", "text": "Today I want to to study and go to the gym", "reasoning": "This chunk introduces specific tasks (studying and gym) under the broader self-improvement category. The relationship 'lists tasks for' indicates these are distinct activities with their own scope. These warrant their own node rather than just being appended to the general Self Improvement node.", "action": "CREATE", "target_node": "Self Improvement", "new_node_name": "Study and Gym Plan", "new_node_summary": "Lists studying and going to the gym as tasks for the day under self-improvement.", "relationship_for_edge": "lists tasks for", "content": "Today I want to to study and go to the gym"}, {"name": "Fence Repair Task", "text": "Then I will have to work on my fence because one of the stakes is cracking", "reasoning": "This identifies a specific yard work task with its own scope and details. The relationship 'identifies task for' suggests this is a distinct task that needs tracking. It's not just a general comment about yard work but a concrete task with its own requirements.", "action": "CREATE", "target_node": "Yard Work", "new_node_name": "Fence Repair Task", "new_node_summary": "Identifies the specific yard work task of repairing the fence due to a cracking stake.", "relationship_for_edge": "identifies task for", "content": "Then I will have to work on my fence because one of the stakes is cracking"}, {"name": "Fence Repair Detail", "text": "The specific issue is rot at the base of the north corner post.", "reasoning": "This chunk provides specific diagnostic information about the fence repair task. The relationship 'elaborates on' and the content itself show this is clarifying detail about the existing task, not introducing a new subtask or concept. It adds supporting information without creating new structure.", "action": "APPEND", "target_node": "Fence Repair Task", "new_node_name": null, "new_node_summary": null, "relationship_for_edge": null, "content": "The specific issue is rot at the base of the north corner post."} ] }`
 
 
 **Inputs:**
+
+**Existing Nodes Summary:**
+{{existing_nodes}}
 
 **analyzed_chunks:**
 ```json

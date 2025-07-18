@@ -57,7 +57,8 @@ class TreeToMarkdownConverter:
         """Converts the specified nodes to Markdown files."""
 
         os.makedirs(output_dir, exist_ok=True)
-        logging.info(f"updating/writing markdown for nodes {nodes_to_update}")
+        if (len(nodes_to_update)> 0):
+            logging.info(f"updating/writing markdown for nodes {nodes_to_update}")
 
         if nodes_to_update:
             for node_id in nodes_to_update:
