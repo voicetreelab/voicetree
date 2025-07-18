@@ -75,18 +75,28 @@ class AppendAction(BaseTreeAction):
     content: str = Field(description="Content to append to the node")
 
 
-class OptimizationDecision(BaseModel):
-    """Model for single abstraction optimization output"""
-    reasoning: str = Field(description="Analysis that led to the optimization decision")
-    actions: List[Union[UpdateAction, CreateAction]] = Field(
-        description="List of actions to take (can be empty if no optimization needed)",
-        default_factory=list
-    )
+class ChildNodeSpec(BaseModel):
+    """Specification for a new child node to be created"""
+    name: str = Field(description="Name for the new child node")
+    content: str = Field(description="Content for the new child node")
+    summary: str = Field(description="Summary for the new child node")
+    relationship: str = Field(description="Relationship to parent (e.g., 'subtask of', 'implements', 'solves')")
 
 
 class OptimizationResponse(BaseModel):
-    """Response model for single abstraction optimization stage"""
-    optimization_decision: OptimizationDecision = Field(description="The optimization decision")
+    """Response model for single abstraction optimization - no union types"""
+    reasoning: str = Field(description="Analysis of the node and optimization decision")
+    
+    # Original node update (if needed)
+    update_original: bool = Field(description="Whether to update the original node")
+    original_new_content: Optional[str] = Field(default=None, description="New content for original node (if update_original=True)")
+    original_new_summary: Optional[str] = Field(default=None, description="New summary for original node (if update_original=True)")
+    
+    # New child nodes to create (can be empty list)
+    create_child_nodes: List[ChildNodeSpec] = Field(
+        default_factory=list,
+        description="List of child nodes to create (empty if no split needed)"
+    )
 
 
 class TargetNodeIdentification(BaseModel):
