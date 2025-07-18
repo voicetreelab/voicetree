@@ -17,6 +17,7 @@ OUTPUT FORMAT:
 SEGMENTATION PROCESS:
 For each potential chunk, FIRST use the `reasoning` field as brainstorming section to analyze:
 - Try understand the actual meaning of the content within the context
+- Consider existing nodes in the graph to understand established concepts and terminology
 - Where are the natural boundaries between distinct ideas or work-items (problems, solutions, questions)?
 - What parts are likely be unfinished?
 
@@ -76,6 +77,11 @@ Output:
   ]
 }
 ```
+────────────────────────────────────────
+EXISTING NODES (for context awareness):
+────────────────────────────────────────
+{{existing_nodes}}
+
 ────────────────────────────────────────
 RECENT CONTEXT (if available):
 ────────────────────────────────────────
