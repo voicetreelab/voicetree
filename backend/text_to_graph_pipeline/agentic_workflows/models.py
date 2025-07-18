@@ -66,27 +66,22 @@ class UpdateAction(BaseModel):
     new_summary: str = Field(description="New summary to replace existing summary")
 
 
-class NewNodeForSplit(BaseModel):
-    """Model for a new node created during SPLIT action"""
-    name: str = Field(description="Name of the new node")
-    content: str = Field(description="Content of the new node")
-    summary: str = Field(description="Summary of the new node")
-    parent_name: str = Field(description="Name of parent node (can reference other new nodes)")
-    relationship: str = Field(description="Relationship to parent node")
-
-
-class SplitAction(BaseModel):
-    """Model for SPLIT tree action"""
-    action: Literal["SPLIT"] = Field(description="Action type")
-    node_id: int = Field(description="ID of node to split (becomes parent)")
-    new_nodes: List[NewNodeForSplit] = Field(description="New nodes to create from the split")
+class CreateAction(BaseModel):
+    """Model for CREATE action in optimization context"""
+    action: Literal["CREATE"] = Field(description="Action type")
+    target_node_name: str = Field(description="Name of parent node")
+    new_node_name: str = Field(description="Name for the new node")
+    content: str = Field(description="Content for the new node")
+    summary: str = Field(description="Summary for the new node")
+    relationship: str = Field(description="Relationship to parent (e.g., 'subtask of')")
 
 
 class OptimizationDecision(BaseModel):
     """Model for single abstraction optimization output"""
     reasoning: str = Field(description="Analysis that led to the optimization decision")
-    action: Union[UpdateAction, SplitAction, None] = Field(
-        description="The optimization action to take, or None if no optimization needed"
+    actions: List[Union[UpdateAction, CreateAction]] = Field(
+        description="List of actions to take (can be empty if no optimization needed)",
+        default_factory=list
     )
 
 
