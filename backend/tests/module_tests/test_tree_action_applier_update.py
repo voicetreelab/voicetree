@@ -39,7 +39,7 @@ class TestTreeActionApplierUpdate:
         )
         
         # Execute - TreeActionApplier needs to handle UpdateAction
-        updated_nodes = applier.apply_optimization_actions([update_action])
+        updated_nodes = applier.apply([update_action])
         
         # Verify
         mock_decision_tree.update_node.assert_called_once_with(
@@ -87,7 +87,7 @@ class TestTreeActionApplierUpdate:
         ]
         
         # Execute - need unified method to handle both action types
-        updated_nodes = applier.apply_mixed_actions(actions)
+        updated_nodes = applier.apply(actions)
         
         # Verify
         # Should update parent
@@ -136,7 +136,7 @@ class TestTreeActionApplierUpdate:
         ]
         
         # Execute
-        updated_nodes = applier.apply_optimization_actions(actions)
+        updated_nodes = applier.apply(actions)
         
         # Verify
         assert mock_decision_tree.update_node.call_count == 2
@@ -155,7 +155,7 @@ class TestTreeActionApplierUpdate:
     def test_empty_actions_list(self, applier, mock_decision_tree):
         """Test handling empty actions list (no optimization needed)"""
         # Execute
-        updated_nodes = applier.apply_optimization_actions([])
+        updated_nodes = applier.apply([])
         
         # Verify
         mock_decision_tree.update_node.assert_not_called()

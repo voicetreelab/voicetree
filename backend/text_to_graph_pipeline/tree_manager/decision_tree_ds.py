@@ -126,55 +126,6 @@ class DecisionTree:
                 return parent_id
         return None
 
-    def get_node_id_from_name(self, name: str) -> int | None:
-        """
-        Search the tree for the node with the name most similar to the input name.
-        Uses fuzzy matching to find the closest match.
-
-        Args:
-            name (str): The name of the node to find.
-
-        Returns:
-            int | None: The ID of the closest matching node, or None if no close match is found.
-        """
-        # Handle None or empty name
-        if not name:
-            return None
-            
-        # Generate a list of node titles
-        node_titles = [node.title for node in self.tree.values()]
-        node_titles_lower = [title.lower() for title in node_titles]
-
-        # Find the closest match to the input name
-        closest_matches = difflib.get_close_matches(name.lower(), node_titles_lower, n=1, cutoff=0.6)
-
-        if closest_matches:
-            # If a match is found, return the corresponding node ID
-            # Find the original title that matched
-            matched_lower = closest_matches[0]
-            for i, title_lower in enumerate(node_titles_lower):
-                if title_lower == matched_lower:
-                    original_title = node_titles[i]
-                    break
-            
-            for node_id, node in self.tree.items():
-                if node.title == original_title:
-                    return node_id
-
-        #todo: this won't scale
-
-        # If no match is found, try to use the most recently modified node
-        # This is more likely to be semantically related
-        recent_nodes = self.get_recent_nodes(num_nodes=5)
-        
-        if recent_nodes:
-            parent_id = recent_nodes[0]
-            logging.warning(f"No close match found for node name '{name}'. Using most recent node: {self.tree[parent_id].title}")
-            return parent_id
-        
-        # Return None if there are no nodes at all
-        logging.warning(f"No close match found for node name '{name}' and no nodes exist in the tree.")
-        return None
 
     def get_neighbors(self, node_id: int) -> List[Dict]:
         """
