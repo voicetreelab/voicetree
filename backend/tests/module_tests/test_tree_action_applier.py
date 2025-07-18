@@ -5,7 +5,7 @@ Unit tests for TreeActionApplier
 import pytest
 from unittest.mock import Mock, MagicMock
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction, UpdateAction
 
 
 class TestTreeActionApplier:

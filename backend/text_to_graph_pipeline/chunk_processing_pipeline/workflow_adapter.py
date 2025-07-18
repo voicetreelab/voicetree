@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from backend.text_to_graph_pipeline.agentic_workflows.agents.tree_action_decider_agent import \
     TreeActionDeciderAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import \
-    IntegrationDecision
+    CreateAction, AppendAction, BaseTreeAction
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
     DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_functions import \
@@ -21,7 +21,7 @@ class WorkflowResult:
     """Result from workflow execution"""
     success: bool
     new_nodes: List[str]
-    integration_decisions: List[IntegrationDecision]
+    tree_actions: List[BaseTreeAction]  # Changed from integration_decisions
     error_message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -73,8 +73,7 @@ class WorkflowAdapter:
                 existing_nodes=existing_nodes
             )
 
-            # ideally here we should just have result: IntegrationDecision[]
-            # also, IntegrationDecision should probs be renamed to TreeAction since that better represents what it is
+            # The result should contain tree actions (CreateAction, AppendAction, etc.)
             
             # No state manager - workflow is now a pure function
             
@@ -83,34 +82,39 @@ class WorkflowAdapter:
                 return WorkflowResult(
                     success=False,
                     new_nodes=[],
-                    integration_decisions=[],
+                    tree_actions=[],
                     error_message=result["error_message"]
                 )
             
-            # Get integration decisions and convert to Pydantic models
-            integration_decisions_raw = result.get("integration_decisions", [])
-            integration_decisions = []
-            for decision in integration_decisions_raw:
+            # Get tree actions and convert to Pydantic models
+            tree_actions_raw = result.get("tree_actions", result.get("integration_decisions", []))  # Support both field names during transition
+            tree_actions = []
+            for decision in tree_actions_raw:
                 # Convert "NO_RELEVANT_NODE" to None for cleaner downstream handling
                 if decision.get("target_node") == "NO_RELEVANT_NODE":
                     decision["target_node"] = None
-                integration_decisions.append(IntegrationDecision(**decision))
+                # Convert to appropriate action type based on action field
+                action_type = decision.get("action")
+                if action_type == "CREATE":
+                    tree_actions.append(CreateAction(**decision))
+                elif action_type == "APPEND":
+                    tree_actions.append(AppendAction(**decision))
             
-            # Extract new node names from integration decisions
+            # Extract new node names from CREATE actions
             new_nodes = []
-            for decision in integration_decisions:
-                if decision.action == "CREATE" and decision.new_node_name:
-                    new_nodes.append(decision.new_node_name)
+            for action in tree_actions:
+                if isinstance(action, CreateAction) and action.new_node_name:
+                    new_nodes.append(action.new_node_name)
             
 
             
             return WorkflowResult(
                 success=True,
                 new_nodes=new_nodes,
-                integration_decisions=integration_decisions,
+                tree_actions=tree_actions,
                 metadata={
                     "chunks_processed": len(result.get("chunks", [])),
-                    "decisions_made": len(integration_decisions),
+                    "actions_generated": len(tree_actions),
                     "completed_chunks": self._extract_completed_chunks(result)
                 }
             )
@@ -119,7 +123,7 @@ class WorkflowAdapter:
             return WorkflowResult(
                 success=False,
                 new_nodes=[],
-                integration_decisions=[],
+                tree_actions=[],
                 error_message=f"Workflow execution failed: {str(e)}"
             )
     

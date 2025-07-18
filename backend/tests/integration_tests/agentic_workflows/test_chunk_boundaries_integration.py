@@ -13,7 +13,7 @@ from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Decisio
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction
 
 
 class TestChunkBoundariesIntegration:

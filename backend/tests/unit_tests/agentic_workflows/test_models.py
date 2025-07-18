@@ -10,8 +10,6 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
     SegmentationResponse,
     RelationshipAnalysis,
     RelationshipResponse,
-    IntegrationDecision,
-    IntegrationResponse
 )
 
 
@@ -141,61 +139,6 @@ class TestRelationshipResponse:
         assert response.analyzed_chunks[1].relationship is None
 
 
-class TestIntegrationDecision:
-    """Test the IntegrationDecision schema"""
-    
-    def test_integration_decision_create_action(self):
-        """Test integration decision with CREATE action"""
-        decision = IntegrationDecision(
-            name="New Concept",
-            text="This is a new concept about...",
-            action="CREATE",
-            reasoning="...",
-            target_node=None,
-            new_node_name="New Concept Node",
-            new_node_summary="A node about new concepts",
-            relationship_for_edge="introduces",
-            content="Full content for the new node"
-        )
-        
-        assert decision.action == "CREATE"
-        assert decision.new_node_name == "New Concept Node"
-        assert decision.target_node is None
-    
-    def test_integration_decision_append_action(self):
-        """Test integration decision with APPEND action"""
-        decision = IntegrationDecision(
-            name="Addition",
-            text="Additional information",
-            action="APPEND",
-            reasoning="...",
-            target_node="ExistingNode",
-            new_node_name=None,
-            new_node_summary=None,
-            relationship_for_edge=None,
-            content="Content to append"
-        )
-        
-        assert decision.action == "APPEND"
-        assert decision.target_node == "ExistingNode"
-        assert decision.new_node_name is None
-    
-    def test_integration_decision_action_validation(self):
-        """Test that action must be CREATE or APPEND"""
-        with pytest.raises(ValidationError) as exc_info:
-            IntegrationDecision(
-                name="Test",
-                text="Test",
-                action="INVALID",  # Invalid action
-                target_node="Node",
-                new_node_name=None,
-                new_node_summary=None,
-                relationship_for_edge=None,
-                content="Content"
-            )
-        
-        error = exc_info.value.errors()[0]
-        assert "INVALID" in str(error)
 
 
 

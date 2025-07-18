@@ -33,7 +33,7 @@ import pytest
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction
 
 
 def generate_random_sentence(min_words=1, max_words=110):

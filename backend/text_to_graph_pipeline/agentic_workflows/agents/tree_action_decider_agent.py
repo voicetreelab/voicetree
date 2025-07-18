@@ -8,8 +8,9 @@ from langgraph.graph import END
 
 from ..core.agent import Agent
 from ..core.state import VoiceTreeState, validate_state
-from ..models import (IntegrationResponse, RelationshipResponse,
+from ..models import (RelationshipResponse,
                       SegmentationResponse)
+# IntegrationResponse removed - this agent will be replaced with new pipeline
 
 
 class TreeActionDeciderAgent(Agent):
@@ -34,11 +35,12 @@ class TreeActionDeciderAgent(Agent):
             RelationshipResponse
         )
         
-        self.add_prompt(
-            "integration_decision",
-            "integration_decision",  # References prompts/integration_decision.md
-            IntegrationResponse
-        )
+        # Commented out - IntegrationResponse removed, will be replaced with new pipeline
+        # self.add_prompt(
+        #     "integration_decision",
+        #     "integration_decision",  # References prompts/integration_decision.md
+        #     IntegrationResponse
+        # )
         
         # Define dataflow
         self.add_dataflow("segmentation", "relationship_analysis")

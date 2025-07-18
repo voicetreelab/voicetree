@@ -27,7 +27,7 @@ import random
 from typing import List, Set, Dict, Tuple
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction
 
 
 class TestTreeActionApplierE2E:

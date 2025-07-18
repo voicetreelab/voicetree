@@ -106,7 +106,7 @@ class TestTreeActionApplierWithNodeIDs:
         )
         
         # Apply the action
-        updated_nodes = applier.apply_optimization_actions([action])
+        updated_nodes = applier.apply([action])
         
         # Verify update was called with ID
         mock_tree.update_node.assert_called_once_with(
