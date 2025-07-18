@@ -114,7 +114,7 @@ class Agent:
                         response = llm_client.call(prompt, output_schema=output_schema)
                     else:
                         # Use default integration
-                        response = await call_llm_structured(prompt, pname)
+                        response = await call_llm_structured(prompt, pname, output_schema=output_schema)
                     
                     # Convert response to dict if needed
                     if hasattr(response, 'model_dump'):
