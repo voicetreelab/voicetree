@@ -18,7 +18,6 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 
 
-@pytest.mark.api  # Mark as requiring real API calls
 class TestAppendToRelevantNodeAgent:
     
     @pytest.fixture
