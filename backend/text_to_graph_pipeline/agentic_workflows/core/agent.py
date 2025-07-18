@@ -28,16 +28,15 @@ class Agent:
         self.dataflows: List[Tuple[str, str, Optional[Callable]]] = []  # (from, to, transform)
         self.entry_point: Optional[str] = None
         
-    def add_prompt(self, name: str, template: str, output_schema: Type[BaseModel]):
+    def add_prompt(self, name: str, output_schema: Type[BaseModel]):
         """
         Define a prompt step in the agent
         
         Args:
-            name: Unique identifier for this prompt
-            template: The prompt template (can use {variables})
+            name: Unique identifier for this prompt (also used as template filename)
             output_schema: Pydantic model for structured output
         """
-        self.prompts[name] = template
+        self.prompts[name] = name  # Name is the template filename
         self.output_schemas[name] = output_schema
         
         # First prompt becomes entry point by default
@@ -100,13 +99,8 @@ class Agent:
                     # Get the prompt template
                     template = self.prompts[pname]
                     
-                    # Check if this is a file reference or inline template
-                    if not template.strip().startswith('{') and '\n' not in template:
-                        # Looks like a filename, load it
-                        prompt = prompt_loader.render_template(pname, **state)
-                    else:
-                        # Inline template
-                        prompt = template.format(**state)
+                    # Template is always a filename now
+                    prompt = prompt_loader.render_template(template, **state)
                     
                     # Call LLM with structured output
                     output_schema = self.output_schemas[pname]

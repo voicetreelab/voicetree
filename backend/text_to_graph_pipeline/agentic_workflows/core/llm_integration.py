@@ -103,7 +103,7 @@ async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DE
         try:
             from ..models import TargetNodeResponse, OptimizationResponse
             SCHEMA_MAP["identify_target_node"] = TargetNodeResponse
-            SCHEMA_MAP["optimize"] = OptimizationResponse
+            SCHEMA_MAP["single_abstraction_optimizer"] = OptimizationResponse
         except ImportError:
             pass
             

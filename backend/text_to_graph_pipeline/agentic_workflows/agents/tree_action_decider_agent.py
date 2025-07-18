@@ -25,13 +25,11 @@ class TreeActionDeciderAgent(Agent):
         # Define prompts - these will load from files
         self.add_prompt(
             "segmentation",
-            "segmentation",  # References prompts/segmentation.md
             SegmentationResponse
         )
         
         self.add_prompt(
             "relationship_analysis", 
-            "relationship_analysis",  # References prompts/relationship_analysis.md
             RelationshipResponse
         )
         

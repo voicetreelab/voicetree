@@ -28,8 +28,12 @@ class SingleAbstractionOptimizerAgentState(TypedDict):
     node_summary: str
     neighbors: str  # JSON string of neighbor nodes
     
-    # Output
-    optimization_decision: Optional[Dict[str, Any]]
+    # Output - these fields are merged directly from the LLM response
+    reasoning: Optional[str]
+    update_original: Optional[bool]
+    original_new_content: Optional[str]
+    original_new_summary: Optional[str]
+    create_child_nodes: Optional[List[Dict[str, Any]]]
 
 
 class VoiceTreeState(TypedDict):
