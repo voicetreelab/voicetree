@@ -20,7 +20,7 @@ For each sub-chunk:
           - "Database Choice" **selects technology for** "Database Architecture"
           - "Bug Fix #123" **resolves issue described in** "Error Report"
         - Focus on the directional nature of the relationship from the current chunk TO the relevant item
-        - Keep it concise (2-5 words)
+        - Keep it concise (up to 7 words max, preferablly less)
 
     5. before writing your final answer for 3. and 4. use the "reasoning" field in your JSON output for each chunk to start brainstorming the ideal answer. Try first actually understand what the chunk is trying to say, and how this is related to other existing ideas in nodes/chunks. What is the essence of its connection? Is it adding more detail/context, is it a subtask or follow-on task, is it correcting previous content etc.?
 

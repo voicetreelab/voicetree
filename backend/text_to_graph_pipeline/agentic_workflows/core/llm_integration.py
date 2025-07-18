@@ -13,13 +13,11 @@ from pydantic_ai.models.gemini import GeminiModel
 # Import our schema models
 try:
     from backend.text_to_graph_pipeline.agentic_workflows.models import (
-        SegmentationResponse, RelationshipResponse, 
-        IntegrationResponse
+        SegmentationResponse, RelationshipResponse
     )
 except ImportError:
     from models import (
-        SegmentationResponse, RelationshipResponse,
-        IntegrationResponse
+        SegmentationResponse, RelationshipResponse
     )
 
 # Configuration
@@ -29,7 +27,6 @@ DEFAULT_MODEL = "gemini-2.0-flash"
 SCHEMA_MAP = {
     "segmentation": SegmentationResponse,
     "relationship_analysis": RelationshipResponse,
-    "integration_decision": IntegrationResponse,
     "identify_target_node": None  # Will be set dynamically when needed
 }
 

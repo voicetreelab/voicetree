@@ -128,8 +128,3 @@ class TargetNodeResponse(BaseModel):
     """Response model for identify target node stage"""
     target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment")
 
-
-# Temporary placeholder - to be removed when old TreeActionDeciderAgent is replaced
-class IntegrationResponse(BaseModel):
-    """DEPRECATED: Placeholder for old pipeline compatibility"""
-    pass 
