@@ -74,8 +74,8 @@ class TestSummaryGeneration:
         node = tree.tree[node_id]
         
         # Step 1: Append new content (simulating stage 3)
-        node.append_content("Appended chunk 1", summary=None, transcript="chunk1")
-        node.append_content("Appended chunk 2", summary=None, transcript="chunk2")
+        node.append_content("Appended chunk 1", transcript="chunk1")
+        node.append_content("Appended chunk 2", transcript="chunk2")
         
         # Summary should NOT change during appends
         assert node.summary == "Initial summary"
