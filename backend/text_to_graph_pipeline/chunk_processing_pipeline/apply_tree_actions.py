@@ -7,7 +7,7 @@ import logging
 from typing import List, Set, Union
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision, UpdateAction, CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision, UpdateAction, CreateAction, BaseTreeAction
 
 
 class TreeActionApplier:
@@ -58,9 +58,13 @@ class TreeActionApplier:
         Args:
             decision: The IntegrationDecision with CREATE action
         """
-        # Find parent node ID from name or none if not specified
-        parent_id = None  
-        if decision.target_node:
+        # Prefer ID-based field, fall back to name-based for backward compatibility
+        parent_id = None
+        if decision.parent_node_id is not None:
+            # Handle special case: -1 means no parent (root node)
+            parent_id = None if decision.parent_node_id == -1 else decision.parent_node_id
+        elif decision.target_node:
+            # Legacy path: resolve name to ID
             parent_id = self.decision_tree.get_node_id_from_name(decision.target_node)
         
         # Create new node
@@ -88,24 +92,28 @@ class TreeActionApplier:
         Args:
             decision: The IntegrationDecision with APPEND action
         """
-        # Find target node and append content
-        if not decision.target_node:
-            logging.warning(f"APPEND decision for '{decision.name}' has no target_node - skipping")
+        # Prefer ID-based field, fall back to name-based for backward compatibility
+        node_id = None
+        if decision.target_node_id is not None:
+            node_id = decision.target_node_id
+        elif decision.target_node:
+            # Legacy path: resolve name to ID
+            node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
+        else:
+            logging.warning(f"APPEND decision for '{decision.name}' has no target node - skipping")
             return
             
-        node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
-        if node_id is not None:
+        if node_id is not None and node_id in self.decision_tree.tree:
             node = self.decision_tree.tree[node_id]
             node.append_content(
                 decision.content,
-                None,  # APPEND decisions don't have new_node_summary in IntegrationDecision
                 decision.name  # Use the chunk name as the label
             )
-            logging.info(f"Appended content to node '{decision.target_node}' (ID {node_id})")
+            logging.info(f"Appended content to node ID {node_id}")
             # Add the updated node to the update set
             self.nodes_to_update.add(node_id)
         else:
-            logging.warning(f"Could not find node '{decision.target_node}' for APPEND action")
+            logging.warning(f"Could not find node with ID {node_id} for APPEND action")
     
     def get_nodes_to_update(self) -> Set[int]:
         """
@@ -198,9 +206,13 @@ class TreeActionApplier:
         Args:
             action: The CreateAction to apply
         """
-        # Find parent node ID from name
+        # The optimizer should work with node IDs, but support name fallback
         parent_id = None
-        if action.target_node_name:
+        if hasattr(action, 'parent_node_id') and action.parent_node_id is not None:
+            # Handle special case: -1 means no parent (root node)
+            parent_id = None if action.parent_node_id == -1 else action.parent_node_id
+        elif action.target_node_name:
+            # Legacy path: resolve name to ID
             parent_id = self.decision_tree.get_node_id_from_name(action.target_node_name)
             if parent_id is None:
                 logging.warning(f"Could not find parent node '{action.target_node_name}' for CREATE action")
@@ -222,3 +234,32 @@ class TreeActionApplier:
         if parent_id is not None:
             self.nodes_to_update.add(parent_id)
             logging.info(f"Added parent node (ID {parent_id}) to update set to refresh child links")
+    
+    def apply(self, actions: List[BaseTreeAction]) -> Set[int]:
+        """
+        Apply a list of tree actions
+        
+        This unified method handles all action types by dispatching based on
+        the action field of each BaseTreeAction.
+        
+        Args:
+            actions: List of BaseTreeAction objects (UpdateAction, CreateAction, etc.)
+            
+        Returns:
+            Set of node IDs that were updated
+            
+        Raises:
+            ValueError: If an unknown action type is encountered
+        """
+        self.nodes_to_update.clear()
+        logging.info(f"Applying {len(actions)} tree actions")
+        
+        for action in actions:
+            if action.action == "UPDATE":
+                self._apply_update_action(action)
+            elif action.action == "CREATE":
+                self._apply_create_action_from_optimizer(action)
+            else:
+                raise ValueError(f"Unknown action type: {action.action}")
+        
+        return self.nodes_to_update.copy()
