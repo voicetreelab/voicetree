@@ -37,20 +37,12 @@ class UpdateAction:
     new_summary: str
 ```
 
-### SPLIT Action
-```python
-class SplitAction:
-    action: Literal["SPLIT"]
-    node_id: int  # Node to split (becomes parent A)
-    new_nodes: List[NewNode]  # B, C, D etc.
-    
-class NewNode:
-    name: str
-    content: str
-    summary: str
-    parent_name: str  # Can reference other new nodes
-    relationship: str
-```
+### SPLIT Implementation
+SPLIT is not a separate action type. It's implemented as:
+1. UPDATE the original node to contain only parent content
+2. CREATE new child nodes
+
+The optimizer returns a list of actions that can include multiple CREATE and UPDATE actions to achieve the split.
 
 ## Implementation Steps
 We will be following TDD for this project. A slightly different take on TDD where initially we just want a high level test, that doesn't go into any detail, just tests input -> expected output (behaviour) at whatever level of abstraction we are working on (method, module, prompt, agent, etc.)
@@ -88,6 +80,14 @@ Progress notes:
 - Commit e6b4db2: Created identify_target_node.md prompt (delegated to sub-agent)
 - Commit e6b4db2: Created single_abstraction_optimizer.md incorporating VoiceTree_Math optimization techniques
 
+### Phase 2.5: TreeActionApplier Updates
+0. Write behavioral tests for TreeActionApplier UPDATE support
+1. Update models to allow optimizer to return multiple actions (for SPLIT = UPDATE + CREATEs)
+2. Implement UPDATE action support in TreeActionApplier
+
+Progress notes:
+- 
+
 ### Phase 3: Agents
 Note: renaming TreeActionDeciderAgent to AppendToRelevantNodeAgent.
 The combination of AppendToRelevantNodeAgent and SingleAbstractionOptimizerAgent will be called TreeActionDeciderAgent.
@@ -111,7 +111,7 @@ The combination of AppendToRelevantNodeAgent and SingleAbstractionOptimizerAgent
 ## Key Design Decisions
 
 - UPDATE replaces entire node content/summary
-- SPLIT keeps original node as parent, creates children
+- SPLIT is not a separate action - it's UPDATE + CREATE actions
+- Optimizer can return multiple actions (list) to handle complex operations
 - Optimization uses immediate neighbors only (for now)
 - Modified nodes tracked at node ID level
-- Handle SPLIT by creating all nodes first, then relationships
