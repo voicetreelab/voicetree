@@ -5,12 +5,11 @@ This is NOT an agent - it's a deterministic orchestrator that coordinates
 the workflow between agents.
 """
 
-from typing import List, Set, Union
+from typing import List, Union
 
 from ..agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
 from ..agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
-from ..chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from ..agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction
+from ..agentic_workflows.models import UpdateAction, CreateAction
 from ..tree_manager.decision_tree_ds import DecisionTree
 
 
@@ -57,6 +56,9 @@ class TreeActionDecider:
             return []
         
         # Step 2: Apply placement actions internally to get modified node IDs
+        # Import here to avoid circular imports
+        from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
+        
         applier = TreeActionApplier(decision_tree)
         modified_node_ids = applier.apply(placement_actions)
         
