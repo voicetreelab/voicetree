@@ -18,6 +18,6 @@ DEFAULT_TEST_TRANSCRIPTS = [
     {
         "file": "backend/benchmarker/input/og_vt_transcript.txt",
         "name": "VT Original",
-        "max_words": 63*4 + 1
+        "max_words": 63*6 + 1
     }
 ]
