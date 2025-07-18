@@ -9,8 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 
-# Create debug logs directory
-DEBUG_DIR = Path(__file__).parent / "debug_logs"
+# Create debug logs directory at the agentic_workflows level for better visibility
+DEBUG_DIR = Path(__file__).parent.parent / "debug_logs"
 DEBUG_DIR.mkdir(exist_ok=True)
 
 def clear_debug_logs():

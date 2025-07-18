@@ -98,9 +98,18 @@ async def call_llm_structured(prompt: str, stage_type: str, model_name: str = DE
     if output_schema:
         schema_class = output_schema
     else:
+        # Dynamically add to SCHEMA_MAP if it's a known response type
+        # This allows new stages to work without manual registration
+        try:
+            from ..models import TargetNodeResponse, OptimizationResponse
+            SCHEMA_MAP["identify_target_node"] = TargetNodeResponse
+            SCHEMA_MAP["optimize"] = OptimizationResponse
+        except ImportError:
+            pass
+            
         schema_class = SCHEMA_MAP.get(stage_type)
         if not schema_class:
-            raise ValueError(f"Unknown stage type: {stage_type}")
+            raise ValueError(f"Unknown stage type: {stage_type}. Either pass output_schema parameter or add to SCHEMA_MAP.")
     
     api_key = _get_api_key()
     if not api_key:
