@@ -155,15 +155,36 @@ We will follow a Test-Driven Development (TDD) approach. For each component, we 
 - Created comprehensive behavioral tests
 - **Key Achievement:** System now operates purely on node IDs, ensuring deterministic behavior
 
-### **Phase 2: 🔄 IN PROGRESS**
-- Next: Implement `AppendToRelevantNodeAgent` with TDD approach
-- Translation layer design clarified: LLM outputs `TargetNodeIdentification`, Python converts to actions
+### **Phase 2: 🔄 IN PROGRESS (2025-07-18)**
+
+#### **Completed:**
+- ✅ Created state schemas for new agents (`AppendToRelevantNodeAgentState`, `SingleAbstractionOptimizerAgentState`)
+- ✅ Implemented `AppendToRelevantNodeAgent` class with two-prompt workflow
+- ✅ Created comprehensive test suite for `AppendToRelevantNodeAgent`
+- ✅ Updated LLM integration to support dynamic schema mapping
+- ✅ Created detailed TDD implementation plan (`phase2_tdd_implementation_plan.md`)
+
+#### **Current Challenges:**
+1. **LLM Response Parsing:** The segmentation stage is not producing chunks, resulting in empty segments for target identification
+2. **State Flow:** Need to debug the transform function between segmentation and identify_target stages
+3. **Schema Registration:** Had to update `llm_integration.py` to support new stage types dynamically
+
+#### **Next Steps:**
+1. Debug why segmentation is returning no chunks (investigate prompt rendering)
+2. Fix the data flow between workflow stages
+3. Complete testing of `AppendToRelevantNodeAgent` with real LLM calls
+4. Implement `SingleAbstractionOptimizerAgent` following TDD
+5. Implement `TreeActionDeciderAgent` orchestrator
 
 ### **Phase 3: 📋 PENDING**
 - System integration and E2E testing
+- Update `ChunkProcessor` to use new agent
+- Update E2E tests for two-step behavior
 
 ### **Key Architectural Decisions:**
 1. **Three Clean Action Types:** `AppendAction` (add to existing), `CreateAction` (new node), `UpdateAction` (modify)
-2. **Translation Layer:** Deterministic Python code converts LLM output to actions (not in prompt)
+2. **Translation Layer:** Deterministic Python code converts LLM output (`TargetNodeIdentification`) to final actions (`AppendAction` or `CreateAction`)
 3. **ID-Only Operations:** No fuzzy name matching, all operations use exact node IDs
 4. **Single Interface:** TreeActionApplier exposes only `apply(actions: List[BaseTreeAction])`
+
+**Note:** `TargetNodeIdentification` is an intermediate data structure output by the LLM. It is NOT a final action type. The agent's Python code translates it to `AppendAction` or `CreateAction`.
