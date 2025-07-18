@@ -2,16 +2,16 @@
 Original task:
 
 I want to improve my agentic workflow for 
-  converting text chunk into tree update 
-  actions 
-
+  converting text chunk into tree update actions 
 
   ALl the existing code for doing that is 
-  stored in @backend/text_to_graph_pipeline/ 
-  predominantly 
-  @backend/text_to_graph_pipeline/agentic_workf
-  lows/agents/tree_action_decider_agent.py 
+  stored in @backend/text_to_graph_pipeline/
 
+  The agents/workflows are in backend/text_to_graph_pipeline/agentic_workflows
+
+  The core tests we are deailing with at this stage are backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests. These should use real live LLM calls. Useful for TDD.
+
+  and backend/tests/integration_tests/chunk_processing_pipeline/test_pipeline_e2e_with_di.py which mocks the agentic workflow.
 
   I have new insights into the core algorithm /
    pipeline for doing this.
@@ -27,13 +27,12 @@ I want to improve my agentic workflow for
   pipeline. @backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_progress_2.md
   They also reference a planning document @backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_plan_v2.md
 
-  Note there already has been significant progress by engineer.
+  Note there already has been significant progress by engineer. The have documented their progress in @new_pipeline
 
   Get all the context you need, ask clarifying 
   questions, and ultrathink so that we can 
-  write an excellent plan for engineering this 
+  update th immplemetnation plan for engineering this 
   new workflow/pipeline :D
-
 
 
 Let's try follow TDD for executing this, 

@@ -53,21 +53,25 @@ class AppendToRelevantNodeAgent(Agent):
     
     def _prepare_for_target_identification(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Transform state between segmentation and target identification"""
+        # Debug: Print all state keys to understand what's available
+        print(f"DEBUG _prepare_for_target_identification: state keys = {state.keys()}")
+        print(f"DEBUG _prepare_for_target_identification: current_stage = {state.get('current_stage')}")
+        
         # Extract segments from segmentation response
         chunks = state.get("chunks", [])
         
         # TODO: Debug transform - chunks appear to be None from segmentation
-        # print(f"DEBUG _prepare_for_target_identification: chunks = {chunks}")
+        print(f"DEBUG _prepare_for_target_identification: chunks = {chunks}")
         
         # Filter out incomplete segments
         complete_chunks = [chunk for chunk in chunks if chunk.get("is_complete", False)]
         
-        # print(f"DEBUG _prepare_for_target_identification: complete_chunks = {complete_chunks}")
+        print(f"DEBUG _prepare_for_target_identification: complete_chunks = {complete_chunks}")
         
         # Prepare segments for target identification
         segments = [{"text": chunk["text"]} for chunk in complete_chunks]
         
-        # print(f"DEBUG _prepare_for_target_identification: segments = {segments}")
+        print(f"DEBUG _prepare_for_target_identification: segments = {segments}")
         
         return {
             **state,
@@ -97,19 +101,15 @@ class AppendToRelevantNodeAgent(Agent):
             "transcript_history": transcript_history,
             "existing_nodes": self._format_nodes_for_prompt(decision_tree),
             "segments": None,
-            "target_nodes": None
+            "target_nodes": None,
+            "chunks": None  # Add chunks to initial state
         }
         
         # Run the workflow
         app = self.compile()
         result = await app.ainvoke(initial_state)
         
-        # TODO: Debug why chunks are not being produced by segmentation stage
-        # Temporary logging to diagnose the issue
-        # print(f"DEBUG: Result keys: {result.keys()}")
-        # print(f"DEBUG: chunks: {result.get('chunks')}")
-        # print(f"DEBUG: segments: {result.get('segments')}")
-        # print(f"DEBUG: target_nodes: {result.get('target_nodes')}")
+
         
         # Convert TargetNodeIdentification to actions (translation layer)
         actions: List[Union[AppendAction, CreateAction]] = []
