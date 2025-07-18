@@ -1,20 +1,151 @@
-# Aggregated Changes from Last 7 Commits
+# Aggregated Changes from Last 1 Commits
 
-Generated on: Fri Jul 18 12:26:41 CEST 2025
+Generated on: Fri Jul 18 12:58:27 CEST 2025
 
 ## List of files changed:
-backend/tests/integration_tests/agentic_workflows/AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py,backend/tests/integration_tests/agentic_workflows/identify_target_node/test_identify_target_node_prompt.py,backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent/test_single_abstraction_optimizer_prompt.py,backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py,backend/tests/integration_tests/agentic_workflows/tree_action_decider/test_tree_action_decider.py,backend/tests/module_tests/test_tree_action_applier_update.py,backend/tests/unit_tests/test_decision_tree_ds.py,backend/text_to_graph_pipeline/agentic_workflows/agentic_TDD.md,backend/text_to_graph_pipeline/agentic_workflows/models.py,backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_claude.md,backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_plan.md,backend/text_to_graph_pipeline/agentic_workflows/new_pipeline.md,backend/text_to_graph_pipeline/agentic_workflows/prompts/identify_target_node.md,backend/text_to_graph_pipeline/agentic_workflows/prompts/segmentation.md,backend/text_to_graph_pipeline/agentic_workflows/prompts/single_abstraction_optimizer.md,backend/text_to_graph_pipeline/agentic_workflows/single_abstraction_optimiser_approach.md,backend/text_to_graph_pipeline/agentic_workflows/VoiceTree_Math.md,backend/text_to_graph_pipeline/chunk_processing_pipeline/apply_tree_actions.py,backend/text_to_graph_pipeline/tree_manager/decision_tree_ds.py
+aggregate_changes.sh,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/identify_target_node/test_identify_target_node_prompt.py,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/identify_target_node/test_identify_target_node_v2.py,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/identify_target_node/test_identify_target_node_with_ids.py,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/SingleAbstractionOptimizerAgent/test_single_abstraction_optimizer_prompt.py,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/tree_action_decider/Drawing 2025-07-16 14.17.16.excalidraw.md,backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/tree_action_decider/test_tree_action_decider.py,backend/tests/integration_tests/agentic_workflows/AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py,backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py,backend/tests/unit_tests/agentic_workflows/test_models_with_node_ids.py,backend/tests/unit_tests/test_decision_tree_ds.py,backend/tests/unit_tests/test_summary_generation.py,backend/tests/unit_tests/test_tree_action_applier_with_ids.py,backend/tests/unit_tests/test_unified_action_model.py,backend/text_to_graph_pipeline/agentic_workflows/improvements.md,backend/text_to_graph_pipeline/agentic_workflows/models.py,backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_plan.md,backend/text_to_graph_pipeline/agentic_workflows/prompts/identify_target_node.md,backend/text_to_graph_pipeline/chunk_processing_pipeline/apply_tree_actions.py,backend/text_to_graph_pipeline/tree_manager/decision_tree_ds.py,tests_aggregate.md,tools/PackageProjectForLLM.py
 
 ---
 
-## Filename: backend/tests/integration_tests/agentic_workflows/AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py
+## Filename: aggregate_changes.sh
 
 ```
-```
+#!/bin/bash
+
+# Check if number of commits is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <number_of_commits>"
+    exit 1
+fi
+
+N=$1
+OUTPUT_FILE="aggregated_changes.md"
+
+# Validate that N is a positive integer
+if ! [[ "$N" =~ ^[0-9]+$ ]] || [ "$N" -eq 0 ]; then
+    echo "Error: Please provide a positive integer for the number of commits"
+    exit 1
+fi
+
+# Get list of changed files in the last N commits
+echo "# Aggregated Changes from Last $N Commits" > "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "Generated on: $(date)" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+
+# Get unique files changed in last N commits, excluding the output file itself
+FILES=$(git diff --name-only HEAD~$N HEAD 2>/dev/null | grep -v "^${OUTPUT_FILE}$" | sort | uniq)
+
+if [ -z "$FILES" ]; then
+    echo "No files changed in the last $N commits." >> "$OUTPUT_FILE"
+    exit 0
+fi
+
+# Create comma-separated list
+FILES_LIST=$(echo "$FILES" | tr '\n' ',' | sed 's/,$//')
+
+echo "## List of files changed:" >> "$OUTPUT_FILE"
+echo "$FILES_LIST" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+
+# Process each file
+for FILE in $FILES; do
+    echo "## Filename: $FILE" >> "$OUTPUT_FILE"
+    echo "" >> "$OUTPUT_FILE"
+    
+    if [ -f "$FILE" ]; then
+        echo '```' >> "$OUTPUT_FILE"
+        cat "$FILE" >> "$OUTPUT_FILE"
+        echo '```' >> "$OUTPUT_FILE"
+    else
+        echo "*File no longer exists in current working tree*" >> "$OUTPUT_FILE"
+    fi
+    
+    echo "" >> "$OUTPUT_FILE"
+    echo "-----------" >> "$OUTPUT_FILE"
+    echo "" >> "$OUTPUT_FILE"
+done
+
+echo "Aggregated changes written to $OUTPUT_FILE"```
 
 -----------
 
-## Filename: backend/tests/integration_tests/agentic_workflows/identify_target_node/test_identify_target_node_prompt.py
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py
+
+```
+# Test Outline for AppendToRelevantNodeAgent
+#
+# Goal: Verify this agent correctly identifies target nodes and produces
+# a list of node IDs that have been appended to.
+#
+# This agent's responsibilities:
+# 1. Take a list of text segments.
+# 2. For each segment, decide if it should be appended to an existing node or create a new one.
+# 3. Apply these append/create actions to the tree.
+# 4. Return the set of node IDs that were modified (appended to or newly created).
+
+class TestAppendToRelevantNodeAgent:
+
+    # Test Case 1: Simple Append
+    # Behavior: A new thought clearly relates to an existing node.
+    # Setup:
+    # - Tree has one node: {id: 1, name: "Database Design"}
+    # - Input text: "We need to add an index to the users table for performance."
+    # Expected Outcome:
+    # - The text is appended to node 1.
+    # - The agent's output is {"modified_node_ids": {1}}.
+
+    # Test Case 2: Simple Create
+    # Behavior: A new thought is unrelated to any existing node.
+    # Setup:
+    # - Tree has one node: {id: 1, name: "Database Design"}
+    # - Input text: "Let's set up the new CI/CD pipeline using GitHub Actions."
+    # Expected Outcome:
+    # - A new node is created (e.g., id: 2, name: "CI/CD Pipeline").
+    # - The text is the content of this new node.
+    # - The new node's parent is the root (or another logical choice).
+    # - The agent's output is {"modified_node_ids": {2}}.  (Or {1, 2} if parent is 1)
+
+    # Test Case 3: Mixed Append and Create
+    # Behavior: A conversation covers both existing and new topics.
+    # Setup:
+    # - Tree has one node: {id: 1, name: "User Authentication"}
+    # - Input segments:
+    #   1. "We should enforce stronger password policies."
+    #   2. "Also, we need to set up rate limiting on the API."
+    # Expected Outcome:
+    # - Segment 1 is appended to node 1.
+    # - Segment 2 creates a new node (e.g., id: 2, name: "API Rate Limiting").
+    # - The agent's output is {"modified_node_ids": {1, 2}}.
+
+    # Test Case 4: No Relevant Nodes (Root Creation)
+    # Behavior: The tree is empty, all new thoughts should become new root nodes.
+    # Setup:
+    # - Tree is empty.
+    # - Input segments:
+    #   1. "First, let's define the project requirements."
+    #   2. "Second, we need to choose a tech stack."
+    # Expected Outcome:
+    # - Two new nodes are created (e.g., id: 1 and id: 2).
+    # - Both nodes have no parent.
+    # - The agent's output is {"modified_node_ids": {1, 2}}.
+
+    # Test Case 5: Choosing the More Relevant of Two Nodes
+    # Behavior: The agent correctly distinguishes between two related but distinct topics.
+    # Setup:
+    # - Tree has two nodes:
+    #   - {id: 1, name: "API Security"}
+    #   - {id: 2, name: "Database Performance"}
+    # - Input text: "We must protect against SQL injection on all endpoints."
+    # Expected Outcome:
+    # - Text is appended to node 1 ("API Security").
+    # - The agent's output is {"modified_node_ids": {1}}.```
+
+-----------
+
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/identify_target_node/test_identify_target_node_prompt.py
 
 ```
 """
@@ -127,7 +258,251 @@ if __name__ == "__main__":
 
 -----------
 
-## Filename: backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent/test_single_abstraction_optimizer_prompt.py
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/identify_target_node/test_identify_target_node_v2.py
+
+```
+"""
+Simplified integration test for identify_target_node prompt with node IDs
+"""
+
+import pytest
+import asyncio
+import re
+from pathlib import Path
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptTemplate
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
+
+
+class TestIdentifyTargetNodeV2:
+    """Test the improved identify_target_node prompt with direct LLM calls"""
+    
+    @pytest.fixture
+    def prompt_template(self):
+        """Load the prompt template"""
+        prompt_path = Path(__file__).parent.parent.parent.parent.parent.parent
+        prompt_file = prompt_path / "backend/text_to_graph_pipeline/agentic_workflows/prompts/identify_target_node.md"
+        return PromptTemplate.from_file(prompt_file)
+    
+    @pytest.mark.asyncio
+    async def test_existing_node_with_ids(self, prompt_template):
+        """Test that existing nodes are identified by their IDs"""
+        # Format the prompt with test data
+        prompt = prompt_template.render(
+            existing_nodes='[{"id": 1, "name": "Voice Tree Architecture", "summary": "Overall system design and components"}, {"id": 2, "name": "Database Design", "summary": "Schema and data model decisions"}]',
+            segments='[{"text": "We need to add caching to improve voice tree performance", "is_complete": true}]'
+        )
+        
+        # Call LLM
+        response = await call_llm(prompt)
+        
+        # Extract JSON from response (handle code blocks)
+        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            json_str = response
+        
+        # Parse response
+        result = TargetNodeResponse.model_validate_json(json_str)
+        
+        # Assertions
+        assert len(result.target_nodes) == 1
+        assert result.target_nodes[0].target_node_id == 1  # Should go to Architecture
+        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].new_node_name is None
+    
+    @pytest.mark.asyncio
+    async def test_new_node_creation(self, prompt_template):
+        """Test that new nodes get ID -1 and a name"""
+        # Format the prompt with test data
+        prompt = prompt_template.render(
+            existing_nodes='[{"id": 1, "name": "Backend API", "summary": "REST API implementation"}]',
+            segments='[{"text": "We should add user authentication with JWT tokens", "is_complete": true}]'
+        )
+        
+        # Call LLM
+        response = await call_llm(prompt)
+        
+        # Extract JSON from response (handle code blocks)
+        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            json_str = response
+        
+        # Parse response
+        result = TargetNodeResponse.model_validate_json(json_str)
+        
+        # Assertions
+        assert len(result.target_nodes) == 1
+        assert result.target_nodes[0].target_node_id == -1  # New node
+        assert result.target_nodes[0].is_new_node == True
+        assert result.target_nodes[0].new_node_name is not None
+        assert "auth" in result.target_nodes[0].new_node_name.lower()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])```
+
+-----------
+
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/identify_target_node/test_identify_target_node_with_ids.py
+
+```
+"""
+Integration test for improved identify_target_node prompt with node IDs
+Tests that the prompt correctly identifies target node IDs instead of names
+"""
+
+import pytest
+import asyncio
+import json
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptEngine
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
+
+
+class TestIdentifyTargetNodeWithIDs:
+    """Test the improved identify_target_node prompt that returns node IDs"""
+    
+    @pytest.fixture 
+    def prompt_engine(self):
+        """Get prompt engine instance"""
+        return PromptEngine()
+    
+    async def test_existing_node_identification_with_ids(self, prompt_engine):
+        """Test identifying segments that should go to existing nodes using IDs"""
+        # Test data - now includes node IDs
+        existing_nodes = """
+        [
+            {"id": 1, "name": "Voice Tree Architecture", "summary": "Overall system design and components"},
+            {"id": 2, "name": "Database Design", "summary": "Schema and data model decisions"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "We need to add caching to improve voice tree performance", "is_complete": true},
+            {"text": "The database indexes need optimization for faster queries", "is_complete": true}
+        ]
+        """
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await call_llm(messages)
+        result = TargetNodeResponse.model_validate_json(response)
+        
+        # Assertions
+        assert len(result.target_nodes) == 2
+        
+        # First segment about caching should go to Architecture (ID 1)
+        assert result.target_nodes[0].target_node_id == 1
+        assert result.target_nodes[0].is_new_node == False
+        assert "caching" in result.target_nodes[0].text
+        
+        # Second segment about DB should go to Database Design (ID 2)
+        assert result.target_nodes[1].target_node_id == 2
+        assert result.target_nodes[1].is_new_node == False
+        assert "database" in result.target_nodes[1].text.lower()
+    
+    async def test_new_node_creation_with_special_id(self, prompt_engine):
+        """Test identifying segments that need new nodes using special ID"""
+        # Test data  
+        existing_nodes = """
+        [
+            {"id": 1, "name": "Backend API", "summary": "REST API implementation"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "We should add user authentication with JWT tokens", "is_complete": true},
+            {"text": "Need to implement real-time notifications using WebSockets", "is_complete": true}
+        ]
+        """
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await call_llm(messages)
+        result = TargetNodeResponse.model_validate_json(response)
+        
+        # Assertions
+        assert len(result.target_nodes) == 2
+        
+        # Both should create new nodes (ID = -1)
+        assert result.target_nodes[0].target_node_id == -1
+        assert result.target_nodes[0].is_new_node == True
+        assert result.target_nodes[0].new_node_name is not None
+        assert "auth" in result.target_nodes[0].new_node_name.lower()
+        
+        assert result.target_nodes[1].target_node_id == -1
+        assert result.target_nodes[1].is_new_node == True
+        assert result.target_nodes[1].new_node_name is not None
+        assert "notification" in result.target_nodes[1].new_node_name.lower() or \
+               "websocket" in result.target_nodes[1].new_node_name.lower()
+    
+    async def test_mixed_existing_and_new_nodes(self, prompt_engine):
+        """Test a mix of existing node references and new node creation"""
+        existing_nodes = """
+        [
+            {"id": 5, "name": "Security Features", "summary": "Authentication and authorization systems"},
+            {"id": 8, "name": "Performance Optimization", "summary": "Caching, indexing, and optimization strategies"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "Add role-based access control to the existing auth system", "is_complete": true},
+            {"text": "Implement distributed tracing for debugging microservices", "is_complete": true},
+            {"text": "Database query caching should use Redis for better performance", "is_complete": true}
+        ]
+        """
+        
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await call_llm(messages)
+        result = TargetNodeResponse.model_validate_json(response)
+        
+        assert len(result.target_nodes) == 3
+        
+        # First should go to Security Features
+        assert result.target_nodes[0].target_node_id == 5
+        assert result.target_nodes[0].is_new_node == False
+        
+        # Second should create new node for distributed tracing
+        assert result.target_nodes[1].target_node_id == -1
+        assert result.target_nodes[1].is_new_node == True
+        assert result.target_nodes[1].new_node_name is not None
+        
+        # Third should go to Performance Optimization
+        assert result.target_nodes[2].target_node_id == 8
+        assert result.target_nodes[2].is_new_node == False
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])```
+
+-----------
+
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/SingleAbstractionOptimizerAgent/test_single_abstraction_optimizer_prompt.py
 
 ```
 """
@@ -322,7 +697,7 @@ if __name__ == "__main__":
 
 -----------
 
-## Filename: backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py
 
 ```
 """
@@ -351,11 +726,61 @@ These together form an abstraction which makes more sense to be kept together, b
 
 Note, we can't determinisistically test everything, but we can test the structure of the output, that it is producing tree actions that would modify the tree as we ideally want.
 
-"""```
+"""
+
+# Test Outline for SingleAbstractionOptimizerAgent
+#
+# Goal: Verify this agent correctly analyzes a single node and proposes
+#       the optimal structural changes (or no changes).
+#
+# This agent's responsibilities:
+# 1. Take a single node ID as input.
+# 2. Analyze its content, summary, and neighbors.
+# 3. Output a list of actions (UpdateAction, CreateAction) to refactor the node.
+
+class TestSingleAbstractionOptimizerAgent:
+
+    # Test Case 1: The "Junk Drawer" Split
+    # Behavior: A node contains multiple unrelated topics and should be split.
+    # Setup:
+    # - Input Node: {id: 1, name: "Meeting Notes", content: "We decided to use React for the frontend. The database needs a new index. Also, we need to hire a new designer."}
+    # Expected Actions:
+    # - One UpdateAction for node 1, changing its content/summary to be a high-level container.
+    # - Three CreateActions, creating new child nodes for "Frontend Choice", "Database Optimization", and "Hiring", with the relevant text moved into each. The target_node_id for all three should be 1.
+
+    # Test Case 2: The Cohesive Node
+    # Behavior: A node's content is thematically tight and should not be changed.
+    # Setup:
+    # - Input Node: {id: 5, name: "User Login Flow", content: "1. User enters credentials. 2. Server validates. 3. Server issues JWT. 4. Client stores token."}
+    # Expected Actions:
+    # - The list of actions is empty. The agent correctly determines no refactoring is needed.
+
+    # Test Case 3: The Simple Cleanup (Update Only)
+    # Behavior: A node is cohesive, but its name/summary is poor or its content is disorganized.
+    # Setup:
+    # - Input Node: {id: 10, name: "Stuff", content: "```
 
 -----------
 
-## Filename: backend/tests/integration_tests/agentic_workflows/tree_action_decider/test_tree_action_decider.py
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/tree_action_decider/Drawing
+
+*File no longer exists in current working tree*
+
+-----------
+
+## Filename: 2025-07-16
+
+*File no longer exists in current working tree*
+
+-----------
+
+## Filename: 14.17.16.excalidraw.md
+
+*File no longer exists in current working tree*
+
+-----------
+
+## Filename: backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/tree_action_decider/test_tree_action_decider.py
 
 ```
 """
@@ -394,172 +819,128 @@ for the fuzzy requirements, of output being "Good" (node actions represent well)
 
 -----------
 
-## Filename: backend/tests/module_tests/test_tree_action_applier_update.py
+## Filename: backend/tests/integration_tests/agentic_workflows/AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py
+
+*File no longer exists in current working tree*
+
+-----------
+
+## Filename: backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py
+
+*File no longer exists in current working tree*
+
+-----------
+
+## Filename: backend/tests/unit_tests/agentic_workflows/test_models_with_node_ids.py
 
 ```
 """
-Test UPDATE action support for TreeActionApplier
-Following TDD approach - write tests first, then implementation
+Unit tests for updated models with node ID support
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction
+from pydantic import ValidationError
+from typing import Optional
+from backend.text_to_graph_pipeline.agentic_workflows.models import (
+    TargetNodeIdentification,
+    TargetNodeResponse
+)
 
 
-class TestTreeActionApplierUpdate:
+class TestTargetNodeIdentificationWithIDs:
+    """Test the updated TargetNodeIdentification model with node IDs"""
     
-    @pytest.fixture
-    def mock_decision_tree(self):
-        """Create a mock decision tree"""
-        tree = Mock()
-        tree.tree = {}
-        tree.get_node_id_from_name = Mock()
-        tree.create_new_node = Mock()
-        tree.update_node = Mock()  # New method we're testing
-        return tree
-    
-    @pytest.fixture
-    def applier(self, mock_decision_tree):
-        """Create a TreeActionApplier instance"""
-        return TreeActionApplier(mock_decision_tree)
-    
-    def test_apply_update_action(self, applier, mock_decision_tree):
-        """Test applying an UPDATE action to modify node content/summary"""
-        # Setup
-        node_id = 5
-        
-        update_action = UpdateAction(
-            action="UPDATE",
-            node_id=node_id,
-            new_content="Updated content for the node",
-            new_summary="Updated concise summary"
+    def test_existing_node_with_id(self):
+        """Test creating a target node identification for an existing node"""
+        target = TargetNodeIdentification(
+            text="Add caching to improve performance",
+            reasoning="This relates to performance optimization",
+            target_node_id=5,
+            is_new_node=False
         )
         
-        # Execute - TreeActionApplier needs to handle UpdateAction
-        updated_nodes = applier.apply_optimization_actions([update_action])
-        
-        # Verify
-        mock_decision_tree.update_node.assert_called_once_with(
-            node_id=node_id,
-            content="Updated content for the node",
-            summary="Updated concise summary"
-        )
-        assert updated_nodes == {node_id}
+        assert target.target_node_id == 5
+        assert target.is_new_node == False
+        assert target.new_node_name is None  # Should be None for existing nodes
     
-    def test_apply_split_as_update_plus_creates(self, applier, mock_decision_tree):
-        """Test SPLIT operation as UPDATE + CREATE actions"""
-        # Setup
-        parent_node_id = 10
-        mock_decision_tree.get_node_id_from_name.side_effect = lambda name: {
-            "Parent Node": parent_node_id,
-            "Child B": None,  # Doesn't exist yet
-            "Child C": None   # Doesn't exist yet
-        }.get(name)
-        mock_decision_tree.create_new_node.side_effect = [20, 21]  # New node IDs
+    def test_new_node_with_special_id(self):
+        """Test creating a target node identification for a new node"""
+        target = TargetNodeIdentification(
+            text="Implement user authentication",
+            reasoning="This is a new security feature not covered by existing nodes",
+            target_node_id=-1,  # Special ID for new nodes
+            is_new_node=True,
+            new_node_name="User Authentication"
+        )
         
-        # Actions that represent a SPLIT: UPDATE parent + CREATE children
-        actions = [
-            UpdateAction(
-                action="UPDATE",
-                node_id=parent_node_id,
-                new_content="Parent content only",
-                new_summary="Parent node summary"
-            ),
-            CreateAction(
-                action="CREATE",
-                target_node_name="Parent Node",
-                new_node_name="Child B",
-                content="Content for child B",
-                summary="Child B summary",
-                relationship="subtask of"
-            ),
-            CreateAction(
-                action="CREATE",
-                target_node_name="Parent Node",
-                new_node_name="Child C",
-                content="Content for child C",
-                summary="Child C summary",
-                relationship="subtask of"
+        assert target.target_node_id == -1
+        assert target.is_new_node == True
+        assert target.new_node_name == "User Authentication"
+    
+    def test_validation_new_node_requires_name(self):
+        """Test that new nodes require a name"""
+        with pytest.raises(ValidationError) as exc_info:
+            TargetNodeIdentification(
+                text="Some text",
+                reasoning="Some reasoning",
+                target_node_id=-1,
+                is_new_node=True
+                # Missing new_node_name
             )
-        ]
         
-        # Execute - need unified method to handle both action types
-        updated_nodes = applier.apply_mixed_actions(actions)
-        
-        # Verify
-        # Should update parent
-        mock_decision_tree.update_node.assert_called_once_with(
-            node_id=parent_node_id,
-            content="Parent content only",
-            summary="Parent node summary"
-        )
-        
-        # Should create two children
-        assert mock_decision_tree.create_new_node.call_count == 2
-        mock_decision_tree.create_new_node.assert_any_call(
-            name="Child B",
-            parent_node_id=parent_node_id,
-            content="Content for child B",
-            summary="Child B summary",
-            relationship_to_parent="subtask of"
-        )
-        mock_decision_tree.create_new_node.assert_any_call(
-            name="Child C",
-            parent_node_id=parent_node_id,
-            content="Content for child C",
-            summary="Child C summary",
-            relationship_to_parent="subtask of"
-        )
-        
-        # Should track all updated nodes
-        assert updated_nodes == {parent_node_id, 20, 21}
+        # The validation error should mention the missing new_node_name
+        assert "new_node_name" in str(exc_info.value)
     
-    def test_apply_multiple_update_actions(self, applier, mock_decision_tree):
-        """Test applying multiple UPDATE actions"""
-        # Setup
-        actions = [
-            UpdateAction(
-                action="UPDATE",
-                node_id=1,
-                new_content="Updated content 1",
-                new_summary="Updated summary 1"
-            ),
-            UpdateAction(
-                action="UPDATE",
-                node_id=2,
-                new_content="Updated content 2",
-                new_summary="Updated summary 2"
+    def test_validation_existing_node_positive_id(self):
+        """Test that existing nodes should have positive IDs"""
+        # This should work - existing node with positive ID
+        target = TargetNodeIdentification(
+            text="Some text",
+            reasoning="Some reasoning",
+            target_node_id=1,
+            is_new_node=False
+        )
+        assert target.target_node_id == 1
+        
+        # This should fail - existing node with -1 ID
+        with pytest.raises(ValidationError) as exc_info:
+            TargetNodeIdentification(
+                text="Some text",
+                reasoning="Some reasoning",
+                target_node_id=-1,
+                is_new_node=False  # Says existing but ID is -1
             )
-        ]
         
-        # Execute
-        updated_nodes = applier.apply_optimization_actions(actions)
-        
-        # Verify
-        assert mock_decision_tree.update_node.call_count == 2
-        mock_decision_tree.update_node.assert_any_call(
-            node_id=1,
-            content="Updated content 1",
-            summary="Updated summary 1"
-        )
-        mock_decision_tree.update_node.assert_any_call(
-            node_id=2,
-            content="Updated content 2",
-            summary="Updated summary 2"
-        )
-        assert updated_nodes == {1, 2}
+        assert "existing node" in str(exc_info.value).lower()
     
-    def test_empty_actions_list(self, applier, mock_decision_tree):
-        """Test handling empty actions list (no optimization needed)"""
-        # Execute
-        updated_nodes = applier.apply_optimization_actions([])
+    def test_response_model_with_multiple_targets(self):
+        """Test the response model with multiple target identifications"""
+        response = TargetNodeResponse(
+            target_nodes=[
+                TargetNodeIdentification(
+                    text="Performance improvement",
+                    reasoning="Related to existing optimization work",
+                    target_node_id=3,
+                    is_new_node=False
+                ),
+                TargetNodeIdentification(
+                    text="New feature: chat interface",
+                    reasoning="Completely new functionality",
+                    target_node_id=-1,
+                    is_new_node=True,
+                    new_node_name="Chat Interface"
+                )
+            ]
+        )
         
-        # Verify
-        mock_decision_tree.update_node.assert_not_called()
-        mock_decision_tree.create_new_node.assert_not_called()
-        assert updated_nodes == set()```
+        assert len(response.target_nodes) == 2
+        assert response.target_nodes[0].target_node_id == 3
+        assert response.target_nodes[1].target_node_id == -1
+        assert response.target_nodes[1].new_node_name == "Chat Interface"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])```
 
 -----------
 
@@ -578,7 +959,7 @@ class TestDecisionTree(unittest.TestCase):
     def test_append_to_node(self):
         dt = DecisionTree()
         node_id = dt.create_new_node("test_node", None, "test_content", "test_summary")
-        dt.tree[node_id].append_content("appended content", "appended_summary")
+        dt.tree[node_id].append_content("appended content")
         self.assertIn("appended content", dt.tree[node_id].content)
 
     def test_create_new_node(self):
@@ -728,66 +1109,449 @@ if __name__ == "__main__":
 
 -----------
 
-## Filename: backend/text_to_graph_pipeline/agentic_workflows/agentic_TDD.md
+## Filename: backend/tests/unit_tests/test_summary_generation.py
 
 ```
-A new form of TDD.
+"""
+Unit tests for summary generation in optimizer only
+"""
 
-Where the first priority is defining our high level test cases. The behaviours we want our code to do.
-We can work together with the agent to do this.
-
-This is the most important step, defining what we actually want.
-
-high level testing strategy should mostly be written by human, ask agent for clarifying questions, and to challenge & provide critique. 
-
-
-To avoid bloating your own context window, 
-  when there is a simple task that does not 
-  require deep understanding of the whole 
-  problem we are trying to solve, send this off
-   to a sub agent as a sub task, so that you 
-  can just review their final output, and not 
-  pollute your context window with all the 
-  details of the task. Don't do this for the 
-  actual core implementation work unless it is 
-  completely isolateable (i..e the context 
-  required to do it you can copmpletely specify
-   in one prompt). Do understand? Think. ask 
-  clarifying questions if needed
+import pytest
+from unittest.mock import Mock, call
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
 
 
-Good for delegation (sub-agent tasks):
-  - Well-defined, isolated implementations
-  (like "make these specific tests pass")
-  - Tasks where I can fully specify
-  requirements in one prompt
-  - Utility functions, simple methods,
-  straightforward refactoring
-  - Tasks that don't require understanding the
-  broader architectural vision
+class TestSummaryGeneration:
+    """Test that summary generation happens only in optimizer, not during append"""
+    
+    @pytest.fixture
+    def decision_tree(self):
+        """Create a decision tree with test nodes"""
+        tree = DecisionTree()
+        # Create root node
+        tree.create_new_node(
+            name="Root",
+            parent_node_id=None,
+            content="Root content",
+            summary="Root summary"
+        )
+        return tree
+    
+    def test_append_content_no_summary_update(self):
+        """Test that append_content doesn't update summary when None is passed"""
+        node = Node(
+            name="Test Node",
+            node_id=1,
+            content="Original content",
+            summary="Original summary"
+        )
+        
+        # append_content should not change summary when None is passed
+        node.append_content("New content", transcript="chunk1")
+        
+        # Summary should remain unchanged when None is passed
+        assert node.summary == "Original summary"
+        # Content should be appended
+        assert "New content" in node.content
+    
+    def test_update_node_changes_summary(self):
+        """Test that update_node (used by optimizer) changes the summary"""
+        tree = DecisionTree()
+        node_id = tree.create_new_node(
+            name="Test",
+            parent_node_id=None,
+            content="Original content",
+            summary="Original summary"
+        )
+        
+        # update_node should change both content and summary
+        tree.update_node(
+            node_id=node_id,
+            content="Updated content",
+            summary="Updated summary from optimizer"
+        )
+        
+        node = tree.tree[node_id]
+        assert node.content == "Updated content"
+        assert node.summary == "Updated summary from optimizer"
+    
+    def test_append_preserves_summary_until_optimization(self):
+        """Test workflow: append doesn't change summary, optimization does"""
+        tree = DecisionTree()
+        node_id = tree.create_new_node(
+            name="Workflow Test",
+            parent_node_id=None,
+            content="Initial content",
+            summary="Initial summary"
+        )
+        
+        node = tree.tree[node_id]
+        
+        # Step 1: Append new content (simulating stage 3)
+        node.append_content("Appended chunk 1", summary=None, transcript="chunk1")
+        node.append_content("Appended chunk 2", summary=None, transcript="chunk2")
+        
+        # Summary should NOT change during appends
+        assert node.summary == "Initial summary"
+        assert "Appended chunk 1" in node.content
+        assert "Appended chunk 2" in node.content
+        
+        # Step 2: Optimization updates the node (simulating stage 4)
+        tree.update_node(
+            node_id=node_id,
+            content="Optimized content combining all chunks",
+            summary="New summary after optimization"
+        )
+        
+        # Now summary should be updated
+        assert node.summary == "New summary after optimization"
+        assert node.content == "Optimized content combining all chunks"
+    
+    def test_node_append_method_should_not_update_summary(self):
+        """Test that Node.append_content should not update summary"""
+        import inspect
+        sig = inspect.signature(Node.append_content)
+        
+        # Current signature has summary, but we want to remove it
+        params = list(sig.parameters.keys())
+        assert "self" in params
+        assert "new_content" in params
+        assert "transcript" in params
+        # TODO: Remove summary parameter from append_content
+        # This test documents that we currently have summary but shouldn't
 
-  Keep in main context (do myself):
-  - Core pipeline logic that requires
-  understanding the overall architecture
-  - Complex prompt engineering that needs
-  iterative refinement
-  - Integration work that touches multiple
-  parts of the system
-  - Strategic decisions about how components
-  interact
 
-  For example, implementing get_neighbors and
-  update_node methods is perfect for delegation
-   because:
-  - We have clear behavioral tests defining
-  exactly what they should do
-  - It's isolated to the DecisionTree class
-  - I can give the agent the test file and say
-  "implement these methods to make the tests
-  pass"
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])```
+
+-----------
+
+## Filename: backend/tests/unit_tests/test_tree_action_applier_with_ids.py
+
+```
+"""
+Unit tests for TreeActionApplier with node ID support
+"""
+
+import pytest
+from unittest.mock import Mock
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
+from backend.text_to_graph_pipeline.agentic_workflows.models import (
+    IntegrationDecision, UpdateAction, CreateAction
+)
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
 
 
-So the powerful thing here is that doing TDD allows for better use of sub agents. ```
+class TestTreeActionApplierWithNodeIDs:
+    """Test TreeActionApplier working directly with node IDs"""
+    
+    @pytest.fixture
+    def mock_tree(self):
+        """Create a mock decision tree"""
+        tree = Mock()
+        tree.tree = {
+            1: Mock(id=1, title="Root", content="Root content"),
+            2: Mock(id=2, title="Child", content="Child content")
+        }
+        tree.get_node_id_from_name = Mock()  # Should not be called
+        tree.create_new_node = Mock(return_value=3)
+        return tree
+    
+    @pytest.fixture
+    def applier(self, mock_tree):
+        """Create TreeActionApplier instance"""
+        return TreeActionApplier(mock_tree)
+    
+    def test_append_with_node_id(self, applier, mock_tree):
+        """Test appending content using node ID directly"""
+        # Create an append decision with target_node_id
+        decision = IntegrationDecision(
+            name="Segment 1",
+            text="New content to append",
+            reasoning="This relates to the child node",
+            action="APPEND",
+            target_node_id=2,  # Using ID directly
+            content="New content to append"
+        )
+        
+        # Apply the decision
+        updated_nodes = applier.apply_integration_decisions([decision])
+        
+        # Verify node ID was used directly
+        mock_tree.get_node_id_from_name.assert_not_called()
+        
+        # Verify content was appended to the correct node
+        node = mock_tree.tree[2]
+        node.append_content.assert_called_once_with(
+            "New content to append",
+            None,
+            "Segment 1"
+        )
+        
+        # Verify updated nodes set
+        assert 2 in updated_nodes
+    
+    def test_create_with_parent_node_id(self, applier, mock_tree):
+        """Test creating new node with parent ID"""
+        # Create decision with parent_node_id
+        decision = IntegrationDecision(
+            name="New Segment",
+            text="Content for new node",
+            reasoning="This is a new concept",
+            action="CREATE",
+            parent_node_id=1,  # Parent ID
+            new_node_name="New Concept",
+            new_node_summary="A new concept node",
+            relationship_for_edge="subtopic of",
+            content="Content for new node"
+        )
+        
+        # Apply the decision
+        updated_nodes = applier.apply_integration_decisions([decision])
+        
+        # Verify node was created with parent ID
+        mock_tree.get_node_id_from_name.assert_not_called()
+        mock_tree.create_new_node.assert_called_once_with(
+            name="New Concept",
+            parent_node_id=1,
+            content="Content for new node",
+            summary="A new concept node",
+            relationship_to_parent="subtopic of"
+        )
+        
+        # Verify updated nodes
+        assert 3 in updated_nodes  # New node
+        assert 1 in updated_nodes  # Parent node
+    
+    def test_update_action_with_node_id(self, applier, mock_tree):
+        """Test UPDATE action uses node ID directly"""
+        # Setup update_node method
+        mock_tree.update_node = Mock()
+        
+        # Create update action
+        action = UpdateAction(
+            action="UPDATE",
+            node_id=2,
+            new_content="Updated content",
+            new_summary="Updated summary"
+        )
+        
+        # Apply the action
+        updated_nodes = applier.apply_optimization_actions([action])
+        
+        # Verify update was called with ID
+        mock_tree.update_node.assert_called_once_with(
+            node_id=2,
+            content="Updated content",
+            summary="Updated summary"
+        )
+        
+        assert 2 in updated_nodes
+    
+    def test_create_action_for_new_node_no_parent(self, applier, mock_tree):
+        """Test creating root-level node when parent_node_id is -1"""
+        decision = IntegrationDecision(
+            name="Root Level Node",
+            text="New root content",
+            reasoning="New top-level concept",
+            action="CREATE",
+            parent_node_id=-1,  # Special value for no parent
+            new_node_name="New Root",
+            new_node_summary="A new root node",
+            content="New root content"
+        )
+        
+        # Apply the decision
+        updated_nodes = applier.apply_integration_decisions([decision])
+        
+        # Verify node was created without parent
+        mock_tree.create_new_node.assert_called_once_with(
+            name="New Root",
+            parent_node_id=None,  # -1 converted to None
+            content="New root content",
+            summary="A new root node",
+            relationship_to_parent=None
+        )
+        
+        assert 3 in updated_nodes
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])```
+
+-----------
+
+## Filename: backend/tests/unit_tests/test_unified_action_model.py
+
+```
+"""
+Unit tests for unified action model in TreeActionApplier
+"""
+
+import pytest
+from unittest.mock import Mock
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
+from backend.text_to_graph_pipeline.agentic_workflows.models import (
+    UpdateAction, CreateAction
+)
+
+
+class TestUnifiedActionModel:
+    """Test unified action handling in TreeActionApplier"""
+    
+    @pytest.fixture
+    def mock_tree(self):
+        """Create a mock decision tree"""
+        tree = Mock()
+        tree.tree = {
+            1: Mock(id=1, title="Root", content="Root content"),
+            2: Mock(id=2, title="Child", content="Child content")
+        }
+        tree.create_new_node = Mock(return_value=3)
+        tree.update_node = Mock()
+        return tree
+    
+    @pytest.fixture
+    def applier(self, mock_tree):
+        """Create TreeActionApplier instance"""
+        return TreeActionApplier(mock_tree)
+    
+    def test_apply_single_method_handles_all_actions(self, applier, mock_tree):
+        """Test that a single apply() method can handle all action types"""
+        # Mix of different action types
+        actions = [
+            UpdateAction(
+                action="UPDATE",
+                node_id=1,
+                new_content="Updated root content",
+                new_summary="Updated root summary"
+            ),
+            CreateAction(
+                action="CREATE",
+                parent_node_id=1,
+                new_node_name="New Child",
+                content="New child content",
+                summary="New child summary",
+                relationship="subtopic of"
+            ),
+            UpdateAction(
+                action="UPDATE",
+                node_id=2,
+                new_content="Updated child content",
+                new_summary="Updated child summary"
+            )
+        ]
+        
+        # Apply all actions through single method
+        updated_nodes = applier.apply(actions)
+        
+        # Verify all actions were applied
+        assert mock_tree.update_node.call_count == 2
+        assert mock_tree.create_new_node.call_count == 1
+        
+        # Verify correct nodes were updated
+        assert 1 in updated_nodes  # Updated root
+        assert 2 in updated_nodes  # Updated child
+        assert 3 in updated_nodes  # New node
+    
+    def test_apply_handles_empty_list(self, applier):
+        """Test apply() with empty action list"""
+        updated_nodes = applier.apply([])
+        assert updated_nodes == set()
+    
+    def test_apply_validates_action_types(self, applier):
+        """Test that apply() validates action types"""
+        # Create an invalid action (mock object)
+        invalid_action = Mock()
+        invalid_action.action = "INVALID"
+        
+        with pytest.raises(ValueError, match="Unknown action type"):
+            applier.apply([invalid_action])
+    
+    def test_apply_with_append_actions(self, applier, mock_tree):
+        """Test unified handling includes APPEND actions"""
+        # For new pipeline, APPEND is represented as a special UPDATE
+        # where we append to existing content instead of replacing
+        append_action = UpdateAction(
+            action="UPDATE",
+            node_id=2,
+            new_content="Original content\n\nAppended content",
+            new_summary="Updated summary with appended info"
+        )
+        
+        updated_nodes = applier.apply([append_action])
+        
+        mock_tree.update_node.assert_called_once_with(
+            node_id=2,
+            content="Original content\n\nAppended content",
+            summary="Updated summary with appended info"
+        )
+        assert 2 in updated_nodes
+    
+    def test_base_action_inheritance(self):
+        """Test that all action types inherit from BaseTreeAction"""
+        from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+        
+        # All action types should inherit from BaseTreeAction
+        assert issubclass(UpdateAction, BaseTreeAction)
+        assert issubclass(CreateAction, BaseTreeAction)
+    
+    def test_action_type_discrimination(self):
+        """Test that actions can be discriminated by their type field"""
+        update = UpdateAction(
+            action="UPDATE",
+            node_id=1,
+            new_content="content",
+            new_summary="summary"
+        )
+        create = CreateAction(
+            action="CREATE",
+            parent_node_id=1,
+            new_node_name="name",
+            content="content",
+            summary="summary",
+            relationship="relation"
+        )
+        
+        assert update.action == "UPDATE"
+        assert create.action == "CREATE"
+        
+        # Type field should be literal/constant
+        from typing import Literal
+        assert UpdateAction.model_fields['action'].annotation == Literal["UPDATE"]
+        assert CreateAction.model_fields['action'].annotation == Literal["CREATE"]
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])```
+
+-----------
+
+## Filename: backend/text_to_graph_pipeline/agentic_workflows/improvements.md
+
+```
+Major Logical Problems and Risks
+There are two significant logical issues that could undermine the system's reliability and intelligence.
+1. The "Name vs. ID" Ambiguity: A Critical Point of Failure
+This is the most pressing problem. The pipeline relies heavily on resolving node names to IDs, and the current implementation is brittle.
+The Problem: The identify_target_node agent returns a target_node_name. The TreeActionApplier and CreateAction model then rely on decision_tree.get_node_id_from_name() to find the correct node ID.
+The Flaw in get_node_id_from_name():
+It uses fuzzy string matching (difflib). This is inherently unreliable. If the tree contains "User Authentication" and "User Authorization," a new thought about "auth" could easily be mis-routed to the wrong node.
+The fallback logic is dangerous: if no match is found, try to use the most recently modified node. This is a recipe for chaos. A completely unrelated thought could be appended to the last active node, creating a "junk drawer" by design.
+Why It's a Problem: This breaks the determinism of the system's structure. The integrity of the tree—the most valuable asset—is left to the whims of fuzzy matching and a risky heuristic.
+Recommendation: Agents must operate on Node IDs, not names.
+The identify_target_node stage (or "Chooser" agent) should be the only part of the pipeline that deals with semantic matching.
+Instead of just getting candidate nodes via RAG, the Chooser should be given the id, name, and summary of the top-K candidates.
+Its output must be a chosen_node_id, not a name. For new nodes, it can return a special value like CREATE_NEW.
+All subsequent stages (SingleAbstractionOptimizer, TreeActionApplier) must receive and operate on these concrete node_ids. This completely eliminates the fuzzy matching problem.
+
+
+apply_tree_actions.py has become slightly convoluted due to handling multiple, similar action models.
+The Issue: There are methods like apply_optimization_actions, apply_mixed_actions, and separate internal handlers like _apply_create_action and _apply_create_action_from_optimizer. This happened because different agents produce slightly different action models (IntegrationDecision vs. CreateAction).
+Recommendation: Unify the action models. There should be one canonical set of actions (UpdateAction, CreateAction) that all agents produce. This will allow you to simplify the TreeActionApplier to have a single apply(actions: List[BaseTreeAction]) method that iterates through the list and dispatches based on the action's type.
+
+
+In decision_tree_ds.py, the append_content method takes a summary argument. However, the calling code in apply_tree_actions.py notes that it's often None. The summary should ideally be generated by the SingleAbstractionOptimizer after it has decided on the final content of the node, not during a simple append.```
 
 -----------
 
@@ -800,6 +1564,11 @@ Pydantic models for VoiceTree agentic workflow structured output
 
 from typing import List, Optional, Literal, Union
 from pydantic import BaseModel, Field
+
+
+class BaseTreeAction(BaseModel):
+    """Base class for all tree actions"""
+    action: str = Field(description="Action type")
 
 
 class ChunkModel(BaseModel):
@@ -834,10 +1603,14 @@ class IntegrationDecision(BaseModel):
     text: str = Field(description="Text content of the chunk")
     reasoning: str = Field(description="Analysis that led to the integration decision")
     action: Literal["CREATE", "APPEND"] = Field(description="Whether to create new node or append to existing")
-    target_node: Optional[str] = Field(description="Target node for the action")
-    new_node_name: Optional[str] = Field(description="Name for new node if action is CREATE")
-    new_node_summary: Optional[str] = Field(description="Summary for new node if action is CREATE")
-    relationship_for_edge: Optional[str] = Field(description="Relationship description for new edges")
+    # Legacy name-based fields (deprecated)
+    target_node: Optional[str] = Field(default=None, description="Target node name (deprecated, use target_node_id)")
+    # New ID-based fields
+    target_node_id: Optional[int] = Field(default=None, description="Target node ID for APPEND action")
+    parent_node_id: Optional[int] = Field(default=None, description="Parent node ID for CREATE action (-1 for root)")
+    new_node_name: Optional[str] = Field(default=None, description="Name for new node if action is CREATE")
+    new_node_summary: Optional[str] = Field(default=None, description="Summary for new node if action is CREATE")
+    relationship_for_edge: Optional[str] = Field(default=None, description="Relationship description for new edges")
     content: str = Field(description="Content to add to the node")
 
 
@@ -854,7 +1627,7 @@ class NodeSummary(BaseModel):
     relationship: str = Field(description="Relationship to the target node (parent/sibling/child)")
 
 
-class UpdateAction(BaseModel):
+class UpdateAction(BaseTreeAction):
     """Model for UPDATE tree action"""
     action: Literal["UPDATE"] = Field(description="Action type")
     node_id: int = Field(description="ID of node to update")
@@ -862,10 +1635,13 @@ class UpdateAction(BaseModel):
     new_summary: str = Field(description="New summary to replace existing summary")
 
 
-class CreateAction(BaseModel):
+class CreateAction(BaseTreeAction):
     """Model for CREATE action in optimization context"""
     action: Literal["CREATE"] = Field(description="Action type")
-    target_node_name: str = Field(description="Name of parent node")
+    # Legacy name-based field (deprecated)
+    target_node_name: Optional[str] = Field(default=None, description="Name of parent node (deprecated, use parent_node_id)")
+    # New ID-based field
+    parent_node_id: Optional[int] = Field(default=None, description="ID of parent node (-1 for root)")
     new_node_name: str = Field(description="Name for the new node")
     content: str = Field(description="Content for the new node")
     summary: str = Field(description="Summary for the new node")
@@ -890,120 +1666,30 @@ class TargetNodeIdentification(BaseModel):
     """Model for identifying target node for a segment"""
     text: str = Field(description="Text content of the segment")
     reasoning: str = Field(description="Analysis for choosing the target node")
-    target_node_name: str = Field(description="Name of target node (existing or hypothetical new node)")
+    target_node_id: int = Field(description="ID of target node (use -1 for new nodes)")
     is_new_node: bool = Field(description="Whether this is a new node to be created")
+    new_node_name: Optional[str] = Field(default=None, description="Name for new node (required if is_new_node=True)")
+    
+    @property
+    def target_node_name(self) -> Optional[str]:
+        """Backward compatibility property"""
+        return self.new_node_name if self.is_new_node else None
+    
+    def model_post_init(self, __context):
+        """Validate that new nodes have names and existing nodes have valid IDs"""
+        if self.is_new_node:
+            if self.target_node_id != -1:
+                raise ValueError("New nodes must have target_node_id=-1")
+            if not self.new_node_name:
+                raise ValueError("new_node_name is required when is_new_node=True")
+        else:
+            if self.target_node_id == -1:
+                raise ValueError("Existing nodes must have positive target_node_id")
 
 
 class TargetNodeResponse(BaseModel):
     """Response model for identify target node stage"""
     target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment") ```
-
------------
-
-## Filename: backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_claude.md
-
-```
-
-Original task:
-
-I want to improve my agentic workflow for 
-  converting text chunk into tree update 
-  actions 
-
-
-  ALl the existing code for doing that is 
-  stored in @backend/text_to_graph_pipeline/ 
-  predominantly 
-  @backend/text_to_graph_pipeline/agentic_workf
-  lows/agents/tree_action_decider_agent.py 
-
-
-  I have new insights into the core algorithm /
-   pipeline for doing this.
-
-  Here they are, background: 
-  @backend/text_to_graph_pipeline/agentic_workf
-  lows/VoiceTree_Math.md 
-
-  THe pipeline to address this 
-  @backend/text_to_graph_pipeline/agentic_workf
-  lows/new_pipeline.md 
-
-
-  Let's create a plan for the steps required to
-   change our current pipeline, to the new 
-  pipeline.
-
-  We should be able to re-use the current 
-  segmentation.md prompt with changes (e.g. 
-  don't create titles yet)
-
-  Relationship_analysis.md prompt will become 
-  the identify_target_node.md prompt
-
-  And then we will need some new logic to do 
-  the single abstraction optimiser approach, 
-  since it requires knowing which nodes were 
-  modified in the last iteration, tree method 
-  to get neighbouring nodes. and then new 
-  support for UPDATE tree action. 
-
-  Get all the context you need, ask clarifying 
-  questions, and ultrathink so that we can 
-  write an excellent plan for engineering this 
-  new workflow/pipeline :D
-
-YOUR TASK:
-previous engineer's plannign document: 
-@backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_plan.md
-They have been tracking their progress here as well. this includes some clarifications I provided. Your task is to continue working on this project.
-
-TDD:
-Let's try follow TDD for executing this, 
-  since this is quite complex.
-
-
-SUB AGENT USAGE:
-To avoid bloating your own context window, 
-  when there is a simple task that does not 
-  require deep understanding of the whole 
-  problem we are trying to solve, send this off
-   to a sub agent as a sub task, so that you 
-  can just review their final output, and not 
-  pollute your context window with all the 
-  details of the task. Don't do this for the 
-  actual core implementation work unless it is 
-  completely isolateable (i..e the context 
-  required to do it you can copmpletely specify
-   in one prompt). Do understand? Think. ask 
-  clarifying questions if needed
-
-
-The engineer noted the following heurisitc:
-
-Good for delegation (sub-agent tasks):
-  - Well-defined, isolated implementations
-  (like "make these specific tests pass")
-  - Tasks where I can fully specify
-  requirements in one prompt
-  - Utility functions, simple methods,
-  straightforward refactoring
-  - Tasks that don't require understanding the
-  broader architectural vision
-
-  Keep in main context (do myself):
-  - Core pipeline logic that requires
-  understanding the overall architecture
-  - Complex prompt engineering that needs
-  iterative refinement
-  - Integration work that touches multiple
-  parts of the system
-  - Strategic decisions about how components
-  interact
-
-So the powerful thing here is that doing TDD allows for better use of sub agents. 
-
-Gather all your context to understand this task, Ask any clarifying questions you need.```
 
 -----------
 
@@ -1123,9 +1809,64 @@ Progress notes:
 - Commit e53411f: Wrote tests for TreeActionApplier UPDATE support (not passing yet)
 - Commit 4865fa3: Implemented UPDATE action support in TreeActionApplier - all tests pass
 
+### Phase 2.75: Critical Improvements (Added)
+
+Based on issues identified in improvements.md, the following critical improvements were made before Phase 3:
+
+#### 1. **Eliminated Name-to-ID Resolution Ambiguity**
+**Problem**: The pipeline relied on fuzzy string matching to resolve node names to IDs, which was inherently unreliable and could lead to mis-routing of content.
+
+**Solution Implemented**:
+- Updated `TargetNodeIdentification` model to use `target_node_id` instead of `target_node_name`
+- Modified `identify_target_node.md` prompt to work with node IDs directly
+- Updated `IntegrationDecision` and `CreateAction` models to support ID-based fields
+- Modified `TreeActionApplier` to use node IDs directly, with fallback for legacy name-based code
+
+**Files Modified**:
+- `models.py`: Added `target_node_id`, `parent_node_id` fields to relevant models
+- `identify_target_node.md`: Updated prompt to output node IDs
+- `apply_tree_actions.py`: Updated to prefer ID-based fields over name-based
+
+**Tests Added**:
+- `test_identify_target_node_v2.py`: Integration tests for ID-based prompt
+- `test_tree_action_applier_with_ids.py`: Unit tests for ID-based action handling
+
+#### 2. **Unified Action Model**
+**Problem**: Multiple similar action models and methods (`apply_optimization_actions`, `apply_mixed_actions`) made the code convoluted.
+
+**Solution Implemented**:
+- Created `BaseTreeAction` base class
+- Made `UpdateAction` and `CreateAction` inherit from `BaseTreeAction`
+- Added unified `apply()` method to `TreeActionApplier` that handles all action types
+
+**Files Modified**:
+- `models.py`: Added `BaseTreeAction` base class
+- `apply_tree_actions.py`: Added unified `apply()` method
+
+**Tests Added**:
+- `test_unified_action_model.py`: Tests for unified action handling
+
+#### 3. **Summary Generation Cleanup** (In Progress)
+**Problem**: The `append_content` method takes a summary argument, but summaries should only be generated by the optimizer after deciding final content.
+
+**Work Started**:
+- Created tests documenting desired behavior
+- Identified that `Node.append_content` currently updates summary
+- Plan: Remove summary parameter and update logic from append_content
+
+**Challenges Encountered**:
+1. **Complex Model Interdependencies**: Updating models to use IDs required careful coordination between prompt outputs, model definitions, and TreeActionApplier logic
+2. **Backward Compatibility**: Had to maintain support for legacy name-based code while transitioning to ID-based approach
+3. **Testing LLM Prompts**: Integration tests for prompts required handling JSON extraction from LLM responses
+
 ### Phase 3: Agents
 
 #### What Needs to Be Done
+TDD behavioural tests for:
+backend/tests/integration_tests/agentic_workflows/tree_action_decider
+backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent
+backend/tests/integration_tests/agentic_workflows/AppendToRelevantNodeAgent
+
 1. **Create SingleAbstractionOptimizerAgent** (new file)
    - Single prompt agent using `single_abstraction_optimizer.md`
    - Input: node_id, node content/summary, neighbors
@@ -1165,6 +1906,9 @@ for node_id in state["modified_node_ids"]:
 - Optimizer can return multiple actions (list) to handle complex operations
 - Optimization uses immediate neighbors only (for now)
 - Modified nodes tracked at node ID level
+- **NEW**: Agents work with node IDs, not names (eliminates fuzzy matching issues)
+- **NEW**: All tree actions inherit from BaseTreeAction for unified handling
+- **NEW**: Summary generation happens only in optimizer, not during append
 
 ## Quick Reference for Implementation
 
@@ -1188,21 +1932,10 @@ updated_nodes = applier.apply_mixed_actions(actions)  # For UPDATE + CREATE comb
 1. **State Updates**: The VoiceTreeState is a TypedDict - you must include ALL fields when updating
 2. **Prompt Loading**: Prompts must be in `prompts/` directory with exact filename matching prompt name
 3. **Model Validation**: OptimizationResponse expects `optimization_decision.actions` to be a list (can be empty)
-4. **Node Resolution**: Always convert node names to IDs before passing to TreeActionApplier```
-
------------
-
-## Filename: backend/text_to_graph_pipeline/agentic_workflows/new_pipeline.md
-
-```
-
-1. Segment to atomic idea / units of thought
-2. For each segment identify most relevant node, or if no relevant node, a new  node (LLM answer Q: what would a hypothetical most relevant node be called)
-3. Append to that Node
------------
-4. For each modified node, run sinle_abstraction_optimsation prompt. Which attempts to solve [[backend/text_to_graph_pipeline/agentic_workflows/VoiceTree_Math.md]] with different [[backend/text_to_graph_pipeline/agentic_workflows/single_abstraction_optimiser_approach.md]] 
-	1. It can return the following TreeActions: 
-		1. split (break node into multiple nodes, with relationships defined between them). ```
+4. **Node Resolution**: ~~Always convert node names to IDs before passing to TreeActionApplier~~ (FIXED: Now using IDs directly)
+5. **LLM Response Parsing**: LLM may return JSON in code blocks - extract with regex
+6. **Model Inheritance**: Pydantic models need explicit defaults for Optional fields
+7. **Backward Compatibility**: New ID fields coexist with legacy name fields during transition```
 
 -----------
 
@@ -1219,7 +1952,7 @@ Your specific instructions are:
 
 2. For each segment:
    a. Analyze the core meaning and topic presented in its `text`.
-   b. Carefully compare this core meaning against the `name` and `summary` of *every* node provided in the `existing_nodes`.
+   b. Carefully compare this core meaning against the `id`, `name` and `summary` of *every* node provided in the `existing_nodes`.
    c. Determine which existing node is the most semantically relevant to append this segment to.
    d. If no existing node is sufficiently relevant (the segment represents a new topic or concept), propose a clear, descriptive name for a new node.
 
@@ -1232,14 +1965,15 @@ Your specific instructions are:
 **Output Format:** Construct a JSON object with a "target_nodes" field containing a list. Each element in the list corresponds to one input segment and MUST contain ALL of the following fields:
    * `text`: The original text of the segment from the input (required, string).
    * `reasoning`: Your analysis for choosing the target node (required, string).
-   * `target_node_name`: The exact `name` of the chosen existing node OR a proposed name for a new node (required, string).
+   * `target_node_id`: The ID of the chosen existing node OR -1 for a new node (required, integer).
    * `is_new_node`: Boolean indicating whether this is a new node (true) or existing node (false) (required, boolean).
+   * `new_node_name`: The proposed name for a new node. This field is REQUIRED when `is_new_node` is true, and should be null when `is_new_node` is false (string or null).
 
-Ensure that EVERY element in "target_nodes" contains ALL four fields listed above. Missing any field will cause validation errors. Ensure your final output is ONLY the valid JSON object described above.
+Ensure that EVERY element in "target_nodes" contains ALL five fields listed above. Missing any field will cause validation errors. Ensure your final output is ONLY the valid JSON object described above.
 
 **Example:**
 
-**Existing Nodes:** `[{"name": "Project Setup", "summary": "Initial project configuration and requirements gathering"}, {"name": "Database Architecture", "summary": "Database design patterns and technology selection criteria"}]`
+**Existing Nodes:** `[{"id": 1, "name": "Project Setup", "summary": "Initial project configuration and requirements gathering"}, {"id": 2, "name": "Database Architecture", "summary": "Database design patterns and technology selection criteria"}]`
 
 **Segments:** `[{"text": "We decided to use PostgreSQL for better performance with complex queries"}, {"text": "The authentication system will use JWT tokens with refresh token rotation"}, {"text": "For our PostgreSQL setup, we need to tune the query planner settings"}]`
 
@@ -1250,20 +1984,23 @@ Ensure that EVERY element in "target_nodes" contains ALL four fields listed abov
     {
       "text": "We decided to use PostgreSQL for better performance with complex queries",
       "reasoning": "This segment discusses the selection of PostgreSQL as the database technology. This directly relates to database design decisions and technology choices, making it most relevant to the Database Architecture node.",
-      "target_node_name": "Database Architecture",
-      "is_new_node": false
+      "target_node_id": 2,
+      "is_new_node": false,
+      "new_node_name": null
     },
     {
       "text": "The authentication system will use JWT tokens with refresh token rotation",
       "reasoning": "This segment describes authentication implementation details. None of the existing nodes cover authentication or security topics, so a new node is needed to capture this distinct concept.",
-      "target_node_name": "Authentication System",
-      "is_new_node": true
+      "target_node_id": -1,
+      "is_new_node": true,
+      "new_node_name": "Authentication System"
     },
     {
       "text": "For our PostgreSQL setup, we need to tune the query planner settings",
       "reasoning": "This segment provides specific configuration details for PostgreSQL. It's directly related to database implementation and belongs with other database-related content in the Database Architecture node.",
-      "target_node_name": "Database Architecture",
-      "is_new_node": false
+      "target_node_id": 2,
+      "is_new_node": false,
+      "new_node_name": null
     }
   ]
 }
@@ -1279,509 +2016,6 @@ Ensure that EVERY element in "target_nodes" contains ALL four fields listed abov
 
 -----------
 
-## Filename: backend/text_to_graph_pipeline/agentic_workflows/prompts/segmentation.md
-
-```
-You are an expert at segmenting voice transcripts into atomic ideas (complete thoughts) for a knowledge/task graph. 
-The voice transcript may also contain unfinished content, so you should also identify unfnished sentences.
-
-INPUT VARIABLES:
-- transcript_history: Recent transcript history (the last ~250 chars before transcript_text), use this to understand the following transcript_text within the speakers's context
-- transcript_text: The voice transcript to segment
-
-OUTPUT FORMAT:
-```json
-{
-  "chunks": [
-    {"reasoning": "Analysis of why this is segmented as a distinct chunk and completeness assessment", "text": "The actual text...", "is_complete": true/false}
-  ]
-}
-```
-
-SEGMENTATION PROCESS:
-For each potential chunk, FIRST use the `reasoning` field as brainstorming section to analyze:
-- Try understand the actual meaning of the content within the context
-- Consider existing nodes in the graph to understand established concepts and terminology
-- Where are the natural boundaries between distinct ideas or work-items (problems, solutions, questions)?
-- What parts are likely be unfinished?
-
-THEN apply these segmentation rules based on your reasoning:
-
-1. **One idea per chunk** - Each chunk must be a complete, self-contained thought that can stand alone as a knowledge node.
-
-2. **Split on topic shifts** - New chunk when:
-   - New topic, task, or requirement
-   - Different example or anecdote  
-   - Question or answer
-   - Clear transition words ("also", "next", "another thing")
-
-3. **Keep together** - Don't split:
-   - Dependent clauses that explain the main idea
-   - Context needed to understand the point
-   - Short filler words with their content ("Um, I need to..." stays together)
-   - It is fine to only return a single chunk in your final output.
-
-4. **Completeness check** - For EVERY chunk:
-   - `is_complete: false` if it ends mid-sentence or doesn't yet make sense within the context (e.g., "So, that's going to be something that", "And then we will build")
-   - `is_complete: true` if it's a complete thought
-   - When unsure, mark incomplete - better to wait for more context
-
-5. **Light editing** - Our voice to text transcription may have mistakes. First try understand the intended meaning of the text within the context (transcript history), then fix these common errors such that the output text represent the intended meaning with minimal changes:
-   - Accidentally repeated words: "may  may be caausing" → "may be causing"
-   - Wrong homophones in context: "there" vs "their", "to" vs "too"
-   - Missing words: Add only if obvious from context (e.g., "I working on" → "I'm working on")
-   - Likely hallucinations and filler words ("um", "you know", etc.)
-   - Grammar: Minimum changes to improve grammar, but retain the intended meaning.
-   - Preserve: Speaker's natural style, intentional repetition, emphasis
-
-EXAMPLES:
-
-transcript_text: "So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into. The first thing is I want to make a proof of concept of voice tree. So, the bare"
-
-Output:
-```json
-{
-  "chunks": [
-    {"reasoning": "This introduces the main topic (voice tree project) and sets up context about exploring different aspects. It's a complete thought that stands alone.", "text": "So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into.", "is_complete": true},
-    {"reasoning": "This shifts to a specific task - creating a proof of concept. It's a distinct action item separate from the general introduction, forming its own complete thought.", "text": "The first thing is I want to make a proof of concept of voice tree.", "is_complete": true},
-    {"reasoning": "This segment cuts off mid-sentence after 'bare', clearly incomplete. Waiting for more context to understand what aspect of the proof of concept is being discussed.", "text": "So, the bare", "is_complete": false}
-  ]
-}
-```
-
-transcript_text: "I need to look into visualization libraries. Uh, converting text into a data format. But that's later."
-
-Output:
-```json
-{
-  "chunks": [
-    {"reasoning": "This is a distinct task about researching visualization libraries. It's a complete, self-contained thought.", "text": "I need to look into visualization libraries.", "is_complete": true},
-    {"reasoning": "this could be introducing a separate task about data format conversion. It's grammatically informal but arguably conceptually complete. Since it is borderline, let's default to waiting for more input later to see if the meaning changes", "text": "converting text into a data format.", "is_complete": false},
-    {"reasoning": "This seems to be referring back to the same task about researching visualization libraries. It's a complete thought.", "text": "Oh yea, Myles mentioned Mermaid as a good visualization option", "is_complete": true},
-  ]
-}
-```
-────────────────────────────────────────
-EXISTING NODES (for context awareness):
-────────────────────────────────────────
-{{existing_nodes}}
-
-────────────────────────────────────────
-RECENT CONTEXT (if available):
-────────────────────────────────────────
-{{transcript_history}}
-
-────────────────────────────────────────
-TRANSCRIPT TO SEGMENT:
-────────────────────────────────────────
-{{transcript_text}}```
-
------------
-
-## Filename: backend/text_to_graph_pipeline/agentic_workflows/prompts/single_abstraction_optimizer.md
-
-```
-You are an expert system component responsible for optimizing the abstraction level of individual nodes in a knowledge tree. Your goal is to minimize the human computation required to understand the original meaning at the necessary level of abstraction.
-
-## Core Optimization Principle
-
-You are solving a compression problem: Given a node's content, find the optimal structure that minimizes (Structure Length + Cognitive Fidelity Loss).
-
-A well-structured tree allows users to hold 5-8 items in working memory while reasoning about relationships. Each node should represent a cohesive "work item" - a task, decision, problem, question, solution, counter-example, answer, or concept description.
-
-## Input Variables
-- node_id: The ID of the node being optimized
-- node_name: Current name of the node
-- node_content: Full text content of the node
-- node_summary: Current summary of the node
-- neighbors: List of immediate neighbors with {id, name, summary, relationship}
-
-## Analysis Techniques
-
-### 1. The Abstraction Test (Compressibility)
-Can you create a concise title (3-7 words) that accurately encapsulates all content? If not, the node likely needs splitting.
-
-### 2. Semantic Entropy Analysis
-Identify distinct semantic themes within the node. High entropy (multiple unrelated topics) indicates need for splitting.
-
-### 3. Structural Pattern Recognition
-Look for common patterns that suggest natural splits:
-- Problem/Solution Pattern: Problem as parent, solutions as children
-- Goal/Steps Pattern: High-level goal as parent, tasks as children  
-- Claim/Evidence Pattern: Insight as parent, observations as children
-
-### 4. Work Item Coherence
-Each node should represent a single "work item" that could stand alone as a ticket in a project management system.
-
-## Decision Process
-
-1. **Analyze Current State**
-   - Identify all semantic themes/abstractions in the content
-   - Assess coherence - do all parts relate to a single work item?
-   - Check if current summary accurately represents all content
-
-2. **Determine Optimal Structure**
-   - If content is cohesive around single abstraction → Keep as is or UPDATE
-   - If multiple distinct abstractions exist → SPLIT into coherent work items
-   - If summary/content is poorly organized → UPDATE with better structure
-
-3. **For SPLIT Actions**
-   - Keep the highest-level abstraction as the parent node
-   - Create child nodes for each distinct sub-abstraction
-   - Ensure each new node passes the abstraction test
-   - Define clear parent-child relationships
-
-## Output Format
-
-```json
-{
-  "optimization_decision": {
-    "reasoning": "Detailed analysis of the node's current state and why the chosen actions optimize its abstraction level",
-    "actions": [<list_of_actions>]
-  }
-}
-```
-
-Where actions is a list that can contain:
-
-### UPDATE Action:
-```json
-{
-  "action": "UPDATE",
-  "node_id": <node_id>,
-  "new_content": "Reorganized or clarified content",
-  "new_summary": "Improved summary that accurately represents the content"
-}
-```
-
-### CREATE Action (for splitting):
-```json
-{
-  "action": "CREATE",
-  "target_node_name": "Parent Node Name",
-  "new_node_name": "Child Node Name",
-  "content": "Content for this child node",
-  "summary": "Summary of this child's content",
-  "relationship": "Relationship to parent (e.g., 'subtask of', 'implements', 'solves')"
-}
-```
-
-### No Action:
-```json
-{
-  "optimization_decision": {
-    "reasoning": "Analysis showing why no optimization is needed",
-    "actions": []
-  }
-}
-```
-
-Note: SPLIT operations are implemented as one UPDATE action (to update the parent) followed by multiple CREATE actions (for the children).
-
-## Examples
-
-### Example 1: Node Requiring SPLIT
-
-**Input:**
-```
-node_id: 5
-node_name: "System Setup"
-node_content: "We need to configure the development environment with Node.js and npm. The database will use PostgreSQL with specific performance tuning. Frontend deployment requires setting up CI/CD pipeline with GitHub Actions. User authentication will implement OAuth2 with Google and GitHub providers."
-node_summary: "System setup and configuration tasks"
-neighbors: [{"id": 4, "name": "Project Planning", "summary": "High-level project goals", "relationship": "sibling"}]
-```
-
-**Output:**
-```json
-{
-  "optimization_decision": {
-    "reasoning": "This node contains four distinct work items: environment setup, database configuration, deployment pipeline, and authentication setup. Each represents a separate task that would be tracked independently. Splitting improves clarity and allows focused work on each area. The current node name 'System Setup' serves well as a parent abstraction.",
-    "actions": [
-      {
-        "action": "UPDATE",
-        "node_id": 5,
-        "new_content": "System setup encompasses development environment, database configuration, deployment pipeline, and authentication setup.",
-        "new_summary": "High-level system setup and configuration tasks"
-      },
-      {
-        "action": "CREATE",
-        "target_node_name": "System Setup",
-        "new_node_name": "Development Environment",
-        "content": "Configure the development environment with Node.js and npm",
-        "summary": "Node.js development environment setup",
-        "relationship": "subtask of"
-      },
-      {
-        "action": "CREATE",
-        "target_node_name": "System Setup",
-        "new_node_name": "Database Configuration",
-        "content": "PostgreSQL setup with specific performance tuning",
-        "summary": "PostgreSQL database setup and optimization",
-        "relationship": "subtask of"
-      },
-      {
-        "action": "CREATE",
-        "target_node_name": "System Setup",
-        "new_node_name": "CI/CD Pipeline",
-        "content": "Frontend deployment using GitHub Actions CI/CD pipeline",
-        "summary": "Automated deployment pipeline configuration",
-        "relationship": "subtask of"
-      },
-      {
-        "action": "CREATE",
-        "target_node_name": "System Setup",
-        "new_node_name": "OAuth2 Authentication",
-        "content": "Implement OAuth2 authentication with Google and GitHub providers",
-        "summary": "OAuth2 setup for user authentication",
-        "relationship": "subtask of"
-      }
-    ]
-  }
-}
-```
-
-### Example 2: Cohesive Node (No Action Needed)
-
-**Input:**
-```
-node_id: 12
-node_name: "Cache Implementation Strategy"
-node_content: "Implement multi-level caching: Redis for session data with 1-hour TTL, CDN for static assets, database query caching with 5-minute TTL, and API response caching for GET requests. This integrated approach reduced response times from 800ms to 200ms."
-node_summary: "Multi-level caching strategy reducing response time by 75%"
-neighbors: [{"id": 11, "name": "Performance Optimization", "summary": "System performance improvements", "relationship": "parent"}]
-```
-
-**Output:**
-```json
-{
-  "optimization_decision": {
-    "reasoning": "This node represents a single cohesive work item - implementing a caching strategy. All content relates to the same abstraction (caching), with different cache types serving the unified goal of performance improvement. The summary accurately captures both the approach and impact. Splitting would fragment a coherent solution.",
-    "actions": []
-  }
-}
-```
-
-### Example 3: Node Needing UPDATE
-
-**Input:**
-```
-node_id: 8
-node_name: "API Design"
-node_content: "REST endpoints: GET /users, POST /users, GET /users/:id. We decided to use JWT tokens. The tokens expire after 24 hours. Also need to handle CORS for the frontend. Response format will be JSON with consistent error structure."
-node_summary: "API stuff"
-neighbors: [{"id": 7, "name": "Backend Architecture", "summary": "Server-side design decisions", "relationship": "parent"}]
-```
-
-**Output:**
-```json
-{
-  "optimization_decision": {
-    "reasoning": "The content is cohesive around API design but poorly organized and the summary is inadequate. The content mixes endpoint definitions, authentication, and response format decisions. Reorganizing with a better structure and comprehensive summary improves clarity without splitting.",
-    "actions": [
-      {
-        "action": "UPDATE",
-        "node_id": 8,
-        "new_content": "REST API Design:\n\nEndpoints:\n- GET /users - List all users\n- POST /users - Create new user\n- GET /users/:id - Get specific user\n\nAuthentication:\n- JWT tokens with 24-hour expiration\n\nResponse Format:\n- JSON with consistent error structure\n- CORS enabled for frontend access",
-        "new_summary": "REST API design with user endpoints, JWT authentication, and JSON response format"
-      }
-    ]
-  }
-}
-```
-
----
-
-Remember: The goal is to create nodes that represent the abstractions used in problem-solving, where each node is a meaningful unit of work that can be reasoned about independently while maintaining clear relationships to related concepts.```
-
------------
-
-## Filename: backend/text_to_graph_pipeline/agentic_workflows/single_abstraction_optimiser_approach.md
-
-```
-Techniques the 
-
-	1. classification of components of a node into different types/abstractions such as:
-(In other words, identify the abstractions present)
-
-    - Task, Decision, Problem, Question, Solution (or possible solution), counter example, answer, description of a function or abstraction, insight, observation 
-(list may not be exhaustive)
-
-	2. Fill in the blank to identify relationship type between abstractions here.
-
-	3. Awareness of the optimisation problem we are trying to solve (actually include this in the prompt), essentially give it [[VoiceTree_Math.md]] and tell it just solve the optimisation problem.
-
-    4. Include tools to solve the optimisation problem:
-        - The abstraction test, compressability, entropy test, common patterns:
-
-
-#### **Technique A: The Abstraction Test (Compressibility)**
-
-This is the most fundamental technique, directly from our earlier discussions.
-
-- **Concept:** A good node structure represents a successful compression of information. A good node title is the "key" to that compression.
-    
-- **Implementation:** After proposing a new structure (e.g., splitting one node into a parent and two children), prompt the integrator: **"For each new parent node you created, provide a short, descriptive title (3-7 words) that accurately encapsulates all of its children. If you cannot create a concise and accurate title, the abstraction is likely incorrect"**
-    
-
-#### **Technique B: Structural Pattern Matching**
-
-Human thought and projects follow recurring patterns. The integrator can be trained to recognize and enforce these patterns.
-
-- **Concept:** Many nodes are not just random collections of thoughts; they follow logical narrative structures.
-    
-- **Implementation:** Prompt the integrator to identify common patterns in the combined node + inbox content.
-    
-    - **Problem/Solution Pattern:** "Does this content describe a Problem and a corresponding Solution or Task? If so, structure it with the Problem as the parent and the Solution/Task as the child."
-        
-    - **Goal/Steps Pattern:** "Does this content describe a high-level Goal and a sequence of Tasks to achieve it? If so, structure it that way."
-        
-    - **Claim/Evidence Pattern:** "Does this content make a Claim or Insight and then provide several Observations as evidence? If so, group the Observations under the Insight."
-        
-- **Example:** An inbox with "The login is slow" (Problem) and "We need to add a DB index" (Task) should be automatically structured into a parent-child relationship.
-    
-
-#### **Technique C: Semantic Entropy Reduction**
-
-This is a more advanced way of thinking about the "junk drawer" problem.
-
-- **Concept:** "Entropy" here means the degree of topical disorder within a node. A node with 5 different unrelated topics has high entropy. The integrator's job is to create a new structure that minimizes the entropy of each resulting node, and the entropy of the stucture of the abstracted tree view: nodes and their relationships between them.
-    
-- **Implementation:** Prompt the integrator: **"Analyze all the text fragments within this node. Identify the core semantic themes. Is there one theme or multiple? If there are multiple distinct themes, propose a split that groups all fragments related to Theme A into one node and all fragments for Theme B into another."**
-    
-- **Example:** A node Notes from Meeting contains text about UI redesign, database performance, and Q4 hiring. This has high entropy. The integrator should propose splitting it into three separate, low-entropy nodes, each focused on one topic.
-
-
-The cool thing about entropy approach is that it can create synthetic nodes just for groupings that weren't explicit, but can be implicitly inferred, and if so decrease the entropy / improve the understandability a lot. 
-    
-
-#### **Technique D: The "Why" Prompt (Metacognition)**
-
-For debugging and improving the system, force the integrator to explain its reasoning.
-
-- **Concept:** Making the LLM's reasoning explicit allows you to understand its "thought process" and refine the prompt.
-    
-- **Implementation:** For every structural change it proposes (a split or merge), require it to output a justification field.
-
-
-
-APPROACH
-
-Input:
-Node content,
-
-For enhanced understanding of context the node fits into:
-- neighbouring nodes, their summaries, and relationship to input node.
-- (LATER) Perhaps the n=5 stick of parents of the node, i.e. parent(parent(parent(node)))...
-
- 
-Output:
-Udated content of the node
-Updated summary of the node
-(tree UPDATE actions)
-New nodes & their relationship to existing nodes. (tree CREATE actions)
-```
-
------------
-
-## Filename: backend/text_to_graph_pipeline/agentic_workflows/VoiceTree_Math.md
-
-```
-### **1. Core Objective of the System**
-
-The primary function of our system is to generate a tree structure that optimally represents the meaning and organization of a conversation in near real-time (allowing for a ~15-second lag). The goal is to provide the user with a compressed, structural representation of their work, thereby enhancing their ability to reason about it.
-
-### **2. The Core Pipeline Function**
-
-Our development pipeline must solve the following core task: given an existing tree and 1-5 new sentences of content, it must produce the best possible updated tree that incorporates and represents the new meaning.
-
-f(existing_tree, new_content) => best_possible_updated_tree
-
-The central challenge is defining and implementing the "best possible update." This requires breaking down specific examples of updates, generalizing them, and translating those generalizations into code. Our framework for this is a "work-item-tree," where we either append new content to an existing work item or create a new one.
-
-### **3. The "Work Item" Framework**
-
-A "work item" is the fundamental unit of our tree. It is an abstraction that can represent any of the following:
-
-- Task
-    
-- Decision
-    
-- Problem
-    
-- Question
-    
-- Solution (or potential solution)
-    
-- Counter-example
-    
-- Answer
-    
-- Description of a function or concept
-    
-
-Think of a work item as anything that could be a ticket or sub-task in a system like Jira. Each work item contains its own state, context, and details.
-
-This concept is based on the observation that when manually creating voice notes, nearly every node corresponds to one of these items. For conversational elements that don't fit neatly (e.g., chit-chat at the start of a meeting), we can create "ghost" work-item nodes by inferring the underlying intent, such as "building rapport."
-
-### **4. The Central Question: Granularity**
-
-This leads to the most important question for our system: **When is a piece of information worthy of becoming its own work item?** In other words, at what granularity should we extract work items from a given chunk of text?
-
-The answer to this question gets to the very root of why this system is useful.
-
-### **5. Key Insight: The System as a Compression Algorithm**
-
-The task of our system is fundamentally about **compression**. Given a stream of text, how can we best break it down into a set of abstractions with relationships, such that the high-level meaning is presented with maximum compression?
-
-This framing reveals that our core challenge is an **optimization problem**.
-
-### **6. Formulating the Optimization Problem**
-
-We want to find a tree structure that minimizes a combination of competing factors.
-
-**Initial Formulation:** Minimize (Structure Length + Meaning Loss)
-
-These two variables are in direct opposition:
-
-- **A single mega-node:** This yields a minimum structure length but causes a high loss of structural meaning.
-    
-- **Maximum fragmentation (e.g., one node per noun):** This results in a very high structure length. While it might seem to have no meaning loss, it actually introduces **understandability loss**—a graph of every noun is less comprehensible to a human than the original sentence.
-    
-
-**Refined Formulation:** Minimize (Structure Length + Meaning Loss + Understandability Loss)
-
-We can simplify this by recognizing that "Meaning Loss" and "Understandability Loss" are deeply related. Let's call their combination **"Cognitive Fidelity Loss"**.
-
-Furthermore, the reason we want a short structure length is to increase the speed and ease of understanding. Therefore, all factors can be unified into a single objective:
-
-**Unified Objective:** Minimize the human computation required to understand the original meaning at the necessary level of abstraction.
-
-### **7. Clarification on "Meaning Loss"**
-
-It is critical to note that some loss of detail at the high-level, structural view is not only acceptable but **desirable**. This is abstraction, not omission. The user can always click on a specific node to access all the detailed text associated with it. The optimization, therefore, seeks the ideal middle ground between a completely flat structure and an overly fragmented one.
-
-### **8. The Guiding Principle: Aligning with Human Cognition**
-
-The ultimate goal is to create an abstracted view that operates at the user's **currently required working level of abstraction.**
-
-A human engaged in problem-solving can only hold a few items (perhaps 5-8) in their working memory at once. They reason about how these "items" relate to each other. **The nodes in our tree should represent these same cognitive items.**
-
-This is the level we must optimize for. Our system should aim to recreate the abstractions being used in the problem-solving and decision-making centers of the brain. Even more powerfully, since a human brain often doesn't use the most optimal abstractions, **our system has the opportunity to provide a better, clearer set of abstractions, thereby actively improving the user's problem-solving process.**
-
- However this  raises a critical dichotomy:
-
-- **Mirroring:** Replicating the abstractions the user's brain is currently using.
-    
-- **Optimizing:** Providing the abstractions that are objectively optimal for solving the problem.
-
-a choice about the system's fundamental role. Is it a perfect scribe or an expert cognitive coach?
-
-Answer: we are more mostly mirroring the abstractions the user has expressed in their spoken content, however we will make minor adjustments if they greatly improve the compression.
-
-The system's goal is to maintain a state of low "Structural Tension." (or entropy) It defaults to mirroring the user's mind, but gently nudges them toward a more organized cognitive state whenever it detects that the mental model is becoming costly or inefficient. It helps the user not only to solve the problem at hand, but to become a clearer thinker.```
-
------------
-
 ## Filename: backend/text_to_graph_pipeline/chunk_processing_pipeline/apply_tree_actions.py
 
 ```
@@ -1794,7 +2028,7 @@ import logging
 from typing import List, Set, Union
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision, UpdateAction, CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import IntegrationDecision, UpdateAction, CreateAction, BaseTreeAction
 
 
 class TreeActionApplier:
@@ -1845,9 +2079,13 @@ class TreeActionApplier:
         Args:
             decision: The IntegrationDecision with CREATE action
         """
-        # Find parent node ID from name or none if not specified
-        parent_id = None  
-        if decision.target_node:
+        # Prefer ID-based field, fall back to name-based for backward compatibility
+        parent_id = None
+        if decision.parent_node_id is not None:
+            # Handle special case: -1 means no parent (root node)
+            parent_id = None if decision.parent_node_id == -1 else decision.parent_node_id
+        elif decision.target_node:
+            # Legacy path: resolve name to ID
             parent_id = self.decision_tree.get_node_id_from_name(decision.target_node)
         
         # Create new node
@@ -1875,24 +2113,28 @@ class TreeActionApplier:
         Args:
             decision: The IntegrationDecision with APPEND action
         """
-        # Find target node and append content
-        if not decision.target_node:
-            logging.warning(f"APPEND decision for '{decision.name}' has no target_node - skipping")
+        # Prefer ID-based field, fall back to name-based for backward compatibility
+        node_id = None
+        if decision.target_node_id is not None:
+            node_id = decision.target_node_id
+        elif decision.target_node:
+            # Legacy path: resolve name to ID
+            node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
+        else:
+            logging.warning(f"APPEND decision for '{decision.name}' has no target node - skipping")
             return
             
-        node_id = self.decision_tree.get_node_id_from_name(decision.target_node)
-        if node_id is not None:
+        if node_id is not None and node_id in self.decision_tree.tree:
             node = self.decision_tree.tree[node_id]
             node.append_content(
                 decision.content,
-                None,  # APPEND decisions don't have new_node_summary in IntegrationDecision
                 decision.name  # Use the chunk name as the label
             )
-            logging.info(f"Appended content to node '{decision.target_node}' (ID {node_id})")
+            logging.info(f"Appended content to node ID {node_id}")
             # Add the updated node to the update set
             self.nodes_to_update.add(node_id)
         else:
-            logging.warning(f"Could not find node '{decision.target_node}' for APPEND action")
+            logging.warning(f"Could not find node with ID {node_id} for APPEND action")
     
     def get_nodes_to_update(self) -> Set[int]:
         """
@@ -1985,9 +2227,13 @@ class TreeActionApplier:
         Args:
             action: The CreateAction to apply
         """
-        # Find parent node ID from name
+        # The optimizer should work with node IDs, but support name fallback
         parent_id = None
-        if action.target_node_name:
+        if hasattr(action, 'parent_node_id') and action.parent_node_id is not None:
+            # Handle special case: -1 means no parent (root node)
+            parent_id = None if action.parent_node_id == -1 else action.parent_node_id
+        elif action.target_node_name:
+            # Legacy path: resolve name to ID
             parent_id = self.decision_tree.get_node_id_from_name(action.target_node_name)
             if parent_id is None:
                 logging.warning(f"Could not find parent node '{action.target_node_name}' for CREATE action")
@@ -2008,7 +2254,36 @@ class TreeActionApplier:
         # Also add the parent node to update set if it exists
         if parent_id is not None:
             self.nodes_to_update.add(parent_id)
-            logging.info(f"Added parent node (ID {parent_id}) to update set to refresh child links")```
+            logging.info(f"Added parent node (ID {parent_id}) to update set to refresh child links")
+    
+    def apply(self, actions: List[BaseTreeAction]) -> Set[int]:
+        """
+        Apply a list of tree actions
+        
+        This unified method handles all action types by dispatching based on
+        the action field of each BaseTreeAction.
+        
+        Args:
+            actions: List of BaseTreeAction objects (UpdateAction, CreateAction, etc.)
+            
+        Returns:
+            Set of node IDs that were updated
+            
+        Raises:
+            ValueError: If an unknown action type is encountered
+        """
+        self.nodes_to_update.clear()
+        logging.info(f"Applying {len(actions)} tree actions")
+        
+        for action in actions:
+            if action.action == "UPDATE":
+                self._apply_update_action(action)
+            elif action.action == "CREATE":
+                self._apply_create_action_from_optimizer(action)
+            else:
+                raise ValueError(f"Unknown action type: {action.action}")
+        
+        return self.nodes_to_update.copy()```
 
 -----------
 
@@ -2044,9 +2319,8 @@ class Node:
         self.summary: str = summary
         self.num_appends: int = 0
 
-    def append_content(self, new_content: str, summary:str, transcript: str = ""):
+    def append_content(self, new_content: str, transcript: str = ""):
         self.content += "\n" + new_content
-        self.summary = summary if summary else extract_summary(new_content)
         self.transcript_history += transcript + "... "
         self.modified_at = datetime.now()
         self.num_appends += 1
@@ -2265,6 +2539,684 @@ class DecisionTree:
         node.content = content
         node.summary = summary
         node.modified_at = datetime.now()```
+
+-----------
+
+## Filename: tests_aggregate.md
+
+```
+backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests
+├── AppendToRelevantNodeAgent
+│   └── testAppendtoRelevantNodeAgent.py
+├── identify_target_node
+│   ├── __pycache__
+│   │   ├── test_identify_target_node_v2.cpython-311-pytest-8.3.5.pyc
+│   │   └── test_identify_target_node_with_ids.cpython-311-pytest-8.3.5.pyc
+│   ├── test_identify_target_node_prompt.py
+│   ├── test_identify_target_node_v2.py
+│   └── test_identify_target_node_with_ids.py
+├── SingleAbstractionOptimizerAgent
+│   ├── test_single_abstraction_optimizer_prompt.py
+│   └── testSingleAbstractionOptimizerAgent.py
+└── tree_action_decider
+    ├── __pycache__
+    │   └── test_tree_action_decider.cpython-311-pytest-8.3.5.pyc
+    ├── Drawing 2025-07-16 14.17.16.excalidraw.md
+    └── test_tree_action_decider.py
+
+7 directories, 11 files
+===== tree_action_decider/test_tree_action_decider.py =====
+"""
+Tests common input patterns, problems, and invariants.
+
+THis test should test that AppendToRelevantNodeAgent + SingleAbstractionOptimiserAgent work well together, and that the overal flow with both of them gives us the output and behaviours we want.
+
+
+First, some deterministic inpputs, and deterministic + fuzzy output checking:
+
+- correctly handles WI1, WI2, WI1 case:
+
+End up with two decisions, APPEND WI2 to existing WI2,
+WI1 new node attached to WI2. (todo: specify input)
+
+
+- correctly handles WI1, WI2, WI3 case
+- end up with CREATE WI2 to Wi1, APPEND WI1 to existing node 1, append WI 3 to existing node 3. 
+
+These tests will also implicitly also test the following qualities:
+- Correctly favours append / create for input where one subchunk is obviously a create, one subchunk is obviously an append 
+- Can correctly identify which node to append/create to in obvious case (9 nodes irrelevant, 1 node relevant)
+- Actual output has atleast 10% of the words from the input.
+
+
+
+Subjective
+for the fuzzy requirements, of output being "Good" (node actions represent well), we should use an LLM judge to decide whether the test is red or green. 
+
+- ouutput is generally correct (is a good summarry for the content)
+- Title is a good summary of node content
+- Summary is a good summary given input transcript 
+- Node content is a good content given input transcript 
+- Handles overlap correctly (overlap cases)
+"""
+===== identify_target_node/test_identify_target_node_v2.py =====
+"""
+Simplified integration test for identify_target_node prompt with node IDs
+"""
+
+import pytest
+import asyncio
+import re
+from pathlib import Path
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptTemplate
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
+
+
+class TestIdentifyTargetNodeV2:
+    """Test the improved identify_target_node prompt with direct LLM calls"""
+    
+    @pytest.fixture
+    def prompt_template(self):
+        """Load the prompt template"""
+        prompt_path = Path(__file__).parent.parent.parent.parent.parent.parent
+        prompt_file = prompt_path / "backend/text_to_graph_pipeline/agentic_workflows/prompts/identify_target_node.md"
+        return PromptTemplate.from_file(prompt_file)
+    
+    @pytest.mark.asyncio
+    async def test_existing_node_with_ids(self, prompt_template):
+        """Test that existing nodes are identified by their IDs"""
+        # Format the prompt with test data
+        prompt = prompt_template.render(
+            existing_nodes='[{"id": 1, "name": "Voice Tree Architecture", "summary": "Overall system design and components"}, {"id": 2, "name": "Database Design", "summary": "Schema and data model decisions"}]',
+            segments='[{"text": "We need to add caching to improve voice tree performance", "is_complete": true}]'
+        )
+        
+        # Call LLM
+        response = await call_llm(prompt)
+        
+        # Extract JSON from response (handle code blocks)
+        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            json_str = response
+        
+        # Parse response
+        result = TargetNodeResponse.model_validate_json(json_str)
+        
+        # Assertions
+        assert len(result.target_nodes) == 1
+        assert result.target_nodes[0].target_node_id == 1  # Should go to Architecture
+        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].new_node_name is None
+    
+    @pytest.mark.asyncio
+    async def test_new_node_creation(self, prompt_template):
+        """Test that new nodes get ID -1 and a name"""
+        # Format the prompt with test data
+        prompt = prompt_template.render(
+            existing_nodes='[{"id": 1, "name": "Backend API", "summary": "REST API implementation"}]',
+            segments='[{"text": "We should add user authentication with JWT tokens", "is_complete": true}]'
+        )
+        
+        # Call LLM
+        response = await call_llm(prompt)
+        
+        # Extract JSON from response (handle code blocks)
+        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            json_str = response
+        
+        # Parse response
+        result = TargetNodeResponse.model_validate_json(json_str)
+        
+        # Assertions
+        assert len(result.target_nodes) == 1
+        assert result.target_nodes[0].target_node_id == -1  # New node
+        assert result.target_nodes[0].is_new_node == True
+        assert result.target_nodes[0].new_node_name is not None
+        assert "auth" in result.target_nodes[0].new_node_name.lower()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+===== identify_target_node/test_identify_target_node_prompt.py =====
+"""
+Integration test for identify_target_node prompt
+Tests that the prompt correctly identifies target nodes for segments
+"""
+
+import pytest
+import asyncio
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import get_llm
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptEngine
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
+
+
+class TestIdentifyTargetNodePrompt:
+    """Test the identify_target_node prompt with real LLM calls"""
+    
+    @pytest.fixture
+    def llm(self):
+        """Get LLM instance for testing"""
+        return get_llm()
+    
+    @pytest.fixture 
+    def prompt_engine(self):
+        """Get prompt engine instance"""
+        return PromptEngine()
+    
+    async def test_existing_node_identification(self, llm, prompt_engine):
+        """Test identifying segments that should go to existing nodes"""
+        # Test data
+        existing_nodes = """
+        [
+            {"name": "Voice Tree Architecture", "summary": "Overall system design and components"},
+            {"name": "Database Design", "summary": "Schema and data model decisions"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "We need to add caching to improve voice tree performance", "is_complete": true},
+            {"text": "The database indexes need optimization for faster queries", "is_complete": true}
+        ]
+        """
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await llm.ainvoke(messages)
+        result = TargetNodeResponse.model_validate_json(response.content)
+        
+        # Assertions
+        assert len(result.target_nodes) == 2
+        
+        # First segment about caching should go to Architecture
+        assert result.target_nodes[0].target_node_name == "Voice Tree Architecture"
+        assert result.target_nodes[0].is_new_node == False
+        assert "caching" in result.target_nodes[0].text
+        
+        # Second segment about DB should go to Database Design  
+        assert result.target_nodes[1].target_node_name == "Database Design"
+        assert result.target_nodes[1].is_new_node == False
+        assert "database" in result.target_nodes[1].text.lower()
+    
+    async def test_new_node_creation(self, llm, prompt_engine):
+        """Test identifying segments that need new nodes"""
+        # Test data  
+        existing_nodes = """
+        [
+            {"name": "Backend API", "summary": "REST API implementation"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "We should add user authentication with JWT tokens", "is_complete": true},
+            {"text": "Need to implement real-time notifications using WebSockets", "is_complete": true}
+        ]
+        """
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await llm.ainvoke(messages)
+        result = TargetNodeResponse.model_validate_json(response.content)
+        
+        # Assertions
+        assert len(result.target_nodes) == 2
+        
+        # Both should create new nodes since they're new concepts
+        assert result.target_nodes[0].is_new_node == True
+        assert "auth" in result.target_nodes[0].target_node_name.lower()
+        
+        assert result.target_nodes[1].is_new_node == True
+        assert "notification" in result.target_nodes[1].target_node_name.lower() or \
+               "websocket" in result.target_nodes[1].target_node_name.lower()
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+===== identify_target_node/test_identify_target_node_with_ids.py =====
+"""
+Integration test for improved identify_target_node prompt with node IDs
+Tests that the prompt correctly identifies target node IDs instead of names
+"""
+
+import pytest
+import asyncio
+import json
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptEngine
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
+
+
+class TestIdentifyTargetNodeWithIDs:
+    """Test the improved identify_target_node prompt that returns node IDs"""
+    
+    @pytest.fixture 
+    def prompt_engine(self):
+        """Get prompt engine instance"""
+        return PromptEngine()
+    
+    async def test_existing_node_identification_with_ids(self, prompt_engine):
+        """Test identifying segments that should go to existing nodes using IDs"""
+        # Test data - now includes node IDs
+        existing_nodes = """
+        [
+            {"id": 1, "name": "Voice Tree Architecture", "summary": "Overall system design and components"},
+            {"id": 2, "name": "Database Design", "summary": "Schema and data model decisions"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "We need to add caching to improve voice tree performance", "is_complete": true},
+            {"text": "The database indexes need optimization for faster queries", "is_complete": true}
+        ]
+        """
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await call_llm(messages)
+        result = TargetNodeResponse.model_validate_json(response)
+        
+        # Assertions
+        assert len(result.target_nodes) == 2
+        
+        # First segment about caching should go to Architecture (ID 1)
+        assert result.target_nodes[0].target_node_id == 1
+        assert result.target_nodes[0].is_new_node == False
+        assert "caching" in result.target_nodes[0].text
+        
+        # Second segment about DB should go to Database Design (ID 2)
+        assert result.target_nodes[1].target_node_id == 2
+        assert result.target_nodes[1].is_new_node == False
+        assert "database" in result.target_nodes[1].text.lower()
+    
+    async def test_new_node_creation_with_special_id(self, prompt_engine):
+        """Test identifying segments that need new nodes using special ID"""
+        # Test data  
+        existing_nodes = """
+        [
+            {"id": 1, "name": "Backend API", "summary": "REST API implementation"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "We should add user authentication with JWT tokens", "is_complete": true},
+            {"text": "Need to implement real-time notifications using WebSockets", "is_complete": true}
+        ]
+        """
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await call_llm(messages)
+        result = TargetNodeResponse.model_validate_json(response)
+        
+        # Assertions
+        assert len(result.target_nodes) == 2
+        
+        # Both should create new nodes (ID = -1)
+        assert result.target_nodes[0].target_node_id == -1
+        assert result.target_nodes[0].is_new_node == True
+        assert result.target_nodes[0].new_node_name is not None
+        assert "auth" in result.target_nodes[0].new_node_name.lower()
+        
+        assert result.target_nodes[1].target_node_id == -1
+        assert result.target_nodes[1].is_new_node == True
+        assert result.target_nodes[1].new_node_name is not None
+        assert "notification" in result.target_nodes[1].new_node_name.lower() or \
+               "websocket" in result.target_nodes[1].new_node_name.lower()
+    
+    async def test_mixed_existing_and_new_nodes(self, prompt_engine):
+        """Test a mix of existing node references and new node creation"""
+        existing_nodes = """
+        [
+            {"id": 5, "name": "Security Features", "summary": "Authentication and authorization systems"},
+            {"id": 8, "name": "Performance Optimization", "summary": "Caching, indexing, and optimization strategies"}
+        ]
+        """
+        
+        segments = """
+        [
+            {"text": "Add role-based access control to the existing auth system", "is_complete": true},
+            {"text": "Implement distributed tracing for debugging microservices", "is_complete": true},
+            {"text": "Database query caching should use Redis for better performance", "is_complete": true}
+        ]
+        """
+        
+        prompt = prompt_engine.load_prompt("identify_target_node")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            existing_nodes=existing_nodes,
+            segments=segments
+        )
+        
+        response = await call_llm(messages)
+        result = TargetNodeResponse.model_validate_json(response)
+        
+        assert len(result.target_nodes) == 3
+        
+        # First should go to Security Features
+        assert result.target_nodes[0].target_node_id == 5
+        assert result.target_nodes[0].is_new_node == False
+        
+        # Second should create new node for distributed tracing
+        assert result.target_nodes[1].target_node_id == -1
+        assert result.target_nodes[1].is_new_node == True
+        assert result.target_nodes[1].new_node_name is not None
+        
+        # Third should go to Performance Optimization
+        assert result.target_nodes[2].target_node_id == 8
+        assert result.target_nodes[2].is_new_node == False
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+===== SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py =====
+"""
+Test some example inputs & outputs,
+
+e.g. TEST CASE 1: a cluttered node
+
+a current 
+  bloated node = (A,B,C,D), where the actual 
+  true optimal structure is A->B, A-> C, B->D
+
+  (b is a child of a, c is a child of a, d is a
+   child of b)
+
+  we want to keep A, and have the following 
+  create actions: create(target=A, newNode(B)),
+   create(target=A, newNode(C)), 
+  create(target=B, newNode(D)).
+
+  
+TEST CASE 2: a node which should ideally stay as a single node
+cohesive node (A1,A2,A3)
+
+These together form an abstraction which makes more sense to be kept together, because if you split it it actualyl becomes more confusing for the user to understand.
+
+
+Note, we can't determinisistically test everything, but we can test the structure of the output, that it is producing tree actions that would modify the tree as we ideally want.
+
+"""
+===== SingleAbstractionOptimizerAgent/test_single_abstraction_optimizer_prompt.py =====
+"""
+Integration test for single_abstraction_optimizer prompt
+Tests the optimization decisions for node abstraction levels
+"""
+
+import pytest
+import asyncio
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import get_llm
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptEngine
+from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse, UpdateAction, CreateAction
+
+
+class TestSingleAbstractionOptimizerPrompt:
+    """Test the single_abstraction_optimizer prompt with real LLM calls"""
+    
+    @pytest.fixture
+    def llm(self):
+        """Get LLM instance for testing"""
+        return get_llm()
+    
+    @pytest.fixture 
+    def prompt_engine(self):
+        """Get prompt engine instance"""
+        return PromptEngine()
+    
+    async def test_split_cluttered_node(self, llm, prompt_engine):
+        """
+        Test Case 1: A cluttered node that should be split
+        Current bloated node = (A,B,C,D), where optimal is A->B, A->C, B->D
+        """
+        # Test data - a node with multiple unrelated concepts
+        node_content = """
+        # Project Planning
+        
+        We need to set up the initial project structure with proper folders.
+        
+        The database should use PostgreSQL for better performance with complex queries.
+        
+        For the frontend, we'll use React with TypeScript for type safety.
+        
+        The API authentication will use JWT tokens with refresh token rotation.
+        """
+        
+        node_summary = "Project setup including structure, database choice, frontend framework, and authentication"
+        node_id = 1
+        node_name = "Project Planning"
+        
+        neighbors = [
+            {"id": 2, "name": "Development Tasks", "summary": "List of development tasks", "relationship": "sibling"}
+        ]
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("single_abstraction_optimizer")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            node_id=node_id,
+            node_name=node_name,
+            node_content=node_content,
+            node_summary=node_summary,
+            neighbors=neighbors
+        )
+        
+        response = await llm.ainvoke(messages)
+        result = OptimizationResponse.model_validate_json(response.content)
+        
+        # Assertions
+        assert len(result.optimization_decision.actions) > 0
+        
+        # Should have UPDATE action for parent and CREATE actions for children
+        update_actions = [a for a in result.optimization_decision.actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in result.optimization_decision.actions if isinstance(a, CreateAction)]
+        
+        assert len(update_actions) == 1  # Should update the parent node
+        assert update_actions[0].node_id == node_id
+        
+        # Should create multiple child nodes
+        assert len(create_actions) >= 3
+        
+        # Check that nodes cover the different concepts
+        node_names = [a.new_node_name.lower() for a in create_actions]
+        
+        # Should have nodes for database, frontend, auth
+        assert any("database" in name or "postgres" in name for name in node_names)
+        assert any("frontend" in name or "react" in name for name in node_names)
+        assert any("auth" in name or "jwt" in name for name in node_names)
+    
+    async def test_keep_cohesive_node(self, llm, prompt_engine):
+        """
+        Test Case 2: A cohesive node that should stay as a single node
+        Node with related content that forms a single abstraction
+        """
+        # Test data - a node with cohesive, related content
+        node_content = """
+        # User Authentication Flow
+        
+        The authentication process works as follows:
+        1. User submits credentials to /api/auth/login
+        2. Server validates credentials against the database
+        3. If valid, server generates JWT access token (15 min) and refresh token (7 days)
+        4. Tokens are returned to client in HTTP-only cookies
+        5. Client includes access token in Authorization header for API requests
+        6. When access token expires, client uses refresh token to get new access token
+        """
+        
+        node_summary = "Complete authentication flow implementation details"
+        node_id = 5
+        node_name = "User Authentication Flow"
+        
+        neighbors = [
+            {"id": 4, "name": "Security Requirements", "summary": "Security standards and requirements", "relationship": "parent"},
+            {"id": 6, "name": "API Endpoints", "summary": "List of API endpoints", "relationship": "sibling"}
+        ]
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("single_abstraction_optimizer")
+        messages = prompt_engine.format_prompt(
+            prompt,
+            node_id=node_id,
+            node_name=node_name,
+            node_content=node_content,
+            node_summary=node_summary,
+            neighbors=neighbors
+        )
+        
+        response = await llm.ainvoke(messages)
+        result = OptimizationResponse.model_validate_json(response.content)
+        
+        # Assertions - should not split this cohesive node
+        # Could be empty list (no action) or single UPDATE (to improve summary)
+        if len(result.optimization_decision.actions) > 0:
+            assert len(result.optimization_decision.actions) == 1
+            assert isinstance(result.optimization_decision.actions[0], UpdateAction)
+            assert result.optimization_decision.actions[0].action == "UPDATE"
+            # If updating, should maintain the cohesive nature
+            assert "authentication" in result.optimization_decision.actions[0].new_summary.lower()
+    
+    async def test_update_poorly_summarized_node(self, llm, prompt_engine):
+        """Test updating a node with poor summary/content organization"""
+        # Test data - node with good content but poor summary
+        node_content = """
+        We implemented caching at multiple levels:
+        - Redis for session data (TTL: 1 hour)
+        - CDN for static assets
+        - Database query caching with 5 minute TTL
+        - API response caching for GET requests
+        
+        This reduced our average response time from 800ms to 200ms.
+        """
+        
+        node_summary = "Some caching stuff"  # Poor summary
+        node_id = 10
+        node_name = "Performance Optimization"
+        
+        neighbors = [
+            {"id": 9, "name": "System Architecture", "summary": "Overall system design", "relationship": "parent"}
+        ]
+        
+        # Load and run prompt
+        prompt = prompt_engine.load_prompt("single_abstraction_optimizer") 
+        messages = prompt_engine.format_prompt(
+            prompt,
+            node_id=node_id,
+            node_name=node_name,
+            node_content=node_content,
+            node_summary=node_summary,
+            neighbors=neighbors
+        )
+        
+        response = await llm.ainvoke(messages)
+        result = OptimizationResponse.model_validate_json(response.content)
+        
+        # Assertions
+        assert len(result.optimization_decision.actions) > 0
+        
+        # Should have exactly one UPDATE action
+        assert len(result.optimization_decision.actions) == 1
+        action = result.optimization_decision.actions[0]
+        assert isinstance(action, UpdateAction)
+        
+        # Should improve the summary
+        assert len(action.new_summary) > len(node_summary)
+        assert "caching" in action.new_summary.lower()
+        # Should mention the performance improvement
+        assert any(word in action.new_summary.lower() 
+                  for word in ["performance", "response", "optimization", "200ms", "speed"])
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+===== AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py =====
+
+
+```
+
+-----------
+
+## Filename: tools/PackageProjectForLLM.py
+
+```
+import os
+import sys
+import subprocess  # Import subprocess for running shell commands
+
+
+def package_project(project_dir, file_extension=".py"):
+    # Try to execute the 'tree' command, fallback to listing files if not available
+    try:
+        tree_output = subprocess.check_output(['tree', project_dir])
+        out = tree_output.decode('utf-8')
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback: create a simple file listing
+        out = f"Directory structure of {project_dir}:\n"
+        for root, dirs, files in os.walk(project_dir):
+            level = root.replace(project_dir, '').count(os.sep)
+            indent = ' ' * 2 * level
+            out += f"{indent}{os.path.basename(root)}/\n"
+            subindent = ' ' * 2 * (level + 1)
+            for file in files:
+                if file.endswith(file_extension):
+                    out += f"{subindent}{file}\n"
+        out += "\n"
+
+    for root, dirs, files in os.walk(project_dir):
+        dirs[:] = [d for d in dirs if not (d.startswith('.') or d.startswith("__pycache"))]
+        for file in files:
+            if file.endswith(file_extension):
+                file_path = os.path.join(root, file)
+                rel_path = os.path.relpath(file_path, project_dir)
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                out += (f"===== {rel_path} =====\n")
+                out += (content + "\n")
+
+    return out
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python PackageProjectForLLM.py FOLDER")
+        sys.exit(1)
+    
+    folder_path = sys.argv[1]
+    if not os.path.exists(folder_path):
+        print(f"Error: The folder '{folder_path}' does not exist.")
+        sys.exit(1)
+    
+    print(package_project(folder_path))
+```
 
 -----------
 

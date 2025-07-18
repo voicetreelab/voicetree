@@ -161,45 +161,73 @@ Based on issues identified in improvements.md, the following critical improvemen
 2. **Backward Compatibility**: Had to maintain support for legacy name-based code while transitioning to ID-based approach
 3. **Testing LLM Prompts**: Integration tests for prompts required handling JSON extraction from LLM responses
 
-### Phase 3: Agents
+#### Phase 2.9: Pre-Flight Cleanup (Do This First)
+Before building new agents, we must remove the "scaffolding" and "legacy code" that is confusing the current agent. This phase is about simplification.
+Goal: Create a clean, unambiguous foundation for the new agents.
+Remove Legacy Name-Based Logic:
+Action: Go into apply_tree_actions.py. Delete any if/else logic that checks for target_node_name as a fallback to target_node_id. The system will now only support IDs. If an ID is missing, it's an error, not something to work around.
+Action: Delete the decision_tree.get_node_id_from_name() method entirely. Its existence is a temptation for incorrect usage. User-facing search is a separate feature for later; it has no place in the agentic pipeline.
+Why: This forces the entire pipeline to conform to the new, robust, ID-based standard and removes a major source of confusion.
+Solidify the Unified apply_actions Method:
+Action: In apply_tree_actions.py, deprecate and remove apply_optimization_actions and apply_mixed_actions. There should only be one public method: apply(actions: List[BaseTreeAction]).
+Action: Remove the IntegrationDecision model from models.py. It's a legacy model from the old pipeline. The new AppendToRelevantNodeAgent will produce CreateAction and AppendAction (which we will define) directly.
+Why: One entry point, one set of action models. This dramatically simplifies the TreeActionApplier and makes its usage obvious.
+Create a Dedicated AppendAction:
+Action: In models.py, create a new AppendAction(BaseTreeAction) model. It will contain action: Literal["APPEND"], target_node_id: int, and content: str.
+Action: Update the TreeActionApplier.apply() method to handle this new AppendAction.
+Why: This decouples the initial "append" step from the more complex "optimization" step. The first agent produces simple Append/Create actions, and the second agent produces Update/Create actions. Clear separation of concerns.
 
-#### What Needs to Be Done
-TDD behavioural tests for:
-backend/tests/integration_tests/agentic_workflows/tree_action_decider
-backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent
-backend/tests/integration_tests/agentic_workflows/AppendToRelevantNodeAgent
+#### Phase 3: Building the Agents (TDD Approach)
+Now, with a clean foundation, we can build the agents one by one, following the test outlines.
+Step 3.1: Implement AppendToRelevantNodeAgent
+Goal: A simple agent that takes text segments and outputs a list of [AppendAction | CreateAction].
+Write the Test First:
+File: backend/tests/integration_tests/agentic_workflows/AppendToRelevantNodeAgent/testAppendtoRelevantNodeAgent.py
+Action: Implement the test cases from the test outline provided previously. The test will instantiate the agent, call its .run() method with a mock tree and input text, and assert that the output is the expected list of AppendAction or CreateAction objects. This test will fail initially.
+Implement the Agent:
+File: backend/text_to_graph_pipeline/agentic_workflows/agents/append_to_relevant_node_agent.py
+Action: Create the new agent file. This agent will have a simple dataflow:
+Call the segmentation.md prompt.
+Call the identify_target_node.md prompt.
+Transform the output: Loop through the TargetNodeResponse and create a list of AppendAction (if target_node_id is present) or CreateAction (if target_node_id is null) objects.
+This agent does not modify the tree. It only outputs the plan to do so.
+Step 3.2: Implement SingleAbstractionOptimizerAgent
+Goal: An agent that takes a node_id and outputs a list of [UpdateAction | CreateAction] to refactor it.
+Write the Test First:
+File: backend/tests/integration_tests/agentic_workflows/SingleAbstractionOptimizerAgent/testSingleAbstractionOptimizerAgent.py
+Action: Implement the test cases from the test outline. The test will instantiate the agent, call its .run() method with a mock tree and a node_id, and assert that the output is the expected list of refactoring actions. This test will fail initially.
+Implement the Agent:
+File: backend/text_to_graph_pipeline/agentic_workflows/agents/single_abstraction_optimizer_agent.py
+Action: Create the new agent file. Its dataflow is very simple:
+Take node_id as input.
+Use the node_id to get the node's content and its neighbors from the DecisionTree.
+Call the single_abstraction_optimizer.md prompt.
+Return the resulting OptimizationResponse.
+Step 3.3: Implement TreeActionDeciderAgent (The Wrapper)
+Goal: A coordinator that runs the full pipeline logic.
+Write the Test First:
+File: backend/tests/integration_tests/agentic_workflows/tree_action_decider/test_tree_action_decider.py
+Action: Implement the end-to-end test cases from the outline. This is the most important test. It will mock the DecisionTree and TreeActionApplier, then call the TreeActionDeciderAgent.run() method. It will assert that the final list of actions passed to the applier is correct.
+Implement the Agent:
+File: backend/text_to_graph_pipeline/agentic_workflows/agents/tree_action_decider_agent.py
+Action: This agent orchestrates the entire flow:
+It takes the raw text as input.
+It runs the AppendToRelevantNodeAgent to get a list of initial Append/Create actions.
+It applies these initial actions to the tree using TreeActionApplier. This updates the tree state.
+It captures the modified_node_ids that the TreeActionApplier returns from this first step.
+It then loops through modified_node_ids:
+For each id, it runs the SingleAbstractionOptimizerAgent.
+It collects all the resulting refactoring actions (Update/Create) into a final list.
+It returns this final list of refactoring actions. (The application of these actions happens outside the agent, in the main ChunkProcessor.)
 
-1. **Create SingleAbstractionOptimizerAgent** (new file)
-   - Single prompt agent using `single_abstraction_optimizer.md`
-   - Input: node_id, node content/summary, neighbors
-   - Output: `OptimizationResponse` with list of actions
-
-2. **Rename & Refactor Current Agent**
-   - Copy `tree_action_decider_agent.py` → `append_to_relevant_node_agent.py`
-   - Remove `integration_decision` stage
-   - Replace `relationship_analysis` → `identify_target` (using new prompt)
-   - Output modified node IDs after append stage
-
-3. **Create New TreeActionDeciderAgent** (wrapper)
-   - Runs AppendToRelevantNodeAgent first
-   - Takes modified node IDs and runs SingleAbstractionOptimizerAgent on each
-   - Combines all actions and applies via TreeActionApplier
-
-#### State Management Between Stages
-```python
-# Stage 3 output needs to include:
-state["modified_node_ids"] = [1, 5, 7]  # IDs of nodes that had content appended
-
-# Stage 4 processes each:
-for node_id in state["modified_node_ids"]:
-    # Run optimizer on this node
-```
-
-### Phase 4: Integration
-0. Integration test, update our existing integration test backend/tests/integration_tests/chunk_processing_pipeline/test_pipeline_e2e_with_di.py, this is our E2E test for our system with the agent part (TreeActionDeciderAgent) mocked. 
-1. Update workflow adapter
-2. Add tests for new actions
-3. Run benchmarker
+#### Phase 4: Final Integration
+This phase connects the fully-functional TreeActionDeciderAgent to the rest of the system.
+Update the ChunkProcessor:
+Action: Modify chunk_processor.py to call the new TreeActionDeciderAgent.
+Action: The ChunkProcessor will receive the final list of refactoring actions from the agent and use the TreeActionApplier to apply them to the tree.
+Run the E2E Test:
+Action: Update and run the E2E test file (test_pipeline_e2e_with_di.py). Since the agent's output is now a list of actions, the mock agent will need to be updated to produce this new format. This test will confirm the entire system, from text input to markdown file output, works correctly.
+This revised plan is more direct, eliminates legacy traps, and provides a clear, step-by-step TDD path for the agent to follow, significantly reducing the chances of it getting stuck.
 
 ## Key Design Decisions
 
