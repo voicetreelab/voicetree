@@ -50,7 +50,7 @@ I want to improve my agentic workflow for
 
 YOUR TASK:
 previous engineer's plannign document: 
-@backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_plan.md
+@backend/text_to_graph_pipeline/agentic_workflows/new_pipeline_implementation_plan_v2.md
 They have been tracking their progress here as well. this includes some clarifications I provided. Your task is to continue working on this project.
 
 TDD:

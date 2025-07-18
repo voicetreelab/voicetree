@@ -21,8 +21,8 @@ echo "" >> "$OUTPUT_FILE"
 echo "Generated on: $(date)" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
-# Get unique files changed in last N commits
-FILES=$(git diff --name-only HEAD~$N HEAD 2>/dev/null | sort | uniq)
+# Get unique files changed in last N commits, excluding the output file itself
+FILES=$(git diff --name-only HEAD~$N HEAD 2>/dev/null | grep -v "^${OUTPUT_FILE}$" | sort | uniq)
 
 if [ -z "$FILES" ]; then
     echo "No files changed in the last $N commits." >> "$OUTPUT_FILE"
