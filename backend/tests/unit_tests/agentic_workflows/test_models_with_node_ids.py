@@ -20,10 +20,12 @@ class TestTargetNodeIdentificationWithIDs:
             text="Add caching to improve performance",
             reasoning="This relates to performance optimization",
             target_node_id=5,
+            target_node_name="Performance Optimization",
             is_new_node=False
         )
         
         assert target.target_node_id == 5
+        assert target.target_node_name == "Performance Optimization"
         assert target.is_new_node == False
         assert target.new_node_name is None  # Should be None for existing nodes
     
@@ -56,15 +58,26 @@ class TestTargetNodeIdentificationWithIDs:
         assert "new_node_name" in str(exc_info.value)
     
     def test_validation_existing_node_positive_id(self):
-        """Test that existing nodes should have positive IDs"""
+        """Test that existing nodes should have non-negative IDs"""
         # This should work - existing node with positive ID
         target = TargetNodeIdentification(
             text="Some text",
             reasoning="Some reasoning",
             target_node_id=1,
+            target_node_name="Existing Node",
             is_new_node=False
         )
         assert target.target_node_id == 1
+        
+        # This should also work - existing node with ID 0 (root node)
+        target_root = TargetNodeIdentification(
+            text="Some text for root",
+            reasoning="Some reasoning for root",
+            target_node_id=0,
+            target_node_name="Root Node",
+            is_new_node=False
+        )
+        assert target_root.target_node_id == 0
         
         # This should fail - existing node with -1 ID
         with pytest.raises(ValidationError) as exc_info:
@@ -72,6 +85,7 @@ class TestTargetNodeIdentificationWithIDs:
                 text="Some text",
                 reasoning="Some reasoning",
                 target_node_id=-1,
+                target_node_name="Some Node",
                 is_new_node=False  # Says existing but ID is -1
             )
         
@@ -85,6 +99,7 @@ class TestTargetNodeIdentificationWithIDs:
                     text="Performance improvement",
                     reasoning="Related to existing optimization work",
                     target_node_id=3,
+                    target_node_name="Performance Optimization",
                     is_new_node=False
                 ),
                 TargetNodeIdentification(

@@ -112,13 +112,9 @@ class TargetNodeIdentification(BaseModel):
     text: str = Field(description="Text content of the segment")
     reasoning: str = Field(description="Analysis for choosing the target node")
     target_node_id: int = Field(description="ID of target node (use -1 for new nodes)")
+    target_node_name: Optional[str] = Field(default=None, description="Name of the chosen existing node (required when is_new_node=False)")
     is_new_node: bool = Field(description="Whether this is a new node to be created")
     new_node_name: Optional[str] = Field(default=None, description="Name for new node (required if is_new_node=True)")
-    
-    @property
-    def target_node_name(self) -> Optional[str]:
-        """Backward compatibility property"""
-        return self.new_node_name if self.is_new_node else None
     
     def model_post_init(self, __context):
         """Validate that new nodes have names and existing nodes have valid IDs"""
@@ -127,9 +123,13 @@ class TargetNodeIdentification(BaseModel):
                 raise ValueError("New nodes must have target_node_id=-1")
             if not self.new_node_name:
                 raise ValueError("new_node_name is required when is_new_node=True")
+            if self.target_node_name is not None:
+                raise ValueError("target_node_name must be null when is_new_node=True")
         else:
-            if self.target_node_id == -1:
-                raise ValueError("Existing nodes must have positive target_node_id")
+            if self.target_node_id < 0:
+                raise ValueError("Existing nodes must have non-negative target_node_id (0 or greater)")
+            if not self.target_node_name:
+                raise ValueError("target_node_name is required when is_new_node=False")
 
 
 class TargetNodeResponse(BaseModel):
