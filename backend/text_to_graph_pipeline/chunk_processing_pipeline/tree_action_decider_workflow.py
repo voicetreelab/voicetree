@@ -212,7 +212,7 @@ class TreeActionDeciderWorkflow:
             #
             # Only flush the completed segments, not the entire chunk
             if completed_text:
-                logging.info(f"Flushing completed text from buffer: {len(completed_text)} chars")
+                logging.info(f"Flushing completed text from buffer: {completed_text}")
                 buffer_manager.flushCompletelyProcessedText(completed_text)
             else:
                 logging.info("No completed segments to flush - incomplete text remains in buffer")

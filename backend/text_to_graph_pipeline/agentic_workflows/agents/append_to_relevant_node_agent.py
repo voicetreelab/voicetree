@@ -143,6 +143,7 @@ class AppendToRelevantNodeAgent(Agent):
                     actions.append(AppendAction(
                         action="APPEND",
                         target_node_id=target.target_node_id,
+                        target_node_name=target.target_node_name,
                         content=target.text
                     ))
                 else:

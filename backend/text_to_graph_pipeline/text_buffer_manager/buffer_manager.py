@@ -80,6 +80,8 @@ class TextBufferManager:
         return ""
         
     def flushCompletelyProcessedText(self, text: str) -> str:
+        logging.info(f"current buffer before flushing: {self._buffer}")
+
         """Remove processed text from buffer and return remaining contents"""
         if not text:
             logging.debug("No completed text to flush")
@@ -94,7 +96,7 @@ class TextBufferManager:
         
         if success:
             self._buffer = result
-            logging.info(f"Successfully flushed completed text, {len(self._buffer)} chars remain in buffer")
+            logging.info(f"Successfully flushed completed text, Remaining buffer content: {self._buffer}")
         else:
             # TODO: Add more robust error handling here for production
             # For now, crash during development to catch issues
