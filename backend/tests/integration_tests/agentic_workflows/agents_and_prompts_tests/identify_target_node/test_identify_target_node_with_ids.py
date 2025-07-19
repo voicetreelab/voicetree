@@ -23,6 +23,7 @@ class TestIdentifyTargetNodeWithIDs:
         prompts_dir = backend_dir / "text_to_graph_pipeline" / "agentic_workflows" / "prompts"
         return PromptLoader(str(prompts_dir.absolute()))
     
+    @pytest.mark.asyncio
     async def test_existing_node_identification_with_ids(self, prompt_loader):
         """Test identifying segments that should go to existing nodes using IDs"""
         # Test data - now includes node IDs
@@ -44,7 +45,9 @@ class TestIdentifyTargetNodeWithIDs:
         prompt_text = prompt_loader.render_template(
             "identify_target_node",
             existing_nodes=existing_nodes,
-            segments=segments
+            segments=segments,
+            transcript_history="",  # Empty history for this test
+            transcript_text="We need to add caching to improve voice tree performance. The database indexes need optimization for faster queries."
         )
         
         result = await call_llm_structured(
@@ -66,14 +69,11 @@ class TestIdentifyTargetNodeWithIDs:
         assert result.target_nodes[1].is_new_node == False
         assert "database" in result.target_nodes[1].text.lower()
     
+    @pytest.mark.asyncio
     async def test_new_node_creation_with_special_id(self, prompt_loader):
         """Test identifying segments that need new nodes using special ID"""
         # Test data  
-        existing_nodes = """
-        [
-            {"id": 1, "name": "Backend API", "summary": "REST API implementation"}
-        ]
-        """
+        existing_nodes = """No existing nodes"""
         
         segments = """
         [
@@ -86,7 +86,9 @@ class TestIdentifyTargetNodeWithIDs:
         prompt_text = prompt_loader.render_template(
             "identify_target_node",
             existing_nodes=existing_nodes,
-            segments=segments
+            segments=segments,
+            transcript_history="",  # Empty history for this test
+            transcript_text="We should add user authentication with JWT tokens. Need to implement real-time notifications using WebSockets."
         )
         
         result = await call_llm_structured(
@@ -110,6 +112,7 @@ class TestIdentifyTargetNodeWithIDs:
         assert "notification" in result.target_nodes[1].new_node_name.lower() or \
                "websocket" in result.target_nodes[1].new_node_name.lower()
     
+    @pytest.mark.asyncio
     async def test_mixed_existing_and_new_nodes(self, prompt_loader):
         """Test a mix of existing node references and new node creation"""
         existing_nodes = """
@@ -127,15 +130,20 @@ class TestIdentifyTargetNodeWithIDs:
         ]
         """
         
-        prompt = prompt_engine.load_prompt("identify_target_node")
-        messages = prompt_engine.format_prompt(
-            prompt,
+        # Load and run prompt
+        prompt_text = prompt_loader.render_template(
+            "identify_target_node",
             existing_nodes=existing_nodes,
-            segments=segments
+            segments=segments,
+            transcript_history="",  # Empty history for this test
+            transcript_text="Add role-based access control to the existing auth system. Implement distributed tracing for debugging microservices. Database query caching should use Redis for better performance."
         )
         
-        response = await call_llm(messages)
-        result = TargetNodeResponse.model_validate_json(response)
+        result = await call_llm_structured(
+            prompt_text,
+            stage_type="identify_target_node",
+            output_schema=TargetNodeResponse
+        )
         
         assert len(result.target_nodes) == 3
         

@@ -86,6 +86,9 @@ class TreeActionDeciderWorkflow:
         buffer_manager = TextBufferManager()
         tree_action_applier = TreeActionApplier(decision_tree)
         
+        # Store optimization actions for test compatibility
+        self.optimization_actions_for_tests = []
+        
         # Process the chunk
         await self.process_text_chunk(
             text_chunk=transcript_text,
@@ -94,9 +97,8 @@ class TreeActionDeciderWorkflow:
             buffer_manager=buffer_manager
         )
         
-        # For test compatibility, return empty list (tests expect optimization actions)
-        # The actual workflow now applies actions immediately
-        return []
+        # Return the optimization actions for test compatibility
+        return self.optimization_actions_for_tests
     
     async def process_text_chunk(
         self, 
@@ -227,6 +229,10 @@ class TreeActionDeciderWorkflow:
                     optimization_modified_nodes = tree_action_applier.apply(optimization_actions)
                     self.nodes_to_update.update(optimization_modified_nodes)
                     all_optimization_actions.extend(optimization_actions)
+                    
+                    # Store for test compatibility if the attribute exists
+                    if hasattr(self, 'optimization_actions_for_tests'):
+                        self.optimization_actions_for_tests.extend(optimization_actions)
                 else:
                     logging.info(f"Optimizer had no changes for node {node_id}.")
 

@@ -60,80 +60,84 @@ async def test_complex_tree_creation():
     print("-" * 60)
     print(f"Input: {transcript1.strip()}")
     agent = TreeActionDeciderWorkflow(decision_tree)
-    result1 = await agent.run(transcript1)
-    print(f"\nResult 1: {len(result1)} optimization actions generated")
-    results.append(result1)
     
-    # Apply actions to the tree
-    from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-    applier = TreeActionApplier(decision_tree)
-    applier.apply(result1)
+    # Get initial tree size
+    initial_size = len(decision_tree.tree)
+    
+    # The new workflow applies actions immediately and returns empty list
+    result1 = await agent.run(transcript1, decision_tree)
+    
+    # Check tree growth
+    final_size = len(decision_tree.tree)
+    nodes_added = final_size - initial_size
+    print(f"\nResult 1: Tree grew from {initial_size} to {final_size} nodes ({nodes_added} added)")
+    results.append(result1)
     
     # Process transcript 2
     print("\n📝 Processing Transcript 2: Reaching Out to Investors")
     print("-" * 60)
     print(f"Input: {transcript2.strip()}")
-    result2 = await agent.run(transcript2)
-    print(f"\nResult 2: {len(result2)} optimization actions generated")
-    results.append(result2)
     
-    # Apply actions to the tree
-    applier.apply(result2)
+    # Get initial tree size
+    initial_size = len(decision_tree.tree)
+    
+    result2 = await agent.run(transcript2, decision_tree)
+    
+    # Check tree growth
+    final_size = len(decision_tree.tree)
+    nodes_added = final_size - initial_size
+    print(f"\nResult 2: Tree grew from {initial_size} to {final_size} nodes ({nodes_added} added)")
+    results.append(result2)
     
     # Process transcript 3
     print("\n📝 Processing Transcript 3: Polishing the POC")
     print("-" * 60)
     print(f"Input: {transcript3.strip()}")
-    result3 = await agent.run(transcript3)
-    print(f"\nResult 3: {len(result3)} optimization actions generated")
+    
+    # Get initial tree size
+    initial_size = len(decision_tree.tree)
+    
+    result3 = await agent.run(transcript3, decision_tree)
+    
+    # Check tree growth
+    final_size = len(decision_tree.tree)
+    nodes_added = final_size - initial_size
+    print(f"\nResult 3: Tree grew from {initial_size} to {final_size} nodes ({nodes_added} added)")
     results.append(result3)
     
     # Analyze the results
     print("\n📊 Analysis of Results")
     print("=" * 80)
     
-    # Count total actions generated
-    total_actions = sum(len(r) for r in results)
-    print(f"Total optimization actions generated: {total_actions}")
-    
-    # Apply final actions and show tree structure
-    applier.apply(result3)
-    print(f"\nFinal tree structure: {len(decision_tree.tree)} nodes")
-    
-    # Analyze what kinds of actions were generated
-    from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, UpdateAction
-    create_count = sum(1 for r in results for action in r if isinstance(action, CreateAction))
-    update_count = sum(1 for r in results for action in r if isinstance(action, UpdateAction))
-    
-    print(f"CREATE actions: {create_count}")
-    print(f"UPDATE actions: {update_count}")
+    # The new workflow applies actions immediately, so results are empty lists
+    # Instead, we track tree growth
+    print(f"Final tree structure: {len(decision_tree.tree)} nodes")
     
     # Show final tree structure
     print("\n🌳 Final Tree Structure:")
     print(f"Total nodes in tree: {len(decision_tree.tree)}")
     for node_id, node in decision_tree.tree.items():
-        print(f"  - {node.name}: {node.summary}")
+        print(f"  - {node.title}: {node.summary}")
     
     # Save results to file for further analysis
     output_file = current_dir / "test_results.json"
     with open(output_file, "w") as f:
         json.dump({
-            "results": [[str(action) for action in r] for r in results],  # Convert actions to string for JSON
             "final_tree_size": len(decision_tree.tree),
-            "statistics": {
-                "total_actions": total_actions,
-                "create_actions": create_count,
-                "update_actions": update_count,
-                "tree_nodes": len(decision_tree.tree)
+            "tree_structure": {
+                node_id: {
+                    "name": node.title,
+                    "summary": node.summary
+                }
+                for node_id, node in decision_tree.tree.items()
             }
         }, f, indent=2)
     
     print(f"\n💾 Results saved to: {output_file}")
     
     # Assert that we got meaningful results
-    assert total_actions >= 0, f"Expected some actions, but got {total_actions}"
     assert len(results) == 3, f"Expected 3 results, but got {len(results)}"
-    assert len(decision_tree.tree) > 1, f"Expected tree to grow beyond root node"
+    assert len(decision_tree.tree) > 1, f"Expected tree to grow beyond root node, but it has {len(decision_tree.tree)} nodes"
 
 @pytest.mark.asyncio
 async def test_single_transcript():
@@ -153,33 +157,27 @@ async def test_single_transcript():
     decision_tree = DecisionTree()
     # Add some existing nodes
     from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-    decision_tree.tree[1] = Node(id=1, name="VoiceTree Project", summary="Main project for voice-to-knowledge-graph system", content="")
-    decision_tree.tree[2] = Node(id=2, name="Backend Development", summary="Work on the backend API and processing", content="")
-    decision_tree.tree[3] = Node(id=3, name="Testing", summary="Unit and integration tests", content="")
+    decision_tree.tree[1] = Node(name="VoiceTree Project", node_id=1, content="", summary="Main project for voice-to-knowledge-graph system")
+    decision_tree.tree[2] = Node(name="Backend Development", node_id=2, content="", summary="Work on the backend API and processing")
+    decision_tree.tree[3] = Node(name="Testing", node_id=3, content="", summary="Unit and integration tests")
     
     print(f"Input: {transcript.strip()}")
     agent = TreeActionDeciderWorkflow(decision_tree)
-    result = await agent.run(transcript)
+    
+    # Get initial tree size
+    initial_size = len(decision_tree.tree)
+    
+    result = await agent.run(transcript, decision_tree)
     
     if result is None:
         print("\nResult is None - likely due to LLM API error")
         # Still want to assert so the test fails properly
         assert result is not None, "Result should not be None (check LLM API connection)"
-    # else:
-    #     # Check if there's an error message
-    #     if result.get('error_message'):
-    #         print(f"\nError during processing: {result['error_message']}")
-    #         # If there's an event loop error, it's okay to skip the test
-    #         if "Event loop is closed" in result['error_message']:
-    #             print("Skipping test due to event loop issue - this is expected when running multiple async tests")
-    #             return
-        
-    print(f"\nResult: {len(result)} optimization actions generated")
     
-    # Apply actions and display final tree
-    from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-    applier = TreeActionApplier(decision_tree)
-    applier.apply(result)
+    # Check tree growth
+    final_size = len(decision_tree.tree)
+    nodes_added = final_size - initial_size
+    print(f"\nTree grew from {initial_size} to {final_size} nodes ({nodes_added} added)")
     
     print(f"\nFinal tree has {len(decision_tree.tree)} nodes")
     
