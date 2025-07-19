@@ -153,25 +153,7 @@ class Agent:
                     
                 graph.add_node(transformer_name, make_transformer(transform, from_prompt, to_prompt))
                 graph.add_edge(from_prompt, transformer_name)
-                
-                # Check if this is a special case where we need conditional routing
-                # This is a bit of a hack but allows us to skip the target node identification
-                if from_prompt == "segmentation" and to_prompt == "identify_target_node":
-                    # Add conditional edge based on whether segments is empty
-                    def route_segments(state: Dict[str, Any]) -> str:
-                        segments = state.get("segments", [])
-                        return "identify_target_node" if segments else END
-                    
-                    graph.add_conditional_edges(
-                        transformer_name,
-                        route_segments,
-                        {
-                            "identify_target_node": to_prompt,
-                            END: END
-                        }
-                    )
-                else:
-                    graph.add_edge(transformer_name, to_prompt if to_prompt != END else END)
+                graph.add_edge(transformer_name, to_prompt if to_prompt != END else END)
             else:
                 # Direct edge
                 graph.add_edge(from_prompt, to_prompt if to_prompt != END else END)

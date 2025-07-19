@@ -13,6 +13,8 @@ def generate_filename_from_keywords(node_title, max_keywords=3):
     file_name = node_title
     file_name = re.sub(r'summary\s*:', '', file_name, flags=re.IGNORECASE)  # Remove "summary:"
     file_name = re.sub(r'#+\s*title\s*:', '', file_name, flags=re.IGNORECASE)  # Remove "## title"
+    file_name = file_name.replace("\n", "_")  # Replace newlines with underscores
+    file_name = file_name.replace("\r", "_")  # Replace carriage returns with underscores
     file_name = file_name.replace(" ", "_")
     file_name = file_name.replace("*", "")
     file_name = file_name.replace(".", "")

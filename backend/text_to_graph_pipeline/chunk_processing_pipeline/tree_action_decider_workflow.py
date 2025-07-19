@@ -199,6 +199,17 @@ class TreeActionDeciderWorkflow:
             # ======================================================================
             # INTERMEDIATE STEP: FLUSH BUFFER
             # ======================================================================
+            # TODO: BUG - Infinite loop with persistently incomplete segments
+            # When the benchmarker sends text word-by-word and the buffer is already 
+            # past its threshold, incomplete segments get reprocessed infinitely.
+            # Each new word triggers processing, but the garbled/incomplete text 
+            # never becomes complete enough to satisfy the segmentation logic.
+            # 
+            # FUTURE SOLUTION: Track how many times the same content has been marked
+            # as incomplete. If the same content is unfinished 3 times in a row, 
+            # discard it as garbage. This prevents infinite loops from persistently
+            # incomplete segments caused by transcription errors or fragmented input.
+            #
             # Only flush the completed segments, not the entire chunk
             if completed_text:
                 logging.info(f"Flushing completed text from buffer: {len(completed_text)} chars")
