@@ -10,7 +10,7 @@ class TestDecisionTree(unittest.TestCase):
     def test_append_to_node(self):
         dt = DecisionTree()
         node_id = dt.create_new_node("test_node", None, "test_content", "test_summary")
-        dt.tree[node_id].append_content("appended content")
+        dt.append_node_content(node_id, "appended content")
         self.assertIn("appended content", dt.tree[node_id].content)
 
     def test_create_new_node(self):
