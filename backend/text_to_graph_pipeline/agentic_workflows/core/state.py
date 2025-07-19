@@ -18,6 +18,9 @@ class AppendToRelevantNodeAgentState(TypedDict):
     segments: Optional[List[Dict[str, Any]]]  # From segmentation/transform (can be dict or SegmentModel)
     target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target (can be dict or TargetNodeIdentification)
     _all_segments: Optional[List[Dict[str, Any]]]  # Preserved segments from segmentation
+    
+    # Debug information
+    debug_notes: Optional[str]  # Debug notes for skipped steps
 
 
 class SingleAbstractionOptimizerAgentState(TypedDict):

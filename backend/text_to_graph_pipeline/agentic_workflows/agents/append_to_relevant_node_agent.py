@@ -66,6 +66,15 @@ class AppendToRelevantNodeAgent(Agent):
         # Filter out incomplete segments
         complete_segments = [segment for segment in segments if segment.is_complete]
         
+        # If all segments are unfinished, skip target node identification
+        if not complete_segments:
+            return {
+                **state,
+                "_all_segments": all_segments_dicts,
+                "segments": [],
+                "target_nodes": []  # Set empty target_nodes to avoid LLM call
+            }
+        
         # Prepare segments for target identification - only pass text field
         segments_for_target = [{"text": segment.text} for segment in complete_segments]
         

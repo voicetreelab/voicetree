@@ -219,7 +219,7 @@ class TreeActionDeciderWorkflow:
                 # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
                 optimization_actions = await self.optimizer_agent.run(
                     node_id=node_id,
-                    decision_tree=self.decision_tree 
+                    decision_tree=self.decision_tree
                 )
                 
                 if optimization_actions:
