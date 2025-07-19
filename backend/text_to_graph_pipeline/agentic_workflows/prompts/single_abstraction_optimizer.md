@@ -125,21 +125,19 @@ neighbors: []
       "name": "Configure Development Environment",
       "content": "Configure the development environment with Node.js and npm.",
       "summary": "Set up Node.js and npm for local development.",
-      "node_type": "Task",
-      "relationship": "is a component of"
+      "relationship": "is a component of",
+      "invalid_field": "This field doesn't exist in ChildNodeSpec!"
     },
     {
       "name": "Set Up PostgreSQL Database",
       "content": "The database will use PostgreSQL with specific performance tuning.",
       "summary": "Install and tune PostgreSQL database.",
-      "node_type": "Task",
       "relationship": "is a component of"
     },
     {
       "name": "Implement CI/CD Pipeline",
       "content": "Frontend deployment requires setting up CI/CD pipeline with GitHub Actions.",
       "summary": "Create a GitHub Actions pipeline for automated deployment.",
-      "node_type": "Task",
       "relationship": "is a component of"
     }
   ],
