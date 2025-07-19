@@ -24,7 +24,7 @@ class CONFIG:
     """Central configuration for LLM integration"""
     
     # Model selection
-    DEFAULT_MODEL = "gemini-2.0-flash"
+    DEFAULT_MODEL = "gemini-2.5-flash-lite-preview-06-17"
     
     # System prompts
     STRUCTURED_SYSTEM_PROMPT = "You are a helpful assistant that provides structured JSON responses. You work ONLY with the data provided in the prompt - you have no ability to fetch additional data, use tools, or access external information. All necessary data is included in the prompt."

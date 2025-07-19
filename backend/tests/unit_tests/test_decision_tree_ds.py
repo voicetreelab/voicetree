@@ -16,9 +16,9 @@ class TestDecisionTree(unittest.TestCase):
     def test_create_new_node(self):
         dt = DecisionTree()
         new_node_id = dt.create_new_node("test_node", None, "test_content", "test_summary")
-        self.assertEqual(new_node_id, 0)
-        self.assertIn(0, dt.tree)
-        self.assertEqual(dt.tree[0].parent_id, None)
+        self.assertEqual(new_node_id, 1)
+        self.assertIn(1, dt.tree)
+        self.assertEqual(dt.tree[1].parent_id, None)
 
     def test_get_recent_nodes(self):
         dt = DecisionTree()

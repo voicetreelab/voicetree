@@ -182,6 +182,54 @@ CONTENT:
         f.write(log_entry)
     
 
+def log_llm_io(stage_name: str, prompt: str, response: Any, model_name: str = "unknown"):
+    """
+    Log the actual LLM prompt and response for debugging
+    
+    Args:
+        stage_name: Name of the stage (e.g., "single_abstraction_optimizer")
+        prompt: The full prompt sent to the LLM
+        response: The LLM response (can be string or structured object)
+        model_name: The model that was used
+    """
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    log_file = DEBUG_DIR / f"{stage_name}_llm_io.txt"
+    
+    # Format response based on type
+    if hasattr(response, 'model_dump'):
+        # Pydantic model
+        response_str = json.dumps(response.model_dump(), indent=2)
+    elif isinstance(response, dict):
+        response_str = json.dumps(response, indent=2)
+    else:
+        response_str = str(response)
+    
+    log_entry = f"""
+==========================================
+{stage_name.upper()} LLM I/O - {timestamp}
+==========================================
+
+MODEL: {model_name}
+
+PROMPT SENT TO LLM:
+------------------
+{prompt}
+------------------
+
+LLM RESPONSE:
+------------
+{response_str}
+------------
+
+==========================================
+
+"""
+    
+    # Append to the stage's LLM I/O debug file
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
+
 def create_debug_summary():
     """
     Create a summary of all debug logs

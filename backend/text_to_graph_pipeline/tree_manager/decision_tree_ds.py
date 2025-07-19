@@ -83,8 +83,11 @@ class DecisionTree:
         # Increment AFTER successful creation
         self.next_node_id += 1
         
-        # Write markdown for the new node
-        self._write_markdown_for_nodes([new_node_id])
+        # Write markdown for the new node and its parent (if exists)
+        nodes_to_update = [new_node_id]
+        if parent_node_id is not None:
+            nodes_to_update.append(parent_node_id)
+        self._write_markdown_for_nodes(nodes_to_update)
 
         return new_node_id
     
