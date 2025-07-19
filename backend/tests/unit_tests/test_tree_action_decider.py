@@ -1,17 +1,17 @@
 """
-Unit tests for TreeActionDecider orchestrator using TDD approach.
+Unit tests for TreeActionDeciderWorkflow.
 
 These tests use mocks to verify orchestration logic without running actual LLMs.
-Tests focus on:
+Tests focus on high-level behavior:
 1. Correct agent orchestration order
-2. Placement actions staying internal
-3. Optimization action aggregation
-4. Edge case handling
+2. Tree state changes after workflow execution
+3. Edge case handling
+4. Orphan node merging
 """
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from typing import List
+from typing import List, Set
 
 # Import models first (these should exist)
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
@@ -23,20 +23,7 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
     SegmentModel
 )
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-
-# This import will fail until TreeActionDecider is implemented
-# We'll use a temporary stub for TDD
-try:
-    from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow as TreeActionDecider
-except ImportError:
-    # TDD stub - will be replaced when actual implementation exists
-    class TreeActionDecider:
-        def __init__(self):
-            self.append_agent = None
-            self.optimizer_agent = None
-            
-        async def run(self, transcript_text: str, decision_tree, transcript_history: str = "") -> List:
-            raise NotImplementedError("TreeActionDecider not implemented yet")
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
 
 
 def create_mock_append_result(actions):
@@ -59,8 +46,8 @@ def create_mock_append_result(actions):
     )
 
 
-class TestTreeActionDeciderUnit:
-    """Unit tests for TreeActionDecider orchestration logic"""
+class TestTreeActionDeciderWorkflow:
+    """Unit tests for TreeActionDeciderWorkflow orchestration logic"""
     
     @pytest.fixture
     def mock_append_agent(self):
@@ -97,16 +84,16 @@ class TestTreeActionDeciderUnit:
         return tree
     
     @pytest.fixture
-    def orchestrator(self, mock_append_agent, mock_optimizer_agent):
-        """Create TreeActionDecider with mocked dependencies"""
-        decider = TreeActionDecider()
-        decider.append_agent = mock_append_agent
-        decider.optimizer_agent = mock_optimizer_agent
-        return decider
+    def workflow(self, mock_append_agent, mock_optimizer_agent):
+        """Create TreeActionDeciderWorkflow with mocked dependencies"""
+        workflow = TreeActionDeciderWorkflow()
+        workflow.append_agent = mock_append_agent
+        workflow.optimizer_agent = mock_optimizer_agent
+        return workflow
     
     @pytest.mark.asyncio
-    async def test_orchestrator_calls_agents_in_correct_order(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent, 
+    async def test_workflow_calls_agents_in_correct_order(
+        self, workflow, mock_append_agent, mock_optimizer_agent, 
         mock_tree_applier, simple_tree
     ):
         """Test Case 1: Verify two-step pipeline execution order"""
@@ -149,8 +136,8 @@ class TestTreeActionDeciderUnit:
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
-            # When: Run orchestrator
-            result = await orchestrator.run(
+            # When: Run workflow
+            result = await workflow.run(
                 transcript_text="Test transcript",
                 decision_tree=simple_tree,
                 transcript_history=""
@@ -165,21 +152,20 @@ class TestTreeActionDeciderUnit:
         )
         
         # 2. TreeActionApplier called with placement actions
-        mock_tree_applier.apply.assert_called_once_with(placement_actions)
+        mock_tree_applier.apply.assert_called()
         
         # 3. OptimizerAgent called for each modified node
         assert mock_optimizer_agent.run.call_count == 2  # Called for nodes 1 and 99
         
-        # 4. Both placement and optimization actions returned
-        # We expect placement_actions + (optimization_actions * 2)
-        assert len(result) == len(placement_actions) + 2  # placement actions + 2 optimization actions
+        # 4. Workflow now returns empty list (backwards compatibility)
+        assert result == []
     
     @pytest.mark.asyncio
-    async def test_placement_and_optimization_actions_returned(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent,
+    async def test_workflow_applies_actions_immediately(
+        self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
-        """Test Case 2: Both placement and optimization actions should be in final output"""
+        """Test Case 2: Actions are applied immediately, not returned"""
         # Given: AppendAgent returns placement actions
         placement_actions = [
             AppendAction(action="APPEND", target_node_id=1, content="Append this"),
@@ -203,31 +189,33 @@ class TestTreeActionDeciderUnit:
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
-            # When: Run orchestrator
-            result = await orchestrator.run(
+            # When: Run workflow
+            result = await workflow.run(
                 transcript_text="Test",
                 decision_tree=simple_tree
             )
         
-        # Then: Output contains BOTH placement and optimization actions
-        # Since we return both types now, we should see both
-        assert len(result) == len(placement_actions) + 1  # placement + 1 optimization action
+        # Then: 
+        # 1. TreeActionApplier called twice (placement + optimization)
+        assert mock_tree_applier.apply.call_count == 2
         
-        # Verify both types are present
-        append_actions = [a for a in result if isinstance(a, AppendAction)]
-        create_actions = [a for a in result if isinstance(a, CreateAction)]
-        update_actions = [a for a in result if isinstance(a, UpdateAction)]
+        # 2. First call was with placement actions
+        first_call_actions = mock_tree_applier.apply.call_args_list[0][0][0]
+        assert len(first_call_actions) == 2
         
-        assert len(append_actions) == 1  # Original append action
-        assert len(create_actions) == 1  # Original create action
-        assert len(update_actions) == 1  # From optimizer
+        # 3. Second call was with optimization actions
+        second_call_actions = mock_tree_applier.apply.call_args_list[1][0][0]
+        assert len(second_call_actions) == 1
+        
+        # 4. Workflow returns empty list (for backwards compatibility)
+        assert result == []
     
     @pytest.mark.asyncio
     async def test_tracks_modified_nodes_from_placement(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent,
+        self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
-        """Test Case 3: Orchestrator tracks which nodes were modified"""
+        """Test Case 3: Workflow tracks which nodes were modified"""
         # Given: Placement actions that modify specific nodes
         placement_actions = [
             AppendAction(action="APPEND", target_node_id=1, content="Content 1"),
@@ -253,8 +241,8 @@ class TestTreeActionDeciderUnit:
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
-            # When: Run orchestrator
-            await orchestrator.run(
+            # When: Run workflow
+            await workflow.run(
                 transcript_text="Test",
                 decision_tree=simple_tree
             )
@@ -270,16 +258,23 @@ class TestTreeActionDeciderUnit:
         assert called_node_ids == modified_nodes
     
     @pytest.mark.asyncio
-    async def test_aggregates_optimization_actions(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent,
+    async def test_optimization_actions_applied_per_node(
+        self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
-        """Test Case 4: All optimization actions are collected and returned"""
+        """Test Case 4: Optimization actions are applied immediately for each node"""
         # Given: 3 modified nodes
         mock_append_agent.run.return_value = create_mock_append_result([
             AppendAction(action="APPEND", target_node_id=1, content="Test")
         ])
-        mock_tree_applier.apply.return_value = {1, 2, 3}
+        
+        # First apply returns modified nodes
+        mock_tree_applier.apply.side_effect = [
+            {1, 2, 3},  # First call (placement) returns these modified nodes
+            {1},        # Second call (optimization for node 1)
+            {2},        # Third call (optimization for node 2)
+            {3}         # Fourth call (optimization for node 3)
+        ]
         
         # Each node produces different optimization actions
         def optimizer_side_effect(node_id, **kwargs):
@@ -316,27 +311,25 @@ class TestTreeActionDeciderUnit:
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
-            # When: Run orchestrator
-            result = await orchestrator.run(
+            # When: Run workflow
+            result = await workflow.run(
                 transcript_text="Test",
                 decision_tree=simple_tree
             )
         
-        # Then: Output contains placement action (1) + optimization actions (4)
-        assert len(result) == 5  # 1 placement + 4 optimization
+        # Then: 
+        # 1. TreeActionApplier called 4 times (1 placement + 3 optimization)
+        assert mock_tree_applier.apply.call_count == 4
         
-        # Count action types
-        append_count = sum(1 for a in result if isinstance(a, AppendAction))
-        update_count = sum(1 for a in result if isinstance(a, UpdateAction))
-        create_count = sum(1 for a in result if isinstance(a, CreateAction))
+        # 2. Optimizer called 3 times (once per modified node)
+        assert mock_optimizer_agent.run.call_count == 3
         
-        assert append_count == 1  # Original placement action
-        assert update_count == 2  # From optimization
-        assert create_count == 2  # From optimization
+        # 3. Result is empty list
+        assert result == []
     
     @pytest.mark.asyncio
     async def test_handles_empty_optimization_response(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent,
+        self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
         """Test Case 5: Gracefully handles when optimizer returns no actions"""
@@ -344,7 +337,10 @@ class TestTreeActionDeciderUnit:
         mock_append_agent.run.return_value = create_mock_append_result([
             AppendAction(action="APPEND", target_node_id=1, content="Test")
         ])
-        mock_tree_applier.apply.return_value = {1, 2, 3}
+        mock_tree_applier.apply.side_effect = [
+            {1, 2, 3},  # First call (placement)
+            {2}         # Second call (only node 2 had optimization)
+        ]
         
         # Mixed responses - some empty, some with actions
         def optimizer_side_effect(node_id, **kwargs):
@@ -360,22 +356,21 @@ class TestTreeActionDeciderUnit:
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
-            # When: Run orchestrator
-            result = await orchestrator.run(
+            # When: Run workflow
+            result = await workflow.run(
                 transcript_text="Test",
                 decision_tree=simple_tree
             )
         
-        # Then: Output contains placement action + non-empty optimization responses
-        assert len(result) == 2  # 1 placement + 1 optimization (only node 2 had actions)
+        # Then: 
+        # 1. Optimizer called 3 times (once per node)
+        assert mock_optimizer_agent.run.call_count == 3
         
-        # Verify we have the placement action and one update action
-        append_actions = [a for a in result if isinstance(a, AppendAction)]
-        update_actions = [a for a in result if isinstance(a, UpdateAction)]
+        # 2. TreeActionApplier called only twice (placement + only node 2's optimization)
+        assert mock_tree_applier.apply.call_count == 2
         
-        assert len(append_actions) == 1
-        assert len(update_actions) == 1
-        assert update_actions[0].node_id == 2
+        # 3. Result is empty list
+        assert result == []
     
     @pytest.mark.asyncio
     async def test_no_placement_actions(

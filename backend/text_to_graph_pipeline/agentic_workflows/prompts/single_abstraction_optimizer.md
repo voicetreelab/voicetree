@@ -57,7 +57,7 @@ You must respond with a single JSON object in this exact format:
       "relationship_description": "The human-readable, 'fill-in-the-blank' phrase."
     }
   ],
-  "debug_notes": "Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in determining whether to split, update, or take no action on the node."
+  "debug_notes": "Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in determining whether to split, update, or take no action on the node."
 }
 ```
 **Key points:**
@@ -106,4 +106,4 @@ neighbors: []
       "relationship_description": "is a component of"
     }
   ],
-  "debug_notes": "The node clearly contained three distinct tasks, making the SPLIT decision straightforward. The abstraction test failed as no single concise title could encompass all three technical components."
+  "debug_notes": null
