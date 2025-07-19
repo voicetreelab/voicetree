@@ -13,8 +13,10 @@ Node Summary: {{node_summary}}
 Node Content (raw text from user segments):
 {{node_content}}
 
-Node's Neighbors (for context):
+Node's Neighbors (for context - includes id, name, summary, and relationship only):
 {{neighbors}}
+
+IMPORTANT: You have all the data you need. The neighbors data above contains name, summary, and relationship information. You do NOT need to read the full content of neighbor nodes - work only with the information provided above.
 
 ## Analysis & Decision Process
 
@@ -27,9 +29,11 @@ Node's Neighbors (for context):
    - Note the thought progression evident in the content
 
 2. **Analyze Neighbor Context:**
-   - Use `neighbors` to understand the node's place in the wider graph
-   - Identify conceptual relationships and dependencies
-   - Understand the abstraction level relative to surrounding nodes
+   - If neighbors exist, use their **names and summaries** to understand the node's place in the wider graph
+   - If neighbors is empty (standalone/orphan node), infer context from the node content itself
+   - Identify conceptual relationships based on the neighbor summaries and relationship types provided
+   - Understand the abstraction level relative to surrounding nodes using only the information given
+   - NOTE: You only have neighbor summaries, NOT their full content - this is sufficient for analysis
 
 ### Stage 2: Content Integration & Consolidation
 **Goal:** Transform potentially fragmented content into a cohesive, well-structured document while preserving 100% of the original meaning.
@@ -79,7 +83,7 @@ Node's Neighbors (for context):
 You must respond with a single JSON object in this exact format:
 ```json
 {
-  "reasoning": "COMPREHENSIVE analysis including ALL three stages: (1) Stage 1 - Contextual Understanding: Your understanding of the node within transcript history and neighbor context. (2) Stage 2 - Content Integration: Describe how you integrated the content, what redundancies were removed, how flow was improved, and confirm that 100% of original meaning is preserved. Include the integrated content here. (3) Stage 3 - Optimization Decision: Your detailed reasoning about the optimization decision (UPDATE, SPLIT, or NO_ACTION), including structural patterns identified and abstraction test results.",
+  "reasoning": "COMPREHENSIVE analysis including ALL three stages: (1) Stage 1 - Contextual Understanding: Your understanding of the node within its graph structure and neighbor context (or note if node is standalone/orphan with no neighbors). (2) Stage 2 - Content Integration: Describe how you integrated the content, what redundancies were removed, how flow was improved, and confirm that 100% of original meaning is preserved. Include the integrated content here. (3) Stage 3 - Optimization Decision: Your detailed reasoning about the optimization decision (UPDATE, SPLIT, or NO_ACTION), including structural patterns identified and abstraction test results.",
   "update_original": true/false,
   "original_new_content": "Updated content for the original node. Use the integrated content from your Stage 2 analysis. Required if update_original is true.",
   "original_new_summary": "Updated summary for the original node. Required if update_original is true.",

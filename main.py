@@ -25,8 +25,7 @@ workflow_state_file = os.path.join(temp_dir, "voicetree_workflow_state.json")
 decision_tree = DecisionTree()
 converter = TreeToMarkdownConverter(decision_tree.tree)
 processor = ChunkProcessor(decision_tree, 
-                          converter=converter, 
-                          workflow_state_file=workflow_state_file)
+                          converter=converter)
 
 async def main():
     # Clear debug logs at the start of each main.py run
