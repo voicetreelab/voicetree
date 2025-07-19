@@ -175,8 +175,6 @@ class ChunkProcessor:
         
         # Log the tree hierarchy
         for node_id, node in self.decision_tree.tree.items():
-            if node_id == 0:
-                continue  # Skip root for cleaner output
             parent_name = self.decision_tree.tree[node.parent_id].title if node.parent_id is not None else "None"
             logging.info(f"Node {node_id}: '{node.title}' (parent: '{parent_name}')")
         

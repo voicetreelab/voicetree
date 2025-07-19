@@ -32,7 +32,7 @@ class Node:
 class DecisionTree:
     def __init__(self, output_dir: Optional[str] = None):
         self.tree: Dict[int, Node] = {}
-        self.next_node_id: int = 0
+        self.next_node_id: int = 1
         self.output_dir = output_dir or "markdownTreeVaultDefault"
         self._markdown_converter: Optional[TreeToMarkdownConverter] = None
     
@@ -135,6 +135,50 @@ class DecisionTree:
         # Write markdown for the updated node
         self._write_markdown_for_nodes([node_id])
 
+    def find_node_by_name(self, name: str, similarity_threshold: float = 0.8) -> Optional[int]:
+        """
+        Find a node by its name using fuzzy matching.
+        
+        Args:
+            name: The name to search for
+            similarity_threshold: Minimum similarity score (0.0 to 1.0)
+            
+        Returns:
+            Node ID if found, None otherwise
+        """
+        if not name or not self.tree:
+            return None
+            
+        # First try exact match (case-insensitive)
+        for node_id, node in self.tree.items():
+            if node.title.lower() == name.lower():
+                return node_id
+        
+        # If no exact match, try fuzzy matching
+        node_names = []
+        node_ids = []
+        for node_id, node in self.tree.items():
+            node_names.append(node.title.lower())
+            node_ids.append(node_id)
+        
+        # Find closest match
+        closest_matches = difflib.get_close_matches(
+            name.lower(), 
+            node_names, 
+            n=1, 
+            cutoff=similarity_threshold
+        )
+        
+        if closest_matches:
+            # Find the ID of the matching node
+            matched_name = closest_matches[0]
+            for i, node_name in enumerate(node_names):
+                if node_name == matched_name:
+                    logging.info(f"Found fuzzy match: '{name}' matched to '{self.tree[node_ids[i]].title}' (ID: {node_ids[i]})")
+                    return node_ids[i]
+                    
+        return None
+    
     def _find_similar_child(self, name: str, parent_node_id: int | None, similarity_threshold: float = 0.8) -> Optional[int]:
         """
         Check if a similar node already exists as a child of the given parent.
