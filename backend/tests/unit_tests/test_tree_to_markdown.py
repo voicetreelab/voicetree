@@ -120,6 +120,10 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
     def test_generate_filename_from_keywords(self):
         self.assertEqual(generate_filename_from_keywords("Test"), "Test.md")
         self.assertEqual(generate_filename_from_keywords("Another Test"), "Another_Test.md")
+        # Test handling of newlines
+        self.assertEqual(generate_filename_from_keywords("Voice Tree Project\n\nVoice Tree Project"), "Voice_Tree_Project_Voice_Tree_Project.md")
+        self.assertEqual(generate_filename_from_keywords("Line1\nLine2"), "Line1_Line2.md")
+        self.assertEqual(generate_filename_from_keywords("Line1\r\nLine2"), "Line1_Line2.md")
 
 
 if __name__ == '__main__':

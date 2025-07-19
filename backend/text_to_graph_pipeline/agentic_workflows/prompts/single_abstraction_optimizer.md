@@ -73,10 +73,6 @@ Node's Neighbors (for context):
    - For each child node, define its `relationship_description` using the **"fill-in-the-blank" method: `[Child Node Name] ______ [Parent Node Name]`**
    - The phrase should be concise (max 7 words) and form a natural sentence
 
-## Node Types
-
-When creating a new child node, you must assign it a `node_type` from the following list:
--   `Task`, `Problem`, `Decision`, `Question`, `Answer`, `Solution`, `Insight`, `Observation`
 
 ## Output Format
 
@@ -92,7 +88,6 @@ You must respond with a single JSON object in this exact format:
       "name": "Child Node Name",
       "content": "Content for this child node.",
       "summary": "A concise summary of this child's content.",
-      "node_type": "One of the defined Node Types.",
       "relationship": "The human-readable, 'fill-in-the-blank' phrase."
     }
   ],
@@ -125,8 +120,7 @@ neighbors: []
       "name": "Configure Development Environment",
       "content": "Configure the development environment with Node.js and npm.",
       "summary": "Set up Node.js and npm for local development.",
-      "relationship": "is a component of",
-      "invalid_field": "This field doesn't exist in ChildNodeSpec!"
+      "relationship": "is a component of"
     },
     {
       "name": "Set Up PostgreSQL Database",
