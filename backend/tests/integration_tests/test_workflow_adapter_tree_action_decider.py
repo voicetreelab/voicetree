@@ -1,17 +1,19 @@
 """
-TDD Integration tests for TreeActionDeciderWorkflow
+Integration tests for TreeActionDeciderWorkflow
 """
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
-    TreeActionDeciderWorkflow, WorkflowResult
+    TreeActionDeciderWorkflow
 )
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    UpdateAction, CreateAction, AppendAction
+    UpdateAction, CreateAction, AppendAction, AppendAgentResult, SegmentModel
 )
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 
 
 class TestTreeActionDeciderWorkflow:
@@ -29,68 +31,148 @@ class TestTreeActionDeciderWorkflow:
         """Create TreeActionDeciderWorkflow with decision tree"""
         return TreeActionDeciderWorkflow(decision_tree)
     
-    async def test_process_full_buffer_with_optimization_actions(self, workflow):
-        """TreeActionDeciderWorkflow should correctly process buffer and return WorkflowResult"""
+    @pytest.fixture
+    def mock_buffer_manager(self):
+        """Create mock TextBufferManager"""
+        buffer_manager = Mock(spec=TextBufferManager)
+        buffer_manager.flushCompletelyProcessedText = Mock()
+        return buffer_manager
+    
+    @pytest.fixture
+    def mock_tree_applier(self, decision_tree):
+        """Create mock TreeActionApplier"""
+        applier = Mock(spec=TreeActionApplier)
+        applier.apply = Mock()
+        return applier
+    
+    def create_append_result(self, actions, completed_text="Test content"):
+        """Helper to create AppendAgentResult"""
+        segments = []
+        for action in actions:
+            if hasattr(action, 'content'):
+                segments.append(SegmentModel(
+                    reasoning="Test reasoning",
+                    text=action.content,
+                    is_complete=True
+                ))
+        
+        return AppendAgentResult(
+            actions=actions,
+            segments=segments,
+            completed_text=completed_text
+        )
+    
+    @pytest.mark.asyncio
+    async def test_process_text_chunk_with_actions(self, workflow, mock_buffer_manager, mock_tree_applier):
+        """process_text_chunk should apply placement and optimization actions immediately"""
         # Given - mock the agents
         placement_actions = [
             AppendAction(action="APPEND", target_node_id=1, content="New content")
         ]
         optimization_actions = [
-            UpdateAction(action="UPDATE", node_id=1, new_content="Updated", new_summary="Summary"),
-            CreateAction(action="CREATE", parent_node_id=1, new_node_name="New Node", 
-                        content="Content", summary="Summary", relationship="child of")
+            UpdateAction(action="UPDATE", node_id=1, new_content="Updated", new_summary="Summary")
         ]
         
-        workflow.append_agent.run = AsyncMock(return_value=placement_actions)
+        workflow.append_agent.run = AsyncMock(return_value=self.create_append_result(placement_actions, "New content"))
         workflow.optimizer_agent.run = AsyncMock(return_value=optimization_actions)
         
-        # Patch TreeActionApplier
-        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
-            mock_applier = Mock()
-            mock_applier.apply.return_value = {1}  # node 1 was modified
-            mock_applier_class.return_value = mock_applier
-            
-            # When
-            result = await workflow.process_full_buffer("test transcript", "context")
+        # Mock tree applier to return modified nodes
+        mock_tree_applier.apply.side_effect = [
+            {1},  # First call (placement)
+            {1}   # Second call (optimization)
+        ]
+        
+        # When
+        modified_nodes = await workflow.process_text_chunk(
+            text_chunk="test transcript",
+            transcript_history_context="context",
+            tree_action_applier=mock_tree_applier,
+            buffer_manager=mock_buffer_manager
+        )
         
         # Then
-        assert result.success == True
-        assert result.tree_actions == optimization_actions
-        assert result.new_nodes == ["New Node"]  # Extracted from CREATE actions
-        assert result.metadata["actions_generated"] == 2
-        assert result.metadata["completed_chunks"] == ["test transcript"]
-        assert result.metadata["processed_text"] == "test transcript"
+        # 1. Both agents were called
+        workflow.append_agent.run.assert_called_once()
+        workflow.optimizer_agent.run.assert_called_once_with(
+            node_id=1,
+            decision_tree=workflow.decision_tree
+        )
+        
+        # 2. Actions were applied immediately
+        assert mock_tree_applier.apply.call_count == 2
+        
+        # 3. Buffer was flushed with completed text
+        mock_buffer_manager.flushCompletelyProcessedText.assert_called_once_with("New content")
+        
+        # 4. Modified nodes are returned
+        assert modified_nodes == {1}
     
-    async def test_process_full_buffer_with_no_actions(self, workflow):
+    @pytest.mark.asyncio
+    async def test_process_text_chunk_no_placement_actions(self, workflow, mock_buffer_manager, mock_tree_applier):
         """Should handle case when no placement actions are generated"""
         # Given
-        workflow.append_agent.run = AsyncMock(return_value=[])
+        workflow.append_agent.run = AsyncMock(return_value=self.create_append_result([], ""))
+        workflow.optimizer_agent.run = AsyncMock()  # Mock the optimizer agent
         
         # When
-        result = await workflow.process_full_buffer("test", "")
+        modified_nodes = await workflow.process_text_chunk(
+            text_chunk="test",
+            transcript_history_context="",
+            tree_action_applier=mock_tree_applier,
+            buffer_manager=mock_buffer_manager
+        )
         
         # Then
-        assert result.success == True
-        assert result.tree_actions == []
-        assert result.new_nodes == []
-        assert result.metadata["actions_generated"] == 0
+        # 1. No optimization or tree application
+        workflow.optimizer_agent.run.assert_not_called()
+        mock_tree_applier.apply.assert_not_called()
+        
+        # 2. No buffer flush when no completed text
+        mock_buffer_manager.flushCompletelyProcessedText.assert_not_called()
+        
+        # 3. Empty set returned
+        assert modified_nodes == set()
     
-    async def test_process_full_buffer_error_handling(self, workflow):
-        """Should handle errors gracefully"""
-        # Given
-        workflow.append_agent.run = AsyncMock(side_effect=Exception("Test error"))
+    @pytest.mark.asyncio
+    async def test_process_text_chunk_orphan_merging(self, workflow, mock_buffer_manager, mock_tree_applier):
+        """Multiple orphan nodes should be merged into one"""
+        # Given - multiple orphan CREATE actions
+        placement_actions = [
+            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Orphan 1", 
+                        content="Content 1", summary="Summary 1", relationship=""),
+            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Orphan 2", 
+                        content="Content 2", summary="Summary 2", relationship=""),
+            AppendAction(action="APPEND", target_node_id=1, content="Regular content")
+        ]
+        
+        workflow.append_agent.run = AsyncMock(return_value=self.create_append_result(placement_actions))
+        workflow.optimizer_agent.run = AsyncMock(return_value=[])
+        mock_tree_applier.apply.return_value = {1, 100}
         
         # When
-        result = await workflow.process_full_buffer("test", "")
+        await workflow.process_text_chunk(
+            text_chunk="test",
+            transcript_history_context="",
+            tree_action_applier=mock_tree_applier,
+            buffer_manager=mock_buffer_manager
+        )
         
-        # Then
-        assert result.success == False
-        assert result.error_message == "Workflow execution failed: Test error"
-        assert result.tree_actions == []
-        assert result.new_nodes == []
+        # Then - verify orphans were merged
+        applied_actions = mock_tree_applier.apply.call_args[0][0]
+        assert len(applied_actions) == 2  # 1 merged orphan + 1 append
+        
+        orphan_actions = [a for a in applied_actions if isinstance(a, CreateAction) and a.parent_node_id is None]
+        assert len(orphan_actions) == 1
+        
+        merged_orphan = orphan_actions[0]
+        assert "Orphan 1" in merged_orphan.new_node_name
+        assert "Orphan 2" in merged_orphan.new_node_name
+        assert "Content 1" in merged_orphan.content
+        assert "Content 2" in merged_orphan.content
     
-    async def test_run_method_returns_raw_actions(self, workflow):
-        """The run() method should return raw optimization actions without wrapping"""
+    @pytest.mark.asyncio
+    async def test_run_method_returns_optimization_actions(self, workflow):
+        """The run() method should return optimization actions"""
         # Given
         placement_actions = [
             AppendAction(action="APPEND", target_node_id=1, content="New content")
@@ -99,10 +181,10 @@ class TestTreeActionDeciderWorkflow:
             UpdateAction(action="UPDATE", node_id=1, new_content="Updated", new_summary="Summary")
         ]
         
-        workflow.append_agent.run = AsyncMock(return_value=placement_actions)
+        workflow.append_agent.run = AsyncMock(return_value=self.create_append_result(placement_actions))
         workflow.optimizer_agent.run = AsyncMock(return_value=optimization_actions)
         
-        # Patch TreeActionApplier
+        # Patch dependencies
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier = Mock()
             mock_applier.apply.return_value = {1}
@@ -113,5 +195,5 @@ class TestTreeActionDeciderWorkflow:
         
         # Then
         assert actions == optimization_actions
-        assert isinstance(actions, list)
-        assert all(isinstance(a, (UpdateAction, CreateAction)) for a in actions)
+        assert len(actions) == 1
+        assert isinstance(actions[0], UpdateAction)

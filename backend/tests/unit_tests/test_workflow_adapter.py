@@ -1,14 +1,17 @@
 import asyncio
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
+from unittest.mock import AsyncMock, Mock
 
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, CreateAction, UpdateAction
+    AppendAction, CreateAction, UpdateAction, AppendAgentResult, SegmentModel
 )
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
-    TreeActionDeciderWorkflow, WorkflowResult)
+    TreeActionDeciderWorkflow
+)
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
     DecisionTree, Node)
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 
 
 class TestTreeActionDeciderWorkflow(unittest.TestCase):
@@ -27,20 +30,19 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
         
         self.workflow = TreeActionDeciderWorkflow(self.decision_tree)
     
-    def test_workflow_initialization(self):
-        """Test that TreeActionDeciderWorkflow initializes correctly"""
-        # Assert
-        self.assertEqual(self.workflow.decision_tree, self.decision_tree)
-        self.assertIsNotNone(self.workflow.append_agent)
-        self.assertIsNotNone(self.workflow.optimizer_agent)
-    
-    def test_process_full_buffer_with_actions(self):
-        """Test process_full_buffer with successful actions"""
+    def test_process_text_chunk_with_actions(self):
+        """Test process_text_chunk with successful actions"""
         async def async_test():
             # Mock the agents
             placement_actions = [
                 AppendAction(action="APPEND", target_node_id=1, content="New content")
             ]
+            placement_result = AppendAgentResult(
+                actions=placement_actions,
+                completed_text="Test transcript",
+                segments=[SegmentModel(reasoning="test", text="Test transcript", is_complete=True)]
+            )
+            
             optimization_actions = [
                 CreateAction(
                     action="CREATE", 
@@ -58,160 +60,144 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
                 )
             ]
             
-            self.workflow.append_agent.run = AsyncMock(return_value=placement_actions)
+            self.workflow.append_agent.run = AsyncMock(return_value=placement_result)
             self.workflow.optimizer_agent.run = AsyncMock(return_value=optimization_actions)
             
-            # Patch TreeActionApplier
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
-                mock_applier = Mock()
-                mock_applier.apply.return_value = {1}  # node 1 was modified
-                mock_applier_class.return_value = mock_applier
-                
-                # Act
-                result = await self.workflow.process_full_buffer("Test transcript")
-                
-                # Assert
-                self.assertTrue(result.success)
-                self.assertEqual(len(result.tree_actions), 2)
-                self.assertEqual(result.new_nodes, ["New Concept"])
-                self.assertEqual(result.metadata["actions_generated"], 2)
-                self.assertEqual(result.metadata["processed_text"], "Test transcript")
-        
-        asyncio.run(async_test())
-    
-    def test_process_full_buffer_no_placement_actions(self):
-        """Test process_full_buffer when no placement actions are generated"""
-        async def async_test():
-            # Mock append agent to return empty list
-            self.workflow.append_agent.run = AsyncMock(return_value=[])
+            # Create mock dependencies
+            buffer_manager = Mock(spec=TextBufferManager)
+            buffer_manager.flushCompletelyProcessedText = Mock()
+            tree_applier = Mock(spec=TreeActionApplier)
+            tree_applier.apply = Mock(return_value={1})  # node 1 was modified
             
             # Act
-            result = await self.workflow.process_full_buffer("Test transcript")
+            result = await self.workflow.process_text_chunk(
+                "Test transcript", 
+                "history",
+                tree_applier,
+                buffer_manager
+            )
             
             # Assert
-            self.assertTrue(result.success)
-            self.assertEqual(len(result.tree_actions), 0)
-            self.assertEqual(result.new_nodes, [])
-            self.assertEqual(result.metadata["actions_generated"], 0)
+            self.assertEqual(result, {1})  # Returns set of modified nodes
+            # Verify buffer was flushed
+            buffer_manager.flushCompletelyProcessedText.assert_called_once_with("Test transcript")
+            # Verify actions were applied
+            self.assertEqual(tree_applier.apply.call_count, 2)  # Once for placement, once for optimization
         
         asyncio.run(async_test())
     
-    def test_process_full_buffer_only_update_actions(self):
-        """Test process_full_buffer with only UPDATE actions (no new nodes)"""
+    def test_process_text_chunk_no_placement_actions(self):
+        """Test process_text_chunk when no placement actions are generated"""
         async def async_test():
-            placement_actions = [
-                AppendAction(action="APPEND", target_node_id=1, content="New content")
-            ]
-            optimization_actions = [
-                UpdateAction(
-                    action="UPDATE",
-                    node_id=1,
-                    new_content="Updated content",
-                    new_summary="Updated summary"
-                )
-            ]
+            # Mock append agent to return empty actions
+            placement_result = AppendAgentResult(
+                actions=[],
+                completed_text="",
+                segments=[]
+            )
+            self.workflow.append_agent.run = AsyncMock(return_value=placement_result)
+            self.workflow.optimizer_agent.run = AsyncMock()  # Mock optimizer too
             
-            self.workflow.append_agent.run = AsyncMock(return_value=placement_actions)
-            self.workflow.optimizer_agent.run = AsyncMock(return_value=optimization_actions)
+            # Create mock dependencies
+            buffer_manager = Mock(spec=TextBufferManager)
+            tree_applier = Mock(spec=TreeActionApplier)
             
-            # Patch TreeActionApplier
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
-                mock_applier = Mock()
-                mock_applier.apply.return_value = {1}
-                mock_applier_class.return_value = mock_applier
-                
-                # Act
-                result = await self.workflow.process_full_buffer("This is a test")
-                
-                # Assert
-                self.assertTrue(result.success)
-                self.assertEqual(len(result.tree_actions), 1)
-                self.assertEqual(result.new_nodes, [])  # No CREATE actions
-                self.assertIsInstance(result.tree_actions[0], UpdateAction)
+            # Act
+            result = await self.workflow.process_text_chunk(
+                "Test transcript",
+                "history", 
+                tree_applier,
+                buffer_manager
+            )
+            
+            # Assert
+            self.assertEqual(result, set())  # No nodes modified
+            # Optimizer should not be called if no placement actions
+            self.workflow.optimizer_agent.run.assert_not_called()
         
         asyncio.run(async_test())
     
-    def test_process_full_buffer_handles_errors(self):
+    def test_process_text_chunk_handles_errors(self):
         """Test that errors are handled gracefully"""
         async def async_test():
             # Mock agent to raise exception
             self.workflow.append_agent.run = AsyncMock(side_effect=Exception("Pipeline crashed"))
             
-            # Act
-            result = await self.workflow.process_full_buffer("This is a test")
+            # Create mock dependencies
+            buffer_manager = Mock(spec=TextBufferManager)
+            tree_applier = Mock(spec=TreeActionApplier)
             
-            # Assert
-            self.assertFalse(result.success)
-            self.assertEqual(result.tree_actions, [])
-            self.assertEqual(result.new_nodes, [])
-            self.assertIn("Pipeline crashed", result.error_message)
+            # Act
+            result = await self.workflow.process_text_chunk(
+                "This is a test",
+                "history",
+                tree_applier,
+                buffer_manager
+            )
+            
+            # Assert - should return empty set on error
+            self.assertEqual(result, set())
+            # No actions should have been applied
+            tree_applier.apply.assert_not_called()
         
         asyncio.run(async_test())
     
-    def test_run_method_returns_optimization_actions(self):
-        """Test that run() method returns only optimization actions"""
+    def test_orphan_node_merging(self):
+        """Test that multiple orphan nodes are merged into one"""
         async def async_test():
+            # Mock multiple orphan create actions
             placement_actions = [
-                AppendAction(action="APPEND", target_node_id=1, content="New content")
+                CreateAction(
+                    action="CREATE",
+                    parent_node_id=None,  # Orphan
+                    new_node_name="Orphan 1",
+                    content="Content 1",
+                    summary="Summary 1",
+                    relationship=""
+                ),
+                CreateAction(
+                    action="CREATE", 
+                    parent_node_id=None,  # Orphan
+                    new_node_name="Orphan 2",
+                    content="Content 2", 
+                    summary="Summary 2",
+                    relationship=""
+                ),
+                AppendAction(action="APPEND", target_node_id=1, content="Regular append")
             ]
-            optimization_actions = [
-                UpdateAction(
-                    action="UPDATE",
-                    node_id=1,
-                    new_content="Updated content",
-                    new_summary="Updated summary"
-                )
-            ]
+            placement_result = AppendAgentResult(
+                actions=placement_actions,
+                completed_text="Test",
+                segments=[SegmentModel(reasoning="test", text="Test", is_complete=True)]
+            )
             
-            self.workflow.append_agent.run = AsyncMock(return_value=placement_actions)
-            self.workflow.optimizer_agent.run = AsyncMock(return_value=optimization_actions)
+            self.workflow.append_agent.run = AsyncMock(return_value=placement_result)
+            self.workflow.optimizer_agent.run = AsyncMock(return_value=[])
             
-            # Patch TreeActionApplier
-            with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
-                mock_applier = Mock()
-                mock_applier.apply.return_value = {1}
-                mock_applier_class.return_value = mock_applier
-                
-                # Act
-                actions = await self.workflow.run("This is new text", self.decision_tree, "context")
-                
-                # Assert
-                self.assertEqual(actions, optimization_actions)
-                # Verify placement actions were not returned
-                self.assertNotIn(placement_actions[0], actions)
-        
-        asyncio.run(async_test())
-    
-    def test_get_workflow_statistics(self):
-        """Test getting workflow statistics"""
-        # Act
-        stats = self.workflow.get_workflow_statistics()
-        
-        # Assert
-        self.assertIn("total_nodes", stats)
-        self.assertEqual(stats["total_nodes"], 2)  # We have 2 nodes in our test tree
-        self.assertIn("message", stats)
-    
-    def test_clear_workflow_state(self):
-        """Test clearing workflow state (should be a no-op for stateless workflow)"""
-        # Act
-        self.workflow.clear_workflow_state()
-        
-        # Assert - nothing to assert as it's a no-op, just ensure no errors
-        self.assertTrue(True)
-    
-    def test_workflow_without_decision_tree(self):
-        """Test workflow behavior when no decision tree is set"""
-        async def async_test():
-            # Create workflow without decision tree
-            workflow = TreeActionDeciderWorkflow()
+            # Create mock dependencies
+            buffer_manager = Mock(spec=TextBufferManager)
+            buffer_manager.flushCompletelyProcessedText = Mock()
+            tree_applier = Mock(spec=TreeActionApplier)
+            tree_applier.apply = Mock(return_value={1})
             
             # Act
-            result = await workflow.process_full_buffer("Test", "context")
+            await self.workflow.process_text_chunk(
+                "Test",
+                "history", 
+                tree_applier,
+                buffer_manager
+            )
             
-            # Assert
-            self.assertFalse(result.success)
-            self.assertIn("No decision tree", result.error_message)
+            # Assert - should have merged orphans
+            call_args = tree_applier.apply.call_args_list[0][0][0]  # First call, first arg
+            # Should have 2 actions: 1 merged orphan + 1 append
+            self.assertEqual(len(call_args), 2)
+            # Check the merged orphan
+            merged_orphan = next(a for a in call_args if isinstance(a, CreateAction) and a.parent_node_id is None)
+            self.assertIn("Orphan 1", merged_orphan.new_node_name)
+            self.assertIn("Orphan 2", merged_orphan.new_node_name)
+            self.assertIn("Content 1", merged_orphan.content)
+            self.assertIn("Content 2", merged_orphan.content)
         
         asyncio.run(async_test())
 

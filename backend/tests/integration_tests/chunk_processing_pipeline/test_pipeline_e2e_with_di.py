@@ -60,45 +60,39 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
         self.calls = []
         self.created_nodes = []
         
-    async def run(
-        self,
-        transcript_text: str,
-        decision_tree: DecisionTree,
-        transcript_history: str = ""
-    ) -> List[Any]:
+    async def process_text_chunk(
+        self, 
+        text_chunk: str, 
+        transcript_history_context: str,
+        tree_action_applier,
+        buffer_manager
+    ):
         """
-        Mock implementation of TreeActionDecider.run()
+        Mock implementation of TreeActionDeciderWorkflow.process_text_chunk()
         
-        Simulates the orchestrator behavior:
-        1. Segments the transcript into chunks
-        2. Creates tree actions for each chunk
-        3. Returns list of optimization actions
+        Simulates the workflow behavior by creating and applying tree actions
         """
         self.call_count += 1
         self.calls.append({
-            "transcript_text": transcript_text,
-            "decision_tree": decision_tree,
-            "transcript_history": transcript_history
+            "text_chunk": text_chunk,
+            "transcript_history_context": transcript_history_context
         })
         
         # Get existing node IDs from decision tree
-        existing_node_ids = list(decision_tree.tree.keys()) if decision_tree.tree else []
+        existing_node_ids = list(self.decision_tree.tree.keys()) if self.decision_tree.tree else []
         
-        # Simulate chunking - split transcript into 1-5 random chunks
         # Handle empty transcript
-        if not transcript_text.strip():
-            return []
+        if not text_chunk.strip():
+            return set()
         
-        # The mock simulates what TreeActionDecider would do:
-        # It would internally apply placement actions and return only optimization actions
-        optimization_actions = []
+        updated_nodes = set()
         
         # Simulate chunking - split transcript into 1-5 random chunks
-        words = transcript_text.split()
+        words = text_chunk.split()
         
         # Handle empty transcript
         if not words:
-            return []
+            return set()
         
         num_chunks = random.randint(1, min(5, len(words)))
         
@@ -112,19 +106,18 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
                 chunk_boundaries.append((boundaries[i], boundaries[i + 1]))
             chunk_boundaries.append((boundaries[-1], len(words)))
         
-        # Simulate internal placement and then optimization
+        # Simulate creating actions and applying them
         for i, (start, end) in enumerate(chunk_boundaries):
             chunk_text = " ".join(words[start:end])
             
-            # Simulate that TreeActionDecider might optimize some nodes
-            # Randomly decide to create an optimization action
-            if random.random() > 0.3:  # 70% chance to optimize
+            # Randomly decide to create an action
+            if random.random() > 0.3:  # 70% chance to create action
                 if not existing_node_ids or random.random() > 0.5:
-                    # CREATE action (optimization creating a new node)
+                    # CREATE action
                     node_name = f"Node_{len(self.created_nodes) + 1}"
                     self.created_nodes.append(node_name)
                     
-                    parent_id = random.choice(existing_node_ids) if existing_node_ids else None
+                    parent_id = random.choice(existing_node_ids) if existing_node_ids else 0
                     
                     action = CreateAction(
                         action="CREATE",
@@ -134,9 +127,15 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
                         summary=f"Summary of {node_name}",
                         relationship="child of"
                     )
-                    optimization_actions.append(action)
+                    
+                    # Apply the action
+                    result_nodes = tree_action_applier.apply([action])
+                    if result_nodes:
+                        for node_id in result_nodes:
+                            updated_nodes.add(node_id)
+                            existing_node_ids.append(node_id)
                 else:
-                    # UPDATE action (optimization updating existing node)
+                    # UPDATE action
                     target_id = random.choice(existing_node_ids)
                     action = UpdateAction(
                         action="UPDATE",
@@ -144,9 +143,16 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
                         new_content=chunk_text,
                         new_summary=f"Updated summary for chunk {i}"
                     )
-                    optimization_actions.append(action)
+                    
+                    # Apply the action
+                    result_nodes = tree_action_applier.apply([action])
+                    if result_nodes:
+                        updated_nodes.update(result_nodes)
         
-        return optimization_actions
+        # Clear buffer after processing
+        buffer_manager.clearBuffer()
+        
+        return updated_nodes
 
 
 class TestPipelineE2EWithDI:
@@ -232,19 +238,19 @@ class TestPipelineE2EWithDI:
         # Track what text the agent processes
         processed_texts = []
         
-        # Wrap the agent's run method to track processed text
-        original_run = mock_workflow.run
-        async def tracking_run(*args, **kwargs):
-            # Extract the transcript_text from kwargs
-            if 'transcript_text' in kwargs:
-                processed_texts.append(kwargs['transcript_text'])
+        # Wrap the workflow's process_text_chunk method to track processed text
+        original_process = mock_workflow.process_text_chunk
+        async def tracking_process(*args, **kwargs):
+            # Extract the text_chunk from kwargs or args
+            if 'text_chunk' in kwargs:
+                processed_texts.append(kwargs['text_chunk'])
             elif len(args) > 0:
                 processed_texts.append(args[0])
             
-            result = await original_run(*args, **kwargs)
+            result = await original_process(*args, **kwargs)
             return result
         
-        mock_workflow.run = tracking_run
+        mock_workflow.process_text_chunk = tracking_process
         
         # Send text through pipeline - needs to be >183 chars to trigger buffer
         test_text = ("The quick brown fox jumps over the lazy dog. " * 5 + 
