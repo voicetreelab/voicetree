@@ -157,8 +157,9 @@ class TestTreeActionDeciderWorkflow:
         # 3. OptimizerAgent called for each modified node
         assert mock_optimizer_agent.run.call_count == 2  # Called for nodes 1 and 99
         
-        # 4. Workflow now returns empty list (backwards compatibility)
-        assert result == []
+        # 4. Workflow returns optimization actions
+        assert len(result) == 2  # One optimization action per modified node
+        assert all(isinstance(action, UpdateAction) for action in result)
     
     @pytest.mark.asyncio
     async def test_workflow_applies_actions_immediately(
@@ -207,8 +208,9 @@ class TestTreeActionDeciderWorkflow:
         second_call_actions = mock_tree_applier.apply.call_args_list[1][0][0]
         assert len(second_call_actions) == 1
         
-        # 4. Workflow returns empty list (for backwards compatibility)
-        assert result == []
+        # 4. Workflow returns optimization actions
+        assert len(result) == 1  # One optimization action
+        assert isinstance(result[0], UpdateAction)
     
     @pytest.mark.asyncio
     async def test_tracks_modified_nodes_from_placement(
@@ -324,8 +326,12 @@ class TestTreeActionDeciderWorkflow:
         # 2. Optimizer called 3 times (once per modified node)
         assert mock_optimizer_agent.run.call_count == 3
         
-        # 3. Result is empty list
-        assert result == []
+        # 3. Result contains optimization actions  
+        assert len(result) == 4  # 2 + 1 + 1 = 4 total optimization actions
+        update_count = sum(1 for a in result if isinstance(a, UpdateAction))
+        create_count = sum(1 for a in result if isinstance(a, CreateAction))
+        assert update_count == 2  # From node 1 and node 2
+        assert create_count == 2  # From node 1 and node 3
     
     @pytest.mark.asyncio
     async def test_handles_empty_optimization_response(
@@ -369,20 +375,22 @@ class TestTreeActionDeciderWorkflow:
         # 2. TreeActionApplier called only twice (placement + only node 2's optimization)
         assert mock_tree_applier.apply.call_count == 2
         
-        # 3. Result is empty list
-        assert result == []
+        # 3. Result contains only non-empty optimization responses
+        assert len(result) == 1  # Only node 2 had optimization actions
+        assert isinstance(result[0], UpdateAction)
+        assert result[0].node_id == 2
     
     @pytest.mark.asyncio
     async def test_no_placement_actions(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent,
+        self, workflow, mock_append_agent, mock_optimizer_agent,
         simple_tree
     ):
         """Test Case 6: Handle when no placement needed"""
         # Given: AppendAgent returns empty list
         mock_append_agent.run.return_value = create_mock_append_result([])
         
-        # When: Run orchestrator
-        result = await orchestrator.run(
+        # When: Run workflow
+        result = await workflow.run(
             transcript_text="Test",
             decision_tree=simple_tree
         )
@@ -393,7 +401,7 @@ class TestTreeActionDeciderWorkflow:
     
     @pytest.mark.asyncio
     async def test_placement_creates_new_nodes(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent,
+        self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
         """Test Case 7: New nodes from CreateAction are optimized"""
@@ -411,7 +419,10 @@ class TestTreeActionDeciderWorkflow:
         mock_append_agent.run.return_value = create_mock_append_result(placement_actions)
         
         # TreeActionApplier reports new node 99 was created
-        mock_tree_applier.apply.return_value = {99}
+        mock_tree_applier.apply.side_effect = [
+            {99},  # First call (placement) creates node 99
+            {99}   # Second call (optimization) modifies node 99
+        ]
         
         # Mock optimizer response for new node
         mock_optimizer_agent.run.return_value = [
@@ -421,33 +432,29 @@ class TestTreeActionDeciderWorkflow:
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
-            # When: Run orchestrator
-            result = await orchestrator.run(
+            # When: Run workflow
+            result = await workflow.run(
                 transcript_text="Test",
                 decision_tree=simple_tree
             )
         
-        # Then: OptimizerAgent called for new node 99
-        # Note: It's called with a copy of the tree, not the original
+        # Then: 
+        # 1. OptimizerAgent called for new node 99
         assert mock_optimizer_agent.run.call_count == 1
         call_args = mock_optimizer_agent.run.call_args
         assert call_args.kwargs['node_id'] == 99
-        # The decision_tree will be a copy, so we can't compare object identity
         
-        # And both placement and optimization actions are returned
-        assert len(result) == 2  # 1 placement + 1 optimization
+        # 2. TreeActionApplier called twice (placement + optimization)
+        assert mock_tree_applier.apply.call_count == 2
         
-        # Verify we have both action types
-        create_actions = [a for a in result if isinstance(a, CreateAction) and not hasattr(a, 'node_id')]
-        update_actions = [a for a in result if isinstance(a, UpdateAction)]
-        
-        assert len(create_actions) == 1  # Original placement
-        assert len(update_actions) == 1  # From optimizer
-        assert update_actions[0].node_id == 99
+        # 3. Result contains optimization action for the new node
+        assert len(result) == 1
+        assert isinstance(result[0], UpdateAction)
+        assert result[0].node_id == 99
     
     @pytest.mark.asyncio
     async def test_orphan_nodes_merged_before_optimization(
-        self, orchestrator, mock_append_agent, mock_optimizer_agent,
+        self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
         """Test Case 8: Multiple orphan CREATE actions are merged into one mega node"""
@@ -482,7 +489,12 @@ class TestTreeActionDeciderWorkflow:
         mock_append_agent.run.return_value = create_mock_append_result(placement_actions)
         
         # Mock applier to return modified nodes
-        mock_tree_applier.apply.return_value = {1, 100, 101}  # 3 nodes modified
+        mock_tree_applier.apply.side_effect = [
+            {1, 100, 101},  # First call (placement with merged orphans)
+            {1},            # Optimization calls for each node
+            {100},
+            {101}
+        ]
         
         # Mock optimizer returns some optimization actions
         mock_optimizer_agent.run.return_value = [
@@ -492,15 +504,15 @@ class TestTreeActionDeciderWorkflow:
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
-            # When: Run orchestrator
-            result = await orchestrator.run(
+            # When: Run workflow
+            result = await workflow.run(
                 transcript_text="Test with orphans",
                 decision_tree=simple_tree
             )
         
         # Then: TreeActionApplier should receive merged actions (3 total: 1 append, 1 merged orphan, 1 regular create)
-        mock_tree_applier.apply.assert_called_once()
-        applied_actions = mock_tree_applier.apply.call_args[0][0]
+        first_apply_call = mock_tree_applier.apply.call_args_list[0]
+        applied_actions = first_apply_call[0][0]
         assert len(applied_actions) == 3
         
         # Verify orphan nodes were merged
@@ -509,9 +521,12 @@ class TestTreeActionDeciderWorkflow:
         merged_orphan = orphan_creates[0]
         assert "First Orphan" in merged_orphan.new_node_name
         assert "Second Orphan" in merged_orphan.new_node_name
+        assert "First orphan content" in merged_orphan.content
+        assert "Second orphan content" in merged_orphan.content
         
         # Optimizer should be called for each modified node
         assert mock_optimizer_agent.run.call_count == 3
         
-        # Result should include both placement (3) and optimization actions (3 x 1 = 3)
-        assert len(result) == 6  # 3 placement + 3 optimization actions
+        # Result should contain optimization actions (one per node)
+        assert len(result) == 3  # One optimization action per modified node
+        assert all(isinstance(action, UpdateAction) for action in result)

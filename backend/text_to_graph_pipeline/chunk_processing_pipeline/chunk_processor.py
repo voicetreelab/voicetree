@@ -44,7 +44,8 @@ class ChunkProcessor:
         self,
         decision_tree: DecisionTree,
         converter: Optional[TreeToMarkdownConverter] = None,
-        output_dir: str = output_dir_default
+        output_dir: str = output_dir_default,
+        workflow: Optional[TreeActionDeciderWorkflow] = None
     ):
         """
         Initialize the chunk processor (combines workflow tree manager and transcription processor)
@@ -53,6 +54,7 @@ class ChunkProcessor:
             decision_tree: The decision tree instance
             converter: Optional markdown converter (will create one if not provided)
             output_dir: Directory for markdown output
+            workflow: Optional workflow instance (will create one if not provided)
         """
         self.decision_tree = decision_tree
         self.nodes_to_update: Set[int] = set()
@@ -71,7 +73,7 @@ class ChunkProcessor:
         self.tree_action_applier = TreeActionApplier(decision_tree)
         
         # Initialize workflow
-        self.workflow = TreeActionDeciderWorkflow(decision_tree=decision_tree)
+        self.workflow = workflow or TreeActionDeciderWorkflow(decision_tree=decision_tree)
         
         logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
     
