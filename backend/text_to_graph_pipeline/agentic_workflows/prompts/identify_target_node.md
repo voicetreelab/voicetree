@@ -34,6 +34,7 @@ Each element in the `target_nodes` array MUST contain ALL of the following field
 *   `text`: The original text of the segment from the input (required, string).
 *   `reasoning`: Your analysis for choosing the target, explaining how you used the context (required, string).
 *   `target_node_id`: The ID of the chosen existing node OR -1 for a new node (required, integer).
+*   `target_node_name`: The name of the chosen existing node. This field is REQUIRED when `is_new_node` is false (when appending to existing node), and MUST be `null` when `is_new_node` is true (string or null).
 *   `is_new_node`: A boolean, `true` if a new node should be created, `false` otherwise (required, boolean).
 *   `new_node_name`: The proposed name for a new node. This field is REQUIRED when `is_new_node` is true, and MUST be `null` when `is_new_node` is false (string or null).
 
@@ -52,6 +53,7 @@ Each element in the `target_nodes` array MUST contain ALL of the following field
       "text": "It seems to be worst in the morning.",
       "reasoning": "The 'transcript_history' established the topic as dashboard performance. This segment provides a specific detail about that problem, so it belongs in the 'Dashboard Performance Issues' node.",
       "target_node_id": 2,
+      "target_node_name": "Dashboard Performance Issues",
       "is_new_node": false,
       "new_node_name": null
     },
@@ -59,6 +61,7 @@ Each element in the `target_nodes` array MUST contain ALL of the following field
       "text": "The database connection pool might be the culprit.",
       "reasoning": "This segment is a direct continuation of the previous one, proposing a potential cause for the performance issue. Based on the sequential context, it must be routed to the same destination: 'Dashboard Performance Issues'.",
       "target_node_id": 2,
+      "target_node_name": "Dashboard Performance Issues",
       "is_new_node": false,
       "new_node_name": null
     },
@@ -66,6 +69,7 @@ Each element in the `target_nodes` array MUST contain ALL of the following field
       "text": "Separately, I need to send out the invite for the kickoff meeting.",
       "reasoning": "The word 'Separately' signals a clear topic shift, breaking the sequential context. This new topic relates to project setup tasks, matching an existing global node.",
       "target_node_id": 1,
+      "target_node_name": "Project Setup Tasks",
       "is_new_node": false,
       "new_node_name": null
     }
