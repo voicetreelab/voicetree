@@ -107,16 +107,18 @@ class AppendToRelevantNodeAgent(Agent):
         app = self.compile()
         result = await app.ainvoke(initial_state)
         
-        # Get segments from the saved state (before they were transformed)
-        segments = []
-        if result.get("_all_segments"):
-            # These are the original segments from segmentation step
-            for seg in result["_all_segments"]:
-                if isinstance(seg, dict):
-                    segments.append(SegmentModel(**seg))
-                else:
-                    segments.append(seg)
+        # === ENTRY BOUNDARY: Convert state dicts to models ===
+        from ..core.boundary_converters import dicts_to_models
         
+        # Get segments from the saved state (before they were transformed)
+        all_segments_data = result.get("_all_segments", [])
+        segments = dicts_to_models(all_segments_data, SegmentModel, "_all_segments")
+        
+        # Get target node identifications
+        target_nodes_data = result.get("target_nodes", [])
+        target_nodes = dicts_to_models(target_nodes_data, TargetNodeIdentification, "target_nodes")
+        
+        # === CORE LOGIC: Work with Pydantic models ===
         # Calculate completed text - only include complete segments
         completed_segments = [seg for seg in segments if seg.is_complete]
         completed_text = " ".join(seg.text for seg in completed_segments)
@@ -124,31 +126,26 @@ class AppendToRelevantNodeAgent(Agent):
         # Convert TargetNodeIdentification to actions (translation layer)
         actions: List[Union[AppendAction, CreateAction]] = []
         
-        if result.get("target_nodes"):
-            for i, target in enumerate(result["target_nodes"]):
-                # Convert dict to TargetNodeIdentification if needed
-                if isinstance(target, dict):
-                    target = TargetNodeIdentification(**target)
-                
-                # Only create actions for complete segments
-                if i < len(segments) and segments[i].is_complete:
-                    if target.target_node_id != -1:
-                        # Existing node - create AppendAction
-                        actions.append(AppendAction(
-                            action="APPEND",
-                            target_node_id=target.target_node_id,
-                            content=target.text
-                        ))
-                    else:
-                        # New node - create CreateAction (always orphan)
-                        actions.append(CreateAction(
-                            action="CREATE",
-                            parent_node_id=None,  # Always orphan nodes
-                            new_node_name=target.new_node_name,
-                            content=target.text,
-                            summary=f"Content about {target.new_node_name}",
-                            relationship="independent"
-                        ))
+        for i, target in enumerate(target_nodes):
+            # Only create actions for complete segments
+            if i < len(segments) and segments[i].is_complete:
+                if target.target_node_id != -1:
+                    # Existing node - create AppendAction
+                    actions.append(AppendAction(
+                        action="APPEND",
+                        target_node_id=target.target_node_id,
+                        content=target.text
+                    ))
+                else:
+                    # New node - create CreateAction (always orphan)
+                    actions.append(CreateAction(
+                        action="CREATE",
+                        parent_node_id=None,  # Always orphan nodes
+                        new_node_name=target.new_node_name,
+                        content=target.text,
+                        summary=f"Content about {target.new_node_name}",
+                        relationship="independent"
+                    ))
         
         return AppendAgentResult(
             actions=actions,

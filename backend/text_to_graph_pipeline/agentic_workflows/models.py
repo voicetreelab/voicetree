@@ -22,6 +22,7 @@ class SegmentModel(BaseModel):
 class SegmentationResponse(BaseModel):
     """Response model for segmentation stage"""
     segments: List[SegmentModel] = Field(description="List of segments (which together commpletely represent the original chunk)")
+    debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
 
 class RelationshipAnalysis(BaseModel):
@@ -98,6 +99,8 @@ class OptimizationResponse(BaseModel):
         default_factory=list,
         description="List of child nodes to create (empty if no split needed)"
     )
+    
+    debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
 
 class TargetNodeIdentification(BaseModel):
@@ -128,6 +131,7 @@ class TargetNodeIdentification(BaseModel):
 class TargetNodeResponse(BaseModel):
     """Response model for identify target node stage"""
     target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment")
+    debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
 
 from typing import Union

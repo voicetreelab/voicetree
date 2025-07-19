@@ -24,18 +24,20 @@ class TestSummaryGeneration:
         return tree
     
     def test_append_content_no_summary_update(self):
-        """Test that append_content doesn't update summary when None is passed"""
-        node = Node(
+        """Test that append_node_content doesn't update summary"""
+        tree = DecisionTree()
+        node_id = tree.create_new_node(
             name="Test Node",
-            node_id=1,
+            parent_node_id=None,
             content="Original content",
             summary="Original summary"
         )
         
-        # append_content should not change summary when None is passed
-        node.append_content("New content", transcript="chunk1")
+        # append_node_content should not change summary
+        tree.append_node_content(node_id, "New content", transcript="chunk1")
         
-        # Summary should remain unchanged when None is passed
+        node = tree.tree[node_id]
+        # Summary should remain unchanged
         assert node.summary == "Original summary"
         # Content should be appended
         assert "New content" in node.content
@@ -71,11 +73,11 @@ class TestSummaryGeneration:
             summary="Initial summary"
         )
         
-        node = tree.tree[node_id]
-        
         # Step 1: Append new content (simulating stage 3)
-        node.append_content("Appended chunk 1", transcript="chunk1")
-        node.append_content("Appended chunk 2", transcript="chunk2")
+        tree.append_node_content(node_id, "Appended chunk 1", transcript="chunk1")
+        tree.append_node_content(node_id, "Appended chunk 2", transcript="chunk2")
+        
+        node = tree.tree[node_id]
         
         # Summary should NOT change during appends
         assert node.summary == "Initial summary"
@@ -93,18 +95,18 @@ class TestSummaryGeneration:
         assert node.summary == "New summary after optimization"
         assert node.content == "Optimized content combining all chunks"
     
-    def test_node_append_method_should_not_update_summary(self):
-        """Test that Node.append_content should not update summary"""
+    def test_append_node_content_method_signature(self):
+        """Test that DecisionTree.append_node_content has the correct signature"""
         import inspect
-        sig = inspect.signature(Node.append_content)
+        sig = inspect.signature(DecisionTree.append_node_content)
         
-        # Current signature has summary, but we want to remove it
+        # Check that the method has the expected parameters
         params = list(sig.parameters.keys())
         assert "self" in params
+        assert "node_id" in params
         assert "new_content" in params
         assert "transcript" in params
-        # TODO: Remove summary parameter from append_content
-        # This test documents that we currently have summary but shouldn't
+        # Should NOT have a summary parameter - appending doesn't change summary
 
 
 if __name__ == "__main__":
