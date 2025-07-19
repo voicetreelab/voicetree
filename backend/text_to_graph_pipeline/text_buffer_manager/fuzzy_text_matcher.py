@@ -121,6 +121,8 @@ class FuzzyTextMatcher:
         return None
     
     def _find_tokenized_match(self, target_text: str, source_text: str) -> Optional[Tuple[int, int, float]]:
+        #todo this code is really buggy and unnecessary
+
         """
         Find matches for text that may have been tokenized and reconstructed.
         
@@ -185,13 +187,32 @@ class FuzzyTextMatcher:
                         if first_word_idx == 0:
                             char_start = 0
                         else:
+                            # Include the space before the first matched word
                             char_start = len(' '.join(source_words[:first_word_idx])) + 1
                         
+                        # Calculate end position to include the matched text
                         char_end = len(' '.join(source_words[:last_word_idx + 1]))
                         
                         # Ensure we don't exceed source text bounds
                         char_start = max(0, min(char_start, len(source_text)))
                         char_end = min(len(source_text), char_end)
+                        
+                        # CRITICAL FIX: Ensure we end at a word boundary
+                        # If char_end is not at the end of text and not followed by a space,
+                        # we need to extend to the next word boundary
+                        if char_end < len(source_text) and source_text[char_end] != ' ':
+                            # Find the next space or end of text
+                            next_space = source_text.find(' ', char_end)
+                            if next_space != -1:
+                                char_end = next_space
+                            else:
+                                char_end = len(source_text)
+                        
+                        # Debug logging to trace the issue
+                        matched_text = source_text[char_start:char_end]
+                        logging.debug(f"Match calculation: first_word_idx={first_word_idx}, last_word_idx={last_word_idx}")
+                        logging.debug(f"Character positions: start={char_start}, end={char_end}")
+                        logging.debug(f"Matched text: '{matched_text}'")
                         
                         # Calculate similarity score based on matched words
                         score = (target_idx / len(target_words)) * 100
@@ -227,9 +248,26 @@ class FuzzyTextMatcher:
         if match:
             start, end, score = match
             # Remove the matched portion
-            result = source_text[:start] + source_text[end:]
-            # Clean up whitespace
-            result = result.strip()
+            before_text = source_text[:start]
+            after_text = source_text[end:]
+            matched_portion = source_text[start:end]
+            
+            logging.debug(f"Removing text - Match positions: start={start}, end={end}")
+            logging.debug(f"Matched portion: '{matched_portion}'")
+            logging.debug(f"Before text: '{before_text}'")
+            logging.debug(f"After text: '{after_text}'")
+            
+            # Ensure we maintain proper spacing between remaining parts
+            # If before_text doesn't end with space and after_text doesn't start with space,
+            # we need to add a space to prevent word concatenation
+            if before_text and after_text and not before_text.endswith(' ') and not after_text.startswith(' '):
+                result = before_text + ' ' + after_text
+            else:
+                result = before_text + after_text
+            
+            # Clean up any double spaces
+            result = ' '.join(result.split())
+            logging.debug(f"Final result: '{result}'")
             return (result, True)
         else:
             logging.warning(f"No match found above {self.similarity_threshold}% threshold")

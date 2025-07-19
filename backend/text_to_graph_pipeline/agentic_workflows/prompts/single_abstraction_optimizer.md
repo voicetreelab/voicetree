@@ -43,16 +43,19 @@ IMPORTANT: You have all the data you need. The neighbors data above contains nam
     -   If neighbors exist, use their **names and summaries** to understand the node's place in the wider graph.
     -   If neighbors is empty (standalone/orphan node), infer context from the node content itself.
 
-### Stage 2: Content Analysis & Integration
-**Goal:** Analyze the raw content to identify all the distinct Work Items within it.
+### Stage 2: Content Deconstruction & Analysis
+**Goal:** First, separate the content that defines the parent node's core identity from new, distinct ideas that should become children.
 
-1.  **Identify Distinct Abstractions:** Read the `Node Content` and identify all the different conceptual units. For each unit, internally determine what *kind* of abstraction it is (e.g., is this a Task, a Problem, an Observation?).
-2.  **Integrate Content *Per Abstraction*:** For each distinct abstraction you identified, consolidate any fragmented descriptions of it into a single, cohesive piece of text, preserving 100% of the original meaning.
+1.  **Isolate the Parent's Core Content:** Read the `Node Content` and identify the text that **directly defines or elaborates on the existing `Node Name`**. This is the "Parent Content." Its purpose is to describe the node it lives in.
+2.  **Identify Child-Candidate Content:** Identify all other conceptual units in the content that represent **new, distinct Work Items** (new tasks, new problems, new insights, etc.). These are "Child Candidates."
+3.  **Internal Analysis:** For each Child Candidate, internally determine what *kind* of abstraction it is (e.g., is this a Task, a Problem, an Observation?).
 
 ### Stage 3: Optimization Decision
-**Goal:** Determine the optimal structure based on the distinct abstractions identified in Stage 2.
+**Goal:** Determine the optimal structure based on the **Child Candidates** identified in Stage 2.
+
 
 1.  **Apply Splitting Rules:**
+   - If you identified one or more **Child Candidates** in Stage 2, a `SPLIT` is necessary, in order to create the child nodes.
     -   **Rule 1 (Different Kinds of Abstractions):** If the content contains fundamentally different kinds of information (e.g., an actionable `Task` mixed with a factual `Observation`), you **MUST** perform a `SPLIT`.
     -   **Rule 2 (Multiple Distinct Work Items):** If the content contains multiple distinct tasks, problems, or ideas, even if they are of the same kind, a `SPLIT` is strongly recommended to maintain single responsibility.
     -   **Rule 3 (Single Cohesive Work Item):** If the content consists of only one single, cohesive Work Item, then no split is needed. Proceed to decide if an `UPDATE` or `NO_ACTION` is required.
