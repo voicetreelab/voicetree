@@ -51,6 +51,7 @@ class SingleAbstractionOptimizerAgent(Agent):
             "node_content": node.content,
             "node_summary": node.summary,
             "neighbors": str(neighbors),
+            "transcript_history": "",  # Add missing required field
             # LLM response fields will be added by the workflow
             "reasoning": None,
             "update_original": None,
@@ -84,9 +85,16 @@ class SingleAbstractionOptimizerAgent(Agent):
             "create_child_nodes": result.get("create_child_nodes", [])
         }
         
+        # This will raise ValueError if validation fails - let it crash!
         optimization = dict_to_model(optimization_data, OptimizationResponse, "optimization_response")
-        if not optimization:
-            return []
+        
+        # dict_to_model only returns None if input is None/empty
+        # If we get here with None, something is very wrong
+        if optimization is None:
+            raise RuntimeError(
+                f"Failed to create OptimizationResponse from non-empty data: {optimization_data}. "
+                "This should never happen - dict_to_model should have raised ValueError."
+            )
         
         # === CORE LOGIC: Work with Pydantic models ===
         typed_actions = []
@@ -102,6 +110,14 @@ class SingleAbstractionOptimizerAgent(Agent):
         
         # Handle child node creation
         for child_spec in optimization.create_child_nodes:
+            # Validate that child_spec is actually a ChildNodeSpec
+            if not hasattr(child_spec, 'name'):
+                raise RuntimeError(
+                    f"Invalid child_spec structure. Expected ChildNodeSpec but got: {child_spec}. "
+                    f"Type: {type(child_spec)}. This usually means the LLM returned extra fields "
+                    f"that don't exist in the model."
+                )
+            
             typed_actions.append(CreateAction(
                 action="CREATE",
                 parent_node_id=node_id,
