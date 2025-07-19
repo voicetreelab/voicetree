@@ -68,7 +68,7 @@ class TestIntegration:
             remaining_buffer = self.processor.buffer_manager.get_buffer()
             if remaining_buffer:
                 print(f"📝 Processing remaining buffer: {len(remaining_buffer)} chars")
-                await self.processor.process_voice_input(remaining_buffer)
+                await self.processor.process_new_text(remaining_buffer)
             
             # Finalize to ensure all nodes are converted
             await self.processor.finalize()

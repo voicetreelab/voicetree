@@ -23,7 +23,7 @@ from typing import List, Union
 # This import will fail until the new orchestrator is implemented
 # It should NOT inherit from Agent - it's a simple orchestrator
 try:
-    from backend.text_to_graph_pipeline.orchestration.tree_action_decider import TreeActionDecider
+    from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow as TreeActionDecider
 except ImportError:
     # Expected to fail - create a dummy class for test structure
     class TreeActionDecider:

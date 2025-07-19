@@ -2,7 +2,8 @@
 Pydantic models for VoiceTree agentic workflow structured output
 """
 
-from typing import List, Optional, Literal, Union
+from typing import List, Literal, Optional, Union
+
 from pydantic import BaseModel, Field
 
 
@@ -11,16 +12,16 @@ class BaseTreeAction(BaseModel):
     action: str = Field(description="Action type")
 
 
-class ChunkModel(BaseModel):
+class SegmentModel(BaseModel):
     """Model for segmentation stage output"""
-    reasoning: str = Field(description="Analysis of why this is segmented as a distinct chunk and completeness assessment")
-    text: str = Field(description="The actual text content of the chunk")
-    is_complete: bool = Field(description="Whether this chunk represents a complete thought")
+    reasoning: str = Field(description="Analysis of why this is segmented as a distinct segment and completeness assessment")
+    text: str = Field(description="Segment content")
+    is_complete: bool = Field(description="Whether this segment representsa complete thought")
 
 
 class SegmentationResponse(BaseModel):
     """Response model for segmentation stage"""
-    chunks: List[ChunkModel] = Field(description="List of segmented chunks")
+    segments: List[SegmentModel] = Field(description="List of segments (which together commpletely represent the original chunk)")
 
 
 class RelationshipAnalysis(BaseModel):

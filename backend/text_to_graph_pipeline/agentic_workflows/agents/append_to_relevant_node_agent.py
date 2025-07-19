@@ -7,12 +7,11 @@ This agent:
 3. Returns AppendAction or CreateAction objects
 """
 
-from typing import List, Union, Dict, Any
+from typing import List, Union, Dict, Any, Optional, TypedDict
 import json
 from langgraph.graph import END
 
 from ..core.agent import Agent
-from ..core.state import AppendToRelevantNodeAgentState
 from ..models import (
     SegmentationResponse,
     TargetNodeResponse,
@@ -24,11 +23,23 @@ from ..models import (
 from ...tree_manager.decision_tree_ds import DecisionTree
 
 
+class _AppendAgentState(TypedDict):
+    """Internal state for append workflow"""
+    # Input
+    transcript_text: str
+    transcript_history: str
+    existing_nodes: str  # JSON string of existing nodes
+    
+    # Intermediate outputs
+    segments: Optional[List[Dict[str, Any]]]  # From segmentation
+    target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target
+
+
 class AppendToRelevantNodeAgent(Agent):
     """Agent that determines where to place new content in the tree"""
     
     def __init__(self):
-        super().__init__("AppendToRelevantNodeAgent", AppendToRelevantNodeAgentState)
+        super().__init__("AppendToRelevantNodeAgent", _AppendAgentState)
         self._setup_workflow()
     
     def _setup_workflow(self):
@@ -51,25 +62,14 @@ class AppendToRelevantNodeAgent(Agent):
     
     def _prepare_for_target_identification(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Transform state between segmentation and target identification"""
-        # Debug: Print all state keys to understand what's available
-        print(f"DEBUG _prepare_for_target_identification: state keys = {state.keys()}")
-        print(f"DEBUG _prepare_for_target_identification: current_stage = {state.get('current_stage')}")
-        
         # Extract segments from segmentation response
-        chunks = state.get("chunks", [])
-        
-        # TODO: Debug transform - chunks appear to be None from segmentation
-        print(f"DEBUG _prepare_for_target_identification: chunks = {chunks}")
+        segments = state.get("segments", [])
         
         # Filter out incomplete segments
-        complete_chunks = [chunk for chunk in chunks if chunk.get("is_complete", False)]
-        
-        print(f"DEBUG _prepare_for_target_identification: complete_chunks = {complete_chunks}")
+        complete_segments = [segment for segment in segments if segment.get("is_complete", False)]
         
         # Prepare segments for target identification
-        segments = [{"text": chunk["text"]} for chunk in complete_chunks]
-        
-        print(f"DEBUG _prepare_for_target_identification: segments = {segments}")
+        segments = [{"text": segment["text"]} for segment in complete_segments]
         
         return {
             **state,
@@ -94,13 +94,12 @@ class AppendToRelevantNodeAgent(Agent):
             List of AppendAction or CreateAction objects
         """
         # Create initial state
-        initial_state: AppendToRelevantNodeAgentState = {
+        initial_state: _AppendAgentState = {
             "transcript_text": transcript_text,
             "transcript_history": transcript_history,
             "existing_nodes": self._format_nodes_for_prompt(decision_tree),
             "segments": None,
-            "target_nodes": None,
-            "chunks": None  # Add chunks to initial state
+            "target_nodes": None
         }
         
         # Run the workflow

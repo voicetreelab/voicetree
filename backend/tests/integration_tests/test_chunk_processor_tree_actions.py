@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, ANY
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import WorkflowResult
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree

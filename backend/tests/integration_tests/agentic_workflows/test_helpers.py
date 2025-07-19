@@ -4,20 +4,20 @@ Test helpers for integration tests
 
 from typing import Any, Dict, List, Optional
 
-from backend.text_to_graph_pipeline.agentic_workflows.agents.tree_action_decider_agent import \
-    TreeActionDeciderAgent
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
+    TreeActionDeciderWorkflow
 
 
 class PipelineHelper:
     """Simple test helper for running the voice tree agent"""
     
     def __init__(self, state_file: Optional[str] = None):
-        self.agent = TreeActionDeciderAgent()
+        self.workflow = TreeActionDeciderWorkflow()
         # state_file parameter kept for backward compatibility but no longer used
         
     def run(self, transcript: str, existing_nodes: str = "") -> Dict[str, Any]:
         """Run agent - workflow is now stateless"""
-        result = self.agent.run(transcript, existing_nodes=existing_nodes)
+        result = self.workflow.run(transcript, existing_nodes=existing_nodes)
         return result
     
     def get_statistics(self) -> Dict[str, Any]:
