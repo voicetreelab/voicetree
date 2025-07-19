@@ -28,19 +28,17 @@ def copy_debug_logs():
     dest_dir = "backend/benchmarker/output/debug_logs"
     
     if os.path.exists(source_dir):
-        # Create timestamped subdirectory
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        timestamped_dest = os.path.join(dest_dir, f"run_{timestamp}")
+        # Ensure destination directory exists
+        os.makedirs(dest_dir, exist_ok=True)
         
-        # Copy the entire debug_logs directory
-        shutil.copytree(source_dir, timestamped_dest)
-        print(f"\nDebug logs copied to: {timestamped_dest}")
+        # Copy all files from source to destination
+        for filename in os.listdir(source_dir):
+            source_file = os.path.join(source_dir, filename)
+            dest_file = os.path.join(dest_dir, filename)
+            if os.path.isfile(source_file):
+                shutil.copy2(source_file, dest_file)
         
-        # Also create a 'latest' symlink for convenience
-        latest_link = os.path.join(dest_dir, "latest")
-        if os.path.exists(latest_link):
-            os.unlink(latest_link)
-        os.symlink(os.path.basename(timestamped_dest), latest_link)
+        print(f"\nDebug logs copied to: {dest_dir}")
     else:
         print(f"\nWarning: Debug logs directory not found at {source_dir}")
 

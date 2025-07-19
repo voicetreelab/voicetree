@@ -24,13 +24,11 @@ class TestTreeActionsBehavioral:
         root_node.id = 1
         root_node.title = "Project Overview"
         root_node.content = "This project aims to build a voice-to-tree system."
-        root_node.append_content = Mock()
         
         child_node = MagicMock()
         child_node.id = 2
         child_node.title = "Technical Requirements"
         child_node.content = "The system needs to process audio input."
-        child_node.append_content = Mock()
         
         tree.tree = {
             1: root_node,
@@ -39,6 +37,7 @@ class TestTreeActionsBehavioral:
         
         tree.create_new_node = Mock(return_value=3)
         tree.update_node = Mock()
+        tree.append_node_content = Mock()
         
         return tree
     
@@ -79,8 +78,8 @@ class TestTreeActionsBehavioral:
         updated_nodes = applier.apply(actions)
         
         # Verify append action
-        mock_tree.tree[2].append_content.assert_called_once_with(
-            "Additionally, we need real-time processing capabilities."
+        mock_tree.append_node_content.assert_called_once_with(
+            2, "Additionally, we need real-time processing capabilities."
         )
         
         # Verify create action
@@ -115,8 +114,7 @@ class TestTreeActionsBehavioral:
         
         # Should not crash, but also should not append anything
         assert updated_nodes == set()
-        mock_tree.tree[1].append_content.assert_not_called()
-        mock_tree.tree[2].append_content.assert_not_called()
+        mock_tree.append_node_content.assert_not_called()
         
         # Test 2: Create with specific parent ID
         create_with_parent = CreateAction(
@@ -156,6 +154,9 @@ class TestTreeActionsBehavioral:
         updated = applier.apply([single_action])
         assert updated == {1}
         
+        # Reset the mock before the next test
+        mock_tree.append_node_content.reset_mock()
+        
         # Many actions to same node
         multiple_appends = [
             AppendAction(action="APPEND", target_node_id=2, content="First append."),
@@ -164,7 +165,7 @@ class TestTreeActionsBehavioral:
         ]
         updated = applier.apply(multiple_appends)
         assert updated == {2}
-        assert mock_tree.tree[2].append_content.call_count == 3
+        assert mock_tree.append_node_content.call_count == 3
     
     def test_unknown_action_type_raises_error(self, applier):
         """Test that unknown action types raise appropriate errors"""

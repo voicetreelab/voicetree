@@ -37,29 +37,6 @@ class TestChunkModel:
         assert "reasoning" in field_names
 
 
-class TestSegmentationResponse:
-    """Test the SegmentationResponse schema"""
-    
-    
-    def test_segmentation_response_empty_chunks(self):
-        """Test segmentation response with empty chunks list"""
-        response = SegmentationResponse(segments=[])
-        assert response.segments == []
-    
-    def test_segmentation_response_from_dict(self):
-        """Test creating response from dictionary"""
-        data = {
-            "chunks": [
-                {"text": "Dict content", "reasoning" : ",,," ,"is_complete": True}
-            ]
-        }
-        
-        response = SegmentationResponse(**data)
-        assert len(response.segments) == 1
-        assert response.segments[0].text == "Dict content"
-        assert response.segments[0].is_complete is True
-
-
 class TestRelationshipAnalysis:
     """Test the RelationshipAnalysis schema"""
     

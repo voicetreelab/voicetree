@@ -17,7 +17,11 @@ class TestIdentifyTargetNodeWithIDs:
     @pytest.fixture 
     def prompt_loader(self):
         """Get prompt loader instance"""
-        return PromptLoader()
+        from pathlib import Path
+        # Get the absolute path to prompts directory
+        backend_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go to backend dir
+        prompts_dir = backend_dir / "text_to_graph_pipeline" / "agentic_workflows" / "prompts"
+        return PromptLoader(str(prompts_dir.absolute()))
     
     async def test_existing_node_identification_with_ids(self, prompt_loader):
         """Test identifying segments that should go to existing nodes using IDs"""

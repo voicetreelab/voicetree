@@ -20,7 +20,17 @@ Your decision for each segment must be guided by a clear hierarchy of context:
 5.  Use the `reasoning` field to explain your decision, explicitly mentioning which context clues you prioritized.
 
 **OUTPUT FORMAT:**
-Construct a single JSON object with a `routing_decisions` field. Each element in this list corresponds to one input segment and MUST contain ALL of the following fields:
+Construct a single JSON object with the following structure:
+```json
+{
+  "target_nodes": [
+    // routing_decisions array - each element corresponds to one input segment
+  ],
+  "debug_notes": "Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task"
+}
+```
+
+Each element in the `target_nodes` array MUST contain ALL of the following fields:
 *   `text`: The original text of the segment from the input (required, string).
 *   `reasoning`: Your analysis for choosing the target, explaining how you used the context (required, string).
 *   `target_node_id`: The ID of the chosen existing node OR -1 for a new node (required, integer).
@@ -37,7 +47,7 @@ Construct a single JSON object with a `routing_decisions` field. Each element in
 **Expected Output:**
 ```json
 {
-  "routing_decisions": [
+  "target_nodes": [
     {
       "text": "It seems to be worst in the morning.",
       "reasoning": "The 'transcript_history' established the topic as dashboard performance. This segment provides a specific detail about that problem, so it belongs in the 'Dashboard Performance Issues' node.",
@@ -50,7 +60,7 @@ Construct a single JSON object with a `routing_decisions` field. Each element in
       "reasoning": "This segment is a direct continuation of the previous one, proposing a potential cause for the performance issue. Based on the sequential context, it must be routed to the same destination: 'Dashboard Performance Issues'.",
       "target_node_id": 2,
       "is_new_node": false,
-      "new_name": null
+      "new_node_name": null
     },
     {
       "text": "Separately, I need to send out the invite for the kickoff meeting.",
@@ -59,7 +69,8 @@ Construct a single JSON object with a `routing_decisions` field. Each element in
       "is_new_node": false,
       "new_node_name": null
     }
-  ]
+  ],
+  "debug_notes": null
 }
 ```
 

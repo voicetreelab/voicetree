@@ -15,7 +15,8 @@ Strictly adhere to the following JSON structure:
 {
   "segments": [
     {"reasoning": "A concise analysis of this segment's boundaries, its core idea, and its completeness status.", "text": "The actual text...", "is_complete": true/false}
-  ]
+  ],
+  "debug_notes": "Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task"
 }
 ```
 
@@ -62,7 +63,8 @@ For EVERY segment you create, assess its completeness:
     {"reasoning": "This is a distinct task about researching visualization libraries. It's a complete thought.", "text": "I need to look into visualization libraries.", "is_complete": true},
     {"reasoning": "This introduces a separate task but is immediately de-prioritized with 'But that's later'. It feels like a brief, unfinished aside. Marking incomplete to see if it's picked up again.", "text": "Converting text into a data format.", "is_complete": false},
     {"reasoning": "This circles back to the first topic (visualization libraries) with a specific suggestion. It's a complete, self-contained thought.", "text": "Oh yeah, Myles mentioned Mermaid as a good visualization option.", "is_complete": true}
-  ]
+  ],
+  "debug_notes": null
 }
 ```
 
@@ -83,7 +85,8 @@ For EVERY segment you create, assess its completeness:
       "text": "The next thing we will have to look at is CPU spikes.", 
       "is_complete": true
     }
-  ]
+  ],
+  "debug_notes": null
 }
 ```
 ────────────────────────────────────────

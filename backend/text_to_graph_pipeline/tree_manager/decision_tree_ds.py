@@ -27,11 +27,6 @@ class Node:
         self.summary: str = summary
         self.num_appends: int = 0
 
-    def append_content(self, new_content: str, transcript: str = ""):
-        self.content += "\n" + new_content
-        self.transcript_history += transcript + "... "
-        self.modified_at = datetime.now()
-        self.num_appends += 1
 
 
 class DecisionTree:
@@ -132,7 +127,10 @@ class DecisionTree:
             raise KeyError(f"Node {node_id} not found in tree")
             
         node = self.tree[node_id]
-        node.append_content(new_content, transcript)
+        node.content += "\n" + new_content
+        node.transcript_history += transcript + "... "
+        node.modified_at = datetime.now()
+        node.num_appends += 1
         
         # Write markdown for the updated node
         self._write_markdown_for_nodes([node_id])

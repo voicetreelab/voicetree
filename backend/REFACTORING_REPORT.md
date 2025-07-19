@@ -95,6 +95,52 @@ class AppendToRelevantNodeAgentState(TypedDict):
 3. **Test Flexibility**: Integration tests with LLMs need to be flexible about acceptable outcomes, as LLMs can make different but equally valid decisions
 4. **Path Management**: Be careful with relative paths in tests - use absolute paths when loading resources
 
+## Latest Update: Boundary Conversion Pattern Implementation
+
+### Problem Identified
+Even after centralizing state and models, we still had duplication:
+- State definitions (TypedDict) defined fields as `Dict[str, Any]`
+- Models (Pydantic) defined the same fields with proper types
+- This violated DRY principle - changing a field required updates in multiple places
+
+### Solution: Boundary Conversion Pattern
+Implemented the "Boundary Conversion" pattern that treats the LangGraph/business logic boundary as a validation layer:
+
+1. **Created boundary converters** (`core/boundary_converters.py`):
+   - `dicts_to_models()` - Convert LangGraph dicts to Pydantic models at entry
+   - `models_to_dicts()` - Convert Pydantic models to dicts at exit
+   - Provides validation and type safety
+
+2. **Updated agents to use the pattern**:
+   - **Entry boundary**: Convert incoming state dicts to Pydantic models
+   - **Core logic**: Work exclusively with typed Pydantic models
+   - **Exit boundary**: Convert models back to dicts for LangGraph
+
+3. **Benefits achieved**:
+   - Single source of truth (Pydantic models)
+   - Full type safety and validation inside business logic
+   - LangGraph compatibility maintained
+   - Clear separation of concerns
+
+### Example Implementation
+```python
+# Entry boundary
+segments_data = state.get("segments", [])
+segments = dicts_to_models(segments_data, SegmentModel, "segments")
+
+# Core logic with full type safety
+complete_segments = [seg for seg in segments if seg.is_complete]
+
+# Exit boundary
+return {"segments": models_to_dicts(complete_segments)}
+```
+
 ## Summary
 
-The refactoring successfully eliminated most duplication while maintaining compatibility with the LangGraph framework. The key insight was to centralize type definitions while accepting that runtime data will be dictionaries. The solution provides better type hints for development while working within framework constraints.
+The refactoring successfully eliminated duplication through the Boundary Conversion pattern. This solution:
+- Maintains a single source of truth (Pydantic models)
+- Provides full type safety within business logic
+- Works seamlessly with LangGraph's dict-based state
+- Creates a clear, maintainable architecture
+
+The pattern elegantly resolves the impedance mismatch between LangGraph (requiring dicts) and our business logic (requiring type safety), without compromising either system's strengths.
