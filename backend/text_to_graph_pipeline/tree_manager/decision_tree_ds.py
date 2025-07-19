@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from typing import Dict, List, Optional
 import difflib
-from .tree_to_markdown import generate_filename_from_keywords
+from .tree_to_markdown import generate_filename_from_keywords, TreeToMarkdownConverter
 from .utils import extract_summary
 
 def extract_title_from_md(node_content):
@@ -35,9 +35,30 @@ class Node:
 
 
 class DecisionTree:
-    def __init__(self):
+    def __init__(self, output_dir: Optional[str] = None):
         self.tree: Dict[int, Node] = {}
         self.next_node_id: int = 0
+        self.output_dir = output_dir or "markdownTreeVaultDefault"
+        self._markdown_converter: Optional[TreeToMarkdownConverter] = None
+    
+    @property
+    def markdown_converter(self) -> TreeToMarkdownConverter:
+        """Lazy initialization of markdown converter"""
+        if self._markdown_converter is None:
+            self._markdown_converter = TreeToMarkdownConverter(self.tree)
+        return self._markdown_converter
+    
+    def _write_markdown_for_nodes(self, node_ids: List[int]) -> None:
+        """Write markdown files for the specified nodes"""
+        if node_ids:
+            try:
+                self.markdown_converter.convert_node(
+                    output_dir=self.output_dir,
+                    nodes_to_update=set(node_ids)
+                )
+                logging.info(f"Wrote markdown for nodes: {node_ids}")
+            except Exception as e:
+                logging.error(f"Failed to write markdown for nodes {node_ids}: {e}")
 
     def create_new_node(self, name: str, parent_node_id: int | None, content: str, summary : str, relationship_to_parent: str = "child of") -> int:
         if parent_node_id is not None and parent_node_id not in self.tree:
@@ -66,8 +87,55 @@ class DecisionTree:
         
         # Increment AFTER successful creation
         self.next_node_id += 1
+        
+        # Write markdown for the new node
+        self._write_markdown_for_nodes([new_node_id])
 
         return new_node_id
+    
+    def update_node(self, node_id: int, content: str, summary: str) -> None:
+        """
+        Replaces a node's content and summary completely.
+        
+        Args:
+            node_id: The ID of the node to update
+            content: The new content to replace existing content
+            summary: The new summary to replace existing summary
+            
+        Raises:
+            KeyError: If the node_id doesn't exist in the tree
+        """
+        if node_id not in self.tree:
+            raise KeyError(f"Node {node_id} not found in tree")
+            
+        node = self.tree[node_id]
+        node.content = content
+        node.summary = summary
+        node.modified_at = datetime.now()
+        
+        # Write markdown for the updated node
+        self._write_markdown_for_nodes([node_id])
+    
+    def append_node_content(self, node_id: int, new_content: str, transcript: str = "") -> None:
+        """
+        Appends content to an existing node and automatically writes markdown.
+        
+        Args:
+            node_id: The ID of the node to append to
+            new_content: The content to append
+            transcript: Optional transcript history
+            
+        Raises:
+            KeyError: If the node_id doesn't exist in the tree
+        """
+        if node_id not in self.tree:
+            raise KeyError(f"Node {node_id} not found in tree")
+            
+        node = self.tree[node_id]
+        node.append_content(new_content, transcript)
+        
+        # Write markdown for the updated node
+        self._write_markdown_for_nodes([node_id])
 
     def _find_similar_child(self, name: str, parent_node_id: int | None, similarity_threshold: float = 0.8) -> Optional[int]:
         """
@@ -179,22 +247,3 @@ class DecisionTree:
         
         return neighbors
 
-    def update_node(self, node_id: int, content: str, summary: str) -> None:
-        """
-        Replaces a node's content and summary completely.
-        
-        Args:
-            node_id: The ID of the node to update
-            content: The new content to replace existing content
-            summary: The new summary to replace existing summary
-            
-        Raises:
-            KeyError: If the node_id doesn't exist in the tree
-        """
-        if node_id not in self.tree:
-            raise KeyError(f"Node {node_id} not found in tree")
-            
-        node = self.tree[node_id]
-        node.content = content
-        node.summary = summary
-        node.modified_at = datetime.now()

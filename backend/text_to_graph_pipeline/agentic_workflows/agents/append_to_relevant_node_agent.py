@@ -7,39 +7,30 @@ This agent:
 3. Returns AppendAction or CreateAction objects
 """
 
-from typing import List, Union, Dict, Any, Optional, TypedDict
+from typing import List, Union, Dict, Any, Optional
 import json
 from langgraph.graph import END
 
 from ..core.agent import Agent
+from ..core.state import AppendToRelevantNodeAgentState
 from ..models import (
     SegmentationResponse,
     TargetNodeResponse,
     TargetNodeIdentification,
     AppendAction,
     CreateAction,
-    BaseTreeAction
+    BaseTreeAction,
+    AppendAgentResult,
+    SegmentModel
 )
 from ...tree_manager.decision_tree_ds import DecisionTree
-
-
-class _AppendAgentState(TypedDict):
-    """Internal state for append workflow"""
-    # Input
-    transcript_text: str
-    transcript_history: str
-    existing_nodes: str  # JSON string of existing nodes
-    
-    # Intermediate outputs
-    segments: Optional[List[Dict[str, Any]]]  # From segmentation
-    target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target
 
 
 class AppendToRelevantNodeAgent(Agent):
     """Agent that determines where to place new content in the tree"""
     
     def __init__(self):
-        super().__init__("AppendToRelevantNodeAgent", _AppendAgentState)
+        super().__init__("AppendToRelevantNodeAgent", AppendToRelevantNodeAgentState)
         self._setup_workflow()
     
     def _setup_workflow(self):
@@ -62,18 +53,27 @@ class AppendToRelevantNodeAgent(Agent):
     
     def _prepare_for_target_identification(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Transform state between segmentation and target identification"""
-        # Extract segments from segmentation response
-        segments = state.get("segments", [])
+        from ..core.boundary_converters import dicts_to_models, models_to_dicts
         
+        # === ENTRY BOUNDARY: Convert dicts to models ===
+        segments_data = state.get("segments", [])
+        segments = dicts_to_models(segments_data, SegmentModel, "segments")
+        
+        # Store all segments for later use (as dicts for state compatibility)
+        all_segments_dicts = models_to_dicts(segments)
+        
+        # === CORE LOGIC: Work with Pydantic models ===
         # Filter out incomplete segments
-        complete_segments = [segment for segment in segments if segment.get("is_complete", False)]
+        complete_segments = [segment for segment in segments if segment.is_complete]
         
-        # Prepare segments for target identification
-        segments = [{"text": segment["text"]} for segment in complete_segments]
+        # Prepare segments for target identification - only pass text field
+        segments_for_target = [{"text": segment.text} for segment in complete_segments]
         
+        # === EXIT BOUNDARY: Return dicts for state ===
         return {
             **state,
-            "segments": segments
+            "_all_segments": all_segments_dicts,  # Store all segments as dicts
+            "segments": segments_for_target  # Only complete segments for target identification
         }
     
     async def run(
@@ -81,9 +81,9 @@ class AppendToRelevantNodeAgent(Agent):
         transcript_text: str,
         decision_tree: DecisionTree,
         transcript_history: str = ""
-    ) -> List[Union[AppendAction, CreateAction]]:
+    ) -> AppendAgentResult:
         """
-        Process text and return placement actions
+        Process text and return placement actions with segment information
         
         Args:
             transcript_text: Raw voice transcript to process
@@ -91,51 +91,70 @@ class AppendToRelevantNodeAgent(Agent):
             transcript_history: Optional context from previous transcripts
             
         Returns:
-            List of AppendAction or CreateAction objects
+            AppendAgentResult containing actions and segment information
         """
         # Create initial state
-        initial_state: _AppendAgentState = {
+        initial_state: AppendToRelevantNodeAgentState = {
             "transcript_text": transcript_text,
             "transcript_history": transcript_history,
             "existing_nodes": self._format_nodes_for_prompt(decision_tree),
             "segments": None,
-            "target_nodes": None
+            "target_nodes": None,
+            "_all_segments": None
         }
         
         # Run the workflow
         app = self.compile()
         result = await app.ainvoke(initial_state)
         
-
+        # Get segments from the saved state (before they were transformed)
+        segments = []
+        if result.get("_all_segments"):
+            # These are the original segments from segmentation step
+            for seg in result["_all_segments"]:
+                if isinstance(seg, dict):
+                    segments.append(SegmentModel(**seg))
+                else:
+                    segments.append(seg)
+        
+        # Calculate completed text - only include complete segments
+        completed_segments = [seg for seg in segments if seg.is_complete]
+        completed_text = " ".join(seg.text for seg in completed_segments)
         
         # Convert TargetNodeIdentification to actions (translation layer)
         actions: List[Union[AppendAction, CreateAction]] = []
         
         if result.get("target_nodes"):
-            for target in result["target_nodes"]:
+            for i, target in enumerate(result["target_nodes"]):
                 # Convert dict to TargetNodeIdentification if needed
                 if isinstance(target, dict):
                     target = TargetNodeIdentification(**target)
                 
-                if target.target_node_id != -1:
-                    # Existing node - create AppendAction
-                    actions.append(AppendAction(
-                        action="APPEND",
-                        target_node_id=target.target_node_id,
-                        content=target.text
-                    ))
-                else:
-                    # New node - create CreateAction (always orphan)
-                    actions.append(CreateAction(
-                        action="CREATE",
-                        parent_node_id=None,  # Always orphan nodes
-                        new_node_name=target.new_node_name,
-                        content=target.text,
-                        summary=f"Content about {target.new_node_name}",
-                        relationship="independent"
-                    ))
+                # Only create actions for complete segments
+                if i < len(segments) and segments[i].is_complete:
+                    if target.target_node_id != -1:
+                        # Existing node - create AppendAction
+                        actions.append(AppendAction(
+                            action="APPEND",
+                            target_node_id=target.target_node_id,
+                            content=target.text
+                        ))
+                    else:
+                        # New node - create CreateAction (always orphan)
+                        actions.append(CreateAction(
+                            action="CREATE",
+                            parent_node_id=None,  # Always orphan nodes
+                            new_node_name=target.new_node_name,
+                            content=target.text,
+                            summary=f"Content about {target.new_node_name}",
+                            relationship="independent"
+                        ))
         
-        return actions
+        return AppendAgentResult(
+            actions=actions,
+            segments=segments,
+            completed_text=completed_text
+        )
     
     def _format_nodes_for_prompt(self, tree: DecisionTree) -> str:
         """Format tree nodes for LLM prompt"""

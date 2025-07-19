@@ -4,6 +4,7 @@ State schema for VoiceTree LangGraph workflow with validation
 
 from typing import List, Dict, Any, Optional
 from typing_extensions import TypedDict
+from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec
 
 
 class AppendToRelevantNodeAgentState(TypedDict):
@@ -14,9 +15,9 @@ class AppendToRelevantNodeAgentState(TypedDict):
     existing_nodes: str  # JSON string of existing nodes
     
     # Intermediate outputs
-    chunks: Optional[List[Dict[str, Any]]]  # From segmentation (raw chunks) todo ?? segments
-    segments: Optional[List[Dict[str, Any]]]  # Filtered chunks for target identification
-    target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target
+    segments: Optional[List[Dict[str, Any]]]  # From segmentation/transform (can be dict or SegmentModel)
+    target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target (can be dict or TargetNodeIdentification)
+    _all_segments: Optional[List[Dict[str, Any]]]  # Preserved segments from segmentation
 
 
 class SingleAbstractionOptimizerAgentState(TypedDict):
@@ -33,7 +34,7 @@ class SingleAbstractionOptimizerAgentState(TypedDict):
     update_original: Optional[bool]
     original_new_content: Optional[str]
     original_new_summary: Optional[str]
-    create_child_nodes: Optional[List[Dict[str, Any]]]
+    create_child_nodes: Optional[List[ChildNodeSpec]]
 
 
 class VoiceTreeState(TypedDict):

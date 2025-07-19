@@ -129,3 +129,11 @@ class TargetNodeResponse(BaseModel):
     """Response model for identify target node stage"""
     target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment")
 
+
+from typing import Union
+class AppendAgentResult(BaseModel):
+    """Result from AppendToRelevantNodeAgent containing actions and segment info"""
+    actions: List[Union[AppendAction, CreateAction]] = Field(description="List of actions to apply")
+    segments: List[SegmentModel] = Field(description="List of segments with completeness info")
+    completed_text: str = Field(description="Concatenated text of all complete segments that should be flushed")
+
