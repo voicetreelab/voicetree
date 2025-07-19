@@ -18,19 +18,60 @@ Node's Neighbors (for context):
 
 ## Analysis & Decision Process
 
-1.  **Analyze Content & Neighbors:**
-    -   Identify all distinct semantic themes within `node_content`.
-    -   Use `neighbors` to understand the node's place in the wider graph.
-    -   Perform the **Abstraction Test**: Can you create a concise title (3-7 words) for all the content? If not, a SPLIT is likely needed.
-    -   Look for **Structural Patterns**: Problem/Solution, Goal/Steps, Claim/Evidence.
+### Stage 1: Deep Contextual Understanding
+**Goal:** Understand this node's meaning within the graph structure and infer context from its content.
 
-2.  **Determine Optimal Structure:**
-    -   **If Cohesive:** The content represents a single Work Item. Decide if the current name/summary are adequate. If not, plan an **UPDATE**.
-    -   **If Disparate:** The content contains multiple distinct Work Items. Plan a **SPLIT**.
+1. **Analyze Node Content:**
+   - Carefully read the node content to understand the speaker's intent
+   - Identify any references to previous concepts or future intentions within the content itself
+   - Note the thought progression evident in the content
 
-3.  **Define Actions & Relationships:**
-    -   For a **SPLIT**, the original node becomes the parent abstraction. Its content and summary should be updated to reflect its new role.
-    -   For each new child node, you must define its `relationship_description`. To create a good description, use the **"fill-in-the-blank" method: `[Child Node Name] ______ [Parent Node Name]`**. The phrase you create for the blank should be concise (max 7 words) and form a coherent, natural-language sentence.
+2. **Analyze Neighbor Context:**
+   - Use `neighbors` to understand the node's place in the wider graph
+   - Identify conceptual relationships and dependencies
+   - Understand the abstraction level relative to surrounding nodes
+
+### Stage 2: Content Integration & Consolidation
+**Goal:** Transform potentially fragmented content into a cohesive, well-structured document while preserving 100% of the original meaning.
+
+1. **Identify Content Fragments:**
+   - Locate disconnected pieces that discuss the same concept
+   - Find redundant information that can be consolidated
+   - Identify gaps in logical flow
+
+2. **Integrate Content:**
+   - **Remove redundancy** while preserving all unique information
+   - **Reorganize for better flow** - group related concepts, establish logical progression
+   - **Merge related concepts** that were mentioned separately
+   - **Maintain speaker's intent** - preserve emphasis, priorities, and nuances
+   - **Fix coherence issues** from append-based construction
+
+3. **Information Preservation Check:**
+   - Verify that EVERY piece of information from the original content is represented
+   - Ensure no subtle meanings, implications, or details were lost
+   - Confirm that the integrated version could be used to reconstruct all original insights
+
+### Stage 3: Optimization Decision
+**Goal:** Determine the optimal structure for the integrated content.
+
+1. **Perform the Abstraction Test:**
+   - Can you create a concise title (3-7 words) that accurately represents ALL the integrated content?
+   - If not, a SPLIT is likely needed
+
+2. **Look for Structural Patterns:**
+   - Problem/Solution pairs
+   - Goal/Steps sequences
+   - Claim/Evidence relationships
+   - Multiple unrelated Work Items
+
+3. **Determine Action:**
+   - **If Cohesive:** The content represents a single Work Item. Decide if the current name/summary need updating
+   - **If Disparate:** The content contains multiple distinct Work Items. Plan a SPLIT
+
+4. **Define Relationships (for SPLIT):**
+   - The original node becomes the parent abstraction
+   - For each child node, define its `relationship_description` using the **"fill-in-the-blank" method: `[Child Node Name] ______ [Parent Node Name]`**
+   - The phrase should be concise (max 7 words) and form a natural sentence
 
 ## Node Types
 
@@ -42,27 +83,25 @@ When creating a new child node, you must assign it a `node_type` from the follow
 You must respond with a single JSON object in this exact format:
 ```json
 {
-  "reasoning": "Detailed analysis of the node's current state, how neighbor context was used, and the justification for the chosen optimization (UPDATE, SPLIT, or NO_ACTION).",
-  "update_original_node": true/false,
-  "original_node_updates": {
-    "new_content": "Updated content for the original node. Required if update_original_node is true.",
-    "new_summary": "Updated summary for the original node. Required if update_original_node is true."
-  },
+  "reasoning": "COMPREHENSIVE analysis including ALL three stages: (1) Stage 1 - Contextual Understanding: Your understanding of the node within transcript history and neighbor context. (2) Stage 2 - Content Integration: Describe how you integrated the content, what redundancies were removed, how flow was improved, and confirm that 100% of original meaning is preserved. Include the integrated content here. (3) Stage 3 - Optimization Decision: Your detailed reasoning about the optimization decision (UPDATE, SPLIT, or NO_ACTION), including structural patterns identified and abstraction test results.",
+  "update_original": true/false,
+  "original_new_content": "Updated content for the original node. Use the integrated content from your Stage 2 analysis. Required if update_original is true.",
+  "original_new_summary": "Updated summary for the original node. Required if update_original is true.",
   "create_child_nodes": [
     {
       "name": "Child Node Name",
       "content": "Content for this child node.",
       "summary": "A concise summary of this child's content.",
       "node_type": "One of the defined Node Types.",
-      "relationship_description": "The human-readable, 'fill-in-the-blank' phrase."
+      "relationship": "The human-readable, 'fill-in-the-blank' phrase."
     }
   ],
   "debug_notes": "Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in determining whether to split, update, or take no action on the node."
 }
 ```
 **Key points:**
-- If no changes are needed, set `update_original_node: false` and `create_child_nodes: []`.
-- The `original_node_updates` object should be `null` if `update_original_node` is `false`.
+- If no changes are needed, set `update_original: false` and `create_child_nodes: []`.
+- `original_new_content` and `original_new_summary` can be null if `update_original` is `false`.
 
 ## Example: Node Requiring SPLIT
 
@@ -77,33 +116,31 @@ neighbors: []
 **Output:**
 ```json
 {
-  "reasoning": "This node contains three distinct, actionable tasks. Splitting these into sub-tasks of the parent 'System Setup' node improves clarity and trackability. The relationship descriptions are generated to be human-readable.",
-  "update_original_node": true,
-  "original_node_updates": {
-    "new_content": "High-level plan for system setup, encompassing the development environment, database, and CI/CD pipeline.",
-    "new_summary": "Container for all system setup and configuration sub-tasks."
-  },
+  "reasoning": "Stage 1 - Contextual Understanding: This node contains implementation tasks for system setup. The node exists at a high level with no neighbors, suggesting it's a root-level planning node. Stage 2 - Content Integration: The content already presents three distinct tasks clearly. Integrating for better flow: 'We need to set up three main components for our system: First, configure the development environment with Node.js and npm. Second, set up the database using PostgreSQL with specific performance tuning. Third, implement frontend deployment by setting up a CI/CD pipeline with GitHub Actions.' All information preserved - each task maintains its specific technologies and purposes. Stage 3 - Optimization Decision: The integrated content reveals three distinct, actionable tasks that don't form a single cohesive work item. Each represents a separate technical setup task. The abstraction test fails - cannot create a single 3-7 word title that captures all three tasks without being too generic. Splitting improves clarity and trackability.",
+  "update_original": true,
+  "original_new_content": "High-level plan for system setup, encompassing the development environment, database, and CI/CD pipeline.",
+  "original_new_summary": "Container for all system setup and configuration sub-tasks.",
   "create_child_nodes": [
     {
       "name": "Configure Development Environment",
       "content": "Configure the development environment with Node.js and npm.",
       "summary": "Set up Node.js and npm for local development.",
       "node_type": "Task",
-      "relationship_description": "is a component of"
+      "relationship": "is a component of"
     },
     {
       "name": "Set Up PostgreSQL Database",
       "content": "The database will use PostgreSQL with specific performance tuning.",
       "summary": "Install and tune PostgreSQL database.",
       "node_type": "Task",
-      "relationship_description": "is a component of"
+      "relationship": "is a component of"
     },
     {
       "name": "Implement CI/CD Pipeline",
       "content": "Frontend deployment requires setting up CI/CD pipeline with GitHub Actions.",
       "summary": "Create a GitHub Actions pipeline for automated deployment.",
       "node_type": "Task",
-      "relationship_description": "is a component of"
+      "relationship": "is a component of"
     }
   ],
   "debug_notes": null
