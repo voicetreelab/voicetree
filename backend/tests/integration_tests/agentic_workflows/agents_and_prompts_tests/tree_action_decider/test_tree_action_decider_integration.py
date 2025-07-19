@@ -8,7 +8,7 @@ They complement the unit tests by ensuring our mocks are realistic.
 import pytest
 from typing import List
 
-from backend.text_to_graph_pipeline.orchestration.tree_action_decider import TreeActionDecider
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow as TreeActionDecider
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
     AppendAction, 
     CreateAction, 

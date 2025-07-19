@@ -6,11 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    ChunkModel,
-    SegmentationResponse,
-    RelationshipAnalysis,
-    RelationshipResponse,
-)
+    RelationshipAnalysis, RelationshipResponse, SegmentationResponse,
+    SegmentModel)
 
 
 class TestChunkModel:
@@ -18,7 +15,7 @@ class TestChunkModel:
     
     def test_chunk_model_valid(self):
         """Test creating a valid chunk model"""
-        chunk = ChunkModel(
+        chunk = SegmentModel(
             text="This is the chunk content",
             is_complete=True,
             reasoning="This chunk is complete and ready for processing"
@@ -31,7 +28,7 @@ class TestChunkModel:
     def test_chunk_model_missing_fields(self):
         """Test validation errors for missing required fields"""
         with pytest.raises(ValidationError) as exc_info:
-            ChunkModel(text="Test")  # Missing is_complete and reasoning
+            SegmentModel(text="Test")  # Missing is_complete and reasoning
         
         errors = exc_info.value.errors()
         assert len(errors) >= 2
@@ -46,8 +43,8 @@ class TestSegmentationResponse:
     
     def test_segmentation_response_empty_chunks(self):
         """Test segmentation response with empty chunks list"""
-        response = SegmentationResponse(chunks=[])
-        assert response.chunks == []
+        response = SegmentationResponse(segments=[])
+        assert response.segments == []
     
     def test_segmentation_response_from_dict(self):
         """Test creating response from dictionary"""
@@ -58,9 +55,9 @@ class TestSegmentationResponse:
         }
         
         response = SegmentationResponse(**data)
-        assert len(response.chunks) == 1
-        assert response.chunks[0].text == "Dict content"
-        assert response.chunks[0].is_complete is True
+        assert len(response.segments) == 1
+        assert response.segments[0].text == "Dict content"
+        assert response.segments[0].is_complete is True
 
 
 class TestRelationshipAnalysis:

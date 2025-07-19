@@ -2,13 +2,29 @@
 SingleAbstractionOptimizerAgent - Optimizes individual nodes for cognitive clarity
 """
 
-from typing import List, Union
+from typing import List, Union, Dict, Any, Optional, TypedDict
 from langgraph.graph import END
 
 from ..core.agent import Agent
-from ..core.state import SingleAbstractionOptimizerAgentState
 from ..models import UpdateAction, CreateAction, BaseTreeAction, OptimizationResponse
 from ...tree_manager.decision_tree_ds import DecisionTree
+
+
+class _OptimizerAgentState(TypedDict):
+    """Internal state for optimizer workflow"""
+    # Input
+    node_id: int
+    node_name: str
+    node_content: str
+    node_summary: str
+    neighbors: str  # JSON string of neighbor nodes
+    
+    # Output - these fields are merged directly from the LLM response
+    reasoning: Optional[str]
+    update_original: Optional[bool]
+    original_new_content: Optional[str]
+    original_new_summary: Optional[str]
+    create_child_nodes: Optional[List[Dict[str, Any]]]
 
 
 class SingleAbstractionOptimizerAgent(Agent):
@@ -16,7 +32,7 @@ class SingleAbstractionOptimizerAgent(Agent):
     
     def __init__(self):
         super().__init__("SingleAbstractionOptimizerAgent", 
-                         SingleAbstractionOptimizerAgentState)
+                         _OptimizerAgentState)
         self._setup_workflow()
     
     def _setup_workflow(self):
@@ -45,7 +61,7 @@ class SingleAbstractionOptimizerAgent(Agent):
         neighbors = decision_tree.get_neighbors(node_id)
         
         # Create initial state
-        initial_state: SingleAbstractionOptimizerAgentState = {
+        initial_state: _OptimizerAgentState = {
             "node_id": node_id,
             "node_name": node.title,
             "node_content": node.content,

@@ -5,9 +5,9 @@ OUTPUT_DIR = "backend/benchmarker/output"
 BACKUP_DIR_BASE = "backend/benchmarker/output_backups"
 
 # File Names
-QUALITY_LOG_FILE = "backend/benchmarker/logs/quality_log.txt"
-LATEST_QUALITY_LOG_FILE = "backend/benchmarker/logs/latest_quality_log.txt"
-LATEST_RUN_CONTEXT_FILE = "backend/benchmarker/logs/latest_run_context.json"
+QUALITY_LOG_FILE = "backend/benchmarker/quality_logs/quality_log.txt"
+LATEST_QUALITY_LOG_FILE = "backend/benchmarker/quality_logs/latest_quality_log.txt"
+LATEST_RUN_CONTEXT_FILE = "backend/benchmarker/quality_logs/latest_run_context.json"
 WORKFLOW_IO_LOG = "agentic_workflows/workflow_io.log"
 
 # Model Settings

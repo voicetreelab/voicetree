@@ -146,13 +146,6 @@ class Agent:
                         from .debug_logger import log_stage_input_output
                         transformer_name_local = f"{from_p}_to_{to_p}_transform"
                         
-                        # Log what we receive
-                        print(f"\nDEBUG: Transformer {transformer_name_local} received state:")
-                        print(f"  - current_stage: {state.get('current_stage')}")
-                        print(f"  - has chunks: {'chunks' in state and state['chunks'] is not None}")
-                        if 'chunks' in state and state['chunks'] is not None:
-                            print(f"  - chunks count: {len(state['chunks'])}")
-                        
                         result = t(state)
                         log_stage_input_output(transformer_name_local, state, result)
                         return result

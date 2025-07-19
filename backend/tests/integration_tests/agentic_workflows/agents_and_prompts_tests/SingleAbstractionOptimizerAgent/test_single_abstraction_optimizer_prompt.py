@@ -5,25 +5,20 @@ Tests the optimization decisions for node abstraction levels
 
 import pytest
 import asyncio
-from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import get_llm
-from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptEngine
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm_structured
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptLoader
 from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse, UpdateAction, CreateAction
 
 
 class TestSingleAbstractionOptimizerPrompt:
     """Test the single_abstraction_optimizer prompt with real LLM calls"""
     
-    @pytest.fixture
-    def llm(self):
-        """Get LLM instance for testing"""
-        return get_llm()
-    
     @pytest.fixture 
-    def prompt_engine(self):
-        """Get prompt engine instance"""
-        return PromptEngine()
+    def prompt_loader(self):
+        """Get prompt loader instance"""
+        return PromptLoader()
     
-    async def test_split_cluttered_node(self, llm, prompt_engine):
+    async def test_split_cluttered_node(self, prompt_loader):
         """
         Test Case 1: A cluttered node that should be split
         Current bloated node = (A,B,C,D), where optimal is A->B, A->C, B->D
@@ -50,9 +45,8 @@ class TestSingleAbstractionOptimizerPrompt:
         ]
         
         # Load and run prompt
-        prompt = prompt_engine.load_prompt("single_abstraction_optimizer")
-        messages = prompt_engine.format_prompt(
-            prompt,
+        prompt_text = prompt_loader.render_template(
+            "single_abstraction_optimizer",
             node_id=node_id,
             node_name=node_name,
             node_content=node_content,
@@ -60,8 +54,11 @@ class TestSingleAbstractionOptimizerPrompt:
             neighbors=neighbors
         )
         
-        response = await llm.ainvoke(messages)
-        result = OptimizationResponse.model_validate_json(response.content)
+        result = await call_llm_structured(
+            prompt_text,
+            stage_type="single_abstraction_optimizer",
+            output_schema=OptimizationResponse
+        )
         
         # Assertions
         assert len(result.optimization_decision.actions) > 0
@@ -84,7 +81,7 @@ class TestSingleAbstractionOptimizerPrompt:
         assert any("frontend" in name or "react" in name for name in node_names)
         assert any("auth" in name or "jwt" in name for name in node_names)
     
-    async def test_keep_cohesive_node(self, llm, prompt_engine):
+    async def test_keep_cohesive_node(self, prompt_loader):
         """
         Test Case 2: A cohesive node that should stay as a single node
         Node with related content that forms a single abstraction
@@ -112,9 +109,8 @@ class TestSingleAbstractionOptimizerPrompt:
         ]
         
         # Load and run prompt
-        prompt = prompt_engine.load_prompt("single_abstraction_optimizer")
-        messages = prompt_engine.format_prompt(
-            prompt,
+        prompt_text = prompt_loader.render_template(
+            "single_abstraction_optimizer",
             node_id=node_id,
             node_name=node_name,
             node_content=node_content,
@@ -122,8 +118,11 @@ class TestSingleAbstractionOptimizerPrompt:
             neighbors=neighbors
         )
         
-        response = await llm.ainvoke(messages)
-        result = OptimizationResponse.model_validate_json(response.content)
+        result = await call_llm_structured(
+            prompt_text,
+            stage_type="single_abstraction_optimizer",
+            output_schema=OptimizationResponse
+        )
         
         # Assertions - should not split this cohesive node
         # Could be empty list (no action) or single UPDATE (to improve summary)

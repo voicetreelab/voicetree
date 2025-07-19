@@ -69,8 +69,12 @@ Construct a single JSON object with a `routing_decisions` field. Each element in
 **Transcript History:**
 {{transcript_history}}
 
-**Existing Nodes:**
-{{existing_nodes}}
+** TRANSCRIPT that became SEGMENTs **:
+{{transcript_text}}
 
 **Segments to Analyze:**
 {{segments}}
+
+**Existing Nodes:**
+{{existing_nodes}}
+

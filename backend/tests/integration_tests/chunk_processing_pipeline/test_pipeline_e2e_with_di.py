@@ -34,6 +34,7 @@ import pytest
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
 from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction, UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
 
 
 def generate_random_sentence(min_words=1, max_words=110):
@@ -47,13 +48,14 @@ def generate_random_sentence(min_words=1, max_words=110):
     return ' '.join(words)
 
 
-class MockTreeActionDecider:
+class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
     """
     Mock TreeActionDecider that simulates the orchestrator behavior.
     This allows us to test the full pipeline without LLM calls.
     """
     
-    def __init__(self):
+    def __init__(self, decision_tree=None):
+        super().__init__(decision_tree)
         self.call_count = 0
         self.calls = []
         self.created_nodes = []
@@ -169,13 +171,13 @@ class TestPipelineE2EWithDI:
         """Test the full pipeline with a mock agent"""
         # Create components
         decision_tree = DecisionTree()
-        mock_agent = MockTreeActionDecider()
+        mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
-        # Create ChunkProcessor with injected mock agent
+        # Create ChunkProcessor with injected mock workflow
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
             output_dir=self.output_dir,
-            agent=mock_agent
+            workflow=mock_workflow
         )
         
         # Process some text - needs to be >183 chars to trigger buffer flush
@@ -194,9 +196,9 @@ class TestPipelineE2EWithDI:
         # Wait for async operations
         await asyncio.sleep(0.1)
         
-        # Verify agent was called
-        assert mock_agent.call_count >= len(test_texts), \
-            f"Agent should be called at least {len(test_texts)} times"
+        # Verify workflow was called
+        assert mock_workflow.call_count >= len(test_texts), \
+            f"Workflow should be called at least {len(test_texts)} times"
         
         # Verify tree has nodes
         assert len(decision_tree.tree) > 0, "Decision tree should have nodes"
@@ -219,19 +221,19 @@ class TestPipelineE2EWithDI:
     async def test_text_preservation(self):
         """Test that all completed text is preserved through the pipeline"""
         decision_tree = DecisionTree()
-        mock_agent = MockTreeActionDecider()
+        mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
             output_dir=self.output_dir,
-            agent=mock_agent
+            workflow=mock_workflow
         )
         
         # Track what text the agent processes
         processed_texts = []
         
         # Wrap the agent's run method to track processed text
-        original_run = mock_agent.run
+        original_run = mock_workflow.run
         async def tracking_run(*args, **kwargs):
             # Extract the transcript_text from kwargs
             if 'transcript_text' in kwargs:
@@ -242,7 +244,7 @@ class TestPipelineE2EWithDI:
             result = await original_run(*args, **kwargs)
             return result
         
-        mock_agent.run = tracking_run
+        mock_workflow.run = tracking_run
         
         # Send text through pipeline - needs to be >183 chars to trigger buffer
         test_text = ("The quick brown fox jumps over the lazy dog. " * 5 + 
@@ -270,12 +272,12 @@ class TestPipelineE2EWithDI:
     async def test_tree_structure_integrity(self):
         """Test that the tree structure maintains integrity"""
         decision_tree = DecisionTree()
-        mock_agent = MockTreeActionDecider()
+        mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
             output_dir=self.output_dir,
-            agent=mock_agent
+            workflow=mock_workflow
         )
         
         # Process multiple texts
@@ -309,12 +311,12 @@ class TestPipelineE2EWithDI:
     async def test_100_random_sentences_with_invariants(self):
         """Test with 100 random sentences and verify invariants."""
         decision_tree = DecisionTree()
-        mock_agent = MockTreeActionDecider()
+        mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
             output_dir=self.output_dir,
-            agent=mock_agent
+            workflow=mock_workflow
         )
         
         # Track all input text
@@ -331,7 +333,7 @@ class TestPipelineE2EWithDI:
         await asyncio.sleep(1.0)
         
         # Invariant 1: Number of nodes matches initial + created
-        created_nodes = len(mock_agent.created_nodes)
+        created_nodes = len(mock_workflow.created_nodes)
         final_node_count = len(decision_tree.tree)
         assert final_node_count == initial_node_count + created_nodes, \
             f"Node count mismatch: expected {initial_node_count + created_nodes}, got {final_node_count}"
@@ -356,7 +358,7 @@ class TestPipelineE2EWithDI:
         
         print(f"\nDebug info:")
         print(f"First input text: {all_input_text[0][:100]}...")
-        print(f"Nodes created: {len(mock_agent.created_nodes)}")
+        print(f"Nodes created: {len(mock_workflow.created_nodes)}")
         print(f"Total node content chars: {sum(len(c) for c in all_node_content)}")
         print(f"Number of markdown files: {len(md_files)}")
         
@@ -394,12 +396,12 @@ class TestPipelineE2EWithDI:
 async def test_empty_text_handling():
     """Test handling of empty text input"""
     decision_tree = DecisionTree()
-    mock_agent = MockTreeActionDecider()
+    mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
     
     chunk_processor = ChunkProcessor(
         decision_tree=decision_tree,
         output_dir="test_empty",
-        agent=mock_agent
+        workflow=mock_workflow
     )
     
     # Process empty text

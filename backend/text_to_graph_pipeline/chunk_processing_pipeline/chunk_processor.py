@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional, Set
 
 if TYPE_CHECKING:
-    from backend.text_to_graph_pipeline.orchestration.tree_action_decider import TreeActionDecider
+    from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
 
 from backend import settings
 from backend.text_to_graph_pipeline.text_buffer_manager import \
@@ -24,7 +24,7 @@ from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
     TreeToMarkdownConverter
 
 from .apply_tree_actions import TreeActionApplier
-from .workflow_adapter import WorkflowAdapter
+from .tree_action_decider_workflow import TreeActionDeciderWorkflow
 
 # Output directory configuration
 output_dir_base = "markdownTreeVault" # todo, move this to config file
@@ -48,7 +48,7 @@ class ChunkProcessor:
         decision_tree: DecisionTree,
         converter: Optional[TreeToMarkdownConverter] = None,
         output_dir: str = output_dir_default,
-        agent: Optional["TreeActionDecider"] = None
+        workflow: Optional["TreeActionDeciderWorkflow"] = None
     ):
         """
         Initialize the chunk processor (combines workflow tree manager and transcription processor)
@@ -57,7 +57,7 @@ class ChunkProcessor:
             decision_tree: The decision tree instance
             converter: Optional markdown converter (will create one if not provided)
             output_dir: Directory for markdown output
-            agent: Optional TreeActionDecider instance for testing
+            workflow: Optional TreeActionDeciderWorkflow instance for testing
         """
         self.decision_tree = decision_tree
         self.nodes_to_update: Set[int] = set()
@@ -68,11 +68,8 @@ class ChunkProcessor:
         self.buffer_manager = TextBufferManager()
         self.buffer_manager.init(bufferFlushLength=settings.TEXT_BUFFER_SIZE_THRESHOLD)
         
-        # Initialize workflow adapter
-        self.workflow_adapter = WorkflowAdapter(
-            decision_tree=decision_tree,
-            agent=agent
-        )
+        # Initialize workflow
+        self.workflow = workflow or TreeActionDeciderWorkflow(decision_tree=decision_tree)
         
         # Initialize tree action applier
         self.tree_action_applier = TreeActionApplier(decision_tree)
@@ -96,8 +93,8 @@ class ChunkProcessor:
             text = text.replace("Thank you.", "")  # todo, whisper keeps on hallucinating thank you
             start_time = time.time()
 
-            # logging.info(f"ChunkProcessor.process_and_convert calling process_voice_input with: '{text}'")
-            await self.process_voice_input(text)
+            # logging.info(f"ChunkProcessor.process_and_convert calling process_new_text with: '{text}'")
+            await self.process_new_text(text)
             
 
             self.converter.convert_node(output_dir=self.output_dir,
@@ -113,15 +110,15 @@ class ChunkProcessor:
                 f"Error in process_and_convert: {e} "
                 f"- Type: {type(e)} - Traceback: {traceback.format_exc()}")
 
-    async def process_voice_input(self, transcribed_text: str):
+    async def process_new_text(self, transcribed_text: str):
         """
         Process incoming voice input using unified buffer management
         
         Args:
             transcribed_text: The transcribed text from voice recognition
         """
-        # logging.info(f"process_voice_input called with text: '{transcribed_text}'")
-        # logging.info(f"process_voice_input called from: {inspect.stack()[1].function}")
+        # logging.info(f"process_new_text called with text: '{transcribed_text}'")
+        # logging.info(f"process_new_text called from: {inspect.stack()[1].function}")
         
         # Add text to buffer - incomplete text is maintained internally
         self.buffer_manager.addText(transcribed_text)
@@ -146,7 +143,7 @@ class ChunkProcessor:
         logging.info("Processing text chunk with agentic workflow")
         print(f"Buffer full, sending to agentic workflow, text length: {len(text_chunk)}") 
         # Process through workflow
-        result = await self.workflow_adapter.process_full_buffer(
+        result = await self.workflow.process_full_buffer(
             transcript=text_chunk,
             context=transcript_history_context
         )
@@ -182,11 +179,11 @@ class ChunkProcessor:
     
     def get_workflow_statistics(self) -> dict:
         """Get statistics from the workflow adapter"""
-        return self.workflow_adapter.get_workflow_statistics()
+        return self.workflow.get_workflow_statistics()
     
     def clear_workflow_state(self):
         """Clear the workflow state and all buffers"""
-        self.workflow_adapter.clear_workflow_state()
+        self.workflow.clear_workflow_state()
         self.buffer_manager.clear()
         self.nodes_to_update.clear()
         logging.info("Workflow state and all buffers cleared")

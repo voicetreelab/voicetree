@@ -7,13 +7,19 @@ import os
 import shutil
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import WorkflowResult
-from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import (
+    AppendAction, CreateAction)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
+    ChunkProcessor
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
+    WorkflowResult
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+    TreeToMarkdownConverter
 
 
 class TestChunkBoundariesIntegration:
@@ -123,7 +129,7 @@ class TestChunkBoundariesIntegration:
     #     remaining_buffer = processor.buffer_manager.get_buffer()
     #     if remaining_buffer:
     #         print(f"\nProcessing remaining buffer: {len(remaining_buffer)} chars")
-    #         await processor.process_voice_input(remaining_buffer)
+    #         await processor.process_new_text(remaining_buffer)
         
     #     # Finalize to ensure all nodes are converted to markdown
     #     await processor.finalize()

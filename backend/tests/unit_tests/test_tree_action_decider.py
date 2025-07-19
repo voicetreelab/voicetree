@@ -25,7 +25,7 @@ from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Decisio
 # This import will fail until TreeActionDecider is implemented
 # We'll use a temporary stub for TDD
 try:
-    from backend.text_to_graph_pipeline.orchestration.tree_action_decider import TreeActionDecider
+    from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow as TreeActionDecider
 except ImportError:
     # TDD stub - will be replaced when actual implementation exists
     class TreeActionDecider:
@@ -112,7 +112,7 @@ class TestTreeActionDeciderUnit:
         mock_optimizer_agent.run.return_value = optimization_actions
         
         # Patch TreeActionApplier
-        with patch('backend.text_to_graph_pipeline.orchestration.tree_action_decider.TreeActionApplier') as mock_applier_class:
+        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
             # When: Run orchestrator
@@ -165,7 +165,7 @@ class TestTreeActionDeciderUnit:
             UpdateAction(action="UPDATE", node_id=1, new_content="Optimized", new_summary="Summary")
         ]
         
-        with patch('backend.text_to_graph_pipeline.orchestration.tree_action_decider.TreeActionApplier') as mock_applier_class:
+        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
             # When: Run orchestrator
@@ -207,7 +207,7 @@ class TestTreeActionDeciderUnit:
         # Mock optimizer responses
         mock_optimizer_agent.run.return_value = []
         
-        with patch('backend.text_to_graph_pipeline.orchestration.tree_action_decider.TreeActionApplier') as mock_applier_class:
+        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
             # When: Run orchestrator
@@ -270,7 +270,7 @@ class TestTreeActionDeciderUnit:
         
         mock_optimizer_agent.run.side_effect = optimizer_side_effect
         
-        with patch('backend.text_to_graph_pipeline.orchestration.tree_action_decider.TreeActionApplier') as mock_applier_class:
+        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
             # When: Run orchestrator
@@ -307,7 +307,7 @@ class TestTreeActionDeciderUnit:
         
         mock_optimizer_agent.run.side_effect = optimizer_side_effect
         
-        with patch('backend.text_to_graph_pipeline.orchestration.tree_action_decider.TreeActionApplier') as mock_applier_class:
+        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
             # When: Run orchestrator
@@ -367,7 +367,7 @@ class TestTreeActionDeciderUnit:
             UpdateAction(action="UPDATE", node_id=99, new_content="Optimized new node", new_summary="Summary")
         ]
         
-        with patch('backend.text_to_graph_pipeline.orchestration.tree_action_decider.TreeActionApplier') as mock_applier_class:
+        with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
             
             # When: Run orchestrator

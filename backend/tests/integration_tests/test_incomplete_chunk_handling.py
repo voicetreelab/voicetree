@@ -86,7 +86,7 @@
 #             first_transcript = "Cool, so I've opened the Colab. And I'm going to try run now this audio. I'm going to save this file, upload it with the file API, and then"
             
 #             # Process first transcript - should trigger immediately due to low threshold
-#             await chunk_processor.process_voice_input(first_transcript)
+#             await chunk_processor.process_new_text(first_transcript)
             
 #             # Verify workflow was called
 #             assert mock_process.call_count >= 1
@@ -100,7 +100,7 @@
 #             second_transcript = "run the example audio to text. Cool, let's try that."
             
 #             # Process second transcript
-#             await chunk_processor.process_voice_input(second_transcript)
+#             await chunk_processor.process_new_text(second_transcript)
             
 #             # Get the text that was sent to workflow on second call
 #             if mock_process.call_count >= 2:
@@ -140,9 +140,9 @@
 #             )
             
 #             # Process multiple short texts to build history
-#             await chunk_processor.process_voice_input("First text.")
-#             await chunk_processor.process_voice_input("Second text.")
-#             await chunk_processor.process_voice_input("Third text.")
+#             await chunk_processor.process_new_text("First text.")
+#             await chunk_processor.process_new_text("Second text.")
+#             await chunk_processor.process_new_text("Third text.")
             
 #             # Check that transcript history was passed in the last call
 #             if mock_process.call_count > 0:
@@ -224,7 +224,7 @@
 #                          new_callable=AsyncMock, side_effect=mock_process_full_buffer):
             
 #             # Process text that will be modified by LLM
-#             await chunk_processor.process_voice_input("Hello world. This is incomplete")
+#             await chunk_processor.process_new_text("Hello world. This is incomplete")
             
 #             # Buffer should only contain the incomplete part
 #             # Even though LLM changed "Hello world." to "Hello, world!"
