@@ -127,6 +127,10 @@ class TreeActionApplier:
             if parent_id is None:
                 logging.warning(f"Could not find parent node '{action.target_node_name}' for CREATE action")
         
+        # Debug logging for orphan nodes
+        if parent_id is None:
+            logging.info(f"DEBUG TreeActionApplier: Creating orphan node '{action.new_node_name}'")
+        
         # Create new node
         new_node_id = self.decision_tree.create_new_node(
             name=action.new_node_name,
@@ -139,6 +143,7 @@ class TreeActionApplier:
         
         # Add the new node to the update set
         self.nodes_to_update.add(new_node_id)
+        logging.info(f"DEBUG TreeActionApplier: Added node {new_node_id} to nodes_to_update. Current set: {self.nodes_to_update}")
         
         # Also add the parent node to update set if it exists
         if parent_id is not None:
@@ -174,6 +179,7 @@ class TreeActionApplier:
             else:
                 raise ValueError(f"Unknown action type: {action.action}")
         
+        logging.info(f"DEBUG TreeActionApplier: Returning modified nodes: {self.nodes_to_update}")
         return self.nodes_to_update.copy()
     
     def _apply_append_action_unified(self, action: 'AppendAction'):
@@ -189,8 +195,8 @@ class TreeActionApplier:
             logging.error(f"Node ID {node_id} not found in tree - skipping append")
             return
         
-        node = self.decision_tree.tree[node_id]
-        node.append_content(action.content)
+        self.decision_tree.append_node_content(node_id, action.content)
         self.nodes_to_update.add(node_id)
         
+        node = self.decision_tree.tree[node_id]
         logging.info(f"Appended content to node '{node.title}' (ID {node_id})")

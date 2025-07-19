@@ -80,21 +80,21 @@ class TranscriptProcessor:
                     await asyncio.sleep(0.05)
             
             # FINALIZATION: Process any remaining text in the buffer
-            remaining_buffer = self.processor.buffer_manager.get_buffer()
-            if remaining_buffer:
-                print(f"Processing remaining buffer: {len(remaining_buffer)} chars")
+            # remaining_buffer = self.processor.buffer_manager.get_buffer()
+            # if remaining_buffer:
+                # print(f"Processing remaining buffer: {len(remaining_buffer)} chars")
                 
                 # Get transcript history for context
-                transcript_history = self.processor.buffer_manager.get_transcript_history()
+                # transcript_history = self.processor.buffer_manager.get_transcript_history()
                 
                 # Directly process the remaining buffer as a chunk, bypassing the buffer manager
-                await self.processor._process_text_chunk(remaining_buffer, transcript_history)
+                # await self.processor._process_text_chunk(remaining_buffer, transcript_history)
                 
                 # Clear the buffer since we processed it
-                self.processor.buffer_manager.clear()
+                # self.processor.buffer_manager.clear()
             
             # Convert all accumulated nodes to markdown
-            await self.processor.finalize()
+            # await self.processor.finalize()
             
             # Log workflow statistics
             workflow_stats = self.processor.get_workflow_statistics()

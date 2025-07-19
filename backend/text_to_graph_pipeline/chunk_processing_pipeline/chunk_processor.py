@@ -10,10 +10,7 @@ import os
 import time
 import traceback
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, List, Optional, Set
-
-if TYPE_CHECKING:
-    from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
+from typing import Any, List, Optional, Set
 
 from backend import settings
 from backend.text_to_graph_pipeline.text_buffer_manager import \
@@ -47,8 +44,7 @@ class ChunkProcessor:
         self,
         decision_tree: DecisionTree,
         converter: Optional[TreeToMarkdownConverter] = None,
-        output_dir: str = output_dir_default,
-        workflow: Optional["TreeActionDeciderWorkflow"] = None
+        output_dir: str = output_dir_default
     ):
         """
         Initialize the chunk processor (combines workflow tree manager and transcription processor)
@@ -57,22 +53,25 @@ class ChunkProcessor:
             decision_tree: The decision tree instance
             converter: Optional markdown converter (will create one if not provided)
             output_dir: Directory for markdown output
-            workflow: Optional TreeActionDeciderWorkflow instance for testing
         """
         self.decision_tree = decision_tree
         self.nodes_to_update: Set[int] = set()
         self.converter = converter or TreeToMarkdownConverter(decision_tree.tree)
         self.output_dir = output_dir
         
+        # Set the output_dir on the decision tree for automatic markdown writing
+        if hasattr(decision_tree, 'output_dir'):
+            decision_tree.output_dir = output_dir
+        
         # Initialize text buffer manager with configuration
         self.buffer_manager = TextBufferManager()
         self.buffer_manager.init(bufferFlushLength=settings.TEXT_BUFFER_SIZE_THRESHOLD)
         
-        # Initialize workflow
-        self.workflow = workflow or TreeActionDeciderWorkflow(decision_tree=decision_tree)
-        
         # Initialize tree action applier
         self.tree_action_applier = TreeActionApplier(decision_tree)
+        
+        # Initialize workflow
+        self.workflow = TreeActionDeciderWorkflow(decision_tree=decision_tree)
         
         logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
     
@@ -96,9 +95,8 @@ class ChunkProcessor:
             # logging.info(f"ChunkProcessor.process_and_convert calling process_new_text with: '{text}'")
             await self.process_new_text(text)
             
-
-            self.converter.convert_node(output_dir=self.output_dir,
-                                        nodes_to_update=self.nodes_to_update)
+            # Markdown writing now happens automatically in DecisionTree methods
+            # No need to manually call converter.convert_node anymore
 
             self.nodes_to_update.clear()
 
@@ -130,63 +128,24 @@ class ChunkProcessor:
             transcript_history = self.buffer_manager.get_transcript_history()
             
             # Process the text chunk
-            await self._process_text_chunk(text_to_process, transcript_history)
-    
-    async def _process_text_chunk(self, text_chunk: str, transcript_history_context: str):
-        """
-        Process text using the agentic workflow
-        
-        Args:
-            text_chunk: The chunk of text to process
-            transcript_history_context: Historical context
-        """
-        logging.info("Processing text chunk with agentic workflow")
-        print(f"Buffer full, sending to agentic workflow, text length: {len(text_chunk)}") 
-        # Process through workflow
-        result = await self.workflow.process_full_buffer(
-            transcript=text_chunk,
-            context=transcript_history_context
-        )
-        
-        if result.success:
-            logging.info(f"Workflow completed successfully. New nodes: {len(result.new_nodes)}")
-            
-            # Flush completed chunks from buffer individually
-            if result.metadata and "completed_chunks" in result.metadata:
-                completed_chunks = result.metadata["completed_chunks"]
-                if completed_chunks:
-                    # Remove each complete chunk from the buffer individually
-                    for chunk_text in completed_chunks:
-                        if chunk_text:
-                            self.buffer_manager.flushCompletelyProcessedText(chunk_text)
-                            logging.info(f"Flushed chunk: '{chunk_text[:50]}...'")
-                    logging.info(f"Total chunks flushed: {len(completed_chunks)}")
-                else:
-                    logging.warning("Workflow returned empty completed chunks - buffer unchanged")
-            elif result.metadata and "completed_text" in result.metadata:
-                logging.warning("Workflow didn't return completed text information")
-            
-            # Apply the tree actions to the decision tree
-            updated_nodes = self.tree_action_applier.apply(result.tree_actions)
+            updated_nodes = await self.workflow.process_text_chunk(
+                text_chunk=text_to_process,
+                transcript_history_context=transcript_history,
+                tree_action_applier=self.tree_action_applier,
+                buffer_manager=self.buffer_manager
+            )
             self.nodes_to_update.update(updated_nodes)
-            
-            # Log metadata
-            if result.metadata:
-                logging.info(f"Workflow metadata: {result.metadata}")
-        else:
-            logging.error(f"Workflow failed: {result.error_message}")
-    
+
     
     def get_workflow_statistics(self) -> dict:
         """Get statistics from the workflow adapter"""
         return self.workflow.get_workflow_statistics()
     
     def clear_workflow_state(self):
-        """Clear the workflow state and all buffers"""
-        self.workflow.clear_workflow_state()
+        """Clear all buffers and reset state"""
         self.buffer_manager.clear()
         self.nodes_to_update.clear()
-        logging.info("Workflow state and all buffers cleared")
+        logging.info("All buffers and state cleared")
     
     async def finalize(self):
         """Finalize processing - convert any remaining nodes to markdown"""
@@ -198,8 +157,8 @@ class ChunkProcessor:
             if final_buffer:
                 logging.warning(f"WARNING: Buffer still has {len(final_buffer)} chars during finalize")
             
-            self.converter.convert_node(output_dir=self.output_dir,
-                                        nodes_to_update=self.nodes_to_update)
+            # Markdown writing now happens automatically in DecisionTree methods
+            # No need to manually call converter.convert_node anymore
             self.nodes_to_update.clear()
         except Exception as e:
             logging.error(f"Error in finalize: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}")
