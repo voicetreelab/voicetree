@@ -7,10 +7,10 @@ from unittest.mock import patch
 import pytest
 
 from backend.text_to_graph_pipeline.agentic_workflows.models import \
-    IntegrationDecision
+    AppendAction, CreateAction
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
     ChunkProcessor
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter import \
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
     WorkflowResult
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
     DecisionTree
@@ -51,7 +51,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
     ]
 
     @pytest.mark.asyncio
-    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_full_buffer')
+    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionDeciderWorkflow.process_full_buffer')
     async def test_complex_tree_creation_workflow(self, mock_process_full_buffer):
         """Test complex tree creation using the new workflow system"""
         
@@ -66,23 +66,20 @@ class TestIntegrationMockedLLM(unittest.TestCase):
                 return response
             else:
                 # If we run out of mocked responses, return a default
-                return WorkflowResult(success=False, new_nodes=[], integration_decisions=[], error_message="No more mock responses")
+                return WorkflowResult(success=False, new_nodes=[], tree_actions=[], error_message="No more mock responses")
             
         mock_responses = [
             # First transcript response
             WorkflowResult(
                 success=True,
                 new_nodes=["Project Planning"],
-                integration_decisions=[IntegrationDecision(
-                    name="Project Planning",
-                    text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
-                    reasoning="Creating project planning node",
+                tree_actions=[CreateAction(
+                    action_type="create",
                     action="CREATE",
-                    target_node=None,
                     new_node_name="Project Planning",
-                    new_node_summary=self.summaries[0],
-                    relationship_for_edge="child of",
-                    content=self.summaries[0]
+                    content=self.summaries[0],
+                    summary="Project planning and stakeholder identification",
+                    relationship="child of"
                 )],
                 metadata={"chunks_processed": 1}
             ),
@@ -90,28 +87,22 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=["Investor Outreach", "POC Polish"],
-                integration_decisions=[
-                    IntegrationDecision(
-                        name="Investor Outreach",
-                        text="Another thing I will have to do is start reaching out to investors",
-                        reasoning="Creating investor outreach node",
-                        action="CREATE", 
-                        target_node="Project Planning",
-                        new_node_name="Investor Outreach",
-                        new_node_summary=self.summaries[1],
-                        relationship_for_edge="child of",
-                        content=self.summaries[1]
-                    ),
-                    IntegrationDecision(
-                        name="POC Polish",
-                        text="To be able to start reaching out to investors, I will first have to polish my POC",
-                        reasoning="Creating POC polish node",
+                tree_actions=[
+                    CreateAction(
+                        action_type="create",
                         action="CREATE",
-                        target_node="Investor Outreach", 
+                        new_node_name="Investor Outreach",
+                        content=self.summaries[1],
+                        summary="Reaching out to investors for advice",
+                        relationship="child of"
+                    ),
+                    CreateAction(
+                        action_type="create",
+                        action="CREATE",
                         new_node_name="POC Polish",
-                        new_node_summary=self.summaries[2],
-                        relationship_for_edge="child of",
-                        content=self.summaries[2]
+                        content=self.summaries[2],
+                        summary="Polish proof of concept for investor outreach",
+                        relationship="child of"
                     )
                 ],
                 metadata={"chunks_processed": 2}
@@ -120,7 +111,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=[],
-                integration_decisions=[],
+                tree_actions=[],
                 metadata={"chunks_processed": 0}
             )
         ]
@@ -165,7 +156,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         remaining_buffer = self.processor.buffer_manager.get_buffer()
         if remaining_buffer:
             print(f"Processing remaining buffer: {len(remaining_buffer)} chars")
-            await self.processor.process_voice_input(remaining_buffer)
+            await self.processor.process_new_text(remaining_buffer)
         
         # Finalize to ensure all nodes are converted to markdown
         await self.processor.finalize()
@@ -223,7 +214,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         asyncio.run(self.test_complex_tree_creation_workflow())
 
     @pytest.mark.asyncio
-    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.workflow_adapter.WorkflowAdapter.process_full_buffer')
+    @patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionDeciderWorkflow.process_full_buffer')
     async def test_complex_tree_creation_append_mode_workflow(self, mock_process_full_buffer):
         """Test complex tree creation with APPEND mode using the new workflow system"""
         
@@ -233,23 +224,20 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             if call_num < len(mock_responses):
                 return mock_responses[call_num]
             else:
-                return WorkflowResult(success=False, new_nodes=[], integration_decisions=[], error_message="No more mock responses")
+                return WorkflowResult(success=False, new_nodes=[], tree_actions=[], error_message="No more mock responses")
                 
         mock_responses = [
             # First transcript response
             WorkflowResult(
                 success=True,
                 new_nodes=["Project Planning"],
-                integration_decisions=[IntegrationDecision(
-                    name="Project Planning",
-                    text="This is a test of the VoiceTree application. I want to create a new node about project planning.",
-                    reasoning="Creating project planning node",
+                tree_actions=[CreateAction(
+                    action_type="create",
                     action="CREATE",
-                    target_node=None,
                     new_node_name="Project Planning",
-                    new_node_summary=self.summaries[0],
-                    relationship_for_edge="child of",
-                    content=self.summaries[0]
+                    content=self.summaries[0],
+                    summary="Project planning and stakeholder identification",
+                    relationship="child of"
                 )],
                 metadata={"chunks_processed": 1}
             ),
@@ -258,28 +246,20 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=["POC Polish"],  # Only the new node
-                integration_decisions=[
-                    IntegrationDecision(
-                        name="Investor Outreach Info",
-                        text="Another thing I will have to do is start reaching out to investors",
-                        reasoning="Appending to project planning",
+                tree_actions=[
+                    AppendAction(
+                        action_type="append",
                         action="APPEND",
-                        target_node="Project Planning",
-                        new_node_name=None,
-                        new_node_summary=None,
-                        relationship_for_edge=None,
+                        target_node_id=1,  # Assuming Project Planning has ID 1
                         content=self.summaries[1]
                     ),
-                    IntegrationDecision(
-                        name="POC Polish",
-                        text="To be able to start reaching out to investors, I will first have to polish my POC",
-                        reasoning="Creating POC polish node",
+                    CreateAction(
+                        action_type="create",
                         action="CREATE",
-                        target_node="Project Planning",
                         new_node_name="POC Polish",
-                        new_node_summary=self.summaries[2],
-                        relationship_for_edge="child of",
-                        content=self.summaries[2]
+                        content=self.summaries[2],
+                        summary="Polish proof of concept for investor outreach",
+                        relationship="child of"
                     )
                 ],
                 metadata={"chunks_processed": 2}
@@ -288,7 +268,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
             WorkflowResult(
                 success=True,
                 new_nodes=[],
-                integration_decisions=[],
+                tree_actions=[],
                 metadata={"chunks_processed": 0}
             )
         ]
@@ -324,7 +304,7 @@ class TestIntegrationMockedLLM(unittest.TestCase):
         # IMPORTANT: Process any remaining buffer content
         remaining_buffer = self.processor.buffer_manager.get_buffer()
         if remaining_buffer:
-            await self.processor.process_voice_input(remaining_buffer)
+            await self.processor.process_new_text(remaining_buffer)
         
         # Finalize to ensure all nodes are converted to markdown
         await self.processor.finalize()

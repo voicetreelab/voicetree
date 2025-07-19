@@ -8,6 +8,8 @@ MAKE SURE TO RUN FROM PROJECT ROOT
 
 import sys
 import os
+import shutil
+from datetime import datetime
 # Add project root to Python path to allow running with: python backend/benchmarker/...
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
@@ -18,6 +20,29 @@ from backend.benchmarker.src import (
     TranscriptProcessor,
     QualityEvaluator
 )
+
+
+def copy_debug_logs():
+    """Copy debug logs from agentic workflows to benchmarker output directory."""
+    source_dir = "backend/text_to_graph_pipeline/agentic_workflows/debug_logs"
+    dest_dir = "backend/benchmarker/output/debug_logs"
+    
+    if os.path.exists(source_dir):
+        # Create timestamped subdirectory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_dest = os.path.join(dest_dir, f"run_{timestamp}")
+        
+        # Copy the entire debug_logs directory
+        shutil.copytree(source_dir, timestamped_dest)
+        print(f"\nDebug logs copied to: {timestamped_dest}")
+        
+        # Also create a 'latest' symlink for convenience
+        latest_link = os.path.join(dest_dir, "latest")
+        if os.path.exists(latest_link):
+            os.unlink(latest_link)
+        os.symlink(os.path.basename(timestamped_dest), latest_link)
+    else:
+        print(f"\nWarning: Debug logs directory not found at {source_dir}")
 
 
 async def run_quality_benchmark(test_transcripts=None):
@@ -64,7 +89,10 @@ async def run_quality_benchmark(test_transcripts=None):
         )
         
         print(f"\nEvaluation completed for {transcript_info['name']}")
-        print("See backend/benchmarker/logs/quality_log.txt and backend/benchmarker/logs/latest_quality_log.txt for results.")
+        print("See backend/benchmarker/quality_logs/quality_log.txt and backend/benchmarker/quality_logs/latest_quality_log.txt for results.")
+    
+    # Copy debug logs after all evaluations are complete
+    copy_debug_logs()
 
 
 async def main():

@@ -38,7 +38,7 @@ tree = DecisionTree()
 processor = ChunkProcessor(tree)
 
 # Process voice input
-await processor.process_voice_input("Some transcribed text")
+await processor.process_new_text("Some transcribed text")
 ```
 
 ## Dependencies

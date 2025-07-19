@@ -27,12 +27,12 @@ def clear_debug_logs():
     
 def log_stage_input_output(stage_name: str, inputs: Dict[str, Any], outputs: Dict[str, Any]):
     """
-    Log the input and output variables for a workflow stage
+    Log the state before and after a workflow stage execution
     
     Args:
         stage_name: Name of the stage (e.g., "segmentation", "relationship_analysis")
-        inputs: Dictionary of input variables passed to the stage
-        outputs: Dictionary of output variables from the stage
+        inputs: State dictionary before the stage executes
+        outputs: State dictionary after the stage executes
     """
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_file = DEBUG_DIR / f"{stage_name}_debug.txt"
@@ -43,10 +43,10 @@ def log_stage_input_output(stage_name: str, inputs: Dict[str, Any], outputs: Dic
 {stage_name.upper()} STAGE DEBUG - {timestamp}
 ==========================================
 
-INPUT VARIABLES:
+STATE BEFORE:
 {format_variables(inputs)}
 
-OUTPUT VARIABLES:
+STATE AFTER:
 {format_variables(outputs)}
 
 ==========================================

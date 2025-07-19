@@ -6,8 +6,8 @@ Tests that the prompt correctly identifies target node IDs instead of names
 import pytest
 import asyncio
 import json
-from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm
-from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptEngine
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm_structured
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptLoader
 from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
 
 
@@ -15,11 +15,11 @@ class TestIdentifyTargetNodeWithIDs:
     """Test the improved identify_target_node prompt that returns node IDs"""
     
     @pytest.fixture 
-    def prompt_engine(self):
-        """Get prompt engine instance"""
-        return PromptEngine()
+    def prompt_loader(self):
+        """Get prompt loader instance"""
+        return PromptLoader()
     
-    async def test_existing_node_identification_with_ids(self, prompt_engine):
+    async def test_existing_node_identification_with_ids(self, prompt_loader):
         """Test identifying segments that should go to existing nodes using IDs"""
         # Test data - now includes node IDs
         existing_nodes = """
@@ -37,15 +37,17 @@ class TestIdentifyTargetNodeWithIDs:
         """
         
         # Load and run prompt
-        prompt = prompt_engine.load_prompt("identify_target_node")
-        messages = prompt_engine.format_prompt(
-            prompt,
+        prompt_text = prompt_loader.render_template(
+            "identify_target_node",
             existing_nodes=existing_nodes,
             segments=segments
         )
         
-        response = await call_llm(messages)
-        result = TargetNodeResponse.model_validate_json(response)
+        result = await call_llm_structured(
+            prompt_text,
+            stage_type="identify_target_node",
+            output_schema=TargetNodeResponse
+        )
         
         # Assertions
         assert len(result.target_nodes) == 2
@@ -60,7 +62,7 @@ class TestIdentifyTargetNodeWithIDs:
         assert result.target_nodes[1].is_new_node == False
         assert "database" in result.target_nodes[1].text.lower()
     
-    async def test_new_node_creation_with_special_id(self, prompt_engine):
+    async def test_new_node_creation_with_special_id(self, prompt_loader):
         """Test identifying segments that need new nodes using special ID"""
         # Test data  
         existing_nodes = """
@@ -77,15 +79,17 @@ class TestIdentifyTargetNodeWithIDs:
         """
         
         # Load and run prompt
-        prompt = prompt_engine.load_prompt("identify_target_node")
-        messages = prompt_engine.format_prompt(
-            prompt,
+        prompt_text = prompt_loader.render_template(
+            "identify_target_node",
             existing_nodes=existing_nodes,
             segments=segments
         )
         
-        response = await call_llm(messages)
-        result = TargetNodeResponse.model_validate_json(response)
+        result = await call_llm_structured(
+            prompt_text,
+            stage_type="identify_target_node",
+            output_schema=TargetNodeResponse
+        )
         
         # Assertions
         assert len(result.target_nodes) == 2
@@ -102,7 +106,7 @@ class TestIdentifyTargetNodeWithIDs:
         assert "notification" in result.target_nodes[1].new_node_name.lower() or \
                "websocket" in result.target_nodes[1].new_node_name.lower()
     
-    async def test_mixed_existing_and_new_nodes(self, prompt_engine):
+    async def test_mixed_existing_and_new_nodes(self, prompt_loader):
         """Test a mix of existing node references and new node creation"""
         existing_nodes = """
         [
