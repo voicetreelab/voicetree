@@ -10,7 +10,7 @@ import logging
 
 from ..agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
 from ..agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
-from ..agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction
+from ..agentic_workflows.models import AppendAction, UpdateAction, CreateAction, BaseTreeAction, AppendAgentResult
 from ..tree_manager.decision_tree_ds import DecisionTree
 from .apply_tree_actions import TreeActionApplier
 from ..text_buffer_manager import TextBufferManager
@@ -32,17 +32,20 @@ class TreeActionDeciderWorkflow:
     NOT an agent - pure deterministic coordination with result wrapping.
     """
     
-    def __init__(self, decision_tree: Optional[DecisionTree] = None):
+    def __init__(self, decision_tree: Optional[DecisionTree] = None) -> None:
         """
         Initialize the workflow
         
         Args:
             decision_tree: Optional decision tree instance (can be set later)
         """
-        self.decision_tree = decision_tree
-        self.append_agent = AppendToRelevantNodeAgent()
-        self.optimizer_agent = SingleAbstractionOptimizerAgent()
+        self.decision_tree: Optional[DecisionTree] = decision_tree
+        self.append_agent: AppendToRelevantNodeAgent = AppendToRelevantNodeAgent()
+        self.optimizer_agent: SingleAbstractionOptimizerAgent = SingleAbstractionOptimizerAgent()
         self.nodes_to_update: Set[int] = set()
+        
+        # Track previous buffer remainder to detect stuck text
+        self._prev_buffer_remainder: str = ""  # What was left in buffer after last processing
     
     
     def get_workflow_statistics(self) -> Dict[str, Any]:
@@ -57,8 +60,8 @@ class TreeActionDeciderWorkflow:
     
     def clear_workflow_state(self) -> None:
         """Clear the workflow state"""
-        # No state to clear - workflow is now stateless
-        pass
+        # Clear stuck text tracking
+        self._prev_buffer_remainder = ""
     
     async def run(
         self, 
@@ -121,136 +124,120 @@ class TreeActionDeciderWorkflow:
         Returns:
             Set of node IDs that were updated
         """
-        logging.info(f"Starting stateful workflow for text chunk (length: {len(text_chunk)})")
-        print(f"Buffer full, sending to agentic workflow, text length: {len(text_chunk)}")
+        logging.info(f"Starting stateful workflow for text chunk ( {(text_chunk)})")
+        print(f"Buffer full, sending to agentic workflow, text: {text_chunk}\n") 
         
         self.nodes_to_update.clear()
         
-        try:
-            # ======================================================================
-            # PHASE 1: PLACEMENT (APPEND/CREATE)
-            # ======================================================================
-            logging.info("Running Phase 1: Placement Agent...")
+        
+        # ======================================================================
+        # PHASE 1: PLACEMENT (APPEND/CREATE)
+        # ======================================================================
+        logging.info("Running Phase 1: Placement Agent...")
+        
+        # The append_agent now returns both actions and segment information
+        append_agent_result: AppendAgentResult = await self.append_agent.run(
+            transcript_text=text_chunk,
+            decision_tree=self.decision_tree,
+            transcript_history=transcript_history_context
+        )
+        
+        append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
+
+        
+        # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
+        # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
+        for segment in append_agent_result.segments:
+            if segment.is_complete:
+                buffer_manager.flushCompletelyProcessedText(segment.text)
+        
+        if not append_or_create_actions:
+            logging.info("Placement agent returned no actions. Ending workflow for this chunk.")
+            logging.info(f"Incomplete segments remain in buffer for next processing")
             
-            # The append_agent now returns both actions and segment information
-            placement_result = await self.append_agent.run(
-                transcript_text=text_chunk,
-                decision_tree=self.decision_tree,
-                transcript_history=transcript_history_context
+            # Check for stuck text even when no actions are returned
+            current_buffer: str = buffer_manager.getBuffer()
+            if current_buffer and self._prev_buffer_remainder and self._prev_buffer_remainder in current_buffer:
+                # Previous content still in buffer (exact match or as prefix) - remove it as stuck text
+                logging.warning(f"No actions returned and previous buffer content still present: '{self._prev_buffer_remainder}...' - removing stuck text")
+                buffer_manager.flushCompletelyProcessedText(self._prev_buffer_remainder)  
+            
+            return set() #  no actions to further process.
+        
+
+        # --- Orphan Merging ---
+        # This logic is necessary before the first apply. Merge all create actions into a single node, so that they can be seperated by optimizer.
+        orphan_creates: List[CreateAction] = [
+            action for action in append_or_create_actions 
+            if isinstance(action, CreateAction) and not action.parent_node_id
+        ]
+        
+        # Process actions based on orphan merge logic
+        actions_to_apply: List[BaseTreeAction] = append_or_create_actions
+        
+        if len(orphan_creates) > 1:
+            logging.info(f"Merging {len(orphan_creates)} orphan nodes into one.")
+            
+            # Merge all orphan nodes into one grouped node
+            merged_names: List[str] = []
+            merged_contents: List[str] = []
+            merged_summaries: List[str] = []
+            
+            for orphan in orphan_creates:
+                merged_names.append(orphan.new_node_name)
+                merged_contents.append(orphan.content)
+                merged_summaries.append(orphan.summary)
+            
+            merged_orphan: CreateAction = CreateAction(
+                action="CREATE",
+                parent_node_id=None,
+                new_node_name="\n\n".join(merged_names),
+                content="\n\n".join(merged_contents),
+                summary="\n\n".join(merged_summaries),
+                relationship=""  # Empty for orphan nodes
             )
             
-            placement_actions = placement_result.actions
-            completed_text = placement_result.completed_text
-            
-            if not placement_actions:
-                logging.info("Placement agent returned no actions. Ending workflow for this chunk.")
-                # Even if no actions, we might have incomplete segments to keep in buffer
-                logging.info(f"Incomplete segments remain in buffer for next processing")
-                return set()
-            
-
-            # --- Orphan Merging ---
-            # This logic is necessary before the first apply.
-            orphan_creates = [
-                action for action in placement_actions 
-                if isinstance(action, CreateAction) and action.parent_node_id is None
+            # Get non-orphan actions
+            non_orphan_actions: List[BaseTreeAction] = [
+                action for action in append_or_create_actions 
+                if not (isinstance(action, CreateAction))
             ]
             
-            # Process actions based on orphan merge logic
-            actions_to_apply = placement_actions
-            
-            if len(orphan_creates) > 1:
-                logging.info(f"Merging {len(orphan_creates)} orphan nodes into one.")
-                
-                # Merge all orphan nodes into one mega node
-                merged_names = []
-                merged_contents = []
-                merged_summaries = []
-                
-                for orphan in orphan_creates:
-                    merged_names.append(orphan.new_node_name)
-                    merged_contents.append(orphan.content)
-                    merged_summaries.append(orphan.summary)
-                
-                merged_orphan = CreateAction(
-                    action="CREATE",
-                    parent_node_id=None,
-                    new_node_name="\n\n".join(merged_names),
-                    content="\n\n".join(merged_contents),
-                    summary="\n\n".join(merged_summaries),
-                    relationship=""  # Empty for orphan nodes
-                )
-                
-                # Get non-orphan actions
-                non_orphan_actions = [
-                    action for action in placement_actions 
-                    if not (isinstance(action, CreateAction) and action.parent_node_id is None)
-                ]
-                
-                # Replace all orphan creates with the single merged one
-                actions_to_apply = non_orphan_actions + [merged_orphan]
+            # Replace all orphan creates with the single merged one
+            actions_to_apply = non_orphan_actions + [merged_orphan]
 
-            # --- First Side Effect: Apply Placement ---
-            placement_modified_nodes = tree_action_applier.apply(actions_to_apply)
+        # --- First Side Effect: Apply Placement ---
+        modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
+        
+        logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
+        
+        
+        # ======================================================================
+        # PHASE 2: OPTIMIZATION
+        # ======================================================================
+        logging.info("Running Phase 2: Optimization Agent...")
+
+        # We now have the list of nodes that were just modified. We optimize them.
+        all_optimization_actions: List[BaseTreeAction] = []
+        for node_id in modified_or_new_nodes:
+            logging.info(f"Optimizing node {node_id}...")
             
-            self.nodes_to_update.update(placement_modified_nodes)
-            logging.info(f"Phase 1 Complete. Nodes affected: {placement_modified_nodes}")
+            # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
+            optimization_actions: List[BaseTreeAction] = await self.optimizer_agent.run(
+                node=self.decision_tree.tree[node_id],
+                neighbours_context=self.decision_tree.get_neighbors(node_id)
+            )
             
-            # ======================================================================
-            # INTERMEDIATE STEP: FLUSH BUFFER
-            # ======================================================================
-            # TODO: BUG - Infinite loop with persistently incomplete segments
-            # When the benchmarker sends text word-by-word and the buffer is already 
-            # past its threshold, incomplete segments get reprocessed infinitely.
-            # Each new word triggers processing, but the garbled/incomplete text 
-            # never becomes complete enough to satisfy the segmentation logic.
-            # 
-            # FUTURE SOLUTION: Track how many times the same content has been marked
-            # as incomplete. If the same content is unfinished 3 times in a row, 
-            # discard it as garbage. This prevents infinite loops from persistently
-            # incomplete segments caused by transcription errors or fragmented input.
-            #
-            # Only flush the completed segments, not the entire chunk
-            if completed_text:
-                logging.info(f"Flushing completed text from buffer: {completed_text}")
-                buffer_manager.flushCompletelyProcessedText(completed_text)
+            if optimization_actions:
+                logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
+                # --- Second Side Effect: Apply Optimization ---
+                # Apply these actions immediately.
+                optimization_modified_nodes: Set[int] = tree_action_applier.apply(optimization_actions)
+                
             else:
-                logging.info("No completed segments to flush - incomplete text remains in buffer")
-            
-            # ======================================================================
-            # PHASE 2: OPTIMIZATION
-            # ======================================================================
-            logging.info("Running Phase 2: Optimization Agent...")
+                logging.info(f"Optimizer had no changes for node {node_id}.")
 
-            # We now have the list of nodes that were just modified. We optimize them.
-            all_optimization_actions = []
-            for node_id in placement_modified_nodes:
-                logging.info(f"Optimizing node {node_id}...")
-                
-                # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
-                optimization_actions = await self.optimizer_agent.run(
-                    node_id=node_id,
-                    decision_tree=self.decision_tree
-                )
-                
-                if optimization_actions:
-                    logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
-                    # --- Second Side Effect: Apply Optimization ---
-                    # Apply these actions immediately.
-                    optimization_modified_nodes = tree_action_applier.apply(optimization_actions)
-                    self.nodes_to_update.update(optimization_modified_nodes)
-                    all_optimization_actions.extend(optimization_actions)
-                    
-                    # Store for test compatibility if the attribute exists
-                    if hasattr(self, 'optimization_actions_for_tests'):
-                        self.optimization_actions_for_tests.extend(optimization_actions)
-                else:
-                    logging.info(f"Optimizer had no changes for node {node_id}.")
-
-            logging.info(f"Phase 2 Complete. Total optimization actions applied: {len(all_optimization_actions)}")
-            
-            return self.nodes_to_update.copy()
-            
-        except Exception as e:
-            logging.error(f"Workflow failed during processing: {str(e)}", exc_info=True)
-            return set()
+        # Always store current buffer state for next processing to detect stuck text
+        self._prev_buffer_remainder = buffer_manager.getBuffer()
+        
+        return -1 # changed to impure methhod with only sideeffects

@@ -130,7 +130,6 @@ class AppendToRelevantNodeAgent(Agent):
         # === CORE LOGIC: Work with Pydantic models ===
         # Calculate completed text - only include complete segments
         completed_segments = [seg for seg in segments if seg.is_complete]
-        completed_text = " ".join(seg.text for seg in completed_segments)
         
         # Convert TargetNodeIdentification to actions (translation layer)
         actions: List[Union[AppendAction, CreateAction]] = []
@@ -138,7 +137,7 @@ class AppendToRelevantNodeAgent(Agent):
         for i, target in enumerate(target_nodes):
             # Only create actions for complete segments
             if i < len(segments) and segments[i].is_complete:
-                if target.target_node_id != -1:
+                if not target.is_new_node:
                     # Existing node - create AppendAction
                     actions.append(AppendAction(
                         action="APPEND",
@@ -160,7 +159,6 @@ class AppendToRelevantNodeAgent(Agent):
         return AppendAgentResult(
             actions=actions,
             segments=segments,
-            completed_text=completed_text
         )
     
     def _format_nodes_for_prompt(self, tree: DecisionTree) -> str:

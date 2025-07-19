@@ -8,7 +8,7 @@ from langgraph.graph import END
 from ..core.agent import Agent
 from ..core.state import SingleAbstractionOptimizerAgentState
 from ..models import UpdateAction, CreateAction, BaseTreeAction, OptimizationResponse
-from ...tree_manager.decision_tree_ds import DecisionTree
+from ...tree_manager.decision_tree_ds import DecisionTree, Node
 
 
 class SingleAbstractionOptimizerAgent(Agent):
@@ -27,7 +27,7 @@ class SingleAbstractionOptimizerAgent(Agent):
         )
         self.add_dataflow("single_abstraction_optimizer", END)
     
-    async def run(self, node_id: int, decision_tree: DecisionTree) -> List[BaseTreeAction]:
+    async def run(self, node:Node, neighbours_context: str) -> List[BaseTreeAction]:
         """Analyze and optimize a single node
         
         Args:
@@ -37,21 +37,17 @@ class SingleAbstractionOptimizerAgent(Agent):
         Returns:
             List of tree actions (UPDATE and/or CREATE actions)
         """
-        node = decision_tree.tree.get(node_id)
-        if not node:
-            raise ValueError(f"Node {node_id} not found")
         
         # Get neighbors for context
-        neighbors = decision_tree.get_neighbors(node_id)
         
         # Create initial state
         initial_state: SingleAbstractionOptimizerAgentState = {
-            "node_id": node_id,
+            "node_id": node.id,
             "node_name": node.title,
             "node_content": node.content,
             "node_summary": node.summary,
-            "neighbors": str(neighbors),
-            "transcript_history": "",  # Add missing required field
+            "neighbors": str(neighbours_context),
+            "transcript_history": "", 
             # LLM response fields will be added by the workflow
             "reasoning": None,
             "update_original": None,
@@ -66,7 +62,7 @@ class SingleAbstractionOptimizerAgent(Agent):
         
         # Extract and convert to actions
         if result:
-            return self._convert_to_typed_actions(result, node_id)
+            return self._convert_to_typed_actions(result, node.id)
         return []
     
     def _convert_to_typed_actions(self, result: dict, node_id: int) -> List[BaseTreeAction]:

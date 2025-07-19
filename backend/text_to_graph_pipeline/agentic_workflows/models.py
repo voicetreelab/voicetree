@@ -60,10 +60,9 @@ class UpdateAction(BaseTreeAction):
 class CreateAction(BaseTreeAction):
     """Model for CREATE action in optimization context"""
     action: Literal["CREATE"] = Field(description="Action type")
-    # Legacy name-based field (deprecated)
-    target_node_name: Optional[str] = Field(default=None, description="Name of parent node (deprecated, use parent_node_id)")
-    # New ID-based field
-    parent_node_id: Optional[int] = Field(default=None, description="ID of parent node (-1 for root)")
+    target_node_name: Optional[str] = Field(default=None, description="Name of parent node")
+    # New ID-based field, do processing based off of this.
+    parent_node_id: Optional[int] = Field(default=None, description="ID of parent node (None for orphan)")
     new_node_name: str = Field(description="Name for the new node")
     content: str = Field(description="Content for the new node")
     summary: str = Field(description="Summary for the new node")
@@ -143,5 +142,3 @@ class AppendAgentResult(BaseModel):
     """Result from AppendToRelevantNodeAgent containing actions and segment info"""
     actions: List[Union[AppendAction, CreateAction]] = Field(description="List of actions to apply")
     segments: List[SegmentModel] = Field(description="List of segments with completeness info")
-    completed_text: str = Field(description="Concatenated text of all complete segments that should be flushed")
-

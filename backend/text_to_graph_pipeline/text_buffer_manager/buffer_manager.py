@@ -90,7 +90,10 @@ class TextBufferManager:
         if not self._buffer:
             logging.warning("flushCompletelyProcessedText called with empty buffer")
             return self._buffer
-            
+
+        if text in self._buffer:
+            self._buffer = self._buffer.replace(text, "")    
+        
         # Use fuzzy matcher to remove the text
         result, success = self._fuzzy_matcher.remove_matched_text(self._buffer, text)
         
