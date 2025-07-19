@@ -83,6 +83,9 @@ class ChildNodeSpec(BaseModel):
     content: str = Field(description="Content for the new child node")
     summary: str = Field(description="Summary for the new child node")
     relationship: str = Field(description="Relationship to parent (e.g., 'subtask of', 'implements', 'solves')")
+    
+    class Config:
+        extra = "forbid"  # This makes Pydantic reject any extra fields!
 
 
 class OptimizationResponse(BaseModel):
