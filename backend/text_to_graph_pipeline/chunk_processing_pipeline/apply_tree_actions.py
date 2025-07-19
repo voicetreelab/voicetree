@@ -191,9 +191,20 @@ class TreeActionApplier:
         """
         node_id = action.target_node_id
         
+        # If node ID not found, try to find by name as fallback
         if node_id not in self.decision_tree.tree:
-            logging.error(f"Node ID {node_id} not found in tree - skipping append")
-            return
+            if action.target_node_name:
+                logging.info(f"Node ID {node_id} not found, searching for node by name: '{action.target_node_name}'")
+                found_id = self.decision_tree.find_node_by_name(action.target_node_name)
+                if found_id is not None:
+                    logging.info(f"Found node '{action.target_node_name}' with ID {found_id}, using that instead")
+                    node_id = found_id
+                else:
+                    logging.warning(f"Node ID {node_id} not found and name '{action.target_node_name}' also not found - deferring append action")
+                    return
+            else:
+                logging.error(f"Node ID {node_id} not found in tree and no fallback name provided - deferring append action")
+                return
         
         self.decision_tree.append_node_content(node_id, action.content)
         self.nodes_to_update.add(node_id)

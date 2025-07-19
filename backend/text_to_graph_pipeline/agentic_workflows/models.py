@@ -74,6 +74,7 @@ class AppendAction(BaseTreeAction):
     """Model for APPEND action - adds content to existing node"""
     action: Literal["APPEND"] = Field(description="Action type")
     target_node_id: int = Field(description="ID of node to append content to")
+    target_node_name: Optional[str] = Field(default=None, description="Name of target node (for fallback if ID not found)")
     content: str = Field(description="Content to append to the node")
 
 
