@@ -92,8 +92,8 @@ class TextBufferManager:
             return self._buffer
 
         if text in self._buffer:
-            self._buffer = self._buffer.replace(text, "")    
-        
+            self._buffer = self._buffer.replace(text, "")
+            return self._buffer
         # Use fuzzy matcher to remove the text
         result, success = self._fuzzy_matcher.remove_matched_text(self._buffer, text)
         

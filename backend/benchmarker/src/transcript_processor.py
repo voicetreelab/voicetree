@@ -67,17 +67,21 @@ class TranscriptProcessor:
         state_file_name = self._initialize_processor(transcript_identifier)
         
         try:
-            # Process word by word to simulate streaming
+            # Process 30 words at a time to simulate streaming
             words = content.split()
             print(f"Processing {len(words)} words ({len(content)} chars total)")
             
-            for i, word in enumerate(words):
-                # Send each word individually, like streaming voice
-                await self.processor.process_new_text_and_update_markdown(word + " ")
+            # Process in chunks of 30 words
+            chunk_size = 30
+            for i in range(0, len(words), chunk_size):
+                chunk = words[i:i + chunk_size]
+                chunk_text = ' '.join(chunk) + " "
+                
+                # Send chunk of 30 words
+                await self.processor.process_new_text_and_update_markdown(chunk_text)
                 
                 # Small delay to simulate streaming (optional)
-                if i % 30 == 0:  # Rate limit every 30 words
-                    await asyncio.sleep(0.05)
+                await asyncio.sleep(0.05)
             
             # FINALIZATION: Process any remaining text in the buffer
             # remaining_buffer = self.processor.buffer_manager.get_buffer()

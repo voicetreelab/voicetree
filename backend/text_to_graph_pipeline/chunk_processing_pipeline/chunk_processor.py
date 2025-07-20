@@ -100,8 +100,6 @@ class ChunkProcessor:
             # Markdown writing now happens automatically in DecisionTree methods
             # No need to manually call converter.convert_node anymore
 
-            self.nodes_to_update.clear()
-
             elapsed_time = time.time() - start_time
             # logging.info(f"Processing transcribed text took: {elapsed_time:.4f} seconds")
 
