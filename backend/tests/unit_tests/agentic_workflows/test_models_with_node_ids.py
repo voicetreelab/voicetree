@@ -2,13 +2,13 @@
 Unit tests for updated models with node ID support
 """
 
+from typing import Optional
+
 import pytest
 from pydantic import ValidationError
-from typing import Optional
+
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    TargetNodeIdentification,
-    TargetNodeResponse
-)
+    TargetNodeIdentification, TargetNodeResponse)
 
 
 class TestTargetNodeIdentificationWithIDs:
@@ -21,13 +21,13 @@ class TestTargetNodeIdentificationWithIDs:
             reasoning="This relates to performance optimization",
             target_node_id=5,
             target_node_name="Performance Optimization",
-            is_new_node=False
+            is_orphan=False
         )
         
         assert target.target_node_id == 5
         assert target.target_node_name == "Performance Optimization"
-        assert target.is_new_node == False
-        assert target.new_node_name is None  # Should be None for existing nodes
+        assert target.is_orphan == False
+        assert target.orphan_topic_name is None  # Should be None for existing nodes
     
     def test_new_node_with_special_id(self):
         """Test creating a target node identification for a new node"""
@@ -35,13 +35,13 @@ class TestTargetNodeIdentificationWithIDs:
             text="Implement user authentication",
             reasoning="This is a new security feature not covered by existing nodes",
             target_node_id=-1,  # Special ID for new nodes
-            is_new_node=True,
-            new_node_name="User Authentication"
+            is_orphan=True,
+            orphan_topic_name="User Authentication"
         )
         
         assert target.target_node_id == -1
-        assert target.is_new_node == True
-        assert target.new_node_name == "User Authentication"
+        assert target.is_orphan == True
+        assert target.orphan_topic_name == "User Authentication"
     
     def test_validation_new_node_requires_name(self):
         """Test that new nodes require a name"""
@@ -50,7 +50,7 @@ class TestTargetNodeIdentificationWithIDs:
                 text="Some text",
                 reasoning="Some reasoning",
                 target_node_id=-1,
-                is_new_node=True
+                is_orphan=True
                 # Missing new_node_name
             )
         
@@ -65,7 +65,7 @@ class TestTargetNodeIdentificationWithIDs:
             reasoning="Some reasoning",
             target_node_id=1,
             target_node_name="Existing Node",
-            is_new_node=False
+            is_orphan=False
         )
         assert target.target_node_id == 1
         
@@ -75,7 +75,7 @@ class TestTargetNodeIdentificationWithIDs:
             reasoning="Some reasoning for root",
             target_node_id=0,
             target_node_name="Root Node",
-            is_new_node=False
+            is_orphan=False
         )
         assert target_root.target_node_id == 0
         
@@ -86,7 +86,7 @@ class TestTargetNodeIdentificationWithIDs:
                 reasoning="Some reasoning",
                 target_node_id=-1,
                 target_node_name="Some Node",
-                is_new_node=False  # Says existing but ID is -1
+                is_orphan=False  # Says existing but ID is -1
             )
         
         assert "existing node" in str(exc_info.value).lower()
@@ -100,14 +100,14 @@ class TestTargetNodeIdentificationWithIDs:
                     reasoning="Related to existing optimization work",
                     target_node_id=3,
                     target_node_name="Performance Optimization",
-                    is_new_node=False
+                    is_orphan=False
                 ),
                 TargetNodeIdentification(
                     text="New feature: chat interface",
                     reasoning="Completely new functionality",
                     target_node_id=-1,
-                    is_new_node=True,
-                    new_node_name="Chat Interface"
+                    is_orphan=True,
+                    orphan_topic_name="Chat Interface"
                 )
             ]
         )
@@ -115,7 +115,7 @@ class TestTargetNodeIdentificationWithIDs:
         assert len(response.target_nodes) == 2
         assert response.target_nodes[0].target_node_id == 3
         assert response.target_nodes[1].target_node_id == -1
-        assert response.target_nodes[1].new_node_name == "Chat Interface"
+        assert response.target_nodes[1].orphan_topic_name == "Chat Interface"
 
 
 if __name__ == "__main__":

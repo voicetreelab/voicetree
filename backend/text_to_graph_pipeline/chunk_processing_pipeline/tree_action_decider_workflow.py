@@ -153,7 +153,7 @@ class TreeActionDeciderWorkflow:
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
         for segment in append_agent_result.segments:
             if segment.is_routable:
-                buffer_manager.flushCompletelyProcessedText(segment.text)
+                buffer_manager.flushCompletelyProcessedText(segment.raw_text)
         
         if not append_or_create_actions:
             logging.info("Placement agent returned no actions. Ending workflow for this chunk.")

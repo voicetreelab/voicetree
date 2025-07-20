@@ -111,18 +111,18 @@ class TargetNodeIdentification(BaseModel):
     text: str = Field(description="Text content of the segment")
     reasoning: str = Field(description="Analysis for choosing the target node")
     target_node_id: int = Field(description="ID of target node (use -1 for new nodes)")
-    target_node_name: Optional[str] = Field(default=None, description="Name of the chosen existing node (required when is_new_node=False)")
-    is_new_node: bool = Field(description="Whether this is a new node to be created")
-    new_node_name: Optional[str] = Field(default=None, description="Name for new node (required if is_new_node=True)")
+    target_node_name: Optional[str] = Field(default=None, description="Name of the chosen existing node (required when is_orphan=False)")
+    is_orphan: bool = Field(description="Whether this is a new node to be created")
+    orphan_topic_name: Optional[str] = Field(default=None, description="Name for new orphan node (required if is_orphan=True)")
     
     def model_post_init(self, __context):
         """Validate that new nodes have names and existing nodes have valid IDs"""
-        if self.is_new_node:
-            if not self.new_node_name:
-                raise ValueError("new_node_name is required when is_new_node=True")
+        if self.is_orphan:
+            if not self.orphan_topic_name:
+                raise ValueError("orphan_topic_name is required when is_orphan=True")
         else:
             if not self.target_node_name:
-                raise ValueError("target_node_name is required when is_new_node=False")
+                raise ValueError("target_node_name is required when is_orphan=False")
 
 
 class TargetNodeResponse(BaseModel):
@@ -132,6 +132,8 @@ class TargetNodeResponse(BaseModel):
 
 
 from typing import Union
+
+
 class AppendAgentResult(BaseModel):
     """Result from AppendToRelevantNodeAgent containing actions and segment info"""
     actions: List[Union[AppendAction, CreateAction]] = Field(description="List of actions to apply")
