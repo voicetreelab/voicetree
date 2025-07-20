@@ -15,8 +15,9 @@ class BaseTreeAction(BaseModel):
 class SegmentModel(BaseModel):
     """Model for segmentation stage output"""
     reasoning: str = Field(description="Analysis of why this is segmented as a distinct segment and completeness assessment")
-    text: str = Field(description="Segment content")
-    is_complete: bool = Field(description="Whether this segment representsa complete thought")
+    edited_text: str = Field(description="Edited segment content")
+    raw_text: str = Field(description="The section from original transcript that the editted_text segment is based off of")
+    is_complete: bool = Field(description="Whether this segment represents a complete thought")
 
 
 class SegmentationResponse(BaseModel):
