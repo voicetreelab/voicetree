@@ -128,7 +128,7 @@ class AppendToRelevantNodeAgent(Agent):
                 segment_models.append(segment)
                 
                 # Create action based on target type
-                if not target_dict.get("is_new_node", False):
+                if not target_dict.get("is_orphan", False):
                     # Existing node - create AppendAction
                     actions.append(AppendAction(
                         action="APPEND",
@@ -141,9 +141,9 @@ class AppendToRelevantNodeAgent(Agent):
                     actions.append(CreateAction(
                         action="CREATE",
                         parent_node_id=None,  # Always orphan nodes
-                        new_node_name=target_dict["new_node_name"],
+                        new_node_name=target_dict["orphan_topic_name"],
                         content=target_dict["text"],
-                        summary=f"Content about {target_dict['new_node_name']}",
+                        summary=f"Content about {target_dict['orphan_topic_name']}",
                         relationship="independent"
                     ))
         

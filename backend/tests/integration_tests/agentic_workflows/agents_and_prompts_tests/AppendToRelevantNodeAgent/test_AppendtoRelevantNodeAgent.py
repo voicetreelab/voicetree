@@ -84,7 +84,7 @@ class TestAppendToRelevantNodeAgent:
         assert result.actions[0].action == "CREATE"
         # Database config is unrelated to React frontend
         assert result.actions[0].parent_node_id is None  # Always orphan nodes
-        assert "database" in result.actions[0].new_node_name.lower() or "postgresql" in result.actions[0].new_node_name.lower()
+        assert "database" in result.actions[0].orphan_topic_name.lower() or "postgresql" in result.actions[0].orphan_topic_name.lower()
         assert result.actions[0].content == text
     
     @pytest.mark.asyncio
@@ -140,7 +140,7 @@ class TestAppendToRelevantNodeAgent:
         assert all(action.parent_node_id is None for action in result.actions)  # All orphans
         
         # Check node names are reasonable
-        node_names = [action.new_node_name.lower() for action in result.actions if isinstance(action, CreateAction)]
+        node_names = [action.orphan_topic_name.lower() for action in result.actions if isinstance(action, CreateAction)]
         assert any("requirement" in name for name in node_names)
         assert any("tech" in name or "stack" in name for name in node_names)
     

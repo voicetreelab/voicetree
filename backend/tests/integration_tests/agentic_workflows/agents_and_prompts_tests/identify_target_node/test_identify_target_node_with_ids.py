@@ -12,8 +12,8 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration impor
     call_llm_structured
 from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import \
     PromptLoader
-from backend.text_to_graph_pipeline.agentic_workflows.models import \
-    TargetNodeIdentification, TargetNodeResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import (
+    TargetNodeIdentification, TargetNodeResponse)
 
 
 class TestIdentifyTargetNodeWithIDs:
@@ -67,12 +67,12 @@ class TestIdentifyTargetNodeWithIDs:
         
         # First segment about caching should go to Architecture (ID 1)
         assert result.target_nodes[0].target_node_id == 1
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
         assert "caching" in result.target_nodes[0].text
         
         # Second segment about DB should go to Database Design (ID 2)
         assert result.target_nodes[1].target_node_id == 2
-        assert result.target_nodes[1].is_new_node == False
+        assert result.target_nodes[1].is_orphan == False
         assert "database" in result.target_nodes[1].text.lower()
     
     @pytest.mark.asyncio
@@ -108,15 +108,15 @@ class TestIdentifyTargetNodeWithIDs:
         
         # Both should create new nodes (ID = -1)
         assert result.target_nodes[0].target_node_id == -1
-        assert result.target_nodes[0].is_new_node == True
-        assert result.target_nodes[0].new_node_name is not None
-        assert "auth" in result.target_nodes[0].new_node_name.lower()
+        assert result.target_nodes[0].is_orphan == True
+        assert result.target_nodes[0].orphan_topic_name is not None
+        assert "auth" in result.target_nodes[0].orphan_topic_name.lower()
         
         assert result.target_nodes[1].target_node_id == -1
-        assert result.target_nodes[1].is_new_node == True
-        assert result.target_nodes[1].new_node_name is not None
-        assert "notification" in result.target_nodes[1].new_node_name.lower() or \
-               "websocket" in result.target_nodes[1].new_node_name.lower()
+        assert result.target_nodes[1].is_orphan == True
+        assert result.target_nodes[1].orphan_topic_name is not None
+        assert "notification" in result.target_nodes[1].orphan_topic_name.lower() or \
+               "websocket" in result.target_nodes[1].orphan_topic_name.lower()
     
     @pytest.mark.asyncio
     async def test_mixed_existing_and_new_nodes(self, prompt_loader):
@@ -155,16 +155,16 @@ class TestIdentifyTargetNodeWithIDs:
         
         # First should go to Security Features
         assert result.target_nodes[0].target_node_id == 5
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
         
         # Second should create new node for distributed tracing
         assert result.target_nodes[1].target_node_id == -1
-        assert result.target_nodes[1].is_new_node == True
-        assert result.target_nodes[1].new_node_name is not None
+        assert result.target_nodes[1].is_orphan == True
+        assert result.target_nodes[1].orphan_topic_name is not None
         
         # Third should go to Performance Optimization
         assert result.target_nodes[2].target_node_id == 8
-        assert result.target_nodes[2].is_new_node == False
+        assert result.target_nodes[2].is_orphan == False
 
 
     @pytest.mark.asyncio
@@ -205,7 +205,7 @@ class TestIdentifyTargetNodeWithIDs:
         # even though the context is 'login'. This tests the LLM's ability to
         # discern primary intent. Routing to ID 10 would be a "reasonable failure".
         assert result.target_nodes[0].target_node_id == 11
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
 
     @pytest.mark.asyncio
     async def test_granularity_threshold_detail_vs_new_node(self, prompt_loader):
@@ -242,7 +242,7 @@ class TestIdentifyTargetNodeWithIDs:
         # The correct action is to append this detail to the existing UI design node.
         # Creating a new node "Dashboard Chart Color" would be over-fragmentation.
         assert result.target_nodes[0].target_node_id == 25
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
 
     @pytest.mark.asyncio
     async def test_context_dependent_routing(self, prompt_loader):
@@ -282,7 +282,7 @@ class TestIdentifyTargetNodeWithIDs:
         assert len(result.target_nodes) == 1
         # Without context, this is un-routable. With context, it clearly belongs to the Billing System.
         assert result.target_nodes[0].target_node_id == 31
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
 
     @pytest.mark.asyncio
     async def test_complex_scenario_with_large_context(self, prompt_loader):
@@ -363,31 +363,31 @@ class TestIdentifyTargetNodeWithIDs:
         #    Distractor: Database Schema (103)
         assert results_map["caching"] is not None
         assert results_map["caching"].target_node_id == 104
-        assert results_map["caching"].is_new_node == False
+        assert results_map["caching"].is_orphan == False
 
         # 2. Dashboard segment -> Dashboard UI/UX Redesign (105)
         #    Distractor: Frontend State Management (106)
         assert results_map["dashboard"] is not None
         assert results_map["dashboard"].target_node_id == 105
-        assert results_map["dashboard"].is_new_node == False
+        assert results_map["dashboard"].is_orphan == False
 
         # 3. Stripe segment -> Third-Party API Integrations (109)
         #    Distractor: Q4 Roadmap (101) because "payment flow for Q4" was mentioned
         assert results_map["stripe"] is not None
         assert results_map["stripe"].target_node_id == 109
-        assert results_map["stripe"].is_new_node == False
+        assert results_map["stripe"].is_orphan == False
 
         # 4. Deployment segment -> CI/CD Pipeline Setup (107)
         #    Distractor: Cloud Infrastructure (AWS) (108)
         assert results_map["deployment"] is not None
         assert results_map["deployment"].target_node_id == 107
-        assert results_map["deployment"].is_new_node == False
+        assert results_map["deployment"].is_orphan == False
 
         # 5. Auth segment -> API Authentication Layer (102)
         #    Distractor: None are very close, but a confused model might pick a high-level one.
         assert results_map["oauth2"] is not None
         assert results_map["oauth2"].target_node_id == 102
-        assert results_map["oauth2"].is_new_node == False
+        assert results_map["oauth2"].is_orphan == False
 
 
     @pytest.mark.asyncio
@@ -526,25 +526,25 @@ class TestIdentifyTargetNodeWithIDs:
         node_c = result.target_nodes[2]
 
                 # Assertion for Segment A: Creates the new node
-        assert node_a.is_new_node == True
+        assert node_a.is_orphan == True
         assert node_a.target_node_id == -1  # Per instructions, new nodes get -1
         assert node_a.target_node_name is None
-        assert node_a.new_node_name is not None
+        assert node_a.orphan_topic_name is not None
 
         # Get the name of the newly proposed node
-        new_node_name_from_a = node_a.new_node_name
+        orphan_topic_name_from_a = node_a.orphan_topic_name
 
         # Assertion for Segment B: Appends to the new node from A
-        assert node_b.is_new_node == False
+        assert node_b.is_orphan == False
         assert node_b.target_node_id == -1  # Per instructions, linking to a new node uses ID -1
-        assert node_b.target_node_name == new_node_name_from_a # CRITICAL: Must link by name
-        assert node_b.new_node_name is None
+        assert node_b.target_node_name == orphan_topic_name_from_a # CRITICAL: Must link by name
+        assert node_b.orphan_topic_name is None
 
         # Assertion for Segment C: Also appends to the new node from A
-        assert node_c.is_new_node == False
+        assert node_c.is_orphan == False
         assert node_c.target_node_id == -1 # CRITICAL: Must also use ID -1
-        assert node_c.target_node_name == new_node_name_from_a # CRITICAL: Must also link to the same new node name
-        assert node_c.new_node_name is None
+        assert node_c.target_node_name == orphan_topic_name_from_a # CRITICAL: Must also link to the same new node name
+        assert node_c.orphan_topic_name is None
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
