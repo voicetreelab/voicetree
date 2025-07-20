@@ -118,8 +118,6 @@ class TargetNodeIdentification(BaseModel):
             if not self.new_node_name:
                 raise ValueError("new_node_name is required when is_new_node=True")
         else:
-            if self.target_node_id < 0:
-                raise ValueError("Existing nodes must have non-negative target_node_id (0 or greater)")
             if not self.target_node_name:
                 raise ValueError("target_node_name is required when is_new_node=False")
 

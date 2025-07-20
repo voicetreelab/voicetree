@@ -16,15 +16,19 @@ Your decision for each segment must be guided by a clear hierarchy of context:
 1.  First, review the `transcript_history` to understand the immediate conversational context.
 2.  Process each segment in the `Segments to Analyze` list **sequentially**.
 3.  For each segment, determine its most logical destination by weighing the context clues in the order described above.
-4.  If a segment represents a clear shift in topic from the one before it, consider routing it to a different existing node or creating a new one.
-5.  Use the `reasoning` field to explain your decision, explicitly mentioning which context clues you prioritized.
+4.  Referencing Nodes Created in This Batch: If you decide a segment requires a new node, that new node (identified by its `new_node_name`) becomes a valid target for any *subsequent* segments in the list. To append to such a node:
+    - Set `is_new_node: false`.
+    - Set `target_node_name` to the exact name of the node you just proposed.
+    - **Crucially, set `target_node_id` to `-1`**, as the system has not assigned a final ID yet. The `target_node_name` is the key for linking them.
+5.  If a segment represents a clear shift in topic from the one before it, consider routing it to a different existing node or creating a new one.
+6.  Use the `reasoning` field to explain your decision, explicitly mentioning which context clues you prioritized.
 
 **OUTPUT FORMAT:**
 Construct a single JSON object with the following structure:
 ```json
 {
   "target_nodes": [
-    // routing_decisions array - each element corresponds to one input segment
+    
   ],
   "debug_notes": "Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task"
 }
@@ -33,7 +37,7 @@ Construct a single JSON object with the following structure:
 Each element in the `target_nodes` array MUST contain ALL of the following fields:
 *   `text`: The original text of the segment from the input (required, string).
 *   `reasoning`: Your analysis for choosing the target, explaining how you used the context (required, string).
-*   `target_node_id`: The ID of the chosen existing node OR -1 for a new node (required, integer).
+*   `target_node_id`: The ID of the chosen existing node OR -1 for a new node (required, integer), or `null` for an orphan.
 *   `target_node_name`: The name of the chosen existing node. This field is REQUIRED when `is_new_node` is false (when appending to existing node), and MUST be `null` when `is_new_node` is true (string or null).
 *   `is_new_node`: A boolean, `true` if a new node should be created, `false` otherwise (required, boolean).
 *   `new_node_name`: The proposed name for a new node. This field is REQUIRED when `is_new_node` is true, and MUST be `null` when `is_new_node` is false (string or null).
@@ -41,33 +45,33 @@ Each element in the `target_nodes` array MUST contain ALL of the following field
 ---
 **EXAMPLE**
 
-**Existing Nodes:** `[{"id": 1, "name": "Project Setup Tasks"}, {"id": 2, "name": "Dashboard Performance Issues"}]`
-**Transcript History:** `"...so we really need to focus on why the main dashboard is so slow."`
-**Segments to Analyze:** `[{"text": "It seems to be worst in the morning."}, {"text": "The database connection pool might be the culprit."}, {"text": "Separately, I need to send out the invite for the kickoff meeting."}]`
+**Existing Nodes:** `[{"id": 1, "name": "Project Setup Tasks"}]`
+**Transcript History:** `"...so that's the project status. Now for today's goals."`
+**Segments to Analyze:** `[{"text": "First, let's spec out the new user authentication flow."}, {"text": "It needs to support both Google and magic link sign-in."}, {"text": "Separately, I need to send out the invite for the kickoff meeting."}]`
 
 **Expected Output:**
 ```json
 {
   "target_nodes": [
     {
-      "text": "It seems to be worst in the morning.",
-      "reasoning": "The 'transcript_history' established the topic as dashboard performance. This segment provides a specific detail about that problem, so it belongs in the 'Dashboard Performance Issues' node.",
-      "target_node_id": 2,
-      "target_node_name": "Dashboard Performance Issues",
-      "is_new_node": false,
-      "new_node_name": null
+      "text": "First, let's spec out the new user authentication flow.",
+      "reasoning": "This introduces a new, distinct work item not present in the existing nodes. It requires a new node.",
+      "target_node_id": null,
+      "target_node_name": null,
+      "is_new_node": true,
+      "new_node_name": "Spec Out User Authentication Flow"
     },
     {
-      "text": "The database connection pool might be the culprit.",
-      "reasoning": "This segment is a direct continuation of the previous one, proposing a potential cause for the performance issue. Based on the sequential context, it must be routed to the same destination: 'Dashboard Performance Issues'.",
-      "target_node_id": 2,
-      "target_node_name": "Dashboard Performance Issues",
+      "text": "It needs to support both Google and magic link sign-in.",
+      "reasoning": "This segment directly elaborates on the requirements for the 'User Authentication Flow' introduced in the previous segment. Based on sequential context, it should be appended to that new node.",
+      "target_node_id": -1,
+      "target_node_name": "Spec Out User Authentication Flow",
       "is_new_node": false,
       "new_node_name": null
     },
     {
       "text": "Separately, I need to send out the invite for the kickoff meeting.",
-      "reasoning": "The word 'Separately' signals a clear topic shift, breaking the sequential context. This new topic relates to project setup tasks, matching an existing global node.",
+      "reasoning": "The word 'Separately' signals a clear topic shift. This topic matches the existing 'Project Setup Tasks' node.",
       "target_node_id": 1,
       "target_node_name": "Project Setup Tasks",
       "is_new_node": false,
