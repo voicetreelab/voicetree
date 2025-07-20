@@ -1,5 +1,5 @@
 """
-LLM integration for VoiceTree LangGraph workflow using PydanticAI
+LLM integration for VoiceTree LangGraph workflow using Google GenAI
 
 Easy configuration: Modify the CONFIG class below to change models, temperature, or other settings.
 """
@@ -10,8 +10,8 @@ from typing import Optional, Type, Dict
 from dataclasses import dataclass
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from pydantic_ai import Agent
-from pydantic_ai.models.gemini import GeminiModel
+from google import genai
+import json
 
 # Schema models are no longer imported here - they're passed from agents
 
@@ -47,8 +47,8 @@ class CONFIG:
 
 # ==================== INITIALIZATION ====================
 
-# Model cache to reuse instances for better performance
-_MODEL_CACHE: Dict[str, GeminiModel] = {}
+# Client instance for better performance
+_CLIENT: Optional[genai.Client] = None
 
 
 def _load_environment() -> None:
@@ -75,10 +75,6 @@ def _get_api_key() -> Optional[str]:
         except ImportError:
             pass
     
-    # Set GEMINI_API_KEY environment variable for PydanticAI
-    if api_key:
-        os.environ["GEMINI_API_KEY"] = api_key
-    
     return api_key
 
 
@@ -100,11 +96,15 @@ def _ensure_api_key() -> str:
     return api_key
 
 
-def _get_model(model_name: str) -> GeminiModel:
-    """Get or create a cached model instance"""
-    if model_name not in _MODEL_CACHE:
-        _MODEL_CACHE[model_name] = GeminiModel(model_name)
-    return _MODEL_CACHE[model_name]
+def _get_client() -> genai.Client:
+    """Get or create the genai client instance"""
+    global _CLIENT
+    if _CLIENT is None:
+        api_key = _ensure_api_key()
+        _CLIENT = genai.Client(api_key=api_key)
+    return _CLIENT
+
+
 
 
 def _handle_llm_error(e: Exception, stage_type: Optional[str] = None, 
@@ -152,27 +152,30 @@ async def call_llm_structured(
     if model_name is None:
         model_name = CONFIG.DEFAULT_MODEL
     
-    # Ensure API key
-    _ensure_api_key()
+    # Get client
+    client = _get_client()
     
     try:
-        # Get cached model
-        model = _get_model(model_name)
+        # Build the full prompt with system prompt
+        full_prompt = f"{CONFIG.STRUCTURED_SYSTEM_PROMPT}\n\n{prompt}"
         
-        # Create agent with structured output
-        agent = Agent(
-            model,
-            result_type=output_schema,
-            system_prompt=CONFIG.STRUCTURED_SYSTEM_PROMPT
+        # Call the model with structured output
+        # Pass Pydantic models directly as per Google's documentation
+        response = client.models.generate_content(
+            model=model_name,
+            contents=full_prompt,
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': output_schema,
+            },
         )
-        
-        # Run the agent
-        result = await agent.run(prompt)
         
         if CONFIG.PRINT_API_SUCCESS:
             print(f"✅ API call successful - structured response received")
-            
-        return result.data
+        
+        # Parse the JSON response and create the Pydantic model
+        json_data = json.loads(response.text)
+        return output_schema(**json_data)
         
     except Exception as e:
         _handle_llm_error(e, stage_type, output_schema)
@@ -197,27 +200,23 @@ async def call_llm(prompt: str, model_name: str = None) -> str:
     if model_name is None:
         model_name = CONFIG.DEFAULT_MODEL
     
-    # Ensure API key
-    _ensure_api_key()
+    # Get client
+    client = _get_client()
     
     try:
-        # Get cached model
-        model = _get_model(model_name)
+        # Build the full prompt with system prompt
+        full_prompt = f"{CONFIG.GENERAL_SYSTEM_PROMPT}\n\n{prompt}"
         
-        # Create agent with string output
-        agent = Agent(
-            model,
-            result_type=str,
-            system_prompt=CONFIG.GENERAL_SYSTEM_PROMPT
+        # Call the model
+        response = client.models.generate_content(
+            model=model_name,
+            contents=full_prompt
         )
         
-        # Run the agent
-        result = await agent.run(prompt)
-        
         if CONFIG.PRINT_API_SUCCESS:
-            print(f"✅ API call successful - response length: {len(result.data)} chars")
+            print(f"✅ API call successful - response length: {len(response.text)} chars")
             
-        return result.data
+        return response.text
         
     except Exception as e:
         _handle_llm_error(e)
