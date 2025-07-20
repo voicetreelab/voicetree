@@ -38,8 +38,6 @@ class CONFIG:
         Path.home() / 'repos' / 'VoiceTreePoc' / '.env'
     ]
     
-    # Schema registry removed - schemas are now passed directly from agents
-    
     # Debug settings
     PRINT_API_SUCCESS = False  # Set to True to see success messages
     PRINT_ENV_LOADING = True   # Set to False to hide environment loading messages
@@ -105,8 +103,6 @@ def _get_client() -> genai.Client:
     return _CLIENT
 
 
-
-
 def _handle_llm_error(e: Exception, stage_type: Optional[str] = None, 
                       schema_class: Optional[Type[BaseModel]] = None) -> None:
     """Handle and format LLM errors consistently"""
@@ -157,7 +153,7 @@ async def call_llm_structured(
     
     try:
         # Build the full prompt with system prompt
-        full_prompt = f"{CONFIG.STRUCTURED_SYSTEM_PROMPT}\n\n{prompt}"
+        full_prompt = f"{prompt}"
         
         # Call the model with structured output
         # Pass Pydantic models directly as per Google's documentation
@@ -179,44 +175,3 @@ async def call_llm_structured(
         
     except Exception as e:
         _handle_llm_error(e, stage_type, output_schema)
-
-
-async def call_llm(prompt: str, model_name: str = None) -> str:
-    """
-    Legacy function for backward compatibility
-    Calls the LLM and returns raw text response
-    
-    Args:
-        prompt: The prompt to send to the LLM
-        model_name: The model to use (default: CONFIG.DEFAULT_MODEL)
-        
-    Returns:
-        The LLM response as a string
-        
-    Raises:
-        RuntimeError: If Gemini API is not available or configured
-    """
-    # Use default from config
-    if model_name is None:
-        model_name = CONFIG.DEFAULT_MODEL
-    
-    # Get client
-    client = _get_client()
-    
-    try:
-        # Build the full prompt with system prompt
-        full_prompt = f"{CONFIG.GENERAL_SYSTEM_PROMPT}\n\n{prompt}"
-        
-        # Call the model
-        response = client.models.generate_content(
-            model=model_name,
-            contents=full_prompt
-        )
-        
-        if CONFIG.PRINT_API_SUCCESS:
-            print(f"✅ API call successful - response length: {len(response.text)} chars")
-            
-        return response.text
-        
-    except Exception as e:
-        _handle_llm_error(e)
