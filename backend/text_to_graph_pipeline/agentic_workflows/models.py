@@ -83,9 +83,6 @@ class ChildNodeSpec(BaseModel):
     content: str = Field(description="Content for the new child node")
     summary: str = Field(description="Summary for the new child node")
     relationship: str = Field(description="Relationship to parent (e.g., 'subtask of', 'implements', 'solves')")
-    
-    class Config:
-        extra = "forbid"  # This makes Pydantic reject any extra fields!
 
 
 class OptimizationResponse(BaseModel):
@@ -118,12 +115,8 @@ class TargetNodeIdentification(BaseModel):
     def model_post_init(self, __context):
         """Validate that new nodes have names and existing nodes have valid IDs"""
         if self.is_new_node:
-            if self.target_node_id != -1:
-                raise ValueError("New nodes must have target_node_id=-1")
             if not self.new_node_name:
                 raise ValueError("new_node_name is required when is_new_node=True")
-            if self.target_node_name is not None:
-                raise ValueError("target_node_name must be null when is_new_node=True")
         else:
             if self.target_node_id < 0:
                 raise ValueError("Existing nodes must have non-negative target_node_id (0 or greater)")
