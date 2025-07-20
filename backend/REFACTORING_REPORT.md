@@ -129,7 +129,7 @@ segments_data = state.get("segments", [])
 segments = dicts_to_models(segments_data, SegmentModel, "segments")
 
 # Core logic with full type safety
-complete_segments = [seg for seg in segments if seg.is_complete]
+complete_segments = [seg for seg in segments if seg.is_routable]
 
 # Exit boundary
 return {"segments": models_to_dicts(complete_segments)}

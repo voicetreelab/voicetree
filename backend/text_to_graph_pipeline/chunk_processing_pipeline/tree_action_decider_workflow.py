@@ -4,16 +4,20 @@ TreeActionDeciderWorkflow - Orchestrates the two-step tree update pipeline with 
 Combines the functionality of TreeActionDecider and WorkflowAdapter into a single cohesive class.
 """
 
-from dataclasses import dataclass
-from typing import List, Union, Optional, Dict, Any, Set
 import logging
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set, Union
 
-from ..agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
-from ..agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
-from ..agentic_workflows.models import AppendAction, UpdateAction, CreateAction, BaseTreeAction, AppendAgentResult
+from ..agentic_workflows.agents.append_to_relevant_node_agent import \
+    AppendToRelevantNodeAgent
+from ..agentic_workflows.agents.single_abstraction_optimizer_agent import \
+    SingleAbstractionOptimizerAgent
+from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
+                                        BaseTreeAction, CreateAction,
+                                        UpdateAction)
+from ..text_buffer_manager import TextBufferManager
 from ..tree_manager.decision_tree_ds import DecisionTree
 from .apply_tree_actions import TreeActionApplier
-from ..text_buffer_manager import TextBufferManager
 
 
 @dataclass
@@ -148,7 +152,7 @@ class TreeActionDeciderWorkflow:
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
         for segment in append_agent_result.segments:
-            if segment.is_complete:
+            if segment.is_routable:
                 buffer_manager.flushCompletelyProcessedText(segment.text)
         
         if not append_or_create_actions:

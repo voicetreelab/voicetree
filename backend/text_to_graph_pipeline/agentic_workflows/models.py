@@ -14,16 +14,18 @@ class BaseTreeAction(BaseModel):
 
 class SegmentModel(BaseModel):
     """Model for segmentation stage output"""
-    reasoning: str = Field(description="Analysis of why this is segmented as a distinct segment and completeness assessment")
+    reasoning: str = Field(description="Analysis of why this is segmented as a distinct segment and meaingfullness assessment")
     edited_text: str = Field(description="Edited segment content")
     raw_text: str = Field(description="The section from original transcript that the editted_text segment is based off of")
-    is_complete: bool = Field(description="Whether this segment represents a complete thought")
+    is_routable: bool = Field(description="Whether this segment is actually meaningful within the speaker's context")
 
 
 class SegmentationResponse(BaseModel):
     """Response model for segmentation stage"""
-    segments: List[SegmentModel] = Field(description="List of segments (which together commpletely represent the original chunk)")
-    debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
+    reasoning: str = Field(description="An analysis of the meaning of the input text, its core idea. Analysis of potential boundaries for segmentation of the transcript as a whole")
+
+    segments: List[SegmentModel] = Field(description="List of segments (which together commpletely represent the original chunk")
+    debug_notes: Optional[str] = Field(default=None, description="Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
 
 class RelationshipAnalysis(BaseModel):

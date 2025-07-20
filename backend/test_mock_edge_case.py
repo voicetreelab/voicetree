@@ -40,13 +40,13 @@ def simulate_mock_chunking(transcript):
     
     for i, (start, end) in enumerate(chunk_boundaries):
         chunk_text = " ".join(words[start:end])
-        is_complete = True if i != 2 else random.random() > 0.5
+        is_routable = True if i != 2 else random.random() > 0.5
         
         chunks.append({
             "text": chunk_text,
-            "is_complete": is_complete
+            "is_routable": is_routable
         })
-        print(f"  Chunk {i}: '{chunk_text}' (complete: {is_complete})")
+        print(f"  Chunk {i}: '{chunk_text}' (complete: {is_routable})")
     
     return chunks
 
@@ -58,7 +58,7 @@ def extract_completed_text(chunks):
         
     complete_texts = []
     for chunk in chunks:
-        if chunk.get("is_complete", False):
+        if chunk.get("is_routable", False):
             text = chunk.get("text", "").strip()
             if text:
                 complete_texts.append(text)

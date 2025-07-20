@@ -2,18 +2,20 @@
 Integration tests for TreeActionDeciderWorkflow
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
-    TreeActionDeciderWorkflow
-)
+import pytest
+
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    UpdateAction, CreateAction, AppendAction, AppendAgentResult, SegmentModel
-)
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
+    AppendAction, AppendAgentResult, CreateAction, SegmentModel, UpdateAction)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import \
+    TreeActionApplier
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
+    TreeActionDeciderWorkflow
+from backend.text_to_graph_pipeline.text_buffer_manager import \
+    TextBufferManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+    DecisionTree
 
 
 class TestTreeActionDeciderWorkflow:
@@ -53,7 +55,7 @@ class TestTreeActionDeciderWorkflow:
                 segments.append(SegmentModel(
                     reasoning="Test reasoning",
                     text=action.content,
-                    is_complete=True
+                    is_routable=True
                 ))
         
         return AppendAgentResult(

@@ -8,14 +8,16 @@ This agent's responsibilities:
 4. Return list of AppendAction or CreateAction objects
 """
 
-import pytest
 from typing import List, Union
 
-from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
+import pytest
+
+from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import \
+    AppendToRelevantNodeAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, CreateAction, BaseTreeAction
-)
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
+    AppendAction, BaseTreeAction, CreateAction)
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
+    DecisionTree, Node)
 
 
 class TestAppendToRelevantNodeAgent:
@@ -210,7 +212,7 @@ class TestAppendToRelevantNodeAgent:
         # Both approaches are valid
         
         # If there are incomplete segments, they shouldn't have actions
-        incomplete_count = sum(1 for seg in result.segments if not seg.is_complete)
+        incomplete_count = sum(1 for seg in result.segments if not seg.is_routable)
         if incomplete_count > 0:
             # Actions should be less than total segments
             assert len(result.actions) < len(result.segments)

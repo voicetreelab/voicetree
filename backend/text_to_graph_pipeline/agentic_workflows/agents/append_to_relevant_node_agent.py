@@ -7,23 +7,17 @@ This agent:
 3. Returns AppendAction or CreateAction objects
 """
 
-from typing import List, Union, Dict, Any, Optional
 import json
+from typing import Any, Dict, List, Optional, Union
+
 from langgraph.graph import END
 
+from ...tree_manager.decision_tree_ds import DecisionTree
 from ..core.agent import Agent
 from ..core.state import AppendToRelevantNodeAgentState
-from ..models import (
-    SegmentationResponse,
-    TargetNodeResponse,
-    TargetNodeIdentification,
-    AppendAction,
-    CreateAction,
-    BaseTreeAction,
-    AppendAgentResult,
-    SegmentModel
-)
-from ...tree_manager.decision_tree_ds import DecisionTree
+from ..models import (AppendAction, AppendAgentResult, BaseTreeAction,
+                      CreateAction, SegmentationResponse, SegmentModel,
+                      TargetNodeResponse)
 
 
 class AppendToRelevantNodeAgent(Agent):
@@ -53,18 +47,14 @@ class AppendToRelevantNodeAgent(Agent):
     
     def _prepare_for_target_identification(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Transform state between segmentation and target identification"""
-        from ..core.boundary_converters import dicts_to_models, models_to_dicts
-        
-        # === ENTRY BOUNDARY: Convert dicts to models ===
+        # Get segments from state (already as dicts)
         segments_data = state.get("segments", [])
-        segments = dicts_to_models(segments_data, SegmentModel, "segments")
         
-        # Store all segments for later use (as dicts for state compatibility)
-        all_segments_dicts = models_to_dicts(segments)
+        # Store all segments for later use
+        all_segments_dicts = segments_data  # No conversion needed, already dicts
         
-        # === CORE LOGIC: Work with Pydantic models ===
-        # Filter out incomplete segments
-        complete_segments = [segment for segment in segments if segment.is_complete]
+        # Filter out incomplete segments - work with dicts directly
+        complete_segments = [seg for seg in segments_data if seg.get("is_routable", False)]
         
         # If all segments are unfinished, skip target node identification
         if not complete_segments:
@@ -76,9 +66,8 @@ class AppendToRelevantNodeAgent(Agent):
             }
         
         # Prepare segments for target identification - only pass text field
-        segments_for_target = [{"text": segment.text} for segment in complete_segments]
+        segments_for_target = [{"text": seg["edited_text"]} for seg in complete_segments]
         
-        # === EXIT BOUNDARY: Return dicts for state ===
         return {
             **state,
             "_all_segments": all_segments_dicts,  # Store all segments as dicts
@@ -116,49 +105,55 @@ class AppendToRelevantNodeAgent(Agent):
         app = self.compile()
         result = await app.ainvoke(initial_state)
         
-        # === ENTRY BOUNDARY: Convert state dicts to models ===
-        from ..core.boundary_converters import dicts_to_models
-        
         # Get segments from the saved state (before they were transformed)
         all_segments_data = result.get("_all_segments", [])
-        segments = dicts_to_models(all_segments_data, SegmentModel, "_all_segments")
         
         # Get target node identifications
         target_nodes_data = result.get("target_nodes", [])
-        target_nodes = dicts_to_models(target_nodes_data, TargetNodeIdentification, "target_nodes")
         
-        # === CORE LOGIC: Work with Pydantic models ===
-        # Calculate completed text - only include complete segments
-        completed_segments = [seg for seg in segments if seg.is_complete]
-        
-        # Convert TargetNodeIdentification to actions (translation layer)
+        # Convert to actions - work with dicts until we need model instances
         actions: List[Union[AppendAction, CreateAction]] = []
         
-        for i, target in enumerate(target_nodes):
-            # Only create actions for complete segments
-            if i < len(segments) and segments[i].is_complete:
-                if not target.is_new_node:
+        # Create segment models only for complete segments that have actions
+        segment_models: List[SegmentModel] = []
+        
+        for i, target_dict in enumerate(target_nodes_data):
+            # Check if we have a corresponding segment and it's routable
+            if i < len(all_segments_data) and all_segments_data[i].get("is_routable", False):
+                segment_dict = all_segments_data[i]
+                
+                # Now convert to model since we know we need it
+                from ..core.boundary_converters import dict_to_model
+                segment = dict_to_model(segment_dict, SegmentModel, f"segment[{i}]")
+                segment_models.append(segment)
+                
+                # Create action based on target type
+                if not target_dict.get("is_new_node", False):
                     # Existing node - create AppendAction
                     actions.append(AppendAction(
                         action="APPEND",
-                        target_node_id=target.target_node_id,
-                        target_node_name=target.target_node_name,
-                        content=target.text
+                        target_node_id=target_dict["target_node_id"],
+                        target_node_name=target_dict.get("target_node_name"),
+                        content=target_dict["text"]
                     ))
                 else:
                     # New node - create CreateAction (always orphan)
                     actions.append(CreateAction(
                         action="CREATE",
                         parent_node_id=None,  # Always orphan nodes
-                        new_node_name=target.new_node_name,
-                        content=target.text,
-                        summary=f"Content about {target.new_node_name}",
+                        new_node_name=target_dict["new_node_name"],
+                        content=target_dict["text"],
+                        summary=f"Content about {target_dict['new_node_name']}",
                         relationship="independent"
                     ))
         
+        # Convert all segments to models for the result
+        from ..core.boundary_converters import dicts_to_models
+        all_segments = dicts_to_models(all_segments_data, SegmentModel, "_all_segments")
+        
         return AppendAgentResult(
             actions=actions,
-            segments=segments,
+            segments=all_segments,
         )
     
     def _format_nodes_for_prompt(self, tree: DecisionTree) -> str:

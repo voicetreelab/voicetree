@@ -1,5 +1,5 @@
-import unittest
 import json
+import unittest
 
 
 class TestAgenticWorkflowComponents(unittest.TestCase):
@@ -7,7 +7,8 @@ class TestAgenticWorkflowComponents(unittest.TestCase):
     def setUp(self):
         """Import the function once for all tests"""
         try:
-            from backend.text_to_graph_pipeline.agentic_workflows.nodes import extract_json_from_response
+            from backend.text_to_graph_pipeline.agentic_workflows.nodes import \
+                extract_json_from_response
             self.extract_json = extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
@@ -56,7 +57,7 @@ class TestWorkflowDataStructures(unittest.TestCase):
                 {"action": "APPEND", "target_node": "Existing Node"}
             ],
             "chunks": [
-                {"name": "chunk1", "text": "Some text", "is_complete": True}
+                {"name": "chunk1", "text": "Some text", "is_routable": True}
             ]
         }
         
@@ -94,7 +95,8 @@ class TestWorkflowErrorHandling(unittest.TestCase):
     def test_malformed_json_handling(self):
         """Test handling of various malformed JSON inputs"""
         try:
-            from backend.text_to_graph_pipeline.agentic_workflows.nodes import extract_json_from_response
+            from backend.text_to_graph_pipeline.agentic_workflows.nodes import \
+                extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         
@@ -115,19 +117,19 @@ class TestWorkflowErrorHandling(unittest.TestCase):
     def test_chunk_validation(self):
         """Test chunk structure validation"""
         chunks = [
-            {"name": "chunk1", "text": "Content", "is_complete": True},
-            {"name": "chunk2", "text": "Incomplete", "is_complete": False}
+            {"name": "chunk1", "text": "Content", "is_routable": True},
+            {"name": "chunk2", "text": "Incomplete", "is_routable": False}
         ]
         
         for chunk in chunks:
             # Verify required fields
-            for field in ["name", "text", "is_complete"]:
+            for field in ["name", "text", "is_routable"]:
                 self.assertIn(field, chunk)
             
             # Verify types
             self.assertIsInstance(chunk["name"], str)
             self.assertIsInstance(chunk["text"], str) 
-            self.assertIsInstance(chunk["is_complete"], bool)
+            self.assertIsInstance(chunk["is_routable"], bool)
 
 
 if __name__ == "__main__":

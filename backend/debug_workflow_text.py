@@ -10,7 +10,7 @@ def simulate_extract_completed_text(workflow_result):
     # Extract text ONLY from complete chunks
     complete_texts = []
     for chunk in chunks:
-        if chunk.get("is_complete", False):
+        if chunk.get("is_routable", False):
             text = chunk.get("text", "").strip()
             if text:
                 complete_texts.append(text)
@@ -28,7 +28,7 @@ def test_workflow_text_extraction():
     buffer_text = "  Hello world  "
     workflow_result = {
         "chunks": [
-            {"text": "  Hello world  ", "is_complete": True}
+            {"text": "  Hello world  ", "is_routable": True}
         ]
     }
     
@@ -44,9 +44,9 @@ def test_workflow_text_extraction():
     buffer_text = "First chunk. Second chunk. Third chunk."
     workflow_result = {
         "chunks": [
-            {"text": "First chunk.", "is_complete": True},
-            {"text": " Second chunk.", "is_complete": True},
-            {"text": " Third chunk.", "is_complete": True}
+            {"text": "First chunk.", "is_routable": True},
+            {"text": " Second chunk.", "is_routable": True},
+            {"text": " Third chunk.", "is_routable": True}
         ]
     }
     
@@ -62,8 +62,8 @@ def test_workflow_text_extraction():
     buffer_text = "Complete part. Incomplete part"
     workflow_result = {
         "chunks": [
-            {"text": "Complete part.", "is_complete": True},
-            {"text": " Incomplete part", "is_complete": False}
+            {"text": "Complete part.", "is_routable": True},
+            {"text": " Incomplete part", "is_routable": False}
         ]
     }
     
@@ -79,8 +79,8 @@ def test_workflow_text_extraction():
     buffer_text = "Some text"
     workflow_result = {
         "chunks": [
-            {"text": "", "is_complete": True},
-            {"text": "Some text", "is_complete": True}
+            {"text": "", "is_routable": True},
+            {"text": "Some text", "is_routable": True}
         ]
     }
     

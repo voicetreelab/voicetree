@@ -9,20 +9,10 @@ You will receive a chunk of a voice transcript, which has been cut off at an arb
 - `transcript_history`: Recent transcript history (the last ~250 chars before `transcript_text`), used to understand the following `transcript_text` within the speaker's context.
 - `existing_nodes`: The last 10 topics in our voice-to-text summary structure, used to understand established concepts.
 
-**OUTPUT FORMAT:**
-Adhere to the following JSON structure:
-```json
-{
-  "segments": [
-    {"text": "The actual text...", "is_routable": true/false}
-  ],
-  "reasoning": "A concise analysis of the meaning of the input text, its core idea, possible segment boundaries, and what content is not yet routable and why",
-  "debug_notes": "Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task"
-}
-```
-
 
 ### **SEGMENTATION PROCESS**
+
+You must account for all text in the transcript_text. The concatenation of the raw_text fields from all segments you output must perfectly match the full transcript_text. No part of the transcript may be omitted.
 
 FIRST use the `reasoning` field as a scratchpad to analyze the content, its boundaries, and its completeness.
 
@@ -32,7 +22,7 @@ Before segmenting, understand the intended meaning of `transcript_text` within i
 -   **Wrong homophones in context:** "there" vs "their", "to" vs "too"
 -   **Missing words:** Add only if obvious from context (e.g., "I working on" → "I'm working on")
 -   **Filler words:** Remove common fillers like "um", "uh", "like", "you know", unless they convey meaningful hesitation.
--   **Grammar:** Apply minimal changes to improve grammar but retain intended meaning.
+-   **Grammar:** Correct and improve grammar but retain intended meaning. 
 -   **Preserve:** The speaker's natural style, intentional repetition, and emphasis.
 
 **Step 2: Segmenting into Coherent Thought Units**
@@ -49,21 +39,24 @@ For a transition word (conjunction) such as "but", or "however", there are two o
 
 **Step 3: Completeness Check**
 For EVERY segment you create, assess its completeness:
-`is_routable: true`: when the segment expresses an idea that is meaningful enough to be sent to the downstream content-graph system right now.
-`is_routable: false`: when the segment is a fragment, a transition, or an idea so underdeveloped that it would create noise or be useless to the graph. In this we will hold it in the buffer and merge it with the next transcript chunk.
+
+`is_routable: true`: when the segment expresses an idea that is meaningful within the speakers context, even if technically an incomplete sentence. 
+`is_routable: false`: when the segment is a fragment, a transition, or an idea so underdeveloped that it would create noise or be useless to the graph. This is often phrases that is clearly cut off mid-thought or mid-sentence. In this case we will hold it in the buffer and merge it with the next transcript chunk.
 
 ### **EXAMPLES**
 
 **Example 1:**
-**`transcript_text`:** "I need to look into visualization libraries. Uh, converting text into a data format. But that's later. Oh yea, Myles mentioned Mermaid as a good visualization option"
+**`transcript_text`:** "I need to look into visualization libraries. hey mom yes please uh and converting text into a data format. But that's later. Oh yea, Myles mentioned Mermaid as a good visualization option. Overall visualization is"
 
 **Output:**
 ```json
 {
+  "reasoning": "The speaker mentions three distinct thoughts: 1) needing to research visualization libraries (complete task), 2) converting text to data format which is immediately deprioritized (incomplete but still meaningful), 3) recalling Myles' suggestion about Mermaid (related to first thought).",
   "segments": [
-    {"reasoning": "This is a distinct task about researching visualization libraries. It's a complete thought.", "text": "I need to look into visualization libraries.", "is_complete": true},
-    {"reasoning": "This introduces a separate task but is immediately de-prioritized with 'But that's later'. It feels like a brief, unfinished aside. Marking incomplete to see if it's picked up again.", "text": "Converting text into a data format.", "is_complete": false},
-    {"reasoning": "This circles back to the first topic (visualization libraries) with a specific suggestion. It's a complete, self-contained thought.", "text": "Oh yeah, Myles mentioned Mermaid as a good visualization option.", "is_complete": true}
+    {"text": "I need to look into visualization libraries.", "is_routable": true},
+    {"text": "hey mom yes please uh", "is_routable": false},
+    {"text": "and converting text into a data format. But that's later.", "is_routable": true},
+    {"text": "Oh yeah, Myles mentioned Mermaid as a good visualization option.", "is_routable": true}
   ],
   "debug_notes": null
 }
@@ -80,11 +73,11 @@ For EVERY segment you create, assess its completeness:
   "segments": [
     {
       "text": "Okay, the dashboard is loading slowly. This is the third time this week. It only happens around 9 AM Eastern.", 
-      "is_complete": true
+      "is_routable": true
     },
     {
       "text": "The next thing we will have to look at is CPU spikes.", 
-      "is_complete": true
+      "is_routable": true
     }
   ],
   "debug_notes": null
