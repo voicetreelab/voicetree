@@ -101,7 +101,7 @@ class TestIdentifyTargetNodeV2:
         # Assertions
         assert len(result.target_nodes) == 1
         assert result.target_nodes[0].target_node_id == 1  # Should go to Architecture
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
         assert result.target_nodes[0].new_node_name is None
     
     @pytest.mark.asyncio
@@ -129,7 +129,7 @@ class TestIdentifyTargetNodeV2:
         # Assertions
         assert len(result.target_nodes) == 1
         assert result.target_nodes[0].target_node_id == -1  # New node
-        assert result.target_nodes[0].is_new_node == True
+        assert result.target_nodes[0].is_orphan == True
         assert result.target_nodes[0].new_node_name is not None
         assert "auth" in result.target_nodes[0].new_node_name.lower()
 
@@ -195,12 +195,12 @@ class TestIdentifyTargetNodePrompt:
         
         # First segment about caching should go to Architecture
         assert result.target_nodes[0].target_node_name == "Voice Tree Architecture"
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
         assert "caching" in result.target_nodes[0].text
         
         # Second segment about DB should go to Database Design  
         assert result.target_nodes[1].target_node_name == "Database Design"
-        assert result.target_nodes[1].is_new_node == False
+        assert result.target_nodes[1].is_orphan == False
         assert "database" in result.target_nodes[1].text.lower()
     
     async def test_new_node_creation(self, llm, prompt_engine):
@@ -234,10 +234,10 @@ class TestIdentifyTargetNodePrompt:
         assert len(result.target_nodes) == 2
         
         # Both should create new nodes since they're new concepts
-        assert result.target_nodes[0].is_new_node == True
+        assert result.target_nodes[0].is_orphan == True
         assert "auth" in result.target_nodes[0].target_node_name.lower()
         
-        assert result.target_nodes[1].is_new_node == True
+        assert result.target_nodes[1].is_orphan == True
         assert "notification" in result.target_nodes[1].target_node_name.lower() or \
                "websocket" in result.target_nodes[1].target_node_name.lower()
 
@@ -299,12 +299,12 @@ class TestIdentifyTargetNodeWithIDs:
         
         # First segment about caching should go to Architecture (ID 1)
         assert result.target_nodes[0].target_node_id == 1
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
         assert "caching" in result.target_nodes[0].text
         
         # Second segment about DB should go to Database Design (ID 2)
         assert result.target_nodes[1].target_node_id == 2
-        assert result.target_nodes[1].is_new_node == False
+        assert result.target_nodes[1].is_orphan == False
         assert "database" in result.target_nodes[1].text.lower()
     
     async def test_new_node_creation_with_special_id(self, prompt_engine):
@@ -339,12 +339,12 @@ class TestIdentifyTargetNodeWithIDs:
         
         # Both should create new nodes (ID = -1)
         assert result.target_nodes[0].target_node_id == -1
-        assert result.target_nodes[0].is_new_node == True
+        assert result.target_nodes[0].is_orphan == True
         assert result.target_nodes[0].new_node_name is not None
         assert "auth" in result.target_nodes[0].new_node_name.lower()
         
         assert result.target_nodes[1].target_node_id == -1
-        assert result.target_nodes[1].is_new_node == True
+        assert result.target_nodes[1].is_orphan == True
         assert result.target_nodes[1].new_node_name is not None
         assert "notification" in result.target_nodes[1].new_node_name.lower() or \
                "websocket" in result.target_nodes[1].new_node_name.lower()
@@ -380,16 +380,16 @@ class TestIdentifyTargetNodeWithIDs:
         
         # First should go to Security Features
         assert result.target_nodes[0].target_node_id == 5
-        assert result.target_nodes[0].is_new_node == False
+        assert result.target_nodes[0].is_orphan == False
         
         # Second should create new node for distributed tracing
         assert result.target_nodes[1].target_node_id == -1
-        assert result.target_nodes[1].is_new_node == True
+        assert result.target_nodes[1].is_orphan == True
         assert result.target_nodes[1].new_node_name is not None
         
         # Third should go to Performance Optimization
         assert result.target_nodes[2].target_node_id == 8
-        assert result.target_nodes[2].is_new_node == False
+        assert result.target_nodes[2].is_orphan == False
 
 
 if __name__ == "__main__":
