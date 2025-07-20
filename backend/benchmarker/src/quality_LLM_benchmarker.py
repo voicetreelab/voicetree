@@ -74,11 +74,11 @@ async def run_quality_benchmark(test_transcripts=None):
             content = f.read()
         content = processor._limit_content_by_words(content, transcript_info.get('max_words'))
         
-        # this actually runs VoiceTree on the transcript
-        await processor.process_content(
-            content,
-            transcript_info['file']  # use file path as identifier
-        )
+        # # this actually runs VoiceTree on the transcript
+        # await processor.process_content(
+        #     content,
+        #     transcript_info['file']  # use file path as identifier
+        # )
         
         # Evaluate quality
         evaluator.evaluate_tree_quality(
