@@ -9,21 +9,19 @@ Tests focus on high-level behavior:
 4. Orphan node merging
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from typing import List, Set
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Import models first (these should exist)
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, 
-    CreateAction, 
-    UpdateAction,
-    BaseTreeAction,
-    AppendAgentResult,
-    SegmentModel
-)
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
+    AppendAction, AppendAgentResult, BaseTreeAction, CreateAction,
+    SegmentModel, UpdateAction)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
+    TreeActionDeciderWorkflow
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
+    DecisionTree, Node)
 
 
 def create_mock_append_result(actions):
@@ -36,7 +34,7 @@ def create_mock_append_result(actions):
             text = action.content
         else:
             text = "Test content"
-        segments.append(SegmentModel(reasoning="Test", text=text, is_complete=True))
+        segments.append(SegmentModel(reasoning="Test", text=text, is_routable=True))
         texts.append(text)
     
     return AppendAgentResult(
@@ -112,8 +110,8 @@ class TestTreeActionDeciderWorkflow:
         
         # Create mock segments
         segments = [
-            SegmentModel(reasoning="Complete segment", text="New content", is_complete=True),
-            SegmentModel(reasoning="Complete segment", text="Content", is_complete=True)
+            SegmentModel(reasoning="Complete segment", text="New content", is_routable=True),
+            SegmentModel(reasoning="Complete segment", text="Content", is_routable=True)
         ]
         
         # Mock append agent to return AppendAgentResult

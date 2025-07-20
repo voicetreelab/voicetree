@@ -3,15 +3,15 @@ import unittest
 from unittest.mock import AsyncMock, Mock
 
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, CreateAction, UpdateAction, AppendAgentResult, SegmentModel
-)
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    AppendAction, AppendAgentResult, CreateAction, SegmentModel, UpdateAction)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import \
+    TreeActionApplier
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
     TreeActionDeciderWorkflow
-)
+from backend.text_to_graph_pipeline.text_buffer_manager import \
+    TextBufferManager
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
     DecisionTree, Node)
-from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 
 
 class TestTreeActionDeciderWorkflow(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             placement_result = AppendAgentResult(
                 actions=placement_actions,
                 completed_text="Test transcript",
-                segments=[SegmentModel(reasoning="test", text="Test transcript", is_complete=True)]
+                segments=[SegmentModel(reasoning="test", text="Test transcript", is_routable=True)]
             )
             
             optimization_actions = [
@@ -168,7 +168,7 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             placement_result = AppendAgentResult(
                 actions=placement_actions,
                 completed_text="Test",
-                segments=[SegmentModel(reasoning="test", text="Test", is_complete=True)]
+                segments=[SegmentModel(reasoning="test", text="Test", is_routable=True)]
             )
             
             self.workflow.append_agent.run = AsyncMock(return_value=placement_result)

@@ -82,7 +82,7 @@ class TestIdentifyTargetNodeV2:
         # Format the prompt with test data
         prompt = prompt_template.render(
             existing_nodes='[{"id": 1, "name": "Voice Tree Architecture", "summary": "Overall system design and components"}, {"id": 2, "name": "Database Design", "summary": "Schema and data model decisions"}]',
-            segments='[{"text": "We need to add caching to improve voice tree performance", "is_complete": true}]'
+            segments='[{"text": "We need to add caching to improve voice tree performance", "is_routable": true}]'
         )
         
         # Call LLM
@@ -110,7 +110,7 @@ class TestIdentifyTargetNodeV2:
         # Format the prompt with test data
         prompt = prompt_template.render(
             existing_nodes='[{"id": 1, "name": "Backend API", "summary": "REST API implementation"}]',
-            segments='[{"text": "We should add user authentication with JWT tokens", "is_complete": true}]'
+            segments='[{"text": "We should add user authentication with JWT tokens", "is_routable": true}]'
         )
         
         # Call LLM
@@ -174,8 +174,8 @@ class TestIdentifyTargetNodePrompt:
         
         segments = """
         [
-            {"text": "We need to add caching to improve voice tree performance", "is_complete": true},
-            {"text": "The database indexes need optimization for faster queries", "is_complete": true}
+            {"text": "We need to add caching to improve voice tree performance", "is_routable": true},
+            {"text": "The database indexes need optimization for faster queries", "is_routable": true}
         ]
         """
         
@@ -214,8 +214,8 @@ class TestIdentifyTargetNodePrompt:
         
         segments = """
         [
-            {"text": "We should add user authentication with JWT tokens", "is_complete": true},
-            {"text": "Need to implement real-time notifications using WebSockets", "is_complete": true}
+            {"text": "We should add user authentication with JWT tokens", "is_routable": true},
+            {"text": "Need to implement real-time notifications using WebSockets", "is_routable": true}
         ]
         """
         
@@ -278,8 +278,8 @@ class TestIdentifyTargetNodeWithIDs:
         
         segments = """
         [
-            {"text": "We need to add caching to improve voice tree performance", "is_complete": true},
-            {"text": "The database indexes need optimization for faster queries", "is_complete": true}
+            {"text": "We need to add caching to improve voice tree performance", "is_routable": true},
+            {"text": "The database indexes need optimization for faster queries", "is_routable": true}
         ]
         """
         
@@ -318,8 +318,8 @@ class TestIdentifyTargetNodeWithIDs:
         
         segments = """
         [
-            {"text": "We should add user authentication with JWT tokens", "is_complete": true},
-            {"text": "Need to implement real-time notifications using WebSockets", "is_complete": true}
+            {"text": "We should add user authentication with JWT tokens", "is_routable": true},
+            {"text": "Need to implement real-time notifications using WebSockets", "is_routable": true}
         ]
         """
         
@@ -360,9 +360,9 @@ class TestIdentifyTargetNodeWithIDs:
         
         segments = """
         [
-            {"text": "Add role-based access control to the existing auth system", "is_complete": true},
-            {"text": "Implement distributed tracing for debugging microservices", "is_complete": true},
-            {"text": "Database query caching should use Redis for better performance", "is_complete": true}
+            {"text": "Add role-based access control to the existing auth system", "is_routable": true},
+            {"text": "Implement distributed tracing for debugging microservices", "is_routable": true},
+            {"text": "Database query caching should use Redis for better performance", "is_routable": true}
         ]
         """
         
