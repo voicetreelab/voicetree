@@ -17,23 +17,23 @@ class TestChunkModel:
         """Test creating a valid chunk model"""
         chunk = SegmentModel(
             text="This is the chunk content",
-            is_complete=True,
+            is_routable=True,
             reasoning="This chunk is complete and ready for processing"
         )
         
         assert chunk.text == "This is the chunk content"
-        assert chunk.is_complete is True
+        assert chunk.is_routable is True
         assert chunk.reasoning == "This chunk is complete and ready for processing"
     
     def test_chunk_model_missing_fields(self):
         """Test validation errors for missing required fields"""
         with pytest.raises(ValidationError) as exc_info:
-            SegmentModel(text="Test")  # Missing is_complete and reasoning
+            SegmentModel(text="Test")  # Missing is_routable and reasoning
         
         errors = exc_info.value.errors()
         assert len(errors) >= 2
         field_names = {e["loc"][0] for e in errors}
-        assert "is_complete" in field_names
+        assert "is_routable" in field_names
         assert "reasoning" in field_names
 
 
