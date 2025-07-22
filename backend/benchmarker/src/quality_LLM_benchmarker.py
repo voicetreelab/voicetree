@@ -52,9 +52,11 @@ async def run_quality_benchmark(test_transcripts=None):
             - file: Path to transcript file
             - name: Display name for the transcript
             - max_words: Optional word limit for processing
+            - currently_active: Whether to run this transcript by default
     """
     if test_transcripts is None:
-        test_transcripts = DEFAULT_TEST_TRANSCRIPTS
+        # Filter to only run transcripts marked as currently_active
+        test_transcripts = [t for t in DEFAULT_TEST_TRANSCRIPTS if t.get('currently_active', False)]
 
     # Set up logging
     setup_logging()
@@ -75,9 +77,11 @@ async def run_quality_benchmark(test_transcripts=None):
         content = processor._limit_content_by_words(content, transcript_info.get('max_words'))
         
         # this actually runs VoiceTree on the transcript
+        processing_mode = transcript_info.get('processing_mode', 'word')
         await processor.process_content(
             content,
-            transcript_info['file']  # use file path as identifier
+            transcript_info['file'],  # use file path as identifier
+            processing_mode
         )
         
         # Evaluate quality

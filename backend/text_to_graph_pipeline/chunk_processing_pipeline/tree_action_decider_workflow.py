@@ -173,48 +173,49 @@ class TreeActionDeciderWorkflow:
 
         # --- Orphan Merging ---
         # This logic is necessary before the first apply. Merge all create actions into a single node, so that they can be seperated by optimizer.
-        orphan_creates: List[CreateAction] = [
-            action for action in append_or_create_actions 
-            if isinstance(action, CreateAction) and not action.parent_node_id
-        ]
-        
-        # Process actions based on orphan merge logic
-        actions_to_apply: List[BaseTreeAction] = append_or_create_actions
-        
-        if len(orphan_creates) > 1:
-            logging.info(f"Merging {len(orphan_creates)} orphan nodes into one.")
-            
-            # Merge all orphan nodes into one grouped node
-            merged_names: List[str] = []
-            merged_contents: List[str] = []
-            merged_summaries: List[str] = []
-            
-            for orphan in orphan_creates:
-                merged_names.append(orphan.new_node_name)
-                merged_contents.append(orphan.content)
-                merged_summaries.append(orphan.summary)
-            
-            merged_orphan: CreateAction = CreateAction(
-                action="CREATE",
-                parent_node_id=None,
-                new_node_name="\n\n".join(merged_names),
-                content="\n\n".join(merged_contents),
-                summary="\n\n".join(merged_summaries),
-                relationship=""  # Empty for orphan nodes
-            )
-            
-            # Get non-orphan actions
-            non_orphan_actions: List[BaseTreeAction] = [
-                action for action in append_or_create_actions 
-                if not (isinstance(action, CreateAction))
-            ]
-            
-            # Replace all orphan creates with the single merged one
-            actions_to_apply = non_orphan_actions + [merged_orphan]
+        # orphan_creates: List[CreateAction] = [
+        #     action for action in append_or_create_actions
+        #     if isinstance(action, CreateAction) and not action.parent_node_id
+        # ]
+        #
+        # # Process actions based on orphan merge logic
+        # actions_to_apply: List[BaseTreeAction] = append_or_create_actions
+        #
+        # if len(orphan_creates) > 1:
+        #     logging.info(f"Merging {len(orphan_creates)} orphan nodes into one.")
+        #
+        #     # Merge all orphan nodes into one grouped node
+        #     merged_names: List[str] = []
+        #     merged_contents: List[str] = []
+        #     merged_summaries: List[str] = []
+        #
+        #     for orphan in orphan_creates:
+        #         merged_names.append(orphan.new_node_name)
+        #         merged_contents.append(orphan.content)
+        #         merged_summaries.append(orphan.summary)
+        #
+        #     merged_orphan: CreateAction = CreateAction(
+        #         action="CREATE",
+        #         parent_node_id=None,
+        #         new_node_name="\n\n".join(merged_names),
+        #         content="\n\n".join(merged_contents),
+        #         summary="\n\n".join(merged_summaries),
+        #         relationship=""  # Empty for orphan nodes
+        #     )
+        #
+        #     # Get non-orphan actions
+        #     non_orphan_actions: List[BaseTreeAction] = [
+        #         action for action in append_or_create_actions
+        #         if not (isinstance(action, CreateAction))
+        #     ]
+        #
+        #     # Replace all orphan creates with the single merged one
+        #     actions_to_apply = non_orphan_actions + [merged_orphan]
+        #
+        # # --- First Side Effect: Apply Placement ---
+        # modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
 
-        # --- First Side Effect: Apply Placement ---
-        modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
-        
+        modified_or_new_nodes = tree_action_applier.apply(append_or_create_actions)
         logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
         
         
