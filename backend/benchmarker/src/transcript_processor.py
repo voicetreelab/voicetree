@@ -58,8 +58,14 @@ class TranscriptProcessor:
     
 
     
-    async def process_content(self, content, transcript_identifier):
-        """Process transcript content with VoiceTree using agentic workflow."""
+    async def process_content(self, content, transcript_identifier, processing_mode="word"):
+        """Process transcript content with VoiceTree using agentic workflow.
+        
+        Args:
+            content: Text content to process
+            transcript_identifier: Unique identifier for this transcript
+            processing_mode: "word" for 30-word chunks or "line" for line-by-line processing
+        """
         # Setup fresh output directory
         setup_output_directory()
         
@@ -67,21 +73,37 @@ class TranscriptProcessor:
         state_file_name = self._initialize_processor(transcript_identifier)
         
         try:
-            # Process 30 words at a time to simulate streaming
-            words = content.split()
-            print(f"Processing {len(words)} words ({len(content)} chars total)")
-            
-            # Process in chunks of 30 words
-            chunk_size = 30
-            for i in range(0, len(words), chunk_size):
-                chunk = words[i:i + chunk_size]
-                chunk_text = ' '.join(chunk) + " "
+            if processing_mode == "line":
+                # Process line by line
+                lines = content.strip().split('\n')
+                print(f"Processing {len(lines)} lines ({len(content)} chars total)")
                 
-                # Send chunk of 30 words
-                await self.processor.process_new_text_and_update_markdown(chunk_text)
+                for i, line in enumerate(lines):
+                    if line.strip():  # Skip empty lines
+                        # Send each line as a chunk
+                        await self.processor.process_new_text_and_update_markdown(line.strip() + "\n")
+                        
+                        # Small delay to simulate streaming (optional)
+                        await asyncio.sleep(0.05)
+                        
+                        if (i + 1) % 10 == 0:  # Progress indicator every 10 lines
+                            print(f"Processed {i + 1}/{len(lines)} lines")
+            else:
+                # Default: Process 30 words at a time to simulate streaming
+                words = content.split()
+                print(f"Processing {len(words)} words ({len(content)} chars total)")
                 
-                # Small delay to simulate streaming (optional)
-                await asyncio.sleep(0.05)
+                # Process in chunks of 30 words
+                chunk_size = 30
+                for i in range(0, len(words), chunk_size):
+                    chunk = words[i:i + chunk_size]
+                    chunk_text = ' '.join(chunk) + " "
+                    
+                    # Send chunk of 30 words
+                    await self.processor.process_new_text_and_update_markdown(chunk_text)
+                    
+                    # Small delay to simulate streaming (optional)
+                    await asyncio.sleep(0.05)
             
             # FINALIZATION: Process any remaining text in the buffer
             # remaining_buffer = self.processor.buffer_manager.get_buffer()

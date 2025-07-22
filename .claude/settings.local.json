@@ -10,7 +10,9 @@
       "Bash(mv:*)",
       "mcp__zen__thinkdeep",
       "mcp__zen__consensus",
-      "mcp__zen__codereview"
+      "mcp__zen__codereview",
+      "WebFetch(domain:arxiv.org)",
+      "Bash(source:*)"
     ],
     "deny": []
   },

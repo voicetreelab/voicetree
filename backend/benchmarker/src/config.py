@@ -18,6 +18,15 @@ DEFAULT_TEST_TRANSCRIPTS = [
     {
         "file": "backend/benchmarker/input/og_vt_transcript.txt",
         "name": "VT Original",
-        "max_words": 63*6 + 1
+        "max_words": 63*56 + 1,
+        "processing_mode": "word",  # Options: "word" (30 words per chunk) or "line" (line by line)
+        "currently_active": False
+    },
+    {
+        "file": "backend/benchmarker/input/owl_transcript.txt", 
+        "name": "GSM Owl Problem",
+        "max_words": None,
+        "processing_mode": "line",  # Process line by line for structured data
+        "currently_active": True
     }
 ]

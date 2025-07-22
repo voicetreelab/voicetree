@@ -16,11 +16,11 @@ This module handles text buffering and processing for the VoiceTree pipeline.
 - Requires 80% similarity threshold for matches
 - Automatically extends matches to include trailing punctuation
 
-### BufferConfig
-- Configuration for buffer behavior
-- `buffer_size_threshold`: Characters needed to trigger processing
-- `transcript_history_multiplier`: How much history to maintain
-- Other legacy settings maintained for compatibility
+### Buffer Configuration
+- Configuration is now centralized in `backend/settings.py`
+- `TEXT_BUFFER_SIZE_THRESHOLD`: Characters needed to trigger processing
+- `TRANSCRIPT_HISTORY_MULTIPLIER`: How much history to maintain
+- Additional settings: `IMMEDIATE_PROCESSING_SIZE_MULTIPLIER`, `SUBSTANTIAL_CONTENT_THRESHOLD`, `MIN_SENTENCES_FOR_IMMEDIATE`
 
 ## Usage
 
