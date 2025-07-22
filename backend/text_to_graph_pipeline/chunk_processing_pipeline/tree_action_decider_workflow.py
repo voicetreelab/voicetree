@@ -154,19 +154,21 @@ class TreeActionDeciderWorkflow:
         for segment in append_agent_result.segments:
             if segment.is_routable:
                 buffer_manager.flushCompletelyProcessedText(segment.raw_text)
-        
-        if not append_or_create_actions:
-            logging.info("Placement agent returned no actions. Ending workflow for this chunk.")
-            logging.info(f"Incomplete segments remain in buffer for next processing")
+
+        # todo, don't just do it if returned no actions, and do it only if the 
+        # content stuck in buffer has been stuck for 3 iterations.        
+        # if not append_or_create_actions:
+        #     logging.info("Placement agent returned no actions. Ending workflow for this chunk.")
+        #     logging.info(f"Incomplete segments remain in buffer for next processing")
             
-            # Check for stuck text even when no actions are returned
-            current_buffer: str = buffer_manager.getBuffer()
-            if current_buffer and self._prev_buffer_remainder and self._prev_buffer_remainder in current_buffer:
-                # Previous content still in buffer (exact match or as prefix) - remove it as stuck text
-                logging.warning(f"No actions returned and previous buffer content still present: '{self._prev_buffer_remainder}...' - removing stuck text")
-                buffer_manager.flushCompletelyProcessedText(self._prev_buffer_remainder)  
+        #     # Check for stuck text even when no actions are returned
+        #     current_buffer: str = buffer_manager.getBuffer()
+        #     if current_buffer and self._prev_buffer_remainder and self._prev_buffer_remainder in current_buffer:
+        #         # Previous content still in buffer (exact match or as prefix) - remove it as stuck text
+        #         logging.warning(f"No actions returned and previous buffer content still present: '{self._prev_buffer_remainder}...' - removing stuck text")
+        #         buffer_manager.flushCompletelyProcessedText(self._prev_buffer_remainder)  
             
-            return set() #  no actions to further process.
+        #     return set() #  no actions to further process.
         
 
         # --- Orphan Merging ---
