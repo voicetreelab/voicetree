@@ -6,7 +6,8 @@ Combines the functionality of TreeActionDecider and WorkflowAdapter into a singl
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set, Union
+from itertools import groupby
+from typing import Any, Dict, List, Optional, Set
 
 from ...settings import MAX_NODES_FOR_LLM_CONTEXT
 from ..agentic_workflows.agents.append_to_relevant_node_agent import \
@@ -14,8 +15,7 @@ from ..agentic_workflows.agents.append_to_relevant_node_agent import \
 from ..agentic_workflows.agents.single_abstraction_optimizer_agent import \
     SingleAbstractionOptimizerAgent
 from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
-                                        BaseTreeAction, CreateAction,
-                                        UpdateAction)
+                                        BaseTreeAction, CreateAction)
 from ..text_buffer_manager import TextBufferManager
 from ..tree_manager.decision_tree_ds import DecisionTree
 from ..tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
@@ -154,7 +154,6 @@ class TreeActionDeciderWorkflow:
         
         append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
 
-        
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
         for segment in append_agent_result.segments:
@@ -163,6 +162,7 @@ class TreeActionDeciderWorkflow:
 
         # todo, don't just do it if returned no actions, and do it only if the 
         # content stuck in buffer has been stuck for 3 iterations.        
+        #
         # if not append_or_create_actions:
         #     logging.info("Placement agent returned no actions. Ending workflow for this chunk.")
         #     logging.info(f"Incomplete segments remain in buffer for next processing")
@@ -178,7 +178,10 @@ class TreeActionDeciderWorkflow:
         
 
         # --- Orphan Merging ---
-        # This logic is necessary before the first apply. Merge all create actions into a single node, so that they can be seperated by optimizer.
+        # This logic is necessary before the first apply.
+        # Merge all create actions into a single node,
+        # ONLY FOR THE NODES THAT HAVE THE SAME TOPIC NAME
+        # so that they can be seperated by optimizer.
         orphan_creates: List[CreateAction] = [
             action for action in append_or_create_actions
             if isinstance(action, CreateAction) and not action.parent_node_id
@@ -188,35 +191,42 @@ class TreeActionDeciderWorkflow:
         actions_to_apply: List[BaseTreeAction] = append_or_create_actions
 
         if len(orphan_creates) > 1:
-            logging.info(f"Merging {len(orphan_creates)} orphan nodes into one.")
-
-            # Merge all orphan nodes into one grouped node
-            merged_names: List[str] = []
-            merged_contents: List[str] = []
-            merged_summaries: List[str] = []
-
-            for orphan in orphan_creates:
-                merged_names.append(orphan.new_node_name)
-                merged_contents.append(orphan.content)
-                merged_summaries.append(orphan.summary)
-
-            merged_orphan: CreateAction = CreateAction(
-                action="CREATE",
-                parent_node_id=None,
-                new_node_name="\n\n".join(merged_names),
-                content="\n\n".join(merged_contents),
-                summary="\n\n".join(merged_summaries),
-                relationship=""  # Empty for orphan nodes
-            )
-
+            # Sort orphans by name for groupby
+            sorted_orphans = sorted(orphan_creates, key=lambda x: x.new_node_name)
+            
+            # Group orphan nodes by name using itertools.groupby
+            orphan_groups = groupby(sorted_orphans, key=lambda x: x.new_node_name)
+            
             # Get non-orphan actions
             non_orphan_actions: List[BaseTreeAction] = [
                 action for action in append_or_create_actions
                 if not (isinstance(action, CreateAction) and action.parent_node_id is None)
             ]
-
-            # Replace all orphan creates with the single merged one
-            actions_to_apply = non_orphan_actions + [merged_orphan]
+            
+            # Process each group
+            merged_orphans: List[CreateAction] = []
+            for name, orphans_iter in orphan_groups:
+                orphans = list(orphans_iter)  # Convert iterator to list
+                
+                if len(orphans) > 1:
+                    logging.info(f"Merging {len(orphans)} orphan nodes with name '{name}'")
+                    
+                    # Merge orphans with same name using list comprehensions
+                    merged_orphan: CreateAction = CreateAction(
+                        action="CREATE",
+                        parent_node_id=None,
+                        new_node_name=name,  # Use the common name
+                        content="\n\n".join(orphan.content for orphan in orphans),
+                        summary="\n\n".join(orphan.summary for orphan in orphans),
+                        relationship=""  # Empty for orphan nodes
+                    )
+                    merged_orphans.append(merged_orphan)
+                else:
+                    # Single orphan, add as-is
+                    merged_orphans.extend(orphans)
+            
+            # Replace all orphan creates with the merged ones
+            actions_to_apply = non_orphan_actions + merged_orphans
 
         # --- First Side Effect: Apply Placement ---
         modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
