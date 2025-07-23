@@ -1,112 +1,193 @@
 import logging
+import time
+import threading
+from queue import Queue, Empty
 
-import speech_recognition as sr
-from faster_whisper import WhisperModel
 import numpy as np
-import asyncio
-from datetime import datetime, timedelta, timezone
-from queue import Queue
+import pyaudio
+import webrtcvad
+from faster_whisper import WhisperModel
 
 from backend.text_to_graph_pipeline.voice_to_text.voice_config import VoiceConfig
 
 
 class VoiceToTextEngine:
+    """
+    A high-accuracy, real-time voice-to-text engine that conforms to the
+    start_listening() and process_audio_queue() API.
+
+    It uses a background thread for audio capture and VAD, and the main thread
+    (via process_audio_queue) for transcription.
+    """
     def __init__(self, config: VoiceConfig = None):
         self.config = config or VoiceConfig()
 
-        self.recorder = sr.Recognizer()
-        self.recorder.energy_threshold = self.config.energy_threshold
-        self.recorder.dynamic_energy_threshold = self.config.dynamic_energy_threshold
-        self.recorder.dynamic_energy_adjustment_damping = self.config.dynamic_energy_adjustment_damping
-        self.recorder.dynamic_energy_ratio = self.config.dynamic_energy_ratio
+        print(f"Loading Whisper model '{self.config.model_size}'...")
+        self.model = WhisperModel(
+            self.config.model_size,
+            device=self.config.device,
+            compute_type=self.config.compute_type
+        )
+        logging.info("Whisper model loaded.")
 
-        self.audio_model = WhisperModel(self.config.model, device="cpu", compute_type="auto")
+        self.vad = webrtcvad.Vad(self.config.vad_aggressiveness)
 
-        self.phrase_time = None
-        self.data_queue = Queue()
-        self.transcription = ['']
-        self.overlap_buffer = b''  # Buffer for overlap between chunks
-        self.previous_segments = []  # Store previous segments for overlap correction
+        # This internal queue holds complete, VAD-detected audio chunks ready for transcription.
+        self._ready_for_transcription_queue = Queue()
+
+        # State management for the background audio capture thread
+        self._stop_event = threading.Event()
+        self._audio_capture_thread = None
+
+        # Context management for higher accuracy
+        self.transcription_history = []
+
+        # Derived constant from config for easier use
+        self.chunk_size = int(self.config.sample_rate * self.config.vad_frame_ms / 1000)
 
     def start_listening(self):
-        """Starts continuous listening in the background."""
-        source = sr.Microphone(sample_rate=self.config.sample_rate)
-        with source:
-            self.recorder.adjust_for_ambient_noise(source)
-        print("Model loaded.\n")
+        """Starts the background audio capture and VAD thread."""
+        if self._audio_capture_thread is not None:
+            logging.warning("Audio capture thread is already running.")
+            return
 
-        self.recorder.listen_in_background(source, self.record_callback, phrase_time_limit=self.config.record_timeout)
+        self._stop_event.clear()
+        self._audio_capture_thread = threading.Thread(target=self._audio_capture_loop)
+        self._audio_capture_thread.daemon = True
+        self._audio_capture_thread.start()
+        logging.info("Background audio capture started.")
 
-        # while True:
-        #     try:
-        #         await self.process_audio_queue()
-        #         await asyncio.sleep(0.1)  # Avoid busy-waiting
-        #
-        #     except KeyboardInterrupt:
-        #         break
+    def stop(self):
+        """Stops the background audio capture thread gracefully."""
+        if self._audio_capture_thread is None:
+            return
+
+        self._stop_event.set()
+        self._audio_capture_thread.join()
+        self._audio_capture_thread = None
+        logging.info("Background audio capture stopped.")
+
+    def _audio_capture_loop(self):
+        """
+        The main loop for the background thread.
+        Captures audio, uses VAD to detect speech, and puts complete utterances
+        into a queue for the main thread to process.
+        """
+        p = pyaudio.PyAudio()
+        stream = p.open(format=pyaudio.paInt16,
+                        channels=self.config.audio_channels,
+                        rate=self.config.sample_rate,
+                        input=True,
+                        frames_per_buffer=self.chunk_size)
+
+        padding_frames_count = self.config.vad_padding_ms // self.config.vad_frame_ms
+        silence_timeout_frames = self.config.vad_silence_timeout_ms // self.config.vad_frame_ms
+
+        is_speaking = False
+        silent_frames_count = 0
+        audio_frames = []
+
+        logging.info("Listening for speech...")
+        while not self._stop_event.is_set():
+            try:
+                frame = stream.read(self.chunk_size, exception_on_overflow=False)
+                is_speech = self.vad.is_speech(frame, self.config.sample_rate)
+
+                if is_speaking:
+                    audio_frames.append(frame)
+                    if not is_speech:
+                        silent_frames_count += 1
+                        if silent_frames_count >= silence_timeout_frames:
+                            # Silence detected, utterance is complete.
+                            audio_data_bytes = b''.join(audio_frames)
+                            audio_np = np.frombuffer(audio_data_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                            self._ready_for_transcription_queue.put(audio_np)
+
+                            # Reset for next utterance
+                            audio_frames.clear()
+                            is_speaking = False
+                    else:
+                        silent_frames_count = 0
+                elif is_speech:
+                    # Start of speech detected
+                    is_speaking = True
+                    silent_frames_count = 0
+                    # Add padding to the beginning of the speech
+                    padding_frames = [frame] * padding_frames_count
+                    audio_frames.extend(padding_frames)
+
+            except Exception as e:
+                logging.error(f"Error in audio capture loop: {e}")
+                time.sleep(1)
+
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
 
     def process_audio_queue(self):
-        """Processes audio chunks from the queue."""
-        if not self.data_queue.empty():
-            # Combine overlap buffer with new audio data
-            new_audio_data = b''.join(self.data_queue.queue)
-            audio_data = self.overlap_buffer + new_audio_data
+        """
+        Processes one complete audio chunk from the internal queue if available.
+        This method is designed to be called repeatedly in a loop by the main thread.
+        """
+        try:
+            # Get a complete audio chunk detected by the background VAD thread.
+            audio_np = self._ready_for_transcription_queue.get_nowait()
+        except Empty:
+            # No complete utterance is ready for transcription.
+            return None
 
-            # Don't clear the queue yet - save any new audio that arrives during transcription
-            current_queue_size = self.data_queue.qsize()
+        # A chunk is available, so we transcribe it.
+        logging.info(f"Transcribing {len(audio_np)/self.config.sample_rate:.2f}s of audio...")
+        try:
+            prompt = " ".join(self.transcription_history)
 
-            # Calculate overlap size based on configuration
-            # Larger overlap ensures words at boundaries are captured in both chunks
-            overlap_size = int(self.config.sample_rate * self.config.overlap_seconds * 2)  # samples/sec * overlap_sec * 2 bytes/sample
-            if len(audio_data) > overlap_size:
-                self.overlap_buffer = audio_data[-overlap_size:]
-            else:
-                self.overlap_buffer = audio_data
-
-            audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
-            result, _ = self.audio_model.transcribe(
+            segments, _ = self.model.transcribe(
                 audio_np,
-                language="en",
-                vad_filter=self.config.vad_filter,
-                vad_parameters=self.config.vad_parameters,
-                temperature=self.config.temperature,
-                condition_on_previous_text=self.config.condition_on_previous_text,
+                beam_size=self.config.beam_size,
+                language=self.config.language,
                 word_timestamps=self.config.word_timestamps,
-                initial_prompt=self.config.initial_prompt,
-                best_of=self.config.best_of,
-                beam_size=self.config.beam_size
+                condition_on_previous_text=self.config.condition_on_previous_text,
+                initial_prompt=prompt,
+                vad_filter=self.config.use_vad_filter,
             )
 
-            # Now clear only the processed audio from the queue
-            for _ in range(current_queue_size):
-                if not self.data_queue.empty():
-                    self.data_queue.get()
-            text = ""
+            full_text = "".join(segment.text.strip() + " " for segment in segments)
+            final_text = full_text.strip()
 
-            segments_with_info = []
-            for segment in result:
-                segments_with_info.append({
-                    'text': segment.text.strip(),
-                    'start': segment.start,
-                    'end': segment.end,
-                    'words': segment.words if hasattr(segment, 'words') else None
-                })
-                print(segment.text)
-                text += segment.text.strip()
-                logging.info(f"Transcribed segment: {segment.text.strip()}")
+            if final_text:
+                logging.info(f"Transcription result: {final_text}")
 
-            # Store segment info for potential overlap correction
-            if hasattr(self, 'previous_segments'):
-                # TODO: Implement overlap-based correction here
-                # Compare word timestamps with previous segments
-                # Pick best version based on confidence/context
-                pass
-            self.previous_segments = segments_with_info
-            #todo, thought end detection based on time not speaking...
-            return text
+                # Update context history for the next transcription
+                self.transcription_history.append(final_text)
+                if len(self.transcription_history) > self.config.history_max_size:
+                    self.transcription_history.pop(0)
+                print(final_text)
+                return final_text
+
+        except Exception as e:
+            logging.error(f"Error during transcription: {e}")
+
         return None
 
-    def record_callback(self, _, audio: sr.AudioData):
-        """Callback for audio data from SpeechRecognizer."""
-        data = audio.get_raw_data()
-        self.data_queue.put(data)
+
+if __name__ == '__main__':
+    # This is a simple synchronous example to test the class directly.
+    # It mimics the behavior of your main.py loop.
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    engine = VoiceToTextEngine()
+    engine.start_listening()
+
+    print("\nSpeak into your microphone. The engine will transcribe when you pause.")
+    print("Press Ctrl+C to stop.")
+
+    try:
+        while True:
+            transcription = engine.process_audio_queue()
+            if transcription:
+                print(">>", transcription)
+            time.sleep(0.1) # Prevent busy-waiting
+    except KeyboardInterrupt:
+        print("\nStopping engine...")
+        engine.stop()
+        print("Engine stopped.")
