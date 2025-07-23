@@ -15,7 +15,8 @@ from ..agentic_workflows.agents.append_to_relevant_node_agent import \
 from ..agentic_workflows.agents.single_abstraction_optimizer_agent import \
     SingleAbstractionOptimizerAgent
 from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
-                                        BaseTreeAction, CreateAction)
+                                        BaseTreeAction, CreateAction,
+                                        UpdateAction)
 from ..text_buffer_manager import TextBufferManager
 from ..tree_manager.decision_tree_ds import DecisionTree
 from ..tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
@@ -70,8 +71,8 @@ class TreeActionDeciderWorkflow:
         self._prev_buffer_remainder = ""
     
     async def run(
-        self,
-        transcript_text: str,
+        self, 
+        transcript_text: str, 
         decision_tree: DecisionTree,
         transcript_history: str = ""
     ) -> List[BaseTreeAction]:
@@ -79,26 +80,26 @@ class TreeActionDeciderWorkflow:
         """
         Wrapper method for backwards compatibility with tests.
         Runs the workflow and returns all optimization actions.
-
+        
         Args:
             transcript_text: The text to process
             decision_tree: The decision tree to update
             transcript_history: Historical context
-
+            
         Returns:
             List of optimization actions that were applied
         """
         # Set the decision tree
         self.decision_tree = decision_tree
-
+        
         # Create temporary instances for the wrapper
         from ..text_buffer_manager import TextBufferManager
         buffer_manager = TextBufferManager()
         tree_action_applier = TreeActionApplier(decision_tree)
-
+        
         # Store optimization actions for test compatibility
         self.optimization_actions_for_tests = []
-
+        
         # Process the chunk
         await self.process_text_chunk(
             text_chunk=transcript_text,
@@ -194,24 +195,24 @@ class TreeActionDeciderWorkflow:
         if len(orphan_creates) > 1:
             # Sort orphans by name for groupby
             sorted_orphans = sorted(orphan_creates, key=lambda x: x.new_node_name)
-            
+
             # Group orphan nodes by name using itertools.groupby
             orphan_groups = groupby(sorted_orphans, key=lambda x: x.new_node_name)
-            
+
             # Get non-orphan actions
             non_orphan_actions: List[BaseTreeAction] = [
                 action for action in append_or_create_actions
                 if not (isinstance(action, CreateAction) and action.parent_node_id is None)
             ]
-            
+
             # Process each group
             merged_orphans: List[CreateAction] = []
             for name, orphans_iter in orphan_groups:
                 orphans = list(orphans_iter)  # Convert iterator to list
-                
+
                 if len(orphans) > 1:
                     logging.info(f"Merging {len(orphans)} orphan nodes with name '{name}'")
-                    
+
                     # Merge orphans with same name using list comprehensions
                     merged_orphan: CreateAction = CreateAction(
                         action="CREATE",
@@ -225,7 +226,7 @@ class TreeActionDeciderWorkflow:
                 else:
                     # Single orphan, add as-is
                     merged_orphans.extend(orphans)
-            
+
             # Replace all orphan creates with the merged ones
             actions_to_apply = non_orphan_actions + merged_orphans
 
