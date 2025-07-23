@@ -47,7 +47,7 @@ class DecisionTree:
         """Write markdown files for the specified nodes"""
         if node_ids:
             try:
-                self.markdown_converter.convert_node(
+                self.markdown_converter.convert_nodes(
                     output_dir=self.output_dir,
                     nodes_to_update=set(node_ids)
                 )
