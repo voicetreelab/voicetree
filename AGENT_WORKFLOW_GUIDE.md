@@ -83,11 +83,11 @@ General instructions to stay focussed only on this task and update the VoiceTree
 claude -p "$TASK1_PROMPT" --dangerously-skip-permissions > task1.log 2>&1 &
 PID1=$!
 
-claude -p "$TASK2_PROMPT" --dangerously-skip-permissions --max-turns 20  --model sonnet > task2.log 2>&1 &
+claude -p "$TASK2_PROMPT" --dangerously-skip-permissions --max-turns 60  --model sonnet > task2.log 2>&1 &
 PID2=$!
 # ^ todo, make sure the above code actually runs them in parallel and are not blocking eachotheer.
 
-# Note: When spawning Claude instances in print/headless mode you may need to increase the max turns so that the process completes: claude -p --max-turns 20
+# Note: When spawning Claude instances in print/headless mode you may need to increase the max turns so that the process completes: claude -p --max-turns 160
 # Note: you can specify a cheaper model --model sonnet for simple tasks, it will be faster. use --model opus complex tasks. 
 
 # Wait for completion
