@@ -8,6 +8,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Union
 
+from ...settings import MAX_NODES_FOR_LLM_CONTEXT
 from ..agentic_workflows.agents.append_to_relevant_node_agent import \
     AppendToRelevantNodeAgent
 from ..agentic_workflows.agents.single_abstraction_optimizer_agent import \
@@ -17,6 +18,7 @@ from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
                                         UpdateAction)
 from ..text_buffer_manager import TextBufferManager
 from ..tree_manager.decision_tree_ds import DecisionTree
+from ..tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
 from .apply_tree_actions import TreeActionApplier
 
 
@@ -139,10 +141,14 @@ class TreeActionDeciderWorkflow:
         # ======================================================================
         logging.info("Running Phase 1: Placement Agent...")
         
+        # Get the most relevant nodes for the agent to consider
+        relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT)
+        relevant_nodes_formatted = _format_nodes_for_prompt(relevant_nodes)
         # The append_agent now returns both actions and segment information
         append_agent_result: AppendAgentResult = await self.append_agent.run(
             transcript_text=text_chunk,
             decision_tree=self.decision_tree,
+            existing_nodes_formatted=relevant_nodes_formatted,
             transcript_history=transcript_history_context
         )
         
@@ -173,49 +179,47 @@ class TreeActionDeciderWorkflow:
 
         # --- Orphan Merging ---
         # This logic is necessary before the first apply. Merge all create actions into a single node, so that they can be seperated by optimizer.
-        # orphan_creates: List[CreateAction] = [
-        #     action for action in append_or_create_actions
-        #     if isinstance(action, CreateAction) and not action.parent_node_id
-        # ]
-        #
-        # # Process actions based on orphan merge logic
-        # actions_to_apply: List[BaseTreeAction] = append_or_create_actions
-        #
-        # if len(orphan_creates) > 1:
-        #     logging.info(f"Merging {len(orphan_creates)} orphan nodes into one.")
-        #
-        #     # Merge all orphan nodes into one grouped node
-        #     merged_names: List[str] = []
-        #     merged_contents: List[str] = []
-        #     merged_summaries: List[str] = []
-        #
-        #     for orphan in orphan_creates:
-        #         merged_names.append(orphan.new_node_name)
-        #         merged_contents.append(orphan.content)
-        #         merged_summaries.append(orphan.summary)
-        #
-        #     merged_orphan: CreateAction = CreateAction(
-        #         action="CREATE",
-        #         parent_node_id=None,
-        #         new_node_name="\n\n".join(merged_names),
-        #         content="\n\n".join(merged_contents),
-        #         summary="\n\n".join(merged_summaries),
-        #         relationship=""  # Empty for orphan nodes
-        #     )
-        #
-        #     # Get non-orphan actions
-        #     non_orphan_actions: List[BaseTreeAction] = [
-        #         action for action in append_or_create_actions
-        #         if not (isinstance(action, CreateAction))
-        #     ]
-        #
-        #     # Replace all orphan creates with the single merged one
-        #     actions_to_apply = non_orphan_actions + [merged_orphan]
-        #
-        # # --- First Side Effect: Apply Placement ---
-        # modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
+        orphan_creates: List[CreateAction] = [
+            action for action in append_or_create_actions
+            if isinstance(action, CreateAction) and not action.parent_node_id
+        ]
 
-        modified_or_new_nodes = tree_action_applier.apply(append_or_create_actions)
+        # Process actions based on orphan merge logic
+        actions_to_apply: List[BaseTreeAction] = append_or_create_actions
+
+        if len(orphan_creates) > 1:
+            logging.info(f"Merging {len(orphan_creates)} orphan nodes into one.")
+
+            # Merge all orphan nodes into one grouped node
+            merged_names: List[str] = []
+            merged_contents: List[str] = []
+            merged_summaries: List[str] = []
+
+            for orphan in orphan_creates:
+                merged_names.append(orphan.new_node_name)
+                merged_contents.append(orphan.content)
+                merged_summaries.append(orphan.summary)
+
+            merged_orphan: CreateAction = CreateAction(
+                action="CREATE",
+                parent_node_id=None,
+                new_node_name="\n\n".join(merged_names),
+                content="\n\n".join(merged_contents),
+                summary="\n\n".join(merged_summaries),
+                relationship=""  # Empty for orphan nodes
+            )
+
+            # Get non-orphan actions
+            non_orphan_actions: List[BaseTreeAction] = [
+                action for action in append_or_create_actions
+                if not (isinstance(action, CreateAction) and action.parent_node_id is None)
+            ]
+
+            # Replace all orphan creates with the single merged one
+            actions_to_apply = non_orphan_actions + [merged_orphan]
+
+        # --- First Side Effect: Apply Placement ---
+        modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
         logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
         
         
