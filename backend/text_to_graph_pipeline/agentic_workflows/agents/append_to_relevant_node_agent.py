@@ -7,17 +7,17 @@ This agent:
 3. Returns AppendAction or CreateAction objects
 """
 
-import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 from langgraph.graph import END
 
-from ...tree_manager.decision_tree_ds import DecisionTree
+from ...tree_manager.decision_tree_ds import DecisionTree, Node
 from ..core.agent import Agent
 from ..core.state import AppendToRelevantNodeAgentState
-from ..models import (AppendAction, AppendAgentResult, BaseTreeAction,
-                      CreateAction, SegmentationResponse, SegmentModel,
+from ..models import (AppendAction, AppendAgentResult, CreateAction, SegmentationResponse, SegmentModel,
                       TargetNodeResponse)
+from ...tree_manager.tree_functions import _format_nodes_for_prompt
+from ....settings import tree_config
 
 
 class AppendToRelevantNodeAgent(Agent):
@@ -25,6 +25,7 @@ class AppendToRelevantNodeAgent(Agent):
     
     def __init__(self):
         super().__init__("AppendToRelevantNodeAgent", AppendToRelevantNodeAgentState)
+        self.node_limit = tree_config.max_nodes_for_llm_context
         self._setup_workflow()
     
     def _setup_workflow(self):
@@ -78,6 +79,7 @@ class AppendToRelevantNodeAgent(Agent):
         self,
         transcript_text: str,
         decision_tree: DecisionTree,
+        existing_nodes: List[Node],
         transcript_history: str = ""
     ) -> AppendAgentResult:
         """
@@ -86,6 +88,7 @@ class AppendToRelevantNodeAgent(Agent):
         Args:
             transcript_text: Raw voice transcript to process
             decision_tree: Current tree state
+            existing_nodes: List of relevant nodes to consider for placement
             transcript_history: Optional context from previous transcripts
             
         Returns:
@@ -95,7 +98,7 @@ class AppendToRelevantNodeAgent(Agent):
         initial_state: AppendToRelevantNodeAgentState = {
             "transcript_text": transcript_text,
             "transcript_history": transcript_history,
-            "existing_nodes": self._format_nodes_for_prompt(decision_tree),
+            "existing_nodes": _format_nodes_for_prompt(existing_nodes),
             "segments": None,
             "target_nodes": None,
             "_all_segments": None
@@ -156,17 +159,3 @@ class AppendToRelevantNodeAgent(Agent):
             segments=all_segments,
         )
     
-    def _format_nodes_for_prompt(self, tree: DecisionTree) -> str:
-        """Format tree nodes for LLM prompt"""
-        if not tree.tree:
-            return "[]"  # Empty array for no nodes
-        
-        node_list = []
-        for node_id, node in tree.tree.items():
-            node_list.append({
-                "id": node_id,
-                "name": node.title,
-                "summary": node.summary
-            })
-        
-        return json.dumps(node_list, indent=2)
