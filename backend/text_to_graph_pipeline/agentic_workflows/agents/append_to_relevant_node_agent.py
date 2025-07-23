@@ -17,15 +17,12 @@ from ..core.state import AppendToRelevantNodeAgentState
 from ..models import (AppendAction, AppendAgentResult, CreateAction, SegmentationResponse, SegmentModel,
                       TargetNodeResponse)
 from ...tree_manager.tree_functions import _format_nodes_for_prompt
-from ....settings import tree_config
-
 
 class AppendToRelevantNodeAgent(Agent):
     """Agent that determines where to place new content in the tree"""
     
     def __init__(self):
         super().__init__("AppendToRelevantNodeAgent", AppendToRelevantNodeAgentState)
-        self.node_limit = tree_config.max_nodes_for_llm_context
         self._setup_workflow()
     
     def _setup_workflow(self):
@@ -79,7 +76,7 @@ class AppendToRelevantNodeAgent(Agent):
         self,
         transcript_text: str,
         decision_tree: DecisionTree,
-        existing_nodes: List[Node],
+        existing_nodes_formatted: str,
         transcript_history: str = ""
     ) -> AppendAgentResult:
         """
@@ -98,10 +95,11 @@ class AppendToRelevantNodeAgent(Agent):
         initial_state: AppendToRelevantNodeAgentState = {
             "transcript_text": transcript_text,
             "transcript_history": transcript_history,
-            "existing_nodes": _format_nodes_for_prompt(existing_nodes),
+            "existing_nodes": existing_nodes_formatted,
             "segments": None,
             "target_nodes": None,
-            "_all_segments": None
+            "_all_segments": None,
+            "debug_notes" : ""
         }
         
         # Run the workflow
