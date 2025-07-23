@@ -57,7 +57,7 @@ class TextBufferManager:
 
         # add space between phrases.
         # only if previous phrases didn't end in a space.
-        if(not text[0] == " " and not self._transcript_history[-1] == " " and not self._buffer[-1] == " "):
+        if(self._buffer and self._transcript_history and not text[0] == " " and not self._transcript_history[-1] == " " and not self._buffer[-1] == " "):
             self._buffer += " "
             self._transcript_history += " "
 
