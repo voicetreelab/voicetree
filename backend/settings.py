@@ -26,7 +26,8 @@ voice_config = VoiceConfig(
 
 tree_config = TreeConfig(
     num_recent_nodes_include=int(os.getenv("NUM_RECENT_NODES", 10)),
-    background_rewrite_every_n_append=int(os.getenv("BACKGROUND_REWRITE_FREQUENCY", 2))
+    background_rewrite_every_n_append=int(os.getenv("BACKGROUND_REWRITE_FREQUENCY", 2)),
+    max_nodes_for_llm_context=int(os.getenv("MAX_NODES_FOR_LLM_CONTEXT", 30))
 )
 
 llm_config = LLMConfig()  # Uses defaults, can be customized
