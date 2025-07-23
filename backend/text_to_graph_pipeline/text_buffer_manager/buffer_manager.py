@@ -6,6 +6,7 @@ Provides a clean interface for text buffering and chunk processing
 import logging
 from typing import Any, Dict, Optional
 
+from settings import TRANSCRIPT_HISTORY_MULTIPLIER
 from .fuzzy_text_matcher import FuzzyTextMatcher
 
 
@@ -53,18 +54,19 @@ class TextBufferManager:
         
     def addText(self, text: str) -> None:
         """Add text to buffer (new API)"""
-        # Skip empty or whitespace-only text
-        if not text or not text.strip():
-            logging.debug("Skipping empty/whitespace text")
-            return
-            
+
+        # add space between sentences.
+        if(not text[0] == " "):
+            self._buffer += " "
+            self._transcript_history += " "
+
         # Add to transcript history immediately
         self._transcript_history += text
         logging.debug(f"[TRANSCRIPT_HISTORY] Added '{text}' - Total history length: {len(self._transcript_history)} chars")
         logging.debug(f"[TRANSCRIPT_HISTORY] Current history preview: '{self._transcript_history[-100:]}'...")
         
         # Maintain history window (10x buffer size)
-        max_history = self.bufferFlushLength * 10
+        max_history = self.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
         if len(self._transcript_history) > max_history:
             self._transcript_history = self._transcript_history[-max_history:]
             logging.debug(f"[TRANSCRIPT_HISTORY] Trimmed to max {max_history} chars")
