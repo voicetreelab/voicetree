@@ -15,5 +15,7 @@ coverage[toml]>=7.0
 google-generativeai
 google-genai>=1.20.0
 openai
-langgraph
 rapidfuzz>=3.0.0
+langgraph>=0.1.0
+langchain-core>=0.1.0
+typing-extensions>=4.0.0
