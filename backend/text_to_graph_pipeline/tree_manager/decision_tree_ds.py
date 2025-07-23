@@ -230,6 +230,34 @@ class DecisionTree:
         """Returns a list of IDs of the most recently modified nodes."""
         sorted_nodes = sorted(self.tree.keys(), key=lambda k: self.tree[k].modified_at, reverse=True)
         return sorted_nodes[:num_nodes]
+    
+    def get_nodes_by_branching_factor(self, limit: Optional[int] = None) -> List[int]:
+        """
+        Get node IDs sorted by number of children (descending)
+        
+        Args:
+            limit: Optional limit on number of nodes to return
+            
+        Returns:
+            List of node IDs ordered by child count (descending)
+        """
+        # Create list of (node_id, child_count) tuples
+        nodes_with_child_count = []
+        for node_id, node in self.tree.items():
+            child_count = len(node.children)
+            nodes_with_child_count.append((node_id, child_count))
+        
+        # Sort by child count (descending)
+        nodes_with_child_count.sort(key=lambda x: x[1], reverse=True)
+        
+        # Extract just the node IDs
+        result = [node_id for node_id, _ in nodes_with_child_count]
+        
+        # Apply limit if specified
+        if limit is not None:
+            result = result[:limit]
+        
+        return result
 
     def get_parent_id(self, node_id):
         """Returns the parent ID of the given node, or None if it's the root."""

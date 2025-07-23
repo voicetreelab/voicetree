@@ -23,11 +23,21 @@ Identify independent tasks that can run simultaneously:
 - Tasks with no shared state
 - Tasks with well-defined interfaces
 - Tasks that communicate only through files
+
+Important, both you, and the agents, will keep all their documentation contained WITHIN the tree.
+i.e. you will extend the existing tree. for every new md file you make in markdown tree vault, 
+prepend the file name with AGENT{NAME}_{TITLE}
+You are only allowed to modify existing nodes in the tree that start with AGENT_ 
+
 ```
 
 ## Practical Implementation
 
 ### 1. Creating Subtask Files
+
+IMPORTANT, create this markdown file, and then CONNECT it to the most relevant
+markdown file already in the tree, with a markown link [[]],
+such that this subtask file itself becomes a node in the tree!
 
 ```markdown
 # Subtask: [Clear Title]
@@ -72,7 +82,8 @@ whatever they are creating or modifying.
 TASK1_PROMPT="You are helping with a focused task.
 
 Your task:
-$(cat subtask_1.md)
+A single node in a task/decision tree, located at /Users/bobbobby/repos/VoiceTreePoc/markdownTreeVault/{day}/{task 
+$(cat /Users/bobbobby/repos/VoiceTreePoc/markdownTreeVault/{day}/{task}.md)
 
 [Any additional context like file locations, contracts, big picture to why we are doing this]
 
