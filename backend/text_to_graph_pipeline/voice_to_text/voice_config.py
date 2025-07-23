@@ -1,65 +1,68 @@
-"""
-Voice to text configuration
-"""
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+# backend/text_to_graph_pipeline/voice_to_text/voice_config.py
 
+from dataclasses import dataclass
 
 @dataclass
 class VoiceConfig:
-    """Configuration for voice to text processing"""
+    """
+    Configuration settings for the VoiceToTextEngine.
+    """
+    # --- VAD (Voice Activity Detection) Settings ---
+    # How aggressive the VAD is.
+    """
+    It answers the question: "What do I actually count as silence?"
+
+    0 (Least Aggressive): The engineer is extremely sensitive. Even the quietest mouth noise, a faint breath, or distant background hum is considered "speech."
+
+    3 (Most Aggressive): The engineer is very strict. Unless it's a clear, loud, spoken word, they consider it "silence." Background noise, soft breaths, and quiet hums are all ignored and treated as silence.
+    """
+    vad_aggressiveness: int = 2
+    # Duration of a single audio frame for VAD analysis, in milliseconds.
+    vad_frame_ms: int = 30
+    # Amount of silence to pad at the start and end of a speech segment, in milliseconds.
+    # This helps ensure words at the edges aren't cut off.
+    vad_padding_ms: int = 150
+
+    #IMPORTANT: How long the VAD should wait in silence before considering an utterance finished, in milliseconds.
+    vad_silence_timeout_ms: int = 300 # Increased for more natural pauses
+    #     High Value (e.g., 1500 ms): Good for speakers who pause for a second or two in the middle of a sentence to think. It prevents the system from chopping up their thoughts. This is what you're currently experiencing.
+    #
+    #     Low Value (e.g., 700 ms): Makes the system feel much more responsive and is better for faster, conversational-style speech. It will "flush the buffer" after a much shorter pause.
+
+
+    # --- Audio Stream Settings ---
+    # Audio channels (1 for mono, 2 for stereo). Whisper works with mono.
+    audio_channels: int = 1
+    # Sample rate in Hz. Whisper models are trained on 16000Hz audio.
+    sample_rate: int = 16000
+
+    # --- Whisper Model Settings ---
+    # The size of the Whisper model to use (e.g., "tiny", "base", "small", "medium", "large-v3", "distil-large-v3").
+    # "large-v3" is the most accurate but also the most resource-intensive.
+    model_size: str = "mobiuslabsgmbh/faster-whisper-large-v3-turbo"
+    # The computation type for the model. "int8" is recommended for CPU execution for a good balance
+    # of speed and accuracy. Use "float16" for GPU.
+    compute_type: str = "int8"
+    # The device to run the model on ("cpu" or "cuda").
+    device: str = "cpu"
+    # The beam size for decoding. A larger beam size increases accuracy at the cost of speed.
+    # A value of 5 is a good trade-off.
+    # LOWER IS FASTER, BUT LESS ACCURATE
+    beam_size: int = 4
+    # The language of the speech. Set to None to let Whisper auto-detect.
+    language: str = "en"
+
+    # --- Transcription Behavior Settings ---
+    # Whether to use Whisper's internal VAD as a second-pass filter. Recommended.
+    use_vad_filter: bool = True
+    # Whether to feed the previous transcription as a prompt to the next. Greatly improves
+    # contextual accuracy and consistency.
+    condition_on_previous_text: bool = True
+    # Whether to generate word-level timestamps. Useful for downstream processing.
+    word_timestamps: bool = False
+    # The number of previous transcriptions to keep for context.
+    # todo, experiment with this and how it impacts latency
+    history_max_size: int = 3
+
     
-    # Model configuration
-    model: str = "mobiuslabsgmbh/faster-whisper-large-v3-turbo"  # Whisper model to use - larger models are more accurate but slower
-    
-    # Audio capture settings
-    sample_rate: int = 16000  # Audio sample rate in Hz - 16kHz is optimal for speech recognition
-    channels: int = 1  # Number of audio channels - mono (1) is sufficient for voice
-    energy_threshold: int = 1000  # Microphone sensitivity - increase in noisy environments, decrease for quiet speakers
-    dynamic_energy_threshold: bool = True  # Auto-adjust to ambient noise - disable for consistent environments
-    dynamic_energy_adjustment_damping: float = 0.15  # How quickly energy threshold adapts - lower = more responsive
-    dynamic_energy_ratio: float = 1.5  # Multiplier for dynamic threshold - higher = less sensitive to background noise
-    
-    # Timing settings
-    record_timeout: float = 5  # Max seconds to record before processing - shorter = more responsive, longer = captures complete thoughts
-    phrase_timeout: float = 1.0  # Seconds of silence to mark phrase end - adjust based on speaking pace
-    
-    # Overlap settings for accuracy
-    overlap_seconds: float = 1.5  # Audio overlap between chunks - increase to reduce missed words at boundaries
-    
-    # Microphone settings
-    default_microphone: str = 'pulse'  # Default microphone identifier - change based on your system
-    
-    # Transcription parameters
-    temperature: List[float] = field(default_factory=lambda: [0.0, 0.2])  # Temperature for sampling - multiple values for fallback on failure
-    beam_size: int = 5  # Beam search width - higher = more accurate but slower
-    best_of: int = 5  # Number of candidates - higher = better quality at cost of speed
-    condition_on_previous_text: bool = False  # Use previous chunk as context - True for narrative, False for independent chunks
-    word_timestamps: bool = True  # Extract per-word timing - needed for overlap deduplication
-    initial_prompt: Optional[str] = None  # Prompt to guide transcription - use for domain-specific vocabulary
-    
-    # VAD (Voice Activity Detection) settings
-    vad_filter: bool = True  # Enable voice activity detection - reduces hallucinations in silence
-    vad_threshold: float = 0.3  # VAD sensitivity (0-1) - lower = more sensitive to soft speech
-    vad_min_speech_duration_ms: int = 100  # Minimum speech length - lower to catch brief words
-    vad_max_speech_duration_s: float = float('inf')  # Maximum speech segment - usually unlimited
-    vad_min_silence_duration_ms: int = 3000  # Silence before splitting - longer = fewer interruptions
-    vad_speech_pad_ms: int = 800  # Padding around detected speech - captures word beginnings/endings
-    
-    @property
-    def vad_parameters(self) -> Dict[str, Any]:
-        """Returns VAD parameters as a dictionary for faster-whisper"""
-        return {
-            'threshold': self.vad_threshold,
-            'min_speech_duration_ms': self.vad_min_speech_duration_ms,
-            'max_speech_duration_s': self.vad_max_speech_duration_s,
-            'min_silence_duration_ms': self.vad_min_silence_duration_ms,
-            'speech_pad_ms': self.vad_speech_pad_ms
-        }
-    
-    def __post_init__(self):
-        """Validate configuration"""
-        valid_models = ["distil-large-v3", "large-v3", "mobiuslabsgmbh/faster-whisper-large-v3-turbo"]
-        if self.model not in valid_models:
-            raise ValueError(f"model must be one of {valid_models}")
