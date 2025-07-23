@@ -1,4 +1,5 @@
 import re
+from typing import Dict, Any
 
 
 def extract_summary(node_content):
@@ -131,3 +132,43 @@ def remove_first_word(sentence):
     if sentence:
         sentence = sentence.split(' ', 1)[1]
     return sentence
+
+
+def insert_yaml_frontmatter(key_value_pairs: Dict[str, Any]) -> str:
+    """
+    Generate YAML frontmatter from a dictionary of key-value pairs.
+    
+    Args:
+        key_value_pairs: Dictionary containing the frontmatter keys and values
+        
+    Returns:
+        Formatted YAML frontmatter string with opening and closing delimiters
+        
+    Example:
+        >>> insert_yaml_frontmatter({"title": "My Node", "tags": ["important", "todo"]})
+        '---\\ntitle: My Node\\ntags:\\n  - important\\n  - todo\\n---\\n'
+    """
+    if not key_value_pairs:
+        return ""
+    
+    lines = ["---"]
+    
+    for key, value in key_value_pairs.items():
+        if isinstance(value, list):
+            lines.append(f"{key}:")
+            for item in value:
+                lines.append(f"  - {item}")
+        elif isinstance(value, dict):
+            lines.append(f"{key}:")
+            for sub_key, sub_value in value.items():
+                lines.append(f"  {sub_key}: {sub_value}")
+        elif isinstance(value, bool):
+            lines.append(f"{key}: {str(value).lower()}")
+        elif value is None:
+            lines.append(f"{key}: null")
+        else:
+            # Handle strings and numbers
+            lines.append(f"{key}: {value}")
+    
+    lines.append("---")
+    return "\n".join(lines) + "\n"
