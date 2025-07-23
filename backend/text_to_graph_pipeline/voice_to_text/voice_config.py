@@ -25,11 +25,11 @@ class VoiceConfig:
     vad_padding_ms: int = 150
 
     #IMPORTANT: How long the VAD should wait in silence before considering an utterance finished, in milliseconds.
-    vad_silence_timeout_ms: int = 300 # Increased for more natural pauses
+    vad_silence_timeout_ms: int = 250 # Increase for longer buffers, better accuracy  latency
     #     High Value (e.g., 1500 ms): Good for speakers who pause for a second or two in the middle of a sentence to think. It prevents the system from chopping up their thoughts. This is what you're currently experiencing.
     #
     #     Low Value (e.g., 700 ms): Makes the system feel much more responsive and is better for faster, conversational-style speech. It will "flush the buffer" after a much shorter pause.
-
+    vad_total_timeout_ms: int = 30000 # note at half of this, i.e. 15s we start encouraging flushing by decreasing vad_silence_timeout_ms
 
     # --- Audio Stream Settings ---
     # Audio channels (1 for mono, 2 for stereo). Whisper works with mono.
@@ -49,7 +49,7 @@ class VoiceConfig:
     # The beam size for decoding. A larger beam size increases accuracy at the cost of speed.
     # A value of 5 is a good trade-off.
     # LOWER IS FASTER, BUT LESS ACCURATE
-    beam_size: int = 4
+    beam_size: int = 1
     # The language of the speech. Set to None to let Whisper auto-detect.
     language: str = "en"
 
