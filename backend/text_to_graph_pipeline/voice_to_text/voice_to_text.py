@@ -13,15 +13,15 @@ from backend.text_to_graph_pipeline.voice_to_text.voice_config import VoiceConfi
 class VoiceToTextEngine:
     def __init__(self, config: VoiceConfig = None):
         self.config = config or VoiceConfig()
-        
+
         self.recorder = sr.Recognizer()
         self.recorder.energy_threshold = self.config.energy_threshold
         self.recorder.dynamic_energy_threshold = self.config.dynamic_energy_threshold
         self.recorder.dynamic_energy_adjustment_damping = self.config.dynamic_energy_adjustment_damping
         self.recorder.dynamic_energy_ratio = self.config.dynamic_energy_ratio
-        
+
         self.audio_model = WhisperModel(self.config.model, device="cpu", compute_type="auto")
-        
+
         self.phrase_time = None
         self.data_queue = Queue()
         self.transcription = ['']
@@ -48,19 +48,13 @@ class VoiceToTextEngine:
     def process_audio_queue(self):
         """Processes audio chunks from the queue."""
         if not self.data_queue.empty():
-            phrase_complete = False
-            now = datetime.now(timezone.utc)
-            if self.phrase_time and now - self.phrase_time > timedelta(seconds=self.config.phrase_timeout):
-                phrase_complete = True
-            self.phrase_time = now
-
             # Combine overlap buffer with new audio data
             new_audio_data = b''.join(self.data_queue.queue)
             audio_data = self.overlap_buffer + new_audio_data
-            
+
             # Don't clear the queue yet - save any new audio that arrives during transcription
             current_queue_size = self.data_queue.qsize()
-            
+
             # Calculate overlap size based on configuration
             # Larger overlap ensures words at boundaries are captured in both chunks
             overlap_size = int(self.config.sample_rate * self.config.overlap_seconds * 2)  # samples/sec * overlap_sec * 2 bytes/sample
@@ -68,10 +62,10 @@ class VoiceToTextEngine:
                 self.overlap_buffer = audio_data[-overlap_size:]
             else:
                 self.overlap_buffer = audio_data
-            
+
             audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
             result, _ = self.audio_model.transcribe(
-                audio_np, 
+                audio_np,
                 language="en",
                 vad_filter=self.config.vad_filter,
                 vad_parameters=self.config.vad_parameters,
@@ -82,7 +76,7 @@ class VoiceToTextEngine:
                 best_of=self.config.best_of,
                 beam_size=self.config.beam_size
             )
-            
+
             # Now clear only the processed audio from the queue
             for _ in range(current_queue_size):
                 if not self.data_queue.empty():
@@ -100,7 +94,7 @@ class VoiceToTextEngine:
                 print(segment.text)
                 text += segment.text.strip()
                 logging.info(f"Transcribed segment: {segment.text.strip()}")
-            
+
             # Store segment info for potential overlap correction
             if hasattr(self, 'previous_segments'):
                 # TODO: Implement overlap-based correction here
@@ -108,8 +102,6 @@ class VoiceToTextEngine:
                 # Pick best version based on confidence/context
                 pass
             self.previous_segments = segments_with_info
-            logging.info("Phrase complete? "+str(phrase_complete))
-            # if phrase_complete:
             #todo, thought end detection based on time not speaking...
             return text
         return None

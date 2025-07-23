@@ -7,7 +7,7 @@ import json
 from typing import Dict, Any, List
 from copy import deepcopy
 
-from text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
 
 
 def get_node_summaries(decision_tree, max_nodes) -> str:

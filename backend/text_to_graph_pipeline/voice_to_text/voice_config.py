@@ -22,7 +22,7 @@ class VoiceConfig:
     dynamic_energy_ratio: float = 1.5  # Multiplier for dynamic threshold - higher = less sensitive to background noise
     
     # Timing settings
-    record_timeout: float = 2.5  # Max seconds to record before processing - shorter = more responsive, longer = captures complete thoughts
+    record_timeout: float = 5  # Max seconds to record before processing - shorter = more responsive, longer = captures complete thoughts
     phrase_timeout: float = 1.0  # Seconds of silence to mark phrase end - adjust based on speaking pace
     
     # Overlap settings for accuracy

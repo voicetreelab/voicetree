@@ -18,6 +18,8 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
     AppendAction, BaseTreeAction, CreateAction)
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
     DecisionTree, Node)
+from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
+from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
 
 
 class TestAppendToRelevantNodeAgent:
@@ -46,9 +48,11 @@ class TestAppendToRelevantNodeAgent:
         """Test Case 1: Text clearly relates to existing node"""
         text = "We need to add an index to the users table for performance."
         
+        existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=simple_tree
+            decision_tree=simple_tree,
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
         assert len(result.actions) == 1
@@ -74,9 +78,11 @@ class TestAppendToRelevantNodeAgent:
         
         text = "We need to configure the PostgreSQL database connection pool settings."
         
+        existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree
+            decision_tree=tree,
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
         assert len(result.actions) == 1
@@ -102,9 +108,11 @@ class TestAppendToRelevantNodeAgent:
         
         text = "We should enforce stronger password policies. Also, we need to set up rate limiting on the API."
         
+        existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree
+            decision_tree=tree,
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
         # Should have 2 actions (one for each sentence)
@@ -129,9 +137,11 @@ class TestAppendToRelevantNodeAgent:
         
         text = "First, let's define the project requirements. Second, we need to choose a tech stack."
         
+        existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree
+            decision_tree=tree,
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
         # Should create 2 new nodes
@@ -167,9 +177,11 @@ class TestAppendToRelevantNodeAgent:
         
         text = "We must protect against SQL injection on all endpoints."
         
+        existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree
+            decision_tree=tree,
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
         assert len(result.actions) == 1
@@ -183,9 +195,11 @@ class TestAppendToRelevantNodeAgent:
         text = "and also configure the connection pooling."
         history = "We're setting up PostgreSQL for the main database"
         
+        existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
             decision_tree=simple_tree,
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes),
             transcript_history=history
         )
         
@@ -199,9 +213,11 @@ class TestAppendToRelevantNodeAgent:
         # Text with clear incomplete ending
         text = "We need to add database indexes to improve query performance. The other important thing we need to consider is how the"
         
+        existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=simple_tree
+            decision_tree=simple_tree,
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
         # Should have segments

@@ -117,7 +117,7 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
                     node_name = f"Node_{len(self.created_nodes) + 1}"
                     self.created_nodes.append(node_name)
                     
-                    parent_id = random.choice(existing_node_ids) if existing_node_ids else 0
+                    parent_id = random.choice(existing_node_ids) if existing_node_ids else None
                     
                     action = CreateAction(
                         action="CREATE",
@@ -150,7 +150,7 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
                         updated_nodes.update(result_nodes)
         
         # Clear buffer after processing
-        buffer_manager.clearBuffer()
+        buffer_manager.clear()
         
         return updated_nodes
 
