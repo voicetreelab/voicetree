@@ -70,34 +70,35 @@ class TreeActionDeciderWorkflow:
         self._prev_buffer_remainder = ""
     
     async def run(
-        self, 
-        transcript_text: str, 
+        self,
+        transcript_text: str,
         decision_tree: DecisionTree,
         transcript_history: str = ""
     ) -> List[BaseTreeAction]:
+        # TODO WE SHOULD REMOVE THIS, WE SHOULD NEVER HAVE BACKWARDS COMPATABILITY
         """
         Wrapper method for backwards compatibility with tests.
         Runs the workflow and returns all optimization actions.
-        
+
         Args:
             transcript_text: The text to process
             decision_tree: The decision tree to update
             transcript_history: Historical context
-            
+
         Returns:
             List of optimization actions that were applied
         """
         # Set the decision tree
         self.decision_tree = decision_tree
-        
+
         # Create temporary instances for the wrapper
         from ..text_buffer_manager import TextBufferManager
         buffer_manager = TextBufferManager()
         tree_action_applier = TreeActionApplier(decision_tree)
-        
+
         # Store optimization actions for test compatibility
         self.optimization_actions_for_tests = []
-        
+
         # Process the chunk
         await self.process_text_chunk(
             text_chunk=transcript_text,
@@ -105,10 +106,10 @@ class TreeActionDeciderWorkflow:
             tree_action_applier=tree_action_applier,
             buffer_manager=buffer_manager
         )
-        
+
         # Return the optimization actions for test compatibility
         return self.optimization_actions_for_tests
-    
+
     async def process_text_chunk(
         self, 
         text_chunk: str, 

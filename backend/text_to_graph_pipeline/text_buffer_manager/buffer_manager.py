@@ -6,7 +6,7 @@ Provides a clean interface for text buffering and chunk processing
 import logging
 from typing import Any, Dict, Optional
 
-from settings import TRANSCRIPT_HISTORY_MULTIPLIER
+from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
 from .fuzzy_text_matcher import FuzzyTextMatcher
 
 
@@ -45,7 +45,7 @@ class TextBufferManager:
         self._transcript_history = ""
         self._is_first_processing = True
         self._fuzzy_matcher = FuzzyTextMatcher(similarity_threshold=80)
-        self.bufferFlushLength = 0  # Will be set by init() method
+        self.bufferFlushLength = 0  # Will be set by init() method, #TODO AWFUL
         
     def init(self, bufferFlushLength: int) -> None:
         """Initialize with a specific buffer flush length"""
@@ -55,8 +55,9 @@ class TextBufferManager:
     def addText(self, text: str) -> None:
         """Add text to buffer (new API)"""
 
-        # add space between sentences.
-        if(not text[0] == " "):
+        # add space between phrases.
+        # only if previous phrases didn't end in a space.
+        if(not text[0] == " " and not self._transcript_history[-1] == " " and not self._buffer[-1] == " "):
             self._buffer += " "
             self._transcript_history += " "
 

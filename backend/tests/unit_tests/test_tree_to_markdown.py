@@ -4,6 +4,7 @@ from datetime import datetime
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, extract_title_from_md
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter, generate_filename_from_keywords, slugify
+from backend.text_to_graph_pipeline.tree_manager.utils import insert_yaml_frontmatter
 
 
 # import nltk
@@ -21,13 +22,17 @@ from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToM
 class TestTreeToMarkdownConverter(unittest.TestCase):
     def setUp(self):
         self.tree_data = {
-            0: Node(node_id=0, name="root node", content="root_content"),
-            1: Node(node_id=1, name="Child Node 1", parent_id=0, content="child1_content"),
-            2: Node(node_id=2, name="Child Node 2", parent_id=0, content="child2_content"),
-            3: Node(node_id=3, name="Grandchild Node", parent_id=2, content="grandchild_content"),
+            0: Node(node_id=0, name="root node", content="root_content", summary="Root summary"),
+            1: Node(node_id=1, name="Child Node 1", parent_id=0, content="child1_content", summary="Child 1 summary"),
+            2: Node(node_id=2, name="Child Node 2", parent_id=0, content="child2_content", summary="Child 2 summary"),
+            3: Node(node_id=3, name="Grandchild Node", parent_id=2, content="grandchild_content", summary="Grandchild summary"),
         }
         self.tree_data[0].children = [1, 2]
         self.tree_data[2].children = [3]
+        # Add relationships
+        self.tree_data[1].relationships[0] = "child of"
+        self.tree_data[2].relationships[0] = "related to"
+        self.tree_data[3].relationships[2] = "example of"
 
         self.converter = TreeToMarkdownConverter(self.tree_data)
         self.converter.tree = self.tree_data
@@ -67,7 +72,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.tree_data[1].modified_at = datetime.now()
         nodes_to_update = {1}  # Set of nodes to update
 
-        self.converter.convert_node(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
+        self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
 
         # Check if the modified file was updated
         file_path = os.path.join(self.output_dir, self.tree_data[1].filename)
@@ -76,9 +81,13 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         # Check content of the updated file
         with open(file_path, "r") as f:
             content = f.read()
+            # Check YAML frontmatter
+            self.assertIn("---\n", content)
+            self.assertIn("title: Child Node 1\n", content)
+            self.assertIn("node_id: 1\n", content)
             self.assertIn("Updated Child Node 1", content)
             parent_file = self.tree_data[0].filename
-            self.assertIn(f"- child of [[{parent_file}]]", content)  # Check for correct parent link
+            self.assertIn(f"- child_of [[{parent_file}]]", content)  # Check for snake_case relationship
 
         # You'll need to manually check if Obsidian creates the
         # backlink in the parent node's file ("00.md").
@@ -124,6 +133,70 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertEqual(generate_filename_from_keywords("Voice Tree Project\n\nVoice Tree Project"), "Voice_Tree_Project_Voice_Tree_Project.md")
         self.assertEqual(generate_filename_from_keywords("Line1\nLine2"), "Line1_Line2.md")
         self.assertEqual(generate_filename_from_keywords("Line1\r\nLine2"), "Line1_Line2.md")
+
+
+    def test_convert_to_snake_case(self):
+        self.assertEqual(TreeToMarkdownConverter.convert_to_snake_case("child of"), "child_of")
+        self.assertEqual(TreeToMarkdownConverter.convert_to_snake_case("related to"), "related_to")
+        self.assertEqual(TreeToMarkdownConverter.convert_to_snake_case("example of"), "example_of")
+        self.assertEqual(TreeToMarkdownConverter.convert_to_snake_case("already_snake_case"), "already_snake_case")
+
+    def test_yaml_frontmatter(self):
+        # Test that YAML frontmatter is written correctly
+        nodes_to_update = {0}
+        self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
+        
+        file_path = os.path.join(self.output_dir, self.tree_data[0].filename)
+        with open(file_path, "r") as f:
+            content = f.read()
+            # Check YAML frontmatter format
+            self.assertTrue(content.startswith("---\n"))
+            self.assertIn("title: root node\n", content)
+            self.assertIn("node_id: 0\n", content)
+            self.assertIn("created_at:", content)
+            self.assertIn("modified_at:", content)
+            # Check that frontmatter ends properly
+            frontmatter_end = content.find("---\n", 4)
+            self.assertGreater(frontmatter_end, 4)
+
+    def test_relationships_snake_case(self):
+        # Test that relationships are converted to snake_case
+        nodes_to_update = {1, 2, 3}
+        self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
+        
+        # Check child node 2 with "related to" relationship
+        file_path = os.path.join(self.output_dir, self.tree_data[2].filename)
+        with open(file_path, "r") as f:
+            content = f.read()
+            self.assertIn("- related_to [[", content)  # Check snake_case conversion
+            
+        # Check grandchild with "example of" relationship
+        file_path = os.path.join(self.output_dir, self.tree_data[3].filename)
+        with open(file_path, "r") as f:
+            content = f.read()
+            self.assertIn("- example_of [[", content)  # Check snake_case conversion
+
+
+    def test_insert_yaml_frontmatter(self):
+        # Test simple key-value pairs
+        result = insert_yaml_frontmatter({"title": "Test Title", "author": "Test Author"})
+        self.assertEqual(result, "---\ntitle: Test Title\nauthor: Test Author\n---\n")
+        
+        # Test with list values
+        result = insert_yaml_frontmatter({"tags": ["tag1", "tag2", "tag3"]})
+        self.assertEqual(result, "---\ntags:\n  - tag1\n  - tag2\n  - tag3\n---\n")
+        
+        # Test with nested dict
+        result = insert_yaml_frontmatter({"metadata": {"version": "1.0", "type": "node"}})
+        self.assertEqual(result, "---\nmetadata:\n  version: 1.0\n  type: node\n---\n")
+        
+        # Test with boolean and None values
+        result = insert_yaml_frontmatter({"published": True, "draft": False, "notes": None})
+        self.assertEqual(result, "---\npublished: true\ndraft: false\nnotes: null\n---\n")
+        
+        # Test empty dict
+        result = insert_yaml_frontmatter({})
+        self.assertEqual(result, "")
 
 
 if __name__ == '__main__':
