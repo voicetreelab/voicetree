@@ -34,12 +34,53 @@ async def main():
     voice_engine = VoiceToTextEngine()
     voice_engine.start_listening()
     
+    # Get the event loop for running CPU-bound tasks
+    loop = asyncio.get_event_loop()
+    
+    # Tasks to track ongoing operations
+    transcription_task = None
+    processing_task = None
+    
     while True:
-        transcription = voice_engine.process_audio_queue()
-        if transcription:
-            # Use the async version directly - no thread pool needed
-            await processor.process_new_text_and_update_markdown(transcription)
-        await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning  # Small delay to prevent CPU spinning
+        # Non-blocking check for audio chunks
+        audio_chunk = voice_engine.get_ready_audio_chunk()
+        
+        if audio_chunk is not None:
+            # Cancel previous transcription if still running (optional)
+            if transcription_task and not transcription_task.done():
+                transcription_task.cancel()
+            
+            # Run transcription in thread pool to avoid blocking
+            transcription_task = loop.run_in_executor(
+                None,  # Use default thread pool
+                voice_engine.transcribe_chunk,
+                audio_chunk
+            )
+            
+            # Create async task to handle transcription result
+            async def handle_transcription():
+                nonlocal processing_task
+                try:
+                    transcription = await transcription_task
+                    if transcription:
+                        # Cancel previous processing if still running
+                        # (optional - remove if you want parallel processing and all the headaches that could come with it :D)
+                        if processing_task and not processing_task.done():
+                            processing_task.cancel()
+                        
+                        # Start processing in background
+                        processing_task = asyncio.create_task(
+                            processor.process_new_text_and_update_markdown(transcription)
+                        )
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    logger.error(f"Error handling transcription: {e}")
+            
+            # Schedule transcription handling without blocking
+            asyncio.create_task(handle_transcription())
+        
+        await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning
 
 
 if __name__ == "__main__":

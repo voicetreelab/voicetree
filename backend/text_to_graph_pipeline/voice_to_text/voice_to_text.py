@@ -2,6 +2,7 @@ import logging
 import time
 import threading
 from queue import Queue, Empty
+from collections import deque
 
 import numpy as np
 import pyaudio
@@ -82,10 +83,16 @@ class VoiceToTextEngine:
 
         padding_frames_count = self.config.vad_padding_ms // self.config.vad_frame_ms
         silence_timeout_frames = self.config.vad_silence_timeout_ms // self.config.vad_frame_ms
+        max_frames_til_encourage_flush = (self.config.vad_total_timeout_ms // self.config.vad_frame_ms) // 2
+        max_frames_til_force_flush = self.config.vad_total_timeout_ms // self.config.vad_frame_ms
 
         is_speaking = False
         silent_frames_count = 0
+        speaking_frames_count = 0
         audio_frames = []
+        
+        # Circular buffer to store recent frames for padding
+        recent_frames = deque(maxlen=padding_frames_count)
 
         logging.info("Listening for speech...")
         while not self._stop_event.is_set():
@@ -95,10 +102,17 @@ class VoiceToTextEngine:
 
                 if is_speaking:
                     audio_frames.append(frame)
+                    speaking_frames_count += 1
+                    
                     if not is_speech:
                         silent_frames_count += 1
-                        if silent_frames_count >= silence_timeout_frames:
-                            # Silence detected, utterance is complete.
+                        # Check if we should flush due to silence or timeout
+                        current_silence_timeout = silence_timeout_frames
+                        if speaking_frames_count > max_frames_til_encourage_flush:
+                            current_silence_timeout = silence_timeout_frames // 2
+                            
+                        if silent_frames_count >= current_silence_timeout or speaking_frames_count > max_frames_til_force_flush:
+                            # Silence detected or forced timeout, utterance is complete.
                             audio_data_bytes = b''.join(audio_frames)
                             audio_np = np.frombuffer(audio_data_bytes, dtype=np.int16).astype(np.float32) / 32768.0
                             self._ready_for_transcription_queue.put(audio_np)
@@ -106,15 +120,24 @@ class VoiceToTextEngine:
                             # Reset for next utterance
                             audio_frames.clear()
                             is_speaking = False
+                            silent_frames_count = 0
+                            speaking_frames_count = 0
+                            recent_frames.clear()
                     else:
                         silent_frames_count = 0
-                elif is_speech:
-                    # Start of speech detected
-                    is_speaking = True
-                    silent_frames_count = 0
-                    # Add padding to the beginning of the speech
-                    padding_frames = [frame] * padding_frames_count
-                    audio_frames.extend(padding_frames)
+                else:
+                    # Not speaking, keep buffering recent frames
+                    recent_frames.append(frame)
+                    
+                    if is_speech:
+                        # Start of speech detected
+                        is_speaking = True
+                        silent_frames_count = 0
+                        speaking_frames_count = 1
+                        
+                        # Add buffered padding frames from before speech started
+                        # (which already includes the current frame)
+                        audio_frames = list(recent_frames)
 
             except Exception as e:
                 logging.error(f"Error in audio capture loop: {e}")
@@ -124,19 +147,22 @@ class VoiceToTextEngine:
         stream.close()
         p.terminate()
 
-    def process_audio_queue(self):
+    def get_ready_audio_chunk(self):
         """
-        Processes one complete audio chunk from the internal queue if available.
-        This method is designed to be called repeatedly in a loop by the main thread.
+        Non-blocking method to get an audio chunk if available.
+        Returns None if no audio is ready.
         """
         try:
-            # Get a complete audio chunk detected by the background VAD thread.
             audio_np = self._ready_for_transcription_queue.get_nowait()
+            return audio_np
         except Empty:
-            # No complete utterance is ready for transcription.
             return None
-
-        # A chunk is available, so we transcribe it.
+    
+    def transcribe_chunk(self, audio_np):
+        """
+        Synchronous method to transcribe an audio chunk.
+        This is CPU-intensive and should be run in a thread pool.
+        """
         logging.info(f"Transcribing {len(audio_np)/self.config.sample_rate:.2f}s of audio...")
         try:
             prompt = " ".join(self.transcription_history)
@@ -168,6 +194,19 @@ class VoiceToTextEngine:
             logging.error(f"Error during transcription: {e}")
 
         return None
+
+    def process_audio_queue(self):
+        """
+        Processes one complete audio chunk from the internal queue if available.
+        This method is designed to be called repeatedly in a loop by the main thread.
+        
+        DEPRECATED: This method blocks the event loop. Use get_ready_audio_chunk() 
+        and transcribe_chunk() with run_in_executor instead.
+        """
+        audio_np = self.get_ready_audio_chunk()
+        if audio_np is None:
+            return None
+        return self.transcribe_chunk(audio_np)
 
 
 if __name__ == '__main__':
