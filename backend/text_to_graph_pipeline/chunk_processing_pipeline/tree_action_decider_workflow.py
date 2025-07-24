@@ -153,6 +153,8 @@ class TreeActionDeciderWorkflow:
             existing_nodes_formatted=relevant_nodes_formatted,
             transcript_history=transcript_history_context
         )
+        logging.info(f"append_agent_results, {len(append_agent_result.actions)} "
+                     f"actions: {append_agent_result}")
         
         append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
 
