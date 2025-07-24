@@ -5,6 +5,7 @@ Easy configuration: Modify the CONFIG class below to change models, temperature,
 """
 
 import os
+import re
 from pathlib import Path
 from typing import Optional, Type, Dict
 from dataclasses import dataclass
@@ -86,6 +87,40 @@ _load_environment()
 
 # ==================== HELPER FUNCTIONS ====================
 
+def _extract_json_from_markdown(text: str) -> Optional[str]:
+    """
+    Extract JSON from markdown code blocks if present.
+    
+    Sometimes the LLM returns JSON wrapped in ```json ... ``` blocks
+    even when configured for structured output. This function extracts
+    the JSON content from such blocks.
+    
+    Args:
+        text: The raw response text that might contain markdown-wrapped JSON
+        
+    Returns:
+        Extracted JSON string, or None if no valid JSON block found
+    """
+    # Look for JSON code blocks (```json ... ```)
+    json_pattern = r'```json\s*\n(.*?)\n```'
+    match = re.search(json_pattern, text, re.DOTALL)
+    
+    if match:
+        return match.group(1).strip()
+    
+    # Also check for plain code blocks that might contain JSON (``` ... ```)
+    plain_pattern = r'```\s*\n(.*?)\n```'
+    match = re.search(plain_pattern, text, re.DOTALL)
+    
+    if match:
+        content = match.group(1).strip()
+        # Validate it looks like JSON (starts with { or [)
+        if content.startswith(('{', '[')):
+            return content
+    
+    return None
+
+
 def _ensure_api_key() -> str:
     """Ensure API key is available, raise if not"""
     api_key = _get_api_key()
@@ -159,6 +194,21 @@ async def call_llm_structured(
 
     # Handle case where response.parsed is None
     if response.parsed is None:
+        # Try to extract JSON from markdown code blocks as fallback
+        extracted_json = _extract_json_from_markdown(response.text)
+        
+        if extracted_json:
+            try:
+                # Parse the extracted JSON manually and validate against schema
+                parsed_data = json.loads(extracted_json)
+                return output_schema.model_validate(parsed_data)
+            except (json.JSONDecodeError, ValueError) as e:
+                raise RuntimeError(
+                    f"LLM returned JSON in markdown blocks for stage '{stage_type}', "
+                    f"but failed to parse it: {e}. "
+                    f"Raw response: {response.text[:500]}..."
+                )
+        
         raise RuntimeError(
             f"LLM failed to generate structured response for stage '{stage_type}'. "
             f"Raw response: {response.text[:500]}..."

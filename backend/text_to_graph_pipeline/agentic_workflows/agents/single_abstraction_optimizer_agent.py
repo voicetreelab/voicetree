@@ -53,7 +53,7 @@ class SingleAbstractionOptimizerAgent(Agent):
             "update_original": None,
             "original_new_content": None,
             "original_new_summary": None,
-            "create_child_nodes": None
+            "create_new_nodes": None
         }
         
         # Run workflow
@@ -78,7 +78,7 @@ class SingleAbstractionOptimizerAgent(Agent):
             "update_original": result.get("update_original", False),
             "original_new_content": result.get("original_new_content"),
             "original_new_summary": result.get("original_new_summary"),
-            "create_child_nodes": result.get("create_child_nodes", [])
+            "create_new_nodes": result.get("create_new_nodes", [])
         }
         
         # This will raise ValueError if validation fails - let it crash!
@@ -105,7 +105,7 @@ class SingleAbstractionOptimizerAgent(Agent):
             ))
         
         # Handle child node creation
-        for child_spec in optimization.create_child_nodes:
+        for child_spec in optimization.create_new_nodes:
             # Validate that child_spec is actually a ChildNodeSpec
             if not hasattr(child_spec, 'name'):
                 raise RuntimeError(

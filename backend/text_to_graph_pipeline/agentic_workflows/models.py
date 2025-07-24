@@ -98,7 +98,7 @@ class OptimizationResponse(BaseModel):
     original_new_summary: Optional[str] = Field(default=None, description="Updated summary for the original node. Required if update_original is true.")
     
     # New child nodes to create (can be empty list)
-    create_child_nodes: List[ChildNodeSpec] = Field(
+    create_new_nodes: List[ChildNodeSpec] = Field(
         default_factory=list,
         description="List of child nodes to create (empty if no split needed)"
     )

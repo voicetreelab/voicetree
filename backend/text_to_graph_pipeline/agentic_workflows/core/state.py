@@ -37,7 +37,7 @@ class SingleAbstractionOptimizerAgentState(TypedDict):
     update_original: Optional[bool]
     original_new_content: Optional[str]
     original_new_summary: Optional[str]
-    create_child_nodes: Optional[List[ChildNodeSpec]]
+    create_new_nodes: Optional[List[ChildNodeSpec]]
 
 
 class VoiceTreeState(TypedDict):
