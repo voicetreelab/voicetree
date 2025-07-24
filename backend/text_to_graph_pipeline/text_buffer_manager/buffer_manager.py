@@ -53,29 +53,29 @@ class TextBufferManager:
         logging.info(f"TextBufferManager initialized with threshold: {self.bufferFlushLength}")
         
     def addText(self, text: str) -> None:
-        """Add text to buffer (new API)"""
+        if not text or text == "":
+            logging.warning("addText called empty text")
 
         # add space between phrases.
         # only if previous phrases didn't end in a space.
-        if(self._buffer and self._transcript_history and not text[0] == " " and not self._transcript_history[-1] == " " and not self._buffer[-1] == " "):
+        if self._buffer and self._transcript_history and not text[0] == " " and not self._transcript_history[-1] == " " and not self._buffer[-1] == " ":
             self._buffer += " "
             self._transcript_history += " "
 
         # Add to transcript history immediately
         self._transcript_history += text
+        self._buffer += text
+
+        logging.debug(f"Added '{text}' to buffer. Buffer size: {len(self._buffer)}")
         logging.debug(f"[TRANSCRIPT_HISTORY] Added '{text}' - Total history length: {len(self._transcript_history)} chars")
         logging.debug(f"[TRANSCRIPT_HISTORY] Current history preview: '{self._transcript_history[-100:]}'...")
-        
-        # Maintain history window (10x buffer size)
+
+        # Maintain history window
         max_history = self.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
         if len(self._transcript_history) > max_history:
             self._transcript_history = self._transcript_history[-max_history:]
             logging.debug(f"[TRANSCRIPT_HISTORY] Trimmed to max {max_history} chars")
-            
-        # Add to buffer
-        self._buffer += text
-        logging.debug(f"Added '{text}' to buffer. Buffer size: {len(self._buffer)}")
-        
+
     def getBufferTextWhichShouldBeProcessed(self) -> str:
         """Get buffer text if it should be processed, otherwise empty string"""
         if len(self._buffer) >= self.bufferFlushLength:
