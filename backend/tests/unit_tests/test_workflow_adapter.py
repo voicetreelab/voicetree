@@ -83,7 +83,7 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             )
             
             # Assert
-            self.assertEqual(result, -1)  # Returns -1 per current implementation
+            self.assertEqual(result, set())  # Returns empty set when no actions
             # Verify buffer was flushed
             buffer_manager.flushCompletelyProcessedText.assert_called_once_with("Test transcript")
             # Verify actions were applied
@@ -117,7 +117,7 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             )
             
             # Assert
-            self.assertEqual(result, -1)  # Returns -1 per current implementation
+            self.assertEqual(result, set())  # Returns empty set when no actions
             # Optimizer should not be called if no placement actions
             self.workflow.optimizer_agent.run.assert_not_called()
         
