@@ -49,7 +49,6 @@ For EVERY segment you create, assess its completeness:
 **`transcript_text`:** "I need to look into visualization libraries. hey mom yes please uh and converting text into a data format. But that's later. Oh yea, Myles mentioned Mermaid as a good visualization option. Overall visualization is"
 
 **Output:**
-```json
 {
   "reasoning": "The speaker mentions three distinct thoughts: 1) needing to research visualization libraries (complete task), 2) converting text to data format which is immediately deprioritized (incomplete but still meaningful), 3) recalling Myles' suggestion about Mermaid (related to first thought).",
   "segments": [
@@ -66,10 +65,8 @@ For EVERY segment you create, assess its completeness:
 **`transcript_text`:** "Okay, the dashboard is loading slowly. This is the third time this week. It only happens around 9 AM Eastern. The next thing we will have to look at is CPU spikes."
 
 **Output:**
-```json
 {
-  "reasoning": "This unit describes a single problem. The first sentence states the problem, and the next two provide elaborating details (frequency, timing). They are grouped as one coherent thought. The second segment marks a clear shift in intent from problem description to proposing a new, distinct action (investigating CPU spikes). This is a new thought unit."
-
+  "reasoning": "This unit describes a single problem. The first sentence states the problem, and the next two provide elaborating details (frequency, timing). They are grouped as one coherent thought. The second segment marks a clear shift in intent from problem description to proposing a new, distinct action (investigating CPU spikes). This is a new thought unit.",
   "segments": [
     {
       "text": "Okay, the dashboard is loading slowly. This is the third time this week. It only happens around 9 AM Eastern.", 
@@ -82,7 +79,6 @@ For EVERY segment you create, assess its completeness:
   ],
   "debug_notes": null
 }
-```
 ────────────────────────────────────────
 EXISTING NODES (for context awareness):
 {{existing_nodes}}

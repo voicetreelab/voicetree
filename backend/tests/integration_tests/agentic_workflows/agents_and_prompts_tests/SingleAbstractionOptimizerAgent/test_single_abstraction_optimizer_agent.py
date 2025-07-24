@@ -14,7 +14,7 @@ from typing import List
 
 from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
 
 
 class TestSingleAbstractionOptimizerAgent:
@@ -26,12 +26,10 @@ class TestSingleAbstractionOptimizerAgent:
         return SingleAbstractionOptimizerAgent()
     
     @pytest.fixture
-    def tree_with_cluttered_node(self):
-        """Create a tree with a node that should be split"""
-        tree = DecisionTree()
-        
+    def cluttered_node(self):
+        """Create a node that should be split"""
         # Cluttered node mixing multiple unrelated concepts
-        node = Node(
+        return Node(
             name="Project Setup",
             node_id=1,
             content="""We need to set up the initial project structure with proper folders.
@@ -40,18 +38,12 @@ For the frontend, we'll use React with TypeScript for type safety.
 The API authentication will use JWT tokens with refresh token rotation.""",
             summary="Project setup including structure, database, frontend, and auth"
         )
-        tree.tree[1] = node
-        tree.next_node_id = 2
-        
-        return tree
     
     @pytest.fixture
-    def tree_with_cohesive_node(self):
-        """Create a tree with a well-structured cohesive node"""
-        tree = DecisionTree()
-        
+    def cohesive_node(self):
+        """Create a well-structured cohesive node"""
         # Cohesive node about a single concept
-        node = Node(
+        return Node(
             name="User Authentication Flow",
             node_id=1,
             content="""The authentication process works as follows:
@@ -63,17 +55,11 @@ The API authentication will use JWT tokens with refresh token rotation.""",
 6. When access token expires, client uses refresh token to get new access token""",
             summary="Complete authentication flow implementation details"
         )
-        tree.tree[1] = node
-        tree.next_node_id = 2
-        
-        return tree
     
     @pytest.fixture
-    def tree_with_poor_summary(self):
-        """Create a tree with a node that has a poor summary"""
-        tree = DecisionTree()
-        
-        node = Node(
+    def poor_summary_node(self):
+        """Create a node that has a poor summary"""
+        return Node(
             name="Performance Optimization",
             node_id=1,
             content="""We implemented caching at multiple levels:
@@ -85,16 +71,13 @@ The API authentication will use JWT tokens with refresh token rotation.""",
 This reduced our average response time from 800ms to 200ms.""",
             summary="Some caching stuff"  # Poor summary
         )
-        tree.tree[1] = node
-        tree.next_node_id = 2
-        
-        return tree
     
     @pytest.mark.asyncio
-    async def test_split_cluttered_node(self, agent, tree_with_cluttered_node):
+    async def test_split_cluttered_node(self, agent, cluttered_node):
         """Test Case 1: Agent should split a cluttered node into multiple focused nodes"""
         # Run agent on the cluttered node
-        actions = await agent.run(node_id=1, decision_tree=tree_with_cluttered_node)
+        neighbors_context = "No neighbor nodes available"
+        actions = await agent.run(node=cluttered_node, neighbours_context=neighbors_context)
         
         # Verify we got actions back
         assert isinstance(actions, list)
@@ -124,19 +107,20 @@ This reduced our average response time from 800ms to 200ms.""",
             ])
             assert concepts_covered >= 2, "Child nodes should cover at least 2 different concepts"
             
-            # All create actions should have parent_node_id = 1
-            assert all(a.parent_node_id == 1 for a in create_actions)
+            # All create actions should have parent_node_id = cluttered_node.id
+            assert all(a.parent_node_id == cluttered_node.id for a in create_actions)
         else:
             # If not splitting, should at least update the original
             assert len(update_actions) >= 1, "Should update the original if not splitting"
             if len(update_actions) > 0:
-                assert update_actions[0].node_id == 1
+                assert update_actions[0].node_id == cluttered_node.id
     
     @pytest.mark.asyncio
-    async def test_keep_cohesive_node(self, agent, tree_with_cohesive_node):
+    async def test_keep_cohesive_node(self, agent, cohesive_node):
         """Test Case 2: Agent should not split a cohesive node"""
         # Run agent on the cohesive node
-        actions = await agent.run(node_id=1, decision_tree=tree_with_cohesive_node)
+        neighbors_context = "No neighbor nodes available"
+        actions = await agent.run(node=cohesive_node, neighbours_context=neighbors_context)
         
         # Should either return empty list or single UPDATE action
         assert isinstance(actions, list)
@@ -145,23 +129,24 @@ This reduced our average response time from 800ms to 200ms.""",
             # If any action, should be single UPDATE to improve summary
             assert len(actions) == 1, "Cohesive node should have at most one UPDATE action"
             assert isinstance(actions[0], UpdateAction)
-            assert actions[0].node_id == 1
+            assert actions[0].node_id == cohesive_node.id
             
             # Should not create any child nodes
             create_actions = [a for a in actions if isinstance(a, CreateAction)]
             assert len(create_actions) == 0, "Should not split cohesive node"
     
     @pytest.mark.asyncio
-    async def test_update_poor_summary(self, agent, tree_with_poor_summary):
+    async def test_update_poor_summary(self, agent, poor_summary_node):
         """Test Case 3: Agent should update a node with poor summary"""
         # Run agent on node with poor summary
-        actions = await agent.run(node_id=1, decision_tree=tree_with_poor_summary)
+        neighbors_context = "No neighbor nodes available"
+        actions = await agent.run(node=poor_summary_node, neighbours_context=neighbors_context)
         
         # Should have at least one action
         assert len(actions) >= 1
         
         # Get all update actions for the original node
-        update_actions = [a for a in actions if isinstance(a, UpdateAction) and a.node_id == 1]
+        update_actions = [a for a in actions if isinstance(a, UpdateAction) and a.node_id == poor_summary_node.id]
         
         # The LLM might decide to either:
         # 1. Just update the summary (UPDATE only)
@@ -187,16 +172,13 @@ This reduced our average response time from 800ms to 200ms.""",
     @pytest.mark.asyncio
     async def test_agent_with_neighbors(self, agent):
         """Test Case 4: Agent considers neighbor context"""
-        tree = DecisionTree()
-        
-        # Parent node
+        # Parent node for context
         parent = Node(
             name="System Architecture",
             node_id=1,
             content="Overall system design decisions",
             summary="High-level architecture"
         )
-        tree.tree[1] = parent
         
         # Node to optimize with parent context
         node = Node(
@@ -208,25 +190,25 @@ Plus configure backup strategies and replication.""",
             summary="Database stuff",
             parent_id=1
         )
-        tree.tree[2] = node
-        parent.children.append(2)
         
-        tree.next_node_id = 3
+        # Create neighbors context string
+        neighbors_context = f"Parent: {parent.title} - {parent.summary}"
         
         # Run agent
-        actions = await agent.run(node_id=2, decision_tree=tree)
+        actions = await agent.run(node=node, neighbours_context=neighbors_context)
         
         # Should get actions considering the parent context
         assert isinstance(actions, list)
         assert len(actions) > 0
     
     @pytest.mark.asyncio
-    async def test_state_extraction_works(self, agent, tree_with_cluttered_node):
+    async def test_state_extraction_works(self, agent, cluttered_node):
         """Test Case 5: Verify state extraction from workflow works correctly"""
         # This is the key test for the current issue
         # Run agent and check internal state handling
         
-        actions = await agent.run(node_id=1, decision_tree=tree_with_cluttered_node)
+        neighbors_context = "No neighbor nodes available"
+        actions = await agent.run(node=cluttered_node, neighbours_context=neighbors_context)
         
         # Basic checks that extraction worked
         assert actions is not None

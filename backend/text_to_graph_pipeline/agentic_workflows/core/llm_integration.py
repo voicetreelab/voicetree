@@ -157,4 +157,11 @@ async def call_llm_structured(
 
     log_llm_io(stage_type, prompt, response.text, model_name)
 
+    # Handle case where response.parsed is None
+    if response.parsed is None:
+        raise RuntimeError(
+            f"LLM failed to generate structured response for stage '{stage_type}'. "
+            f"Raw response: {response.text[:500]}..."
+        )
+
     return response.parsed

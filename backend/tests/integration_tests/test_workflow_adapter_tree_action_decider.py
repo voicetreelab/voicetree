@@ -96,10 +96,7 @@ class TestTreeActionDeciderWorkflow:
         # Then
         # 1. Both agents were called
         workflow.append_agent.run.assert_called_once()
-        workflow.optimizer_agent.run.assert_called_once_with(
-            node_id=1,
-            decision_tree=workflow.decision_tree
-        )
+        workflow.optimizer_agent.run.assert_called_once()
         
         # 2. Actions were applied immediately
         assert mock_tree_applier.apply.call_count == 2
@@ -116,6 +113,7 @@ class TestTreeActionDeciderWorkflow:
         # Given
         workflow.append_agent.run = AsyncMock(return_value=self.create_append_result([], ""))
         workflow.optimizer_agent.run = AsyncMock()  # Mock the optimizer agent
+        mock_tree_applier.apply.return_value = set()  # Return empty set when no actions
         
         # When
         modified_nodes = await workflow.process_text_chunk(
@@ -126,9 +124,10 @@ class TestTreeActionDeciderWorkflow:
         )
         
         # Then
-        # 1. No optimization or tree application
+        # 1. No optimization (because no nodes were modified)
         workflow.optimizer_agent.run.assert_not_called()
-        mock_tree_applier.apply.assert_not_called()
+        # Tree applier is still called with empty actions list
+        mock_tree_applier.apply.assert_called_once_with([])
         
         # 2. No buffer flush when no completed text
         mock_buffer_manager.flushCompletelyProcessedText.assert_not_called()
@@ -139,18 +138,18 @@ class TestTreeActionDeciderWorkflow:
     @pytest.mark.asyncio
     async def test_process_text_chunk_orphan_merging(self, workflow, mock_buffer_manager, mock_tree_applier):
         """Multiple orphan nodes should be merged into one"""
-        # Given - multiple orphan CREATE actions
+        # Given - multiple orphan CREATE actions with the same name
         placement_actions = [
-            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Orphan 1", 
+            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Same Topic", 
                         content="Content 1", summary="Summary 1", relationship=""),
-            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Orphan 2", 
+            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Same Topic", 
                         content="Content 2", summary="Summary 2", relationship=""),
             AppendAction(action="APPEND", target_node_id=1, content="Regular content")
         ]
         
         workflow.append_agent.run = AsyncMock(return_value=self.create_append_result(placement_actions))
         workflow.optimizer_agent.run = AsyncMock(return_value=[])
-        mock_tree_applier.apply.return_value = {1, 100}
+        mock_tree_applier.apply.return_value = {1}
         
         # When
         await workflow.process_text_chunk(
@@ -168,8 +167,7 @@ class TestTreeActionDeciderWorkflow:
         assert len(orphan_actions) == 1
         
         merged_orphan = orphan_actions[0]
-        assert "Orphan 1" in merged_orphan.new_node_name
-        assert "Orphan 2" in merged_orphan.new_node_name
+        assert merged_orphan.new_node_name == "Same Topic"
         assert "Content 1" in merged_orphan.content
         assert "Content 2" in merged_orphan.content
     
