@@ -80,14 +80,14 @@ class TestDecisionTree(unittest.TestCase):
         e_id = dt.create_new_node("E", b_id, "Content E", "Summary E")
         f_id = dt.create_new_node("F", c_id, "Content F", "Summary F")
         
-        # Test neighbors of B (should include parent A, sibling C, children D and E)
+        # Test neighbors of B (should include parent A and children D and E)
+        # Note: Sibling functionality is currently commented out in the implementation
         neighbors_b = dt.get_neighbors(b_id)
         neighbor_ids = {n["id"] for n in neighbors_b}
         
-        # Should have parent, sibling, and children
-        self.assertEqual(len(neighbors_b), 4)
+        # Should have parent and children (sibling functionality disabled)
+        self.assertEqual(len(neighbors_b), 3)
         self.assertIn(a_id, neighbor_ids)  # parent
-        self.assertIn(c_id, neighbor_ids)  # sibling
         self.assertIn(d_id, neighbor_ids)  # child
         self.assertIn(e_id, neighbor_ids)  # child
         
@@ -105,12 +105,11 @@ class TestDecisionTree(unittest.TestCase):
         self.assertIn(b_id, neighbor_ids_a)
         self.assertIn(c_id, neighbor_ids_a)
         
-        # Test neighbors of leaf node D (only parent and sibling)
+        # Test neighbors of leaf node D (only parent, no siblings since functionality disabled)
         neighbors_d = dt.get_neighbors(d_id)
         neighbor_ids_d = {n["id"] for n in neighbors_d}
-        self.assertEqual(len(neighbors_d), 2)
+        self.assertEqual(len(neighbors_d), 1)
         self.assertIn(b_id, neighbor_ids_d)  # parent
-        self.assertIn(e_id, neighbor_ids_d)  # sibling
 
     def test_update_node(self):
         """Test that update_node replaces content and summary completely"""

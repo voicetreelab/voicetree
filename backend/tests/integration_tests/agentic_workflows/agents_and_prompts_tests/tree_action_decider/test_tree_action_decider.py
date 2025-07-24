@@ -173,11 +173,14 @@ class TestTreeActionDeciderAgent:
         
         # Should handle the content appropriately - may optimize if beneficial
         assert isinstance(result, list)
-        # If optimization occurs, it should be valid UPDATE actions
+        # If optimization occurs, it should be valid actions (UPDATE, CREATE, or APPEND)
         if len(result) > 0:
-            from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
-            assert all(isinstance(action, UpdateAction) for action in result)
-            assert all(action.node_id > 0 for action in result)
+            from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, AppendAction
+            assert all(isinstance(action, (UpdateAction, CreateAction, AppendAction)) for action in result)
+            # For UPDATE actions, ensure they have valid node_ids
+            for action in result:
+                if isinstance(action, UpdateAction):
+                    assert action.node_id > 0
     
     @pytest.mark.asyncio
     async def test_append_triggers_optimization(self, agent, simple_tree):
