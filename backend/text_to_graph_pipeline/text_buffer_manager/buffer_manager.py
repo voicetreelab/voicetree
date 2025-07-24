@@ -4,6 +4,7 @@ Provides a clean interface for text buffering and chunk processing
 """
 
 import logging
+import re
 from typing import Any, Dict, Optional
 
 from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
@@ -46,6 +47,12 @@ class TextBufferManager:
         self._is_first_processing = True
         self._fuzzy_matcher = FuzzyTextMatcher(similarity_threshold=80)
         self.bufferFlushLength = 0  # Will be set by init() method, #TODO AWFUL
+    
+    def _clean_buffer_text(self, text: str) -> str:
+        """Remove double spaces and strip whitespace from buffer text"""
+        # Replace multiple spaces with single space
+        cleaned = re.sub(r' +', ' ', text)
+        return cleaned.strip()
         
     def init(self, bufferFlushLength: int) -> None:
         """Initialize with a specific buffer flush length"""
@@ -96,13 +103,13 @@ class TextBufferManager:
             return self._buffer
 
         if text in self._buffer:
-            self._buffer = self._buffer.replace(text, "")
+            self._buffer = self._clean_buffer_text(self._buffer.replace(text, ""))
             return self._buffer
         # Use fuzzy matcher to remove the text
         result, success = self._fuzzy_matcher.remove_matched_text(self._buffer, text)
         
         if success:
-            self._buffer = result
+            self._buffer = self._clean_buffer_text(result)
             logging.info(f"Successfully flushed completed text, Remaining buffer content: {self._buffer}")
         else:
             # TODO: Add more robust error handling here for production
