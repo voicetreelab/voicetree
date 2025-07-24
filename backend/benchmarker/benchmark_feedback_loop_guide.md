@@ -37,8 +37,8 @@ After running benchmarker:
 - ❓ Are relationships strong ("implements") vs weak ("relates to")?
 - 🚩 All chunks showing "no strong relationships"
 
-#### `integration_decision_debug.txt`
-- ❓ Is CREATE/APPEND ratio ~50/50?
+#### optmiiser debug logs
+- ❓ CREATE/APPEND ratio 
 - ❓ Are content fields bullet points (not raw transcript)?
 - ❓ Do decisions match relationships?
 - 🚩 Too many CREATEs, raw transcript copying
