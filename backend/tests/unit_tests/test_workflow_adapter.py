@@ -83,7 +83,7 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             )
             
             # Assert
-            self.assertEqual(result, set())  # Returns empty set when no actions
+            self.assertEqual(result, {1})  # Returns set of modified node IDs
             # Verify buffer was flushed
             buffer_manager.flushCompletelyProcessedText.assert_called_once_with("Test transcript")
             # Verify actions were applied
