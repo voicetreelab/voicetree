@@ -61,8 +61,13 @@ Save this in your reasoning as overall_integrated_content.
 ### Stage 2: Abstraction Identification 
 **Goal:** First, separate the content that defines the parent node's core identity from new, distinct ideas that should become new nodes.
 
-1.  **Isolate the Parent's Core Content:** Read the `Node Content` and identify the text that **directly defines or elaborates on the existing `Node Name`**. This is the "Parent Content." Its purpose is to describe the node it lives in.
-2.  **Identify abstraction candidates:** 
+1.  **Isolate the Nodes's Core Content:** from overall_integrated_content identify the text which is specifically about the core node abstraction. This could include details, configurations, short actions, clarifications, etc.
+2.  **Identify abstraction candidates:**
+
+3. You should split out major, cognitively distinct workstreams, but KEEP/ABSORB minor specifications, configurations or single-step tasks that just add detail to the parent node.
+
+Ask yourself: **"Is this new item a major project component that could have its own checklist, or is it a single line item on the parent's checklist?"**
+
 3.  **Internal Analysis:** For each abstraction Candidate, internally determine what *kind* of abstraction it is (e.g., is this a Task, a decision, a constraint?). Can they be grouped into a higher level of abstraction which is easier to reason about with low meaning loss? If so, use that instead.
 
 ### Stage 3: Decide optimisation actions:
@@ -105,6 +110,7 @@ Stage 3, decide optimisation actions, continued:
 
 - avoid creating duplicate abstractions that already exist as neighbours. While you don't have capability to modify the neighbours, you can ensure the current content is structured in a way that refers to the neighbours, in order to be more concise.
 
+
 3. **Define Relationships (for child nodes):**
     -   The original node becomes the parent abstraction.
     -   For each child node, define its `relationship` description using the **"fill-in-the-blank" method: `[Child Node Name] ______ [Parent Node Name]`**.
@@ -114,6 +120,8 @@ Stage 3, decide optimisation actions, continued:
 
 Stage 4: review your work.
 4.1 Ensure no meaning or detail has been completely dropped.
+4.2 Ensure you are not SPLITTING IMPLEMENTATION DETAILS
+The most common mistake is incorrectly splitting a specific task or detail from its parent concept. This adds structure but confuses the hierarchy.
 
 ### **Comprehensive Example 1: Splitting into children is Optimal**
 
