@@ -257,6 +257,10 @@ class TreeActionDeciderWorkflow:
                 # Apply these actions immediately.
                 optimization_modified_nodes: Set[int] = tree_action_applier.apply(optimization_actions)
                 
+                # Collect optimization actions for test compatibility
+                if hasattr(self, 'optimization_actions_for_tests'):
+                    self.optimization_actions_for_tests.extend(optimization_actions)
+                
             else:
                 logging.info(f"Optimizer had no changes for node {node_id}.")
 
