@@ -1,3 +1,5 @@
+# VoiceTree
+
 VoiceTree is a platform for creating abstraction graphs from content streams, such as live voice, or LLM chats. 
 Some popular use cases are:
 - Using VoiceTree for day to day work, organizing your tasks & decisions
