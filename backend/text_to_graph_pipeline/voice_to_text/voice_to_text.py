@@ -191,6 +191,11 @@ class VoiceToTextEngine:
 
             if final_text:
                 print(final_text)
+                
+                # Append to transcription log
+                with open("backend/text_to_graph_pipeline/voice_to_text/transcription_log.txt", "a", encoding="utf-8") as f:
+                    f.write(f"{final_text}\n")
+                
                 logging.info(f"Transcription result: {final_text}|END")
 
                 # Update context history for the next transcription
