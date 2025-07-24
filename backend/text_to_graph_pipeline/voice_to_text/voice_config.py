@@ -25,7 +25,7 @@ class VoiceConfig:
     vad_padding_ms: int = 250
 
     #IMPORTANT: How long the VAD should wait in silence before considering an utterance finished, in milliseconds.
-    vad_silence_timeout_ms: int = 1000 # Increase for longer buffers, better
+    vad_silence_timeout_ms: int = 600 # Increase for longer buffers, better
     # accuracy  latency
     #     High Value (e.g., 1500 ms): Good for speakers who pause for a second or two in the middle of a sentence to think. It prevents the system from chopping up their thoughts. This is what you're currently experiencing.
     #
@@ -50,7 +50,7 @@ class VoiceConfig:
     # The beam size for decoding. A larger beam size increases accuracy at the cost of speed.
     # A value of 5 is a good trade-off.
     # LOWER IS FASTER, BUT LESS ACCURATE
-    beam_size: int = 5
+    beam_size: int = 3
     # The language of the speech. Set to None to let Whisper auto-detect.
     language: str = "en"
 
