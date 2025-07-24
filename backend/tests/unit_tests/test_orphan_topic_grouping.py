@@ -243,6 +243,7 @@ class TestOrphanTopicGrouping:
                 summary="Child summary",
                 parent_id=1
             )
+            child_node.relationships[1] = "child of"
             merged_orphan_node = Node(
                 name="Topic A",
                 node_id=3,
@@ -440,6 +441,7 @@ class TestOrphanTopicGrouping:
                 summary="Child 1 summary",
                 parent_id=1
             )
+            child1_node.relationships[1] = "child of"
             child2_node = Node(
                 name="Child 2",
                 node_id=3,
@@ -447,6 +449,7 @@ class TestOrphanTopicGrouping:
                 summary="Child 2 summary",
                 parent_id=1
             )
+            child2_node.relationships[1] = "child of"
             decision_tree.tree[2] = child1_node
             decision_tree.tree[3] = child2_node
             

@@ -27,6 +27,8 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
         # Fix the node names to match what we expect
         self.decision_tree.tree[0].title = "Parent Node"
         self.decision_tree.tree[1].title = "Test Node"
+        # Add missing relationship
+        self.decision_tree.tree[1].relationships[0] = "child of"
         
         self.workflow = TreeActionDeciderWorkflow(self.decision_tree)
     
