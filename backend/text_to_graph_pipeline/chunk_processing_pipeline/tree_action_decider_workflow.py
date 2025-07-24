@@ -245,11 +245,18 @@ class TreeActionDeciderWorkflow:
         all_optimization_modified_nodes: Set[int] = set()
         for node_id in modified_or_new_nodes:
             logging.info(f"Optimizing node {node_id}...")
-            
+
+            # Get neighbors, remove 'id' key, and format as a string for the agent
+            neighbours_context = self.decision_tree.get_neighbors(node_id)
+            formatted_neighbours_context = str([
+                {key: value for key, value in neighbour.items() if key != 'id'}
+                for neighbour in neighbours_context
+            ])
+
             # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
             optimization_actions: List[BaseTreeAction] = await self.optimizer_agent.run(
                 node=self.decision_tree.tree[node_id],
-                neighbours_context=self.decision_tree.get_neighbors(node_id)
+                neighbours_context=formatted_neighbours_context
             )
             
             if optimization_actions:
