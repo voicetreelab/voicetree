@@ -23,7 +23,7 @@ Construct a single JSON object. Each element in the `target_nodes` array MUST co
 *   `text`: The original text of the segment from the input.
 *   `reasoning`: Your analysis for choosing the target.
 *   `is_orphan`: A boolean. `true` if you were forced to make it an orphan, `false` otherwise.
-*   `target_node_id`: The ID of the chosen existing node. **MUST be `null` if `is_orphan` is `true`.**
+*   `target_node_id`: The ID of the chosen existing node. **MUST be `-1` if `is_orphan` is `true`.**
 *   `target_node_name`: The name of the chosen existing node. **MUST be `null` if `is_orphan` is `true`.**
 *   `orphan_topic_name`: The proposed name for the new orphan topic. **MUST be `null` if `is_orphan` is `false`.**
 
@@ -35,14 +35,13 @@ Construct a single JSON object. Each element in the `target_nodes` array MUST co
 **Segments to Analyze:** `[{"text": "First, let's spec out the new user authentication flow."}, {"text": "It needs to support both Google and magic link sign-in."}, {"text": "Separately, I need to send out the invite for the kickoff meeting."}]`
 
 **Expected Output:**
-```json
 {
   "target_nodes": [
     {
       "text": "First, let's spec out the new user authentication flow.",
       "reasoning": "This introduces a distinct work item (user authentication) that is not a sub-task of 'Project Setup Tasks'. No existing node is a suitable home, so it must be designated as an orphan topic.",
       "is_orphan": true,
-      "target_node_id": null,
+      "target_node_id": -1,
       "target_node_name": null,
       "orphan_topic_name": "Spec Out User Authentication Flow"
     },
@@ -50,7 +49,7 @@ Construct a single JSON object. Each element in the `target_nodes` array MUST co
       "text": "It needs to support both Google and magic link sign-in.",
       "reasoning": "This segment directly elaborates on the 'User Authentication Flow' orphan topic from the prior segment. Based on sequential context, it is part of the same orphan topic.",
       "is_orphan": true,
-      "target_node_id": null,
+      "target_node_id": -1,
       "target_node_name": null,
       "orphan_topic_name": "Spec Out User Authentication Flow"
     },
@@ -65,7 +64,6 @@ Construct a single JSON object. Each element in the `target_nodes` array MUST co
   ],
   "debug_notes": null
 }
-```
 
 ---
 **INPUT DATA**

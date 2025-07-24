@@ -242,6 +242,7 @@ class TreeActionDeciderWorkflow:
 
         # We now have the list of nodes that were just modified. We optimize them.
         all_optimization_actions: List[BaseTreeAction] = []
+        all_optimization_modified_nodes: Set[int] = set()
         for node_id in modified_or_new_nodes:
             logging.info(f"Optimizing node {node_id}...")
             
@@ -256,6 +257,7 @@ class TreeActionDeciderWorkflow:
                 # --- Second Side Effect: Apply Optimization ---
                 # Apply these actions immediately.
                 optimization_modified_nodes: Set[int] = tree_action_applier.apply(optimization_actions)
+                all_optimization_modified_nodes.update(optimization_modified_nodes)
                 
                 # Collect optimization actions for test compatibility
                 if hasattr(self, 'optimization_actions_for_tests'):
@@ -267,4 +269,5 @@ class TreeActionDeciderWorkflow:
         # Always store current buffer state for next processing to detect stuck text
         self._prev_buffer_remainder = buffer_manager.getBuffer()
         
-        return -1 # changed to impure methhod with only sideeffects
+        # Return the set of all modified nodes
+        return modified_or_new_nodes.union(all_optimization_modified_nodes)
