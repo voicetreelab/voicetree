@@ -41,6 +41,9 @@ Node Name: {{node_name}}
 Node Summary: {{node_summary}}
 Node Content: {{node_content}}
 
+For context:
+Current neighbours of node {{node_name}} are: {{neighbors}}
+
 ## Analysis & Decision Process
 
 ### Stage 1: Deep Contextual Understanding
@@ -98,14 +101,19 @@ This is the level we must optimize for. Our system should aim to recreate the ab
 
 Stage 3, decide optimisation actions, continued: 
 
-1. **Determine Action:** Based on the rules and heuristics above, decide your actions `create_new_node`, `update_original`, (or `NO_ACTION`).
+2. **Determine Action:** Based on the rules and heuristics above, decide your actions `create_new_node`, `update_original`, (or `NO_ACTION`).
 
-2. **Define Relationships (for child nodes):**
+- avoid creating duplicate abstractions that already exist as neighbours. While you don't have capability to modify the neighbours, you can ensure the current content is structured in a way that refers to the neighbours, in order to be more concise.
+
+3. **Define Relationships (for child nodes):**
     -   The original node becomes the parent abstraction.
     -   For each child node, define its `relationship` description using the **"fill-in-the-blank" method: `[Child Node Name] ______ [Parent Node Name]`**.
     -   The phrase should be concise (max 7 words) and form a natural sentence. Use the kinds of abstractions you identified to make the relationship meaningful (e.g., if a `Task` is split from a `Problem`, the relationship could be "is a proposed solution for").
 
 - If no changes are needed, set `update_original: false` and `create_new_nodes: []`.
+
+Stage 4: review your work.
+4.1 Ensure no meaning or detail has been completely dropped.
 
 ### **Comprehensive Example 1: Splitting into children is Optimal**
 
