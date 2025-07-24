@@ -72,6 +72,7 @@ class DecisionTree:
         new_node = Node(name, new_node_id, content, summary, parent_id=parent_node_id)
         if parent_node_id is not None:
             new_node.relationships[parent_node_id] = relationship_to_parent
+            # TODO: Consider adding inverse relationship storage in parent node for easier lookups
         
         # Only increment after we successfully create the node
         self.tree[new_node_id] = new_node
@@ -293,19 +294,20 @@ class DecisionTree:
                 "id": node.parent_id,
                 "name": parent_node.title,
                 "summary": parent_node.summary,
-                "relationship": "parent"
+                "relationship": node.relationships[node.parent_id]
             })
             
-            # Get siblings (other children of the same parent)
-            for sibling_id in parent_node.children:
-                if sibling_id != node_id and sibling_id in self.tree:
-                    sibling_node = self.tree[sibling_id]
-                    neighbors.append({
-                        "id": sibling_id,
-                        "name": sibling_node.title,
-                        "summary": sibling_node.summary,
-                        "relationship": "sibling"
-                    })
+            # TODO: Sibling functionality commented out - unsure whether we want to return siblings yet
+            # # Get siblings (other children of the same parent)
+            # for sibling_id in parent_node.children:
+            #     if sibling_id != node_id and sibling_id in self.tree:
+            #         sibling_node = self.tree[sibling_id]
+            #         neighbors.append({
+            #             "id": sibling_id,
+            #             "name": sibling_node.title,
+            #             "summary": sibling_node.summary,
+            #             "relationship": "sibling"
+            #         })
         
         # Get children
         for child_id in node.children:
@@ -315,7 +317,7 @@ class DecisionTree:
                     "id": child_id,
                     "name": child_node.title,
                     "summary": child_node.summary,
-                    "relationship": "child"
+                    "relationship": child_node.relationships[node_id]
                 })
         
         return neighbors
