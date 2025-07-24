@@ -107,21 +107,6 @@ def _get_client() -> genai.Client:
     return _CLIENT
 
 
-def _handle_llm_error(e: Exception, stage_type: Optional[str] = None, 
-                      schema_class: Optional[Type[BaseModel]] = None) -> None:
-    """Handle and format LLM errors consistently"""
-    error_msg = f"❌ Error calling Gemini API: {str(e)}"
-    print(error_msg)
-    
-    # Provide specific guidance for validation errors
-    if "validation error" in str(e).lower() or "field required" in str(e).lower():
-        if stage_type and schema_class:
-            print(f"📝 Validation error details: The LLM response didn't match expected schema for {stage_type}")
-            print(f"   Expected schema: {schema_class.__name__}")
-        if hasattr(e, '__cause__') and hasattr(e.__cause__, 'errors'):
-            print(f"   Validation errors: {e.__cause__.errors()}")
-    
-    raise RuntimeError(f"{error_msg}\nPlease check your API configuration and try again.")
 
 
 # ==================== PUBLIC API ====================
@@ -155,25 +140,21 @@ async def call_llm_structured(
     # Get client
     client = _get_client()
     
-    try:
-        # Build the full prompt with system prompt
-        # full_prompt = f"{prompt}"
-        full_prompt = prompt # no sys prompt for now
+    # Build the full prompt with system prompt
+    # full_prompt = f"{prompt}"
+    full_prompt = prompt # no sys prompt for now
 
-        # Call the model with structured output
-        # Pass Pydantic models directly as per Google's documentation
-        response = client.models.generate_content(
-            model=model_name,
-            contents=full_prompt,
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': output_schema,
-            },
-        )
+    # Call the model with structured output
+    # Pass Pydantic models directly as per Google's documentation
+    response = client.models.generate_content(
+        model=model_name,
+        contents=full_prompt,
+        config={
+            'response_mime_type': 'application/json',
+            'response_schema': output_schema,
+        },
+    )
 
-        log_llm_io(stage_type, prompt, response.text, model_name)
+    log_llm_io(stage_type, prompt, response.text, model_name)
 
-        return response.parsed
-
-    except Exception as e:
-        _handle_llm_error(e, stage_type, output_schema)
+    return response.parsed
