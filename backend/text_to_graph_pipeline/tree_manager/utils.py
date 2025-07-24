@@ -137,6 +137,7 @@ def remove_first_word(sentence):
 def insert_yaml_frontmatter(key_value_pairs: Dict[str, Any]) -> str:
     """
     Generate YAML frontmatter from a dictionary of key-value pairs.
+    Properly handles special characters by using YAML serialization.
     
     Args:
         key_value_pairs: Dictionary containing the frontmatter keys and values
@@ -151,24 +152,49 @@ def insert_yaml_frontmatter(key_value_pairs: Dict[str, Any]) -> str:
     if not key_value_pairs:
         return ""
     
-    lines = ["---"]
+    import yaml
     
+    # Sanitize keys and values to handle special characters
+    sanitized_pairs = {}
     for key, value in key_value_pairs.items():
-        if isinstance(value, list):
-            lines.append(f"{key}:")
-            for item in value:
-                lines.append(f"  - {item}")
-        elif isinstance(value, dict):
-            lines.append(f"{key}:")
-            for sub_key, sub_value in value.items():
-                lines.append(f"  {sub_key}: {sub_value}")
-        elif isinstance(value, bool):
-            lines.append(f"{key}: {str(value).lower()}")
-        elif value is None:
-            lines.append(f"{key}: null")
-        else:
-            # Handle strings and numbers
-            lines.append(f"{key}: {value}")
+        # Sanitize the key (remove problematic characters for YAML keys)
+        clean_key = _sanitize_yaml_key(key)
+        
+        # Keep the value as-is, YAML serialization will handle special characters
+        sanitized_pairs[clean_key] = value
     
-    lines.append("---")
-    return "\n".join(lines) + "\n"
+    # Use YAML dump to properly serialize the data
+    yaml_content = yaml.dump(sanitized_pairs, default_flow_style=False, allow_unicode=True)
+    
+    # Format as frontmatter with delimiters
+    return f"---\n{yaml_content}---\n"
+
+
+def _sanitize_yaml_key(key: str) -> str:
+    """
+    Sanitize YAML keys by removing or replacing problematic characters.
+    
+    Args:
+        key: The original key string
+        
+    Returns:
+        Sanitized key safe for YAML
+    """
+    # Remove or replace characters that can break YAML keys
+    # Keep alphanumeric, underscore, hyphen
+    import re
+    
+    # Replace problematic characters with underscores
+    sanitized = re.sub(r'[^\w\-]', '_', key)
+    
+    # Remove consecutive underscores
+    sanitized = re.sub(r'_+', '_', sanitized)
+    
+    # Remove leading/trailing underscores
+    sanitized = sanitized.strip('_')
+    
+    # If empty after sanitization, provide a default
+    if not sanitized:
+        sanitized = 'key'
+    
+    return sanitized
