@@ -111,6 +111,7 @@ E        +  where 2 = len([SegmentModel(reasoning='This segment begins to elabor
         # The LLM may or may not mark segments as incomplete - both behaviors are valid
         # What matters is that we get reasonable segmentation
         assert raw_text_acc.strip() == transcript_text
+        # note, perfect replication of transcript from the raw_text is NECESSARY
 
 
     async def test_related_but_distinct_concepts_in_one_segment(self, prompt_loader):
