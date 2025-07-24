@@ -31,6 +31,17 @@ class CONFIG:
     # Model selection
     DEFAULT_MODEL = "gemini-2.5-flash-lite-preview-06-17"
     
+    # Generation parameters
+    TEMPERATURE = 0.5
+    
+    # Safety settings - BLOCK_NONE for all categories
+    SAFETY_SETTINGS = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
+    
     # System prompts
     STRUCTURED_SYSTEM_PROMPT = "You are a helpful assistant that provides structured JSON responses. You work ONLY with the data provided in the prompt - you have no ability to fetch additional data, use tools, or access external information. All necessary data is included in the prompt."
     GENERAL_SYSTEM_PROMPT = "You are a helpful assistant."
@@ -187,6 +198,8 @@ async def call_llm_structured(
         config={
             'response_mime_type': 'application/json',
             'response_schema': output_schema,
+            'temperature': CONFIG.TEMPERATURE,
+            'safety_settings': CONFIG.SAFETY_SETTINGS,
         },
     )
 

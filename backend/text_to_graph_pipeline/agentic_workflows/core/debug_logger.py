@@ -131,8 +131,8 @@ def format_dict_compact(d: Dict[str, Any]) -> str:
     # Show all items without truncation
     formatted_items = []
     for k, v in items:
-        if isinstance(v, str) and len(v) > 200:
-            v_str = repr(v[:200] + "...[DEBUG_TRUNCATED]")
+        if isinstance(v, str) and len(v) > 3000:
+            v_str = repr(v[:3000] + "...[DEBUG_TRUNCATED]")
         else:
             v_str = repr(v)
         formatted_items.append(f"{repr(k)}: {v_str}")
