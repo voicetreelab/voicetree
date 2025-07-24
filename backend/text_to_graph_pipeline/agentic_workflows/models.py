@@ -84,18 +84,18 @@ class ChildNodeSpec(BaseModel):
     """Specification for a new child node to be created"""
     name: str = Field(description="Name for the new child node")
     content: str = Field(description="Content for the new child node")
-    summary: str = Field(description="Summary for the new child node")
-    relationship: str = Field(description="Relationship to parent (e.g., 'subtask of', 'implements', 'solves')")
+    summary: str = Field(description="A concise summary for the new child node")
+    relationship: str = Field(description="The human-readable, 'fill-in-the-blank' relationship phrase")
 
 
 class OptimizationResponse(BaseModel):
     """Response model for single abstraction optimization - no union types"""
-    reasoning: str = Field(description="Analysis of the node and optimization decision")
+    reasoning: str = Field(description="COMPREHENSIVE analysis following ALL three stages. (1) Synthesis: Describe your integrated understanding of the combined old and new content. (2) Deconstruction: List the distinct Work Items you identified and their 'kind' (Task, Problem, etc.). (3) Optimization Decision: Justify your final choice by explicitly referencing the core compression principle and cognitive load.")
     
     # Original node update (if needed)
     update_original: bool = Field(description="Whether to update the original node")
-    original_new_content: Optional[str] = Field(default=None, description="New content for original node (if update_original=True)")
-    original_new_summary: Optional[str] = Field(default=None, description="New summary for original node (if update_original=True)")
+    original_new_content: Optional[str] = Field(default=None, description="Updated content for the original node. Required if update_original is true.")
+    original_new_summary: Optional[str] = Field(default=None, description="Updated summary for the original node. Required if update_original is true.")
     
     # New child nodes to create (can be empty list)
     create_child_nodes: List[ChildNodeSpec] = Field(
@@ -103,7 +103,7 @@ class OptimizationResponse(BaseModel):
         description="List of child nodes to create (empty if no split needed)"
     )
     
-    debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
+    debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instruction which created difficulties in completing the task")
 
 
 class TargetNodeIdentification(BaseModel):

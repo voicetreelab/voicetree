@@ -134,6 +134,9 @@ class ChunkProcessor:
                 tree_action_applier=self.tree_action_applier,
                 buffer_manager=self.buffer_manager
             )
+            
+            # Store the updated nodes
+            self.nodes_to_update.update(updated_nodes)
     
     def get_workflow_statistics(self) -> dict:
         """Get statistics from the workflow adapter"""
