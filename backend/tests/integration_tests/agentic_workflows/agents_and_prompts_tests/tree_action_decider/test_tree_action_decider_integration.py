@@ -61,6 +61,7 @@ class TestTreeActionDeciderIntegration:
             summary="REST API design decisions",
             parent_id=1
         )
+        api_node.relationships[1] = "is an implementation detail of"
         tree.tree[2] = api_node
         arch_node.children.append(2)
         
@@ -72,6 +73,7 @@ class TestTreeActionDeciderIntegration:
             summary="Database architecture choices",
             parent_id=1
         )
+        db_node.relationships[1] = "is a component of"
         tree.tree[3] = db_node
         arch_node.children.append(3)
         
