@@ -55,6 +55,7 @@ class TextBufferManager:
     def addText(self, text: str) -> None:
         if not text or text == "":
             logging.warning("addText called empty text")
+            return
 
         # add space between phrases.
         # only if previous phrases didn't end in a space.

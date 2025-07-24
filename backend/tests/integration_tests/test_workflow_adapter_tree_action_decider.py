@@ -54,7 +54,8 @@ class TestTreeActionDeciderWorkflow:
             if hasattr(action, 'content'):
                 segments.append(SegmentModel(
                     reasoning="Test reasoning",
-                    text=action.content,
+                    edited_text=action.content,
+                    raw_text=action.content,
                     is_routable=True
                 ))
         
@@ -140,9 +141,9 @@ class TestTreeActionDeciderWorkflow:
         """Multiple orphan nodes should be merged into one"""
         # Given - multiple orphan CREATE actions
         placement_actions = [
-            CreateAction(action="CREATE", parent_node_id=None, orphan_topic_name="Orphan 1", 
+            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Orphan 1", 
                         content="Content 1", summary="Summary 1", relationship=""),
-            CreateAction(action="CREATE", parent_node_id=None, orphan_topic_name="Orphan 2", 
+            CreateAction(action="CREATE", parent_node_id=None, new_node_name="Orphan 2", 
                         content="Content 2", summary="Summary 2", relationship=""),
             AppendAction(action="APPEND", target_node_id=1, content="Regular content")
         ]
@@ -167,8 +168,8 @@ class TestTreeActionDeciderWorkflow:
         assert len(orphan_actions) == 1
         
         merged_orphan = orphan_actions[0]
-        assert "Orphan 1" in merged_orphan.orphan_topic_name
-        assert "Orphan 2" in merged_orphan.orphan_topic_name
+        assert "Orphan 1" in merged_orphan.new_node_name
+        assert "Orphan 2" in merged_orphan.new_node_name
         assert "Content 1" in merged_orphan.content
         assert "Content 2" in merged_orphan.content
     
