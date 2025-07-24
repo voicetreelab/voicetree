@@ -82,9 +82,9 @@ class VoiceToTextEngine:
                         frames_per_buffer=self.chunk_size)
 
         padding_frames_count = self.config.vad_padding_ms // self.config.vad_frame_ms
-        silence_timeout_frames = self.config.vad_silence_timeout_ms // self.config.vad_frame_ms
-        max_frames_til_encourage_flush = (self.config.vad_total_timeout_ms // self.config.vad_frame_ms) // 2
+        silence_timeout_frames_orig = self.config.vad_silence_timeout_ms // self.config.vad_frame_ms
         max_frames_til_force_flush = self.config.vad_total_timeout_ms // self.config.vad_frame_ms
+        max_frames_til_encourage_flush = max_frames_til_force_flush // 2
 
         is_speaking = False
         silent_frames_count = 0
@@ -93,6 +93,8 @@ class VoiceToTextEngine:
         
         # Circular buffer to store recent frames for padding
         recent_frames = deque(maxlen=padding_frames_count)
+        
+        silence_timeout_frames = silence_timeout_frames_orig
 
         logging.info("Listening for speech...")
         while not self._stop_event.is_set():
@@ -107,11 +109,11 @@ class VoiceToTextEngine:
                     if not is_speech:
                         silent_frames_count += 1
                         # Check if we should flush due to silence or timeout
-                        current_silence_timeout = silence_timeout_frames
                         if speaking_frames_count > max_frames_til_encourage_flush:
-                            current_silence_timeout = silence_timeout_frames // 2
+                            silence_timeout_frames = silence_timeout_frames_orig // 2
+                            logging.info(f"ENCOURAGING FLUSH, SILENCE TIMEOUT {silence_timeout_frames}")
                             
-                        if silent_frames_count >= current_silence_timeout or speaking_frames_count > max_frames_til_force_flush:
+                        if silent_frames_count >= silence_timeout_frames or speaking_frames_count > max_frames_til_force_flush:
                             # Silence detected or forced timeout, utterance is complete.
                             audio_data_bytes = b''.join(audio_frames)
                             audio_np = np.frombuffer(audio_data_bytes, dtype=np.int16).astype(np.float32) / 32768.0
@@ -123,10 +125,11 @@ class VoiceToTextEngine:
                             silent_frames_count = 0
                             speaking_frames_count = 0
                             recent_frames.clear()
+                            silence_timeout_frames = silence_timeout_frames_orig
                     else:
                         silent_frames_count = 0
                 else:
-                    # Not speaking, keep buffering recent frames
+                    # Last frame wasn't speech, keep buffering recent frames
                     recent_frames.append(frame)
                     
                     if is_speech:
@@ -136,7 +139,6 @@ class VoiceToTextEngine:
                         speaking_frames_count = 1
                         
                         # Add buffered padding frames from before speech started
-                        # (which already includes the current frame)
                         audio_frames = list(recent_frames)
 
             except Exception as e:
@@ -165,7 +167,7 @@ class VoiceToTextEngine:
         """
         logging.info(f"Transcribing {len(audio_np)/self.config.sample_rate:.2f}s of audio...")
         try:
-            prompt = " ".join(self.transcription_history)
+            prompt = " ".join(self.transcription_history).strip()
 
             segments, _ = self.model.transcribe(
                 audio_np,
@@ -181,19 +183,19 @@ class VoiceToTextEngine:
             final_text = full_text.strip()
 
             if final_text:
-                logging.info(f"Transcription result: {final_text}")
+                print(final_text)
+                logging.info(f"Transcription result: {final_text}|END")
 
                 # Update context history for the next transcription
                 self.transcription_history.append(final_text)
                 if len(self.transcription_history) > self.config.history_max_size:
                     self.transcription_history.pop(0)
-                print(final_text)
-                return final_text
+            return final_text
 
         except Exception as e:
             logging.error(f"Error during transcription: {e}")
 
-        return None
+        return ""
 
     def process_audio_queue(self):
         """
@@ -207,26 +209,3 @@ class VoiceToTextEngine:
         if audio_np is None:
             return None
         return self.transcribe_chunk(audio_np)
-
-
-if __name__ == '__main__':
-    # This is a simple synchronous example to test the class directly.
-    # It mimics the behavior of your main.py loop.
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    engine = VoiceToTextEngine()
-    engine.start_listening()
-
-    print("\nSpeak into your microphone. The engine will transcribe when you pause.")
-    print("Press Ctrl+C to stop.")
-
-    try:
-        while True:
-            transcription = engine.process_audio_queue()
-            if transcription:
-                print(">>", transcription)
-            time.sleep(0.1) # Prevent busy-waiting
-    except KeyboardInterrupt:
-        print("\nStopping engine...")
-        engine.stop()
-        print("Engine stopped.")

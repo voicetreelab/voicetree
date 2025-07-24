@@ -13,6 +13,10 @@ from pydantic import BaseModel
 from google import genai
 import json
 
+from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
+    log_llm_io
+
+
 # Schema models are no longer imported here - they're passed from agents
 
 
@@ -153,8 +157,9 @@ async def call_llm_structured(
     
     try:
         # Build the full prompt with system prompt
-        full_prompt = f"{prompt}"
-        
+        # full_prompt = f"{prompt}"
+        full_prompt = prompt # no sys prompt for now
+
         # Call the model with structured output
         # Pass Pydantic models directly as per Google's documentation
         response = client.models.generate_content(
@@ -165,13 +170,10 @@ async def call_llm_structured(
                 'response_schema': output_schema,
             },
         )
-        
-        if CONFIG.PRINT_API_SUCCESS:
-            print(f"✅ API call successful - structured response received")
-        
-        # Parse the JSON response and create the Pydantic model
-        json_data = json.loads(response.text)
-        return output_schema(**json_data)
-        
+
+        log_llm_io(stage_type, prompt, response.text, model_name)
+
+        return response.parsed
+
     except Exception as e:
         _handle_llm_error(e, stage_type, output_schema)

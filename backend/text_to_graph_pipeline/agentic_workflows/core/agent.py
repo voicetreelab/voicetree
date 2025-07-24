@@ -113,7 +113,7 @@ class Agent:
                     # Log LLM I/O for debugging
                     from .debug_logger import log_llm_io
                     from .llm_integration import CONFIG
-                    log_llm_io(pname, prompt, response, model_name=CONFIG.DEFAULT_MODEL)
+
                     
                     # Convert response to dict if needed
                     if hasattr(response, 'model_dump'):

@@ -5,7 +5,6 @@ Imports and assembles configurations from various modules
 
 import os
 from backend.text_to_graph_pipeline.voice_to_text.voice_config import VoiceConfig
-from backend.text_to_graph_pipeline.agentic_workflows.core.llm_config import LLMConfig
 
 # Environment variables
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -29,8 +28,3 @@ if BACKGROUND_REWRITE_EVERY_N_APPEND < 1:
     raise ValueError("BACKGROUND_REWRITE_EVERY_N_APPEND must be at least 1")
 if MAX_NODES_FOR_LLM_CONTEXT < 1:
     raise ValueError("MAX_NODES_FOR_LLM_CONTEXT must be at least 1")
-
-llm_config = LLMConfig()  # Uses defaults, can be customized
-
-# Backward compatibility exports
-# VOICE_MODEL = voice_config.model

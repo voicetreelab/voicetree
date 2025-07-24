@@ -49,7 +49,7 @@ class VoiceConfig:
     # The beam size for decoding. A larger beam size increases accuracy at the cost of speed.
     # A value of 5 is a good trade-off.
     # LOWER IS FASTER, BUT LESS ACCURATE
-    beam_size: int = 1
+    beam_size: int = 2
     # The language of the speech. Set to None to let Whisper auto-detect.
     language: str = "en"
 
