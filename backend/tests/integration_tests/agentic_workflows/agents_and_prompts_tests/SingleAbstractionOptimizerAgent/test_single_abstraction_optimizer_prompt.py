@@ -66,9 +66,9 @@ class TestSingleAbstractionOptimizerPrompt:
         
         # Assertions
         # LLM should either split or update - both are reasonable
-        if len(result.create_child_nodes) >= 2:
+        if len(result.create_new_nodes) >= 2:
             # If splitting, check that nodes cover the different concepts
-            node_names = [child.name.lower() for child in result.create_child_nodes]
+            node_names = [child.name.lower() for child in result.create_new_nodes]
             
             # Should have nodes covering at least some of the concepts
             concepts_covered = sum([
@@ -129,7 +129,7 @@ class TestSingleAbstractionOptimizerPrompt:
         
         # Assertions - should not split this cohesive node
         # Should have no child nodes or very few
-        assert len(result.create_child_nodes) <= 1
+        assert len(result.create_new_nodes) <= 1
         
         # If updating original, should maintain the cohesive nature
         if result.update_original:
@@ -186,9 +186,9 @@ class TestSingleAbstractionOptimizerPrompt:
             assert len(result.original_new_summary) > len(node_summary)
             assert "caching" in result.original_new_summary.lower() or \
                    "performance" in result.original_new_summary.lower()
-        elif len(result.create_child_nodes) > 0:
+        elif len(result.create_new_nodes) > 0:
             # If splitting, should have meaningful child nodes
-            child_contents = [child.content.lower() for child in result.create_child_nodes]
+            child_contents = [child.content.lower() for child in result.create_new_nodes]
             assert any("redis" in c or "cdn" in c or "database" in c or "api" in c 
                       for c in child_contents), "Child nodes should cover caching strategies"
         else:

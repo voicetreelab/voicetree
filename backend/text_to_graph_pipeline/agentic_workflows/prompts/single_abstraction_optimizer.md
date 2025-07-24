@@ -62,11 +62,11 @@ Save this in your reasoning as overall_integrated_content.
 2.  **Identify abstraction candidates:** 
 3.  **Internal Analysis:** For each abstraction Candidate, internally determine what *kind* of abstraction it is (e.g., is this a Task, a decision, a constraint?). Can they be grouped into a higher level of abstraction which is easier to reason about with low meaning loss? If so, use that instead.
 
-### Stage 3: Optimization Decision
+### Stage 3: Decide optimisation actions:
 **Goal:** Determine the optimal structure based on the **abstraction candidates** identified in Stage 2.
 
 1.  **Apply Splitting Rules:**
-   - If you identified one or more **abstraction candidates** in Stage 2, a ` "create_child_node` action is necessary, in order to create the new linked nodes. 
+   - If you identified one or more **abstraction candidates** in Stage 2, a `create_new_node` action is necessary, in order to create the new linked nodes. 
    Keep contextual information related to an abstraction contained with that abstraction. This is a fine balance to avoid over fragmentation. When in doubt of whether content represents its own abstraction, or is instead detail that should be kept with an existing abstraction. This is actually a really hard question to answer, and the following formalization of it as an optimisation problem may help you reason about this choice:
 
   ```
@@ -96,14 +96,16 @@ A human engaged in problem-solving can only hold a few items (perhaps 5-8) in th
 This is the level we must optimize for. Our system should aim to recreate the abstractions being used in the problem-solving and decision-making centers of the brain. Even more powerfully, since a human brain often doesn't use the most optimal abstractions, **our system has the opportunity to provide a better, clearer set of abstractions, thereby actively improving the user's problem-solving process.**
 ``` 
 
-1. **Determine Action:** Based on the rules and heuristics above, decide your actions `create_child_node`, `update_original`, (or `NO_ACTION`).
+Stage 3, decide optimisation actions, continued: 
+
+1. **Determine Action:** Based on the rules and heuristics above, decide your actions `create_new_node`, `update_original`, (or `NO_ACTION`).
 
 2. **Define Relationships (for child nodes):**
     -   The original node becomes the parent abstraction.
     -   For each child node, define its `relationship` description using the **"fill-in-the-blank" method: `[Child Node Name] ______ [Parent Node Name]`**.
     -   The phrase should be concise (max 7 words) and form a natural sentence. Use the kinds of abstractions you identified to make the relationship meaningful (e.g., if a `Task` is split from a `Problem`, the relationship could be "is a proposed solution for").
 
-- If no changes are needed, set `update_original: false` and `create_child_nodes: []`.
+- If no changes are needed, set `update_original: false` and `create_new_nodes: []`.
 
 ### **Comprehensive Example 1: Splitting into children is Optimal**
 
@@ -121,31 +123,31 @@ This example shows how a complex thought containing multiple distinct abstractio
 **Correct Output:**
 ```json
 {
-  "reasoning": "Stage 1 (Synthesis): The initial node described a user authentication bug causing random logouts. The new content, from an investigation, adds three key pieces of information: a proposed solution for the original bug, the discovery of a completely separate and more urgent bug with the password reset flow, and a decision on how to prioritize the work. \nStage 2 (Deconstruction): I identified four distinct abstractions here: \n1. 'Users are being logged out randomly' (the original `Problem`). \n2. 'Increase token expiration to 24 hours' (a `Solution` for the first problem). \n3. 'Password reset flow is broken due to email service config' (a new, distinct `Problem`). \n4. 'Prioritize the token fix and ticket the password reset issue' (a `Decision`). \nStage 3 (Optimization Decision): Keeping these four distinct items (a problem, its solution, a *different* problem, and a work-planning decision) in a single node creates high cognitive load. It violates the compression principle by mixing unrelated concerns. Splitting them creates a much clearer structure. The parent node will now serve as a high-level container for the original bug and its related outcomes. This greatly reduces the human computation needed to understand the situation.",
-  "update_original": true,
-  "original_new_content": "Initial reports indicated users were being logged out randomly. Investigation revealed this was due to a token expiration issue. A related, more urgent problem with the password reset flow was also discovered during the investigation.",
-  "original_new_summary": "Parent tracker for the user authentication bug and its investigation outcomes.",
-  "create_child_nodes": [
-    {
-      "name": "Increase Token Expiration to 24 Hours",
-      "content": "The token expiration is set too low and should be increased to 24 hours to fix the random logout issue.",
-      "summary": "Implement fix for random logouts by increasing token expiration.",
-      "relationship": "is the proposed solution for"
-    },
-    {
-      "name": "Fix Broken Password Reset Flow",
-      "content": "The password reset flow is throwing a 500 error because the email service is not configured. This is an urgent, separate issue.",
-      "summary": "URGENT: Reconfigure email service to fix critical 500 error in password reset.",
-      "relationship": "is a related problem discovered by"
-    },
-    {
-      "name": "Decision: Prioritize Token Fix",
-      "content": "The decision was made to prioritize the token expiration fix for the current sprint and create a separate ticket for the password reset issue to be handled later.",
-      "summary": "Prioritize token fix in this sprint; defer password reset fix.",
-      "relationship": "is the plan for addressing the"
-    }
-  ],
-  "debug_notes": null
+   "reasoning": "Stage 1 (Synthesis): The node's content describes a full investigation cycle. It starts with a reported problem (random logouts), moves to an investigation that identifies a likely cause and a solution (token expiration), uncovers a *new and separate* problem (broken password reset), and concludes with a strategic decision on how to sequence and handle both issues (prioritize the token fix, ticket the password reset). The integrated understanding is that a simple bug report has expanded into a multi-part work plan.\n\nStage 2 (Deconstruction): I identified four distinct, high-level abstractions ('Work Items') in this narrative:\n1.  **Problem:** 'Users are being logged out randomly' (The initial state).\n2.  **Solution:** 'Increase token expiration to 24 hours' (The fix for the first problem).\n3.  **Problem:** 'Password reset flow is broken' (A new, discovered problem).\n4.  **Decision:** 'Prioritize the token fix for this sprint and create a ticket for the password issue' (The plan for allocating resources and sequencing the work).\n\nStage 3 (Optimization Decision): Keeping these four distinct concepts in a single node creates high cognitive load. The optimal structure is to split them, with the original node serving as a parent container. The most critical choice here is separating the 'Decision' into its own node. While one could argue for placing priority information inside each task, that would create 'mixed abstractions' (e.g., a node that is both a 'Solution' and a 'Plan'). This is less optimal because making a plan is a distinct cognitive act from defining a technical solution. By giving the 'Decision' its own node, we preserve the plan as a first-class citizen in the graph, making the overall strategy clearer. The immediate priority of each task is then surfaced in its respective `summary` (e.g., using a tag like '[High Priority]') for quick, at-a-glance understanding, without corrupting the core abstraction of the node itself. This structure provides maximum clarity with minimum cognitive load.",
+   "update_original": true,
+   "original_new_content": "Initial reports indicated users were being logged out randomly. Investigation revealed this was due to a token expiration issue. During the investigation, a separate, more urgent problem with the password reset flow was also discovered.",
+   "original_new_summary": "Parent tracker for the user authentication bug and its investigation outcomes.",
+   "create_child_nodes": [
+      {
+         "name": "Increase Token Expiration to 24 Hours",
+         "content": "The token expiration is set too low and should be increased to 24 hours to fix the random logout issue.",
+         "summary": "[High Priority] Implement fix for random logouts by increasing token expiration.",
+         "relationship": "is the proposed solution for"
+      },
+      {
+         "name": "Fix Broken Password Reset Flow",
+         "content": "The password reset flow is throwing a 500 error because the email service is not configured. This is an urgent, separate issue.",
+         "summary": "[Urgent - Ticketed] Reconfigure email service to fix critical 500 error in password reset.",
+         "relationship": "is a related problem discovered by"
+      },
+      {
+         "name": "Decision: Prioritize Token Fix for Sprint",
+         "content": "The decision was made to prioritize the token expiration fix for the current sprint and create a separate ticket for the password reset issue to be handled later.",
+         "summary": "Prioritize token fix in this sprint; defer password reset fix.",
+         "relationship": "is the plan for addressing the"
+      }
+   ],
+   "debug_notes": "This example is crucial for demonstrating how to handle 'meta-work' like planning and decision-making as its own abstraction, rather than merging it into the tasks it pertains to. The use of summaries to convey status/priority is also a key pattern."
 }
 ```
 
@@ -171,6 +173,6 @@ This example shows where the new information is just detail for the existing abs
   "update_original": true,
   "original_new_content": "We need a primary CTA on the homepage to guide users to sign up. It must be prominent. The proposed design is a bright orange button (hex #FF5733) to provide strong contrast against the site's blue background. The button copy should be 'Start Your Free Trial', as this wording feels less committal and is backed by data showing a potential 15% conversion increase.",
   "original_new_summary": "Design a prominent, orange CTA button with the copy 'Start Your Free Trial'.",
-  "create_child_nodes": [],
+  "create_new_nodes": [],
   "debug_notes": "This was a clear case for absorption. The new content was purely descriptive detail for the existing abstraction."
 }
