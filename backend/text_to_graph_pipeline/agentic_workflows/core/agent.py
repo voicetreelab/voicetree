@@ -105,21 +105,15 @@ class Agent:
                     # Call LLM with structured output
                     output_schema = self.output_schemas[pname]
                     if llm_client:
-                        response = llm_client.call(prompt, output_schema=output_schema)
+                        response : BaseModel = llm_client.call(prompt,
+                                                    output_schema=output_schema)
                     else:
                         # Use default integration
-                        response = await call_llm_structured(prompt, pname, output_schema=output_schema)
+                        response : BaseModel = await call_llm_structured(prompt,
+                                                                  pname, output_schema=output_schema)
                     
-                    # Log LLM I/O for debugging
-                    from .debug_logger import log_llm_io
-                    from .llm_integration import CONFIG
-
-                    
-                    # Convert response to dict if needed
-                    if hasattr(response, 'model_dump'):
-                        response_dict = response.model_dump()
-                    else:
-                        response_dict = response
+                    # Update state with response fields
+                    response_dict = response.model_dump()
                     
                     # Log outputs
                     debug_outputs = {
