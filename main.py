@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 
 from backend.logging_config import setup_logging
 from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
@@ -34,12 +35,49 @@ async def main():
     voice_engine = VoiceToTextEngine()
     voice_engine.start_listening()
     
-    while True:
-        transcription = voice_engine.process_audio_queue()
-        if transcription:
-            # Use the async version directly - no thread pool needed
-            await processor.process_new_text_and_update_markdown(transcription)
-        await asyncio.sleep(0.01)  # Small delay to prevent CPU spinning  # Small delay to prevent CPU spinning
+    # Thread pool for CPU-intensive transcription
+    executor = ThreadPoolExecutor(max_workers=2)
+    
+    # Limit concurrent text processing tasks for backpressure
+    max_concurrent_processing = 1
+    processing_tasks = set()
+    
+    try:
+        while True:
+            # Non-blocking audio chunk retrieval
+            audio_chunk = voice_engine.get_ready_audio_chunk()
+            
+            if audio_chunk is not None:
+                # CPU-intensive transcription in thread pool (non-blocking)
+                loop = asyncio.get_event_loop()
+                transcription = await loop.run_in_executor(
+                    executor, voice_engine.transcribe_chunk, audio_chunk
+                )
+                
+                if transcription:
+                    # Network-bound processing as fire-and-forget task
+                    if len(processing_tasks) < max_concurrent_processing:
+                        task = asyncio.create_task(
+                            processor.process_new_text_and_update_markdown(transcription)
+                        )
+                        processing_tasks.add(task)
+                        task.add_done_callback(processing_tasks.discard)
+                    else:
+                        # Backpressure: wait for oldest task to complete
+                        done, processing_tasks = await asyncio.wait(
+                            processing_tasks, return_when=asyncio.FIRST_COMPLETED
+                        )
+            
+            # Clean up completed tasks
+            processing_tasks = {t for t in processing_tasks if not t.done()}
+            
+            await asyncio.sleep(0.01)
+    finally:
+        # Cleanup
+        executor.shutdown(wait=True)
+        voice_engine.stop()
+        if processing_tasks:
+            await asyncio.gather(*processing_tasks, return_exceptions=True)
 
 
 if __name__ == "__main__":
