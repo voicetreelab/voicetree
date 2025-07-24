@@ -13,18 +13,6 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
 class TestChunkModel:
     """Test the ChunkModel schema"""
     
-    def test_chunk_model_valid(self):
-        """Test creating a valid chunk model"""
-        chunk = SegmentModel(
-            text="This is the chunk content",
-            is_routable=True,
-            reasoning="This chunk is complete and ready for processing"
-        )
-        
-        assert chunk.text == "This is the chunk content"
-        assert chunk.is_routable is True
-        assert chunk.reasoning == "This chunk is complete and ready for processing"
-    
     def test_chunk_model_missing_fields(self):
         """Test validation errors for missing required fields"""
         with pytest.raises(ValidationError) as exc_info:

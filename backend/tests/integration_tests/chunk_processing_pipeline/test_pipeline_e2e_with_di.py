@@ -110,44 +110,61 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
         for i, (start, end) in enumerate(chunk_boundaries):
             chunk_text = " ".join(words[start:end])
             
-            # Randomly decide to create an action
-            if random.random() > 0.3:  # 70% chance to create action
-                if not existing_node_ids or random.random() > 0.5:
-                    # CREATE action
-                    node_name = f"Node_{len(self.created_nodes) + 1}"
-                    self.created_nodes.append(node_name)
+            # Always create an action to preserve all text
+            # Distribution: 45% CREATE, 45% APPEND, 10% UPDATE
+            action_choice = random.random()
+            
+            if not existing_node_ids or action_choice < 0.45:
+                # CREATE action (45% chance, or always if no existing nodes)
+                node_name = f"Node_{len(self.created_nodes) + 1}"
+                self.created_nodes.append(node_name)
+                
+                parent_id = random.choice(existing_node_ids) if existing_node_ids else None
+                
+                action = CreateAction(
+                    action="CREATE",
+                    parent_node_id=parent_id,
+                    new_node_name=node_name,
+                    content=chunk_text,
+                    summary=f"Summary of {node_name}",
+                    relationship="child of"
+                )
+                
+                # Apply the action
+                result_nodes = tree_action_applier.apply([action])
+                if result_nodes:
+                    for node_id in result_nodes:
+                        updated_nodes.add(node_id)
+                        existing_node_ids.append(node_id)
+                        
+            elif action_choice < 0.9:
+                # APPEND action (45% chance) - preserves existing content
+                target_id = random.choice(existing_node_ids)
+                action = AppendAction(
+                    action="APPEND",
+                    target_node_id=target_id,
+                    content=chunk_text
+                )
+                
+                # Apply the action
+                result_nodes = tree_action_applier.apply([action])
+                if result_nodes:
+                    updated_nodes.update(result_nodes)
                     
-                    parent_id = random.choice(existing_node_ids) if existing_node_ids else None
-                    
-                    action = CreateAction(
-                        action="CREATE",
-                        parent_node_id=parent_id,
-                        new_node_name=node_name,
-                        content=chunk_text,
-                        summary=f"Summary of {node_name}",
-                        relationship="child of"
-                    )
-                    
-                    # Apply the action
-                    result_nodes = tree_action_applier.apply([action])
-                    if result_nodes:
-                        for node_id in result_nodes:
-                            updated_nodes.add(node_id)
-                            existing_node_ids.append(node_id)
-                else:
-                    # UPDATE action
-                    target_id = random.choice(existing_node_ids)
-                    action = UpdateAction(
-                        action="UPDATE",
-                        node_id=target_id,
-                        new_content=chunk_text,
-                        new_summary=f"Updated summary for chunk {i}"
-                    )
-                    
-                    # Apply the action
-                    result_nodes = tree_action_applier.apply([action])
-                    if result_nodes:
-                        updated_nodes.update(result_nodes)
+            else:
+                # UPDATE action (10% chance) - replaces existing content
+                target_id = random.choice(existing_node_ids)
+                action = UpdateAction(
+                    action="UPDATE",
+                    node_id=target_id,
+                    new_content=chunk_text,
+                    new_summary=f"Updated summary for chunk {i}"
+                )
+                
+                # Apply the action
+                result_nodes = tree_action_applier.apply([action])
+                if result_nodes:
+                    updated_nodes.update(result_nodes)
         
         # Clear buffer after processing
         buffer_manager.clear()
@@ -391,10 +408,10 @@ class TestPipelineE2EWithDI:
         print(f"Words found in output: {words_found}")
         print(f"Word preservation ratio: {word_ratio:.1%}")
         
-        # We expect at least 30% of words to appear in the output
-        # (The mock TreeActionDecider only creates optimization actions ~70% of the time,
-        # and some words may be in the unflushed buffer at the end)
-        assert word_ratio > 0.30, \
+        # We expect at least 80% of words to appear in the output
+        # (Distribution: 45% CREATE + 45% APPEND preserve text, 10% UPDATE replaces it,
+        # some words may be in the unflushed buffer at the end)
+        assert word_ratio > 0.80, \
             f"Too few words found in output: {word_ratio:.1%} (found {words_found}/{len(all_input_words)} words)"
 
 

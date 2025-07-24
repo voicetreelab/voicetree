@@ -11,6 +11,7 @@ from faster_whisper import WhisperModel
 
 from backend.text_to_graph_pipeline.voice_to_text.voice_config import VoiceConfig
 
+logging.getLogger("faster_whisper").setLevel(logging.WARN)
 
 class VoiceToTextEngine:
     """
@@ -109,12 +110,16 @@ class VoiceToTextEngine:
                     if not is_speech:
                         silent_frames_count += 1
                         # Check if we should flush due to silence or timeout
-                        if speaking_frames_count > max_frames_til_encourage_flush:
+                        if (speaking_frames_count >
+                                max_frames_til_encourage_flush) and \
+                                silence_timeout_frames == silence_timeout_frames_orig:
                             silence_timeout_frames = silence_timeout_frames_orig // 2
                             logging.info(f"ENCOURAGING FLUSH, SILENCE TIMEOUT {silence_timeout_frames}")
                             
                         if silent_frames_count >= silence_timeout_frames or speaking_frames_count > max_frames_til_force_flush:
                             # Silence detected or forced timeout, utterance is complete.
+                            logging.info(f"FLUSHING, frames"
+                                         f" {speaking_frames_count}")
                             audio_data_bytes = b''.join(audio_frames)
                             audio_np = np.frombuffer(audio_data_bytes, dtype=np.int16).astype(np.float32) / 32768.0
                             self._ready_for_transcription_queue.put(audio_np)
@@ -165,7 +170,7 @@ class VoiceToTextEngine:
         Synchronous method to transcribe an audio chunk.
         This is CPU-intensive and should be run in a thread pool.
         """
-        logging.info(f"Transcribing {len(audio_np)/self.config.sample_rate:.2f}s of audio...")
+        # logging.info(f"Transcribing {len(audio_np)/self.config.sample_rate:.2f}s of audio...")
         try:
             prompt = " ".join(self.transcription_history).strip()
 
@@ -177,6 +182,8 @@ class VoiceToTextEngine:
                 condition_on_previous_text=self.config.condition_on_previous_text,
                 initial_prompt=prompt,
                 vad_filter=self.config.use_vad_filter,
+                vad_parameters=dict(
+                    min_silence_duration_ms=self.config.MIN_SILENCE_DURATION_MS)
             )
 
             full_text = "".join(segment.text.strip() + " " for segment in segments)

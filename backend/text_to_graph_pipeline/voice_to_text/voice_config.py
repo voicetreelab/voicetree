@@ -22,10 +22,11 @@ class VoiceConfig:
     vad_frame_ms: int = 30
     # Amount of silence to pad at the start and end of a speech segment, in milliseconds.
     # This helps ensure words at the edges aren't cut off.
-    vad_padding_ms: int = 150
+    vad_padding_ms: int = 250
 
     #IMPORTANT: How long the VAD should wait in silence before considering an utterance finished, in milliseconds.
-    vad_silence_timeout_ms: int = 250 # Increase for longer buffers, better accuracy  latency
+    vad_silence_timeout_ms: int = 1000 # Increase for longer buffers, better
+    # accuracy  latency
     #     High Value (e.g., 1500 ms): Good for speakers who pause for a second or two in the middle of a sentence to think. It prevents the system from chopping up their thoughts. This is what you're currently experiencing.
     #
     #     Low Value (e.g., 700 ms): Makes the system feel much more responsive and is better for faster, conversational-style speech. It will "flush the buffer" after a much shorter pause.
@@ -49,13 +50,14 @@ class VoiceConfig:
     # The beam size for decoding. A larger beam size increases accuracy at the cost of speed.
     # A value of 5 is a good trade-off.
     # LOWER IS FASTER, BUT LESS ACCURATE
-    beam_size: int = 2
+    beam_size: int = 5
     # The language of the speech. Set to None to let Whisper auto-detect.
     language: str = "en"
 
     # --- Transcription Behavior Settings ---
     # Whether to use Whisper's internal VAD as a second-pass filter. Recommended.
     use_vad_filter: bool = True
+    MIN_SILENCE_DURATION_MS=400
     # Whether to feed the previous transcription as a prompt to the next. Greatly improves
     # contextual accuracy and consistency.
     condition_on_previous_text: bool = True
@@ -63,6 +65,9 @@ class VoiceConfig:
     word_timestamps: bool = False
     # The number of previous transcriptions to keep for context.
     # todo, experiment with this and how it impacts latency
-    history_max_size: int = 3
+    history_max_size: int = 2
+    # todo, bring in `initial_prompt` with context of overall meeting
+
+    # annd
 
     
