@@ -22,6 +22,7 @@ class VoiceToTextEngine:
     (via process_audio_queue) for transcription.
     """
     def __init__(self, config: VoiceConfig = None):
+        self.model_failed_last_transcription = False
         self.config = config or VoiceConfig()
 
         print(f"Loading Whisper model '{self.config.model_size}'...")
@@ -29,7 +30,7 @@ class VoiceToTextEngine:
             self.config.model_size,
             device=self.config.device,
             compute_type=self.config.compute_type,
-            cpu_threads=8  # Use 8 CPU threads for faster transcription
+            cpu_threads=self.config.cpu_threads
         )
         logging.info("Whisper model loaded.")
 
@@ -88,6 +89,8 @@ class VoiceToTextEngine:
         max_frames_til_force_flush = self.config.vad_total_timeout_ms // self.config.vad_frame_ms
         max_frames_til_encourage_flush = max_frames_til_force_flush // 2
 
+        min_speaking_frames = 1000 // self.config.vad_frame_ms
+
         is_speaking = False
         silent_frames_count = 0
         speaking_frames_count = 0
@@ -115,15 +118,21 @@ class VoiceToTextEngine:
                                 max_frames_til_encourage_flush) and \
                                 silence_timeout_frames == silence_timeout_frames_orig:
                             silence_timeout_frames = silence_timeout_frames_orig // 2
-                            logging.info(f"ENCOURAGING FLUSH, SILENCE TIMEOUT {silence_timeout_frames}")
-                            
-                        if silent_frames_count >= silence_timeout_frames or speaking_frames_count > max_frames_til_force_flush:
+                            max_frames_til_encourage_flush*=2
+                            logging.info(f"ENCOURAGING FLUSH, dropping SILENCE TIMEOUT to {silence_timeout_frames} frames")
+
+                        # we also want a minimum amount of speaking frames,
+                        # otherwise we can send only one word/half a word to whisper not good.
+                        if speaking_frames_count > min_speaking_frames and silent_frames_count >= silence_timeout_frames:
                             # Silence detected or forced timeout, utterance is complete.
                             logging.info(f"FLUSHING, frames"
                                          f" {speaking_frames_count}")
                             audio_data_bytes = b''.join(audio_frames)
                             audio_np = np.frombuffer(audio_data_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                            
+
                             self._ready_for_transcription_queue.put(audio_np)
+
 
                             # Reset for next utterance
                             audio_frames.clear()
@@ -149,7 +158,7 @@ class VoiceToTextEngine:
 
             except Exception as e:
                 logging.error(f"Error in audio capture loop: {e}")
-                time.sleep(1)
+                time.sleep(0.1)
 
         stream.stop_stream()
         stream.close()
@@ -171,54 +180,37 @@ class VoiceToTextEngine:
         Synchronous method to transcribe an audio chunk.
         This is CPU-intensive and should be run in a thread pool.
         """
-        # logging.info(f"Transcribing {len(audio_np)/self.config.sample_rate:.2f}s of audio...")
+        logging.info(f"transcribe_chunk called with audio length: {len(audio_np)/self.config.sample_rate:.2f}s")
         try:
-            prompt = " ".join(self.transcription_history).strip()
-
+            logging.info("Starting model.transcribe...")
             segments, _ = self.model.transcribe(
                 audio_np,
                 beam_size=self.config.beam_size,
                 language=self.config.language,
                 word_timestamps=self.config.word_timestamps,
-                condition_on_previous_text=self.config.condition_on_previous_text,
-                initial_prompt=prompt,
+                condition_on_previous_text=self.config.condition_on_previous_text and not self.model_failed_last_transcription,
                 vad_filter=self.config.use_vad_filter,
                 vad_parameters=dict(
                     min_silence_duration_ms=self.config.MIN_SILENCE_DURATION_MS)
             )
+            logging.info("model.transcribe completed")
 
-            full_text = "".join(segment.text.strip() + " " for segment in segments)
+            segments_list = list(segments)
+            logging.info(f"Number of segments: {len(segments_list)}")
+            
+            full_text = "".join(segment.text.strip() + " " for segment in segments_list)
             final_text = full_text.strip()
 
             if final_text:
                 print(final_text)
-                
-                # Append to transcription log
-                with open("backend/text_to_graph_pipeline/voice_to_text/transcription_log.txt", "a", encoding="utf-8") as f:
-                    f.write(f"{final_text}\n")
-                
                 logging.info(f"Transcription result: {final_text}|END")
-
-                # Update context history for the next transcription
-                self.transcription_history.append(final_text)
-                if len(self.transcription_history) > self.config.history_max_size:
-                    self.transcription_history.pop(0)
+            else:
+                logging.warning("No text transcribed from audio chunk")
+                self.model_failed_last_transcription = True
+            
             return final_text
 
         except Exception as e:
-            logging.error(f"Error during transcription: {e}")
+            logging.error(f"Error during transcription: {e}", exc_info=True)
 
         return ""
-
-    def process_audio_queue(self):
-        """
-        Processes one complete audio chunk from the internal queue if available.
-        This method is designed to be called repeatedly in a loop by the main thread.
-        
-        DEPRECATED: This method blocks the event loop. Use get_ready_audio_chunk() 
-        and transcribe_chunk() with run_in_executor instead.
-        """
-        audio_np = self.get_ready_audio_chunk()
-        if audio_np is None:
-            return None
-        return self.transcribe_chunk(audio_np)

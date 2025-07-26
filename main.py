@@ -30,24 +30,39 @@ processor = ChunkProcessor(decision_tree,
 
 async def transcription_loop(voice_engine, text_queue):
     """Continuously transcribe audio and put text into queue"""
-    executor = ThreadPoolExecutor(max_workers=4)  # Increased to allow parallel transcriptions
+    # Increase max_workers to prevent blocking when transcriptions take time
+    executor = ThreadPoolExecutor(max_workers=2)
     
     try:
         while True:
             audio_chunk = voice_engine.get_ready_audio_chunk()
             
             if audio_chunk is not None:
+                # Check for backlog
+                pending_chunks = voice_engine._ready_for_transcription_queue.qsize()
+                if pending_chunks > 0:
+                    logger.warning(f"Audio backlog detected: {pending_chunks} chunks waiting")
+                
                 logger.info("Got audio chunk, transcribing...")
                 # Transcribe in thread pool
                 loop = asyncio.get_event_loop()
-                transcription = await loop.run_in_executor(
-                    executor, voice_engine.transcribe_chunk, audio_chunk
-                )
+                try:
+                    logger.info("Submitting transcription to executor...")
+                    transcription = await loop.run_in_executor(
+                        executor, voice_engine.transcribe_chunk, audio_chunk
+                    )
+                    logger.info(f"Transcription returned: '{transcription}'")
+                except Exception as e:
+                    logger.error(f"Error in transcription executor: {e}", exc_info=True)
+                    transcription = ""
                 
                 if transcription:
                     logger.info(f"Transcribed: {transcription[:50]}...")
                     await text_queue.put(transcription)
                     logger.info(f"Queue size: {text_queue.qsize()}")
+                    # Append to transcription log
+                    with open("backend/text_to_graph_pipeline/voice_to_text/transcription_log.txt", "a", encoding="utf-8") as f:
+                        f.write(f"{transcription}\n")
             
             await asyncio.sleep(0.01)
     finally:
@@ -67,7 +82,7 @@ async def llm_processing_loop(text_queue, processor):
             # Wait for text from queue
             logger.info(f"Waiting for text from queue, size: {text_queue.qsize()}")
             transcription = await text_queue.get()
-            logger.info(f"Got text from queue: {transcription[:50]}...")
+            logger.info(f"Got text from queue: {transcription}")
             
             try:
                 # Process through LLM pipeline in a separate thread
@@ -84,7 +99,8 @@ async def llm_processing_loop(text_queue, processor):
             except Exception as e:
                 logger.error(f"Error processing text: {e}")
                 # Continue processing next items even if one fails
-            
+            await asyncio.sleep(0.1)
+
     except asyncio.CancelledError:
         raise
     finally:

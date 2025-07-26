@@ -133,12 +133,11 @@ class TreeActionDeciderWorkflow:
         Returns:
             Set of node IDs that were updated
         """
-        logging.info(f"Starting stateful workflow for text chunk ( {(text_chunk)})")
+        logging.info(f"Buffer full, Starting stateful workflow for text chunk ( {(text_chunk)}, of length {len(text_chunk)})")
         print(f"Buffer full, sending to agentic workflow, text: {text_chunk}\n") 
         
         self.nodes_to_update.clear()
-        
-        
+
         # ======================================================================
         # PHASE 1: PLACEMENT (APPEND/CREATE)
         # ======================================================================
