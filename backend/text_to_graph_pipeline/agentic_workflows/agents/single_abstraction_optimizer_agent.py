@@ -48,6 +48,8 @@ class SingleAbstractionOptimizerAgent(Agent):
             "node_summary": node.summary,
             "neighbors": str(neighbours_context),
             "transcript_history": "", 
+            # Agent response field
+            "single_abstraction_optimizer_response": None,
             # LLM response fields will be added by the workflow
             "reasoning": None,
             "update_original": None,
@@ -70,25 +72,15 @@ class SingleAbstractionOptimizerAgent(Agent):
         from ..core.boundary_converters import dicts_to_models, dict_to_model
         from ..models import ChildNodeSpec
         
-        # === ENTRY BOUNDARY: Convert dicts to models ===
-        # The optimization response fields are merged directly into state
-        # Create an OptimizationResponse object from the state fields
-        optimization_data = {
-            "reasoning": result.get("reasoning", ""),
-            "update_original": result.get("update_original", False),
-            "original_new_content": result.get("original_new_content"),
-            "original_new_summary": result.get("original_new_summary"),
-            "create_new_nodes": result.get("create_new_nodes", [])
-        }
-        
-        # This will raise ValueError if validation fails - let it crash!
-        optimization = dict_to_model(optimization_data, OptimizationResponse, "optimization_response")
+        # === ENTRY BOUNDARY: Get typed optimization response ===
+        # The optimization response is now stored as a typed object
+        optimization: OptimizationResponse = result.get("single_abstraction_optimizer_response")
         
         # dict_to_model only returns None if input is None/empty
         # If we get here with None, something is very wrong
         if optimization is None:
             raise RuntimeError(
-                f"Failed to create OptimizationResponse from non-empty data: {optimization_data}. "
+                f"Failed to create OptimizationResponse from non-empty data: {result}. "
                 "This should never happen - dict_to_model should have raised ValueError."
             )
         

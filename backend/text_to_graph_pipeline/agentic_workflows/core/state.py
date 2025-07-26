@@ -4,7 +4,7 @@ State schema for VoiceTree LangGraph workflow with validation
 
 from typing import List, Dict, Any, Optional
 from typing_extensions import TypedDict
-from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec
+from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec, SegmentationResponse, TargetNodeResponse
 
 
 class AppendToRelevantNodeAgentState(TypedDict):
@@ -19,6 +19,11 @@ class AppendToRelevantNodeAgentState(TypedDict):
     target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target (can be dict or TargetNodeIdentification)
     _all_segments: Optional[List[Dict[str, Any]]]  # Preserved segments from segmentation
     
+    # Agent prompt outputs (stored using prompt names with _response suffix to avoid LangGraph conflicts)
+    segmentation_response: Optional[SegmentationResponse]  # Typed response from segmentation stage  
+    identify_target_node_response: Optional[TargetNodeResponse]  # Typed response from identify_target_node stage
+    current_stage: Optional[str]  # Current stage identifier
+    
     # Debug information
     debug_notes: Optional[str]  # Debug notes for skipped steps
 
@@ -31,8 +36,12 @@ class SingleAbstractionOptimizerAgentState(TypedDict):
     node_content: str
     node_summary: str
     neighbors: str  # JSON string of neighbor nodes
+    transcript_history: str  # Added to match agent initialization
     
-    # Output - these fields are merged directly from the LLM response
+    # Agent prompt outputs (stored using prompt names with _response suffix)
+    single_abstraction_optimizer_response: Optional[Any]  # Response from single_abstraction_optimizer prompt
+    
+    # Legacy output fields (kept for backward compatibility) - these fields are merged directly from the LLM response
     reasoning: Optional[str]
     update_original: Optional[bool]
     original_new_content: Optional[str]

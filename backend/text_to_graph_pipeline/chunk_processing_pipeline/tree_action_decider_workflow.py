@@ -53,7 +53,8 @@ class TreeActionDeciderWorkflow:
         
         # Track previous buffer remainder to detect stuck text
         self._prev_buffer_remainder: str = ""  # What was left in buffer after last processing
-    
+
+        self.content_stuck_in_buffer = {}
     
     def get_workflow_statistics(self) -> Dict[str, Any]:
         """Get statistics about the workflow state"""
@@ -158,28 +159,21 @@ class TreeActionDeciderWorkflow:
         
         append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
 
+        for act in append_or_create_actions:
+            if (act.new_node_name):
+                print(f"{act.action} new node:", act.new_node_name)
+
+            if(act.target_node_name):
+                print(f"{act.action} to existing node {act.target_node_name}")
+
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
         for segment in append_agent_result.segments:
             if segment.is_routable:
                 buffer_manager.flushCompletelyProcessedText(segment.raw_text)
 
-        # todo, don't just do it if returned no actions, and do it only if the 
-        # content stuck in buffer has been stuck for 3 iterations.        
-        #
-        # if not append_or_create_actions:
-        #     logging.info("Placement agent returned no actions. Ending workflow for this chunk.")
-        #     logging.info(f"Incomplete segments remain in buffer for next processing")
-            
-        #     # Check for stuck text even when no actions are returned
-        #     current_buffer: str = buffer_manager.getBuffer()
-        #     if current_buffer and self._prev_buffer_remainder and self._prev_buffer_remainder in current_buffer:
-        #         # Previous content still in buffer (exact match or as prefix) - remove it as stuck text
-        #         logging.warning(f"No actions returned and previous buffer content still present: '{self._prev_buffer_remainder}...' - removing stuck text")
-        #         buffer_manager.flushCompletelyProcessedText(self._prev_buffer_remainder)  
-            
-        #     return set() #  no actions to further process.
-        
+        # to avoid possible bugs with stuck text (never gets processed)
+        await self.clear_text_that_has_been_not_cleared_for_multiple_iterations(buffer_manager)
 
         # --- Orphan Merging ---
         # This logic is necessary before the first apply.
@@ -280,3 +274,20 @@ class TreeActionDeciderWorkflow:
         
         # Return the set of all modified nodes
         return modified_or_new_nodes.union(all_optimization_modified_nodes)
+
+    async def clear_text_that_has_been_not_cleared_for_multiple_iterations(self, buffer_manager):
+        # increment stuck texts
+        to_remove = []
+        for stuck_text, stuck_count in self.content_stuck_in_buffer.items():
+            if stuck_text in buffer_manager.getBuffer():
+                if stuck_count >= 4:  # already been in buffer 4 times! it's stuck
+                    buffer_manager.flushCompletelyProcessedText(stuck_text)
+                    to_remove.append(stuck_text)
+                else:
+                    self.content_stuck_in_buffer[stuck_text] += 1
+        # remove stuck texts (to not change iterator while iterating)
+        for text in to_remove:
+            self.content_stuck_in_buffer.pop(text)
+        # set stuck text
+        if buffer_manager.getBuffer() not in self.content_stuck_in_buffer:
+            self.content_stuck_in_buffer[buffer_manager.getBuffer()] = 1

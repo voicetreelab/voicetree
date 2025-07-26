@@ -178,21 +178,57 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
 
 
     def test_insert_yaml_frontmatter(self):
-        # Test simple key-value pairs
+        import yaml
+        
+        # Test simple key-value pairs - parse and verify content instead of exact string match
         result = insert_yaml_frontmatter({"title": "Test Title", "author": "Test Author"})
-        self.assertEqual(result, "---\ntitle: Test Title\nauthor: Test Author\n---\n")
+        self.assertTrue(result.startswith("---\n"))
+        self.assertTrue(result.endswith("---\n"))
+        
+        # Parse the YAML content to verify it's correct
+        yaml_content = result.strip().split('\n')[1:-1]
+        yaml_str = '\n'.join(yaml_content)
+        parsed = yaml.safe_load(yaml_str)
+        self.assertEqual(parsed["title"], "Test Title")
+        self.assertEqual(parsed["author"], "Test Author")
         
         # Test with list values
         result = insert_yaml_frontmatter({"tags": ["tag1", "tag2", "tag3"]})
-        self.assertEqual(result, "---\ntags:\n  - tag1\n  - tag2\n  - tag3\n---\n")
+        yaml_content = result.strip().split('\n')[1:-1]
+        yaml_str = '\n'.join(yaml_content)
+        parsed = yaml.safe_load(yaml_str)
+        self.assertEqual(parsed["tags"], ["tag1", "tag2", "tag3"])
         
         # Test with nested dict
         result = insert_yaml_frontmatter({"metadata": {"version": "1.0", "type": "node"}})
-        self.assertEqual(result, "---\nmetadata:\n  version: 1.0\n  type: node\n---\n")
+        yaml_content = result.strip().split('\n')[1:-1]
+        yaml_str = '\n'.join(yaml_content)
+        parsed = yaml.safe_load(yaml_str)
+        self.assertEqual(parsed["metadata"]["version"], "1.0")
+        self.assertEqual(parsed["metadata"]["type"], "node")
         
         # Test with boolean and None values
         result = insert_yaml_frontmatter({"published": True, "draft": False, "notes": None})
-        self.assertEqual(result, "---\npublished: true\ndraft: false\nnotes: null\n---\n")
+        yaml_content = result.strip().split('\n')[1:-1]
+        yaml_str = '\n'.join(yaml_content)
+        parsed = yaml.safe_load(yaml_str)
+        self.assertEqual(parsed["published"], True)
+        self.assertEqual(parsed["draft"], False)
+        self.assertIsNone(parsed["notes"])
+        
+        # Test special characters that would break YAML
+        result = insert_yaml_frontmatter({"title": "How to: Setup Docker"})
+        yaml_content = result.strip().split('\n')[1:-1]
+        yaml_str = '\n'.join(yaml_content)
+        parsed = yaml.safe_load(yaml_str)
+        self.assertEqual(parsed["title"], "How to: Setup Docker")
+        
+        # Test multiline strings
+        result = insert_yaml_frontmatter({"content": "Line 1\nLine 2\nLine 3"})
+        yaml_content = result.strip().split('\n')[1:-1]
+        yaml_str = '\n'.join(yaml_content)
+        parsed = yaml.safe_load(yaml_str)
+        self.assertEqual(parsed["content"], "Line 1\nLine 2\nLine 3")
         
         # Test empty dict
         result = insert_yaml_frontmatter({})

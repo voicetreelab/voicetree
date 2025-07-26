@@ -7,6 +7,7 @@ This agent:
 3. Returns AppendAction or CreateAction objects
 """
 
+import logging
 from typing import Any, Dict, List, Union
 
 from langgraph.graph import END
@@ -15,7 +16,7 @@ from ...tree_manager.decision_tree_ds import DecisionTree, Node
 from ..core.agent import Agent
 from ..core.state import AppendToRelevantNodeAgentState
 from ..models import (AppendAction, AppendAgentResult, CreateAction, SegmentationResponse, SegmentModel,
-                      TargetNodeResponse)
+                      TargetNodeResponse, TargetNodeIdentification)
 from ...tree_manager.tree_functions import _format_nodes_for_prompt
 
 class AppendToRelevantNodeAgent(Agent):
@@ -45,30 +46,35 @@ class AppendToRelevantNodeAgent(Agent):
     
     def _prepare_for_target_identification(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Transform state between segmentation and target identification"""
-        # Get segments from state (already as dicts)
-        segments_data = state.get("segments", [])
+        logging.warning(f"Transform debug: state keys={list(state.keys())}")
         
-        # Store all segments for later use
-        all_segments_dicts = segments_data  # No conversion needed, already dicts
+        # Get segments from segmentation stage (now stored as typed object)
+        segmentation_data: SegmentationResponse = state.get("segmentation_response")
+        segments_data = segmentation_data.segments if segmentation_data else []
         
-        # Filter out incomplete segments - work with dicts directly
-        complete_segments = [seg for seg in segments_data if seg.get("is_routable", False)]
+        logging.warning(f"Transform debug: segmentation_data={segmentation_data}, segments_data={len(segments_data) if segments_data else 0}")
+        
+        # Filter out incomplete segments - work with SegmentModel objects
+        complete_segments = [seg for seg in segments_data if seg.is_routable]
+        
+        logging.warning(f"Transform debug: complete_segments={len(complete_segments)}")
         
         # If all segments are unfinished, skip target node identification
         if not complete_segments:
+            logging.warning("No complete segments found, skipping target identification")
             return {
                 **state,
-                "_all_segments": all_segments_dicts,
                 "segments": [],
                 "target_nodes": []  # Set empty target_nodes to avoid LLM call
             }
         
         # Prepare segments for target identification - only pass text field
-        segments_for_target = [{"text": seg["edited_text"]} for seg in complete_segments]
+        segments_for_target = [{"text": seg.edited_text} for seg in complete_segments]
+        
+        logging.info(f"Transform debug: passing {len(segments_for_target)} segments to target identification")
         
         return {
             **state,
-            "_all_segments": all_segments_dicts,  # Store all segments as dicts
             "segments": segments_for_target  # Only complete segments for target identification
         }
     
@@ -99,6 +105,9 @@ class AppendToRelevantNodeAgent(Agent):
             "segments": None,
             "target_nodes": None,
             "_all_segments": None,
+            "segmentation_response": None,
+            "identify_target_node_response": None,
+            "current_stage": None,
             "debug_notes" : ""
         }
         
@@ -106,51 +115,50 @@ class AppendToRelevantNodeAgent(Agent):
         app = self.compile()
         result = await app.ainvoke(initial_state)
         
-        # Get segments from the saved state (before they were transformed)
-        all_segments_data = result.get("_all_segments", [])
+        # Get segments from segmentation stage (now stored as typed object)
+        segmentation_data: SegmentationResponse = result.get("segmentation_response")
+        all_segments_data = segmentation_data.segments if segmentation_data else []
         
-        # Get target node identifications
-        target_nodes_data = result.get("target_nodes", [])
-        
-        # Convert to actions - work with dicts until we need model instances
+        # Get target node identifications (now stored as typed object)
+        target_nodes_data: TargetNodeResponse = result.get("identify_target_node_response")
+
+        # Convert to actions - much simpler approach
         actions: List[Union[AppendAction, CreateAction]] = []
+        if not target_nodes_data or not target_nodes_data.target_nodes:
+            logging.warning("NO target NODES")
+            return AppendAgentResult(actions=[], segments=[])
+
+        # Process each routable segment with its corresponding target node
+        for segment in target_nodes_data.target_nodes:
+            # Create action based on target type
+            if not segment.is_orphan:
+                # Existing node - create AppendAction
+                actions.append(AppendAction(
+                    action="APPEND",
+                    target_node_id=segment.target_node_id,
+                    target_node_name=segment.target_node_name,
+                    content=segment.text
+                ))
+            else:
+                # New node - create CreateAction (always orphan)
+                actions.append(CreateAction(
+                    action="CREATE",
+                    parent_node_id=None,  # Always orphan nodes
+                    new_node_name=segment.orphan_topic_name,
+                    content=segment.text,
+                    summary=f"Content about {segment.orphan_topic_name}",
+                    relationship="independent"
+                ))
         
-        # Create segment models only for complete segments that have actions
-        segment_models: List[SegmentModel] = []
+        # Log action names
+        create_names = [action.new_node_name for action in actions if isinstance(action, CreateAction)]
+        append_names = [action.target_node_name for action in actions if isinstance(action, AppendAction)]
         
-        for i, target_dict in enumerate(target_nodes_data):
-            # Check if we have a corresponding segment and it's routable
-            if i < len(all_segments_data) and all_segments_data[i].get("is_routable", False):
-                segment_dict = all_segments_data[i]
-                
-                # Now convert to model since we know we need it
-                from ..core.boundary_converters import dict_to_model
-                segment = dict_to_model(segment_dict, SegmentModel, f"segment[{i}]")
-                segment_models.append(segment)
-                
-                # Create action based on target type
-                if not target_dict.get("is_orphan", False):
-                    # Existing node - create AppendAction
-                    actions.append(AppendAction(
-                        action="APPEND",
-                        target_node_id=target_dict["target_node_id"],
-                        target_node_name=target_dict.get("target_node_name"),
-                        content=target_dict["text"]
-                    ))
-                else:
-                    # New node - create CreateAction (always orphan)
-                    actions.append(CreateAction(
-                        action="CREATE",
-                        parent_node_id=None,  # Always orphan nodes
-                        new_node_name=target_dict["orphan_topic_name"],
-                        content=target_dict["text"],
-                        summary=f"Content about {target_dict['orphan_topic_name']}",
-                        relationship="independent"
-                    ))
+        logging.info(f"Create actions for nodes: {create_names}")
+        logging.info(f"Append actions for nodes: {append_names}")
         
-        # Convert all segments to models for the result
-        from ..core.boundary_converters import dicts_to_models
-        all_segments = dicts_to_models(all_segments_data, SegmentModel, "_all_segments")
+        # Return segments directly (they're already SegmentModel objects)
+        all_segments = all_segments_data
         
         return AppendAgentResult(
             actions=actions,
