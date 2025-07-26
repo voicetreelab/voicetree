@@ -28,7 +28,8 @@ class VoiceToTextEngine:
         self.model = WhisperModel(
             self.config.model_size,
             device=self.config.device,
-            compute_type=self.config.compute_type
+            compute_type=self.config.compute_type,
+            cpu_threads=8  # Use 8 CPU threads for faster transcription
         )
         logging.info("Whisper model loaded.")
 
