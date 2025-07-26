@@ -28,6 +28,69 @@ converter = TreeToMarkdownConverter(decision_tree.tree)
 processor = ChunkProcessor(decision_tree, 
                           converter=converter)
 
+async def transcription_loop(voice_engine, text_queue):
+    """Continuously transcribe audio and put text into queue"""
+    executor = ThreadPoolExecutor(max_workers=4)  # Increased to allow parallel transcriptions
+    
+    try:
+        while True:
+            audio_chunk = voice_engine.get_ready_audio_chunk()
+            
+            if audio_chunk is not None:
+                logger.info("Got audio chunk, transcribing...")
+                # Transcribe in thread pool
+                loop = asyncio.get_event_loop()
+                transcription = await loop.run_in_executor(
+                    executor, voice_engine.transcribe_chunk, audio_chunk
+                )
+                
+                if transcription:
+                    logger.info(f"Transcribed: {transcription[:50]}...")
+                    await text_queue.put(transcription)
+                    logger.info(f"Queue size: {text_queue.qsize()}")
+            
+            await asyncio.sleep(0.01)
+    finally:
+        executor.shutdown(wait=True)
+
+
+async def llm_processing_loop(text_queue, processor):
+    """Process text from queue through LLM pipeline"""
+    executor = ThreadPoolExecutor(max_workers=1)
+    
+    def run_blocking_async(processor, text):
+        """Run the blocking async function in a new event loop"""
+        return asyncio.run(processor.process_new_text_and_update_markdown(text))
+    
+    try:
+        while True:
+            # Wait for text from queue
+            logger.info(f"Waiting for text from queue, size: {text_queue.qsize()}")
+            transcription = await text_queue.get()
+            logger.info(f"Got text from queue: {transcription[:50]}...")
+            
+            try:
+                # Process through LLM pipeline in a separate thread
+                # This prevents blocking operations from freezing the main event loop
+                logger.info("Starting LLM processing in background thread...")
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    executor,
+                    run_blocking_async,
+                    processor,
+                    transcription
+                )
+                logger.info("LLM processing complete")
+            except Exception as e:
+                logger.error(f"Error processing text: {e}")
+                # Continue processing next items even if one fails
+            
+    except asyncio.CancelledError:
+        raise
+    finally:
+        executor.shutdown(wait=True)
+
+
 async def main():
     # Clear debug logs at the start of each main.py run
     clear_debug_logs()
@@ -35,49 +98,26 @@ async def main():
     voice_engine = VoiceToTextEngine()
     voice_engine.start_listening()
     
-    # Thread pool for CPU-intensive transcription
-    executor = ThreadPoolExecutor(max_workers=2)
+    # Queue for passing text from transcription to LLM processing
+    text_queue = asyncio.Queue()
     
-    # Limit concurrent text processing tasks for backpressure
-    max_concurrent_processing = 1
-    processing_tasks = set()
+    # Create tasks
+    transcription_task = asyncio.create_task(
+        transcription_loop(voice_engine, text_queue)
+    )
+    llm_task = asyncio.create_task(
+        llm_processing_loop(text_queue, processor)
+    )
     
     try:
-        while True:
-            # Non-blocking audio chunk retrieval
-            audio_chunk = voice_engine.get_ready_audio_chunk()
-            
-            if audio_chunk is not None:
-                # CPU-intensive transcription in thread pool (non-blocking)
-                loop = asyncio.get_event_loop()
-                transcription = await loop.run_in_executor(
-                    executor, voice_engine.transcribe_chunk, audio_chunk
-                )
-                
-                if transcription:
-                    # Network-bound processing as fire-and-forget task
-                    if len(processing_tasks) < max_concurrent_processing:
-                        task = asyncio.create_task(
-                            processor.process_new_text_and_update_markdown(transcription)
-                        )
-                        processing_tasks.add(task)
-                        task.add_done_callback(processing_tasks.discard)
-                    else:
-                        # Backpressure: wait for oldest task to complete
-                        done, processing_tasks = await asyncio.wait(
-                            processing_tasks, return_when=asyncio.FIRST_COMPLETED
-                        )
-            
-            # Clean up completed tasks
-            processing_tasks = {t for t in processing_tasks if not t.done()}
-            
-            await asyncio.sleep(0.01)
+        # Run both tasks concurrently
+        await asyncio.gather(transcription_task, llm_task)
     finally:
         # Cleanup
-        executor.shutdown(wait=True)
         voice_engine.stop()
-        if processing_tasks:
-            await asyncio.gather(*processing_tasks, return_exceptions=True)
+        transcription_task.cancel()
+        llm_task.cancel()
+        await asyncio.gather(transcription_task, llm_task, return_exceptions=True)
 
 
 if __name__ == "__main__":

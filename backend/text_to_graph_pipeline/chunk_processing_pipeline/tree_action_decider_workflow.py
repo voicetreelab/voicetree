@@ -167,15 +167,15 @@ class TreeActionDeciderWorkflow:
                 print(create_log)
                 logging.info(create_log)
 
-            if isinstance(act, AppendAction):
-                append_log = f"CREATING new node:'{act.target_node_name}' "
+            elif isinstance(act, AppendAction):
+                append_log = f"APPENDING to:'{act.target_node_name}' "
                 if len(act.content)>10:
                     append_log+=f"with text: {act.content[0:10]}...{act.content[-10:]} "
                 print(append_log)
                 logging.info(append_log)
 
             else:
-                logging.error("ERROR, ACTION NEITHER CREATE NOR APPEND", act)
+                logging.error(f"ERROR, ACTION NEITHER CREATE NOR APPEND: {act}")
 
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
@@ -191,15 +191,11 @@ class TreeActionDeciderWorkflow:
         # Merge all create actions into a single node,
         # ONLY FOR THE NODES THAT HAVE THE SAME TOPIC NAME
         # so that they can be seperated by optimizer.
-        orphan_creates: List[CreateAction] = [
-            action for action in append_or_create_actions
-            if isinstance(action, CreateAction) and not action.parent_node_id
-        ]
-
         # Process actions based on orphan merge logic
         actions_to_apply: List[BaseTreeAction] = append_or_create_actions
 
-        actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions, orphan_creates)
+        # todo, we should move this logic into append_agent
+        actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions)
 
         # --- First Side Effect: Apply Placement ---
         modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
@@ -232,6 +228,33 @@ class TreeActionDeciderWorkflow:
             
             if optimization_actions:
                 logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
+                
+                # Log each optimization action
+                for opt_action in optimization_actions:
+                    if isinstance(opt_action, UpdateAction):
+                        update_log = f"UPDATING node:{opt_action.node_id} "
+                        if len(opt_action.new_content) > 10:
+                            update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
+                        print(update_log)
+                        logging.info(update_log)
+                    
+                    elif isinstance(opt_action, CreateAction):
+                        create_log = f"CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
+                        if len(opt_action.content) > 10:
+                            create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                        print(create_log)
+                        logging.info(create_log)
+                    
+                    elif isinstance(opt_action, AppendAction):
+                        append_log = f"APPENDING to node:{opt_action.target_node_id} "
+                        if len(opt_action.content) > 10:
+                            append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                        print(append_log)
+                        logging.info(append_log)
+                    
+                    else:
+                        logging.warning(f"Unknown optimization action type: {type(opt_action)}")
+                
                 # --- Second Side Effect: Apply Optimization ---
                 # Apply these actions immediately.
                 optimization_modified_nodes: Set[int] = tree_action_applier.apply(optimization_actions)
@@ -250,7 +273,13 @@ class TreeActionDeciderWorkflow:
         # Return the set of all modified nodes
         return modified_or_new_nodes.union(all_optimization_modified_nodes)
 
-    async def group_orphans_by_name(self, actions_to_apply, append_or_create_actions, orphan_creates):
+    async def group_orphans_by_name(self, actions_to_apply, append_or_create_actions):
+        orphan_creates: List[CreateAction] = [
+            action for action in append_or_create_actions
+            if isinstance(action, CreateAction) and not action.parent_node_id
+        ]
+
+
         if len(orphan_creates) > 1:
             # Sort orphans by name for groupby
             sorted_orphans = sorted(orphan_creates, key=lambda x: x.new_node_name)
