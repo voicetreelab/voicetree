@@ -160,11 +160,22 @@ class TreeActionDeciderWorkflow:
         append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
 
         for act in append_or_create_actions:
-            if (act.new_node_name):
-                print(f"{act.action} new node:", act.new_node_name)
+            if isinstance(act, CreateAction):
+                create_log = f"CREATING new node:'{act.new_node_name}' "
+                if len(act.content)>10:
+                    create_log+=f"with text: {act.content[0:10]}...{act.content[-10:]} "
+                print(create_log)
+                logging.info(create_log)
 
-            if(act.target_node_name):
-                print(f"{act.action} to existing node {act.target_node_name}")
+            if isinstance(act, AppendAction):
+                append_log = f"CREATING new node:'{act.target_node_name}' "
+                if len(act.content)>10:
+                    append_log+=f"with text: {act.content[0:10]}...{act.content[-10:]} "
+                print(append_log)
+                logging.info(append_log)
+
+            else:
+                logging.error("ERROR, ACTION NEITHER CREATE NOR APPEND", act)
 
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
@@ -188,43 +199,7 @@ class TreeActionDeciderWorkflow:
         # Process actions based on orphan merge logic
         actions_to_apply: List[BaseTreeAction] = append_or_create_actions
 
-        if len(orphan_creates) > 1:
-            # Sort orphans by name for groupby
-            sorted_orphans = sorted(orphan_creates, key=lambda x: x.new_node_name)
-
-            # Group orphan nodes by name using itertools.groupby
-            orphan_groups = groupby(sorted_orphans, key=lambda x: x.new_node_name)
-
-            # Get non-orphan actions
-            non_orphan_actions: List[BaseTreeAction] = [
-                action for action in append_or_create_actions
-                if not (isinstance(action, CreateAction) and action.parent_node_id is None)
-            ]
-
-            # Process each group
-            merged_orphans: List[CreateAction] = []
-            for name, orphans_iter in orphan_groups:
-                orphans = list(orphans_iter)  # Convert iterator to list
-
-                if len(orphans) > 1:
-                    logging.info(f"Merging {len(orphans)} orphan nodes with name '{name}'")
-
-                    # Merge orphans with same name using list comprehensions
-                    merged_orphan: CreateAction = CreateAction(
-                        action="CREATE",
-                        parent_node_id=None,
-                        new_node_name=name,  # Use the common name
-                        content="\n\n".join(orphan.content for orphan in orphans),
-                        summary="\n\n".join(orphan.summary for orphan in orphans),
-                        relationship=""  # Empty for orphan nodes
-                    )
-                    merged_orphans.append(merged_orphan)
-                else:
-                    # Single orphan, add as-is
-                    merged_orphans.extend(orphans)
-
-            # Replace all orphan creates with the merged ones
-            actions_to_apply = non_orphan_actions + merged_orphans
+        actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions, orphan_creates)
 
         # --- First Side Effect: Apply Placement ---
         modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
@@ -274,6 +249,46 @@ class TreeActionDeciderWorkflow:
         
         # Return the set of all modified nodes
         return modified_or_new_nodes.union(all_optimization_modified_nodes)
+
+    async def group_orphans_by_name(self, actions_to_apply, append_or_create_actions, orphan_creates):
+        if len(orphan_creates) > 1:
+            # Sort orphans by name for groupby
+            sorted_orphans = sorted(orphan_creates, key=lambda x: x.new_node_name)
+
+            # Group orphan nodes by name
+            orphan_groups = groupby(sorted_orphans, key=lambda x: x.new_node_name)
+
+            # Get non-orphan actions
+            non_orphan_actions: List[BaseTreeAction] = [
+                action for action in append_or_create_actions
+                if not (isinstance(action, CreateAction) and action.parent_node_id is None)
+            ]
+
+            # Process each group
+            merged_orphans: List[CreateAction] = []
+            for name, orphans_iter in orphan_groups:
+                orphans = list(orphans_iter)  # Convert iterator to list
+
+                if len(orphans) > 1:
+                    logging.info(f"Merging {len(orphans)} orphan nodes with name '{name}'")
+
+                    # Merge orphans with same name using list comprehensions
+                    merged_orphan: CreateAction = CreateAction(
+                        action="CREATE",
+                        parent_node_id=None,
+                        new_node_name=name,  # Use the common name
+                        content="\n\n".join(orphan.content for orphan in orphans),
+                        summary="\n\n".join(orphan.summary for orphan in orphans),
+                        relationship=""  # Empty for orphan nodes
+                    )
+                    merged_orphans.append(merged_orphan)
+                else:
+                    # Single orphan, add as-is
+                    merged_orphans.extend(orphans)
+
+            # Replace all orphan creates with the merged ones
+            actions_to_apply = non_orphan_actions + merged_orphans
+        return actions_to_apply
 
     async def clear_text_that_has_been_not_cleared_for_multiple_iterations(self, buffer_manager):
         # increment stuck texts

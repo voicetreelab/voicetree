@@ -4,7 +4,7 @@ State schema for VoiceTree LangGraph workflow with validation
 
 from typing import List, Dict, Any, Optional
 from typing_extensions import TypedDict
-from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec, SegmentationResponse, TargetNodeResponse
+from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec, SegmentationResponse, TargetNodeResponse, OptimizationResponse
 
 
 class AppendToRelevantNodeAgentState(TypedDict):
@@ -14,10 +14,8 @@ class AppendToRelevantNodeAgentState(TypedDict):
     transcript_history: str
     existing_nodes: str  # JSON string of existing nodes
     
-    # Intermediate outputs
-    segments: Optional[List[Dict[str, Any]]]  # From segmentation/transform (can be dict or SegmentModel)
-    target_nodes: Optional[List[Dict[str, Any]]]  # From identify_target (can be dict or TargetNodeIdentification)
-    _all_segments: Optional[List[Dict[str, Any]]]  # Preserved segments from segmentation
+    # For passing filtered segments between stages (JSON string to avoid dict duplication)
+    segments: Optional[str]  # JSON string of segments to route (used in transform)
     
     # Agent prompt outputs (stored using prompt names with _response suffix to avoid LangGraph conflicts)
     segmentation_response: Optional[SegmentationResponse]  # Typed response from segmentation stage  
@@ -39,14 +37,7 @@ class SingleAbstractionOptimizerAgentState(TypedDict):
     transcript_history: str  # Added to match agent initialization
     
     # Agent prompt outputs (stored using prompt names with _response suffix)
-    single_abstraction_optimizer_response: Optional[Any]  # Response from single_abstraction_optimizer prompt
-    
-    # Legacy output fields (kept for backward compatibility) - these fields are merged directly from the LLM response
-    reasoning: Optional[str]
-    update_original: Optional[bool]
-    original_new_content: Optional[str]
-    original_new_summary: Optional[str]
-    create_new_nodes: Optional[List[ChildNodeSpec]]
+    single_abstraction_optimizer_response: Optional[OptimizationResponse]  # Typed response from single_abstraction_optimizer prompt
 
 
 class VoiceTreeState(TypedDict):

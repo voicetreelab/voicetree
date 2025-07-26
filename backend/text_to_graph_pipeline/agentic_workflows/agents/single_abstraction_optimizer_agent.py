@@ -49,13 +49,7 @@ class SingleAbstractionOptimizerAgent(Agent):
             "neighbors": str(neighbours_context),
             "transcript_history": "", 
             # Agent response field
-            "single_abstraction_optimizer_response": None,
-            # LLM response fields will be added by the workflow
-            "reasoning": None,
-            "update_original": None,
-            "original_new_content": None,
-            "original_new_summary": None,
-            "create_new_nodes": None
+            "single_abstraction_optimizer_response": None
         }
         
         # Run workflow

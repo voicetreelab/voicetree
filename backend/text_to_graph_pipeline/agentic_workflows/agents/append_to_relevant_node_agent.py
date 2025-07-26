@@ -31,7 +31,8 @@ class AppendToRelevantNodeAgent(Agent):
         # Step 1: Segment the text into atomic ideas
         self.add_prompt(
             "segmentation",
-            SegmentationResponse
+            SegmentationResponse,
+            post_processor=self._segmentation_post_processor
         )
         
         # Step 2: Identify target nodes for each segment
@@ -40,43 +41,64 @@ class AppendToRelevantNodeAgent(Agent):
             TargetNodeResponse
         )
         
-        # Define dataflow with filtering transform
-        self.add_dataflow("segmentation", "identify_target_node", transform=self._prepare_for_target_identification)
+        # Use conditional edge to decide whether to identify target nodes
+        self.add_conditional_dataflow(
+            "segmentation", 
+            self._route_after_segmentation,
+            {
+                "identify_target_node": "identify_target_node",
+                "end": END
+            }
+        )
         self.add_dataflow("identify_target_node", END)
     
-    def _prepare_for_target_identification(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform state between segmentation and target identification"""
-        logging.warning(f"Transform debug: state keys={list(state.keys())}")
+    def _segmentation_post_processor(self, state: Dict[str, Any], response: SegmentationResponse) -> Dict[str, Any]:
+        """
+        Post-processor for segmentation that populates the segments field with routable segments
         
-        # Get segments from segmentation stage (now stored as typed object)
-        segmentation_data: SegmentationResponse = state.get("segmentation_response")
-        segments_data = segmentation_data.segments if segmentation_data else []
+        Args:
+            state: Current state
+            response: The SegmentationResponse from the LLM
+            
+        Returns:
+            Updated state with segments field populated
+        """
+        import json
         
-        logging.warning(f"Transform debug: segmentation_data={segmentation_data}, segments_data={len(segments_data) if segments_data else 0}")
-        
-        # Filter out incomplete segments - work with SegmentModel objects
-        complete_segments = [seg for seg in segments_data if seg.is_routable]
-        
-        logging.warning(f"Transform debug: complete_segments={len(complete_segments)}")
-        
-        # If all segments are unfinished, skip target node identification
-        if not complete_segments:
-            logging.warning("No complete segments found, skipping target identification")
-            return {
-                **state,
-                "segments": [],
-                "target_nodes": []  # Set empty target_nodes to avoid LLM call
-            }
+        # Extract routable segments
+        routable_segments = [seg for seg in response.segments if seg.is_routable]
         
         # Prepare segments for target identification - only pass text field
-        segments_for_target = [{"text": seg.edited_text} for seg in complete_segments]
+        segments_for_target = [{"text": seg.edited_text} for seg in routable_segments]
         
-        logging.info(f"Transform debug: passing {len(segments_for_target)} segments to target identification")
+        logging.info(f"Segmentation post-processor: {len(segments_for_target)} routable segments out of {len(response.segments)} total")
         
-        return {
-            **state,
-            "segments": segments_for_target  # Only complete segments for target identification
-        }
+        # Update state with segments field
+        state["segments"] = json.dumps(segments_for_target)
+        return state
+    
+    
+    def _route_after_segmentation(self, state: Dict[str, Any]) -> str:
+        """
+        Routing function to decide whether to proceed to target identification
+        
+        Returns:
+            "identify_target_node" if there are routable segments
+            "end" if no segments need routing
+        """
+        import json
+        
+        # Check the segments field populated by post-processor
+        segments_json = state.get("segments", "[]")
+        segments = json.loads(segments_json)
+        
+        if segments:
+            logging.info(f"Found {len(segments)} routable segments, proceeding to target identification")
+            return "identify_target_node"
+        else:
+            logging.warning("No routable segments found, skipping target identification")
+            return "end"
+    
     
     async def run(
         self,
@@ -103,8 +125,6 @@ class AppendToRelevantNodeAgent(Agent):
             "transcript_history": transcript_history,
             "existing_nodes": existing_nodes_formatted,
             "segments": None,
-            "target_nodes": None,
-            "_all_segments": None,
             "segmentation_response": None,
             "identify_target_node_response": None,
             "current_stage": None,

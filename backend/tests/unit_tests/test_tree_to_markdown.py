@@ -133,6 +133,34 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertEqual(generate_filename_from_keywords("Voice Tree Project\n\nVoice Tree Project"), "Voice_Tree_Project_Voice_Tree_Project.md")
         self.assertEqual(generate_filename_from_keywords("Line1\nLine2"), "Line1_Line2.md")
         self.assertEqual(generate_filename_from_keywords("Line1\r\nLine2"), "Line1_Line2.md")
+        
+        # Test special characters that should be replaced
+        self.assertEqual(generate_filename_from_keywords("File/Path"), "File_Path.md")
+        self.assertEqual(generate_filename_from_keywords("File\\Path"), "File_Path.md")
+        self.assertEqual(generate_filename_from_keywords("File:Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File*Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File?Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File<Name>"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File|Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords('File"Name"'), "File_Name.md")
+        
+        # Test allowed characters (should remain)
+        self.assertEqual(generate_filename_from_keywords("File-Name"), "File-Name.md")
+        self.assertEqual(generate_filename_from_keywords("File_Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File123"), "File123.md")
+        self.assertEqual(generate_filename_from_keywords("ABC-123_test"), "ABC-123_test.md")
+        
+        # Test multiple consecutive special characters
+        self.assertEqual(generate_filename_from_keywords("File***Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File   Name"), "File_Name.md")
+        self.assertEqual(generate_filename_from_keywords("File///Name"), "File_Name.md")
+        
+        # Test edge cases
+        self.assertEqual(generate_filename_from_keywords("!!!"), "untitled.md")
+        self.assertEqual(generate_filename_from_keywords("   "), "untitled.md")
+        self.assertEqual(generate_filename_from_keywords(""), "untitled.md")
+        self.assertEqual(generate_filename_from_keywords("___test___"), "test.md")
+        self.assertEqual(generate_filename_from_keywords("Research Gemini/OpenAI Voice-to-Text Streaming Capabilities"), "Research_Gemini_OpenAI_Voice-to-Text_Streaming_Capabilities.md")
 
 
     def test_convert_to_snake_case(self):
