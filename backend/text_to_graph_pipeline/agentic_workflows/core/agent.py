@@ -6,7 +6,7 @@ Clean agent abstraction that matches the mental model:
 """
 
 import logging
-from typing import Dict, Any, List, Type, Callable, Optional, Tuple
+from typing import Dict, Any, List, Type, Callable, Optional, Tuple, Union
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, END
 
@@ -26,7 +26,9 @@ class Agent:
         self.state_schema = state_schema
         self.prompts: Dict[str, str] = {}  # name -> prompt template
         self.output_schemas: Dict[str, Type[BaseModel]] = {}  # name -> pydantic schema
+        self.post_processors: Dict[str, Optional[Callable]] = {}  # name -> optional post-processor
         self.dataflows: List[Tuple[str, str, Optional[Callable]]] = []  # (from, to, transform)
+        self.conditional_dataflows: List[Tuple[str, Callable, Optional[Dict[Any, str]]]] = []  # (from, routing_func, path_map)
         self.entry_point: Optional[str] = None
         
     def _get_state_key_for_node(self, node_name: str) -> str:
@@ -37,16 +39,18 @@ class Agent:
         # Default mapping adds '_response' suffix
         return f"{node_name}_response"
         
-    def add_prompt(self, name: str, output_schema: Type[BaseModel]):
+    def add_prompt(self, name: str, output_schema: Type[BaseModel], post_processor: Optional[Callable] = None):
         """
         Define a prompt step in the agent
         
         Args:
             name: Unique identifier for this prompt (also used as template filename)
             output_schema: Pydantic model for structured output
+            post_processor: Optional function to process state after LLM response
         """
         self.prompts[name] = name  # Name is the template filename
         self.output_schemas[name] = output_schema
+        self.post_processors[name] = post_processor
         
         # First prompt becomes entry point by default
         if self.entry_point is None:
@@ -68,6 +72,21 @@ class Agent:
             raise ValueError(f"Unknown target prompt: {to_prompt}")
             
         self.dataflows.append((from_prompt, to_prompt, transform))
+    
+    def add_conditional_dataflow(self, from_prompt: str, routing_function: Callable[[Dict], Union[str, List[str]]], 
+                                path_map: Optional[Dict[Any, str]] = None):
+        """
+        Define conditional routing from one prompt to potentially multiple destinations
+        
+        Args:
+            from_prompt: Source prompt name
+            routing_function: Function that takes state and returns next node(s) or a value to map
+            path_map: Optional mapping of routing function output to node names
+        """
+        if from_prompt not in self.prompts:
+            raise ValueError(f"Unknown source prompt: {from_prompt}")
+            
+        self.conditional_dataflows.append((from_prompt, routing_function, path_map))
         
     def set_entry_point(self, prompt_name: str):
         """Override the default entry point"""
@@ -136,6 +155,12 @@ class Agent:
                         state_key: response,
                         "current_stage": pname + "_complete"
                     }
+                    
+                    # Apply post-processor if defined
+                    post_processor = self.post_processors.get(pname)
+                    if post_processor:
+                        new_state = post_processor(new_state, response)
+                    
                     logging.warning(f"Agent DEBUG: After {pname}, state keys={list(new_state.keys())}, response type={type(response)}")
                     return new_state
                     
@@ -168,6 +193,13 @@ class Agent:
             else:
                 # Direct edge
                 graph.add_edge(from_prompt, to_prompt if to_prompt != END else END)
+                
+        # Add conditional dataflows
+        for from_prompt, routing_func, path_map in self.conditional_dataflows:
+            if path_map:
+                graph.add_conditional_edges(from_prompt, routing_func, path_map)
+            else:
+                graph.add_conditional_edges(from_prompt, routing_func)
                 
         # Set entry point
         if self.entry_point:
