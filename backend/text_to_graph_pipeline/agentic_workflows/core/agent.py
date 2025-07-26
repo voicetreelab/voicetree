@@ -27,6 +27,7 @@ class Agent:
         self.prompts: Dict[str, str] = {}  # name -> prompt template
         self.output_schemas: Dict[str, Type[BaseModel]] = {}  # name -> pydantic schema
         self.post_processors: Dict[str, Optional[Callable]] = {}  # name -> optional post-processor
+        self.model_names: Dict[str, Optional[str]] = {}  # name -> optional model name
         self.dataflows: List[Tuple[str, str, Optional[Callable]]] = []  # (from, to, transform)
         self.conditional_dataflows: List[Tuple[str, Callable, Optional[Dict[Any, str]]]] = []  # (from, routing_func, path_map)
         self.entry_point: Optional[str] = None
@@ -39,7 +40,7 @@ class Agent:
         # Default mapping adds '_response' suffix
         return f"{node_name}_response"
         
-    def add_prompt(self, name: str, output_schema: Type[BaseModel], post_processor: Optional[Callable] = None):
+    def add_prompt(self, name: str, output_schema: Type[BaseModel], post_processor: Optional[Callable] = None, model_name: Optional[str] = None):
         """
         Define a prompt step in the agent
         
@@ -47,10 +48,12 @@ class Agent:
             name: Unique identifier for this prompt (also used as template filename)
             output_schema: Pydantic model for structured output
             post_processor: Optional function to process state after LLM response
+            model_name: Optional model name to use for this prompt (e.g., "gemini-2.5-flash")
         """
         self.prompts[name] = name  # Name is the template filename
         self.output_schemas[name] = output_schema
         self.post_processors[name] = post_processor
+        self.model_names[name] = model_name
         
         # First prompt becomes entry point by default
         if self.entry_point is None:
@@ -132,13 +135,19 @@ class Agent:
                     
                     # Call LLM with structured output
                     output_schema = self.output_schemas[pname]
+                    model_name = self.model_names.get(pname)  # Get model name for this prompt
+                    
                     if llm_client:
                         response : BaseModel = llm_client.call(prompt,
                                                     output_schema=output_schema)
                     else:
-                        # Use default integration
-                        response : BaseModel = await call_llm_structured(prompt,
-                                                                  pname, output_schema=output_schema)
+                        # Use default integration with optional model name
+                        response : BaseModel = await call_llm_structured(
+                            prompt,
+                            pname, 
+                            output_schema=output_schema,
+                            model_name=model_name
+                        )
                     
                     # Log outputs for debugging - keep response as typed object
                     debug_outputs = {
@@ -161,7 +170,7 @@ class Agent:
                     if post_processor:
                         new_state = post_processor(new_state, response)
                     
-                    logging.warning(f"Agent DEBUG: After {pname}, state keys={list(new_state.keys())}, response type={type(response)}")
+                    # logging.warning(f"Agent DEBUG: After {pname}, state keys={list(new_state.keys())}, response type={type(response)}")
                     return new_state
                     
                 return node_fn

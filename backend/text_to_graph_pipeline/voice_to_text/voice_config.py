@@ -17,20 +17,20 @@ class VoiceConfig:
 
     3 (Most Aggressive): The engineer is very strict. Unless it's a clear, loud, spoken word, they consider it "silence." Background noise, soft breaths, and quiet hums are all ignored and treated as silence.
     """
-    vad_aggressiveness: int = 2
+    vad_aggressiveness: int = 3
     # Duration of a single audio frame for VAD analysis, in milliseconds.
     vad_frame_ms: int = 30
-    # Amount of silence to pad at the start and end of a speech segment, in milliseconds.
+    # Amount of silence to pad at the START and end of a speech segment, in milliseconds.
     # This helps ensure words at the edges aren't cut off.
-    vad_padding_ms: int = 250
+    vad_padding_ms: int = 400
 
     #IMPORTANT: How long the VAD should wait in silence before considering an utterance finished, in milliseconds.
-    vad_silence_timeout_ms: int = 600 # Increase for longer buffers, better
+    vad_silence_timeout_ms: int = 700 # Increase for longer buffers, better
     # accuracy  latency
     #     High Value (e.g., 1500 ms): Good for speakers who pause for a second or two in the middle of a sentence to think. It prevents the system from chopping up their thoughts. This is what you're currently experiencing.
     #
     #     Low Value (e.g., 700 ms): Makes the system feel much more responsive and is better for faster, conversational-style speech. It will "flush the buffer" after a much shorter pause.
-    vad_total_timeout_ms: int = 30000 # note at half of this, i.e. 15s we start encouraging flushing by decreasing vad_silence_timeout_ms
+    vad_total_timeout_ms: int = 7000 # at 10s, we start encouraging flushing halving time, doubling time til next halving.
 
     # --- Audio Stream Settings ---
     # Audio channels (1 for mono, 2 for stereo). Whisper works with mono.
@@ -41,23 +41,24 @@ class VoiceConfig:
     # --- Whisper Model Settings ---
     # The size of the Whisper model to use (e.g., "tiny", "base", "small", "medium", "large-v3", "distil-large-v3").
     # "large-v3" is the most accurate but also the most resource-intensive.
-    model_size: str = "mobiuslabsgmbh/faster-whisper-large-v3-turbo"
+    model_size: str = "distil-medium.en"
     # The computation type for the model. "int8" is recommended for CPU execution for a good balance
     # of speed and accuracy. Use "float16" for GPU.
     compute_type: str = "int8"
     # The device to run the model on ("cpu" or "cuda").
     device: str = "cpu"
+    cpu_threads:int = 8  # Use 8 CPU threads for faster transcription
     # The beam size for decoding. A larger beam size increases accuracy at the cost of speed.
     # A value of 5 is a good trade-off.
     # LOWER IS FASTER, BUT LESS ACCURATE
-    beam_size: int = 3
+    beam_size: int = 4
     # The language of the speech. Set to None to let Whisper auto-detect.
     language: str = "en"
 
     # --- Transcription Behavior Settings ---
     # Whether to use Whisper's internal VAD as a second-pass filter. Recommended.
     use_vad_filter: bool = True
-    MIN_SILENCE_DURATION_MS=400
+    MIN_SILENCE_DURATION_MS=500 # minimum silence that will be removed.
     # Whether to feed the previous transcription as a prompt to the next. Greatly improves
     # contextual accuracy and consistency.
     condition_on_previous_text: bool = True

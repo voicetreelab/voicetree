@@ -12,7 +12,8 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # Buffer configuration values
-TEXT_BUFFER_SIZE_THRESHOLD = int(os.getenv("BUFFER_SIZE_THRESHOLD", 163))
+TEXT_BUFFER_SIZE_THRESHOLD = int(os.getenv("BUFFER_SIZE_THRESHOLD", 263))
+# use buffer size / 2 just for the first execution?, to get the content showing
 TRANSCRIPT_HISTORY_MULTIPLIER = int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 5))
 
 # voice_config = VoiceConfig(
