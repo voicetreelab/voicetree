@@ -5,6 +5,7 @@ Clean agent abstraction that matches the mental model:
 - Dataflow = how data transforms between prompts
 """
 
+import logging
 from typing import Dict, Any, List, Type, Callable, Optional, Tuple
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, END
@@ -27,6 +28,14 @@ class Agent:
         self.output_schemas: Dict[str, Type[BaseModel]] = {}  # name -> pydantic schema
         self.dataflows: List[Tuple[str, str, Optional[Callable]]] = []  # (from, to, transform)
         self.entry_point: Optional[str] = None
+        
+    def _get_state_key_for_node(self, node_name: str) -> str:
+        """
+        Map node names to state-friendly keys to avoid LangGraph conflicts.
+        Override in subclasses if needed.
+        """
+        # Default mapping adds '_response' suffix
+        return f"{node_name}_response"
         
     def add_prompt(self, name: str, output_schema: Type[BaseModel]):
         """
@@ -112,22 +121,23 @@ class Agent:
                         response : BaseModel = await call_llm_structured(prompt,
                                                                   pname, output_schema=output_schema)
                     
-                    # Update state with response fields
-                    response_dict = response.model_dump()
-                    
-                    # Log outputs
+                    # Log outputs for debugging - keep response as typed object
                     debug_outputs = {
-                        **response_dict,
+                        "response": response,
                         "current_stage": pname + "_complete"
                     }
                     log_stage_input_output(pname, debug_inputs, debug_outputs)
                         
-                    # Update state with response
-                    return {
+                    # Update state with typed response object
+                    # Map node name to state-friendly key to avoid LangGraph conflicts
+                    state_key = self._get_state_key_for_node(pname)
+                    new_state = {
                         **state,
-                        **response_dict,
+                        state_key: response,
                         "current_stage": pname + "_complete"
                     }
+                    logging.warning(f"Agent DEBUG: After {pname}, state keys={list(new_state.keys())}, response type={type(response)}")
+                    return new_state
                     
                 return node_fn
                 
@@ -145,7 +155,9 @@ class Agent:
                         from .debug_logger import log_stage_input_output
                         transformer_name_local = f"{from_p}_to_{to_p}_transform"
                         
+                        logging.warning(f"Transformer DEBUG {transformer_name_local}: Input state keys={list(state.keys())}")
                         result = t(state)
+                        logging.warning(f"Transformer DEBUG {transformer_name_local}: Output state keys={list(result.keys()) if result else None}")
                         log_stage_input_output(transformer_name_local, state, result)
                         return result
                     return transformer_node

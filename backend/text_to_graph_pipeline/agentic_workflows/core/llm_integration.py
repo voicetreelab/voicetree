@@ -29,7 +29,7 @@ class CONFIG:
     """Central configuration for LLM integration"""
     
     # Model selection
-    DEFAULT_MODEL = "gemini-2.5-flash-lite-preview-06-17"
+    DEFAULT_MODEL = "gemini-2.5-flash"
     
     # Generation parameters
     TEMPERATURE = 0.5
@@ -41,10 +41,6 @@ class CONFIG:
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
-    
-    # System prompts
-    STRUCTURED_SYSTEM_PROMPT = "You are a helpful assistant that provides structured JSON responses. You work ONLY with the data provided in the prompt - you have no ability to fetch additional data, use tools, or access external information. All necessary data is included in the prompt."
-    GENERAL_SYSTEM_PROMPT = "You are a helpful assistant."
     
     # Environment settings
     ENV_SEARCH_PATHS = [
