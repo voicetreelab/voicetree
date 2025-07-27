@@ -12,6 +12,8 @@ Your goal is to find the equilibrium between two competing costs:
 
 **Compression**: Restructuring raw content into a graph of interconnected abstractions to represent information more efficiently
 
+**Optimization**: The process of refining the compressed structure to minimize the loss function
+
 **Abstraction**: A container of meaning that can be referred to by a compressed name. Types include:
 - **Task**: A specific action to be done
 - **Decision**: A choice to be made
@@ -44,6 +46,8 @@ Content is semantically bound to its parent when its primary information value i
 - If YES → Dependent attribute (ABSORB)
 - If NO → Independent entity (CONSIDER SPLIT)
 
+**Practical Example**: Ask yourself - *"Is this new item a major project component that could have its own checklist, or is it a single line item on the parent's checklist?"*
+
 **Example Schema for "Problem" abstraction**:
 ```
 Problem: {
@@ -57,6 +61,13 @@ Content filling these expected slots stays with the parent.
 
 ### 3. Abstraction Level Principle
 Zoom to the conceptual level where cognitive efficiency is maximized. Think of it like image compression - we replace detailed objects with symbolic representations that preserve essential meaning.
+
+### 4. Content Clarity Principle
+When refactoring nodes, simultaneously edit the content to maximize readability:
+- Transform stream-of-consciousness into structured prose
+- Remove verbal fillers ("um", "uh", "yeah so") while preserving meaning
+- Organize related ideas together
+- Use clear, concise language
 
 ## Decision Algorithm
 
@@ -95,13 +106,20 @@ RETURN split_decision
 - Node Content: {{node_content}}
 - Neighbors: {{neighbors}}
 
+**Important Context**: The node contains two parts: *existing well-integrated content* | *recently appended raw content*. The summary may not yet reflect the appended content.
+
 ### ALGORITHM: OptimizeNode(node, neighbors)
 
 ```
 STAGE 1: Synthesize - Deep Contextual Understanding
 - PARSE node into: existing_content | appended_raw_content
-- INTEGRATE into overall_integrated_content
-- Note: Summary may not reflect appended content yet
+- INTEGRATE the appended raw content into the node
+- EDIT for clarity:
+  - Transform informal/conversational language into clear prose
+  - Remove filler words, false starts, and redundancies
+  - Organize information logically
+  - Maintain professional tone while preserving all meaning
+- SAVE as overall_integrated_content
 
 STAGE 2: Analyze - Abstraction Identification  
 - EXTRACT core_content (details about the parent abstraction)
