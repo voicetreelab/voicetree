@@ -14,7 +14,9 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 # Buffer configuration values
 TEXT_BUFFER_SIZE_THRESHOLD = int(os.getenv("BUFFER_SIZE_THRESHOLD", 263))
 # use buffer size / 2 just for the first execution?, to get the content showing
-TRANSCRIPT_HISTORY_MULTIPLIER = int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 5))
+
+
+TRANSCRIPT_HISTORY_MULTIPLIER = int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 12))
 
 # voice_config = VoiceConfig(
 #     model=os.getenv("VOICE_MODEL", "mobiuslabsgmbh/faster-whisper-large-v3-turbo")

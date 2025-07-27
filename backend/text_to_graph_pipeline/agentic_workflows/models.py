@@ -108,11 +108,11 @@ class OptimizationResponse(BaseModel):
 
 class TargetNodeIdentification(BaseModel):
     """Model for identifying target node for a segment"""
-    text: str = Field(description="Text content of the segment")
-    reasoning: str = Field(description="Analysis for choosing the target node")
+    text: str = Field(description="The original text of the segment from the input. Word for Word.")
+    reasoning: str = Field(description="Your reasoning/thought notes for each stage of the process to identify the target node")
     target_node_id: int = Field(description="ID of target node (use -1 for new nodes)")
     target_node_name: Optional[str] = Field(default=None, description="Name of the chosen existing node (required when is_orphan=False)")
-    is_orphan: bool = Field(description="Whether this is a new node to be created")
+    is_orphan: bool = Field(description="Whether or not this segment has no home (target node), and instead should become a new node.")
     orphan_topic_name: Optional[str] = Field(default=None, description="Name for new orphan node (required if is_orphan=True)")
     
     def model_post_init(self, __context):
@@ -128,6 +128,7 @@ class TargetNodeIdentification(BaseModel):
 class TargetNodeResponse(BaseModel):
     """Response model for identify target node stage"""
     target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment")
+    global_reasoning: str = Field(description="Your notes for understanding the complete text section")
     debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
 

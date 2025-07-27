@@ -137,6 +137,12 @@ class Agent:
                     output_schema = self.output_schemas[pname]
                     model_name = self.model_names.get(pname)  # Get model name for this prompt
                     
+                    # Debug logging
+                    if model_name:
+                        logging.info(f"Using model '{model_name}' for prompt '{pname}'")
+                    else:
+                        logging.info(f"No specific model set for prompt '{pname}', using default")
+                    
                     if llm_client:
                         response : BaseModel = llm_client.call(prompt,
                                                     output_schema=output_schema)

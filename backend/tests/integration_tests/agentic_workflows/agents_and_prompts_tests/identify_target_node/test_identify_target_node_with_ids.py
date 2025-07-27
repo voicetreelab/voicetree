@@ -59,7 +59,8 @@ class TestIdentifyTargetNodeWithIDs:
         result = await call_llm_structured(
             prompt_text,
             stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
+            output_schema=TargetNodeResponse,
+            model_name="gemini-2.5-flash-lite"
         )
         
         # Assertions
@@ -97,11 +98,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_text="We should add user authentication with JWT tokens. Need to implement real-time notifications using WebSockets."
         )
         
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
-        )
+        result = await self.call_LLM(prompt_text)
         
         # Assertions
         assert len(result.target_nodes) == 2
@@ -117,7 +114,15 @@ class TestIdentifyTargetNodeWithIDs:
         assert result.target_nodes[1].orphan_topic_name is not None
         assert "notification" in result.target_nodes[1].orphan_topic_name.lower() or \
                "websocket" in result.target_nodes[1].orphan_topic_name.lower()
-    
+
+    async def call_LLM(self, prompt_text):
+        return await call_llm_structured(
+            prompt_text,
+            stage_type="identify_target_node",
+            output_schema=TargetNodeResponse,
+            model_name="gemini-2.5-flash-lite"
+        )
+
     @pytest.mark.asyncio
     async def test_mixed_existing_and_new_nodes(self, prompt_loader):
         """Test a mix of existing node references and new node creation"""
@@ -145,11 +150,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_text="Add role-based access control to the existing auth system. Implement distributed tracing for debugging microservices. Database query caching should use Redis for better performance."
         )
         
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
-        )
+        result = await self.call_LLM(prompt_text)
         
         assert len(result.target_nodes) == 3
         
@@ -193,11 +194,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_text="We need to speed up the login endpoint, it's taking over two seconds."
         )
 
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
-        )
+        result = await self.call_LLM(prompt_text)
 
         assert len(result.target_nodes) == 1
         # In this ambiguous case, "API Performance" (ID 11) is arguably the better
@@ -232,11 +229,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_text="And for the main chart on the dashboard, let's use a blue color palette."
         )
 
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
-        )
+        result = await self.call_LLM(prompt_text)
 
         assert len(result.target_nodes) == 1
         # The correct action is to append this detail to the existing UI design node.
@@ -273,11 +266,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_text="Okay, so for that, let's start drafting the requirements."
         )
 
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
-        )
+        result = await self.call_LLM(prompt_text)
 
         assert len(result.target_nodes) == 1
         # Without context, this is un-routable. With context, it clearly belongs to the Billing System.
@@ -343,11 +332,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_text=current_utterance
         )
         
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
-        )
+        result = await self.call_LLM(prompt_text)
 
         assert len(result.target_nodes) == 5, "Expected to identify 5 distinct target nodes from the segments."
 
@@ -440,11 +425,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_text=current_utterance
         )
         
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse
-        ) 
+        result = await self.call_LLM(prompt_text)
 
         """
                     {"id": 202, "name": "Onboarding Flow Design", "summary": "High-level design and user journey for new user onboarding."},
