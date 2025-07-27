@@ -1,0 +1,395 @@
+"""
+Integration tests for SingleAbstractionOptimizerAgent
+
+These tests verify the agent correctly:
+1. Analyzes nodes and decides if optimization is needed
+2. Splits cluttered nodes into multiple focused nodes  
+3. Keeps cohesive nodes unchanged
+4. Updates poorly summarized nodes
+5. Properly extracts LLM responses from workflow state
+"""
+
+import pytest
+from typing import List
+
+from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+
+
+class TestSingleAbstractionOptimizerAgent:
+    """Test the SingleAbstractionOptimizerAgent with real LLM calls"""
+    
+    @pytest.fixture
+    def agent(self):
+        """Create agent instance"""
+        return SingleAbstractionOptimizerAgent()
+    
+    @pytest.fixture
+    def cluttered_node(self):
+        """Create a node that should be split"""
+        # Cluttered node mixing multiple unrelated concepts
+        return Node(
+            name="Project Setup",
+            node_id=1,
+            content="""We need to set up the initial project structure with proper folders.
+The database should use PostgreSQL for better performance with complex queries.
+For the frontend, we'll use React with TypeScript for type safety.
+The API authentication will use JWT tokens with refresh token rotation.""",
+            summary="Project setup including structure, database, frontend, and auth"
+        )
+    
+    @pytest.fixture
+    def cohesive_node(self):
+        """Create a well-structured cohesive node"""
+        # Cohesive node about a single concept
+        return Node(
+            name="User Authentication Flow",
+            node_id=1,
+            content="""The authentication process works as follows:
+1. User submits credentials to /api/auth/login
+2. Server validates credentials against the database
+3. If valid, server generates JWT access token (15 min) and refresh token (7 days)
+4. Tokens are returned to client in HTTP-only cookies
+5. Client includes access token in Authorization header for API requests
+6. When access token expires, client uses refresh token to get new access token""",
+            summary="Complete authentication flow implementation details"
+        )
+    
+    @pytest.fixture
+    def poor_summary_node(self):
+        """Create a node that has a poor summary"""
+        return Node(
+            name="Performance Optimization",
+            node_id=1,
+            content="""We implemented caching at multiple levels:
+- Redis for session data (TTL: 1 hour)
+- CDN for static assets
+- Database query caching with 5 minute TTL
+- API response caching for GET requests
+
+This reduced our average response time from 800ms to 200ms.""",
+            summary="Some caching stuff"  # Poor summary
+        )
+
+
+
+    @pytest.fixture
+    def node_tempting_to_oversplit(self):
+        """
+        A node that contains a cohesive checklist of small, related items. A naive
+        model might split each item, creating high Structural Cost. A smart model
+        should recognize them as a single conceptual unit.
+        """
+        return Node(
+            name="Final UI Polish for Dashboard",
+            node_id=20,
+            content="""Here is the final checklist of small UI tweaks before launch:
+    - Increase button corner radius to 4px.
+    - Adjust primary font color to a darker gray (#333).
+    - Add a subtle box-shadow to all data cards.
+    - Ensure consistent 16px margins around all widgets.
+    - The main title font size should be 24px, not 22px.""",
+            summary="A list of minor UI adjustments for the dashboard."
+        )
+
+
+    @pytest.fixture
+    def node_with_raw_appended_text(self):
+        """
+        A well-structured node that has had a raw, stream-of-consciousness
+        thought appended to its content. This tests the model's ability to
+        synthesize first, then optimize.
+        """
+        return Node(
+            name="API Performance Monitoring",
+            node_id=10,
+            # The original content is structured and clear.
+            content="""Current key metrics being tracked:
+    - p95 latency for all GET endpoints.
+    - Overall API error rate (5xx errors).
+    - Database connection pool saturation.
+    """
+                    # The appended text is an unstructured, urgent thought.
+                    + """
+    ...so I was looking at the charts and the /users endpoint is spiking like crazy after the last deploy, it's not just latency it's the CPU on the DB. I think we need to add a dedicated read replica for user queries, that's the only way to isolate the load. We should probably get that scoped out ASAP.""",
+            summary="Tracking key performance metrics for the API."
+        )
+
+    @pytest.mark.asyncio
+    async def test_synthesis_of_appended_raw_text(self, agent, node_with_raw_appended_text):
+        """
+        HARD TEST 1: Tests if the model can synthesize a well-structured node with
+        a raw, appended thought stream, and then correctly split out the new, distinct
+        abstractions (a 'Problem' and a 'Solution/Task').
+        """
+        actions = await agent.run(node=node_with_raw_appended_text, neighbours_context="No neighbor nodes available")
+
+        assert len(actions) > 0, "Agent should take action on a node with appended raw text."
+
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        print(update_actions)
+        print(create_actions)
+
+        # The primary assertion: this MUST be split. Keeping it together is a failure.
+        assert(len(update_actions)==1)
+        assert len(create_actions) >= 2, "Should split out the new Problem and Solution into at least two child nodes."
+
+        # Verify the new nodes capture the distinct concepts
+        child_names = [a.new_node_name.lower() for a in create_actions]
+
+        # Check for a 'Problem' node
+        assert any("spike" in name or "degradation" in name or "cpu" in name for name in child_names), \
+            "One child node should identify the performance problem."
+
+        # Check for a 'Solution/Task' node
+        assert any("replica" in name or "isolate load" in name for name in child_names), \
+            "Another child node should capture the proposed read replica solution."
+
+        # Verify the original node is updated to be a clean parent
+        assert len(update_actions) == 1, "The original node should be updated."
+
+    @pytest.mark.asyncio
+    async def test_resists_over_splitting_of_cohesive_checklist(self, agent, node_tempting_to_oversplit):
+        """
+        HARD TEST 2: Tests if the model understands the 'Structural Cost' principle. It should
+        resist the temptation to split a highly cohesive checklist of small items into
+        many tiny nodes, recognizing that this harms understandability.
+        """
+        actions = await agent.run(node=node_tempting_to_oversplit, neighbours_context="No neighbor nodes available")
+
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        # The primary assertion: the model should NOT split this node.
+        # Splitting demonstrates a failure to understand the Cognitive Efficiency framework.
+        assert len(create_actions) == 0, "Should not split a cohesive checklist. This increases Structural Cost."
+
+        # It's acceptable to update the original node for clarity, but not required.
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        if len(actions) > 0:
+            assert len(update_actions) >= 1, "If any action is taken, it should be an update, not a split."
+
+
+    @pytest.fixture
+    def node_with_interwoven_concepts(self):
+        """
+        A node whose content *appears* to be one single idea, but a deep
+        reading reveals two distinct, high-level conceptual units that should
+        be separated for clarity. This is the inverse of the over-splitting test.
+        """
+        return Node(
+            name="CI/CD Pipeline Status",
+            node_id=30,
+            content="""We've successfully set up the Continuous Integration part of the pipeline in Jenkins. On every push to the `main` branch, it now automatically runs our full test suite and builds the Docker image, which is great. The tricky part that's still missing is the Continuous Deployment process for actually promoting those builds to the production environment; that needs to be a separate, more controlled workflow with manual approvals and a clear rollback plan.""",
+            summary="Status update on the Jenkins pipeline setup."
+        )
+
+    @pytest.mark.asyncio
+    async def test_splits_subtly_distinct_concepts_despite_neighbor(self, agent, node_with_interwoven_concepts):
+        """
+        HARD TEST 3: Tests if the model can parse a dense paragraph and identify two
+        distinct conceptual units (CI vs. CD) that *should* be split. This is made
+        harder by a tempting neighbor node.
+        """
+        # A tempting neighbor that is related but too general for the specific task.
+        neighbors_context = "Neighbors: [{'name': 'Production Deployment Strategy', 'summary': 'High-level plan for deploying to production...'}]"
+
+        actions = await agent.run(node=node_with_interwoven_concepts, neighbours_context=neighbors_context)
+
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        print(f"update actions: {update_actions}")
+        print(f"create actions: {create_actions}")
+        # The primary assertion: This node MUST be split into exactly one child.
+        # Keeping it together is a failure to reduce Nodal Cost.
+        # Referencing the neighbor instead of creating a new task is also a failure.
+        assert len(create_actions) == 1, "Should split the distinct 'Deployment Process' concept into one new child node."
+
+        # Verify the new child node is about the deployment task
+        new_node_content = create_actions[0].content.lower() + create_actions[0].new_node_name.lower()  + create_actions[0].summary.lower()
+        assert "deployment" in new_node_content or "rollback" in new_node_content, \
+            "The new child node must be about the deployment process."
+        assert "jenkins" not in new_node_content, "The CI details should remain in the parent."
+
+        # Verify the original node is now cleanly focused on CI
+        assert len(update_actions) == 1
+        parent_content = update_actions[0].new_content.lower() + update_actions[0].new_summary.lower()
+        assert "continuous integration" in parent_content or "jenkins" in parent_content
+        assert "deployment" not in parent_content, "The deployment details should be moved out of the parent."
+
+        # Add this new test case to your TestOptimizeNode class.
+
+    # Add this new fixture to your test file.
+
+    @pytest.fixture
+    def node_with_grey_area_detail(self):
+        """
+        A fixture that embodies the "absorb vs. split" grey area. It's a
+        'Decision' node where a multi-step implementation plan has been appended.
+        Splitting seems plausible, but absorbing is more cognitively efficient
+        as it keeps the 'what' and 'how' of a decision together.
+        """
+        return Node(
+            name="Decision: Adopt Redis for Caching",
+            node_id=40,
+            # Original content is the decision itself.
+            content="""After evaluating Memcached and Redis, the team has formally decided to adopt Redis as our primary caching solution due to its superior data structures and community support.,
+    The initial implementation plan involves three key steps:
+    1. Provision a new Redis instance on AWS ElastiCache (t3.small).
+    2. Create a singleton wrapper class in the backend service to manage the connection pool.
+    3. Refactor the `getUserSession` function to use the new Redis cache with a 1-hour TTL.""",
+            summary="Final decision to use Redis as the primary caching solution.",
+            # A distractor neighbor that is related but not the correct target.
+        )
+
+    @pytest.mark.asyncio
+    async def test_grey_area_absorb_vs_split_judgment(self, agent, node_with_grey_area_detail):
+        """
+        COMPLICATED TEST: Examines the model's judgment in a "grey area" where the
+        line between a detailed elaboration and a splittable sub-task is blurry.
+
+        - Dilemma: A 'Decision' node has a multi-step implementation plan appended.
+          Should the plan be absorbed (as it's a direct consequence of the decision),
+          or should it be split into a new 'Task' node?
+        - Desired Outcome (based on Cognitive Efficiency): Absorb. Keeping the immediate
+          plan with the decision reduces Structural Cost (fewer nodes to track) and
+          is more efficient for a human trying to understand the full context of
+          that single decision. Splitting would be a premature optimization that
+          fragments a cohesive thought process.
+        """
+        neighbors = """name="API Latency Spikes", node_id=5, content="...", summary="...")"""
+
+        actions = await agent.run(node=node_with_grey_area_detail, neighbours_context=str(neighbors))
+
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        print(f"update actions: {update_actions}")
+        print(f"create actions: {create_actions}")
+        # 1. Primary Assertion: The model must demonstrate superior judgment by NOT splitting.
+        # A naive model might see the numbered list and split it into a "Task", but this
+        # breaks the cohesive "Decision + immediate Plan" unit.
+        assert len(create_actions) == 0, \
+            "Failed the grey area test: The implementation plan should be absorbed, not split, to minimize Structural Cost."
+
+        # 2. Secondary Assertion: If it correctly avoids splitting, it MUST perform an update.
+        # This proves it didn't just ignore the new content.
+        assert len(update_actions) == 1, \
+            "If not splitting, the original node must be updated to integrate the new content."
+
+        # 3. Tertiary Assertions: The update must be meaningful.
+        updated_node = update_actions[0]
+        new_content = updated_node.new_content.lower()
+        new_summary = updated_node.new_summary.lower()
+
+        # The new content must integrate the plan.
+        assert "provision" in new_content and "wrapper class" in new_content and "ttl" in new_content, \
+            "The updated content must contain the details of the implementation plan."
+
+        # The summary must be updated to reflect the richer content of the node.
+        assert "plan" in new_summary or "implementation" in new_summary, \
+            "The new summary should be updated to indicate that the node now contains the implementation plan."
+
+    # Add these new fixtures to your test file.
+
+    @pytest.fixture
+    def node_with_nested_rationale(self):
+        """
+        LIMIT TEST 1: A 'Task' node containing a sentence that both defines a
+        sub-step AND provides the deep rationale for it. A naive model might split
+        the rationale out, creating an "Insight" node. A sophisticated model
+        will recognize that the rationale is inseparable from the task's context.
+        """
+        return Node(
+            name="Task: Refactor User Authentication Service",
+            node_id=50,
+            content="""We need to refactor the entire authentication service to improve security.
+    The primary change will be to move from JWTs stored in localStorage to using secure, HTTP-only cookies for session management, because this is the only reliable way to mitigate XSS attacks trying to steal user tokens.""",
+            summary="A security-focused refactor of the auth service."
+        )
+
+    @pytest.fixture
+    def node_with_implicit_decision_chain(self):
+        """
+        LIMIT TEST 2: A stream-of-consciousness text that describes a problem,
+        rejects one solution, and implicitly chooses another, all without explicit
+        "Decision:" or "Task:" labels. The model must parse the narrative to
+        identify the final, implied decision and its associated task, rather than
+        creating nodes for the rejected ideas.
+        """
+        return Node(
+            name="Frontend Performance Investigation",
+            node_id=60,
+            content="""The user dashboard is loading incredibly slowly, the initial paint takes almost 5 seconds. My first thought was to just add a loading spinner, but that doesn't actually fix the root problem. After digging in, it's clear the issue is the massive initial data payload. The correct fix is to implement code-splitting at the route level and lazy-load the dashboard components only when they're needed. That's the path forward.""",
+            summary="Investigating slow load times on the user dashboard."
+        )
+
+    # Add these new test cases to your TestOptimizeNode class.
+
+    @pytest.mark.asyncio
+    async def test_resists_splitting_inseparable_rationale(self, agent, node_with_nested_rationale):
+        """
+        LIMIT TEST 1: Probes if the model can resist splitting a deeply embedded
+        rationale from its parent task.
+
+        - Dilemma: The text contains a clear "why" (mitigating XSS) directly tied
+          to the "what" (using HTTP-only cookies).
+        - Desired Outcome: Absorb. The rationale is not a standalone "Insight";
+          it is the justification that gives the task its meaning and priority.
+          Splitting it would force a user to consult two nodes to understand one
+          concept, a clear violation of the Cognitive Efficiency principle. This
+          directly tests our new tie-breaker rule about absorbing rationales.
+        """
+        actions = await agent.run(node=node_with_nested_rationale, neighbours_context="No neighbor nodes available")
+        print(f"actions: {actions}")
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        # 1. Primary Assertion: The model must NOT split the rationale into a new node.
+        assert len(create_actions) == 0, \
+            "Failed the rationale test: The justification for a task should be absorbed, not split."
+
+        # 2. Secondary Assertion: The model should recognize that the node is well-formed
+        # and might not even need an update, or if it does, it's a minor one.
+        # We allow for zero actions (the model deems it optimal) or one update action.
+        assert len(actions) <= 1, "Should either do nothing or perform a single update."
+        if len(actions) == 1:
+            assert isinstance(actions[0], UpdateAction), "The only acceptable action is an update."
+
+    @pytest.mark.asyncio
+    async def test_parses_narrative_to_find_implied_decision(self, agent, node_with_implicit_decision_chain):
+        """
+        LIMIT TEST 2: Probes if the model can parse a narrative, discard rejected
+        ideas, and consolidate the final, implied decision and its task.
+
+        - Dilemma: The text mentions a problem, a rejected solution ("loading spinner"),
+          and a chosen solution ("code-splitting"). A naive model might create
+          nodes for all three ideas.
+        - Desired Outcome: A sophisticated model should synthesize the narrative and
+          realize the "loading spinner" idea is dead-end context, not a real abstraction.
+          It should create a single, new child node that represents the chosen path forward:
+          the task of implementing code-splitting.
+        """
+        actions = await agent.run(node=node_with_implicit_decision_chain, neighbours_context="No neighbor nodes available")
+
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        print(f"update actions: {update_actions}")
+        print(f"create actions: {create_actions}")
+        # 1. Primary Assertion: The model should create EXACTLY one new node for the chosen solution.
+        assert len(create_actions) == 1, \
+            "Failed the narrative test: Should create one node for the chosen solution, not for rejected ideas."
+
+        # 2. Secondary Assertion: The new node must be about the correct, chosen solution.
+        new_node_content = create_actions[0].content.lower()
+        assert "code-splitting" in new_node_content or "lazy-load" in new_node_content, \
+            "The new node must be about the chosen code-splitting solution."
+        assert "spinner" not in new_node_content, \
+            "The new node must not contain details about the rejected spinner solution."
+
+        # 3. Tertiary Assertion: The parent node should be updated to summarize the investigation outcome.
+        assert len(update_actions) == 1
+        parent_summary = update_actions[0].new_summary.lower()
+        assert "code-splitting" in parent_summary or "lazy-load" in parent_summary, \
+            "The parent summary should reflect the final outcome of the investigation."
