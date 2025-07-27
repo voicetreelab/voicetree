@@ -153,7 +153,8 @@ class TestTreeActionDeciderWorkflow:
         mock_append_agent.run.assert_called_once()
         call_args = mock_append_agent.run.call_args
         assert call_args.kwargs['transcript_text'] == "Test transcript"
-        assert call_args.kwargs['decision_tree'] == simple_tree
+        assert 'existing_nodes_formatted' in call_args.kwargs
+        assert isinstance(call_args.kwargs['existing_nodes_formatted'], str)
         
         # 2. TreeActionApplier called with placement actions
         mock_tree_applier.apply.assert_called()
