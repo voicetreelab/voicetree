@@ -39,7 +39,8 @@ class AppendToRelevantNodeAgent(Agent):
         # Step 2: Identify target nodes for each segment
         self.add_prompt(
             "identify_target_node",
-            TargetNodeResponse
+            TargetNodeResponse,
+            model_name="gemini-2.5-flash"  # Using a different model for testing
         )
         
         # Use conditional edge to decide whether to identify target nodes
@@ -104,7 +105,6 @@ class AppendToRelevantNodeAgent(Agent):
     async def run(
         self,
         transcript_text: str,
-        decision_tree: DecisionTree,
         existing_nodes_formatted: str,
         transcript_history: str = ""
     ) -> AppendAgentResult:

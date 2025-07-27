@@ -3,7 +3,7 @@ LLM integration for VoiceTree LangGraph workflow using Google GenAI
 
 Easy configuration: Modify the CONFIG class below to change models, temperature, or other settings.
 """
-
+import logging
 import os
 import re
 from pathlib import Path
@@ -188,6 +188,8 @@ async def call_llm_structured(
 
     # Call the model with structured output
     # Pass Pydantic models directly as per Google's documentation
+    print(f"Running {stage_type} with model: {model_name}")
+    logging.info(f"Running {stage_type} LLM with model: {model_name}")
     response = client.models.generate_content(
         model=model_name,
         contents=full_prompt,
