@@ -66,7 +66,7 @@ Use these tests to decide when to split vs. absorb content:
 
 4. **Working Memory Test**: Does this abstraction contain more than 5-8 distinct concepts that need to be held in mind simultaneously? If so, group related ones or split.
 
-5. The Entity-Attribute Cohesion Test
+5. **The Entity-Attribute Cohesion Test and Unified Principle of Referenceable Landmarks**
 
 This is the most critical test for cohesion. It determines if a piece of content is an independent idea or merely a property of the main idea.
 
@@ -95,7 +95,6 @@ From Cognitive Science: The State Change Principle
 A node should exist independently if it represents a major transition in a cognitive process
 (e.g., from identifying a problem to proposing a solution)
 
-
 From Graph Theory: The Reachability Principle
 A node should exist independently if and only if it has potential for multiple incoming edges.
 
@@ -105,10 +104,10 @@ Entities can be referenced from multiple contexts
 The Unified Rule
 An abstraction deserves its own node when it represents an independenantly referenceable cognitive landmark - a point in the information space that future thoughts might need to navigate back to, not just via parent.
 
-What makes something likely to be referenced independently (not just through its parent)?
-- Context indepdendance: can it stand alone without parent. Plus The Transferability Heuristic, is there a situation where it could it be transferred to a new parent, and it would still make sense. 
-- Cognitive state transition: Major cognitive transitions are the moments when new, highly-referenceable landmarks are born.
-- Entity-Schema Cohesion is the primary test for the opposite: an attribute. If something is not a state change but rather fills a slot in an existing landmark's schema, it is not a landmark itself.
+What makes something likely to be referenced independently (not just through its parent)? These rules in order of precedence.
+- PRIMARY RULE: Entity-Schema Cohesion is the primary test for the opposite: an attribute. If something is not a state change but rather fills a slot in an existing landmark's schema, it is not a landmark itself.
+- SECONDARY RULE: Cognitive state transition: Major cognitive transitions are the moments when new, highly-referenceable landmarks are born.
+- THIRD RULE: Context independance: can it stand alone without parent. Plus The Transferability Heuristic, is there a situation where it could it be transferred to a new parent, and it would still make sense.
 
 
 ### Neighbor Management Rules
