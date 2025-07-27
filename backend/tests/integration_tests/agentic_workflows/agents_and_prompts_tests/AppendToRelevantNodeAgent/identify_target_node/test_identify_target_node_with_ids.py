@@ -118,7 +118,163 @@ class TestIdentifyTargetNodeWithIDs:
         assert "notification" in result.target_nodes[1].orphan_topic_name.lower() or \
                "websocket" in result.target_nodes[1].orphan_topic_name.lower()
 
+    @pytest.mark.asyncio
+    async def test_project_subtasks_should_route_to_main_project(self, prompt_loader):
+        """
+        Tests that when discussing various aspects of a project (including
+        tangential benefits like prize money), they should route to the main
+        project node rather than creating fragmented orphans.
 
+        This tests the system's ability to understand that:
+        1. Technology explorations mentioned in project context belong to the project
+        2. External motivations (prize money) don't warrant separate nodes
+        3. All project-related investigations should stay cohesive
+        """
+        existing_nodes = """
+        [
+            {
+                "id": 1,
+                "name": "Voice Tree Project work",
+                "summary": "Overall work on VoiceTree project"
+            },
+            {
+            {
+                "id": 1,
+                "name": "Voice Tree Proof of Concept",
+                "summary": "Initiating the 'voice tree' project PoC, requiring audio file upload."
+            },
+            {
+                "id": 2,
+                "name": "Audio to Markdown Conversion",
+                "summary": "Implement the conversion of uploaded audio files into markdown for the Voice Tree PoC."
+            },
+            {
+                "id": 3,
+                "name": "Markdown to Visual Tree Conversion",
+                "summary": "Transform markdown output into a visual tree for the Voice Tree PoC, including research into visualization libraries and data formatting."
+            }
+        ]
+        """
+
+        segments = """
+        [
+            {"text": "And I also want to have a look into Flutter at some point because it'll be good to get that prize money for VoiceTree.", "is_routable": true},
+            {"text": "And then I want to understand the engineering problem better of how we can stream audio files, and how we send these audio files.", "is_routable": true}
+        ]
+        """
+
+        transcript_history = """So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into. The first thing is I want to make a proof of concept of voice tree. So, the bare minimum I want to do is I want to be able to upload an audio file just like this one that has some decisions and context. And I want first, I want it to build into markdown, convert that into markdown, and then I want to convert that markdown into a visual tree. So, that's the first thing I want to do. Uh, to do that, I'll need to have a look into later on some of the visualization libraries. Uh, converting text into a data format and then into a tree visualization."""
+
+        transcript_text = """And I also want to have a look into Flutter at some point because it'll be good to get that prize money for VoiceTree. Um, and then I want to understand the engineering problem better of how we can stream audio files, uh, and how, how we send these audio files"""
+
+        prompt_text = prompt_loader.render_template(
+            "identify_target_node",
+            existing_nodes=existing_nodes,
+            segments=segments,
+            transcript_history=transcript_history,
+            transcript_text=transcript_text
+        )
+
+        result = await self.call_LLM(prompt_text)
+
+        assert len(result.target_nodes) == 2
+
+        # First segment about Flutter should route to Voice Tree PoC
+        # NOT create an orphan "Explore Flutter for Prize Money"
+        assert result.target_nodes[0].target_node_id == 1 or 0, \
+            f"Flutter exploration should route to Voice Tree PoC (id=1), not create orphan. Got: {result.target_nodes[0]}"
+        assert result.target_nodes[0].is_orphan == False, \
+            "Flutter exploration is part of the voice tree project, not a separate topic"
+
+        # Second segment about audio streaming should also route to Voice Tree PoC
+        assert result.target_nodes[1].target_node_id == 1 or 0
+        assert result.target_nodes[1].is_orphan == False
+
+    @pytest.mark.asyncio
+    async def test_external_motivations_dont_fragment_project(self, prompt_loader):
+        """
+        Tests that external motivations (prizes, grants, competitions) mentioned
+        in the context of a project don't create separate nodes but are understood
+        as part of the project's scope.
+        """
+        existing_nodes = """
+        [
+            {"id": 100, "name": "ML Model Development", "summary": "Building and training the core machine learning model"},
+            {"id": 101, "name": "Data Pipeline", "summary": "Setting up data collection and processing"}
+        ]
+        """
+
+        segments = """
+        [
+            {"text": "We should use PyTorch because it's required for the competition submission", "is_routable": true},
+            {"text": "Also need to document everything well since that's 30% of the judging criteria", "is_routable": true},
+            {"text": "The $50k prize would really help fund the next phase", "is_routable": true}
+        ]
+        """
+
+        transcript_history = "Let's discuss our ML model development strategy for the competition."
+
+        prompt_text = prompt_loader.render_template(
+            "identify_target_node",
+            existing_nodes=existing_nodes,
+            segments=segments,
+            transcript_history=transcript_history,
+            transcript_text="We should use PyTorch because it's required for the competition submission. Also need to document everything well since that's 30% of the judging criteria. The $50k prize would really help fund the next phase."
+        )
+
+        result = await self.call_LLM(prompt_text)
+
+        # All segments should route to ML Model Development
+        # NOT create orphans like "Competition Requirements" or "Prize Money"
+        assert len(result.target_nodes) == 3
+        assert all(node.target_node_id == 100 for node in result.target_nodes), \
+            "All competition-related aspects should route to the main project node"
+        assert all(not node.is_orphan for node in result.target_nodes)
+
+    @pytest.mark.asyncio
+    async def test_project_context_overrides_topic_specificity(self, prompt_loader):
+        """
+        Tests that when discussing a project, various subtopics (technologies,
+        methodologies, external factors) route to the project node rather than
+        creating overly specific orphans.
+
+        This directly tests the failure case where "Flutter for prize money"
+        became an orphan instead of routing to the project it's part of.
+        """
+        existing_nodes = """
+        [
+            {"id": 50, "name": "Mobile App Project", "summary": "Building a cross-platform mobile application"}
+        ]
+        """
+
+        segments = """
+        [
+            {"text": "I'm considering Flutter for the UI framework", "is_routable": true},
+            {"text": "React Native might be better for our team's skills", "is_routable": true},
+            {"text": "Flutter would help us win the innovation award though", "is_routable": true},
+            {"text": "We need to decide by Friday to meet the grant deadline", "is_routable": true}
+        ]
+        """
+
+        transcript_history = "Let's plan out our mobile app project approach."
+
+        prompt_text = prompt_loader.render_template(
+            "identify_target_node",
+            existing_nodes=existing_nodes,
+            segments=segments,
+            transcript_history=transcript_history,
+            transcript_text="I'm considering Flutter for the UI framework. React Native might be better for our team's skills. Flutter would help us win the innovation award though. We need to decide by Friday to meet the grant deadline."
+        )
+
+        result = await self.call_LLM(prompt_text)
+
+        # All technology choices and external motivations should route to the project
+        assert len(result.target_nodes) == 4
+        for i, node in enumerate(result.target_nodes):
+            assert node.target_node_id == 50, \
+                f"Segment {i + 1} should route to Mobile App Project, not create orphan"
+            assert not node.is_orphan, \
+                f"Segment {i + 1} about project decisions shouldn't be orphaned"
 
     @pytest.mark.asyncio
     async def test_mixed_existing_and_new_nodes(self, prompt_loader):

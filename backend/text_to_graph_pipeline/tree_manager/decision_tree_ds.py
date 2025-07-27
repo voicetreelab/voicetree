@@ -294,7 +294,7 @@ class DecisionTree:
                 "id": node.parent_id,
                 "name": parent_node.title,
                 "summary": parent_node.summary,
-                "relationship": node.relationships[node.parent_id]
+                "relationship": node.relationships[node.parent_id] # todo, specify in text relationship from CHILD to PARENT
             })
             
             # TODO: Sibling functionality commented out - unsure whether we want to return siblings yet
@@ -318,6 +318,7 @@ class DecisionTree:
                     "name": child_node.title,
                     "summary": child_node.summary,
                     "relationship": child_node.relationships[node_id]
+                    # todo, specify in text relationship from PARENT to CHILD
                 })
         
         return neighbors

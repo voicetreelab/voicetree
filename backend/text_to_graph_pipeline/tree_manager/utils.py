@@ -50,39 +50,39 @@ def extract_summary(node_content):
 def deduplicate_content(content):
     """
     Remove duplicate sentences and clean up content
-    
+
     Args:
         content: Text content that may contain duplicates
-        
+
     Returns:
         Cleaned content with duplicates removed
     """
     if not content or not content.strip():
         return content
-    
+
     # Split into sentences
     sentences = re.split(r'[.!?]+', content)
     seen_sentences = set()
     unique_sentences = []
-    
+
     for sentence in sentences:
         sentence = sentence.strip()
         if not sentence:
             continue
-            
+
         # Normalize sentence for comparison (lowercase, remove extra spaces)
         normalized = ' '.join(sentence.lower().split())
-        
+
         # Only add if we haven't seen this sentence before
         if normalized not in seen_sentences and len(normalized) > 5:  # Ignore very short fragments
             seen_sentences.add(normalized)
             unique_sentences.append(sentence)
-    
+
     # Rejoin sentences with proper punctuation
     result = '. '.join(unique_sentences)
     if result and not result.endswith('.'):
         result += '.'
-    
+
     return result
 
 

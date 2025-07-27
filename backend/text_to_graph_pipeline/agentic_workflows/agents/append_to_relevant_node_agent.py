@@ -113,8 +113,7 @@ class AppendToRelevantNodeAgent(Agent):
         
         Args:
             transcript_text: Raw voice transcript to process
-            decision_tree: Current tree state
-            existing_nodes: List of relevant nodes to consider for placement
+            existing_nodes_formatted: List of relevant nodes to consider for placement
             transcript_history: Optional context from previous transcripts
             
         Returns:
@@ -158,7 +157,7 @@ class AppendToRelevantNodeAgent(Agent):
                     action="APPEND",
                     target_node_id=segment.target_node_id,
                     target_node_name=segment.target_node_name,
-                    content=segment.text
+                    content=segment.text + segment.relationship_to_target + " (this node)"
                 ))
             else:
                 # New node - create CreateAction (always orphan)

@@ -14,7 +14,7 @@ Your goal is to find the equilibrium between two competing costs:
 
 **Optimization**: The process of refining the compressed structure to minimize the loss function
 
-**Abstraction**: A container of meaning that can be referred to by a compressed name. Types include:
+**Abstraction**: A container of meaning that can be referred to by a compressed name. Types include, but are not limited to:
 - **Task**: A specific action to be done
 - **Decision**: A choice to be made
 - **Problem**: An obstacle or challenge
@@ -62,12 +62,12 @@ Content filling these expected slots stays with the parent.
 ### 3. Abstraction Level Principle
 Zoom to the conceptual level where cognitive efficiency is maximized. Think of it like image compression - we replace detailed objects with symbolic representations that preserve essential meaning.
 
-### 4. Content Clarity Principle
-When refactoring nodes, simultaneously edit the content to maximize readability:
-- Transform stream-of-consciousness into structured prose
-- Remove verbal fillers ("um", "uh", "yeah so") while preserving meaning
-- Organize related ideas together
-- Use clear, concise language
+### 4. Content Refactoring & Rewriting
+When refactoring nodes, simultaneously refactor the content to maximize readability:
+- Transform stream-of-consciousness into structured concise markdown / bullet point style notes, WITHOUT changing individual phrases significantly. Specific words should be kept the same.
+  - You can andd should however, modify the flow, and order of phrases, reorganizing for readability. 
+  - perform light editing for the restructured content to be easily readable, whilst maintaining similar language compared to the original text.
+  - Remove verbal fillers ("um/uh", "yeah so", "you know"") if they are not part of the meaning
 
 ## Decision Algorithm
 
@@ -114,11 +114,6 @@ RETURN split_decision
 STAGE 1: Synthesize - Deep Contextual Understanding
 - PARSE node into: existing_content | appended_raw_content
 - INTEGRATE the appended raw content into the node
-- EDIT for clarity:
-  - Transform informal/conversational language into clear prose
-  - Remove filler words, false starts, and redundancies
-  - Organize information logically
-  - Maintain professional tone while preserving all meaning
 - SAVE as overall_integrated_content
 
 STAGE 2: Analyze - Abstraction Identification  
@@ -136,30 +131,16 @@ STAGE 3: Refactor - Structure Optimization
   "[new Node Name] ______ [Parent Node Name]" (max 7 words)
 - IF no changes needed: update_original=false, create_new_nodes=[]
 
+Stage 4: EDIT for readability & conciseness:
+  - Transform informal/conversational language into clear prose
+  - Remove filler words, false starts, and redundancies
+  - Organize information logically
+  - Maintain professional tone while preserving all meaning
+
 STAGE 4: Validate - Quality Assurance
 - VERIFY no information loss
 - ENSURE proper hierarchy (no orphaned details)
 - CONFIRM cognitive efficiency is maximized
-```
-
-## Output Format
-
-```json
-{
-  "reasoning": "Stage-by-stage analysis showing your synthesis and refactoring decisions",
-  "update_original": boolean,
-  "original_new_content": "Updated content if needed",
-  "original_new_summary": "Updated summary if needed",
-  "create_new_nodes": [
-    {
-      "name": "Node Name",
-      "content": "Full content",
-      "summary": "Concise summary",
-      "relationship": "relationship phrase to parent"
-    }
-  ],
-  "debug_notes": "Optional implementation notes"
-}
 ```
 
 ## Examples
@@ -178,31 +159,19 @@ STAGE 4: Validate - Quality Assurance
 **Correct Output:**
 ```json
 {
-   "reasoning": "Stage 1 (Synthesis): The node's content describes a full investigation cycle. It starts with a reported problem (random logouts), moves to an investigation that identifies a likely cause and a solution (token expiration), uncovers a *new and separate* problem (broken password reset), and concludes with a strategic decision on how to sequence and handle both issues (prioritize the token fix, ticket the password reset). The integrated understanding is that a simple bug report has expanded into a multi-part work plan.\n\nStage 2 (Analysis): I identified four distinct, high-level abstractions that create high nodal cost if kept together:\n1.  **Problem:** 'Users are being logged out randomly' (The initial state).\n2.  **Solution:** 'Increase token expiration to 24 hours' (The fix for the first problem).\n3.  **Problem:** 'Password reset flow is broken' (A new, discovered problem).\n4.  **Decision:** 'Prioritize the token fix for this sprint and create a ticket for the password issue' (The plan for allocating resources and sequencing the work).\n\nStage 3 (Refactor): Keeping these four distinct concepts in a single node creates excessive nodal cost. The optimal structure splits them, with the original node serving as a parent container. The most critical choice is separating the 'Decision' into its own node to preserve it as a first-class abstraction. Priority information is surfaced in summaries for View 2 clarity.\n\nStage 4 (Validate): All meaning preserved, no information lost, cognitive efficiency maximized by reducing nodal cost.",
-   "update_original": true,
-   "original_new_content": "Initial reports indicated users were being logged out randomly. Investigation revealed this was due to a token expiration issue. During the investigation, a separate, more urgent problem with the password reset flow was also discovered.",
-   "original_new_summary": "Parent tracker for the user authentication bug and its investigation outcomes.",
-   "create_new_nodes": [
-      {
-         "name": "Increase Token Expiration to 24 Hours",
-         "content": "The token expiration is set too low and should be increased to 24 hours to fix the random logout issue.",
-         "summary": "[High Priority] Implement fix for random logouts by increasing token expiration.",
-         "relationship": "is the proposed solution for"
-      },
-      {
-         "name": "Fix Broken Password Reset Flow",
-         "content": "The password reset flow is throwing a 500 error because the email service is not configured. This is an urgent, separate issue.",
-         "summary": "[Urgent - Ticketed] Reconfigure email service to fix critical 500 error in password reset.",
-         "relationship": "is a related problem discovered by"
-      },
-      {
-         "name": "Decision: Prioritize Token Fix for Sprint",
-         "content": "The decision was made to prioritize the token expiration fix for the current sprint and create a separate ticket for the password reset issue to be handled later.",
-         "summary": "Prioritize token fix in this sprint; defer password reset fix.",
-         "relationship": "is the plan for addressing the"
-      }
-   ],
-   "debug_notes": "This example demonstrates reducing nodal cost by splitting distinct abstractions while avoiding excessive structural cost."
+  "reasoning": "### STAGE 1: Synthesize\nThe initial node describes a user authentication bug (random logouts). The appended content adds two key pieces of information: 1) A diagnosis and proposed solution for the original bug (low token expiration, increase to 24h). 2) The discovery of a completely separate and more urgent problem: a broken password reset flow. The speaker explicitly identifies this as a 'separate problem' and suggests a 'new ticket', which are strong signals for splitting.\n\n### STAGE 2: Analyze\n- **Token Fix:** This content (diagnosis and solution) is the direct resolution to the parent problem. Per the Entity-Attribute Cohesion Principle, a solution is a core attribute of a problem schema. It fills an expected slot ('how do we fix this?'). Therefore, it should be absorbed into the parent node to keep the Problem-Solution pair cohesive.\n- **Password Reset Issue:** This content describes a different user-facing problem. Applying the Decision Algorithm:\n    - **Entity-Attribute Test**: Fails. A broken password reset does not explain or qualify random logouts. Suggests SPLIT.\n    - **Single Responsibility Test**: Passes. The purpose is 'describe the password reset bug'. Suggests SPLIT.\n    - **Cohesion Test**: Passes. Separating this does not make the original node incomplete. Suggests SPLIT.\n    - **Naming Test**: Passes. A clear name like 'Broken Password Reset Flow' is easily derived. Suggests SPLIT.\nAll tests point to creating a new node for this distinct problem.\n\n### STAGE 3: Refactor\nThe optimal structure is to:\n1.  **Update the original node** to incorporate the diagnosis and solution for the authentication bug, making it a complete problem-solution unit.\n2.  **Create a new 'Problem' node** for the password reset issue, as it's a distinct, independent problem.\n3.  **Define the relationship** to show the context of discovery: the new problem was found *while investigating* the original one.\n\n### STAGE 4: Edit\nThe content for both nodes will be rewritten from the conversational stream-of-consciousness into a structured format using clear headings (Problem, Investigation, Solution, etc.) to improve readability and reduce cognitive load, while preserving all key information and original phrasing where possible.",
+  "update_original": true,
+  "original_new_content": "### Problem\nUsers are reporting that they are getting logged out randomly, particularly on mobile devices.\n\n### Investigation\n- It is suspected to be a token refresh issue.\n- The token expiration is set too low.\n\n### Proposed Solution\n- Increase the token expiration time to 24 hours.\n- This is an easy fix and should be prioritized for the current sprint.",
+  "original_new_summary": "Users are being logged out randomly due to a low token expiration setting. The proposed fix is to increase the expiration time to 24 hours.",
+  "create_new_nodes": [
+    {
+      "name": "Broken Password Reset Flow",
+      "content": "### Problem\nThe password reset flow is completely broken and is throwing a 500 error.\n\n### Cause\nThe email service required for the flow is not configured.\n\n### Context & Urgency\n- This issue was discovered during the investigation of the user authentication bug.\n- It is a separate and more urgent problem.\n\n### Action\nA new ticket should be created to address this.",
+      "summary": "The password reset flow is throwing a 500 error because the required email service is not configured. This is an urgent, separate issue.",
+      "relationship": "was discovered during investigation of"
+    }
+  ],
+  "debug_notes": "The key insight was the speaker's own language ('separate... problem', 'new ticket'), which made the decision to split very clear. The original node becomes a tight, cohesive unit of Problem->Cause->Solution, while the new node captures the second distinct problem."
 }
 ```
 
