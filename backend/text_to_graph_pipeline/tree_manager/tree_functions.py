@@ -104,12 +104,13 @@ def _format_nodes_for_prompt(nodes: List[Node]) -> str:
     if not nodes:
         return "[]"  # Empty array for no nodes
 
-    node_list = []
+    node_list = "["
     for node in nodes:
-        node_list.append({
-            "id": node.id,
-            "name": node.title,
-            "summary": node.summary
-        })
+        if not node.parent_id:
+            node_list += f"- Node ID: {node.id}; Name: {node.title}, \nSummary: {node.summary};"
 
-    return json.dumps(node_list, indent=2)
+        else:
+            node_list += f"- Node ID: {node.id}; Name: {node.title}, \nSummary: {node.summary}; Relationship to parent (node {node.parent_id}): {node.relationships[node.parent_id]}\n"
+
+
+    return node_list + "]"

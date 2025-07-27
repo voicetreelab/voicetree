@@ -206,7 +206,6 @@ class TreeActionDeciderWorkflow:
         logging.info("Running Phase 2: Optimization Agent...")
 
         # We now have the list of nodes that were just modified. We optimize them.
-        all_optimization_actions: List[BaseTreeAction] = []
         all_optimization_modified_nodes: Set[int] = set()
         for node_id in modified_or_new_nodes:
             logging.info(f"Optimizing node {node_id}...")
@@ -216,7 +215,7 @@ class TreeActionDeciderWorkflow:
             formatted_neighbours_context = str([
                 {key: value for key, value in neighbour.items() if key != 'id'}
                 for neighbour in neighbours_context
-            ])
+            ]) #todo, ugly. This is just to remove IDs.
 
             # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
             optimization_actions: List[BaseTreeAction] = await self.optimizer_agent.run(

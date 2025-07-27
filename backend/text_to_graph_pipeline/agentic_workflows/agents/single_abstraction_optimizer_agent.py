@@ -82,7 +82,7 @@ class SingleAbstractionOptimizerAgent(Agent):
         typed_actions = []
         
         # Handle original node update if requested
-        if optimization.update_original and optimization.original_new_content:
+        if optimization.original_new_content:
             typed_actions.append(UpdateAction(
                 action="UPDATE",
                 node_id=node_id,

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional, Type, Dict
 from dataclasses import dataclass
 from dotenv import load_dotenv
+from google.genai.types import GenerateContentConfig, GenerateContentConfigDict, SafetySettingDict
 from pydantic import BaseModel
 from google import genai
 import json
@@ -35,12 +36,12 @@ class CONFIG:
     TEMPERATURE = 0.5
     
     # Safety settings - BLOCK_NONE for all categories
-    SAFETY_SETTINGS = [
-        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-    ]
+    # SAFETY_SETTINGS : SafetySettingDict = [
+    #     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    #     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    #     {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    #     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    # ]
     
     # Environment settings
     ENV_SEARCH_PATHS = [
@@ -109,23 +110,11 @@ def _extract_json_from_markdown(text: str) -> Optional[str]:
         Extracted JSON string, or None if no valid JSON block found
     """
     # Look for JSON code blocks (```json ... ```)
-    json_pattern = r'```json\s*\n(.*?)\n```'
-    match = re.search(json_pattern, text, re.DOTALL)
-    
-    if match:
-        return match.group(1).strip()
-    
-    # Also check for plain code blocks that might contain JSON (``` ... ```)
-    plain_pattern = r'```\s*\n(.*?)\n```'
-    match = re.search(plain_pattern, text, re.DOTALL)
-    
-    if match:
-        content = match.group(1).strip()
-        # Validate it looks like JSON (starts with { or [)
-        if content.startswith(('{', '[')):
-            return content
-    
-    return None
+    text = text.replace("```", "")
+    text = text.replace("json", "")
+    text = text.replace("JSON", "")
+
+    return text
 
 
 def _ensure_api_key() -> str:
@@ -190,15 +179,17 @@ async def call_llm_structured(
     # Pass Pydantic models directly as per Google's documentation
     print(f"Running {stage_type} with model: {model_name}")
     logging.info(f"Running {stage_type} LLM with model: {model_name}")
+
+    config: GenerateContentConfigDict = {
+        'response_mime_type': 'application/json',
+        'response_schema': output_schema,
+        'temperature': CONFIG.TEMPERATURE
+        # 'safety_settings': CONFIG.SAFETY_SETTINGS,
+    }
     response = client.models.generate_content(
         model=model_name,
         contents=full_prompt,
-        config={
-            'response_mime_type': 'application/json',
-            'response_schema': output_schema,
-            'temperature': CONFIG.TEMPERATURE,
-            'safety_settings': CONFIG.SAFETY_SETTINGS,
-        },
+        config=config
     )
 
     log_llm_io(stage_type, prompt, response.text, model_name)

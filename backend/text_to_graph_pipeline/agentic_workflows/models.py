@@ -82,25 +82,24 @@ class AppendAction(BaseTreeAction):
 
 class ChildNodeSpec(BaseModel):
     """Specification for a new child node to be created"""
-    name: str = Field(description="Name for the new child node")
-    content: str = Field(description="Content for the new child node")
-    summary: str = Field(description="A concise summary for the new child node")
-    relationship: str = Field(description="The human-readable, 'fill-in-the-blank' relationship phrase")
+    name: str = Field(description="Name for the new node")
+    content: str = Field(description="Content for the new node")
+    summary: str = Field(description="A concise summary for the new node")
+    relationship: str = Field(description="The human-readable, 'fill-in-the-blank' phrase representing the relationship to the original node.")
 
 
 class OptimizationResponse(BaseModel):
     """Response model for single abstraction optimization - no union types"""
-    reasoning: str = Field(description="COMPREHENSIVE analysis following ALL three stages. (1) Synthesis: Describe your integrated understanding of the combined old and new content. (2) Deconstruction: List the distinct concepts/abstractions you identified and their 'kind' (Task, Observation, Function etc.). (3) Optimization Decision: Justify your final choice by explicitly referencing the core compression principle and cognitive load.")
+    reasoning: str = Field(description="COMPREHENSIVE reasoning notes for ALL stages.")
     
     # Original node update (if needed)
-    update_original: bool = Field(description="Whether to update the original node")
-    original_new_content: Optional[str] = Field(default=None, description="Updated content for the original node. Required if update_original is true.")
-    original_new_summary: Optional[str] = Field(default=None, description="Updated summary for the original node. Required if update_original is true.")
+    original_new_content: Optional[str] = Field(description="Updated content for the original node.")
+    original_new_summary: Optional[str] = Field(default=None, description="Updated summary for the original node.")
     
     # New child nodes to create (can be empty list)
     create_new_nodes: List[ChildNodeSpec] = Field(
         default_factory=list,
-        description="List of child nodes to create (empty if no split needed)"
+        description="List of new nodes to create (empty if no split needed)"
     )
     
     debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instruction which created difficulties in completing the task")
@@ -113,7 +112,9 @@ class TargetNodeIdentification(BaseModel):
     target_node_id: int = Field(description="ID of target node (use -1 for new nodes)")
     target_node_name: Optional[str] = Field(default=None, description="Name of the chosen existing node (required when is_orphan=False)")
     is_orphan: bool = Field(description="Whether or not this segment has no home (target node), and instead should become a new node.")
-    orphan_topic_name: Optional[str] = Field(default=None, description="Name for new orphan node (required if is_orphan=True)")
+    orphan_topic_name: Optional[str] = Field(default=None, description="Name the parent of the orphan node should have (required if is_orphan=True)")
+    relationship_to_target: str=Field(description="The fill-in-the-blank relationship type of segment, to either the target node, or the imaginary parent of the orphan segment")
+
     
     def model_post_init(self, __context):
         """Validate that new nodes have names and existing nodes have valid IDs"""

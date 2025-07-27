@@ -84,7 +84,7 @@ class TreeToMarkdownConverter:
                     f.write(f"### {node_data.summary}\n\n")
 
                 # Deduplicate content before writing to improve quality
-                clean_content = deduplicate_content(node_data.content)
+                clean_content = node_data.content
                 f.write(f"{clean_content}\n\n\n-----------------\n_Links:_\n")
 
                 # Add child links
