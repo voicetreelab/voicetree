@@ -51,7 +51,6 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=simple_tree,
             existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
@@ -81,7 +80,6 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree,
             existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
@@ -111,7 +109,6 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree,
             existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
@@ -140,7 +137,6 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree,
             existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
@@ -181,7 +177,6 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=tree,
             existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
@@ -199,7 +194,6 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=simple_tree,
             existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes),
             transcript_history=history
         )
@@ -228,7 +222,6 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            decision_tree=simple_tree,
             existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
         )
         
