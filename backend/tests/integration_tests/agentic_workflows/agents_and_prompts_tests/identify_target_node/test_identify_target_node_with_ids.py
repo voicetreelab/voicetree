@@ -28,7 +28,15 @@ class TestIdentifyTargetNodeWithIDs:
         backend_dir = Path(__file__).parent.parent.parent.parent.parent.parent  # Go to backend dir
         prompts_dir = backend_dir / "text_to_graph_pipeline" / "agentic_workflows" / "prompts"
         return PromptLoader(str(prompts_dir.absolute()))
-    
+
+    async def call_LLM(self, prompt_text):
+        return await call_llm_structured(
+            prompt_text,
+            stage_type="identify_target_node",
+            output_schema=TargetNodeResponse,
+            model_name="gemini-2.5-flash-lite"
+        )
+
     @pytest.mark.asyncio
     async def test_existing_node_identification_with_ids(self, prompt_loader):
         """Test identifying segments that should go to existing nodes using IDs"""
@@ -55,13 +63,8 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_history="",  # Empty history for this test
             transcript_text="We need to add caching to improve voice tree performance. The database indexes need optimization for faster queries."
         )
-        
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse,
-            model_name="gemini-2.5-flash-lite"
-        )
+
+        result = await self.call_LLM(prompt_text)
         
         # Assertions
         assert len(result.target_nodes) == 2
@@ -115,13 +118,7 @@ class TestIdentifyTargetNodeWithIDs:
         assert "notification" in result.target_nodes[1].orphan_topic_name.lower() or \
                "websocket" in result.target_nodes[1].orphan_topic_name.lower()
 
-    async def call_LLM(self, prompt_text):
-        return await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse,
-            model_name="gemini-2.5-flash-lite"
-        )
+
 
     @pytest.mark.asyncio
     async def test_mixed_existing_and_new_nodes(self, prompt_loader):
