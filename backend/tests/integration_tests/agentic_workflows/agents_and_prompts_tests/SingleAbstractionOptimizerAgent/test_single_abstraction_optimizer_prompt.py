@@ -58,12 +58,8 @@ class TestSingleAbstractionOptimizerPrompt:
             node_summary=node_summary,
             neighbors=neighbors
         )
-        
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="single_abstraction_optimizer",
-            output_schema=OptimizationResponse
-        )
+
+        result = await self.call_llm(prompt_text)
         
         # Assertions
         # LLM should either split or update - both are reasonable
@@ -84,7 +80,16 @@ class TestSingleAbstractionOptimizerPrompt:
             assert result.update_original == True
             assert result.original_new_content is not None
             assert result.original_new_summary is not None
-    
+
+    async def call_llm(self, prompt_text):
+        result = await call_llm_structured(
+            prompt_text,
+            stage_type="single_abstraction_optimizer",
+            output_schema=OptimizationResponse,
+            model_name="gemini-2.5-flash-lite"
+        )
+        return result
+
     async def test_keep_cohesive_node(self, prompt_loader):
         """
         Test Case 2: A cohesive node that should stay as a single node
@@ -121,12 +126,8 @@ class TestSingleAbstractionOptimizerPrompt:
             node_summary=node_summary,
             neighbors=neighbors
         )
-        
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="single_abstraction_optimizer",
-            output_schema=OptimizationResponse
-        )
+
+        result = await self.call_llm(prompt_text)
         
         # Assertions - improved prompt may identify optimization opportunities
         # Should have reasonable number of new nodes for the authentication flow
@@ -183,12 +184,8 @@ class TestSingleAbstractionOptimizerPrompt:
             node_summary=node_summary,
             neighbors=neighbors
         )
-        
-        result = await call_llm_structured(
-            prompt_text,
-            stage_type="single_abstraction_optimizer",
-            output_schema=OptimizationResponse
-        )
+
+        result = await self.call_llm(prompt_text)
         
         # Assertions
         # The LLM might decide to either:

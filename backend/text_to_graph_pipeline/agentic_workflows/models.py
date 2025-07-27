@@ -90,7 +90,7 @@ class ChildNodeSpec(BaseModel):
 
 class OptimizationResponse(BaseModel):
     """Response model for single abstraction optimization - no union types"""
-    reasoning: str = Field(description="COMPREHENSIVE analysis following ALL three stages. (1) Synthesis: Describe your integrated understanding of the combined old and new content. (2) Deconstruction: List the distinct Work Items you identified and their 'kind' (Task, Problem, etc.). (3) Optimization Decision: Justify your final choice by explicitly referencing the core compression principle and cognitive load.")
+    reasoning: str = Field(description="COMPREHENSIVE analysis following ALL three stages. (1) Synthesis: Describe your integrated understanding of the combined old and new content. (2) Deconstruction: List the distinct concepts/abstractions you identified and their 'kind' (Task, Observation, Function etc.). (3) Optimization Decision: Justify your final choice by explicitly referencing the core compression principle and cognitive load.")
     
     # Original node update (if needed)
     update_original: bool = Field(description="Whether to update the original node")

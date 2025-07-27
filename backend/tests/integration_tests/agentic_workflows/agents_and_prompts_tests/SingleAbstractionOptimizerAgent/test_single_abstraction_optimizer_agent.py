@@ -232,3 +232,88 @@ Plus configure backup strategies and replication.""",
                 assert hasattr(action, 'content')
                 assert hasattr(action, 'summary')
                 assert hasattr(action, 'relationship')
+
+    @pytest.mark.asyncio
+    async def test_synthesis_of_appended_raw_text(self, agent, node_with_raw_appended_text):
+        """
+        HARD TEST 1: Tests if the model can synthesize a well-structured node with
+        a raw, appended thought stream, and then correctly split out the new, distinct
+        abstractions (a 'Problem' and a 'Solution/Task').
+        """
+        actions = await agent.run(node=node_with_raw_appended_text, neighbours_context="No neighbor nodes available")
+
+        assert len(actions) > 0, "Agent should take action on a node with appended raw text."
+
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        # The primary assertion: this MUST be split. Keeping it together is a failure.
+        assert len(create_actions) >= 2, "Should split out the new Problem and Solution into at least two child nodes."
+
+        # Verify the new nodes capture the distinct concepts
+        child_names = [a.new_node_name.lower() for a in create_actions]
+
+        # Check for a 'Problem' node
+        assert any("spike" in name or "degradation" in name or "cpu" in name for name in child_names), \
+            "One child node should identify the performance problem."
+
+        # Check for a 'Solution/Task' node
+        assert any("replica" in name or "isolate load" in name for name in child_names), \
+            "Another child node should capture the proposed read replica solution."
+
+        # Verify the original node is updated to be a clean parent
+        assert len(update_actions) == 1, "The original node should be updated."
+        assert "monitoring" in update_actions[0].new_summary.lower(), "Original node should remain focused on monitoring."
+        assert "replica" not in update_actions[0].new_content, "The solution detail should be moved out of the parent."
+
+    @pytest.mark.asyncio
+    async def test_resists_over_splitting_of_cohesive_checklist(self, agent, node_tempting_to_oversplit):
+        """
+        HARD TEST 2: Tests if the model understands the 'Structural Cost' principle. It should
+        resist the temptation to split a highly cohesive checklist of small items into
+        many tiny nodes, recognizing that this harms understandability.
+        """
+        actions = await agent.run(node=node_tempting_to_oversplit, neighbours_context="No neighbor nodes available")
+
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        # The primary assertion: the model should NOT split this node.
+        # Splitting demonstrates a failure to understand the Cognitive Efficiency framework.
+        assert len(create_actions) == 0, "Should not split a cohesive checklist. This increases Structural Cost."
+
+        # It's acceptable to update the original node for clarity, but not required.
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        if len(actions) > 0:
+            assert len(update_actions) >= 1, "If any action is taken, it should be an update, not a split."
+
+    @pytest.mark.asyncio
+    async def test_splits_subtly_distinct_concepts_despite_neighbor(self, agent, node_with_interwoven_concepts):
+        """
+        HARD TEST 3: Tests if the model can parse a dense paragraph and identify two
+        distinct conceptual units (CI vs. CD) that *should* be split. This is made
+        harder by a tempting neighbor node.
+        """
+        # A tempting neighbor that is related but too general for the specific task.
+        neighbors_context = "Neighbors: [{'name': 'Production Deployment Strategy', 'summary': 'High-level plan for deploying to production...'}]"
+
+        actions = await agent.run(node=node_with_interwoven_concepts, neighbours_context=neighbors_context)
+
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        # The primary assertion: This node MUST be split into exactly one child.
+        # Keeping it together is a failure to reduce Nodal Cost.
+        # Referencing the neighbor instead of creating a new task is also a failure.
+        assert len(create_actions) == 1, "Should split the distinct 'Deployment Process' concept into one new child node."
+
+        # Verify the new child node is about the deployment task
+        new_node_content = create_actions[0].content.lower()
+        assert "deployment" in new_node_content or "rollback" in new_node_content, \
+            "The new child node must be about the deployment process."
+        assert "jenkins" not in new_node_content, "The CI details should remain in the parent."
+
+        # Verify the original node is now cleanly focused on CI
+        assert len(update_actions) == 1
+        parent_content = update_actions[0].new_content.lower()
+        assert "continuous integration" in parent_content or "jenkins" in parent_content
+        assert "deployment" not in parent_content, "The deployment details should be moved out of the parent."
