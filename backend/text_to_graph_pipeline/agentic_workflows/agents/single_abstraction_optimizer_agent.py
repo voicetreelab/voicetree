@@ -23,8 +23,7 @@ class SingleAbstractionOptimizerAgent(Agent):
         """Single prompt workflow"""
         self.add_prompt(
             "single_abstraction_optimizer",
-            OptimizationResponse,
-            model_name="gemini-2.5-flash-lite"
+            OptimizationResponse
         )
         self.add_dataflow("single_abstraction_optimizer", END)
     
