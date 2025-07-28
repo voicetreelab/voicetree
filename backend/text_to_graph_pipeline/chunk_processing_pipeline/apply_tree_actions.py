@@ -80,9 +80,9 @@ class TreeActionApplier:
             if isinstance(action, UpdateAction):
                 self._apply_update_action(action)
             elif isinstance(action, CreateAction):
-                self._apply_create_action_from_optimizer(action)
+                self._apply_create_action(action)
             elif isinstance(action, AppendAction):
-                self._apply_append_action_unified(action)
+                self._apply_append_action(action)
             else:
                 logging.warning(f"Unknown action type: {type(action)}")
         
@@ -109,7 +109,7 @@ class TreeActionApplier:
         except KeyError:
             logging.error(f"Could not find node with ID {action.node_id} for UPDATE action")
     
-    def _apply_create_action_from_optimizer(self, action: CreateAction):
+    def _apply_create_action(self, action: CreateAction):
         """
         Apply a CREATE action from the optimizer (uses CreateAction model)
         
@@ -173,16 +173,16 @@ class TreeActionApplier:
             if action.action == "UPDATE":
                 self._apply_update_action(action)
             elif action.action == "CREATE":
-                self._apply_create_action_from_optimizer(action)
+                self._apply_create_action(action)
             elif action.action == "APPEND":
-                self._apply_append_action_unified(action)
+                self._apply_append_action(action)
             else:
                 raise ValueError(f"Unknown action type: {action.action}")
         
         logging.info(f"DEBUG TreeActionApplier: Returning modified nodes: {self.nodes_to_update}")
         return self.nodes_to_update.copy()
     
-    def _apply_append_action_unified(self, action: 'AppendAction'):
+    def _apply_append_action(self, action: 'AppendAction'):
         """
         Apply an APPEND action using the new unified action model
         
@@ -195,7 +195,7 @@ class TreeActionApplier:
         if node_id not in self.decision_tree.tree:
             if action.target_node_name:
                 logging.info(f"Node ID {node_id} not found, searching for node by name: '{action.target_node_name}'")
-                found_id = self.decision_tree.find_node_by_name(action.target_node_name)
+                found_id = self.decision_tree.get_node_id_from_name(action.target_node_name)
                 if found_id is not None:
                     logging.info(f"Found node '{action.target_node_name}' with ID {found_id}, using that instead")
                     node_id = found_id

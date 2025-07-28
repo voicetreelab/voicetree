@@ -24,6 +24,106 @@ class TestSingleAbstractionOptimizerAgent:
     def agent(self):
         """Create agent instance"""
         return SingleAbstractionOptimizerAgent()
+
+
+    @pytest.fixture
+    def node_for_neighbor_discrimination(self):
+        """
+        HARD TEST FIXTURE: A node where appended text contains three distinct ideas,
+        each most relevant to a different target: the original node, neighbor A,
+        or neighbor B. This tests precise target selection.
+        """
+        return Node(
+            name="Plan Q3 Marketing Campaign",
+            node_id=70,
+            content="We need to outline the key activities and budget for the Q3 marketing push"
+                    "+++so, my initial thought is we need to get the final ad budget approved, that should be task number one for this campaign plan. This whole campaign is also completely dependent on the 'Analytics Dashboard v1.0' feature shipping on time. If that slips, our entire campaign messaging is moot. We should formally log this as a major dependency risk in the project's risk log. And speaking of the dashboard, the dev team just told me they can't call it 'feature complete' until someone designs the user onboarding tutorial for it. That seems like a critical path task for them, not us, but we need to make sure it's tracked.""",
+            summary="Outline the key activities and budget for the Q3 marketing push."
+        )
+
+    @pytest.fixture
+    def node_for_dependency_chain(self):
+        """
+        HARD TEST FIXTURE: A node where appended text describes a causal chain
+        of problem -> solution -> prerequisite, requiring the model to create
+        a chain of new nodes, where each new node targets the previous one.
+        """
+        return Node(
+            name="Improve API Response Time",
+            node_id=80,
+            content="The API response time is unacceptably slow. We need to fix it"
+                    "+++so I did some digging, and the root cause is definitely our legacy database schema. It's not indexed properly for the new query patterns. This is the core problem we need to solve. I think the only real solution is a full migration to a new, optimized schema. Obviously that's a huge project. Before we can even start planning a migration like that, we have to build a comprehensive data-integrity test suite. Without that safety net, we'd be flying blind and could cause massive data corruption. That test suite is the absolute first step.""",
+            summary="Investigate and resolve the performance degradation in the main API endpoint."
+        )
+
+    @pytest.mark.asyncio
+    async def test_discriminates_between_multiple_relevant_neighbors(self, agent, node_for_neighbor_discrimination):
+        """
+        HARD TEST: Ensures the model correctly assigns new ideas to the most
+        appropriate target when faced with multiple options (original node, neighbor A, neighbor B).
+        """
+        neighbors_context = "[{'name': 'Project Risk Log', 'summary': 'A centralized log of all identified project risks.'}, {'name': 'Analytics Dashboard v1.0', 'summary': 'The new analytics feature for Q3.'}]"
+
+        actions = await agent.run(node=node_for_neighbor_discrimination, neighbours_context=neighbors_context)
+
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        assert len(update_actions) == 1, "The original node should always be updated."
+        assert len(create_actions) == 3, "Should have created three distinct nodes for the three ideas."
+
+        # Create a map of created node names to their targets for easy validation
+        target_map = {action.new_node_name: action.target_node_name for action in create_actions}
+
+        # 1. The budget task belongs to the original campaign plan node.
+        budget_node_name = next((name for name in target_map if "budget" in name.lower()), None)
+        assert budget_node_name is not None, "A node for budget approval should have been created."
+        assert target_map[budget_node_name] == "Plan Q3 Marketing Campaign", "Budget task should target the original node."
+
+        # 2. The dependency risk belongs in the 'Project Risk Log'.
+        risk_node_name = next((name for name in target_map if "risk" in name.lower()), None)
+        assert risk_node_name is not None, "A node for the dependency risk should have been created."
+        assert target_map[risk_node_name] == "Project Risk Log", "Risk should target the 'Project Risk Log' neighbor."
+
+        # 3. The tutorial design is a requirement for the 'Analytics Dashboard'.
+        tutorial_node_name = next((name for name in target_map if "tutorial" in name.lower()), None)
+        assert tutorial_node_name is not None, "A node for the tutorial design should have been created."
+        assert target_map[tutorial_node_name] == "Analytics Dashboard v1.0", "Tutorial task should target the 'Analytics Dashboard' neighbor."
+
+    @pytest.mark.asyncio
+    async def test_creates_dependency_chain_of_new_nodes(self, agent, node_for_dependency_chain):
+        """
+        HARD TEST: Ensures the model can create a chain of new nodes, where
+        one new node is the target for another new node created in the same operation.
+        """
+        # A distractor neighbor to ensure the model doesn't just link to any neighbor.
+        neighbors_context = "[{'name': 'Q4 Infrastructure Budget', 'summary': 'Budget allocation for Q4.'}]"
+
+        actions = await agent.run(node=node_for_dependency_chain, neighbours_context=neighbors_context)
+
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+
+        assert len(update_actions) == 1, "The original node should be updated."
+        assert len(create_actions) >= 3, "Should create a chain of three new nodes (Problem, Solution, Prerequisite)."
+
+        # Find each node in the chain. We use content checks as names can vary slightly.
+        try:
+            problem_node = next(a for a in create_actions if "schema" in a.content.lower() and "solution" not in a.content.lower())
+            solution_node = next(a for a in create_actions if "migration" in a.content.lower())
+            prereq_node = next(a for a in create_actions if "test suite" in a.content.lower())
+        except StopIteration:
+            pytest.fail("Failed to create all three distinct nodes for the dependency chain.")
+
+        # 1. The "Problem" node should target the original node.
+        assert problem_node.target_node_name == "Improve API Response Time"
+
+        # 2. The "Solution" node should target the "Problem" node.
+        assert solution_node.target_node_name == problem_node.new_node_name
+
+        # 3. The "Prerequisite" node should target the "Solution" node.
+        assert prereq_node.target_node_name == solution_node.new_node_name
+
     
     @pytest.fixture
     def cluttered_node(self):

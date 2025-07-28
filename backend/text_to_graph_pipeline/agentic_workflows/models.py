@@ -85,7 +85,8 @@ class ChildNodeSpec(BaseModel):
     name: str = Field(description="Name for the new node")
     content: str = Field(description="Content for the new node")
     summary: str = Field(description="A concise summary for the new node")
-    relationship: str = Field(description="The human-readable, 'fill-in-the-blank' phrase representing the relationship to the original node.")
+    relationship: str = Field(description="The human-readable, 'fill-in-the-blank' phrase representing the relationship to the target node.")
+    target_node_name: str = Field(description="Name of the node this new node should be linked to (default: current node being optimized)")
 
 
 class OptimizationResponse(BaseModel):

@@ -136,7 +136,6 @@ class TestSingleAbstractionOptimizerPrompt:
         # If nodes are created, they should be for the authentication flow steps
         if len(result.create_new_nodes) > 0:
             # Should update the original to be a higher-level summary
-            assert result.update_original
             assert result.original_new_summary is not None
             assert "authentication" in result.original_new_summary.lower()
             
@@ -150,10 +149,7 @@ class TestSingleAbstractionOptimizerPrompt:
             assert has_auth_concepts, f"Created nodes should cover authentication concepts. Got: {node_names}"
         
         # If not creating nodes, should at least update the original if needed
-        elif not result.create_new_nodes:
-            # Should either update original or leave as-is 
-            assert isinstance(result.update_original, bool)
-    
+
     async def test_update_poorly_summarized_node(self, prompt_loader):
         """Test updating a node with poor summary/content organization"""
         # Test data - node with good content but poor summary
@@ -194,13 +190,13 @@ class TestSingleAbstractionOptimizerPrompt:
         # 3. Keep it as is (no changes)
         # All are valid approaches
         
-        if result.update_original:
-            # If updating, should improve the summary
-            assert result.original_new_summary is not None
-            assert len(result.original_new_summary) > len(node_summary)
-            assert "caching" in result.original_new_summary.lower() or \
-                   "performance" in result.original_new_summary.lower()
-        elif len(result.create_new_nodes) > 0:
+        # If updating, should improve the summary
+        assert result.original_new_summary is not None
+        assert len(result.original_new_summary) > len(node_summary)
+        assert "caching" in result.original_new_summary.lower() or \
+               "performance" in result.original_new_summary.lower()
+
+        if len(result.create_new_nodes) > 0:
             # If splitting, should have meaningful child nodes
             child_contents = [child.content.lower() for child in result.create_new_nodes]
             assert any("redis" in c or "cdn" in c or "database" in c or "api" in c 
