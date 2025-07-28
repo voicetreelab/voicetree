@@ -92,6 +92,7 @@ class ChunkProcessor:
         try:
             # logging.info(f"Processing transcribed text: {text}")
             text = text.replace("Thank you.", "")  # todo, whisper keeps on hallucinating thank you
+            text = text.replace("voistree", "VoiceTree")  #
             start_time = time.time()
 
             # logging.info(f"ChunkProcessor.process_and_convert calling process_new_text with: '{text}'")
