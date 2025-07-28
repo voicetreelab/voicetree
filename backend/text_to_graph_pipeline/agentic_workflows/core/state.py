@@ -35,6 +35,7 @@ class SingleAbstractionOptimizerAgentState(TypedDict):
     node_summary: str
     neighbors: str  # JSON string of neighbor nodes
     transcript_history: str  # Added to match agent initialization
+    target_node_name: Optional[str]  # Optional target node name for creating linked abstractions
     
     # Agent prompt outputs (stored using prompt names with _response suffix)
     single_abstraction_optimizer_response: Optional[OptimizationResponse]  # Typed response from single_abstraction_optimizer prompt

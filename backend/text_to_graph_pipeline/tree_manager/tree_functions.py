@@ -99,18 +99,26 @@ def get_most_relevant_nodes(decision_tree, limit: int) -> List:
     return result
 
 
-def _format_nodes_for_prompt(nodes: List[Node]) -> str:
-    """Format nodes for LLM prompt as JSON"""
+def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) -> str:
+    """Format nodes for LLM prompt in a consistent, readable format"""
     if not nodes:
-        return "[]"  # Empty array for no nodes
-
-    node_list = "["
+        return "No nodes available"
+    
+    formatted_nodes = []
+    formatted_nodes.append("===== Available Nodes =====")
+    
     for node in nodes:
-        if not node.parent_id:
-            node_list += f"- Node ID: {node.id}; Name: {node.title}, \nSummary: {node.summary};"
+        node_entry = []
+        node_entry.append(f"Node ID: {node.id}")
+        node_entry.append(f"Title: {node.title}")
+        node_entry.append(f"Summary: {node.summary}")
+        
+        if node.parent_id:
+            node_entry.append(f"Relationship: {node.relationships[node.parent_id]} to '{tree[node.parent_id].title}'")
 
-        else:
-            node_list += f"- Node ID: {node.id}; Name: {node.title}, \nSummary: {node.summary}; Relationship to parent (node {node.parent_id}): {node.relationships[node.parent_id]}\n"
-
-
-    return node_list + "]"
+        formatted_nodes.append("\n".join(node_entry))
+        formatted_nodes.append("-" * 40)
+    
+    formatted_nodes.append("==========================")
+    
+    return "\n".join(formatted_nodes)

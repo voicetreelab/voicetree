@@ -23,16 +23,18 @@ class SingleAbstractionOptimizerAgent(Agent):
         """Single prompt workflow"""
         self.add_prompt(
             "single_abstraction_optimizer",
-            OptimizationResponse
+            OptimizationResponse,
+            model_name="gemini-2.5-flash-lite"
         )
         self.add_dataflow("single_abstraction_optimizer", END)
     
-    async def run(self, node:Node, neighbours_context: str) -> List[BaseTreeAction]:
+    async def run(self, node:Node, neighbours_context: str, target_node_name: Optional[str] = None) -> List[BaseTreeAction]:
         """Analyze and optimize a single node
         
         Args:
-            node_id: ID of the node to optimize
-            decision_tree: The decision tree containing the node
+            node: The node to optimize
+            neighbours_context: Context about neighboring nodes
+            target_node_name: Optional target node name for creating linked abstractions
             
         Returns:
             List of tree actions (UPDATE and/or CREATE actions)
@@ -48,6 +50,7 @@ class SingleAbstractionOptimizerAgent(Agent):
             "node_summary": node.summary,
             "neighbors": str(neighbours_context),
             "transcript_history": "", 
+            "target_node_name": target_node_name,
             # Agent response field
             "single_abstraction_optimizer_response": None
         }
@@ -58,10 +61,10 @@ class SingleAbstractionOptimizerAgent(Agent):
         
         # Extract and convert to actions
         if result:
-            return self._convert_to_typed_actions(result, node.id)
+            return self._convert_to_typed_actions(result, node.id, target_node_name)
         return []
     
-    def _convert_to_typed_actions(self, result: dict, node_id: int) -> List[BaseTreeAction]:
+    def _convert_to_typed_actions(self, result: dict, node_id: int, target_node_name: Optional[str] = None) -> List[BaseTreeAction]:
         """Convert response structure to properly typed actions"""
         from ..core.boundary_converters import dicts_to_models, dict_to_model
         from ..models import ChildNodeSpec
@@ -103,6 +106,7 @@ class SingleAbstractionOptimizerAgent(Agent):
             typed_actions.append(CreateAction(
                 action="CREATE",
                 parent_node_id=node_id,
+                target_node_name=target_node_name,
                 new_node_name=child_spec.name,
                 content=child_spec.content,
                 summary=child_spec.summary,
