@@ -7,10 +7,37 @@ to prevent long context failures (8000+ tokens).
 
 import json
 import pytest
+import re
 from unittest.mock import Mock, MagicMock
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
 from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
+
+
+def _parse_formatted_nodes(formatted_nodes: str) -> list:
+    """Helper function to parse the new custom node format into a list of dicts"""
+    if formatted_nodes == "No nodes available":
+        return []
+    
+    # Extract node entries between separators
+    nodes_list = []
+    node_entries = formatted_nodes.split('-' * 40)
+    
+    for entry in node_entries:
+        if 'Node ID:' in entry:
+            # Extract node info using regex
+            id_match = re.search(r'Node ID: (\d+)', entry)
+            title_match = re.search(r'Title: ([^\n]+)', entry)
+            summary_match = re.search(r'Summary: ([^\n]+)', entry)
+            
+            if id_match and title_match and summary_match:
+                nodes_list.append({
+                    "id": int(id_match.group(1)),
+                    "name": title_match.group(1).strip(),
+                    "summary": summary_match.group(1).strip()
+                })
+    
+    return nodes_list
 
 
 class TestNodeLimitBehavior:
@@ -41,9 +68,8 @@ class TestNodeLimitBehavior:
         # Get formatted nodes
         formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
         
-        # Parse the JSON to count nodes
-        import json
-        nodes_list = json.loads(formatted_nodes)
+        # Parse the formatted nodes to count nodes
+        nodes_list = _parse_formatted_nodes(formatted_nodes)
         
         # Assert that only limited nodes are included
         assert len(nodes_list) <= 20, f"Expected at most 20 nodes, but got {len(nodes_list)}"
@@ -61,7 +87,7 @@ class TestNodeLimitBehavior:
         
         # Get formatted nodes
         formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
-        nodes_list = json.loads(formatted_nodes)
+        nodes_list = _parse_formatted_nodes(formatted_nodes)
         
         # Extract node IDs from the result
         included_node_ids = [node['id'] for node in nodes_list]
@@ -108,7 +134,7 @@ class TestNodeLimitBehavior:
         relevant_nodes = get_most_relevant_nodes(small_tree, 20)
         
         formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
-        nodes_list = json.loads(formatted_nodes)
+        nodes_list = _parse_formatted_nodes(formatted_nodes)
         
         # All 5 nodes should be included
         assert len(nodes_list) == 5, f"Expected all 5 nodes, but got {len(nodes_list)}"
@@ -119,7 +145,7 @@ class TestNodeLimitBehavior:
         relevant_nodes = get_most_relevant_nodes(decision_tree_with_many_nodes, 15)
         
         formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
-        nodes_list = json.loads(formatted_nodes)
+        nodes_list = _parse_formatted_nodes(formatted_nodes)
         
         # Extract node IDs
         included_node_ids = [node['id'] for node in nodes_list]

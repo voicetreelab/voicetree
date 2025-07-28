@@ -51,7 +51,7 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes, simple_tree.tree)
         )
         
         assert len(result.actions) == 1
@@ -80,7 +80,7 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes, tree.tree)
         )
         
         assert len(result.actions) == 1
@@ -109,7 +109,7 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes, tree.tree)
         )
         
         # Should have 2 actions (one for each sentence)
@@ -137,7 +137,7 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes, tree.tree)
         )
         
         # Should create 2 new nodes
@@ -177,7 +177,7 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes, tree.tree)
         )
         
         assert len(result.actions) == 1
@@ -194,7 +194,7 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes),
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes, simple_tree.tree),
             transcript_history=history
         )
         
@@ -222,7 +222,7 @@ class TestAppendToRelevantNodeAgent:
         existing_nodes = get_most_relevant_nodes(simple_tree, MAX_NODES_FOR_LLM_CONTEXT)
         result = await agent.run(
             transcript_text=text,
-            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes)
+            existing_nodes_formatted=_format_nodes_for_prompt(existing_nodes, simple_tree.tree)
         )
         
         # Should have segments

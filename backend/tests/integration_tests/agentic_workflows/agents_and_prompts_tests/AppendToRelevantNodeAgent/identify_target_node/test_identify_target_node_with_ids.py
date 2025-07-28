@@ -134,12 +134,6 @@ class TestIdentifyTargetNodeWithIDs:
         [
             {
                 "id": 1,
-                "name": "Voice Tree Project work",
-                "summary": "Overall work on VoiceTree project"
-            },
-            {
-            {
-                "id": 1,
                 "name": "Voice Tree Proof of Concept",
                 "summary": "Initiating the 'voice tree' project PoC, requiring audio file upload."
             },

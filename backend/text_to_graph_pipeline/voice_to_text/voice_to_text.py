@@ -189,6 +189,7 @@ class VoiceToTextEngine:
                 language=self.config.language,
                 word_timestamps=self.config.word_timestamps,
                 condition_on_previous_text=self.config.condition_on_previous_text and not self.model_failed_last_transcription,
+                initial_prompt="Speaker is working on and explaining VoiceTree software",
                 vad_filter=self.config.use_vad_filter,
                 vad_parameters=dict(
                     min_silence_duration_ms=self.config.MIN_SILENCE_DURATION_MS)
