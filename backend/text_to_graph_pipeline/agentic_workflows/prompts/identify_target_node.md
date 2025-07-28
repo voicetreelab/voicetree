@@ -10,13 +10,11 @@ You must weigh context clues to find the best destination, in this order of impo
     - Immediate Historical Context (Overall Text): Use this to understand the user's overarching intent for the entire utterance.
     - Global Context (existing_nodes): Your map of potential homes for the segment's topic.
 
-1.  Global understanding: First, review all context. Try explore what the overall text is actually trying to say as a whole. You will use `glboal_understanding` to scribble down your chain of thought for this.
+1.  Global understanding: First, review all context. Try to explore what the overall text is actually trying to say as a whole. You will use `glboal_understanding` to scribble down your chain of thought for this.
 
 2.  Process each segment in the `Segments to Analyze` list sequentially, For each segment:
-    
-    2.0 Inertial chain rule: If the segment is directly related to the previous segment, set the target_node for this segment to the exact same target_node we set for the previous segment, EVEN if it is a distinctly new topic. Our downstream system will later split these up. 
 
-   2.1. Understand what the segment really means, with respect to your global understanding of the text. The meaning of the segment individually may be quite different to the meaning of the text within the global context. Write this down under the `reasoning` field, under "STEP 1, global understanding:". Ensure you understand both the *semantic*, and *pragmatic* meaning of the segment with respect to the greater text.
+    2.1. Understand what the segment really means, both with respect to your global (with respect to the text as a whole) understanding of the text, & locally (with respect to previous segments). The meaning of the segment individually may be quite different to the meaning of the text within  context. Write this down under the `reasoning` field, under "STEP 1, global understanding:". Ensure you understand both the *semantic*, and *pragmatic* meaning of the segment with respect to the greater text.
 
    2.2 For each segment, we now compare it to every single provided node, to identify the best target node.
 
@@ -28,7 +26,7 @@ You must weigh context clues to find the best destination, in this order of impo
    You should think like a detective in trying to find these connections, as they can be quite implicit from the text.
 
    These relationships do not have to be direct, or specific at this stage. If you found any correct relationship in this stage, you are not allowed to propose a new topic. Even if the relationship is weak, that is okay.
-    If truly no related node exists, if truly no related node exists, the segment is an orphan, completely separated from our existing graph.
+    If truly no related node exists, the segment is an orphan, completely separated from our existing graph.
 
    Try narrow down to a shortlist of up to 3 possibly related nodes, which can form correct proposition R(S,N). What would the relationship phrase (R) be for each of these nodes? Document these options in the reasoning output field.
 
@@ -52,9 +50,21 @@ You must weigh context clues to find the best destination, in this order of impo
 2.3. Handling orphans:
 Proposing a new topic is a last resort, used only if there is absolutely no correct relationship to an existing node.
 
+You must also not create an orphan if The 'Anti-Orphan Chain Rule' 3 activating conditions are all true: 
+            1. The current segment is a direct continuation of the previous segment's thought.
+            2. The previous segment was successfully routed to an EXISTING node (i.e., it was NOT an orphan).
+            3. The current segment, if evaluated on its own, would be proposed as a new "synthetic parent" (i.e., it would become an orphan).
+        If all three conditions are met, you **MUST** override the orphan proposal and assign the segment to the **exact same target node as the previous segment**.
+
+        This rule ensures that a pattern like `[Targeted Node] | [Orphan]` is not possible for a continuous thought. If a segment has a better, more specific existing node to go to, this rule does NOT apply.
+
 If a segment cannot be linked to any existing node, your task is not to name the segment itself, but to name its hypothetical parent node. Think of this as a 'ghost' or 'synthetic parent'—the general category this segment would belong to if that category existed.
 
 If subsequent segments also cannot be routed to an existing node AND they are about the same new topic, you must re-use the exact same proposed topic name. This groups related, un-routable segments together under the same temporary label for the downstream system.
+
+Chain rule for orphans:    
+If a segment is directly related to the previous segment, you are NOT ALLOWED to make this an orphan, instead it must
+be targetting the same node as the previous segment, even if the topics are different.
 
 If you propose a new topic, you MUST explain in your reasoning field why NO existing nodes were a suitable match.
 Specifically write "There is not a single possibly related node", in your reasoning, if this is the case. 
@@ -135,6 +145,47 @@ Current chunk broken down into segments to analyze:
   "global_reasoning": "The overall text outlines the Smart Home Hub project, covering architectural foundations, device communication, UI/UX, security, and firmware updates. The current chunk introduces a key performance optimization goal for the core system, followed by a new, distinct topic about an external funding grant. The first segment, despite its general nature, relates to the core system's performance, preventing an orphan. The subsequent two segments introduce and elaborate on a completely new topic (grant application), which has no existing node, leading to a chained orphan topic."
 }
 ```
+
+EXAMPLE 2
+
+This example demonstrates the Anti-Orphan Chain Rule.
+
+INPUTS:
+
+```
+Overall text: "Okay team, let's get started. Did you already give the system an introduction to who you are? No? Okay, let's introduce you:"
+
+Existing Nodes: [{"id": 1, "name": "User Introduction", "summary": "The user introduces themselves, their background, and their role."}]
+
+Current chunk of text to process: "I work on humanitarian aid operations in Afghanistan. We are a donor, and I want to use this voice tree to help me decide on funding allocations."
+
+Segments to Analyze:
+[{"text": "I work on humanitarian aid operations in Afghanistan."}, {"text": "We are a donor, and I want to use this voice tree to help me decide on funding allocations."}]
+```
+
+Expected Output:
+{
+"target_nodes": [
+{
+"text": "I work on humanitarian aid operations in Afghanistan.",
+"reasoning": "STEP 1, global understanding: The overall text explicitly sets up the context for a user introduction. This segment begins that introduction by stating the user's professional background. STEP 2.1, correctness: This segment's content directly matches the purpose of the 'User Introduction' node (ID 1). The relationship is 'is a detail of'.",
+"is_orphan": false,
+"target_node_id": 1,
+"target_node_name": "User Introduction",
+"orphan_topic_name": null,
+"relationship_to_target": "is a detail of"
+},
+{
+"text": "We are a donor, and I want to use this voice tree to help me decide on funding allocations.",
+"reasoning": "STEP 2.0 Anti-Orphan Chain Rule: This is the highest priority check. The rule's conditions are evaluated: 1. Is this a continuation of the previous thought? Yes, it's the next sentence in the introduction. 2. Did the previous segment target an existing node? Yes, Node 1. 3. Would this segment become an orphan on its own? Yes, its topic of 'funding allocations' has no matching existing node. Because all three conditions are met, the rule activates. The orphan proposal is overridden, and this segment MUST be routed to the same target as the previous one (Node 1). This correctly groups the entire conversational act of 'the user's introduction' together.",
+"is_orphan": false,
+"target_node_id": 1,
+"target_node_name": "User Introduction",
+"orphan_topic_name": null,
+"relationship_to_target": "is a motivation provided during"
+}
+]
+}
 
 
 INPUT DATA:
