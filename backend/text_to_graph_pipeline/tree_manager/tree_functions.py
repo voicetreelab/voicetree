@@ -114,7 +114,7 @@ def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) ->
         node_entry.append(f"Summary: {node.summary}")
         
         if node.parent_id:
-            node_entry.append(f"Relationship: {node.relationships[node.parent_id]} to '{tree[node.parent_id].title}'")
+            node_entry.append(f"Relationship: {node.relationships[node.parent_id]} (to '{tree[node.parent_id].title})'")
 
         formatted_nodes.append("\n".join(node_entry))
         formatted_nodes.append("-" * 40)

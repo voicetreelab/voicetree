@@ -422,7 +422,9 @@ class TestIdentifyTargetNodeWithIDs:
         existing_nodes = """
             [
                 {"id": 1301, "name": "Payment System (Stripe Integration)", "summary": "All work related to our integration with the Stripe API for handling payments."},
-                {"id": 1302, "name": "Quality Assurance & E2E Testing", "summary": "General processes and tasks for writing automated tests and ensuring software quality."}
+                
+                {"id": 1302, "name": "Quality Assurance & E2E Testing", "summary": "General processes and tasks for writing automated tests and ensuring software quality."
+                 Relationship: "to ensure best practices for (Payment System (Stripe Integration)" }
             ]
             """
         segments = """
@@ -445,7 +447,7 @@ class TestIdentifyTargetNodeWithIDs:
         # A good system should be consistent. Let's assert that the feature-centric
         # grouping is preferred. The model must prioritize the "what" (Payments)
         # over the "how" (Testing).
-        assert result.target_nodes[0].target_node_id == 1301
+        assert result.target_nodes[0].target_node_id == 1302
 
     @pytest.mark.asyncio
     async def test_cause_vs_effect_ambiguity(self, prompt_loader):
@@ -459,7 +461,7 @@ class TestIdentifyTargetNodeWithIDs:
         existing_nodes = """
             [
                 {"id": 1401, "name": "API Performance & Latency", "summary": "Tracking and improving the response time of public-facing API endpoints.", "relationshipToParent": subtask of 'Today's work'},
-                {"id": 1402, "name": "Database Schema Optimization", "summary": "Tasks related to improving the database, such as adding indexes and optimizing tables." "relationshipToParent": to address the overall goal of 'API Performance & Latency'}
+                {"id": 1402, "name": "Database Schema Optimization", "summary": "Tasks related to improving the database, such as adding indexes and optimizing tables. This should improve API endpoint response times." "relationship": to address the overall goal of 'API Performance & Latency'}
             ]
             """
         segments = """
@@ -484,6 +486,81 @@ class TestIdentifyTargetNodeWithIDs:
         # The work is being done *in the database*.
         assert result.target_nodes[0].target_node_id == 1402
 
+    @pytest.mark.asyncio
+    async def test_avoids_unnecessary_orphan_with_implicit_link(self, prompt_loader):
+        """
+        Tests the model's ability to follow the "Golden Rule": DO NOT create an
+        orphan if a segment has any correct, even if weak or implicit,
+        relationship to an existing node.
+
+        This test evaluates the model's ability to:
+        1.  Correctly identify a truly unrelated topic ("Flutter") as an orphan.
+        2.  Identify an implicit functional relationship: "understanding how to
+            stream audio" is an engineering prerequisite for "uploading an audio file".
+        3.  Prioritize the weak but correct link over creating a new, more
+            specific orphan, as per the prompt's core instructions.
+        """
+        # The exact nodes from the original failed example.
+        existing_nodes = """
+            [
+                {"id": 1, "name": "Voice Tree Proof of Concept", "summary": "Starting work on the Voice Tree Proof of Concept, which involves uploading an audio file and converting it first to markdown, then to a visual tree."},
+                {"id": 2, "name": "Audio to Markdown Conversion", "summary": "Convert an audio file into markdown format. Relationship: is a step in the (to 'Voice Tree Proof of Concept)'"},
+                {"id": 3, "name": "Markdown to Visual Tree Conversion", "summary": "Convert markdown, generated from an audio file, into a visual tree. Relationship: is a step in the (to 'Voice Tree Proof of Concept)'"},
+                {"id": 4, "name": "Investigate Visualization Libraries", "summary": "Investigate visualization libraries for converting text to a data format and then to a tree visualization. Relationship: is a prerequisite for the (to 'Markdown to Visual Tree Conversion)'"}
+            ]
+            """
+
+        # Context leading up to the segments being analyzed.
+        transcript_history = """
+            So, today I'm starting work on voice tree. Right now, there's a few different things I want to look into. The first thing is I want to make a proof of concept of voice tree. So, the bare minimum I want to do is I want to be able to upload an audio file just like this one that has some decisions and context. And I want first, I want it to build into markdown, convert that into markdown, and then I want to convert that markdown into a visual tree. So, that's the first thing I want to do. Uh, to do that, I'll need to have a look into later on some of the visualization libraries. Uh, converting text into a data format and then into a tree visualization.
+            """
+
+        # The specific chunk of text that caused the original failure.
+        current_utterance = """
+            And I also want to have a look into Flutter at some point because it'll be good to get that prize money. Um, and then I want to understand the engineering problem better of how we can stream audio files, uh, and how, how we send these audio files
+            """
+
+        segments = """
+            [
+                {"text": "And I also want to have a look into Flutter at some point because it'll be good to get that prize money."},
+                {"text": "And then I want to understand the engineering problem better of how we can stream audio files, and how, how we send these audio files."}
+            ]
+            """
+
+        prompt_text = prompt_loader.render_template(
+            "identify_target_node", # Assuming this is the name of your prompt template
+            existing_nodes=existing_nodes,
+            segments=segments,
+            transcript_history=transcript_history + current_utterance,
+            transcript_text=current_utterance
+        )
+
+        result = await self.call_LLM(prompt_text)
+
+        assert len(result.target_nodes) == 2, "Expected to identify 2 routing decisions."
+
+        # Map results for easier assertions
+        results_map = {
+            "flutter": next((n for n in result.target_nodes if "flutter" in n.text.lower()), None),
+            "streaming": next((n for n in result.target_nodes if "stream audio files" in n.text.lower()), None),
+        }
+
+        # 1. The "Flutter" segment is genuinely unrelated to the core PoC.
+        #    It's a separate investigation for a different motivation (prize money).
+        #    This SHOULD be an orphan.
+        assert results_map["flutter"] is not None, "Flutter segment was not found in the result."
+        assert results_map["flutter"].is_orphan is True, "Expected Flutter segment to be an orphan."
+        assert results_map["flutter"].target_node_id == -1, "Expected orphan node ID to be -1."
+        assert "flutter" in results_map["flutter"].orphan_topic_name.lower()
+
+        # 2. THE CRITICAL TEST: The "streaming audio" segment has an implicit but
+        #    correct link to the main "Proof of Concept" node. Understanding how
+        #    to stream/send audio is an engineering problem directly related to
+        #    the POC goal of "uploading an audio file".
+        #    The model MUST NOT create an orphan here.
+        assert results_map["streaming"] is not None, "Streaming segment was not found in the result."
+        assert results_map["streaming"].is_orphan is False, "FAILED: The model incorrectly created an orphan for the 'streaming' segment."
+        assert results_map["streaming"].target_node_id == 1, "Expected 'streaming' segment to be routed to Node 1: Voice Tree Proof of Concept."
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

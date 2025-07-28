@@ -80,8 +80,11 @@ class TreeToMarkdownConverter:
                 })
                 f.write(frontmatter)
 
-                if not node_data.content or "###" not in node_data.content:
+                if "#" not in node_data.summary:
                     f.write(f"### {node_data.summary}\n\n")
+
+                else:
+                    f.write(f"{node_data.summary}\n")
 
                 # Deduplicate content before writing to improve quality
                 clean_content = node_data.content

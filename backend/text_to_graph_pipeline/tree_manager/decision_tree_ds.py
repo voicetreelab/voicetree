@@ -139,7 +139,7 @@ class DecisionTree:
         # Write markdown for the updated node
         self._write_markdown_for_nodes([node_id])
 
-    def find_node_by_name(self, name: str, similarity_threshold: float = 0.8) -> Optional[int]:
+    def get_node_id_from_name(self, name: str, similarity_threshold: float = 0.8) -> Optional[int]:
         """
         Find a node by its name using fuzzy matching.
         

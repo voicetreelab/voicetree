@@ -127,12 +127,14 @@ STAGE 3: Refactor - Structure Optimization
 - FOR EACH abstraction_candidate:
   - IF neighbor exists: REFERENCE in content
   - ELSE: CREATE new_node
+- DETERMINE target_node_name for each new node:
+  - Default: Use the current node's name (the node being optimized)
+  - Alternative: If the new abstraction relates more directly to a different node, specify that node's name
+  - This enables creating abstractions that link to the most appropriate node in the graph
+  - You can also reference the names of NEW NODES you yourself are creating, as the target_node_name
 - DEFINE relationships using fill-in-the-blank:
-  "[new Node Name] ______ [main node Name]" (max 7 words)
+  "[new Node Name] ______ [target_node_name]" (max 7 words)
 - If no changes are needed, just match the original content.
-- SPECIAL CASE: If target_node_name is provided and you are creating new abstractions:
-  - Consider creating nodes that link back to the target_node_name instead of only to the current node
-  - This enables building coherent graph structures where new abstractions can reference the original context
 
 Stage 4: EDIT as per "Content Refactoring & Rewriting" instructions
 
@@ -148,72 +150,59 @@ STAGE 4: Validate - Quality Assurance
 **Node Data:**
 - Node Name: {{node_name}}
 - Node Summary: {{node_summary}}
-- Node Content: {{node_content}}
-- Neighbors: {{neighbors}}
-- Target Node Name (for new abstractions): {{target_node_name}}
-
-
+- Node Content:
+```
+{{node_content}}
+```
+- Neighbors: 
+```
+{{neighbors}}
+```
 
 ## Examples
 
-This example shows how a complex thought containing multiple distinct abstractions should be split to improve clarity.
+This example shows a complex case where new information contains multiple distinct abstractions. The optimal solution is to absorb one, and create three new nodes, each linked to the most appropriate parent: the original node, a neighbor node, and another newly created node.
 
-**Input:**
-```json
-{
-  "node_name": "User Authentication Bug",
-  "node_summary": "Users are being logged out randomly, especially on mobile.",
-  "node_content": "Users are reporting that they are getting logged out randomly, especially on mobile. We suspect it's a token refresh issue. \n...yeah so okay, I looked into it and it seems like the token expiration is set way too low, we should probably increase that to 24 hours. That's an easy fix. Uhm, but also, while I was in there, I noticed the password reset flow is completely broken, it's throwing a 500 error because the email service isn't configured. That's a separate, more urgent problem. So yeah, let's make the token fix the priority for this sprint and create a new ticket for the password reset."
-}
-```
-
-**Correct Output:**
-```json
-{
-  "reasoning": "### STAGE 1: Synthesize - Contextual Understanding\nThe initial node describes a user logout bug. The appended text introduces a diagnosis and solution for this bug, but also uncovers a completely separate, more urgent issue with the password reset flow. The text explicitly contains directives for action on both issues: 'make the token fix the priority for this sprint' and 'create a new ticket for the password reset.' This is a clear signal that the two problems are distinct cognitive units that need to be managed separately.\n\n### STAGE 2: Analyze - Abstraction Identification\nApplying the optimization framework, two primary abstractions are identified:\n1.  **The Logout Bug & Its Resolution**: The original problem, its diagnosis (low token expiration), and the associated action (prioritize for sprint) form a coherent unit. The diagnosis and action are attributes of the core problem, so they belong in the original node.\n2.  **The Password Reset Bug**: This is explicitly called out as a 'separate, more urgent problem'. It passes the Naming Test ('Broken Password Reset Flow') and the Future Reference Test, as it needs its own ticket and tracking. The directive 'create a new ticket' confirms it should be its own abstraction.\n\n### STAGE 3: Refactor - Structure Optimization\nBased on the analysis, the optimal structure is to keep the original node focused on the logout bug and create a new node for the password reset bug. The key action directives from the source text are assigned to their respective nodes.\n- **Original Node Update**: The content is refactored into structured markdown, preserving the original phrasing of the investigation and the specific action to prioritize the fix.\n- **New Node Creation**: A new node is created for the password reset bug. Its content also preserves the original phrasing describing the problem and its context, and includes the specific action to create a new ticket.\n- **Relationship**: The relationship 'was discovered while investigating' is chosen to clearly link the new node back to its origin, maintaining the discovery context.\n\n### STAGE 4: Edit & Validate\nThe content for both nodes has been reorganized from a stream-of-consciousness into a structured markdown format. Verbal fillers ('yeah so okay', 'Uhm') have been removed, but the core descriptive phrases and action items ('I looked into it and it seems like...', 'That's an easy fix.', 'let's make the token fix the priority...', 'create a new ticket...') have been carefully preserved as requested. This revised structure successfully minimizes cognitive load by separating two distinct problems while ensuring no information or specific directives are lost.",
-  "original_new_content": "### Problem\nUsers are reporting that they are getting logged out randomly, especially on mobile. We suspect it's a token refresh issue.\n\n### Investigation\nI looked into it and it seems like the token expiration is set way too low. We should probably increase that to 24 hours. That's an easy fix.\n\n### Action\nLet's make the token fix the priority for this sprint.",
-  "original_new_summary": "Users are randomly logged out due to low token expiration. The fix, an increase to 24 hours, should be prioritized for this sprint.",
-  "create_new_nodes": [
-    {
-      "name": "Broken Password Reset Flow",
-      "content": "### Problem\nWhile I was in there, I noticed the password reset flow is completely broken. It's throwing a 500 error because the email service isn't configured.\n\n### Assessment\nThis is a separate, more urgent problem.\n\n### Action\nCreate a new ticket for the password reset.",
-      "summary": "A separate, urgent problem was discovered: the password reset flow is broken (500 error) due to an unconfigured email service. A new ticket is required.",
-      "relationship": "was discovered while investigating"
-    }
-  ],
-  "debug_notes": "The initial example was overly aggressive in its summarization, losing key original phrases and action items. The feedback was crucial for recalibrating the balance between 'restructuring' and 'preserving content' as per the prompt's rules. The revised version now correctly assigns action directives to their respective nodes while keeping the original language intact."
-}
-```
-
-
-### Example 2: "Absorb + Create + Reference" is Optimal
-
-This example shows a more complex case where the new information contains three distinct abstractions. The optimal solution is to absorb the first, create a new node for the second, and reference an existing neighbor for the third.
-
-**Input:**
+Input:
 ```json
 {
   "node_name": "Homepage CTA Design",
   "node_summary": "Design a primary Call-to-Action for the homepage.",
-  "node_content": "We need a primary CTA on the homepage to guide users to sign up. It should be prominent. \n...and speaking of the CTA, I was thinking it should be a bright orange button, hex code #FF5733, to contrast with our blue background. The copy should be 'Start Your Free Trial' not 'Sign Up Now', it feels less committal. I saw a study that showed this kind of wording increases conversion by like, 15%. So it's a solid, data-backed choice. This brings up a bigger issue though. Our entire color palette feels a bit dated. The blue we're using (#0000FF) is too harsh. We should probably review the entire brand style guide, especially the primary and secondary colors, before we commit to this new orange. A cohesive palette is more important than a single button. Also, once we have the design and colors sorted, we should definitely run A/B tests on different CTA variations to validate our design choices and optimize conversion rates.",
-  "neighbors": "[{'name': 'A/B Test CTA Variations', 'summary': 'Set up and run A/B tests to optimize CTA performance across different design variations.', 'relationship': 'validates the effectiveness of'}]"
+  "node_content": "We need a primary CTA on the homepage to guide users to sign up. It should be prominent. \n...and speaking of the CTA, it should be a bright orange button, hex #FF5733, with the copy 'Start Your Free Trial'. This brings up a bigger issue though: our entire brand style guide feels dated. We should review it before we commit to this new orange. As part of that review, a good first step would be to research our top 5 competitors' color palettes. Also, for the homepage CTA, once we have the design, we need to run A/B tests. But before we can do that, we absolutely must define what the success metrics for that test will be—like, what's our target uplift in sign-ups? Oh, and this whole CTA change will definitely need sign-off from the Executive Review Board before it goes live.",
+  "neighbors": "[{'name': 'A/B Test CTA Variations', 'summary': 'Set up and run A/B tests to optimize CTA performance.'}, {'name': 'Executive Review Board', 'summary': 'Committee responsible for final project approvals.'}]"
 }
 ```
 
-**Correct Output:**
+You should output:
 ```json
 {
-  "reasoning": "COMPREHENSIVE reasoning notes for ALL stages.\n\nSTAGE 1: Synthesize - Deep Contextual Understanding\nThe original node concerns the design of a homepage CTA. The appended text introduces three distinct ideas: specific design proposals for the CTA, a broader concern about the brand's color palette, and a suggestion to validate the final design with A/B testing. The goal is to structure these concepts for maximum clarity while preserving the original phrasing.\n\nSTAGE 2: Analyze - Abstraction Identification\nI analyzed the appended text and identified three core abstraction candidates:\n1.  **CTA Design Specification**: The content about the orange color (#FF5733), the copy ('Start Your Free Trial'), and the supporting rationale directly describe the `Homepage CTA Design`. Applying the Schema Attribute Test, this information's primary purpose is to qualify the main node. This content should be absorbed.\n2.  **Brand Style Guide Review**: The concern about the dated color palette is a larger, separate problem. It passes the 'Naming Test' ('Review Brand Style Guide') and represents a cognitive state change from a specific component design to a foundational brand strategy. It's a clear blocker for the current task and deserves its own node.\n3.  **A/B Testing for Validation**: The suggestion to run A/B tests is a distinct validation action, a perfect candidate for referencing an existing process.\n\nSTAGE 3: Refactor - Structure Optimization\n- **For Abstraction 1 (CTA Spec)**: This is absorbed into the original node's content, formatted into a structured list for clarity.\n- **For Abstraction 2 (Style Guide)**: This becomes a new node, as it represents a significant, independent problem. I'll create a new node named 'Review Brand Style Guide' and define its relationship as a blocker. The content for this new node is extracted with minimal editing, preserving the original phrasing and its reference back to the parent node's context, as requested.\n- **For Abstraction 3 (A/B Testing)**: I checked the neighbors and found an existing node, `A/B Test CTA Variations`. Applying the 'Reference-over-Duplication' rule, I will reference this neighbor in the updated content of the original node.\n\nSTAGE 4: EDIT and Validate\nThis three-pronged approach (absorb, create, reference) is optimal. It correctly isolates a blocking problem, enriches the existing node, and leverages the existing graph structure. The content refactoring is kept minimal to preserve the original author's voice, only restructuring for clarity (e.g., into lists) and removing conversational filler like 'I was thinking' or 'probably'. The solution minimizes the optimization loss function by creating a clear, efficient, and accurate structure.",
-  "original_new_content": "The primary goal is to create a prominent homepage Call-to-Action (CTA) to guide users to sign up.\n\n**Note:** This task is currently blocked by the need for a `Review Brand Style Guide`.\n\n### Proposed Design Specification\n- **Color**: Bright orange (`#FF5733`) to contrast with the site's blue background. (Final color is contingent on the style guide review).\n- **Copy**: \"Start Your Free Trial\"\n- **Rationale**: This wording feels less committal and is a data-backed choice, with studies showing it can increase conversion.\n\n### Validation\nOnce the design is finalized, it will be validated by running `A/B Test CTA Variations`.",
-  "original_new_summary": "Specifies the initial design for the homepage CTA (orange, 'Start Your Free Trial' copy). This task is blocked by a needed brand style guide review and will be validated by A/B testing.",
+  "reasoning": "### STAGE 1: Synthesize\nThe text introduces five concepts: 1) CTA design details, 2) a blocking issue about the brand style guide, 3) a sub-task for the style guide review, 4) a prerequisite task for A/B testing, and 5) a required approval from an existing stakeholder. The goal is to structure all five correctly.\n\n### STAGE 2: Analyze\n- **CTA Design Details**: These are attributes of the main node and should be **absorbed**.\n- **Brand Style Guide Review**: This is a distinct, blocking problem. It should be a **new node** targeting the original node.\n- **Competitor Research**: This is a sub-task of the style guide review. It should be a **new node** targeting the 'Review Brand Style Guide' node.\n- **A/B Test Success Metrics**: This is a new, prerequisite task for the 'A/B Test CTA Variations' process. It should be a **new node** targeting the neighbor.\n- **Executive Review Board Sign-off**: This is not a new task to be created, but a mention of an existing approval process. The neighbor 'Executive Review Board' already represents this entity. According to the **Reference-over-Duplication Rule**, this should be handled by **referencing** the neighbor in the parent node's content, not by creating a new, duplicate 'approval' node.\n\n### STAGE 3: Refactor\nThis analysis leads to a complex refactoring that demonstrates all key principles:\n1.  **Absorb** CTA details into the original node.\n2.  **Reference** the `Executive Review Board` neighbor in the updated content of the original node.\n3.  **Create** 'Review Brand Style Guide' as a child of the original node.\n4.  **Create** 'Research Competitor Color Palettes' as a child of the new 'Review Brand Style Guide' node.\n5.  **Create** 'Define A/B Test Success Metrics' as a child of the 'A/B Test CTA Variations' neighbor.\n\n### STAGE 4: Edit & Validate\nThis structure is optimal. It creates actionable tasks where needed, correctly models dependencies (including chains and links to neighbors), and avoids redundancy by referencing existing graph components as instructed. It perfectly balances clarity and structural efficiency.",
+  "original_new_content": "The primary goal is to create a prominent homepage Call-to-Action (CTA) to guide users to sign up.\n\n**Note:** This task is currently blocked by the need for a `Review Brand Style Guide`.\n\n### Proposed Design Specification\n- **Color**: Bright orange (`#FF5733`) (Contingent on style guide review)\n- **Copy**: \"Start Your Free Trial\"\n\n### Process Notes\n- **Approval**: Final design requires sign-off from the `Executive Review Board`.\n- **Validation**: The `A/B Test CTA Variations` process will be used to validate the final design. A prerequisite task, `Define A/B Test Success Metrics`, has been created and linked to it.",
+  "original_new_summary": "Specifies the initial design for the homepage CTA, noting it's blocked by a style guide review and requires approval from the Executive Review Board. Validation will be done via A/B testing after metrics are defined.",
   "create_new_nodes": [
     {
       "name": "Review Brand Style Guide",
-      "content": "Before committing to the new orange for the 'Homepage CTA Design', the entire brand style guide needs a review. This is a bigger issue; the color palette feels dated and the blue we're using (#0000FF) is too harsh. The review should cover the primary and secondary colors, as a cohesive palette is more important than a single button.",
-      "summary": "The brand's color palette is dated and harsh, requiring a full review before component colors (like the homepage CTA) are finalized.",
-      "relationship": "is a blocker for the"
+      "content": "A bigger issue was identified: the entire brand style guide feels dated. It must be reviewed before committing to new component colors, such as for the 'Homepage CTA Design'.",
+      "summary": "The brand's dated style guide requires a full review, which is a blocker for new component designs.",
+      "relationship": "is a blocker for the",
+      "target_node_name": "Homepage CTA Design"
+    },
+    {
+      "name": "Research Competitor Color Palettes",
+      "content": "As a good first step for the style guide review, research the color palettes of our top 5 competitors.",
+      "summary": "The first step in the style guide review is to research the color palettes of top 5 competitors.",
+      "relationship": "is a sub-task of the",
+      "target_node_name": "Review Brand Style Guide"
+    },
+    {
+      "name": "Define A/B Test Success Metrics",
+      "content": "Before running A/B tests on the homepage CTA, we must define the success metrics, such as the target uplift in sign-ups.",
+      "summary": "Defines the prerequisite task of establishing success metrics for homepage CTA A/B testing.",
+      "relationship": "is a prerequisite for the",
+      "target_node_name": "A/B Test CTA Variations"
     }
   ],
   "debug_notes": null
 }
 ```
+    

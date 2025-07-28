@@ -33,6 +33,26 @@ class WorkflowResult:
     metadata: Optional[Dict[str, Any]] = None
 
 
+async def log_tree_actions(append_or_create_actions):
+    for act in append_or_create_actions:
+        if isinstance(act, CreateAction):
+            create_log = f"CREATING new node:'{act.new_node_name}' "
+            if len(act.content) > 10:
+                create_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
+            print(create_log)
+            logging.info(create_log)
+
+        elif isinstance(act, AppendAction):
+            append_log = f"APPENDING to:'{act.target_node_name}' "
+            if len(act.content) > 10:
+                append_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
+            print(append_log)
+            logging.info(append_log)
+
+        else:
+            logging.error(f"ERROR, ACTION NEITHER CREATE NOR APPEND: {act}")
+
+
 class TreeActionDeciderWorkflow:
     """
     Orchestrates the two-step tree update pipeline with workflow result handling.
@@ -157,23 +177,7 @@ class TreeActionDeciderWorkflow:
         
         append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
 
-        for act in append_or_create_actions:
-            if isinstance(act, CreateAction):
-                create_log = f"CREATING new node:'{act.new_node_name}' "
-                if len(act.content)>10:
-                    create_log+=f"with text: {act.content[0:10]}...{act.content[-10:]} "
-                print(create_log)
-                logging.info(create_log)
-
-            elif isinstance(act, AppendAction):
-                append_log = f"APPENDING to:'{act.target_node_name}' "
-                if len(act.content)>10:
-                    append_log+=f"with text: {act.content[0:10]}...{act.content[-10:]} "
-                print(append_log)
-                logging.info(append_log)
-
-            else:
-                logging.error(f"ERROR, ACTION NEITHER CREATE NOR APPEND: {act}")
+        await log_tree_actions(append_or_create_actions)
 
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.

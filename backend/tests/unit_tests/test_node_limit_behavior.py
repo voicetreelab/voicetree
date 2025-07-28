@@ -66,7 +66,7 @@ class TestNodeLimitBehavior:
         relevant_nodes = get_most_relevant_nodes(decision_tree_with_many_nodes, 20)
         
         # Get formatted nodes
-        formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
+        formatted_nodes = _format_nodes_for_prompt(relevant_nodes, decision_tree_with_many_nodes.tree)
         
         # Parse the formatted nodes to count nodes
         nodes_list = _parse_formatted_nodes(formatted_nodes)
@@ -86,7 +86,7 @@ class TestNodeLimitBehavior:
         relevant_nodes = get_most_relevant_nodes(tree, 10)
         
         # Get formatted nodes
-        formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
+        formatted_nodes = _format_nodes_for_prompt(relevant_nodes, tree.tree)
         nodes_list = _parse_formatted_nodes(formatted_nodes)
         
         # Extract node IDs from the result
@@ -133,7 +133,7 @@ class TestNodeLimitBehavior:
         # Get nodes with limit higher than tree size
         relevant_nodes = get_most_relevant_nodes(small_tree, 20)
         
-        formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
+        formatted_nodes = _format_nodes_for_prompt(relevant_nodes, small_tree.tree)
         nodes_list = _parse_formatted_nodes(formatted_nodes)
         
         # All 5 nodes should be included
@@ -144,7 +144,7 @@ class TestNodeLimitBehavior:
         # Get most relevant nodes
         relevant_nodes = get_most_relevant_nodes(decision_tree_with_many_nodes, 15)
         
-        formatted_nodes = _format_nodes_for_prompt(relevant_nodes)
+        formatted_nodes = _format_nodes_for_prompt(relevant_nodes, decision_tree_with_many_nodes.tree)
         nodes_list = _parse_formatted_nodes(formatted_nodes)
         
         # Extract node IDs

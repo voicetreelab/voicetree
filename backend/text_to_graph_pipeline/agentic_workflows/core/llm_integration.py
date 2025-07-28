@@ -109,12 +109,23 @@ def _extract_json_from_markdown(text: str) -> Optional[str]:
     Returns:
         Extracted JSON string, or None if no valid JSON block found
     """
-    # Look for JSON code blocks (```json ... ```)
-    text = text.replace("```", "")
-    text = text.replace("json", "")
-    text = text.replace("JSON", "")
-
-    return text
+    # Remove first and last occurrence of ``` to handle markdown code blocks
+    # This preserves any backticks within the JSON content
+    first_backticks = text.find('```')
+    if first_backticks != -1:
+        # Found opening backticks, remove them and any following language identifier
+        text = text[first_backticks + 3:]
+        # Skip past json/JSON identifier if present
+        if text.startswith('json') or text.startswith('JSON'):
+            text = text[4:]
+        text = text.lstrip('\n')
+        
+        # Find and remove closing backticks
+        last_backticks = text.rfind('```')
+        if last_backticks != -1:
+            text = text[:last_backticks].rstrip()
+    
+    return text.strip()
 
 
 def _ensure_api_key() -> str:
