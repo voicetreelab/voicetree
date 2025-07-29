@@ -4,10 +4,14 @@ API for common functions on top of tree ds
 e.g. get summareis
 """
 import json
+import logging
 from typing import Dict, Any, List, Set
 from copy import deepcopy
 import nltk
 from nltk.corpus import stopwords
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
 
@@ -155,30 +159,18 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
     remaining_slots = limit - len(selected)
     if remaining_slots > 0:
         if query:
-            # TODO: Future optimization - use vector embeddings for semantic search
-            # This would involve:
-            # 1. Pre-computing embeddings for all node titles/summaries
-            # 2. Computing embedding for query at runtime (~300ms)
-            # 3. Finding nodes with highest cosine similarity
-            # See Google Gemini embedding API: gemini-embedding-001
+            nodes_related_to_query = get_semantically_related_nodes(decision_tree, query, remaining_slots, selected)
             
-            # For now, use keyword-based search
-            query_tokens = _tokenize_query(query)
-            
-            # Score all unselected nodes
-            node_scores = []
-            for node_id, node in decision_tree.tree.items():
-                if node_id not in selected:
-                    score = _calculate_keyword_relevance(node, query_tokens)
-                    if score > 0:  # Only include nodes with some relevance
-                        node_scores.append((node_id, score))
-            
-            # Sort by relevance and add top matches
-            node_scores.sort(key=lambda x: x[1], reverse=True)
-            for node_id, score in node_scores[:remaining_slots]:
+            # Add the semantically related nodes to selected set
+            for node_id in nodes_related_to_query:
                 selected.add(node_id)
                 if len(selected) >= limit:
                     break
+            
+            # Get node names for logging
+            if nodes_related_to_query:
+                node_names = [decision_tree.tree[node_id].title for node_id in nodes_related_to_query if node_id in decision_tree.tree]
+                logging.info(f"Semantically related nodes are: {node_names}")
         else:
             # No query provided, use original branching factor approach
             nodes_by_branching = decision_tree.get_nodes_by_branching_factor(remaining_slots)
@@ -187,14 +179,109 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
                     selected.add(node_id)
                     if len(selected) >= limit:
                         break
-    
+
     # Return Node objects (copies) in consistent order
     result = []
     for node_id in sorted(selected):
         result.append(deepcopy(decision_tree.tree[node_id]))
-    
+
     print(f"[DEBUG] Returning {len(result)} nodes from selection logic")
     return result
+
+
+def get_semantically_related_nodes(decision_tree, query: str, remaining_slots_count: int, already_selected: set) -> List[int]:
+    """
+    Find semantically related nodes using TF-IDF scoring
+
+    Args:
+        decision_tree: DecisionTree instance
+        query: Search query string
+        remaining_slots_count: Number of nodes to return
+        already_selected: Set of node IDs already selected
+
+    Returns:
+        List of node IDs ordered by relevance
+    """
+    # TODO: Future optimization - use vector embeddings for semantic search
+    # This would involve:
+    # 1. Pre-computing embeddings for all node titles/summaries
+    # 2. Computing embedding for query at runtime (~300ms)
+    # 3. Finding nodes with highest cosine similarity
+    # See Google Gemini embedding API: gemini-embedding-001
+    #
+    # TF-IDF Limitations (why we need embeddings):
+    # 1. Natural language with common words in titles:
+    #    Query: "Our team needs better planning" -> picks "Team Building" over "Project Planning"
+    #    because "team" in title overwhelms semantic meaning
+    # 2. Synonyms and related concepts:
+    #    Query: "AI and deep neural networks" -> misses "Machine Learning Basics"
+    #    because TF-IDF doesn't know AI = Machine Learning
+    # 3. Context-dependent ambiguous terms:
+    #    Query: "make application run faster" -> weak matches
+    #    because can't understand "faster" + "performance" = optimization
+
+    selected_nodes = []
+
+    # Use TF-IDF for better relevance scoring
+    unselected_nodes = [(node_id, node) for node_id, node in decision_tree.tree.items()
+                        if node_id not in already_selected]
+
+    if not unselected_nodes:
+        return selected_nodes
+    
+    # Build corpus with weighted text (title 3x more important than summary)
+    corpus = []
+    node_ids = []
+    for node_id, node in unselected_nodes:
+        # Weight title 3x more than summary
+        weighted_text = f"{node.title} {node.title} {node.title} {node.summary}"
+        corpus.append(weighted_text)
+        node_ids.append(node_id)
+
+    # Create TF-IDF matrix
+    try:
+        vectorizer = TfidfVectorizer(
+            stop_words='english',
+            min_df=1,
+            ngram_range=(1, 2)  # Include bigrams for better phrase matching
+        )
+        tfidf_matrix = vectorizer.fit_transform(corpus)
+
+        # Transform query and compute similarities
+        query_vector = vectorizer.transform([query])
+        similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+
+        # Get nodes with similarity > threshold
+        threshold = 0.01
+        ranked_indices = np.argsort(similarities)[::-1]
+
+        for idx in ranked_indices:
+            if similarities[idx] > threshold:
+                selected_nodes.append(node_ids[idx])
+                if len(selected_nodes) >= remaining_slots_count:
+                    break
+            else:
+                # Since indices are sorted by similarity, we can break early
+                break
+
+    except Exception as e:
+        # Fallback to keyword search if TF-IDF fails
+        print(f"[WARNING] TF-IDF failed, falling back to keyword search: {e}")
+        query_tokens = _tokenize_query(query)
+
+        # Score all unselected nodes
+        node_scores = []
+        for node_id, node in unselected_nodes:
+            score = _calculate_keyword_relevance(node, query_tokens)
+            if score > 0:  # Only include nodes with some relevance
+                node_scores.append((node_id, score))
+
+        # Sort by relevance and add top matches
+        node_scores.sort(key=lambda x: x[1], reverse=True)
+        for node_id, score in node_scores[:remaining_slots_count]:
+            selected_nodes.append(node_id)
+    
+    return selected_nodes
 
 
 def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) -> str:

@@ -52,34 +52,24 @@ You must weigh context clues to find the best destination, in this order of impo
 2.3. Handling orphans:
 Proposing a new topic is a last resort, used only if there is absolutely no correct relationship to an existing node.
 
-You must also not create an orphan if The 'Anti-Orphan Chain Rule' 3 activating conditions are all true: 
+You must also not create an orphan if The 'Anti-Orphan Chain Rule' 2 activating conditions are all true: 
             1. The current segment is a direct continuation of the previous segment's thought.
             2. The previous segment was successfully routed to an EXISTING node (i.e., it was NOT an orphan).
-            3. The current segment, if evaluated on its own, would be proposed as a new "synthetic parent" (i.e., it would become an orphan).
-        If all three conditions are met, you **MUST** override the orphan proposal and assign the segment to the **exact same target node as the previous segment**.
+    If these two conditions are met, you **MUST** override the orphan proposal and assign the segment to the **exact same target node as the previous segment**.
 
-        This rule ensures that a pattern like `[Targeted Node] | [Orphan]` is not possible for a continuous thought. If a segment has a better, more specific existing node to go to, this rule does NOT apply.
+(This rule ensures that a pattern like `[Targeted Node] | [Orphan]` is not possible for a continuous thought. If a segment has a better, more specific existing node to go to, this rule does NOT apply.)
 
-If a segment cannot be linked to any existing node, your task is not to name the segment itself, but to name its hypothetical parent node. Think of this as a 'ghost' or 'synthetic parent'—the general category this segment would belong to if that category existed.
+If you are creating an orphan, provide a concept topic name for the orphan. 
 
 If subsequent segments also cannot be routed to an existing node AND they are about the same new topic, you must re-use the exact same proposed topic name. This groups related, un-routable segments together under the same temporary label for the downstream system.
 
-Chain rule for orphans:    
-If a segment is directly related to the previous segment, you are NOT ALLOWED to make this an orphan, instead it must
-be targetting the same node as the previous segment, even if the topics are different.
-
 If you propose a new topic, you MUST explain in your reasoning field why NO existing nodes were a suitable match.
-Specifically write "There is not a single possibly related node", in your reasoning, if this is the case. 
+In addition, add "There is not a single possibly related node", in your reasoning, if this is the case, (and if this statement is contradictory, we have made a mistake somewhere!). 
 
 Your final output will now either be, a target node (ID & name), or a new topic name for the orphan.
 
 **EXAMPLE**
 
-**Overall text:** "...so that's the project status. Now for today's goals."
-**Existing Nodes:** `[{"id": 1, "name": "Project Setup Tasks"}]`
-**Current chunk of text to process**: "First, let's spec out the new user authentication flow. Uhm, well, It needs to support both Google and magic link sign-in. Separately, I need to send out the invite for the kickoff meeting."
-**Segments to Analyze:**
-`[{"text": "First, let's spec out the new user authentication flow."}, {"text": "It needs to support both Google and magic link sign-in."}, {"text": "Separately, I need to send out the invite for the kickoff meeting."}]`
 INPUT
 ```
 Overall Text:
@@ -88,7 +78,7 @@ Overall Text:
 Existing Nodes:
 `===== Available Nodes =====
 Node ID: 1
-Title: Core Hub System Architecture
+Title: Core Hub System Project
 Summary: Development of the foundational, robust, and scalable architecture for the Smart Home Hub, including general performance optimization and underlying system logic.
 Node ID: 2
 Title: Cross-Device Communication & Protocols
@@ -109,7 +99,9 @@ Current chunk of text to process:
 "Today, I wanted to discuss optimizing for real-time responsiveness; for instance, the delay between a voice command and a light actually turning on needs to be virtually zero, that's crucial for user satisfaction. Separately, I've also been looking into external funding opportunities. There's this 'Sustainable Technology Innovation' grant that just opened up, focusing on energy-efficient IoT solutions. It aligns perfectly with our hub's power-saving features, and I believe we have a strong case for it. I'm drafting a section for the proposal that details our innovative energy management algorithms."
 
 Current chunk broken down into segments to analyze:
-[{"text": "Today, I wanted to discuss optimizing for real-time responsiveness; for instance, the delay between a voice command and a light actually turning on needs to be virtually zero, that's crucial for user satisfaction."}, {"text": "Separately, I've also been looking into external funding opportunities. There's this 'Sustainable Technology Innovation' grant that just opened up, focusing on energy-efficient IoT solutions. It aligns perfectly with our hub's power-saving features, and I believe we have a strong case for it."}, {"text": "I'm drafting a section for the proposal that details our innovative energy management algorithms."}]
+[{"text": "Today, I wanted to discuss optimizing for real-time responsiveness; for instance, the delay between a voice command and a light actually turning on needs to be virtually zero, that's crucial for user satisfaction."}, {"text": "Separately, I've also been looking into external funding opportunities. There's this 'Sustainable Technology Innovation' grant that just opened up, focusing on energy-efficient IoT solutions. It aligns perfectly with our hub's power-saving features, and I believe we have a strong case for it."}, {"text": "I'm drafting a section for the proposal that details our innovative energy management algorithms."}
+# add here two related orphan sections for tasks on a different project
+]
 ```
 
 **Expected Output:**
@@ -121,30 +113,31 @@ Current chunk broken down into segments to analyze:
       "reasoning": "STEP 1, global understanding: The user is discussing core performance requirements for the Smart Home Hub. This segment specifically addresses the need for minimal latency in device response, which is a fundamental system-level performance goal crucial for user satisfaction. STEP 2.1, correctness: While 'user satisfaction' might suggest 'UI/UX Design' (Node 3), the core of this segment is about 'optimizing for real-time responsiveness' and 'delay between command and action'. This is an implicit pragmatic requirement directly related to the underlying performance of the 'Core Hub System Architecture' (Node 1), which includes 'general performance optimization'. A correct relationship exists: 'is a performance goal for' Node 1. The prompt strictly states that if *any* correct relationship can be found, an orphan is not allowed, even if the relationship is weak. STEP 2.2, significance: Node 1 is the most appropriate existing node because real-time responsiveness is a core system-level concern, not purely a UI design aspect. The relationship 'is a performance goal for' is sufficiently specific.",
       "is_orphan": false,
       "target_node_id": 1,
-      "target_node_name": "Core Hub System Architecture",
+      "target_node_name": "Core Hub System Project",
       "orphan_topic_name": null,
       "relationship_to_target": "is a performance goal for"
     },
     {
       "text": "Separately, I've also been looking into external funding opportunities. There's this 'Sustainable Technology Innovation' grant that just opened up, focusing on energy-efficient IoT solutions. It aligns perfectly with our hub's power-saving features, and I believe we have a strong case for it.",
-      "reasoning": "STEP 1, global understanding: The word 'Separately' signals a clear topic shift from technical development to external project management and funding. This segment introduces the idea of pursuing a 'Sustainable Technology Innovation grant' for funding. STEP 2.1, correctness: None of the existing nodes (Core Hub System Architecture, Cross-Device Communication & Protocols, UI/UX Design, Data Security & Privacy Protocols, Firmware Update Mechanism) relate to external funding, grants, or financial aspects of the project. This is a genuinely new, distinct workstream. STEP 2.2, significance: Since no existing node has a correct relationship, this segment must be designated as an orphan. STEP 2.3, handling orphans: No existing node is suitable. The proposed orphan topic name 'Sustainable Tech Innovation Grant Application' accurately captures the new subject. The relationship 'is a new initiative about' clearly defines its nature.",
+      "reasoning": "STEP 1, global understanding: The word 'Separately' signals a clear topic shift from technical development to external project management and funding. This segment introduces the idea of pursuing a 'Sustainable Technology Innovation grant' for funding. STEP 2.1, correctness: ",
       "is_orphan": true,
-      "target_node_id": -1,
-      "target_node_name": null,
-      "orphan_topic_name": "Sustainable Tech Innovation Grant Application",
-      "relationship_to_target": "is a new initiative about"
+      "target_node_id": 1,
+      "target_node_name": "Core Hub System Project",
+      "relationship_to_target": "to source funding for"
     },
     {
       "text": "I'm drafting a section for the proposal that details our innovative energy management algorithms.",
-      "reasoning": "STEP 1, global understanding: This segment directly elaborates on the previous segment's new topic: the 'Sustainable Technology Innovation grant'. It details an action (drafting a section) related to the 'proposal' for that grant. STEP 2.1, correctness: Based on sequential context, this segment is a direct follow-up and component of the 'Sustainable Tech Innovation Grant Application' which was established as an orphan topic by the immediately preceding segment. There is no other existing node that this segment correctly relates to. STEP 2.2, significance: This segment is highly significant to the previously established orphan topic. STEP 2.3, handling orphans: This segment builds upon the previously created orphan. It should be routed to the *same* orphan topic, demonstrating the chaining of related segments.",
+      "reasoning": "STEP 1, global understanding: This segment directly elaborates on the previous segment's new topic: the 'Sustainable Technology Innovation grant'. It details an action (drafting a section) related to the 'proposal' for that grant. STEP 2.1, correctness: Based on sequential context, this segment is a direct follow-up and component of the 'Sustainable Tech Innovation Grant Application' which was established as an orphan topic by the immediately preceding segment.....",
       "is_orphan": true,
-      "target_node_id": -1,
-      "target_node_name": null,
-      "orphan_topic_name": "Sustainable Tech Innovation Grant Application",
-      "relationship_to_target": "is an action taken for"
-    }
+      "target_node_id": 1,
+      "target_node_name": "Core Hub System Project",
+      "orphan_topic_name": "Core Hub System Project",
+      "relationship_to_target": "to develop funding proposal for"
+    },
+    
+    "..., now have two other segments, which are orphans with same topic, resulting in the same topic name"
   ],
-  "global_reasoning": "The overall text outlines the Smart Home Hub project, covering architectural foundations, device communication, UI/UX, security, and firmware updates. The current chunk introduces a key performance optimization goal for the core system, followed by a new, distinct topic about an external funding grant. The first segment, despite its general nature, relates to the core system's performance, preventing an orphan. The subsequent two segments introduce and elaborate on a completely new topic (grant application), which has no existing node, leading to a chained orphan topic."
+  "global_reasoning": "The overall text outlines the Smart Home Hub project, covering architectural foundations, device communication, UI/UX, security, and firmware updates. The current chunk introduces a key performance optimization goal for the core system, followed by a new, distinct topic about an external funding grant. The first segment, despite its general nature, relates to the core system's performance, preventing an orphan. The subsequent two segments introduce and elaborate on a completely new topic (grant application), but a topic which has a relationship to the overall hub project..." 
 }
 ```
 
