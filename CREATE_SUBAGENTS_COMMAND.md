@@ -112,66 +112,44 @@ color: blue
 ---
 ```
 
+### 4. Generating Agent Launch Scripts
+
+After creating subtask markdown files, use the `generate_agent_script.py` tool to create executable launch scripts:
+
 ```bash
-#!/bin/bash
-# execute_subtasks.sh
+# Basic usage
+python generate_agent_script.py --agent-name <NAME> --color <COLOR> --task-file <TASK_FILE>
 
-# Prepare prompts with minimal context
-TASK1_PROMPT="
-You are engineer {AGENT_NAME}, helping with a focused task within the VoiceTree system.
+# Examples for each agent
+python generate_agent_script.py --agent-name ALICE --color red --task-file AGENT_ALICE_integration_test.md
+python generate_agent_script.py --agent-name BOB --color green --task-file AGENT_BOB_clustering_agent.md
+python generate_agent_script.py --agent-name CHARLIE --color blue --task-file AGENT_CHARLIE_workflow_driver.md
+python generate_agent_script.py --agent-name DIANA --color yellow --task-file AGENT_DIANA_markdown_tags.md
 
-Your task:
-A single node in a task/decision tree, located at /Users/bobbobby/repos/VoiceTreePoc/agent-communication/agent-communication/{task}.md
-Contents of {task}:
-$(cat /Users/bobbobby/repos/VoiceTreePoc/agent-communication/agent-communication/{task}.md)
-
-IMPORTANT INSTRUCTIONS:
-We have shared markdown vault: /Users/bobbobby/repos/VoiceTreePoc/agent-communication/
-
-As you are building out the solution to your task, at every stage you should also be updating the markdown tree, adding new files connected to /Users/bobbobby/repos/VoiceTreePoc/agent-communication/agent-communication/{task}.md) to show your progres. Keep these new notes extremely concise. 
-
-Also keep the checkboxes in your main task file up to date as you progress.
-
-**Instructions for agents**:
-- Add color to YAML frontmatter of all markdown files you create
-- Use your assigned color consistently
-- This enables visual progress tracking in Obsidian/markdown viewers
-
-e.g.
----
-color: blue   
----
-
-When creating additional files connected to your source task, extending the markdown tree, ensure the new files are connected by markdown links
-e.g. `[[$OBSIDIAN_SOURCE_NOTE]]`,
-For each of these new files, ensure the yaml front matter has `color: {agent_color}`
-
-Okay excellent. Here are the first three steps you should do:
-1. read your subtask markdown file
-2. understand where it fits in into the wider context of the overall task (it will be linked in the subtask markdown file, please read it)
-3. think hard about the minimally complex way to implement this, do not add any extra unnecessary complexity. Fail hard and fast. Don't have fallbacks, don't have multiple options. Don't write too many tests, just a single test for the input/output behaviour of the component you are testing. 
-4. Write the behavioural test, now follow TDD to execute your subtask! 
-
-"
-end prompt
-
-
-
-# Launch agents in parallel with headless mode
-claude -p "$TASK1_PROMPT" --dangerously-skip-permissions > task1.log 2>&1 &
-PID1=$!
-
-claude -p "$TASK2_PROMPT" --dangerously-skip-permissions --max-turns 60  --model sonnet > task2.log 2>&1 &
-PID2=$!
-# ^ todo, make sure the above code actually runs them in parallel and are not blocking eachotheer.
-
-# Note: When spawning Claude instances in print/headless mode you may need to increase the max turns so that the process completes: claude -p --max-turns 160
-
-# Note: you can specify a cheaper model --model sonnet for simple tasks, it will be faster. use --model opus for complex tasks. 
-
-# Wait for completion
-wait $PID1 $PID2
+# Advanced options
+python generate_agent_script.py \
+    --agent-name ALICE \
+    --color red \
+    --task-file AGENT_ALICE_integration_test.md \
+    --max-turns 40 \              # Increase for complex tasks
+    --model opus \                # Use opus for complex reasoning
+    --vault-subdir clustering_task \  # Specify subdirectory in agent-communication
+    --description "Integration testing setup"  # Custom description
 ```
+
+This generates executable scripts like `run_alice_agent.sh` that:
+- Include the full task content in the prompt
+- Set up proper markdown vault paths
+- Configure color coding for visual tracking
+- Follow TDD principles with clear instructions
+
+Launch agents with:
+```bash
+./run_alice_agent.sh
+./run_bob_agent.sh
+# etc.
+```
+
 
 ### 5. Creating Module Contracts
 When agents need to work on interconnected modules, create a module contract
