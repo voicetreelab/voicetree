@@ -164,7 +164,7 @@ class TreeActionDeciderWorkflow:
         logging.info("Running Phase 1: Placement Agent...")
         
         # Get the most relevant nodes for the agent to consider
-        relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT)
+        relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT, query=text_chunk)
         relevant_nodes_formatted = _format_nodes_for_prompt(relevant_nodes, self.decision_tree.tree)
         # The append_agent now returns both actions and segment information
         append_agent_result: AppendAgentResult = await self.append_agent.run(
