@@ -49,7 +49,7 @@ def get_most_relevant_nodes(decision_tree, limit: int) -> List:
     """
     if not decision_tree.tree:
         return []
-    
+
     # If tree has fewer nodes than limit, return all
     if len(decision_tree.tree) <= limit:
         return [deepcopy(node) for node in decision_tree.tree.values()]
@@ -96,6 +96,7 @@ def get_most_relevant_nodes(decision_tree, limit: int) -> List:
     for node_id in sorted(selected):
         result.append(deepcopy(decision_tree.tree[node_id]))
     
+    print(f"[DEBUG] Returning {len(result)} nodes from selection logic")
     return result
 
 

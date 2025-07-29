@@ -20,12 +20,25 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "VT Original",
         "max_words": 63*56 + 1,
         "processing_mode": "word",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        "currently_active": True
+        "currently_active": False
     },
     {
         "file": "backend/benchmarker/input/owl_transcript.txt", 
         "name": "GSM Owl Problem",
         "max_words": None,
         "processing_mode": "line",  # Process line by line for structured data
+    },
+    {
+        "file": "backend/benchmarker/input/8k.txt",
+        "name": "GSM Owl Problem",
+        "max_words": None,
+        "processing_mode": "line",  # Process line by line for structured data
+    },
+    {
+        "file": "backend/benchmarker/input/igsm_op19_ip20_force_True_7_problem_question.txt",
+        "name": "GSM hard hard hard",
+        "max_words": None,
+        "processing_mode": "line",  # Process line by line for structured data
+        "currently_active": True
     }
 ]

@@ -269,7 +269,7 @@ class DecisionTree:
         return None
 
 
-    def get_neighbors(self, node_id: int) -> List[Dict]:
+    def get_neighbors(self, node_id: int, max_neighbours:int =30) -> List[Dict]:
         """
         Returns immediate neighbors (parent, siblings, children) with summaries.
         
@@ -311,6 +311,8 @@ class DecisionTree:
         
         # Get children
         for child_id in node.children:
+            if len(neighbors) >= max_neighbours:
+                break
             if child_id in self.tree:
                 child_node = self.tree[child_id]
                 neighbors.append({

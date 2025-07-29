@@ -9,6 +9,7 @@ import logging
 from typing import Dict, Any, List, Type, Callable, Optional, Tuple, Union
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, END
+from langgraph.pregel import RetryPolicy
 
 
 class Agent:
@@ -40,7 +41,7 @@ class Agent:
         # Default mapping adds '_response' suffix
         return f"{node_name}_response"
         
-    def add_prompt(self, name: str, output_schema: Type[BaseModel], post_processor: Optional[Callable] = None, model_name: Optional[str] = None):
+    def add_prompt_node(self, name: str, output_schema: Type[BaseModel], post_processor: Optional[Callable] = None, model_name: Optional[str] = None):
         """
         Define a prompt step in the agent
         
@@ -181,7 +182,11 @@ class Agent:
                     
                 return node_fn
                 
-            graph.add_node(prompt_name, make_node_fn(prompt_name))
+            # Add node with retry policy - only retry once for LLM calls
+            # This helps handle transient errors from the LLM API (network issues, rate limits, etc.)
+            # Default retry_on behavior handles common exceptions except ValueError, TypeError, etc.
+            retry_policy = RetryPolicy(max_attempts=2)
+            graph.add_node(prompt_name, make_node_fn(prompt_name), retry=retry_policy)
             
         # Add dataflows as edges
         for from_prompt, to_prompt, transform in self.dataflows:

@@ -10,13 +10,15 @@ from pathlib import Path
 from typing import Optional, Type, Dict
 from dataclasses import dataclass
 from dotenv import load_dotenv
-from google.genai.types import GenerateContentConfig, GenerateContentConfigDict, SafetySettingDict
+from google.genai.types import GenerateContentConfig, GenerateContentConfigDict, SafetySettingDict, HttpOptions
 from pydantic import BaseModel
 from google import genai
 import json
 
 from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
     log_llm_io
+from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import \
+    parse_json_markdown
 
 
 # Schema models are no longer imported here - they're passed from agents
@@ -95,38 +97,6 @@ _load_environment()
 
 # ==================== HELPER FUNCTIONS ====================
 
-def _extract_json_from_markdown(text: str) -> Optional[str]:
-    """
-    Extract JSON from markdown code blocks if present.
-    
-    Sometimes the LLM returns JSON wrapped in ```json ... ``` blocks
-    even when configured for structured output. This function extracts
-    the JSON content from such blocks.
-    
-    Args:
-        text: The raw response text that might contain markdown-wrapped JSON
-        
-    Returns:
-        Extracted JSON string, or None if no valid JSON block found
-    """
-    # Remove first and last occurrence of ``` to handle markdown code blocks
-    # This preserves any backticks within the JSON content
-    first_backticks = text.find('```')
-    if first_backticks != -1:
-        # Found opening backticks, remove them and any following language identifier
-        text = text[first_backticks + 3:]
-        # Skip past json/JSON identifier if present
-        if text.startswith('json') or text.startswith('JSON'):
-            text = text[4:]
-        text = text.lstrip('\n')
-        
-        # Find and remove closing backticks
-        last_backticks = text.rfind('```')
-        if last_backticks != -1:
-            text = text[:last_backticks].rstrip()
-    
-    return text.strip()
-
 
 def _ensure_api_key() -> str:
     """Ensure API key is available, raise if not"""
@@ -145,7 +115,12 @@ def _get_client() -> genai.Client:
     global _CLIENT
     if _CLIENT is None:
         api_key = _ensure_api_key()
-        _CLIENT = genai.Client(api_key=api_key)
+        # Configure HTTP options with a 2-minute timeout to prevent hanging
+        # Most Gemini API calls should complete within 30-60 seconds
+        http_options: HttpOptions = HttpOptions.model_construct(
+            timeout=120
+        )
+        _CLIENT = genai.Client(api_key=api_key, http_options=http_options)
     return _CLIENT
 
 
@@ -207,24 +182,16 @@ async def call_llm_structured(
 
     # Handle case where response.parsed is None
     if response.parsed is None:
-        # Try to extract JSON from markdown code blocks as fallback
-        extracted_json = _extract_json_from_markdown(response.text)
-        
-        if extracted_json:
-            try:
-                # Parse the extracted JSON manually and validate against schema
-                parsed_data = json.loads(extracted_json)
-                return output_schema.model_validate(parsed_data)
-            except (json.JSONDecodeError, ValueError) as e:
-                raise RuntimeError(
-                    f"LLM returned JSON in markdown blocks for stage '{stage_type}', "
-                    f"but failed to parse it: {e}. "
-                    f"Raw response: {response.text[:500]}..."
-                )
-        
-        raise RuntimeError(
-            f"LLM failed to generate structured response for stage '{stage_type}'. "
-            f"Raw response: {response.text[:500]}..."
-        )
+        # Try to parse JSON from response text using robust parser
+        try:
+            # Use parse_json_markdown which handles markdown blocks, partial JSON, etc.
+            parsed_data = parse_json_markdown(response.text)
+            return output_schema.model_validate(parsed_data)
+        except (json.JSONDecodeError, ValueError) as e:
+            raise RuntimeError(
+                f"LLM returned invalid JSON for stage '{stage_type}'. "
+                f"Parse error: {e}. "
+                f"Raw response: {response.text[:500]}..."
+            )
 
     return response.parsed

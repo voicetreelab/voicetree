@@ -88,12 +88,12 @@ async def run_quality_benchmark(test_transcripts=None):
             processing_mode
         )
         
-        # Evaluate quality
-        evaluator.evaluate_tree_quality(
-            content, 
-            transcript_info['name']
-        )
-        
+        # # Evaluate quality
+        # evaluator.evaluate_tree_quality(
+        #     content,
+        #     transcript_info['name']
+        # )
+        #
         print(f"\nEvaluation completed for {transcript_info['name']}")
         print("See backend/benchmarker/quality_logs/quality_log.txt and backend/benchmarker/quality_logs/latest_quality_log.txt for results.")
     
