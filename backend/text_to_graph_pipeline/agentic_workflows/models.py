@@ -141,3 +141,15 @@ class AppendAgentResult(BaseModel):
     """Result from AppendToRelevantNodeAgent containing actions and segment info"""
     actions: List[Union[AppendAction, CreateAction]] = Field(description="List of actions to apply")
     segments: List[SegmentModel] = Field(description="List of segments with completeness info")
+
+
+class ClusterAssignment(BaseModel):
+    """Assignment of a node to a cluster"""
+    node_id: int = Field(description="ID of the node being assigned")
+    cluster_name: Optional[str] = Field(description="Name of the cluster (None if unclustered)")
+    reasoning: str = Field(description="Explanation for why this node belongs to this cluster or remains unclustered")
+
+
+class ClusteringResponse(BaseModel):
+    """Response model for clustering analysis"""
+    clusters: List[ClusterAssignment] = Field(description="List of cluster assignments for each node")
