@@ -4,7 +4,7 @@ Behavioral test for the clustering workflow driver.
 Tests that the workflow driver correctly orchestrates:
 1. Formatting nodes using _format_nodes_for_prompt()
 2. Calling ClusteringAgent with formatted nodes and node count
-3. Updating tree in place with cluster_name attributes from agent response
+3. Updating tree in place with tags attributes from agent response
 """
 
 import pytest
@@ -12,7 +12,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from typing import Dict
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-from backend.text_to_graph_pipeline.agentic_workflows.models import ClusteringResponse, ClusterAssignment
+from backend.text_to_graph_pipeline.agentic_workflows.models import TagResponse, TagAssignment
 from backend.text_to_graph_pipeline.agentic_workflows.clustering_workflow_driver import run_clustering_analysis
 
 
@@ -27,19 +27,19 @@ def sample_tree() -> Dict[int, Node]:
 
 
 @pytest.fixture
-def mock_clustering_response() -> ClusteringResponse:
-    """Mock clustering response from agent"""
-    return ClusteringResponse(
-        clusters=[
-            ClusterAssignment(node_id=1, cluster_name="Domestic Pets", reasoning="Dogs are pets"),
-            ClusterAssignment(node_id=2, cluster_name="Domestic Pets", reasoning="Cats are pets"),
-            ClusterAssignment(node_id=3, cluster_name=None, reasoning="Birds not clustered")
+def mock_tagging_response() -> TagResponse:
+    """Mock tagging response from agent"""
+    return TagResponse(
+        tags=[
+            TagAssignment(node_id=1, tags=["Domestic Pets", "Animals"], reasoning="Dogs are pets and animals"),
+            TagAssignment(node_id=2, tags=["Domestic Pets", "Animals"], reasoning="Cats are pets and animals"),
+            TagAssignment(node_id=3, tags=[], reasoning="Birds not tagged")
         ]
     )
 
 
 @pytest.mark.asyncio
-async def test_run_clustering_analysis_orchestration(sample_tree, mock_clustering_response):
+async def test_run_clustering_analysis_orchestration(sample_tree, mock_tagging_response):
     """Test that workflow driver correctly orchestrates all components"""
     
     # Mock the dependencies
@@ -49,7 +49,7 @@ async def test_run_clustering_analysis_orchestration(sample_tree, mock_clusterin
         # Setup mocks
         mock_format.return_value = "formatted nodes string"
         mock_agent_instance = Mock()
-        mock_agent_instance.run = AsyncMock(return_value=mock_clustering_response)
+        mock_agent_instance.run = AsyncMock(return_value=mock_tagging_response)
         mock_agent_class.return_value = mock_agent_instance
         
         # Run the workflow driver
@@ -70,14 +70,14 @@ async def test_run_clustering_analysis_orchestration(sample_tree, mock_clusterin
         # Verify agent.run was called with formatted nodes and node count
         mock_agent_instance.run.assert_called_once_with("formatted nodes string", 3)
         
-        # Verify tree was updated in place with cluster_name attributes
-        assert hasattr(sample_tree[1], 'cluster_name')
-        assert hasattr(sample_tree[2], 'cluster_name')
-        assert hasattr(sample_tree[3], 'cluster_name')
+        # Verify tree was updated in place with tags attributes
+        assert hasattr(sample_tree[1], 'tags')
+        assert hasattr(sample_tree[2], 'tags')
+        assert hasattr(sample_tree[3], 'tags')
         
-        assert sample_tree[1].cluster_name == "Domestic Pets"
-        assert sample_tree[2].cluster_name == "Domestic Pets"
-        assert sample_tree[3].cluster_name is None
+        assert sample_tree[1].tags == ["Domestic Pets", "Animals"]
+        assert sample_tree[2].tags == ["Domestic Pets", "Animals"]
+        assert sample_tree[3].tags == []
 
 
 @pytest.mark.asyncio
@@ -90,12 +90,12 @@ async def test_run_clustering_analysis_empty_tree():
         
         mock_format.return_value = "No nodes available"
         mock_agent_instance = Mock()
-        mock_agent_instance.run = AsyncMock(return_value=ClusteringResponse(clusters=[]))
+        mock_agent_instance.run = AsyncMock(return_value=TagResponse(tags=[]))
         mock_agent_class.return_value = mock_agent_instance
         
         # Should not raise exception
         await run_clustering_analysis(empty_tree)
         
-        # Verify it still called the components
-        mock_format.assert_called_once_with([], empty_tree)
-        mock_agent_instance.run.assert_called_once_with("No nodes available", 0)
+        # With empty tree, the workflow should exit early and not call format/agent
+        mock_format.assert_not_called()
+        mock_agent_instance.run.assert_not_called()
