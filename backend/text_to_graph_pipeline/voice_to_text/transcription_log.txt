@@ -1,0 +1,1099 @@
+Cool. Let's see. Do we have a log?
+with I mean that would actually be in back end textograph pipeline voice text we want to see if there's a transcription log
+and I don't see it to be honest
+So let's ask why it's happening
+okay there's a bug okay so we do have a transcription log that's good we do also have an error which is less good
+so that's probably if there's you always need a defensive check
+Let's just ask it in planning mode, what the hell is going on, so the problem we had was an dependent relevant node agent, the complicated logic, and what we actually really only care about is processing the target nodes.
+So...
+Alright, we are now once again testing Voicetree live, first thing we can do is just see how much of a delay there should be about 4 seconds after that moderate pause If not, something is somewhat wrong. It's pretty annoying when doing a live test with someone
+If the text just doesn't fucking show up, isn't it?
+All right, I think we should probably decrease the timeout for it to flush a little bit, so currently it's one second, that's why it's a bit problematic All right, I think we should do that
+Let's try and make that 600 milliseconds. I feel like that's a pretty natural amount of pause
+Hmm
+Oh my god, I'm getting really tired I would like to eat a little lyrebird Oh my god, it didn't even write a motherfucking markdown document
+Oh my god
+Oh my god
+Oh my god, save it to a markdown or I'm going to fucking cry
+Please don't make me a sad, sad man Oh my god, it's getting so fucking slow, so fucking slow, I could be a little bro
+Okay, clear, bug, bug
+Ah, okay, what am I even looking at?
+Is, is, are we even creating nodes?
+For creating nodes no more.
+Hey, you okay? Yeah.
+I got lots of things.
+$15
+How are you both feeling? Terrible
+Do you think it's just something you ate? Or is it a pretty day out? Should I go for a walk? Well, I mean it's pretty late now.
+Getting a bit late for a walk. It is 9.15 and you just got something. Mommy got something. An uran notification. What is it?
+Urra notification. A guru? Urra. What's that? My brain. So it's time to go to sleep.
+That's what I put in your beans. They had special beans. High-protein beans. High-protein rice. Topo.
+You see your mother's Sunday? And your sister? They're going out there. I can't take the car unless you're not still here. I'm not taking the car.
+Well, I'll be there, of course. No. No? He's going away?
+Personal well-being and daily activities. Is it food or weather? Going for a walk? Feeling terrible? Go to sleep due to notification?
+My new symptom, what I wrote so far on empathy. I was so cute that they wrote back.
+Such a great idea. Here's how you could organize it. Very clever.
+Next time we go anywhere, let's get a new...
+Oh yeah, it'd be nice to have fizzy water. Now can you hand me your bowl? Want any more?
+How do you feel? Terrible. Oh, Elani!
+I'm sorry you feel sick.
+I'm sorry.
+Okay, now I'm actually working on VoiceTree.
+I'm doing a live test of the VoiceTree system while Ilan is reading, which is going to annoy Ilan to no end.
+Okay, I just wanted to check if it worked.
+And we got it.
+I don't understand what happened with that thing.
+I don't know, but I'll... I don't know.
+It's like I made it worse by what I did.
+You need to deal with it. You should call it a plumber.
+Right, I'm working on the voice tree.
+And we're in a really good stage right now. So, we have our Y Combinator deadline in about a week. And we want to make a pretty killer demo for the Y Combinator deadline. And currently our core algorithm is in quite a healthy state.
+In our latest quality log.
+Um...
+We're getting 4.7s, which is really unheard of. Um... Really quite amazing.
+I'm really impressed with that. I deserve a pat on the back for that.
+Um, for myself.
+Um, I think one really good fix we made was...
+Um...
+Um...
+One really good fix we did...
+...was changing to Gemini 2.5 flash instead of flashlight. That seems to have improved the quality a bit.
+And a lot of things have just come together as well, like core prompt changes.
+So that was cool to see that working in action.
+Now.
+We have the open question of how good our voice to text is.
+And.
+Sort of not only how good the voice to text is, just the general feel of the software.
+Um.
+And how...
+...kind of reasonable it is.
+And latency-wise as well.
+All right, so it does seem like right now...
+...um...
+...that either the voice of text is too slow...
+...um...or more likely...
+...more likely is that...
+...that the core algorithm is blocking the text-to-speech.
+So we need to figure that out. That's the core problem right now.
+Alrighty, okay, we are working on Voicetree today and we're doing some live testing of Voicetree because the overall goal is we want to be able to prepare a really good demo for Y Combinator. It can be a little bit hacky, but ideally it just works.
+That would be pretty epic if it can just work without having to hack around too much in video editing. The problem we're just working on is that there's some Voicetree text issues.
+So, we had some Voicetree text issues and I think what the actual problem was was that it was like a latency problem since one of the threads, one of the methods was blocking one of the other methods was blocking the Voicetree text method.
+So, we want to see if that's still the case.
+Okay, I'm going to rerun now.
+few things we're seeing how good the voice to text is doing some live testing we know the benchmarks are really good but we haven't tested as much with live voice testing we want to make sure it's okay for it to be able to record a quick demo tonight
+um
+and we want to so generally test the latency
+so we're getting an error which is annoying
+Text algorithm. We want ideally less than a 4 second delay.
+And we now have much more than a 4 second delay.
+Alright, but maybe it's actually not that bad. Maybe there was just a bit of a cold start problem.
+Alright, now the important thing is to test.
+Hmm, and it didn't work at all.
+Oh...
+Okay, you know what?
+Um... I mean...
+Mm-hmm.
+Mm-hmm.
+Bye. Bye.
+Where do you want to get the charger? Yeah, right here.
+That's a cool thing, man. Oh, food. Protein. Food, protein.
+Now I'm doing a live test of voice tree, a live test of voice tree, a live test of voice tree, a live test of voice tree, a live test of voice tree, I'm trying to see how long the overall delay is.
+It's about nine seconds, and now we want to see...
+Now, where did you put the battery? The battery.
+I want to see if it can work while the buffer is running.
+I want to see if it can work while the battery is running.
+w h a w h a tts no not tts what's like what's like what's
+like w h a t yeah how was dinner um web dot what's that one p
+two p's like an app huh like an app yeah you want an application on your phone what's w h a t s s whatsapp dot com dot com that's what i put in it said can't reach
+qr code yeah so now you have to go on your phone
+so make everything easy
+okay on my phone and then
+yeah yes I go into your phone now and go on to whatsapp
+so I'm showing dad right now how to get whatsapp on his computer
+yeah okay so go on to whatsapp and now in settings
+yeah and now look at your computer yeah does it tell you what to do QR code
+or whatsapp app yeah does it tell you what exactly to do go to settings
+I'm in settings yeah and what does it say on your computer
+so the QR code or whatsapp app yeah or whatsapp browser those are three things domain is for sale
+okay dad let's work on it again spelling whatsapp
+ok steps 11 open whatsapp on your phone got it do you download it first download it then you have it on your phone
+let me get my glasses you're right
+and i have to keep it on the sock i bet it was
+freya
+yeah
+Okay then, we need your face I need your face You need my face, okay
+You need your face, okay?
+Have as much coffee as you want tomorrow
+Let's roll this out This is pretty
+Yeah, I got it on your computer now, Dan Perfect So that woman's email and her WhatsApp TV will come up, right? Yeah, it's there Be careful Jeff, you don't want to be overly friendly and starting a big conversation Of course you'll be willing to send it, okay? Ask her question
+No Just answer And it's actually better for you not to answer right away, Jeff
+Cause you're saying you're exhausted It's much better for you to wait till tomorrow Or not even reply It's three messages down, Dan But I agree with mom, I don't think it's a good idea to actually reply Well, it's like three or four messages down
+Well, I just tell her about our employer I agree that it's better not to do it the same day
+Unless you want to be buddy-buddy with her No, I don't mean buddy-buddy, she asked me a legitimate question, I want to answer it, not sure Yeah, but you don't want to be nice to her, you just want to answer the question And not on a Saturday, but on a Monday
+That shows a bit of limit
+Do whatever you want
+That's very kind of you, thank you
+Thank you
+Thank you
+Multi threading
+All right testing one two three
+You
+All right, so think
+actually start listening doesn't help.
+All right.
+Testing one, two, three.
+So we have about an eight-second delay.
+All right, I'm going to turn off.
+Um, everything to do with VAD and see if that helps.
+Alright, cool. We've made our model
+Hello, hello, hello.
+Alright, we've made our model more aggressive.
+Rest.
+Alright, now we're down to about 5 or 6 seconds, which is a big improvement from 9 or 10.
+However, one of the problems is that we're now seeing a few more...
+...um...
+...possible transcription errors? I'm not really sure.
+Okay, um, it actually looks...
+fine for the mean time, at least for our...
+uh, requirements...
+um, definitely a lot more like...
+type stuff.
+Um, which isn't ideal, but it is okay. It's okay. It's okay.
+Let's see.
+Um, so let's test.
+Um,
+testing one, two, three.
+Okay, so now we're seeing that it can end up with a real backlog.
+Okay.
+Okay.
+<Queue maxsize=0 _queue=['Yeah, put it together.'] tasks=1>
+<Queue maxsize=0 _queue=['We did it together.'] tasks=2>
+<Queue maxsize=0 _queue=['Oh.'] tasks=3>
+<Queue maxsize=0 _queue=['Testing one, two, three.'] tasks=4>
+<Queue maxsize=0 _queue=['Testing one, two, three, four, five.'] tasks=5>
+<Queue maxsize=0 _queue=['Well, okay, this might be really quick for us to text.'] tasks=6>
+<Queue maxsize=0 _queue=['Well, this might be really quick for voice to text.'] tasks=7>
+<Queue maxsize=0 _queue=['Well, this might be really quick for voice to text.', 'Put the picture in here.'] tasks=8>
+<Queue maxsize=0 _queue=['Well, this might be really quick for voice to text.', 'Put the picture in here.', "Okay, thank you. We'll do..."] tasks=9>
+<Queue maxsize=0 _queue=['Well, this might be really quick for voice to text.', 'Put the picture in here.', "Okay, thank you. We'll do...", 'Okay.'] tasks=10>
+<Queue maxsize=0 _queue=['Okay, a few times.'] tasks=11>
+<Queue maxsize=0 _queue=['Okay.'] tasks=12>
+<Queue maxsize=0 _queue=['Okay.'] tasks=13>
+<Queue maxsize=0 _queue=['This is the green jacket as well.'] tasks=14>
+<Queue maxsize=0 _queue=["Alright, we're basically testing how good the boistertex algorithm can be."] tasks=1>
+<Queue maxsize=0 _queue=['I have a beam size of just one.'] tasks=2>
+<Queue maxsize=0 _queue=['and how much faster it is.'] tasks=3>
+<Queue maxsize=0 _queue=['okay so maybe they are...'] tasks=4>
+<Queue maxsize=0 _queue=['maybe the problem is mostly just the model.'] tasks=5>
+<Queue maxsize=0 _queue=["Well okay so let's see now I guess..."] tasks=6>
+<Queue maxsize=0 _queue=["Well okay so let's see now I guess...", "Yeah I don't think beam size of one is good enough."] tasks=7>
+<Queue maxsize=0 _queue=["Well okay so let's see now I guess...", "Yeah I don't think beam size of one is good enough.", 'We want at least...'] tasks=8>
+<Queue maxsize=0 _queue=["All right, right now we're just testing how much a"] tasks=1>
+<Queue maxsize=0 _queue=['a beam size of four takes to respond.'] tasks=2>
+<Queue maxsize=0 _queue=['About six seconds.'] tasks=3>
+<Queue maxsize=0 _queue=["Okay, now we're going to change that to distill LH3."] tasks=4>
+<Queue maxsize=0 _queue=['Testing, one, two, three.'] tasks=5>
+<Queue maxsize=0 _queue=['All right, testing, one, two, three.'] tasks=1>
+<Queue maxsize=0 _queue=['So distilled large V3 seems to be about the same as'] tasks=2>
+<Queue maxsize=0 _queue=['the super'] tasks=3>
+<Queue maxsize=0 _queue=['Turbo model.'] tasks=4>
+<Queue maxsize=0 _queue=['Actually, I think it does look a bit faster.'] tasks=5>
+<Queue maxsize=0 _queue=["Yeah, it's about."] tasks=6>
+<Queue maxsize=0 _queue=['four seconds instead.'] tasks=7>
+<Queue maxsize=0 _queue=['four seconds instead.', 'Okay.'] tasks=8>
+<Queue maxsize=0 _queue=['four seconds instead.', 'Okay.', 'Um.'] tasks=9>
+<Queue maxsize=0 _queue=['four seconds instead.', 'Okay.', 'Um.', 'A, B, C.'] tasks=10>
+<Queue maxsize=0 _queue=['four seconds instead.', 'Okay.', 'Um.', 'A, B, C.', 'Four to six seconds.'] tasks=11>
+<Queue maxsize=0 _queue=['Technic coffee to treat it had been made fun to be fun to you.'] tasks=1>
+<Queue maxsize=0 _queue=['Oh.'] tasks=1>
+<Queue maxsize=0 _queue=["I'll do it, I'll just give one more chance to test this."] tasks=2>
+<Queue maxsize=0 _queue=["I'll do it for you."] tasks=3>
+<Queue maxsize=0 _queue=['What is the latency after this?'] tasks=4>
+<Queue maxsize=0 _queue=['Wow, okay, four seconds that might make it good enough.'] tasks=5>
+<Queue maxsize=0 _queue=['and see when it ends up talking about chewable orange, flavored vitamin C dietary supplements.'] tasks=6>
+<Queue maxsize=0 _queue=[', you know,'] tasks=7>
+<Queue maxsize=0 _queue=['...'] tasks=8>
+<Queue maxsize=0 _queue=['I know if you want to do it now.'] tasks=9>
+<Queue maxsize=0 _queue=['Testing one, two, three.'] tasks=10>
+<Queue maxsize=0 _queue=["One of those things, yeah. I don't know. That's really weird that for some amount of time..."] tasks=11>
+<Queue maxsize=0 _queue=["One of those things, yeah. I don't know. That's really weird that for some amount of time...", 'It does seem like that was what was happening.'] tasks=12>
+<Queue maxsize=0 _queue=['Yeah.'] tasks=13>
+<Queue maxsize=0 _queue=["Yeah, I think I can't see how it could work."] tasks=14>
+<Queue maxsize=0 _queue=['Yeah.'] tasks=15>
+<Queue maxsize=0 _queue=['testing one, two, three.'] tasks=16>
+<Queue maxsize=0 _queue=['What does it like to be me? Testing one, two, three.'] tasks=17>
+<Queue maxsize=0 _queue=['What is it like to be me?'] tasks=18>
+<Queue maxsize=0 _queue=["Hello, hello, what's your name?"] tasks=19>
+<Queue maxsize=0 _queue=['Testing one two three.'] tasks=20>
+<Queue maxsize=0 _queue=['Testing one two three.', 'Voice check.'] tasks=21>
+<Queue maxsize=0 _queue=['Testing one two three.', 'Voice check.', 'All right, what are we going to work on today? We could eat cherries or berries or plenty of fairies.'] tasks=22>
+<Queue maxsize=0 _queue=['What is?'] tasks=23>
+<Queue maxsize=0 _queue=['testing really quickly.'] tasks=24>
+<Queue maxsize=0 _queue=["Oh, so maybe what happens is that we made the total time up really too long, and so now it's detecting silence and then not really figuring it out."] tasks=25>
+The test we're trying to do today.
+is if we talk really slowly.
+And if not, why not?
+So I think.
+We might just not be sending enough text at once.
+If.
+All right, I'm thinking that.
+We don't really.
+want.
+make our voice a text.
+So complicated.
+For the reason.
+that it's not really.
+Very testable.
+All right, so now if I keep on talking for a long amount of time...
+the voice to text algorithm.
+buying a new pair of shoes.
+If I talk about all of that very quickly.
+that's just mrs.
+And that would be very sad.
+So yeah, that is the thing is that I worry.
+But this is really the sort of thing that it seems I just need to figure out myself.
+So then the test for that would be that if we keep talking very quickly it was able to pick up every single word.
+All right, so now what we are trying.
+to do, I guess.
+Vitamin C is a dietary supplement.
+And then also if we just keep on talking for a really long time talking about all the apples and bananas in the world and the people and breathing and how all the things we do in our brain
+Okay, so we're doing a real true test of voice tree right now
+And we're just gonna talk about some of the things we need to work on today tomorrow actually it'll be good it's a good midnight it's a good time to
+All right, cool. We are now going to see how robust voice tree is.
+So we're going to run it on our voice to text algorithm.
+and we are going to see what sort of notes are appearing. We're going to see if there's any failure cases in the voice-to-text model.
+There's been a lot of recent problems with voice a text.
+It's just complicated code and
+lots of little small things that can go wrong. There were some problems with the internal model. There's been some parallelism problems and other things like that.
+So we really want to see especially while we're creating new nodes
+if we can continue to be processing.
+And also I guess what we want to be thinking about is
+if
+if we should be starting to think if we can use a large model.
+That's a really good question. So if we want to be able to use a large model for higher accuracy, that is one question. But we also just want to see in general if we speak
+if we speak loud enough and clear enough is a medium model fine.
+because the cool thing about a medium model is that a medium model can
+actually handle us live on my computer.
+he can do voice to text.
+in real time.
+which is quite neat.
+Okay.
+Now I'm also just noticing one problem with the voice tree application in general.
+which is.
+that.
+Okay.
+So I'm also noticing right now with the buffer.
+the main flow of the algorithm.
+is a bottleneck.
+I can't be running fast enough.
+And so we do have a few options there.
+we can
+delay optimization
+is one option.
+So we can only, that option would be only running the optimizer.
+if
+the
+Um.
+only running the optimizer if
+We haven't had another append, like you have like a five second window to see if we get another append.
+And if there's no pen, then we run optimizer.
+But that's a lot of complexity and could go wrong very easily.
+Another option is, is that we just increase our buffer size. Increase a buffer size means we're just sending less LM calls.
+which might mean that we could maybe just with a very small buffer increase we could get away with it.
+Okay, let's go with doing the quick fix
+by increasing buffer size.
+And then we can do some deep planning to see if we can have a bit more parallelization or smart optimization delays.
+or like sort of a sync calls to see how else we could speed things up.
+Okay, another cool option.
+for decreasing the total latency.
+is we can have.
+Um,
+So what we can do is we can have
+Some of the prompts run a
+So for example we know that segmentation
+isn't really that important.
+We can have a really cheap model run segmentation.
+Um...
+In fact, maybe segmentation isn't even really necessary.
+Hmm.
+What is the point of segmentation currently right now? Let's think.
+Let's have a look at the actual prompt for segmentation.
+and see what it's being used for.
+and what the complexity of the thought is.
+Oh segmentation has to be able to finish and or unfinished content.
+That's the complexity of it.
+So it's our arbitrary chunk.
+boundary solution.
+What am I doing right now right now? I'm looking at the debug logs for identify target node to see if we if decreasing transcript history would make a difference as well.
+And I just noticed that there is a nice problem of transcript history, which is that it doesn't start.
+I can cut off a word in the middle.
+So that's not very good.
+How many nodes are we at now?
+So we're at 13 nodes.
+Let's see if.
+We're choosing the right nodes.
+Nice, okay we are.
+hmm.
+Okay, so well let's have a look at our voice tree.
+So we have low cost segmentation strategy. Yeah, that's decreasing using the cheaper model for segmentation.
+That's a good one
+And then we have.
+voice tree buffer size increase. We've done that that's done
+Okay.
+So what's the current situation where can we currently set the model from setting a cheaper model for a certain prompt?
+So that's in
+core agent.
+I think I'll have integration.
+in
+in a single
+Optimizer.
+Hey.
+Easy.
+Okay.
+And now I'm realizing actually what we want.
+is a dynamic buffer size.
+whereby
+So this is quite complicated logic.
+So inner main dot pie.
+as we're getting audio.
+and then
+add that audio right?
+to a buffer.
+once we've processed it
+So we put that into a text queue.
+And then?
+we take from that text cue.
+and then
+What ideally want to be able to do is build up.
+a bit of a buffer.
+But I think the current problem is what is the current problem wasn't it currently work
+So you currently process.
+and then you're processing most of the time.
+So as you go back.
+The buffer content maybe hasn't been added.
+So one problem is we don't have a buffer full log.
+so it seems.
+would be good to have a buffer full.
+Okay, let's go add that to work.
+So that's gonna be in.
+So we have
+What do we do right now? We're adding a log.
+to know when the buffer is full.
+So we can get some idea of understanding of the
+how to optimize dynamic buffer links.
+because ideally it should happen implicitly.
+Okay, so where is that in buffer manager?
+So we have buffer manager dot pie.
+I can just search for.
+I think we found it.
+Let me say starting Steve.
+Okay.
+So
+the next steps for this.
+ideal buffer, dynamic buffer solution is when you look through the logic and main. Pie and trace it out and understand why currently it isn't actually a really dynamic buffer.
+Ideally what we want is.
+I mean if it's really slow in running, right?
+Let's just walk through this. It is really slow.
+So if it's really slow.
+then
+So we have.
+process new text and update Mark Doom.
+And then we should say.
+Got text from Q.
+So, okay, let's just talk really quickly and talk about like 10 different things at once and my headphones and my car and my Apple and my computer and all the things I want to do. I want to go to the gym tomorrow. I want to go to the gym tomorrow. I want to go to court tomorrow. I want to look at art tomorrow. I want to meet Freya tomorrow. I want to hang out with my dad tomorrow.
+So many different things I want to do, right? And so what should be happening right now is that our buffer should be accumulating in May end up high? Because in the background, we are doing all this voice to text transcription, right? So what we should end up with is like one huge buffer where the next time we run our LL processing loop, it is...
+Alright, like i mean that's what's gonna happen?
+Okay, so this is cool. So the buffer is full, sanctogenic workflow, and then what should ideally happen is that the next time it comes around, it should have a really, really, really big loop handle, right? Like, I mean, that's what's going to happen.
+is the next time it comes around from the appending.
+It's just going to have like this really really big huge buffer
+So let's see if that's what actually ends up happening. Because right now...
+Okay, so dynamic puff buffer actually does kind of work.
+which is pretty epic honestly so what we've realized is that if we do talk really quickly from this little test
+that we've just been doing. If we do talk really quickly, then it is actually able to have a buffer sort of overflowing.
+and then the buffer just gets bigger and bigger, which is fine.
+So it's sort of.
+returns back to normal automatically. It's like self.
+I'm a self-balancing buffer.
+Let's want add one other thing which is like part of dynamic buffer let's have
+The buffer be dropped by half just for the first execution.
+Okay, and now we're going back
+idea to have the low cost segmentation strategy.
+of just being able to run a cheaper model.
+We've now implemented the code to be able to do that. An agent working in the background.
+Now we're just going to implement what they've done. So let's just quickly look at what they've.
+written.
+looks about right, just piping things through.
+and then
+We'll add to our
+Agent, so penned node node agent.
+So segmentation we can do with it cheap.
+If I could know it would want a bit more expensive.
+Okay.
+We might know we can maybe just run
+Um.
+the
+So.
+Okay, let's first just commit our changes.
+Okay, cool. I'm realizing a few things right now, just looking through the voice tree.
+So I'm looking at a graph.
+things we've been talking about recently.
+and I'm realizing a few things.
+One of them is that we can make identify target note a bit more aggressive.
+in choosing nodes that.
+Like any good relationship? Well, I mean...
+is actually better not to force relationships.
+and then better with the full understanding later to come back.
+and re-evaluate if it should be connected to the wider tree.
+Okay.
+Cool.
+The other thing I was thinking.
+was that.
+Huh.
+Um,
+Um.
+Okay.
+Okay, yeah the other thing I was thinking about
+was the fact?
+that ideally we can have our optimizer run non-blocking.
+It can be running
+text is appending.
+No, no, that's just a recipe for disaster, isn't it?
+Oh, fuck I don't know.
+So I was thinking that.
+The nice thing is is that we can have
+You see the note appear.
+Optimizer could run in the background.
+But for now it's just unnecessary complexity.
+Okay, so I guess the main thing I was trying to figure out.
+Right.
+was
+if
+I guess is can it now handle our rate of speech right so that was the original problem we're trying to figure out is if we're talking to voice tree consistently can it handle our right of speech?
+Or is it a bit too fast a rate of speech and the system gets backlogged?
+And if it gets backlogged, how are our capabilities for handling the backlog, etc, etc.
+So I would say.
+that this is what we want to know right now.
+Okay, and so based of rate of speech handling
+we're essentially trying to see.
+So one thing we're doing with that.
+is we're doing a live test right now of voice tree speech rate handling and we're seeing how that live test is going. So that's one specific node.
+uh...
+another specific node.
+another specific node...
+off of voice tree speech rate handling.
+off of voice tree speech rate handling.
+is understanding what optimizations we can make.
+is understanding...
+to improve voice tree speech rate handling.
+The thing is that if the live test shows that our current system...
+And the thing is that if the live test shows that our current system can handle the amount of input we're giving it, well then that means that we don't actually need to optimize further. We're chillin.
+So that is a very interesting question. So right now, it's entering a live test.
+We can look back
+the logs in the live test.
+Right.
+and see.
+Uh huh?
+what it's like.
+what it's...
+And unfortunately it does look like.
+that we're still getting a fair bit of a backlog.
+that was still getting a fair bit of a backlog.
+So maybe we need to do it now, but with like, um...
+So maybe we need to do it now, but it with like,
+Well, really it's performance engineering, really isn't it?
+We need to be able to see.
+Okay, and then there is one completely different solution for optimizing the latency of Voistree.
+which is we could
+which is...
+instead of doing a buffer approach, we could do segment by segment.
+and ask at each segment.
+and ask at each segment.
+Hey, is this segment done?
+Hey, is this segment done?
+If so send it and route it.
+If you're
+If not.
+if not
+That does come with a lot of problems around not knowing the surrounding context.
+But that does come with a lot of problems around not knowing the surrounding context.
+Unfortunately.
+optimizer, okay, let's do.
+Let's change all our logs.
+we could also.
+Heh.
+Just flush buffer.
+Okay.
+Okay.
+I can't believe how mean Snuffles got just because he's smart.
+Oh, I'm
+No, everyone actually believed me.
+So much better than standing up.
+Lieutenant General, who do you want to save the pilot or the troll? Oh man, I feel bad.
+Is that to happen, right?
+my chutea.
+Pappu.
+Nate and Missy like each other.
+All right, Caleb.
+wrong.
+He might like her, but her heart belongs to me.
+What are you talking about you wanting me to be here with you? You said you needed me. You stroked my arm. People saw that. We're getting married, right? Jump in any time. Well, I, I do like you, but only...
+I have romantic feelings for you, too.
+You see what's happened?
+no, that she ever did.
+You're still thinking about Camden? Hunt stower his phone like a dirty gargoy. I know I. See in the world I hate. Jesse, all guys.
+Maybe.
+Frankly,
+Can't stop door. Shut the fuck up, love!
+so hard to you last night. Weirdly, it kind of does. I woke up in my kitchen.
+Oh, I give you.
+There, my little gay prince.
+Let Dwayne find it.
+I can't believe I'm about to say this.
+But I know, it's stupid, stupid hormone monster goat man. I was going to say that's a great idea. It is? The thing I said? Yes.
+Hey, Dwayne.
+. You.
+I'm still figuring it out. Oh, Sand, huh? Oh God, he's calling you. Oh, no, how's my hair? Perfect as always. Hey! Hey! I'm so glad you said that. I feel the same way. Really? You?
+Yeah, I'm not the only one.
+Now, my anaconda don't. My anaconda don't, don't. My anaconda don't.
+this is...
+because you're such a bitch.
+You're fucking deaf.
+I rule that school.
+Right?
+You eat shit and die. Remember who you are, Devon.
+Fisne do this.
+You can't.
+You can fucking do this.
+It's Showtime.
+Shaim are you damn for you have lying to us all
+of them. I'm actually quite delicate so you know what I've decided that yeah this is all Devon's fault. That's right story. If she hadn't told everyone about what happened then I wouldn't have had the lie oh please you
+you're gonna get revenge
+and I scored a hug with a hug and I scored a hug with the booty that won't quit exactly so from now on no more missis nice missi I guess I could stand to be a little more selfish
+you're
+uh... what do you doing here looking for coco the compassion pecad you she quit compassion yeah years ago something about fuck humanity and she's sick of the parking garage here anyway i use your office as uh...
+hold it's a thing that i did for fun that's my hobby i like it since when
+Alrighty, okay, cool.
+So today we've made some really awesome progress with the target node prompt and the optimization prompt.
+I think we did go a little bit in circles on the optimization prompt. We fell into sort of LLM trap.
+Um
+where we just sort of went in circles with the LM not actually properly truly understanding what I was talking about.
+which was a little bit unfortunate but sometimes that's how it is
+Okay.
+No.
+I think now that the core algorithm is pretty sound we managed to get an excellent score on our benchmark. We really need to pivot, very important, we have to pivot to just making sure it is demoable.
+That voice tree the project we're working on is demoable
+and some things we want for that demo ability.
+Um
+is we need
+to have a little mini UI I think
+Um
+A mini UI would be good. We need to have sort of like a good general approach for using Voic Street. So sort of start more general, so you have general nodes to attach to. That's one example here where it failed where project demability focused that node became an orphan even though it's related to the overall voice tree project but we didn't have a node for the overall voice tree project so if we start more general and get increasingly more specific at least for demos
+we avoid that problem. Cool. One other thing I wanted to try out was...
+Um,
+symbols, so I know that
+There's certain symbols that we can use to represent our nodes, icons.
+And we wanna see.
+what that does really.
+Um
+And then the main problem I'm going to have for the demo, I think, is the current animation of the graph. The animation of the graph is really annoying. Whenever we add a new node, it completely just spawns a node in almost like a random location very far away. And then like two or three seconds later, the graph refreshes and everything sort of jumps around to a new format. We need to keep nodes in their existing locations so nothing changes. existing locations, so nothing changes very often, except the new nodes, and the new nodes we want to appear in a reasonable spot at first draw.
+So that as you're showing the demo and the nodes are appearing on the screen, it looks like a tree is growing rather than chaos.
+Oh cool. So one call I have idea for demoing voice tree with the sort of structured approach is it's really cool if I outline the key components of voice tree.
+like what voice tree is what the nodes are things like that and then those show up as entities on our graph
+And then any further discussion of anything to do with Voicetree gets a pen into those nodes. But the main cool thing about this is that for the demo it serves as documentation itself. So I'm explaining Voicetree.
+and what it is. The person who's watching the demo gets to understand, but now it also helps the actual demo itself because there's nodes to attach to.
+you're
+I'm trying now also the agenda component of our demo and I think it's fine I don't think we should overly
+It's cool enough. I don't think we need to worry too much about things like the node placement, but definitely if we can.
+Um...
+There is now also the idea of making like a synthetic parent node. We've talked about that a bit before. I mean that would avoid this key problem where everything's sort of referring to a parent node that just doesn't exist and so there's nowhere to attach to.
+and so maybe we need to make synthetic.
+parent nodes, and maybe we can change our routing algorithm to instead make an orphan synthetic parent topic name. Cool, that's a really good idea.
+And we also need to include relationships and our inputs for the...
+target node.
+You can start talking? So I'm going to be discussing my job, which is humanitarian aid operations in Afghanistan.
+for DG echo the European Commission. We are... You don't need to have annoying... You don't need to pause weirdly. You can just speak normally. But I don't see it doing anything. Well, yeah, because it... just you just go talk for a while.
+It's not very real time.
+So we're doing humanitarian aid operations in Afghanistan. We're funding multiple different
+actors, NGOs and UN agencies, and I want to get an overview of the proposals we've received to decide how to allocate funding to the various... There's no more rivals.
+I made you a special yogi tea for women.
+This is why you need a pause one.
+Oh.
+So what I'm trying right now is a new technique where we use very low buffer sized thresholds to flush
+And we want to see.
+how that sort of ends up working where if we have very low brother size thresholds, what becomes the actual behavior of the...
+system.
+So
+Ah, okay, so one thing we've noticed right now is that there's no actual
+outputs from that which is fine.
+until you run it a few times so segmentation therefore is working
+So we'll continue to do a live test of with low buffer-sized thresholds to see if it increases the overall reaction ability.
+Oh.
+And it does actually seem to.
+help.
+which is quite interesting.
+So we'll just have to see what the overall buffers end up being and how much of a lag we build up and whether that's fine.
+Okay, I'm Ilan Mason. I work for the European Commission and I work on humanitarian aid.
+for
+Taekwondo for Afghanistan and right now we have a large problem where America has taken away all our funding and so we're sort of dead in the water scrambling to figure out what we should do and so I'm going to spend some time thinking about how to approach this hard problem of aid in Afghanistan.
+I should I bring you a tea? No, I'm okay, thanks.
+Really?
+Did you already give it the introduction?
+No, you got to give it your introduction.
+I am working on, how do I see the U. I am working on humanitarian aid operations in Afghanistan for DG Echo at the European Commission.
+We are a donor and we fund actions in the country and I want to use this voice tree to help me decide on funding allocations.
+and on decisions in what projects we should fund this year. So I've received some funding proposals from United Nations agencies and some from NGOs and I want to distinguish between
+the different proposals putting information in each note about what they have to help me make visual to use as a visual guidance for decision-making processes Let's start with the So the idea is you press command press command and then you can read about what you've actually said here
+You command and then you hover over it. Oh, I don't even fix one thing. I love it. I can just fix it.
+Is it? See, look at what you've already said. And you press command and you hover over it.
+And then it gives, you know, it just a brief summary of what that actually is. And then you can... And does it have the same knowledge as Claude? Doesn't know? Yeah. About like...
+But it's only like summarizing what you've been saying. So let's start with one funding proposal that I've received from the World Food Program.
+this is requesting 30 million euros in funding for us to respond to
+food security needs across the country in almost every single province and also targeting retourneys from Pakistan and Iran, which is positive.
+Then we also have a proposal from the NGO International Rescue Committee, IRC, asking for 10 million euros of funding to work on health.
+food security and protection all of which are very important sectors
+Then we have a proposal from Save the Children requesting five million euros in funding for health care and protection and education in emergencies
+or the other ones. Yeah, where's nine?
+Oh wait, just, hang on, click on this?
+There should go.
+Okay, so it's making them as like orphans, which is one common problem.
+So it made those nodes as an orphan. I can link it, right? You could link it, yes. He's write the node, the name of the node.
+But it would then be useful if I could upload the proposal into here and then it would summarize it for me.
+Can I already do that? Yeah.
+You can.
+Um,
+So yeah, right now the UI is very junkie as you can see
+But I'll give you an example of how you would do that. Yeah, can you show me a proper voice tree? I want to see like a really build-up one so you must have some examples.
+I'll show you what you could do so if you wanted to
+you could
+So let's say one of these, funding proposals, right, you could edit, edit here. So you can go edit, right, and just on the graph.
+You can say, here are, here is paste of docs.
+right? And then on that node
+So here you can go, you can hover over it and you can edit it or you can say whatever you want. But you did get rid of the...
+Anyway, let's just say we edited it and then we can open our terminal.
+Okay, now we have a terminal, so I know that the graph is like flickering, that's why I need to fix that. Anyway, now you have a terminal connected to it. Cool, and then I could ask questions. And you can open the terminal just like this, you can hover over it, and you can, so right now I don't have it.
+So I can go Clyde to S.H.
+So we sort of skip some of this in the demo, right? But now it's working and you can ask it.
+Do you want to ask you a question?
+and
+again right the point is is not that it's currently useful for you the point is that currently we have the components my god it's impressive money to make a demo that shows it would be really cool
+that shows it'll be really useful. This is pretty impressive.
+My know, this is really impressive what it came up. Yeah.
+That's useful for me
+Yeah.
+I mean I should spend an hour speaking to it. I could really use this for my job.
+Yeah.
+Can you show me a voice tree that's complete?
+No, I keep deleting them. Why?
+You can start saving them, very cool I know.
+And what was the benchmark test you said? Yeah, it doesn't matter.
+A large language model. So one of the biggest issues at the moment in Afghanistan is the ongoing forced return of millions of Afghan citizens from Pakistan and Iran.
+I ran out of my phone.
+Sure.
+being in a park.
+So cool. You did it.
+All right, today I am working on Voistree.
+our voice to graph project.
+and I want to be able to demo it very soon. So I only have a few hours, three hours, and I really want to be able to demo it.
+to my brother's friend. My brother's here right now.
+Um, and
+Oh.
+We need to figure out what are the things we need to do for the drip demo. So one, the first thing is we need to do a live test right now of Voice Street to see how well it's working.
+And then based off that would say to work some of the problems are.
+Um,
+So unfortunately one of the problems I've been facing is that I've been working a bit sub-optimally where I keep on changing things in the project.
+which then leads to three other issues. So I'll solve one problem that just creates three hours because the complexity spiral.
+So I need to avoid that from happening. So I think I need a decision here is to just completely stop editing the core algorithm. We only have a week till the YAC combinator demo that we need to do.
+And so I think the core algorithm can have some minor fix up, but we don't want to do any major changes to the prompts anymore.
+Um,
+Okay, and then within this current demo, one thing that I'm realizing is that we need to improve the graph animation. So currently nodes appear in like a weird position, and then the graph refreshes.
+and we don't want that to happen.
+um
+It
+really disrupt the user interface and flow.
+um
+So, yeah.
+Okay.
+Okay, the other thing I am seeing wrong with the prompt is that
+Um,
+the we
+Our buffer is accumulating very long.
+because our complete algorithm is not fast enough.
+So we need to improve the speed over.
+core algorithm. We have some different options there. One option is to use a smaller model.
+The smaller model for the LLM will be faster, which means we get faster responses, which means we won't get a backlog of a buffer.
+Cool. Okay, so we have that smaller LM model for speed improvement.
+um
+that could help the algorithm buffer accumulation problem.
+And then what else do we need to do for the demo?
+Oh yeah, improving voice tree graph animation. So what we need to do there is the first step is we need to look into the obsidian juggle plugin, the one that I'm using, and we need to
+uh...
+improve.
+the logic for when a new node is automatically added to the graph
+So when a new node is added to the graph.
+We need to change the logic there to do a better reset of the graph or perhaps not reset the graph.
+We are noticing like a two to three second delay.
+Um,
+Cool.
+Um,
+Cool. Okay. Let's get an agent to work on that.
+So we have our terminal now.
+Let's open it and we'll run into Quad.
+Okay, nice, while that's running in the background.
+It has access to all our files. I'll see what else I can work on.
+Um,
+So upcoming Y-Cominated demo, that's our larger goal. So this demo that we're doing right now is just to practice for the Y-Cominer demo.
+And for the Y Combinator demo,
+Um,
+We want.
+to
+I think we want three different types of demos so we want this style demo where I'm doing sort of software engineering type work
+and
+we want also.
+a demo of a meeting because I think this can improve meeting efficiency a lot.
+And then we also want to demo the whole flip side of this project, which is actually improving ELLM performance itself.
+And so I'll sort of show you what I mean by that. So right now, as you can see in the background, our agent is working on this graph reset delay on node addition problem. And it's sort of exploring the solution space and adding nodes. And so I'll have a visual understanding, so I'll pause it right now, a visual understanding of the solution it's building.
+And then I can also give it feedback for example, so full access to the agent here.
+I'm
+and
+then
+So let's have a look at this white column and that one.
+So this problem we noticed there was that the
+It's just taking a bit too long, right? So we have.
+Oh.
+Okay, so what happened here is that.
+the, so there's one node for upcoming YComo demo.
+Um,
+And then there is another.
+demo.
+Oh.
+And then we have a meeting efficiency demo.
+So that's interesting is that it didn't make these at the upcoming YCometer demo. It made these more the Voice Tree Project demo preparation, which is reasonable, but I do need just a way to know which node is the most recent. So I can open the file switcher here, or I can...
+Color the more recent nodes I made, maybe color them in blue, the last three nodes that I made.
+or add the numbers to the title. So I'll ask Elon what the best option to do there is to make it obvious what nodes were recently modified.
+So for example 13
+need for most recent note indicator.
+I'm now starting to find exactly where it is up here.
+Um,
+Oh.
+And then.
+Yes, and now that once the graph becomes about a certain size, we really need good organization.
+Um,
+is also
+Let's see and we also have this other
+Hmm.
+Where actually is that note? Legit can't find it.
+Cool. Okay, now we have that smaller LM water receipt improvement. That could help the...
+the algorithm population problem. And then what else do we do with the demo? Oh yeah, I'm proving voice tree graph animation. So what we need to do there is the first step is we need to look into the obsidian juggle plug-in that I'm using and we need to...
+improved.
+the logic to when a new note is automatically actually grass.
+Yeah.
+Cool. Okay, so we have that smaller L&M water speed improvement. That would help me.
+the algorithm population problem. And then what can you do for them?
+improving industry graph animation. So what we need to do there is the first step is we need to look into the Obsidian Juggle plugin form that I'm using and we need to...
+improve
+Cool. Okay, so we have that smaller LML literacy improvement. That would help the...
+the algorithm buffer accumulation problem. And then what else do we do for the demo? Oh yeah, I'm proving voice tree graph animation. So what we need to do there is the first step is we need to look into the obsidian juggle plugin one that I'm using, and we need to...
+improve the logic for when a new node is on the actual grass.
+Cool. Let's get an agent to work on that. It's automatically out of the graph.
+Cool. Okay, let's get an agent working out.
+We have our terminal now, let's open it.
+logic when a new nose is on the actual ground.
+Cool. Let's get an agent to work on that.
+the logic when a new nose is automatically actually grass.
+Um,
+is the first step is we need to look into the obsidian juggle clone one that I'm using and we need to
+improve the logic of when and you know is on the actual grass.
+and you know it's on the actual graph.
+And you know it's automatically actually breath.
+Okay.
+Cool. Let's get an agent working on.
+We have our terminal now.
+Okay, well that's running in the background. It has access all other files. I'll see what else is more done.
+So upcoming Y-combinator, that's our larger goal. So this demo is just a practice for the Y-combinator demo.
+We want to
+I think you want three different types of demos. So we want this style demo where I'm doing software engineering type work. And we want also a demo of a meeting. So I think it's gonna improve meeting efficiency a lot.
+And then we also want to demo the whole flip side of this project, which is actually improving the elements itself. And so I'll show you what I mean by that. So right now, as you can see, in the background, our agent is working on this graph-pre-sette layer not addition problem. And it's sort of exploring the solution space and having a visual understanding, it's all right now, a visual understanding of the solutions building. And I can also give a feedback for examples like Alexis an agent here.
+And then, so what's what I was going to.
+Then, so what's the one?
+So the problem we noticed too long as we have. It's just taking a bit too long as we have.
+is what happened here.
+Okay, so what happened here is that the... This is one node rockling.
+and then there is another
+Yilan, can you come here?
+All right, what is voice tree?
+So voice tree.
+So Voice is a software that converts
+Um, let's actually close all those.
+So what is voice tree? That's the question I'm going to answer.
+So Voistry is software that converts
+your voice into a visual graph.
+What that means is as you'll see in a moment as I keep on talking
+a note will appear describing what I'm saying on the graph.
+Okay.
+You're here.
+All right. Today I'm working on Voistree. Voistree is a voice to graph software.
+which converts your spoken content.
+into a visual graph.
+So I've been working on the project today and I'm trying to do a live demo.
+to some friends.
+spoken content to a visual graph.
+and today I'm demoing voice tree I'm showing you what it actually looks like so you can get some sort of intuition to it
+I'm going to also talk a bit about some of the problems I've been experiencing with Voice Tree and that's related to the
+All right, what is voice tree? That's the question about to answer.
+and what I'm going to do related to that right now is show you a demo of Voicetree actually working live so you can get some sort of intuition for what Voice Tree actually is.
+So,
+another thing that I'm doing in parallel to this.
+is I want to while demoing Voice Tree, I examine sort of what the problems are with Voice Tree and how I could improve the voice tree system.
+So I know already there's a few little quirks that could be improved. So one aspect is improving the graph visualization. One aspect of that is improving the styling of the graph visualization, and another aspect is improving the animation currently when nodes appear.
+There's not a pretty animation and sometimes it can just look a bit janky.
+Cool.
+All right.
+So one side is the UI. The UI could be improved we could improve the styling
+we can improve the graph visualization and animation. Another aspect to improve is the back end. So we can improve the backend main algorithm.
+in the same.
+optimization stage. So that I think would be some small changes to the prompt. So let's see, what actually would that involve? So to improve the optimizer back end prompt we could allow it to have a target node name and so when it creates a new node that target node can either be the original node.
+It can be a neighbor.
+or it can be one of the new nodes itself created.
+So that would be pretty cool and I think could improve our
+algorithm a lot.
+to
+Do that.
+to realize what node was recently modified.
+So
+What else can we work on?
+So we want to be able to present a demo of voice tree. And we want to be able to do three different types of demo. So we want to be able to do a software engineering demo with use of agents and we want to be able to do a meeting demo with multiple people involved.
+And then there's the whole flip side of our project, which is the whole research into using Voistry for improving LLM performance itself.
+improving
+So we can hover over it
+so we can add a terminal to it.
+and then with the terminal we can run Claude.
+and we can have a look at what the actual file is saying and see if it's generally correct. And then we can give cloud specific instructions. Solve this for the, and then we can give it some files.
+and files, what do we actually want? We want to be able to give it.
+the chunk processing pipeline.
+authentic workflows.
+agents.
+So that's the name of our agent.
+No, we don't want to talk about that.
+So let's see what the agent is doing
+All right.
+Alrighty, today I'm working on.
+When do we have to go on?
+I'm struggling to make better demo.
+What do you think?
+Cool. So I just want to show you how the voice tree is growing right now. So I talked about optimizing the optimizer prompt to be able to also target other nodes. And then the LLLM has been working on this in the background. So they made a to-do list, they've started modifying the code to be able to do this to have a target node. name.
+and then we get an
+an overview of the solution they have done
+I think in this case it's implemented more as
+of the benefits.
+but that's okay.
+Cool. So I just want to show you how the voice treat is growing right now. So I have I talked about Optimizing the Optimizer Prompt to be able to also target other nodes and then the LLLM has been working on this in the background so they made to do list they've started modifying the code to be able to do this to have a target node name.
+All right today. I'm working on voice tree
+its ability to target neighboring nodes and other nodes created in the same iteration. So let's ensure that it can target new nodes edited in the same iteration.
+So we'll go to the prompt we'll look at where we're specifying target node
+So, we want to be able to do...
+So I think here
+We need to be able to say define relationships using fill in the blank target no name.
+Okay, that is pretty cool. I think that's all we need. We just run a bunchmarker. Let's see how the benchmarker went.
+3.8 that's fine
+accurate relationships.
+Okay, let's have a look at the relationships.
+So we want to see what that key relationship it failed is.
+So we can open the output view and
+So work on voice tree
+So it does actually seem...
+Yeah I don't think it is
+Oh, and maybe our summaries aren't appearing anymore.
+Oh, fuck, that's annoying.
+Alrighty, today we are working on voice tree.
+And our main priority is to make voice tree demoable for the y-collinator demo.
+We want to show a few different use cases in that demo.
+is the main demo we want to do.
+and will demo the benchmark that shows that.
+And we make sure we also don't have any bugs in our system. Right now there is a bug in our system.
+All right, cool.
+system is for a voice tree. We've noticed a few other bugs in the past.
+Some voice just gets dropped
+which is pretty bad.
+and we also want to see our core algorithm how well it's performing.
+Okay, a number of thing that I want to do is I also want to remove the parent backlinks in our Markdown. So we can do that by going to our Markdown file.
+What is it called?
+Treated Markdown and finding the place where we do parent links.
+and disable
+because it's just add noise so I can write a comment about that.
+And now I'm noticing one other bug in our system which is the location.
+The location of Wharfenodes when they show up on a graph are in like a really weird
+Alrighty today we're working on a voice tree and what I'm realizing is it would be really nice to have a way to load an existing
+Markdown tree from our file structure. So whenever we're using voice tree, we end up making quite a big tree.
+And it'd be pretty cool to be able to just load an old tree that we had from Markdown files and put that back into our tree data structure. That also shouldn't be too hard.
+I don't think that has many contact points.
+so there won't be that many errors for it.
+Thank you.
+Alright so what are what do we specifically need to be able to do voice tree mark downloading okay so the core problem or task is we need to map from mark down representation to our internal tree data structure I think that's called tree underscore d s dot pie or something like that
+So to map between them, we need to.
+Open all the Markdown files in our Markdown tree bolt or whatever folder we're using just where we will be saving our Mark down files.
+I'm
+And we need to separate what is a summary and what is a content and what is the title and relationships as well. So we need to recreate the whole tree data structure from the Markdown.
+One thing that could make this easier is that when we save our markdown
+to a
+When we write to mark down initially, we could keep some properties, for example, summary or relationships.
+exactly like they show up in the code we should we could save them to the mark down front matter yamel that's very important the front matter yamel can store key value pairs and so that could help make the parsing process not lossless.
+I'm
+Okay, so we have our task map marked down to tree data structure.
+Um
+and
+we have the idea of potentially retaining properties in the
+Yamo front matter.
+Um
+and we need to overall load the Markdown tree into the tree data structure.
+Um,
+and
+Pars Mark and file components.
+Yep, summary, content, title, and relationships are the things we need to post.
+So it looks like this task is generally
+uh...
+comprehensively discussed.
+Um.
+So I do notice that there's one problem where for some reason we have a duplicate
+node now.
+Um.
+Maybe that's because I repeated everything
+Um.
+So
+Yeah.
+We also don't want to get rid of parents when you get rid of children and treat a mark down.
+So that we want here we don't want this
+Okay.
+I'm
+Okay, anyway, we can now run an agent on this. So we'll right click terminal.
+and
+Um.
+So let's just pop up this terminal.
+Cla dot S.H.
+And we are going to say.
+work on this task.
+you're
+Um...
+So what does it need it needs?
+C tree to markdown dot pie and
+And what else is there? Let's also do a commit before.
+Don't tell us, okay. And then here save, treat and see, treat a mark on a pie.
+and
+What else do you want?
+C5 find the right entry point for loading.
+and
+So we're also going to have to change it in our, so in our Claude prompt, we have demo prompt.
+If you have coding tasks to solve, the project is in.
+do it here.
+So I want copy, absolute.
+Cool, that should be sufficient.
+So now if I close this and I
+Run it again.
+should just be able to
+Okay.
+Okay.
+That flickering also gets very annoying.
+Okay.
+Hmm.
+No.
+730. I'm to start looking at.
+Yeah, no, I mean you don't have enough time now to
+It's a gem, right?
+I'm speaking in English because he's an English model but since I can't actually explain it in German.
+But so it's a project called Boy Street. Yeah. And it converts.
+No, I can't using an English production model.
+I want.
+So it converts.
+voice to protect and then create a visual graph.
+of the, of the, of like this, like so the line map of what you're talking about. So right now I'm talking and just adding content to here. Yeah. It's like signal, saying explanation's being provided in English.
+And then if I talk about a related thing, so for example,
+The, like it just shouldn't I have to make within this project.
+is a decision app to make is how I'm going to demo the best way to demo the project.
+then it will also start appearing here. So like right now there's a note here. Yeah. I got me about what I've been saying. And now another one came up demo.
+demo strategy decision.
+Right, because that's what I was talking about.
+That's why we've done.
+So if I keep on talking and slowly building the tree. Aha.
+And who are we're going to stay?
+Boho Brocksters. This is for engineers. Yeah, okay. Then to, for albatim. Yeah.
+It's kind of happening.
+other days I can organize you.
+Yeah, probably and.
+problem. So losing. Sulu. Yeah. But out, so the Arbe is another You're here.
+Yes, okay, I must have tried it. Yeah. Yeah, okay. So here, when I can't... Yeah.
+I can't, if I'm by spiel, I'm gonna, but, uh, work and will. Yeah. But I don't think, yeah, yeah, I can't here a terminal.
+And then it's time.
+Um,
+It can an agent.
+running under this.
+spout us.
+One bomb off the man of the man of kaini mass that we are.
+Uh-huh. I don't know how we're doing for me?
+five months into part of the day and agents working.
+I'm there.
+how that's the new thing getting agents would work.
+Yeah, so I can show you
+Bye.
+both.
+Well.
+Why didn't it make you its fine?
+where.
+You make me well.
+I mean
+Okay.
+How do you know?
+So we haven't.
+Yeah.
+So I don't think I understand when I speak in German. Okay. But I understood. Maybe you have to speak slowly. Which danden as a...
+That's what's up just here. Yeah, it's clear, no, okay? And it's my best, it was...
+Yeah
+I'm going to say, but I was that I'm not much, but an Andrrhrhrh, and yet is marked as here in Hintergroom. Yeah. So I'm not that's not, but an Underr. Okay, you can't say, I'm not sure, I'll see it, I'm in my Hrissar, I'll just say, then Bautus. Oh, okay. Oh, okay. Yeah.
+And I can't think for less than that the other would, so that? Yeah, but I can here see what I'm marked, I can lead in what they're marked, and what is the most problems, and I can...
+I can't solve in your name.
+But we can't see can't do it in a little bit I had.
+Yeah, I can also an impression, for no, these... So I must not here the things, I can't... As a normal way is, I must be here, the reason. Yeah, but my thing is that I can't out here a house, ... Yeah, and I can't... Yeah, but I can't... Yeah, I can't know. you're
+That's a bit off the floor. Yeah, that's a good thing.
+Yeah, okay. Very good. Hmm. Hmm. So it's that we have things in general, entry, Yeah, yeah, yeah. Yeah, yeah. Yeah, yeah. Yeah, okay.
+I didn't.
+Thank you.
+Oh.
+I will probably even describe it. Not very long.
+Well, it's not so.
+These are the most awesome here.
+Thank you.
+Thank you.
+I am.
+and strong with the common best.
+on Google. Yeah. You know about, for Inspire or AIDI?
+No.
+Wow.
+Thank you.
+Why don't we do a bit of research first, you've done?
+I don't know anything about.
+Okay.
+Hello.
+Good thing.
+You guys already didn't.
+There's a good name in Egypt.
+And.
+Well, you're not needed.
+Good.
+So you can go right down below, one below, that, and that.
+Oh.
+Okay.
+Thank you.
+I don't think.
+I'm just over there.
+You do.
+type for me.
+Well, that's my best friend, yeah. Yeah, one more. One more.
+I'm saying I'm saying.
+Yeah, we're the whole pocket. What did you mean?
+Well, at least it works for that.
+What?
+Ah.
+It will not be able to close.
+What?
+See the light.
+Oh.
+All you know.
+Thank you.
