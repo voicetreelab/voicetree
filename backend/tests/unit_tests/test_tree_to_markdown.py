@@ -262,6 +262,39 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         result = insert_yaml_frontmatter({})
         self.assertEqual(result, "")
 
+    def test_cluster_tags_in_markdown(self):
+        """Test that cluster tags are written as first line when cluster_name is truthy"""
+        # Test node with cluster_name
+        clustered_node = Node(node_id=99, name="Clustered Node", content="test content", summary="Test summary")
+        clustered_node.cluster_name = "Domestic_Pets"
+        
+        # Test node without cluster_name
+        unclustered_node = Node(node_id=98, name="Unclustered Node", content="test content", summary="Test summary")
+        unclustered_node.cluster_name = None
+        
+        tree_data = {99: clustered_node, 98: unclustered_node}
+        converter = TreeToMarkdownConverter(tree_data)
+        
+        # Convert both nodes
+        converter.convert_nodes(output_dir=self.output_dir, nodes_to_update={99, 98})
+        
+        # Test clustered node has tag as first line
+        clustered_file_path = os.path.join(self.output_dir, clustered_node.filename)
+        with open(clustered_file_path, "r") as f:
+            content = f.read()
+            lines = content.split('\n')
+            self.assertEqual(lines[0], "#Domestic_Pets")
+            self.assertEqual(lines[1], "---")
+            self.assertIn("title: Clustered Node", content)
+        
+        # Test unclustered node has no tag
+        unclustered_file_path = os.path.join(self.output_dir, unclustered_node.filename)
+        with open(unclustered_file_path, "r") as f:
+            content = f.read()
+            lines = content.split('\n')
+            self.assertEqual(lines[0], "---")  # Should start with YAML frontmatter
+            self.assertIn("title: Unclustered Node", content)
+
 
 if __name__ == '__main__':
     unittest.main()

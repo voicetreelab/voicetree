@@ -71,6 +71,10 @@ class TreeToMarkdownConverter:
             file_path = os.path.join(output_dir, file_name)
 
             with open(file_path, 'w') as f:
+                # Write cluster tag as first line if cluster_name exists
+                if node_data.cluster_name:
+                    f.write(f"#{node_data.cluster_name}\n")
+                
                 # Write YAML frontmatter
                 frontmatter = insert_yaml_frontmatter({
                     "title": node_data.title,
