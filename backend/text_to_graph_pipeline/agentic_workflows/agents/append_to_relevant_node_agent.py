@@ -130,6 +130,10 @@ class AppendToRelevantNodeAgent(Agent):
             "current_stage": None,
             "debug_notes" : ""
         }
+
+        # todo: pass in a shortened existing_nodes to the segement prompt
+        # one which only includes the recently modfied nodes
+        #
         
         # Run the workflow
         app = self.compile()
