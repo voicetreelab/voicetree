@@ -147,13 +147,12 @@ class ClusterAssignment(BaseModel):
     """Assignment of a node to a cluster"""
     node_id: int = Field(description="ID of the node being assigned")
     cluster_name: Optional[str] = Field(description="Name of the cluster (None if unclustered)")
-    reasoning: str = Field(description="Explanation for why this node belongs to this cluster or remains unclustered")
-
 
 class TagAssignment(BaseModel):
     """Assignment of multiple tags to a node"""
     node_id: int = Field(description="ID of the node being assigned")
     tags: List[str] = Field(description="List of tags assigned to this node (empty list if no tags)")
+    # don't add reasoning
 
 class ClusteringResponse(BaseModel):
     """Response model for clustering analysis"""

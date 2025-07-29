@@ -262,38 +262,64 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         result = insert_yaml_frontmatter({})
         self.assertEqual(result, "")
 
-    def test_cluster_tags_in_markdown(self):
-        """Test that cluster tags are written as first line when cluster_name is truthy"""
-        # Test node with cluster_name
-        clustered_node = Node(node_id=99, name="Clustered Node", content="test content", summary="Test summary")
-        clustered_node.cluster_name = "Domestic_Pets"
+    def test_multiple_tags_in_markdown(self):
+        """Test that multiple tags are written as hashtags on first line"""
+        # Test node with multiple tags
+        multi_tagged_node = Node(node_id=97, name="Multi Tagged Node", content="test content", summary="Test summary")
+        multi_tagged_node.tags = ["newborn_children", "adult_owl", "south_zoo", "average"]
         
-        # Test node without cluster_name
-        unclustered_node = Node(node_id=98, name="Unclustered Node", content="test content", summary="Test summary")
-        unclustered_node.cluster_name = None
+        # Test node with single tag
+        single_tagged_node = Node(node_id=96, name="Single Tagged Node", content="test content", summary="Test summary") 
+        single_tagged_node.tags = ["domestic_pets"]
         
-        tree_data = {99: clustered_node, 98: unclustered_node}
+        # Test node with empty tags
+        empty_tagged_node = Node(node_id=95, name="Empty Tagged Node", content="test content", summary="Test summary")
+        empty_tagged_node.tags = []
+        
+        # Test node with special characters in tags
+        special_tagged_node = Node(node_id=94, name="Special Tagged Node", content="test content", summary="Test summary")
+        special_tagged_node.tags = ["animal-behavior", "zoo_animals", "math123"]
+        
+        tree_data = {97: multi_tagged_node, 96: single_tagged_node, 95: empty_tagged_node, 94: special_tagged_node}
         converter = TreeToMarkdownConverter(tree_data)
         
-        # Convert both nodes
-        converter.convert_nodes(output_dir=self.output_dir, nodes_to_update={99, 98})
+        # Convert all nodes
+        converter.convert_nodes(output_dir=self.output_dir, nodes_to_update={97, 96, 95, 94})
         
-        # Test clustered node has tag as first line
-        clustered_file_path = os.path.join(self.output_dir, clustered_node.filename)
-        with open(clustered_file_path, "r") as f:
+        # Test multi-tagged node has hashtags as first line
+        multi_file_path = os.path.join(self.output_dir, multi_tagged_node.filename)
+        with open(multi_file_path, "r") as f:
             content = f.read()
             lines = content.split('\n')
-            self.assertEqual(lines[0], "#Domestic_Pets")
+            self.assertEqual(lines[0], "#newborn_children #adult_owl #south_zoo #average")
             self.assertEqual(lines[1], "---")
-            self.assertIn("title: Clustered Node", content)
+            self.assertIn("title: Multi Tagged Node", content)
         
-        # Test unclustered node has no tag
-        unclustered_file_path = os.path.join(self.output_dir, unclustered_node.filename)
-        with open(unclustered_file_path, "r") as f:
+        # Test single-tagged node
+        single_file_path = os.path.join(self.output_dir, single_tagged_node.filename)
+        with open(single_file_path, "r") as f:
             content = f.read()
             lines = content.split('\n')
-            self.assertEqual(lines[0], "---")  # Should start with YAML frontmatter
-            self.assertIn("title: Unclustered Node", content)
+            self.assertEqual(lines[0], "#domestic_pets")
+            self.assertEqual(lines[1], "---")
+            self.assertIn("title: Single Tagged Node", content)
+        
+        # Test empty tags behaves like no tags
+        empty_file_path = os.path.join(self.output_dir, empty_tagged_node.filename)
+        with open(empty_file_path, "r") as f:
+            content = f.read()
+            lines = content.split('\n')
+            self.assertEqual(lines[0], "---")  # Should start with YAML frontmatter, no hashtags
+            self.assertIn("title: Empty Tagged Node", content)
+            
+        # Test special characters in tags
+        special_file_path = os.path.join(self.output_dir, special_tagged_node.filename)
+        with open(special_file_path, "r") as f:
+            content = f.read()
+            lines = content.split('\n')
+            self.assertEqual(lines[0], "#animal-behavior #zoo_animals #math123")
+            self.assertEqual(lines[1], "---")
+            self.assertIn("title: Special Tagged Node", content)
 
 
 if __name__ == '__main__':
