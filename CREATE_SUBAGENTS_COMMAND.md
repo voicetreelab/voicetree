@@ -122,7 +122,7 @@ python generate_agent_script.py --agent-name <NAME> --color <COLOR> --task-file 
 
 # Examples for each agent
 python generate_agent_script.py --agent-name ALICE --color red --task-file AGENT_ALICE_integration_test.md
-python generate_agent_script.py --agent-name BOB --color green --task-file AGENT_BOB_clustering_agent.md
+python generate_agent_script.py --agent-name BOB --color green --task-file AGENT_BOB.md
 python generate_agent_script.py --agent-name CHARLIE --color blue --task-file AGENT_CHARLIE_workflow_driver.md
 python generate_agent_script.py --agent-name DIANA --color yellow --task-file AGENT_DIANA_markdown_tags.md
 

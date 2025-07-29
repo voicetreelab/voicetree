@@ -1,18 +1,104 @@
 #!/usr/bin/env python3
 """
 Script to run clustering analysis on the animal_example test data
-and regenerate markdown files with cluster tags.
+and regenerate markdown files with cluster tags incrementally.
 """
 
 import asyncio
 import os
+from typing import Dict
 from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import MarkdownToTreeConverter
-from backend.text_to_graph_pipeline.agentic_workflows.clustering_workflow_driver import run_clustering_analysis
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.text_to_graph_pipeline.tree_manager.tree_functions import _format_nodes_for_prompt
+from backend.text_to_graph_pipeline.agentic_workflows.agents.clustering_agent import ClusteringAgent
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 
+async def save_current_progress(tree: Dict[int, Node], output_dir: str, batch_num: int, total_batches: int):
+    """Save the current state of clustering to markdown files after each batch"""
+    print(f"\nSaving progress after batch {batch_num}/{total_batches}...")
+    
+    # Count tagged nodes so far
+    tagged_count = sum(1 for node in tree.values() if hasattr(node, 'tags') and node.tags)
+    untagged_count = len(tree) - tagged_count
+    
+    print(f"Progress: {tagged_count} tagged, {untagged_count} untagged")
+    
+    # Generate markdown files with current tags
+    markdown_converter = TreeToMarkdownConverter(tree)
+    markdown_converter.convert_nodes(output_dir=output_dir, nodes_to_update=set(tree.keys()))
+    
+    print(f"✅ Batch {batch_num} saved to {output_dir}")
+
+
+async def run_clustering_with_incremental_saves(tree: Dict[int, Node], output_dir: str):
+    """Run clustering analysis with incremental saves after each batch"""
+    # Extract nodes as a list
+    nodes = list(tree.values())
+    total_nodes = len(nodes)
+    
+    # Process nodes in batches
+    batch_size = 100
+    total_tagged = 0
+    
+    # Instantiate clustering agent once
+    clustering_agent = ClusteringAgent()
+    
+    print(f"Total nodes to tag: {total_nodes}")
+    print(f"Processing in batches of {batch_size}")
+    
+    for i in range(0, total_nodes, batch_size):
+        batch_nodes = nodes[i:i + batch_size]
+        batch_num = i // batch_size + 1
+        total_batches = (total_nodes + batch_size - 1) // batch_size
+        
+        print(f"\n{'='*60}")
+        print(f"Processing batch {batch_num}/{total_batches} ({len(batch_nodes)} nodes)")
+        print(f"{'='*60}")
+        
+        # Format batch nodes for the clustering agent
+        formatted_nodes = _format_nodes_for_prompt(batch_nodes, tree)
+        node_count = len(batch_nodes)
+        
+        # Run tagging with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(f"Running tagging with model: gemini-2.5-flash-lite (attempt {attempt + 1}/{max_retries})")
+                tagging_response = await clustering_agent.run(formatted_nodes, node_count)
+                break  # Success, exit retry loop
+            except RuntimeError as e:
+                if "LLM returned invalid JSON" in str(e) and attempt < max_retries - 1:
+                    print(f"⚠️ Attempt {attempt + 1} failed with invalid JSON, retrying...")
+                    continue
+                else:
+                    raise
+        
+        # Update tree in place with tags attributes
+        batch_tagged = 0
+        for tag_assignment in tagging_response.tags:
+            node_id = tag_assignment.node_id
+            if node_id in tree:
+                tree[node_id].tags = tag_assignment.tags
+                if tag_assignment.tags:  # Node has at least one tag
+                    batch_tagged += 1
+        
+        total_tagged += batch_tagged
+        print(f"Batch {batch_num} complete: {batch_tagged} nodes tagged")
+        
+        # Save progress after each batch
+        await save_current_progress(tree, output_dir, batch_num, total_batches)
+    
+    print(f"\n{'='*60}")
+    print(f"FINAL RESULTS")
+    print(f"{'='*60}")
+    print(f"Total tagging complete: {total_tagged}/{total_nodes} nodes tagged")
+    
+    return total_tagged
+
+
 async def main():
-    """Run clustering on animal example data and regenerate markdown with tags"""
+    """Run clustering on animal example data and regenerate markdown with tags incrementally"""
     
     # Load the animal example tree
     input_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output"
@@ -24,15 +110,12 @@ async def main():
     
     print(f"Loaded {len(tree)} nodes")
     
-    # Run clustering analysis
-    print("Running clustering analysis...")
-    await run_clustering_analysis(tree)
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
     
-    # Count tagged nodes
-    tagged_count = sum(1 for node in tree.values() if hasattr(node, 'tags') and node.tags)
-    untagged_count = len(tree) - tagged_count
-    
-    print(f"Tagging complete: {tagged_count} tagged, {untagged_count} untagged")
+    # Run clustering analysis with incremental saves
+    print("Running clustering analysis with incremental saves...")
+    total_tagged = await run_clustering_with_incremental_saves(tree, output_dir)
     
     # Show tag distribution
     tag_counts = {}
@@ -41,19 +124,11 @@ async def main():
         for tag in tags:
             tag_counts[tag] = tag_counts.get(tag, 0) + 1
     
-    print("\nTag distribution (top 20):")
+    print("\nFinal tag distribution (top 20):")
     for tag, count in sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:20]:
         print(f"  {tag}: {count} nodes")
     
-    # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Generate markdown files with tags
-    print(f"\nGenerating markdown files with tags to: {output_dir}")
-    markdown_converter = TreeToMarkdownConverter(tree)
-    markdown_converter.convert_nodes(output_dir=output_dir, nodes_to_update=set(tree.keys()))
-    
-    print(f"✅ Complete! Check {output_dir} for markdown files with tags")
+    print(f"\n✅ Complete! Check {output_dir} for markdown files with tags")
 
 
 if __name__ == "__main__":

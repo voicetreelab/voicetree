@@ -31,9 +31,9 @@ def mock_tagging_response() -> TagResponse:
     """Mock tagging response from agent"""
     return TagResponse(
         tags=[
-            TagAssignment(node_id=1, tags=["Domestic Pets", "Animals"], reasoning="Dogs are pets and animals"),
-            TagAssignment(node_id=2, tags=["Domestic Pets", "Animals"], reasoning="Cats are pets and animals"),
-            TagAssignment(node_id=3, tags=[], reasoning="Birds not tagged")
+            TagAssignment(node_id=1, tags=["Domestic Pets", "Animals"]),
+            TagAssignment(node_id=2, tags=["Domestic Pets", "Animals"]),
+            TagAssignment(node_id=3, tags=[])
         ]
     )
 
@@ -67,8 +67,11 @@ async def test_run_clustering_analysis_orchestration(sample_tree, mock_tagging_r
         # Verify ClusteringAgent was instantiated
         mock_agent_class.assert_called_once()
         
-        # Verify agent.run was called with formatted nodes and node count
-        mock_agent_instance.run.assert_called_once_with("formatted nodes string", 3)
+        # Verify agent.run was called with formatted nodes and additional parameters
+        mock_agent_instance.run.assert_called_once_with(
+            "formatted nodes string", 3, 
+            existing_tags=None, target_unique_tags=2, total_nodes=3
+        )
         
         # Verify tree was updated in place with tags attributes
         assert hasattr(sample_tree[1], 'tags')
