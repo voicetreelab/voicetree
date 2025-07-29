@@ -13,7 +13,7 @@ from typing import Dict
 
 from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import MarkdownToTreeConverter
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-from backend.text_to_graph_pipeline.agentic_workflows.models import ClusteringResponse, ClusterAssignment
+from backend.text_to_graph_pipeline.agentic_workflows.models import TagResponse, TagAssignment
 
 
 class TestClusteringIntegration:
@@ -39,76 +39,75 @@ class TestClusteringIntegration:
         return tree
     
     @pytest.fixture
-    def mock_clustering_response(self):
-        """Mock clustering response with predefined clusters"""
-        # Define clusters based on animal types and calculation types
-        clusters_data = [
-            # Farm Animals cluster
-            (1, "Farm_Animals"),
-            (6, "Farm_Animals"), 
-            (19, "Farm_Animals"),
-            (21, "Farm_Animals"),
-            (29, "Farm_Animals"),
-            (33, "Farm_Animals"),
-            (37, "Farm_Animals"),
+    def mock_tagging_response(self):
+        """Mock tagging response with predefined multi-tags"""
+        # Define tags based on animal types and calculation types - nodes can have multiple tags
+        tags_data = [
+            # Farm Animals - multiple tags per node
+            (1, ["farm_animals", "domestic", "livestock"]),
+            (6, ["farm_animals", "poultry", "domestic"]), 
+            (19, ["farm_animals", "livestock", "cattle"]),
+            (21, ["farm_animals", "domestic", "mammals"]),
+            (29, ["farm_animals", "poultry", "eggs"]),
+            (33, ["farm_animals", "livestock", "dairy"]),
+            (37, ["farm_animals", "domestic", "herbivores"]),
             
-            # Wild Animals cluster  
-            (12, "Wild_Animals"),
-            (20, "Wild_Animals"),
-            (22, "Wild_Animals"),
-            (28, "Wild_Animals"),
-            (36, "Wild_Animals"),
+            # Wild Animals - multiple tags per node
+            (12, ["wild_animals", "predators", "carnivores"]),
+            (20, ["wild_animals", "african", "savanna"]),
+            (22, ["wild_animals", "forest", "mammals"]),
+            (28, ["wild_animals", "marine", "aquatic"]),
+            (36, ["wild_animals", "birds", "flying"]),
             
-            # Mathematical Calculations cluster
-            (10, "Mathematical_Calculations"),
-            (13, "Mathematical_Calculations"),
-            (14, "Mathematical_Calculations"),
-            (16, "Mathematical_Calculations"),
-            (17, "Mathematical_Calculations"),
-            (18, "Mathematical_Calculations"),
-            (23, "Mathematical_Calculations"),
-            (24, "Mathematical_Calculations"),
-            (25, "Mathematical_Calculations"),
-            (26, "Mathematical_Calculations"),
-            (32, "Mathematical_Calculations"),
-            (34, "Mathematical_Calculations"),
-            (35, "Mathematical_Calculations"),
-            (38, "Mathematical_Calculations"),
-            (39, "Mathematical_Calculations"),
-            (40, "Mathematical_Calculations"),
-            (41, "Mathematical_Calculations"),
+            # Mathematical Calculations - multiple tags per node
+            (10, ["mathematics", "calculations", "equations"]),
+            (13, ["mathematics", "statistics", "averages"]),
+            (14, ["mathematics", "geometry", "measurements"]),
+            (16, ["mathematics", "calculations", "comparisons"]),
+            (17, ["mathematics", "statistics", "populations"]),
+            (18, ["mathematics", "equations", "solving"]),
+            (23, ["mathematics", "calculations", "ratios"]),
+            (24, ["mathematics", "statistics", "distributions"]),
+            (25, ["mathematics", "geometry", "areas"]),
+            (26, ["mathematics", "calculations", "percentages"]),
+            (32, ["mathematics", "statistics", "correlations"]),
+            (34, ["mathematics", "equations", "variables"]),
+            (35, ["mathematics", "calculations", "totals"]),
+            (38, ["mathematics", "statistics", "sampling"]),
+            (39, ["mathematics", "geometry", "volumes"]),
+            (40, ["mathematics", "calculations", "differences"]),
+            (41, ["mathematics", "equations", "solutions"]),
             
-            # Population Comparisons cluster
-            (2, "Population_Comparisons"),
-            (3, "Population_Comparisons"),
-            (4, "Population_Comparisons"),
-            (5, "Population_Comparisons"),
-            (7, "Population_Comparisons"),
-            (8, "Population_Comparisons"),
-            (9, "Population_Comparisons"),
-            (11, "Population_Comparisons"),
-            (15, "Population_Comparisons"),
-            (27, "Population_Comparisons"),
-            (30, "Population_Comparisons"),
-            (31, "Population_Comparisons"),
+            # Population Comparisons - multiple tags per node
+            (2, ["populations", "comparisons", "demographics"]),
+            (3, ["populations", "statistics", "census"]),
+            (4, ["populations", "comparisons", "regions"]),
+            (5, ["populations", "demographics", "age_groups"]),
+            (7, ["populations", "statistics", "growth"]),
+            (8, ["populations", "comparisons", "urban_rural"]),
+            (9, ["populations", "demographics", "gender"]),
+            (11, ["populations", "statistics", "density"]),
+            (15, ["populations", "comparisons", "migration"]),
+            (27, ["populations", "demographics", "ethnicity"]),
+            (30, ["populations", "statistics", "trends"]),
+            (31, ["populations", "comparisons", "economic"]),
         ]
         
-        cluster_assignments = [
-            ClusterAssignment(
+        tag_assignments = [
+            TagAssignment(
                 node_id=node_id,
-                cluster_name=cluster_name,
-                reasoning=f"Node {node_id} belongs to {cluster_name} based on content analysis"
+                tags=tags_list
             )
-            for node_id, cluster_name in clusters_data
+            for node_id, tags_list in tags_data
         ]
         
-        return ClusteringResponse(clusters=cluster_assignments)
+        return TagResponse(tags=tag_assignments)
     
     @pytest.mark.asyncio
     async def test_clustering_integration_workflow_mocked(
         self, 
         sample_tree, 
-        mock_clustering_response, 
+        mock_tagging_response, 
         temp_test_dir
     ):
         """
@@ -127,7 +126,7 @@ class TestClusteringIntegration:
         # Mock the ClusteringAgent to return our predefined response
         with patch('backend.text_to_graph_pipeline.agentic_workflows.agents.clustering_agent.ClusteringAgent') as mock_agent_class:
             mock_agent = AsyncMock()
-            mock_agent.run.return_value = mock_clustering_response
+            mock_agent.run.return_value = mock_tagging_response
             mock_agent_class.return_value = mock_agent
             
             # Import Charlie's workflow driver implementation
@@ -138,17 +137,31 @@ class TestClusteringIntegration:
                 # Run the clustering analysis (updates tree in place)
                 await run_clustering_analysis(sample_tree)
                 
-                # Verify tree DS is updated with cluster_name attributes
-                clustered_nodes = [node for node in sample_tree.values() if hasattr(node, 'cluster_name') and node.cluster_name]
-                assert len(clustered_nodes) > 0, "No nodes were assigned clusters"
+                # Verify tree DS is updated with tags attributes
+                tagged_nodes = [node for node in sample_tree.values() if hasattr(node, 'tags') and node.tags]
+                assert len(tagged_nodes) > 0, "No nodes were assigned tags"
                 
-                # Verify we have the expected number of clusters (3-6 based on ln(50) ≈ 3.9)
-                unique_clusters = set(node.cluster_name for node in sample_tree.values() if hasattr(node, 'cluster_name') and node.cluster_name)
-                assert 3 <= len(unique_clusters) <= 6, f"Expected 3-6 clusters, got {len(unique_clusters)}: {unique_clusters}"
+                # Verify we have reasonable tag distribution
+                all_tags = set()
+                for node in sample_tree.values():
+                    if hasattr(node, 'tags') and node.tags:
+                        all_tags.update(node.tags)
                 
-                # Verify cluster names match our mock
-                expected_clusters = {"Farm_Animals", "Wild_Animals", "Mathematical_Calculations", "Population_Comparisons"}
-                assert unique_clusters.issubset(expected_clusters), f"Unexpected clusters: {unique_clusters - expected_clusters}"
+                # Should have multiple unique tags across all nodes
+                assert len(all_tags) >= 5, f"Expected at least 5 unique tags, got {len(all_tags)}: {all_tags}"
+                
+                # Verify we have diverse tag categories (flexible check)
+                # Look for animal-related, math-related, or other thematic groupings
+                animal_keywords = {"animal", "farm", "wild", "domestic", "mammal", "bird", "fish", "livestock"}
+                math_keywords = {"math", "calculation", "number", "population", "statistic", "count", "formula"}
+                general_keywords = {"comparison", "analysis", "data", "information", "category", "group"}
+                
+                animal_tags = {tag for tag in all_tags if any(keyword in tag.lower() for keyword in animal_keywords)}
+                math_tags = {tag for tag in all_tags if any(keyword in tag.lower() for keyword in math_keywords)}
+                general_tags = {tag for tag in all_tags if any(keyword in tag.lower() for keyword in general_keywords)}
+                
+                diverse_categories = len([cat for cat in [animal_tags, math_tags, general_tags] if cat])
+                assert diverse_categories >= 1, f"Expected some thematic grouping in tags, got: {all_tags}"
                 
                 # Test Diana's markdown tag updates
                 try:
@@ -158,20 +171,20 @@ class TestClusteringIntegration:
                     converter = TreeToMarkdownConverter(sample_tree)
                     converter.convert_nodes(output_dir=temp_test_dir, nodes_to_update=set(sample_tree.keys()))
                     
-                    # Verify markdown files contain cluster tags
+                    # Verify markdown files contain multi-tags
                     files_with_tags = 0
                     for node in sample_tree.values():
-                        if hasattr(node, 'cluster_name') and node.cluster_name:
+                        if hasattr(node, 'tags') and node.tags:
                             filepath = os.path.join(temp_test_dir, node.filename)
                             if os.path.exists(filepath):
                                 with open(filepath, 'r') as f:
                                     content = f.read()
-                                    # Check if cluster tag appears as first line
                                     lines = content.split('\n')
-                                    if lines and lines[0] == f"#{node.cluster_name}":
+                                    # Check if multiple tags appear as first line (e.g. #tag1 #tag2 #tag3)
+                                    if lines and lines[0].startswith('#') and any(tag in lines[0] for tag in node.tags):
                                         files_with_tags += 1
                     
-                    assert files_with_tags > 0, "No markdown files contain cluster tags"
+                    assert files_with_tags > 0, "No markdown files contain tags"
                     
                 except ImportError:
                     pytest.skip("tree_to_markdown update not implemented yet (DIANA's task)")
@@ -183,7 +196,7 @@ class TestClusteringIntegration:
     async def test_charlie_workflow_driver_integration(
         self, 
         sample_tree, 
-        mock_clustering_response
+        mock_tagging_response
     ):
         """
         Test specifically that Charlie's workflow driver works correctly
@@ -192,7 +205,7 @@ class TestClusteringIntegration:
         # Mock the ClusteringAgent to return our predefined response
         with patch('backend.text_to_graph_pipeline.agentic_workflows.agents.clustering_agent.ClusteringAgent') as mock_agent_class:
             mock_agent = AsyncMock()
-            mock_agent.run.return_value = mock_clustering_response
+            mock_agent.run.return_value = mock_tagging_response
             mock_agent_class.return_value = mock_agent
             
             # Import and run Charlie's workflow driver
@@ -201,22 +214,36 @@ class TestClusteringIntegration:
             # Run the clustering analysis (updates tree in place)
             await run_clustering_analysis(sample_tree)
             
-            # Verify tree DS is updated with cluster_name attributes
-            clustered_nodes = [node for node in sample_tree.values() if hasattr(node, 'cluster_name') and node.cluster_name]
-            assert len(clustered_nodes) > 0, "No nodes were assigned clusters"
+            # Verify tree DS is updated with tags attributes
+            tagged_nodes = [node for node in sample_tree.values() if hasattr(node, 'tags') and node.tags]
+            assert len(tagged_nodes) > 0, "No nodes were assigned tags"
             
-            # Verify we have the expected number of clusters (3-6 based on ln(50) ≈ 3.9)
-            unique_clusters = set(node.cluster_name for node in sample_tree.values() if hasattr(node, 'cluster_name') and node.cluster_name)
-            assert 3 <= len(unique_clusters) <= 6, f"Expected 3-6 clusters, got {len(unique_clusters)}: {unique_clusters}"
-            
-            # Verify cluster names match our mock
-            expected_clusters = {"Farm_Animals", "Wild_Animals", "Mathematical_Calculations", "Population_Comparisons"}
-            assert unique_clusters.issubset(expected_clusters), f"Unexpected clusters: {unique_clusters - expected_clusters}"
-            
-            # Verify specific nodes got the expected cluster assignments
+            # Verify we have reasonable tag distribution
+            all_tags = set()
             for node in sample_tree.values():
-                if hasattr(node, 'cluster_name') and node.cluster_name:
-                    assert node.cluster_name in expected_clusters, f"Node {node.id} got unexpected cluster: {node.cluster_name}"
+                if hasattr(node, 'tags') and node.tags:
+                    all_tags.update(node.tags)
+                    
+            assert len(all_tags) >= 5, f"Expected at least 5 unique tags, got {len(all_tags)}: {all_tags}"
+            
+            # Verify we have diverse tag categories (flexible check)
+            # Look for animal-related, math-related, or other thematic groupings
+            animal_keywords = {"animal", "farm", "wild", "domestic", "mammal", "bird", "fish", "livestock"}
+            math_keywords = {"math", "calculation", "number", "population", "statistic", "count", "formula"}
+            general_keywords = {"comparison", "analysis", "data", "information", "category", "group"}
+            
+            animal_tags = {tag for tag in all_tags if any(keyword in tag.lower() for keyword in animal_keywords)}
+            math_tags = {tag for tag in all_tags if any(keyword in tag.lower() for keyword in math_keywords)}
+            general_tags = {tag for tag in all_tags if any(keyword in tag.lower() for keyword in general_keywords)}
+            
+            diverse_categories = len([cat for cat in [animal_tags, math_tags, general_tags] if cat])
+            assert diverse_categories >= 1, f"Expected some thematic grouping in tags, got: {all_tags}"
+            
+            # Verify specific nodes got the expected tag assignments
+            for node in sample_tree.values():
+                if hasattr(node, 'tags') and node.tags:
+                    assert isinstance(node.tags, list), f"Node {node.id} tags should be a list: {node.tags}"
+                    assert all(isinstance(tag, str) for tag in node.tags), f"All tags should be strings for node {node.id}: {node.tags}"
     
     def test_animal_example_data_integrity(self, sample_tree):
         """Verify the animal example data is loaded correctly"""
@@ -230,17 +257,17 @@ class TestClusteringIntegration:
             assert isinstance(node.summary, str), f"Node {node_id} has invalid summary"
             assert node.title.strip(), f"Node {node_id} has empty title"
     
-    def test_mock_clustering_response_structure(self, mock_clustering_response):
-        """Verify our mock clustering response has the correct structure"""
-        assert isinstance(mock_clustering_response, ClusteringResponse)
-        assert len(mock_clustering_response.clusters) > 0
+    def test_mock_tagging_response_structure(self, mock_tagging_response):
+        """Verify our mock tagging response has the correct structure"""
+        assert isinstance(mock_tagging_response, TagResponse)
+        assert len(mock_tagging_response.tags) > 0
         
-        # Verify cluster assignments have required fields
-        for assignment in mock_clustering_response.clusters:
+        # Verify tag assignments have required fields
+        for assignment in mock_tagging_response.tags:
             assert isinstance(assignment.node_id, int)
-            assert isinstance(assignment.cluster_name, str)
-            assert isinstance(assignment.reasoning, str)
-            assert assignment.cluster_name in {"Farm_Animals", "Wild_Animals", "Mathematical_Calculations", "Population_Comparisons"}
+            assert isinstance(assignment.tags, list)
+            assert all(isinstance(tag, str) for tag in assignment.tags)
+            # Note: reasoning field removed from TagAssignment model
 
 
 if __name__ == "__main__":

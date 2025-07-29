@@ -46,6 +46,7 @@ class ClusteringAgentState(TypedDict):
     formatted_nodes: str  # Formatted string of nodes from _format_nodes_for_prompt
     node_count: int  # Total number of nodes for cluster count calculation
     target_clusters: int  # Calculated target number of clusters (approximately ln(node_count))
+    existing_tags: Optional[List[str]]  # List of existing tags from previous batches
     
     # Agent prompt outputs (stored using prompt names with _response suffix)
     clustering_response: Optional[TagResponse]  # Typed response from clustering prompt

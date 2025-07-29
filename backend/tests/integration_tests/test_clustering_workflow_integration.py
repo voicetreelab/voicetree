@@ -30,9 +30,9 @@ async def test_clustering_workflow_with_markdown_tags():
     # Run CHARLIE's clustering workflow
     await run_clustering_analysis(tree)
     
-    # Verify cluster_name attributes were added to nodes
+    # Verify tags attributes were added to nodes
     for node in tree.values():
-        assert hasattr(node, 'cluster_name'), f"Node {node.id} missing cluster_name attribute"
+        assert hasattr(node, 'tags'), f"Node {node.id} missing tags attribute"
     
     # Convert to markdown using DIANA's implementation
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -48,15 +48,16 @@ async def test_clustering_workflow_with_markdown_tags():
                 content = f.read()
                 lines = content.split('\n')
                 
-                if node.cluster_name:
-                    # First line should be cluster tag
-                    assert lines[0] == f"#{node.cluster_name}", \
-                        f"Expected cluster tag #{node.cluster_name}, got: {lines[0]}"
+                if node.tags:
+                    # First line should be hashtags for all tags
+                    expected_hashtags = ' '.join(f"#{tag}" for tag in node.tags)
+                    assert lines[0] == expected_hashtags, \
+                        f"Expected hashtags {expected_hashtags}, got: {lines[0]}"
                     # Second line should be YAML frontmatter
                     assert lines[1] == "---", "YAML frontmatter should start on second line"
                 else:
-                    # No cluster tag, should start with YAML frontmatter
-                    assert lines[0] == "---", "Should start with YAML frontmatter when no cluster"
+                    # No tags, should start with YAML frontmatter
+                    assert lines[0] == "---", "Should start with YAML frontmatter when no tags"
                     
                 # Verify content is preserved
                 assert f"node_id: {node_id}" in content

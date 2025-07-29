@@ -62,6 +62,16 @@ Summary: Overview of domestic cats and feline behavior
 5. **Combine and deduplicate**: Merge tags from all sources, removing duplicates
 6. **Validate quality**: Ensure tags meet quality standards
 
+## Existing Tags
+
+IMPORTANT: The following tags have already been used in previous batches. You should strongly prefer to reuse these existing tags when they are semantically appropriate for the nodes you're analyzing:
+
+{{existing_tags}}
+
+Target number of unique tags for the entire tree: {{target_clusters}}
+
+By reusing existing tags, you ensure consistency across the entire tree structure. Only create new tags when the existing ones truly don't capture the semantic meaning of a node.
+
 ## Quality Checks
 
 - Each tag should be semantically meaningful
@@ -69,6 +79,7 @@ Summary: Overview of domestic cats and feline behavior
 - Use consistent underscore naming convention
 - Include both specific entities and general concepts
 - Extract 3-10 tags per node depending on content richness
+- STRONGLY PREFER existing tags when they match the semantic content
 
 Now analyze the provided nodes and extract tags for each one.
 
