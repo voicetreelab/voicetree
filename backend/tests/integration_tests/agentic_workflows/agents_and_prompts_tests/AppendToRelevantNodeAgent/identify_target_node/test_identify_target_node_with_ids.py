@@ -30,12 +30,47 @@ class TestIdentifyTargetNodeWithIDs:
         return PromptLoader(str(prompts_dir.absolute()))
 
     async def call_LLM(self, prompt_text):
-        return await call_llm_structured(
-            prompt_text,
-            stage_type="identify_target_node",
-            output_schema=TargetNodeResponse,
-            model_name="gemini-2.5-flash-lite"
+        """Call LLM with format conversion for new array-based response format"""
+        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import _get_client
+        from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown
+        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import CONFIG
+        from google.genai.types import GenerateContentConfigDict
+        import json
+        
+        # Get client directly to handle array format
+        client = _get_client()
+        model_name = "gemini-2.5-flash-lite"
+        
+        # Configure for array output
+        config: GenerateContentConfigDict = {
+            'response_mime_type': 'application/json',
+            'temperature': CONFIG.TEMPERATURE
+        }
+        
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt_text,
+            config=config
         )
+        
+        # Parse the response
+        try:
+            parsed_data = parse_json_markdown(response.text)
+        except Exception:
+            parsed_data = json.loads(response.text)
+        
+        # Convert array format to TargetNodeResponse format
+        if isinstance(parsed_data, list):
+            # Convert array of TargetNodeIdentification to TargetNodeResponse format
+            target_nodes = [TargetNodeIdentification.model_validate(item) for item in parsed_data]
+            response_data = {
+                "target_nodes": target_nodes,
+                "global_reasoning": "Converted from array format - reasoning distributed across individual items"
+            }
+            return TargetNodeResponse.model_validate(response_data)
+        else:
+            # Handle dict format (fallback)
+            return TargetNodeResponse.model_validate(parsed_data)
 
     @pytest.mark.asyncio
     async def test_existing_node_identification_with_ids(self, prompt_loader):
