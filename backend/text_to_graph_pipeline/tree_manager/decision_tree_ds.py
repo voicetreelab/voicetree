@@ -26,6 +26,7 @@ class Node:
         self.filename: str = str(node_id) + "_" + generate_filename_from_keywords(self.title)
         self.summary: str = summary
         self.num_appends: int = 0
+        self.tags: List[str] = []  # Support for multiple tags per node
 
 
 
