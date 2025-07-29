@@ -4,6 +4,7 @@ Clustering workflow driver that orchestrates the complete clustering analysis pi
 Takes a tree DS and updates it in place with tags attributes.
 """
 
+import math
 from typing import Dict
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
 from backend.text_to_graph_pipeline.tree_manager.tree_functions import _format_nodes_for_prompt
@@ -23,14 +24,22 @@ async def run_clustering_analysis(tree: Dict[int, Node]) -> None:
     nodes = list(tree.values())
     total_nodes = len(nodes)
     
+    # Calculate target number of unique tags for the entire tree
+    # Using sqrt instead of ln for better tag diversity
+    target_unique_tags = max(1, round(math.sqrt(total_nodes))) if total_nodes > 1 else 1
+    
     # Process nodes in batches
     batch_size = 100
     total_tagged = 0
+    
+    # Track all tags used across batches for consistency
+    all_existing_tags = set()
     
     # Instantiate clustering agent once
     clustering_agent = ClusteringAgent()
     
     print(f"Total nodes to tag: {total_nodes}")
+    print(f"Target unique tags (sqrt of total): {target_unique_tags}")
     print(f"Processing in batches of {batch_size}")
     
     for i in range(0, total_nodes, batch_size):
@@ -51,7 +60,14 @@ async def run_clustering_analysis(tree: Dict[int, Node]) -> None:
         for attempt in range(max_retries):
             try:
                 print(f"Running tagging with model: gemini-2.5-flash-lite (attempt {attempt + 1}/{max_retries})")
-                tagging_response = await clustering_agent.run(formatted_nodes, node_count)
+                # Pass existing tags and target count for entire tree
+                tagging_response = await clustering_agent.run(
+                    formatted_nodes, 
+                    node_count,
+                    existing_tags=list(all_existing_tags) if all_existing_tags else None,
+                    target_unique_tags=target_unique_tags,
+                    total_nodes=total_nodes
+                )
                 break  # Success, exit retry loop
             except RuntimeError as e:
                 if "LLM returned invalid JSON" in str(e) and attempt < max_retries - 1:
@@ -60,7 +76,7 @@ async def run_clustering_analysis(tree: Dict[int, Node]) -> None:
                 else:
                     raise
         
-        # Update tree in place with tags attributes
+        # Update tree in place with tags attributes and accumulate tags
         batch_tagged = 0
         for tag_assignment in tagging_response.tags:
             node_id = tag_assignment.node_id
@@ -68,8 +84,12 @@ async def run_clustering_analysis(tree: Dict[int, Node]) -> None:
                 tree[node_id].tags = tag_assignment.tags
                 if tag_assignment.tags:  # Node has at least one tag
                     batch_tagged += 1
+                    # Add tags to the set of all existing tags
+                    all_existing_tags.update(tag_assignment.tags)
         
         total_tagged += batch_tagged
         print(f"Batch {batch_num} complete: {batch_tagged} nodes tagged")
+        print(f"Total unique tags so far: {len(all_existing_tags)}")
     
     print(f"\nTotal tagging complete: {total_tagged}/{total_nodes} nodes tagged")
+    print(f"Total unique tags created: {len(all_existing_tags)}")

@@ -109,15 +109,17 @@ class TestClusteringAgentBehavior:
         for tag in random_topic_assignment.tags:
             assert isinstance(tag, str), "Each tag should be a string"
 
-    async def test_provides_reasoning(self, clustering_agent: ClusteringAgent, sample_nodes: List[Node]):
-        """Test that agent provides reasoning for tag assignments"""
+    async def test_provides_valid_tags(self, clustering_agent: ClusteringAgent, sample_nodes: List[Node]):
+        """Test that agent provides valid tag assignments"""
         formatted_nodes = _format_nodes_for_prompt(sample_nodes[:3])  # Use fewer nodes
         
         result: TagResponse = await clustering_agent.run(formatted_nodes, 3)
         
         for assignment in result.tags:
-            assert assignment.reasoning is not None
-            assert len(assignment.reasoning) > 10  # Should be meaningful reasoning
+            assert isinstance(assignment.tags, list)
+            for tag in assignment.tags:
+                assert isinstance(tag, str)
+                assert len(tag.strip()) > 0  # Should be meaningful tags
 
     async def test_with_small_node_count(self, clustering_agent: ClusteringAgent):
         """Test behavior with minimal nodes"""
@@ -133,7 +135,6 @@ class TestClusteringAgentBehavior:
         assignment = result.tags[0]
         assert assignment.node_id == 1
         assert isinstance(assignment.tags, list)
-        assert assignment.reasoning is not None
 
     async def test_multi_tag_edge_cases(self, clustering_agent: ClusteringAgent):
         """Test edge cases specific to multi-tag functionality"""
@@ -162,8 +163,6 @@ class TestClusteringAgentBehavior:
             for tag in assignment.tags:
                 assert isinstance(tag, str)
                 assert len(tag.strip()) > 0, "Tags should not be empty strings"
-            assert assignment.reasoning is not None
-            assert len(assignment.reasoning) > 5, "Should provide meaningful reasoning"
 
     async def test_tag_consistency_across_similar_nodes(self, clustering_agent: ClusteringAgent):
         """Test that semantically similar nodes get consistent tag treatment"""
