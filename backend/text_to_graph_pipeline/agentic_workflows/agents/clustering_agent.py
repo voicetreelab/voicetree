@@ -8,7 +8,7 @@ from langgraph.graph import END
 
 from ..core.agent import Agent
 from ..core.state import ClusteringAgentState
-from ..models import ClusteringResponse
+from ..models import TagResponse
 
 
 class ClusteringAgent(Agent):
@@ -22,24 +22,24 @@ class ClusteringAgent(Agent):
         """Single prompt workflow"""
         self.add_prompt_node(
             "clustering",
-            ClusteringResponse,
+            TagResponse,
             model_name="gemini-2.5-flash-lite"
         )
         self.add_dataflow("clustering", END)
     
-    async def run(self, formatted_nodes: str, node_count: int) -> ClusteringResponse:
-        """Analyze and cluster nodes by semantic similarity
+    async def run(self, formatted_nodes: str, node_count: int) -> TagResponse:
+        """Analyze and assign tags to nodes by semantic similarity
         
         Args:
             formatted_nodes: Output from _format_nodes_for_prompt()
             node_count: Total number of nodes for cluster count calculation
             
         Returns:
-            ClusteringResponse with cluster assignments
+            TagResponse with multi-tag assignments
         """
         
-        # Calculate target cluster count (approximately sqrt(node_count))
-        target_clusters = max(1, round(math.sqrt(node_count))) if node_count > 1 else 1
+        # Calculate target cluster count (approximately ln(node_count))
+        target_clusters = max(1, round(math.log(node_count))) if node_count > 1 else 1
         
         # Create initial state
         initial_state: ClusteringAgentState = {
@@ -59,4 +59,4 @@ class ClusteringAgent(Agent):
             return result["clustering_response"]
         
         # Fallback empty response
-        return ClusteringResponse(clusters=[])
+        return TagResponse(tags=[])
