@@ -14,6 +14,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.text_to_graph_pipeline.tree_manager.domain_stopwords import get_domain_aware_stopwords
 
 # Download stopwords if not already present
 try:
@@ -240,8 +241,11 @@ def get_semantically_related_nodes(decision_tree, query: str, remaining_slots_co
 
     # Create TF-IDF matrix
     try:
+        # Get domain-aware stopwords (NLTK + domain-specific)
+        domain_stopwords = list(get_domain_aware_stopwords(include_nltk=True))
+        
         vectorizer = TfidfVectorizer(
-            stop_words='english',
+            stop_words=domain_stopwords,  # Use domain-aware stopwords
             min_df=1,
             ngram_range=(1, 2)  # Include bigrams for better phrase matching
         )

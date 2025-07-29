@@ -112,9 +112,9 @@ class TargetNodeIdentification(BaseModel):
     reasoning: str = Field(description="Your reasoning/thought notes for each stage of the process to identify the target node")
     target_node_id: int = Field(description="ID of target node (use -1 for new nodes)")
     target_node_name: Optional[str] = Field(default=None, description="Name of the chosen existing node (required when is_orphan=False)")
-    is_orphan: bool = Field(description="Whether or not this segment has no home (target node), and instead should become a new node.")
-    orphan_topic_name: Optional[str] = Field(default=None, description="Name the parent of the orphan node should have (required if is_orphan=True)")
-    relationship_to_target: str=Field(description="The fill-in-the-blank relationship type of segment, to either the target node, or the imaginary parent of the orphan segment")
+    is_orphan: bool = Field(default=False, description="True when the segment has no possibly related target node")
+    orphan_topic_name: Optional[str] = Field(default=None, description="Specific name the orphan should have (required if is_orphan=True)")
+    relationship_to_target: str=Field(description="The fill-in-the-blank relationship type of segment, to either the target node, or orphan name")
 
     
     def model_post_init(self, __context):
