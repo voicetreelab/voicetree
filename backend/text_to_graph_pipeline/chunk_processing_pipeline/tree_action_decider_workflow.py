@@ -215,7 +215,7 @@ class TreeActionDeciderWorkflow:
             logging.info(f"Optimizing node {node_id}...")
 
             # Get neighbors, remove 'id' key, and format as a string for the agent
-            neighbours_context = self.decision_tree.get_neighbors(node_id)
+            neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
             formatted_neighbours_context = str([
                 {key: value for key, value in neighbour.items() if key != 'id'}
                 for neighbour in neighbours_context

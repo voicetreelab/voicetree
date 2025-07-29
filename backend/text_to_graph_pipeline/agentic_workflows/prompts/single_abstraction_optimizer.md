@@ -144,21 +144,6 @@ STAGE 4: Validate - Quality Assurance
 - Is optimisation problem well minimized with your solution?
 ```
 
-
-## Input Context
-
-**Node Data:**
-- Node Name: {{node_name}}
-- Node Summary: {{node_summary}}
-- Node Content:
-```
-{{node_content}}
-```
-- Neighbors: 
-```
-{{neighbors}}
-```
-
 ## Examples
 
 This example shows a complex case where new information contains multiple distinct abstractions. The optimal solution is to absorb one, and create three new nodes, each linked to the most appropriate parent: the original node, a neighbor node, and another newly created node.
@@ -205,4 +190,17 @@ You should output:
   "debug_notes": null
 }
 ```
-    
+
+## Input Context
+
+**Node Data:**
+- Node Name: {{node_name}}
+- Node Summary: {{node_summary}}
+- Node Content:
+```
+{{node_content}}
+```
+- Neighbors:
+```
+{{neighbors}}
+```

@@ -21,7 +21,7 @@ class SingleAbstractionOptimizerAgent(Agent):
     
     def _setup_workflow(self):
         """Single prompt workflow"""
-        self.add_prompt(
+        self.add_prompt_node(
             "single_abstraction_optimizer",
             OptimizationResponse,
             model_name="gemini-2.5-flash-lite"

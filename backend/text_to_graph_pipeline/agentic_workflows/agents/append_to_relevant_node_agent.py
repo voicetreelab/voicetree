@@ -29,7 +29,7 @@ class AppendToRelevantNodeAgent(Agent):
     def _setup_workflow(self):
         """Configure the two-prompt workflow"""
         # Step 1: Segment the text into atomic ideas
-        self.add_prompt(
+        self.add_prompt_node(
             "segmentation",
             SegmentationResponse,
             post_processor=self._segmentation_post_processor,
@@ -37,7 +37,7 @@ class AppendToRelevantNodeAgent(Agent):
         )
         
         # Step 2: Identify target nodes for each segment
-        self.add_prompt(
+        self.add_prompt_node(
             "identify_target_node",
             TargetNodeResponse,
             model_name="gemini-2.5-flash-lite"
