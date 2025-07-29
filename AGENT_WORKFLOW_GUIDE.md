@@ -9,7 +9,7 @@ This guide documents effective patterns for using Claude as an orchestrator to m
 ### 1. **Decompose Before Delegating**
 Break down complex tasks into focused subtasks that can be handled independently. Each sub-agent should have:
 - A single, clear objective
-- Minimal but sufficient context
+- sufficient context (high level goal, any possible relevant context) but no context bloat (anything irrelevant)
 - Well-defined success criteria
 
 ### 2. **Context Optimization**
@@ -24,12 +24,15 @@ Identify independent tasks that can run simultaneously:
 - Tasks with well-defined interfaces
 - Tasks that communicate only through files
 
-Important, both you, and the agents, will keep all their documentation contained WITHIN the tree.
+Important, both you, and the agents, will keep all their documentation contained WITHIN a markdown tree. The entry point for this tree is whatever markdown documents you are already working with. Connections between nodes (markdown files), can be made with markdown links [[file]]
+
 i.e. you will extend the existing tree. for every new md file you make in markdown tree vault, 
 prepend the file name with AGENT{NAME}_{TITLE}
-You are only allowed to modify existing nodes in the tree that start with AGENT_ 
+You are only allowed to modify existing nodes in the tree that start with AGENT_
 
+You will also have to explain this to your agents
 ```
+
 
 ## Practical Implementation
 
@@ -41,6 +44,8 @@ such that this subtask file itself becomes a node in the tree!
 
 ```markdown
 # Subtask: [Clear Title]
+
+# <relationship_to_parent_description> [[parent file]] 
 
 ## Goal
 [One sentence description]

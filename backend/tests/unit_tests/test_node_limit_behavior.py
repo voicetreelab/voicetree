@@ -157,3 +157,74 @@ class TestNodeLimitBehavior:
         recent_nodes = [46, 47, 48, 49, 50]
         recent_included = sum(1 for node_id in recent_nodes if node_id in included_node_ids)
         assert recent_included >= 3, f"At least 3 recent nodes should be included, but only {recent_included} were"
+    
+    def test_query_based_relevance_selection(self):
+        """Test that nodes are selected based on query relevance when query is provided"""
+        # Create tree with specific node titles/summaries for testing
+        tree = DecisionTree()
+        
+        # Create nodes with different content
+        tree.create_new_node(
+            name="Machine Learning Overview",
+            parent_node_id=None,
+            content="Introduction to ML concepts",
+            summary="Overview of machine learning algorithms and techniques",
+            relationship_to_parent=""
+        )
+        tree.create_new_node(
+            name="Python Programming",
+            parent_node_id=1,
+            content="Python syntax and features",
+            summary="Python programming language fundamentals",
+            relationship_to_parent="child of"
+        )
+        tree.create_new_node(
+            name="Data Science Tools",
+            parent_node_id=1,
+            content="Tools for data analysis",
+            summary="Overview of pandas, numpy, and scikit-learn",
+            relationship_to_parent="child of"
+        )
+        tree.create_new_node(
+            name="Web Development",
+            parent_node_id=None,
+            content="Building web applications",
+            summary="HTML, CSS, and JavaScript fundamentals",
+            relationship_to_parent=""
+        )
+        tree.create_new_node(
+            name="Database Design",
+            parent_node_id=4,
+            content="SQL and database concepts",
+            summary="Relational database design and SQL queries",
+            relationship_to_parent="child of"
+        )
+        
+        # Test query matching
+        relevant_nodes = get_most_relevant_nodes(tree, 3, query="python programming")
+        formatted_nodes = _format_nodes_for_prompt(relevant_nodes, tree.tree)
+        nodes_list = _parse_formatted_nodes(formatted_nodes)
+        included_node_ids = [node['id'] for node in nodes_list]
+        
+        # Node 2 (Python Programming) should be included due to query match
+        assert 2 in included_node_ids, "Python Programming node should be selected for 'python programming' query"
+        
+        # Test different query
+        relevant_nodes = get_most_relevant_nodes(tree, 2, query="web development")
+        formatted_nodes = _format_nodes_for_prompt(relevant_nodes, tree.tree)
+        nodes_list = _parse_formatted_nodes(formatted_nodes)
+        included_node_ids = [node['id'] for node in nodes_list]
+        
+        # Node 4 (Web Development) should be included
+        assert 4 in included_node_ids, "Web Development node should be selected for 'web development' query"
+    
+    def test_query_none_fallback_behavior(self, decision_tree_with_many_nodes):
+        """Test that None query falls back to branching factor selection"""
+        # Test with None query (should behave like original function)
+        relevant_nodes_none = get_most_relevant_nodes(decision_tree_with_many_nodes, 10, query=None)
+        
+        # Test without query parameter (should behave the same)
+        relevant_nodes_no_param = get_most_relevant_nodes(decision_tree_with_many_nodes, 10)
+        
+        # Results should be identical
+        assert len(relevant_nodes_none) == len(relevant_nodes_no_param), "None query and no query should produce same results"
