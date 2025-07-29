@@ -111,7 +111,7 @@ When refactoring nodes, simultaneously refactor the content to maximize readabil
 ```
 STAGE 1: Synthesize - Deep Contextual Understanding
 Goal: Understand this node's meaning within the graph structure
-The given node contains two parts: [*existing well-integrated content* | *recently appended segment + relationship*]. The summary will not yet reflect the appended content.
+The given node contains two parts: [*existing well-integrated content* | +++*recently appended segment + (relationship)*]. The summary will not yet reflect the appended content.
 Appended text may alter the meaning of previous content (their sum is greater than their parts)
 - INTEGRATE current node (existing_content | appended_raw_content) into overall_integrated_content
 
