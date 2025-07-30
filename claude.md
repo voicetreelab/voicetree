@@ -1,6 +1,10 @@
 ## Project Overview
 
-VoiceTree is a Python backend system that converts voice input into structured graphs using an LLM agentic pipeline. The system transcribes audio, processes it through agentic workflows, and outputs interconnected markdown files representing ideas as a visual tree.
+VoiceTree is a system which converts text streams to "abstraction graphs". An abstraction graph is a collection of markdown notes, connected to each other via markdown links. Each note represents an abstraction/concept present in the text.
+
+Text stream means we build the tree progressively, chunk by chunk. This allows for the following use case:
+
+VoiceTree live, (aka Voice *to* Tree) is a Python backend system that converts voice input into structured graphs using an LLM agentic pipeline. The system transcribes audio, processes it through agentic workflows, and outputs interconnected markdown files representing ideas as a visual tree.
 
 ## Essential Commands
 

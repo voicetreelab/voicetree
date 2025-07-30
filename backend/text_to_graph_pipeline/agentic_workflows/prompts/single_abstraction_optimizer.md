@@ -65,6 +65,9 @@ Content is semantically bound to its main node when its primary information valu
 - If YES → Dependent attribute (ABSORB)
 - If NO → Independent entity (CONSIDER SPLIT)
 
+**EXCEPTION - The Constraint Principle**: 
+Even if content appears to be an "input" to a calculation, if it represents a **standalone constraint or given value** in a problem space, it should be split. Constraints are not attributes; they are independent facts that happen to be used by calculations.
+
 **Practical Example**: Ask yourself - *"Is this new item a project component that could have its own checklist, or is it a single line item on the main node's checklist?"*
 
 **Example Schema for "Problem" abstraction**:
@@ -86,10 +89,22 @@ A node should exist independently if it represents a major transition in a cogni
 (e.g., from identifying a problem to proposing a solution)
 
 
-Future node reference test:
-An abstraction deserves its own node when it represents an independenantly referenceable cognitive landmark - a point in the information space that future thoughts might need to navigate back to, not just via main node.
+### Future Node Reference Test (Enhanced)
 
-What makes something likely to be referenced (often the other rules we have discussed)
+An abstraction deserves its own node when it represents an independently referenceable cognitive landmark - a point in the information space that future thoughts might need to navigate back to, not just via the main node.
+
+**Critical Addition for Factual Statements:**
+Any statement that establishes a **constraint, given value, or factual assertion** should be considered highly likely to be referenced independently, especially if it:
+- States a numerical value ("X equals Y")
+- Defines a quantity ("The number of Z is W") 
+- Establishes a relationship ("A is B times C")
+- Provides a given condition in a problem space
+
+**Why:** In problem-solving contexts (mathematical, logical, or analytical), these facts serve as **foundational constraints** that multiple reasoning paths might need to reference. Burying them inside process nodes makes the graph less navigable.
+
+**Example Application:**
+- ❌ "Calculate conservatories = schools(4) + teachers" → Single node (fact buried)
+- ✅ "Schools in Brightford = 4" + "Calculate conservatories" → Two nodes (fact exposed)
 
 ### Neighbor Management Rules
 
@@ -98,14 +113,10 @@ Since you cannot modify existing neighbor nodes, follow the reference-over-dupli
 - If a neighbor already covers a concept, reference it rather than creating a duplicate concept. Organize content to reference neighbors, making the overall structure more concise. When neighbors contain related concepts, structure your content to point to the appropriate existing node rather than re-explaining
 
 
-### Content Refactoring & Rewriting
-When refactoring nodes, simultaneously refactor the content to maximize readability:
-- Transform stream-of-consciousness into structured concise markdown / bullet point style notes, WITHOUT changing individual phrases significantly. Specific words should be kept the same.
-    - You can andd should however, modify the flow, and order of phrases, reorganizing for readability.
-    - perform light editing for the restructured content to be easily readable, whilst maintaining similar language compared to the original text.
-    - Remove verbal fillers ("um/uh", "yeah so", "you know"") if they are not part of the meaning
+### Content Refactoring
+When refactoring nodes, it is critically important to not lose a SINGLE WORD from the original text. 
+You may rearrange sentences, but are not allowed to perform ANY editing beyond that.
     - **CRITICAL: ALWAYS preserve ALL explicit numeric values, equations, and calculations exactly as stated (e.g., "equals 4", "is 12", "3 times", "sum of 5 and 7")**
-
 
 ### ALGORITHM: OptimizeNode(node, neighbors)
 
@@ -137,17 +148,47 @@ STAGE 3: Refactor - Structure Optimization
   "[new Node Name] ______ [target_node_name]" (max 7 words)
 - If no changes are needed, just match the original content.
 
-Stage 4: EDIT as per "Content Refactoring & Rewriting" instructions
-
 STAGE 4: Validate - Quality Assurance
-- VERIFY no information loss
+- VERIFY no information loss, compare your output against the original content, has any detail changed, even slightly?
 - CONFIRM cognitive efficiency is maximized
-- Is optimisation problem well minimized with your solution?
-- **VERIFY all numeric values and equations from the original text are preserved exactly**
+- **VERIFY all logcial relationships, numeric values and equations from the original text are preserved exactly as is**
 ```
 
 ## Examples
 
+### Example 1: The Constraint Principle
+This example demonstrates how mathematical facts and constraints should be split into separate nodes rather than absorbed as attributes.
+
+Input:
+```json
+{
+  "node_name": "Interior Design Conservatory Calculation Kingsport",
+  "node_summary": "Calculates the number of interior design conservatories in Kingsport using the number of regional medical schools in Brightford and elementary school teachers in Glenfield City.",
+  "node_content": "The number of interior design conservatories in Kingsport equals the sum of the number of regional medical school in Brightford and the average number of teachers per elementary school in Glenfield City.\n+++\nThe number of regional medical schools in Brightford equals 4. (provides an input for this node)",
+  "neighbors": "[{'name': 'Average number of teachers per regional medical school in Brightford', 'summary': 'Represents the average number of teachers per regional medical school in Brightford, used in calculations for historic restoration academies and interior design conservatories in Kingsport.', 'relationship': 'is an input for the'}]"
+}
+```
+
+You should output:
+```json
+{
+  "reasoning": "### STAGE 1: Synthesize\nThe node calculates the number of interior design conservatories in Kingsport. The appended content provides a specific numerical constraint: 'The number of regional medical schools in Brightford equals 4.' This appears to be an input to the calculation.\n\n### STAGE 2: Analyze\n- **Core Concept**: The calculation of interior design conservatories in Kingsport\n- **Appended Content**: A numerical fact stating the number of regional medical schools in Brightford\n- **Schema Attribute Test**: While this fact serves as an input to the calculation, it fails the test because it could exist independently\n- **Constraint Principle Application**: This is a standalone constraint - a given value in a problem space. Even though it's used as input here, it represents an independent fact that could be referenced by other calculations\n- **Future Reference Test**: This numerical fact is highly likely to be referenced independently by other nodes that need to know about medical schools in Brightford\n\n### STAGE 3: Refactor\nThe numerical constraint should be split into its own node rather than absorbed. This creates a cleaner dependency graph where facts are exposed at the structural level.\n\n### STAGE 4: Validate\nAll information is preserved. The structure now clearly separates the calculation process from the factual constraint it uses.",
+  "original_new_content": "The number of interior design conservatories in Kingsport equals the sum of the number of regional medical school in Brightford and the average number of teachers per elementary school in Glenfield City.",
+  "original_new_summary": "Calculates the number of interior design conservatories in Kingsport by summing the number of regional medical schools in Brightford and the average number of teachers per elementary school in Glenfield City.",
+  "create_new_nodes": [
+    {
+      "name": "Number of Regional Medical Schools in Brightford",
+      "content": "The number of regional medical schools in Brightford equals 4.",
+      "summary": "States that there are 4 regional medical schools in Brightford.",
+      "relationship": "provides an input for",
+      "target_node_name": "Interior Design Conservatory Calculation Kingsport"
+    }
+  ],
+  "debug_notes": null
+}
+```
+
+### Example 2: Complex Multi-Abstraction Case
 This example shows a complex case where new information contains multiple distinct abstractions. The optimal solution is to absorb one, and create three new nodes, each linked to the most appropriate parent: the original node, a neighbor node, and another newly created node.
 
 Input:

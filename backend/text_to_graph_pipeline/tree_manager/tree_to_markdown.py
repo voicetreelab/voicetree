@@ -78,10 +78,8 @@ class TreeToMarkdownConverter:
                 
                 # Write YAML frontmatter
                 frontmatter = insert_yaml_frontmatter({
-                    "title": node_data.title,
+                    "title": f"{node_data.title} {node_id}",
                     "node_id": node_id,
-                    "created_at": node_data.created_at.isoformat(),
-                    "modified_at": node_data.modified_at.isoformat()
                 })
                 f.write(frontmatter)
 

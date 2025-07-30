@@ -16,7 +16,7 @@ TEXT_BUFFER_SIZE_THRESHOLD = int(os.getenv("BUFFER_SIZE_THRESHOLD", 93))
 # use buffer size / 2 just for the first execution?, to get the content showing
 
 
-TRANSCRIPT_HISTORY_MULTIPLIER = int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 12))
+TRANSCRIPT_HISTORY_MULTIPLIER = int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 1)) #todo, disabled for benchmark
 
 # voice_config = VoiceConfig(
 #     model=os.getenv("VOICE_MODEL", "mobiuslabsgmbh/faster-whisper-large-v3-turbo")
@@ -24,7 +24,7 @@ TRANSCRIPT_HISTORY_MULTIPLIER = int(os.getenv("TRANSCRIPT_HISTORY_MULTIPLIER", 1
 
 # Tree configuration values
 BACKGROUND_REWRITE_EVERY_N_APPEND = int(os.getenv("BACKGROUND_REWRITE_FREQUENCY", 2))
-MAX_NODES_FOR_LLM_CONTEXT = int(os.getenv("MAX_NODES_FOR_LLM_CONTEXT", 30))
+MAX_NODES_FOR_LLM_CONTEXT = int(os.getenv("MAX_NODES_FOR_LLM_CONTEXT", 17))
 
 # Validate tree configuration
 if BACKGROUND_REWRITE_EVERY_N_APPEND < 1:

@@ -141,7 +141,7 @@ async def run_quality_benchmark(test_transcripts=None):
     # Set up logging
     setup_logging()
     
-    # Setup main output directory (will backup existing if needed)
+    # Setup main output directory (just ensure it exists, no backup)
     setup_output_directory()
     
     # Clear debug logs once at the start

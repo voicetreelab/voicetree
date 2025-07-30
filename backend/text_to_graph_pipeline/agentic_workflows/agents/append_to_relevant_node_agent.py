@@ -161,7 +161,7 @@ class AppendToRelevantNodeAgent(Agent):
                     action="APPEND",
                     target_node_id=segment.target_node_id,
                     target_node_name=segment.target_node_name,
-                    content=f"+++{segment.text} ({segment.relationship_to_target} this node)"
+                    content=f"\n+++\n{segment.text} ({segment.relationship_to_target} this node)"
                 ))
             else:
                 # New node - create CreateAction (always orphan)
