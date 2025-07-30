@@ -37,14 +37,23 @@ async def run_clustering_with_incremental_saves(tree: Dict[int, Node], output_di
     nodes = list(tree.values())
     total_nodes = len(nodes)
     
+    # Calculate target unique tags based on sqrt of total nodes
+    # Use 3 * sqrt(n) for better coverage
+    import math
+    target_unique_tags = round(3 * math.sqrt(total_nodes))
+    
     # Process nodes in batches
-    batch_size = 100
+    batch_size = 30
     total_tagged = 0
     
     # Instantiate clustering agent once
     clustering_agent = ClusteringAgent()
     
+    # Track all tags used across batches
+    all_tags = set()
+    
     print(f"Total nodes to tag: {total_nodes}")
+    print(f"Target unique tags: {target_unique_tags} (sqrt of {total_nodes})")
     print(f"Processing in batches of {batch_size}")
     
     for i in range(0, total_nodes, batch_size):
@@ -65,7 +74,15 @@ async def run_clustering_with_incremental_saves(tree: Dict[int, Node], output_di
         for attempt in range(max_retries):
             try:
                 print(f"Running tagging with model: gemini-2.5-flash-lite (attempt {attempt + 1}/{max_retries})")
-                tagging_response = await clustering_agent.run(formatted_nodes, node_count)
+                # Pass existing tags to maintain consistency
+                existing_tags_list = sorted(list(all_tags)) if all_tags else None
+                tagging_response = await clustering_agent.run(
+                    formatted_nodes, 
+                    node_count,
+                    existing_tags=existing_tags_list,
+                    target_unique_tags=target_unique_tags,
+                    total_nodes=total_nodes
+                )
                 break  # Success, exit retry loop
             except RuntimeError as e:
                 if "LLM returned invalid JSON" in str(e) and attempt < max_retries - 1:
@@ -82,9 +99,12 @@ async def run_clustering_with_incremental_saves(tree: Dict[int, Node], output_di
                 tree[node_id].tags = tag_assignment.tags
                 if tag_assignment.tags:  # Node has at least one tag
                     batch_tagged += 1
+                    # Track all tags used
+                    all_tags.update(tag_assignment.tags)
         
         total_tagged += batch_tagged
         print(f"Batch {batch_num} complete: {batch_tagged} nodes tagged")
+        print(f"Total unique tags so far: {len(all_tags)}")
         
         # Save progress after each batch
         await save_current_progress(tree, output_dir, batch_num, total_batches)
@@ -101,8 +121,8 @@ async def main():
     """Run clustering on animal example data and regenerate markdown with tags incrementally"""
     
     # Load the animal example tree
-    input_dir = "backend/benchmarker/output/igsm_op14_ip20_force_True_2_problem_question"
-    output_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered_medium"
+    input_dir = "backend/benchmarker/output/igsm_op17_ip20_force_True_0_problem_question"
+    output_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered_hard_16"
     
     print(f"Loading tree from: {input_dir}")
     converter = MarkdownToTreeConverter()

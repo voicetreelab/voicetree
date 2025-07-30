@@ -1,11 +1,10 @@
-
-You are trying to answer the question: What is the total number of teachers from all schools in Brightford?
+You are trying to answer the question: How many adult parrot does Mayer Aquarium have?
 
 This question is about a very large document containing many mathematical relationships. We have compressed this document into a graph structure, each node representing a concept in the text, and it's relationship to another node.
 
-This graph is stored as markdown files at /Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered_medium
+This graph is stored as markdown files at /Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered_hard_16 
 
-Your goal is to answer the question, by reading the minimum amount of files. 
+Your goal is to answer the question, you will likely need to think of math equations to solve this.
 
 You have some tools to help you do this:
 1. Use python analyze_tags.py backend/benchmarker/{dir}
@@ -18,6 +17,6 @@ Example: python find_files_by_tags.py ./backend/tests/animal_example_clustered a
 
 Out of these possibly relevant files, choose ALLL the files that could at all possibly be related to our question.
 
-3. Use python accumulate_graph_content.py ON ALL YOUR CHOSEN FILES to perform graph traversal, it will return a markdown file with all the content from the dependency graph traversal.
+3. Use python graph_dependency_traversal_and_accumulate_graph_content.py ON ALL YOUR CHOSEN FILES to perform graph dependency traversal, it will return a markdown file with all the content from the dependency graph traversal.
 
-Example: python accumulate_graph_content.py backend/tests/animal_example_clustered 603_Total_number_of_newborn_animal_children_in_Shardlight_Chasms.md file2 file3 ... filen
+Example: python graph_dependency_traversal_and_accumulate_graph_content.pybackend/tests/animal_example_clustered 603_Total_number_of_newborn_animal_children_in_Shardlight_Chasms.md file2 file3 ... filen
