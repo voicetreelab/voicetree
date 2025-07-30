@@ -24,12 +24,21 @@ from backend.benchmarker.src import (
     TranscriptProcessor,
     QualityEvaluator
 )
+from backend.benchmarker.src.file_utils import setup_output_directory
 
 
-def copy_debug_logs():
-    """Copy debug logs from agentic workflows to benchmarker output directory."""
+def copy_debug_logs(transcript_name=None):
+    """Copy debug logs from agentic workflows to benchmarker output directory.
+    
+    Args:
+        transcript_name: If provided, copies to a transcript-specific subdirectory
+    """
     source_dir = "backend/text_to_graph_pipeline/agentic_workflows/debug_logs"
-    dest_dir = "backend/benchmarker/output/debug_logs"
+    
+    if transcript_name:
+        dest_dir = f"backend/benchmarker/output/{transcript_name}/debug_logs"
+    else:
+        dest_dir = "backend/benchmarker/output/debug_logs"
     
     if os.path.exists(source_dir):
         # Ensure destination directory exists
@@ -47,9 +56,76 @@ def copy_debug_logs():
         print(f"\nWarning: Debug logs directory not found at {source_dir}")
 
 
+def _generate_transcript_identifier(transcript_info):
+    """Generate a safe identifier for a transcript to use as a folder name."""
+    # Use the base filename without path and extension
+    base_name = os.path.splitext(os.path.basename(transcript_info['file']))[0]
+    # Replace any non-alphanumeric characters with underscores
+    safe_name = ''.join(c if c.isalnum() else '_' for c in base_name)
+    return safe_name
+
+
+async def process_single_transcript(transcript_info):
+    """Process a single transcript with its own output directory.
+    
+    Args:
+        transcript_info: Dictionary containing transcript configuration
+        
+    Returns:
+        tuple: (transcript_name, success_bool, error_message)
+    """
+    transcript_name = transcript_info['name']
+    transcript_identifier = _generate_transcript_identifier(transcript_info)
+    
+    try:
+        print(f"\n{'='*60}")
+        print(f"Starting: {transcript_name}, limited to {transcript_info.get('max_words', 'all')} words")
+        print(f"Output folder: backend/benchmarker/output/{transcript_identifier}/")
+        print(f"{'='*60}\n")
+
+        # Create a processor instance for this transcript
+        processor = TranscriptProcessor()
+        
+        # Read and limit content
+        with open(transcript_info['file'], 'r') as f:
+            content = f.read()
+        content = processor._limit_content_by_words(content, transcript_info.get('max_words'))
+        
+        # Process the transcript with transcript-specific output directory
+        processing_mode = transcript_info.get('processing_mode', 'word')
+        await processor.process_content(
+            content,
+            transcript_identifier,
+            processing_mode,
+            transcript_identifier  # Pass identifier for output subdirectory
+        )
+        
+        # Evaluate quality with transcript-specific output directory
+        print(f"\nEvaluating quality for: {transcript_name}")
+        evaluator = QualityEvaluator()
+        evaluator.evaluate_tree_quality(
+            content,
+            transcript_name,
+            transcript_identifier  # Pass identifier for output subdirectory
+        )
+
+        # Copy debug logs to transcript-specific directory
+        copy_debug_logs(transcript_identifier)
+        
+        print(f"\n✓ Completed: {transcript_name}")
+        print(f"  - Output: backend/benchmarker/output/{transcript_identifier}/")
+        print(f"  - Quality logs: backend/benchmarker/quality_logs/quality_log_{transcript_identifier}.txt")
+        return (transcript_name, True, None)
+        
+    except Exception as e:
+        error_msg = f"Error processing {transcript_name}: {str(e)}"
+        print(f"\n✗ Failed: {error_msg}")
+        return (transcript_name, False, error_msg)
+
+
 async def run_quality_benchmark(test_transcripts=None):
     """
-    Run quality benchmarking on specified transcripts.
+    Run quality benchmarking on specified transcripts in parallel.
     
     Args:
         test_transcripts: List of transcript configurations, each containing:
@@ -65,40 +141,43 @@ async def run_quality_benchmark(test_transcripts=None):
     # Set up logging
     setup_logging()
     
+    # Setup main output directory (will backup existing if needed)
+    setup_output_directory()
+    
+    # Clear debug logs once at the start
     clear_debug_logs()
     
-    processor = TranscriptProcessor()
-    evaluator = QualityEvaluator()
+    print(f"\nStarting parallel processing of {len(test_transcripts)} transcript(s)...\n")
     
-    for transcript_info in test_transcripts:
-        print(f"\n{'='*60}")
-        print(f"Testing: {transcript_info['name']}, limited to {transcript_info['max_words']}")
-        print(f"{'='*60}\n")
-
-        # Read and limit content once for both processing and evaluation
-        with open(transcript_info['file'], 'r') as f:
-            content = f.read()
-        content = processor._limit_content_by_words(content, transcript_info.get('max_words'))
-        
-        # this actually runs VoiceTree on the transcript
-        processing_mode = transcript_info.get('processing_mode', 'word')
-        await processor.process_content(
-            content,
-            transcript_info['file'],  # use file path as identifier
-            processing_mode
-        )
-        
-        # # Evaluate quality
-        # evaluator.evaluate_tree_quality(
-        #     content,
-        #     transcript_info['name']
-        # )
-        #
-        print(f"\nEvaluation completed for {transcript_info['name']}")
-        print("See backend/benchmarker/quality_logs/quality_log.txt and backend/benchmarker/quality_logs/latest_quality_log.txt for results.")
+    # Process all transcripts in parallel
+    results = await asyncio.gather(
+        *[process_single_transcript(transcript_info) for transcript_info in test_transcripts],
+        return_exceptions=False
+    )
     
-    # Copy debug logs after all evaluations are complete
-    copy_debug_logs()
+    # Print summary
+    print(f"\n{'='*60}")
+    print("SUMMARY")
+    print(f"{'='*60}")
+    
+    successful = sum(1 for _, success, _ in results if success)
+    failed = len(results) - successful
+    
+    print(f"\nTotal transcripts: {len(results)}")
+    print(f"Successful: {successful}")
+    print(f"Failed: {failed}")
+    
+    if failed > 0:
+        print("\nFailed transcripts:")
+        for name, success, error in results:
+            if not success:
+                print(f"  - {name}: {error}")
+    
+    print("\nResults saved to:")
+    print("  - Individual outputs: backend/benchmarker/output/<transcript_identifier>/")
+    print("  - Main quality log: backend/benchmarker/quality_logs/quality_log.txt")
+    print("  - Transcript-specific logs: backend/benchmarker/quality_logs/quality_log_<transcript_identifier>.txt")
+    print("  - Latest detailed logs: backend/benchmarker/quality_logs/latest_quality_log_<transcript_identifier>.txt")
 
 
 async def main():

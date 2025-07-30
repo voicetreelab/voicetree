@@ -101,7 +101,7 @@ async def main():
     """Run clustering on animal example data and regenerate markdown with tags incrementally"""
     
     # Load the animal example tree
-    input_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output"
+    input_dir = "backend/benchmarker/output/igsm_op17_ip20_force_True_0_problem_question"
     output_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered"
     
     print(f"Loading tree from: {input_dir}")

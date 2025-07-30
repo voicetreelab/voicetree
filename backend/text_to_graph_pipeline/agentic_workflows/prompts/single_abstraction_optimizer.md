@@ -104,6 +104,7 @@ When refactoring nodes, simultaneously refactor the content to maximize readabil
     - You can andd should however, modify the flow, and order of phrases, reorganizing for readability.
     - perform light editing for the restructured content to be easily readable, whilst maintaining similar language compared to the original text.
     - Remove verbal fillers ("um/uh", "yeah so", "you know"") if they are not part of the meaning
+    - **CRITICAL: ALWAYS preserve ALL explicit numeric values, equations, and calculations exactly as stated (e.g., "equals 4", "is 12", "3 times", "sum of 5 and 7")**
 
 
 ### ALGORITHM: OptimizeNode(node, neighbors)
@@ -142,6 +143,7 @@ STAGE 4: Validate - Quality Assurance
 - VERIFY no information loss
 - CONFIRM cognitive efficiency is maximized
 - Is optimisation problem well minimized with your solution?
+- **VERIFY all numeric values and equations from the original text are preserved exactly**
 ```
 
 ## Examples

@@ -203,16 +203,35 @@ class TreeActionDeciderWorkflow:
         modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
         logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
         
+        # Separate newly created nodes from modified nodes
+        newly_created_nodes: Set[int] = set()
+        modified_nodes: Set[int] = set()
+        
+        for action in actions_to_apply:
+            if isinstance(action, CreateAction):
+                # The created node ID will be in modified_or_new_nodes
+                # We need to find it by matching the node name
+                for node_id in modified_or_new_nodes:
+                    if node_id in self.decision_tree.tree and self.decision_tree.tree[node_id].title == action.new_node_name:
+                        newly_created_nodes.add(node_id)
+                        break
+            elif isinstance(action, AppendAction):
+                # AppendAction modifies existing nodes
+                if action.target_node_id in modified_or_new_nodes:
+                    modified_nodes.add(action.target_node_id)
+        
+        logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}")
         
         # ======================================================================
         # PHASE 2: OPTIMIZATION
         # ======================================================================
         logging.info("Running Phase 2: Optimization Agent...")
+        logging.info(f"Only optimizing modified nodes ({len(modified_nodes)} nodes), skipping newly created nodes ({len(newly_created_nodes)} nodes)")
 
-        # We now have the list of nodes that were just modified. We optimize them.
+        # Only run optimizer on modified nodes, not newly created nodes
         all_optimization_modified_nodes: Set[int] = set()
-        for node_id in modified_or_new_nodes:
-            logging.info(f"Optimizing node {node_id}...")
+        for node_id in modified_nodes:
+            logging.info(f"Optimizing modified node {node_id}...")
 
             # Get neighbors, remove 'id' key, and format as a string for the agent
             neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
@@ -271,7 +290,7 @@ class TreeActionDeciderWorkflow:
         # Always store current buffer state for next processing to detect stuck text
         self._prev_buffer_remainder = buffer_manager.getBuffer()
         
-        # Return the set of all modified nodes
+        # Return the set of all affected nodes (new + modified + optimization-modified)
         return modified_or_new_nodes.union(all_optimization_modified_nodes)
 
     async def group_orphans_by_name(self, actions_to_apply, append_or_create_actions):

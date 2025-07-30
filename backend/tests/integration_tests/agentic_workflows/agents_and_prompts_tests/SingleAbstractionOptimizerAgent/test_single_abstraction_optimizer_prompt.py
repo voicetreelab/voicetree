@@ -209,5 +209,111 @@ class TestSingleAbstractionOptimizerPrompt:
                    "no changes" in result.reasoning.lower()
 
 
+    async def test_preserve_numeric_values_and_equations(self, prompt_loader):
+        """
+        Test Case 4: Node with many equations and numeric values that must be preserved
+        Tests the new requirement to preserve all numeric values exactly
+        """
+        # Test data - node with multiple equations and calculations
+        node_content = """
+        # Animal Population Calculations
+        
+        The number of adult owls in South Zoo equals 1.
+        The average newborn children per adult crow in Hamilton Farm equals 4 times the number of adult owls in South Zoo.
+        The number of adult crows in South Zoo equals 3.
+        The number of adult parrots in Bundle Ranch equals 4.
+        
+        The total number of adult animals in Bundle Ranch equals the sum of:
+        - Adult owls in Bundle Ranch (which equals 12)
+        - Adult blue jays in Bundle Ranch (which equals 4) 
+        - Adult parrots in Bundle Ranch (which equals 4)
+        
+        So the total is 12 + 4 + 4 = 20 adult animals.
+        
+        The average newborn children per adult owl in Bundle Ranch equals 4.
+        The average newborn children per adult blue jay in Bundle Ranch equals 8.
+        The average newborn children per adult parrot in Bundle Ranch equals 2 times the average newborn children per adult owl in Bundle Ranch.
+        
+        Therefore:
+        - Newborn owls: 12 × 4 = 48
+        - Newborn blue jays: 4 × 8 = 32
+        - Newborn parrots: 4 × 8 = 32
+        - Total newborn animal children in Bundle Ranch = 48 + 32 + 32 = 112
+        """
+        
+        node_summary = "Calculations for animal populations in various locations with specific numeric values"
+        node_id = 15
+        node_name = "Animal Population Calculations"
+        
+        neighbors = [
+            {"id": 14, "name": "Zoo Locations", "summary": "List of zoo and ranch locations", "relationship": "parent"},
+            {"id": 16, "name": "Population Metrics", "summary": "Methods for calculating animal populations", "relationship": "sibling"}
+        ]
+        
+        # Load and run prompt
+        prompt_text = prompt_loader.render_template(
+            "single_abstraction_optimizer",
+            node_id=node_id,
+            node_name=node_name,
+            node_content=node_content,
+            node_summary=node_summary,
+            neighbors=neighbors
+        )
+
+        result = await self.call_llm(prompt_text)
+        
+        # Assertions - Check that numeric values are preserved
+        # Combine all content from original and new nodes
+        all_content = []
+        if result.original_new_content:
+            all_content.append(result.original_new_content)
+        for node in result.create_new_nodes:
+            all_content.append(node.content)
+        
+        combined_content = " ".join(all_content).lower()
+        
+        # Critical numeric values that MUST be preserved somewhere
+        critical_values = [
+            ("equals 1", "adult owls in South Zoo"),
+            ("equals 3", "adult crows in South Zoo"),  
+            ("equals 4", "adult parrots in Bundle Ranch"),
+            ("equals 12", "adult owls in Bundle Ranch"),
+            ("equals 4", "adult blue jays in Bundle Ranch"),
+            ("= 20", "total adult animals"),
+            ("equals 4", "newborn per adult owl"),
+            ("equals 8", "newborn per adult blue jay"),
+            ("= 48", "newborn owls total"),
+            ("= 32", "newborn blue jays total"),
+            ("= 112", "total newborn")
+        ]
+        
+        # Check that each critical value is preserved
+        missing_values = []
+        for value, context in critical_values:
+            if value not in combined_content:
+                missing_values.append(f"{value} ({context})")
+        
+        # Also accept "equals 20" as alternative to "= 20"
+        if "= 20 (total adult animals)" in missing_values and "equals 20" in combined_content:
+            missing_values.remove("= 20 (total adult animals)")
+        
+        assert len(missing_values) == 0, f"Missing critical numeric values: {missing_values}\n\nActual content:\n{combined_content[:500]}..."
+        
+        # Also check key equations are preserved
+        key_equations = [
+            "4 times",  # crow equation
+            "2 times",  # parrot equation
+            "12 + 4 + 4",  # total calculation
+            "48 + 32 + 32"  # final total
+        ]
+        
+        missing_equations = []
+        for equation in key_equations:
+            if equation not in combined_content:
+                missing_equations.append(equation)
+                
+        assert len(missing_equations) == 0, f"Missing key equations: {missing_equations}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

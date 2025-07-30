@@ -1,0 +1,53 @@
+All right, today I am working on Voistree.
+Voicetree is my project for creating abstraction graphs from content streams.
+I want to first outline some of the major things I did today some of the major tasks I worked on
+for example.
+I did.
+So I first did fuzzy search.
+for finding relevant nodes.
+Um.
+And then I did, I did sort of like inverse document search.
+It's called something weird like I GSM or something.
+to find the most relevant nodes and input that into the target node prompt.
+Um
+And then I did, I improved our target node prompt.
+by making the topic names more specific.
+Um.
+so that.
+we wouldn't get these really big general nodes which everything which I connect to. Instead we got focused nodes.
+Um,
+And then after that I worked on clustering.
+So now that the node's names are very specific and focused
+We wanted to work on
+uh...
+clustering to identify sort of clusters within a big voice tree graph.
+and be easily able to navigate it more easily.
+So I did that and I did a huge demo of that so I recorded a demo for two hours
+I record demo of building the clustering algorithm because I was building the clustering algorithm through using voice tree itself and running agents on top of the voice tree.
+UI.
+So that would be really useful for our Y Combinator demo, which is
+in a week and it's everything that I'm optimizing for right now is I want to do a really good job on the why ComRier demo
+Um,
+Cool and then part of the reason why I want to
+on clustering is for this whole other use case.
+of Voice, which is to improve LLM performance itself by reducing the context input size.
+Um
+So
+I'm reducing the context input size by converting any amount of content.
+into a
+voice tree graph and then
+letting the LM essentially decide what specific nodes it wants to look up and I have some neat like graph traversal algorithms to make that a bit easier.
+And when we, we, so it really worked well, but then when we got to nodes, graphs of a thousand nodes in size plus.
+uh...
+we started realizing that it's just
+the scale is getting a bit too big to be able to just look at the node names and decide what nodes it wants to read.
+There's just too many options.
+Um,
+So instead what we're doing is we now filter by tags.
+Um,
+So we first filter the tree by tags. So we identify clusters, put tags on the nodes, and then we filter.
+the nodes by tags. We let the LM decide what tags that wants to look at and then within those files it gets to choose what files I want to look at from the filtered files. And then for those files we build the dependency graphs.
+for the files and then input the whole dependency graph.
+to the LM and then finally answer the user's question or prompt.
+This is the best it's ever been working. It's working really, really quickly. Um...
+I've been making lots of improvements to it.
