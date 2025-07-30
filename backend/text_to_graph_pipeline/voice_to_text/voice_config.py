@@ -17,15 +17,15 @@ class VoiceConfig:
 
     3 (Most Aggressive): The engineer is very strict. Unless it's a clear, loud, spoken word, they consider it "silence." Background noise, soft breaths, and quiet hums are all ignored and treated as silence.
     """
-    vad_aggressiveness: int = 3
+    vad_aggressiveness: int = 2
     # Duration of a single audio frame for VAD analysis, in milliseconds.
     vad_frame_ms: int = 30
     # Amount of silence to pad at the START and end of a speech segment, in milliseconds.
     # This helps ensure words at the edges aren't cut off.
-    vad_padding_ms: int = 400
+    vad_padding_ms: int = 700
 
     #IMPORTANT: How long the VAD should wait in silence before considering an utterance finished, in milliseconds.
-    vad_silence_timeout_ms: int = 700 # Increase for longer buffers, better
+    vad_silence_timeout_ms: int = 900 # Increase for longer buffers, better
     # accuracy  latency
     #     High Value (e.g., 1500 ms): Good for speakers who pause for a second or two in the middle of a sentence to think. It prevents the system from chopping up their thoughts. This is what you're currently experiencing.
     #

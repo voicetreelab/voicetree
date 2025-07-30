@@ -24,8 +24,13 @@ class TranscriptProcessor:
         self.decision_tree = None
         self.processor = None
         
-    def _initialize_processor(self, transcript_file):
-        """Initialize a fresh processor for a transcript."""
+    def _initialize_processor(self, transcript_file, output_subdirectory=None):
+        """Initialize a fresh processor for a transcript.
+        
+        Args:
+            transcript_file: Transcript file identifier
+            output_subdirectory: Optional subdirectory name for transcript-specific output
+        """
         # Reset the workflow I/O log for a clean run
         clear_workflow_log()
         
@@ -36,10 +41,16 @@ class TranscriptProcessor:
         temp_dir = tempfile.gettempdir()
         state_file_name = os.path.join(temp_dir, f"benchmark_workflow_state_{hashlib.md5(transcript_file.encode()).hexdigest()[:8]}.json")
         
+        # Determine output directory
+        if output_subdirectory:
+            output_dir = os.path.join(OUTPUT_DIR, output_subdirectory)
+        else:
+            output_dir = OUTPUT_DIR
+            
         self.processor = ChunkProcessor(
             self.decision_tree, 
             converter=TreeToMarkdownConverter(self.decision_tree.tree),
-            output_dir=OUTPUT_DIR
+            output_dir=output_dir
         )
         
         # Clear any existing workflow state before processing
@@ -58,19 +69,24 @@ class TranscriptProcessor:
     
 
     
-    async def process_content(self, content, transcript_identifier, processing_mode="word"):
+    async def process_content(self, content, transcript_identifier, processing_mode="word", output_subdirectory=None):
         """Process transcript content with VoiceTree using agentic workflow.
         
         Args:
             content: Text content to process
             transcript_identifier: Unique identifier for this transcript
             processing_mode: "word" for 30-word chunks or "line" for line-by-line processing
+            output_subdirectory: Optional subdirectory name under OUTPUT_DIR for transcript-specific output
         """
-        # Setup fresh output directory
-        setup_output_directory()
+        # Setup fresh output directory (with optional subdirectory)
+        if output_subdirectory:
+            transcript_output_dir = os.path.join(OUTPUT_DIR, output_subdirectory)
+            setup_output_directory(transcript_output_dir)
+        else:
+            setup_output_directory()
         
-        # Initialize processor
-        state_file_name = self._initialize_processor(transcript_identifier)
+        # Initialize processor with appropriate output directory
+        state_file_name = self._initialize_processor(transcript_identifier, output_subdirectory)
         
         try:
             if processing_mode == "line":
