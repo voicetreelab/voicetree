@@ -118,6 +118,35 @@ When refactoring nodes, it is critically important to not lose a SINGLE WORD fro
 You may rearrange sentences, but are not allowed to perform ANY editing beyond that.
     - **CRITICAL: ALWAYS preserve ALL explicit numeric values, equations, and calculations exactly as stated (e.g., "equals 4", "is 12", "3 times", "sum of 5 and 7")**
 
+**Entity Declaration Metadata**
+After the main content of each node, add three metadata sections:
+- `_Defines:_` List any concrete values or computed entities this node establishes (e.g., "average number of teachers per school in City X")
+- `_Requires:_` List any external values this node needs that are ALREADY satisfied by existing parent/child links
+- `_Still_Requires:_` List any external values this node needs that are NOT yet linked in the graph
+
+Example: If a node calculates "teachers in City X" using "schools in City X" from its parent node and "teachers per school in City Y" from an unknown source:
+- _Requires:_ would include "schools in City X" (satisfied by parent)
+- _Still_Requires:_ would include "teachers per school in City Y" (needs resolution)
+
+Format these sections at the end of the content, before the Links section:
+```
+[Main content...]
+
+_Defines:_
+- entity_name_1
+- entity_name_2
+
+_Requires:_
+- required_entity_1 (from parent/child link)
+
+_Still_Requires:_
+- unresolved_entity_1
+- unresolved_entity_2
+
+_Links:_
+[existing links...]
+```
+
 ### ALGORITHM: OptimizeNode(node, neighbors)
 
 ```
@@ -139,6 +168,11 @@ STAGE 3: Refactor - Structure Optimization
 - FOR EACH abstraction_candidate:
   - IF neighbor exists: REFERENCE in content
   - ELSE: CREATE new_node
+- EXTRACT entity definitions and requirements:
+  - IDENTIFY what values/entities this node defines
+  - IDENTIFY what external values/entities this node requires
+  - SEPARATE requirements into _Requires:_ (already linked) vs _Still_Requires:_ (unresolved)
+  - ADD _Defines:_, _Requires:_, and _Still_Requires:_ sections to content
 - DETERMINE target_node_name for each new node:
   - Default: Use the current node's name (the node being optimized)
   - Alternative: If the new abstraction relates more directly to a different node, specify that node's name
@@ -151,7 +185,8 @@ STAGE 3: Refactor - Structure Optimization
 STAGE 4: Validate - Quality Assurance
 - VERIFY no information loss, compare your output against the original content, has any detail changed, even slightly?
 - CONFIRM cognitive efficiency is maximized
-- **VERIFY all logcial relationships, numeric values and equations from the original text are preserved exactly as is**
+- **VERIFY all logical relationships, numeric values and equations from the original text are preserved exactly as is**
+- **VERIFY _Defines:_, _Requires:_, and _Still_Requires:_ sections accurately capture all entities and their resolution status**
 ```
 
 ## Examples
@@ -173,12 +208,12 @@ You should output:
 ```json
 {
   "reasoning": "### STAGE 1: Synthesize\nThe node calculates the number of interior design conservatories in Kingsport. The appended content provides a specific numerical constraint: 'The number of regional medical schools in Brightford equals 4.' This appears to be an input to the calculation.\n\n### STAGE 2: Analyze\n- **Core Concept**: The calculation of interior design conservatories in Kingsport\n- **Appended Content**: A numerical fact stating the number of regional medical schools in Brightford\n- **Schema Attribute Test**: While this fact serves as an input to the calculation, it fails the test because it could exist independently\n- **Constraint Principle Application**: This is a standalone constraint - a given value in a problem space. Even though it's used as input here, it represents an independent fact that could be referenced by other calculations\n- **Future Reference Test**: This numerical fact is highly likely to be referenced independently by other nodes that need to know about medical schools in Brightford\n\n### STAGE 3: Refactor\nThe numerical constraint should be split into its own node rather than absorbed. This creates a cleaner dependency graph where facts are exposed at the structural level.\n\n### STAGE 4: Validate\nAll information is preserved. The structure now clearly separates the calculation process from the factual constraint it uses.",
-  "original_new_content": "The number of interior design conservatories in Kingsport equals the sum of the number of regional medical school in Brightford and the average number of teachers per elementary school in Glenfield City.",
+  "original_new_content": "The number of interior design conservatories in Kingsport equals the sum of the number of regional medical school in Brightford and the average number of teachers per elementary school in Glenfield City.\n\n_Defines:_\n- number of interior design conservatories in Kingsport\n\n_Still_Requires:_\n- number of regional medical school in Brightford\n- average number of teachers per elementary school in Glenfield City",
   "original_new_summary": "Calculates the number of interior design conservatories in Kingsport by summing the number of regional medical schools in Brightford and the average number of teachers per elementary school in Glenfield City.",
   "create_new_nodes": [
     {
       "name": "Number of Regional Medical Schools in Brightford",
-      "content": "The number of regional medical schools in Brightford equals 4.",
+      "content": "The number of regional medical schools in Brightford equals 4.\n\n_Defines:_\n- number of regional medical schools in Brightford",
       "summary": "States that there are 4 regional medical schools in Brightford.",
       "relationship": "provides an input for",
       "target_node_name": "Interior Design Conservatory Calculation Kingsport"
@@ -205,7 +240,7 @@ You should output:
 ```json
 {
   "reasoning": "### STAGE 1: Synthesize\nThe text introduces five concepts: 1) CTA design details, 2) a blocking issue about the brand style guide, 3) a sub-task for the style guide review, 4) a prerequisite task for A/B testing, and 5) a required approval from an existing stakeholder. The goal is to structure all five correctly.\n\n### STAGE 2: Analyze\n- **CTA Design Details**: These are attributes of the main node and should be **absorbed**.\n- **Brand Style Guide Review**: This is a distinct, blocking problem. It should be a **new node** targeting the original node.\n- **Competitor Research**: This is a sub-task of the style guide review. It should be a **new node** targeting the 'Review Brand Style Guide' node.\n- **A/B Test Success Metrics**: This is a new, prerequisite task for the 'A/B Test CTA Variations' process. It should be a **new node** targeting the neighbor.\n- **Executive Review Board Sign-off**: This is not a new task to be created, but a mention of an existing approval process. The neighbor 'Executive Review Board' already represents this entity. According to the **Reference-over-Duplication Rule**, this should be handled by **referencing** the neighbor in the parent node's content, not by creating a new, duplicate 'approval' node.\n\n### STAGE 3: Refactor\nThis analysis leads to a complex refactoring that demonstrates all key principles:\n1.  **Absorb** CTA details into the original node.\n2.  **Reference** the `Executive Review Board` neighbor in the updated content of the original node.\n3.  **Create** 'Review Brand Style Guide' as a child of the original node.\n4.  **Create** 'Research Competitor Color Palettes' as a child of the new 'Review Brand Style Guide' node.\n5.  **Create** 'Define A/B Test Success Metrics' as a child of the 'A/B Test CTA Variations' neighbor.\n\n### STAGE 4: Edit & Validate\nThis structure is optimal. It creates actionable tasks where needed, correctly models dependencies (including chains and links to neighbors), and avoids redundancy by referencing existing graph components as instructed. It perfectly balances clarity and structural efficiency.",
-  "original_new_content": "The primary goal is to create a prominent homepage Call-to-Action (CTA) to guide users to sign up.\n\n**Note:** This task is currently blocked by the need for a `Review Brand Style Guide`.\n\n### Proposed Design Specification\n- **Color**: Bright orange (`#FF5733`) (Contingent on style guide review)\n- **Copy**: \"Start Your Free Trial\"\n\n### Process Notes\n- **Approval**: Final design requires sign-off from the `Executive Review Board`.\n- **Validation**: The `A/B Test CTA Variations` process will be used to validate the final design. A prerequisite task, `Define A/B Test Success Metrics`, has been created and linked to it.",
+  "original_new_content": "The primary goal is to create a prominent homepage Call-to-Action (CTA) to guide users to sign up.\n\n**Note:** This task is currently blocked by the need for a `Review Brand Style Guide`.\n\n### Proposed Design Specification\n- **Color**: Bright orange (`#FF5733`) (Contingent on style guide review)\n- **Copy**: \"Start Your Free Trial\"\n\n### Process Notes\n- **Approval**: Final design requires sign-off from the `Executive Review Board`.\n- **Validation**: The `A/B Test CTA Variations` process will be used to validate the final design. A prerequisite task, `Define A/B Test Success Metrics`, has been created and linked to it.\n\n_Defines:_\n- homepage CTA design specification\n\n_Requires:_\n- style guide approval (from Review Brand Style Guide)\n- executive approval (from Executive Review Board)\n\n_Still_Requires:_\n- A/B test success metrics definition",
   "original_new_summary": "Specifies the initial design for the homepage CTA, noting it's blocked by a style guide review and requires approval from the Executive Review Board. Validation will be done via A/B testing after metrics are defined.",
   "create_new_nodes": [
     {
@@ -233,6 +268,38 @@ You should output:
   "debug_notes": null
 }
 ```
+
+### Example 3: Forward Dependency (Temporal Separation)
+This example demonstrates the case where a node requires a value that doesn't exist yet in the graph. The dependency will be resolved later when another node defines that value.
+
+Input:
+```json
+{
+  "node_name": "Average Teachers per Public Highschool in Hawkesbury",
+  "node_summary": "Defines the average number of teachers per public high school in Hawkesbury.",
+  "node_content": "The average number of teachers per public highschool in Hawkesbury equals 2 plus the average number of teachers per regional medical school in Hawkesbury.\n+++\nThis calculation is part of determining elementary school counts in other cities. (defines a related calculation)",
+  "neighbors": "[{'name': 'Urban Planning Institute Calculations', 'summary': 'Calculates urban planning institutes based on regional medical school data.', 'relationship': 'defines a related calculation for'}]"
+}
+```
+
+You should output:
+```json
+{
+  "reasoning": "### STAGE 1: Synthesize\nThe node calculates average teachers per public highschool in Hawkesbury by adding 2 to the average teachers per regional medical school in Hawkesbury. The appended content notes this is used for elementary school calculations in other cities.\n\n### STAGE 2: Analyze\n- **Core Concept**: The calculation of average teachers per public highschool in Hawkesbury\n- **Required Input**: Average teachers per regional medical school in Hawkesbury - this value is NOT available in the current graph\n- **Appended Content**: Context about how this calculation is used - this is descriptive and should be absorbed\n\n### STAGE 3: Refactor\nThe key insight here is that this node needs a value ('average teachers per regional medical school in Hawkesbury') that doesn't exist in the graph yet. This will go in _Still_Requires:_ for later resolution. The descriptive content about usage should be absorbed into the main content.\n\n### STAGE 4: Validate\nAll information is preserved. The _Still_Requires:_ section clearly marks the unresolved dependency that will need to be linked when that value is defined elsewhere in the graph.",
+  "original_new_content": "The average number of teachers per public highschool in Hawkesbury equals 2 plus the average number of teachers per regional medical school in Hawkesbury.\n\nThis calculation is part of determining elementary school counts in other cities.\n\n_Defines:_\n- average number of teachers per public highschool in Hawkesbury\n\n_Still_Requires:_\n- average number of teachers per regional medical school in Hawkesbury",
+  "original_new_summary": "Defines the average number of teachers per public high school in Hawkesbury as 2 plus the average teachers per regional medical school in Hawkesbury. Used in elementary school calculations for other cities.",
+  "create_new_nodes": [],
+  "debug_notes": null
+}
+```
+
+**Note**: Later in the graph creation process, when a node is created that defines "average number of teachers per regional medical school in Hawkesbury", it would include:
+```
+_Defines:_
+- average number of teachers per regional medical school in Hawkesbury
+```
+
+The post-processing pass would then match this _Defines:_ entry with the _Still_Requires:_ entry in the earlier node and create the appropriate link.
 
 ## Input Context
 
