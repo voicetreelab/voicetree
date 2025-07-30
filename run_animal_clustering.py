@@ -101,8 +101,8 @@ async def main():
     """Run clustering on animal example data and regenerate markdown with tags incrementally"""
     
     # Load the animal example tree
-    input_dir = "backend/benchmarker/output/igsm_op17_ip20_force_True_0_problem_question"
-    output_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered"
+    input_dir = "backend/benchmarker/output/igsm_op14_ip20_force_True_2_problem_question"
+    output_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered_medium"
     
     print(f"Loading tree from: {input_dir}")
     converter = MarkdownToTreeConverter()
@@ -110,8 +110,17 @@ async def main():
     
     print(f"Loaded {len(tree)} nodes")
     
-    # Create output directory
+    # Create output directory and clean existing files
     os.makedirs(output_dir, exist_ok=True)
+    
+    # Remove existing markdown files in the output directory
+    print(f"Cleaning existing files in: {output_dir}")
+    for filename in os.listdir(output_dir):
+        if filename.endswith('.md'):
+            file_path = os.path.join(output_dir, filename)
+            os.remove(file_path)
+            print(f"  Removed: {filename}")
+    print("Directory cleaned")
     
     # Run clustering analysis with incremental saves
     print("Running clustering analysis with incremental saves...")

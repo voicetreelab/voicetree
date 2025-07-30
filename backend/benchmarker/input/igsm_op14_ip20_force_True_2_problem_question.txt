@@ -1,0 +1,39 @@
+The number of urban planning institute in Kingsport equals the difference between the average number of teachers per regional medical school in Hawkesbury and the average number of teachers per regional medical school in Hawkesbury.
+The number of regional medical school in Evervale City equals 4.
+The average number of teachers per sustainable design academy in Kingsport equals the difference between the number of regional medical school in Brightford and the average number of teachers per regional medical school in Hawkesbury.
+The average number of teachers per culinarian school in Glenfield City equals the sum of the number of regional medical school in Evervale City, the average number of teachers per elementary school in Hawkesbury, and the number of culinarian school in Glenfield City.
+The number of elementary school in Glenfield City equals 3.
+The number of elementary school in Evervale City equals the number of public highschool in Evervale City.
+The average number of teachers per elementary school in Hawkesbury equals 2.
+The number of school of industrial design in Kingsport equals the difference between the average number of teachers per culinarian school in Evervale City and the number of elementary school in Brightford.
+The average number of teachers per elementary school in Glenfield City equals the average number of teachers per regional medical school in Evervale City.
+The number of public highschool in Evervale City equals 2.
+The number of school of 3d modeling in Kingsport equals the difference between the average number of teachers per culinarian school in Evervale City and the number of regional medical school in Evervale City.
+The number of elementary school in Hawkesbury equals the sum of the number of culinarian school in Hawkesbury, the number of elementary school in Glenfield City, the average number of teachers per regional medical school in Glenfield City, and the average number of teachers per elementary school in Hawkesbury.
+The average number of teachers per culinarian school in Hawkesbury equals the average number of teachers per culinarian school in Glenfield City.
+The average number of teachers per regional medical school in Evervale City equals 4.
+The average number of teachers per regional medical school in Brightford equals 3.
+The average number of teachers per urban planning institute in Kingsport equals the number of elementary school in Hawkesbury.
+The number of historic restoration academy in Kingsport equals the difference between the average number of teachers per culinarian school in Glenfield City and the number of regional medical school in Hawkesbury.
+The number of culinarian school in Hawkesbury equals 3.
+The average number of teachers per public highschool in Hawkesbury equals 2 plus the average number of teachers per regional medical school in Hawkesbury.
+The average number of teachers per historic restoration academy in Kingsport equals the sum of the number of regional medical school in Glenfield City and the average number of teachers per regional medical school in Brightford.
+The average number of teachers per public highschool in Evervale City equals the average number of teachers per elementary school in Hawkesbury.
+The average number of teachers per elementary school in Evervale City equals the sum of the number of culinarian school in Hawkesbury and the number of culinarian school in Glenfield City.
+The average number of teachers per regional medical school in Hawkesbury equals the average number of teachers per culinarian school in Evervale City.
+The number of interior design conservatory in Kingsport equals the sum of the number of regional medical school in Brightford and the average number of teachers per elementary school in Glenfield City.
+The average number of teachers per school of industrial design in Kingsport equals the average number of teachers per regional medical school in Evervale City.
+The average number of teachers per culinarian school in Evervale City equals 4.
+The number of regional medical school in Hawkesbury equals 3 times the average number of teachers per elementary school in Hawkesbury.
+The number of sustainable design academy in Kingsport equals the difference between the average number of teachers per public highschool in Hawkesbury and the average number of teachers per elementary school in Hawkesbury.
+The number of regional medical school in Brightford equals 4.
+The number of regional medical school in Glenfield City equals the number of elementary school in Glenfield City.
+The number of elementary school in Brightford equals 2 plus the average number of teachers per public highschool in Hawkesbury.
+The number of public highschool in Hawkesbury equals the average number of teachers per culinarian school in Glenfield City.
+The average number of teachers per school of 3d modeling in Kingsport equals the difference between the average number of teachers per culinarian school in Hawkesbury and the number of regional medical school in Brightford.
+The average number of teachers per elementary school in Brightford equals 3 plus the number of elementary school in Brightford.
+The average number of teachers per regional medical school in Glenfield City equals 4 plus the sum of the average number of teachers per elementary school in Hawkesbury and the number of culinarian school in Glenfield City.
+The number of culinarian school in Evervale City equals 3 plus the average number of teachers per regional medical school in Brightford.
+The number of culinarian school in Glenfield City equals 3 plus the number of culinarian school in Hawkesbury.
+The average number of teachers per interior design conservatory in Kingsport equals the difference between the number of regional medical school in Hawkesbury and the number of public highschool in Evervale City.
+What is the total number of teachers from all schools in Brightford?

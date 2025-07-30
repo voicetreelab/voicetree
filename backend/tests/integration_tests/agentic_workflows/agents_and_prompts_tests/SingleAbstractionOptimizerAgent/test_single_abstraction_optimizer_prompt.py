@@ -314,6 +314,95 @@ class TestSingleAbstractionOptimizerPrompt:
                 
         assert len(missing_equations) == 0, f"Missing key equations: {missing_equations}"
 
+    async def test_preserve_mathematical_relationships_bug_regression(self, prompt_loader):
+        """
+        Test Case 5: Regression test for formula corruption bug
+        Bug: LLM incorrectly rewrites mathematical relationships during optimization
+        
+        Original problem: "Jefferson Circus crow average = 2 + South Zoo crow average"
+        Got corrupted to: "Jefferson Circus crow average = 2 + [Number of adult crows in Jefferson Circus]"
+        
+        This test ensures mathematical relationships are preserved exactly.
+        """
+        # Test data - the exact case that failed in production
+        node_content = """
+        The average number of newborn children per adult crow in Jefferson Circus equals 2 plus the average number of newborn children per adult crow in South Zoo.
+        +++The average number of newborn children per adult arctic wolf in Lunarchasm Ridge equals the average number of newborn children per adult crow in Jefferson Circus. (is a component of an equation for this node)
+        """
+        
+        node_summary = "Calculates the average number of newborn children per adult crow in Jefferson Circus by adding 2 to the South Zoo average."
+        node_id = 73
+        node_name = "Average newborn children per adult crow in Jefferson Circus"
+        
+        neighbors = [
+            {
+                "name": "Average newborn children per adult crow in South Zoo", 
+                "summary": "The average number of newborn children per adult crow in South Zoo is 4, used in a calculation for Jefferson Circus and also equaling the number of adult narwhals in Lunarchasm Ridge.", 
+                "relationship": "is calculated using the"
+            },
+            {
+                "name": "Average newborn children per adult boomslang in Heavenspire Peak", 
+                "summary": "The average number of newborn children per adult boomslang in Heavenspire Peak is defined by the average number of newborn children per adult crow in Jefferson Circus.", 
+                "relationship": "is defined by the"
+            }
+        ]
+        
+        # Load and run prompt
+        prompt_text = prompt_loader.render_template(
+            "single_abstraction_optimizer",
+            node_id=node_id,
+            node_name=node_name,
+            node_content=node_content,
+            node_summary=node_summary,
+            neighbors=neighbors
+        )
+
+        result = await self.call_llm(prompt_text)
+        
+        # Combine all content to check preservation
+        all_content = []
+        if result.original_new_content:
+            all_content.append(result.original_new_content)
+        for node in result.create_new_nodes:
+            all_content.append(node.content)
+        
+        combined_content = " ".join(all_content)
+        
+        # CRITICAL: The mathematical relationship must be preserved EXACTLY
+        # Bug was: "2 + South Zoo average" became "2 + Jefferson Circus count"
+        
+        # Must contain the correct relationship
+        assert "2 plus the average number of newborn children per adult crow in South Zoo" in combined_content or \
+               "2 + average number of newborn children per adult crow in South Zoo" in combined_content or \
+               "average number of newborn children per adult crow in South Zoo" in combined_content, \
+               f"Mathematical relationship corrupted! Expected reference to South Zoo crow average, got: {combined_content}"
+        
+        # Must NOT contain the corrupted relationship
+        corrupted_patterns = [
+            "2 + [Number of adult crows in Jefferson Circus]",
+            "2 plus the number of adult crow in Jefferson Circus", 
+            "2 + number of adult crow in Jefferson Circus",
+            "Jefferson Circus" in combined_content and "2 +" in combined_content and "South Zoo" not in combined_content
+        ]
+        
+        for pattern in corrupted_patterns[:3]:  # Check string patterns
+            assert pattern not in combined_content, \
+                f"Found corrupted formula pattern: '{pattern}' in content: {combined_content}"
+        
+        # Special check for the last complex pattern
+        if "Jefferson Circus" in combined_content and "2 +" in combined_content:
+            assert "South Zoo" in combined_content, \
+                "Formula references Jefferson Circus with '2 +' but missing South Zoo reference - likely corruption!"
+        
+        # Ensure the dependency relationship is maintained
+        # The South Zoo node should still be referenced as the source
+        if len(result.create_new_nodes) > 0:
+            # Check that any new nodes maintain correct relationships
+            for new_node in result.create_new_nodes:
+                if "Jefferson Circus" in new_node.content and "2" in new_node.content:
+                    assert "South Zoo" in new_node.content or new_node.target_node_name == "Average newborn children per adult crow in South Zoo", \
+                        f"New node breaks mathematical dependency: {new_node.content}"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

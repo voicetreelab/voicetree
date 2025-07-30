@@ -159,11 +159,11 @@ class TestTreeActionDeciderWorkflow:
         # 2. TreeActionApplier called with placement actions
         mock_tree_applier.apply.assert_called()
         
-        # 3. OptimizerAgent called for each modified node
-        assert mock_optimizer_agent.run.call_count == 2  # Called for nodes 1 and 99
+        # 3. OptimizerAgent called only for modified nodes (AppendActions), not newly created nodes
+        assert mock_optimizer_agent.run.call_count == 1  # Called only for node 1 (AppendAction), not node 99 (CreateAction)
         
         # 4. Workflow returns optimization actions
-        assert len(result) == 2  # One optimization action per modified node
+        assert len(result) == 1  # One optimization action per modified node (only node 1 was modified via AppendAction)
         assert all(isinstance(action, UpdateAction) for action in result)
     
     @pytest.mark.asyncio
@@ -239,6 +239,7 @@ class TestTreeActionDeciderWorkflow:
         mock_append_agent.run.return_value = create_mock_append_result(placement_actions)
         
         # TreeActionApplier reports nodes 1, 3, and 5 were modified
+        # However, only nodes 1 and 3 correspond to AppendActions and will be optimized
         modified_nodes = {1, 3, 5}
         mock_tree_applier.apply.return_value = modified_nodes
         
@@ -254,8 +255,8 @@ class TestTreeActionDeciderWorkflow:
                 decision_tree=simple_tree
             )
         
-        # Then: OptimizerAgent called exactly for nodes [1, 3, 5]
-        assert mock_optimizer_agent.run.call_count == len(modified_nodes)
+        # Then: OptimizerAgent called only for nodes modified by AppendActions [1, 3], not for newly created nodes
+        assert mock_optimizer_agent.run.call_count == 2  # Only nodes 1 and 3 (from AppendActions) are optimized
     
     
     @pytest.mark.asyncio
@@ -282,7 +283,7 @@ class TestTreeActionDeciderWorkflow:
         self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
-        """Test Case 7: New nodes from CreateAction are optimized"""
+        """Test Case 7: New nodes from CreateAction are NOT optimized (only modified nodes are optimized)"""
         # Given: CreateAction creates a new node
         placement_actions = [
             CreateAction(
@@ -317,16 +318,14 @@ class TestTreeActionDeciderWorkflow:
             )
         
         # Then: 
-        # 1. OptimizerAgent called for new node 99
-        assert mock_optimizer_agent.run.call_count == 1
+        # 1. OptimizerAgent NOT called for newly created nodes (only modified nodes are optimized)
+        assert mock_optimizer_agent.run.call_count == 0
         
-        # 2. TreeActionApplier called twice (placement + optimization)
-        assert mock_tree_applier.apply.call_count == 2
+        # 2. TreeActionApplier called only once (placement only, no optimization)
+        assert mock_tree_applier.apply.call_count == 1
         
-        # 3. Result contains optimization action for the new node
-        assert len(result) == 1
-        assert isinstance(result[0], UpdateAction)
-        assert result[0].node_id == 99
+        # 3. Result is empty since no nodes were optimized
+        assert len(result) == 0
     
     @pytest.mark.asyncio
     async def test_orphan_nodes_merged_before_optimization(
@@ -399,9 +398,9 @@ class TestTreeActionDeciderWorkflow:
         assert "First orphan content" in merged_orphan.content
         assert "Second orphan content" in merged_orphan.content
         
-        # Optimizer should be called for each modified node
-        assert mock_optimizer_agent.run.call_count == 3
+        # Optimizer should be called only for modified nodes (AppendActions), not newly created nodes
+        assert mock_optimizer_agent.run.call_count == 1  # Only node 1 (from AppendAction) is optimized
         
-        # Result should contain optimization actions (one per node)
-        assert len(result) == 3  # One optimization action per modified node
+        # Result should contain optimization actions (one per modified node)
+        assert len(result) == 1  # Only one node was modified via AppendAction
         assert all(isinstance(action, UpdateAction) for action in result)

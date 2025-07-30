@@ -204,6 +204,60 @@ Expected Output:
 }
 
 
+EXAMPLE 3
+
+This example demonstrates dependency-based targeting, where functional relationships matter more than keyword matching.
+
+INPUTS:
+
+```
+Overall text: "Let me continue with the mathematical relationships for our animal population model. I need to establish the equations for calculating adult parrot populations in Mayer Aquarium based on the relationships we've defined."
+
+Existing Nodes:
+`===== Available Nodes =====
+Node ID: 5
+Title: Equation relating gaboon viper, crow, and blue jay populations
+Summary: An equation relating the average newborn children per adult gaboon viper in Heavenspire Peak to the sum of average newborn children per adult crow in South Zoo and the number of adult blue jay in Mayer Aquarium.
+
+Node ID: 25
+Title: Equation relating gull, blue jay, and parrot populations
+Summary: An equation relating the number of adult gulls to the average number of newborn children per adult blue jay and per adult parrot, with a specific note on South Zoo populations.
+
+Node ID: 27
+Title: Equation relating black mamba and parrot populations
+Summary: An equation relating the average newborn children per adult black mamba in Heavenspire Peak to the sum of average newborn children per adult parrot in Mayer Aquarium and the number of adult blue jay in South Zoo.
+
+Node ID: 51
+Title: Equation relating blue jay and Jefferson Circus populations
+Summary: An equation stating that the average number of newborn children per adult blue jay in Mayer Aquarium is twice the total number of adult animals in Jefferson Circus.
+
+Node ID: 90
+Title: Equation relating parrot and crow populations
+Summary: An equation stating that the number of adult parrot in Jefferson Circus equals 2 times the sum of the average number of newborn children per adult crow in South Zoo and the number of adult crow in South Zoo.
+==========================`
+
+Current chunk of text to process: "The average number of newborn children per adult parrot in Mayer Aquarium equals the sum of the average number of newborn children per adult blue jay in Mayer Aquarium, the average number of newborn children per adult crow in South Zoo, and the number of adult parrot in Jefferson Circus."
+
+Segments to Analyze:
+[{"text": "The average number of newborn children per adult parrot in Mayer Aquarium equals the sum of the average number of newborn children per adult blue jay in Mayer Aquarium, the average number of newborn children per adult crow in South Zoo, and the number of adult parrot in Jefferson Circus."}]
+```
+
+Expected Output:
+```json
+[
+  {
+    "text": "The average number of newborn children per adult parrot in Mayer Aquarium equals the sum of the average number of newborn children per adult blue jay in Mayer Aquarium, the average number of newborn children per adult crow in South Zoo, and the number of adult parrot in Jefferson Circus.",
+    "reasoning": "STEP 1, global understanding: This segment defines a new mathematical equation for calculating the average number of newborn children per adult parrot in Mayer Aquarium. It's a composite calculation that depends on three specific parameters from other locations/species.\n\nSTEP 2, Correctness & Significance Analysis:\n\nPossible Node Relationships:\n1. Node 5 (gaboon viper equation): Mentions 'blue jay in Mayer Aquarium' and 'crow in South Zoo' - two of the three parameters needed. R(S,N) = 'uses some parameters mentioned in'. However, this node is about gaboon vipers, not parrots, and doesn't provide the values we need.\n\n2. Node 25 (gull equation): Mentions 'blue jay' and 'parrot'. R(S,N) = 'involves similar species as'. But this is about gulls, and again doesn't provide the needed parameter values.\n\n3. Node 27 (black mamba equation): Mentions 'parrot in Mayer Aquarium' - exactly matching our output parameter! Also mentions 'blue jay in South Zoo'. R(S,N) = 'calculates a related parameter to'. This is closer but still doesn't provide what we need.\n\n4. Node 51 (blue jay equation): This node DEFINES 'average number of newborn children per adult blue jay in Mayer Aquarium' - one of our three required input parameters! R(S,N) = 'depends on the parameter defined by'. This is a critical functional dependency.\n\n5. Node 90 (parrot equation): This node DEFINES 'number of adult parrot in Jefferson Circus' - another one of our required parameters! R(S,N) = 'depends on the parameter defined by'.\n\nFunctional Dependency Analysis: Our equation needs three specific values:\n- avg_newborn_blue_jay_mayer_aquarium (defined by Node 51)\n- avg_newborn_crow_south_zoo (not defined by any shown node)\n- adult_parrot_jefferson_circus (defined by Node 90)\n\nWhile Nodes 5, 25, and 27 have more keyword matches, Nodes 51 and 90 provide actual mathematical dependencies. Between these two, Node 51 is more significant because:\n1. It defines a parameter for the same location (Mayer Aquarium) as our output\n2. It involves blue jays, which are more directly related in the calculation chain\n3. The 'average newborn children per adult blue jay in Mayer Aquarium' is the first parameter in our sum\n\nFinal Decision: Node 51 is the most significant target. Despite having fewer keyword matches than some other nodes, it provides a critical functional dependency that our equation needs to compute its result.",
+    "target_node_id": 51,
+    "target_node_name": "Equation relating blue jay and Jefferson Circus populations",
+    "is_orphan": false,
+    "orphan_topic_name": null,
+    "relationship_to_target": "depends on the parameter defined by"
+  }
+]
+```
+
+
 INPUT DATA:
 ```
 Overall Text:
