@@ -50,11 +50,14 @@ Your tags must enable finding relevant nodes when users ask questions like:
 ### Tag Quality Standards for Retrieval
 - **Maximum 5-7 tags per node** - focus on the most searchable terms
 - **Combine descriptors with entities**: ALWAYS use `adult_crow`, NEVER separate as `adult` + `crow`
+- **CRITICAL: NEVER use generic animal names alone** - If you see "adult crow" in the text, tag it as `adult_crow`, NOT as `crow`
+- **For any animal reference**: Always check if there's an age/life stage qualifier and combine them
 - **Avoid redundancy**: Use either singular OR plural, not both
 - **Match query terms**: Tags should match how users naturally ask questions
 - **Location specificity**: Keep specific location names as they appear in queries
 - **Entity specificity**: Combine age/life stage with species for precise filtering
 - **Consistency**: Always use the same form for the same concept
+- **NO STANDALONE ANIMAL TAGS**: Never use tags like `crow`, `parrot`, `eagle` alone - always include the qualifier
 
 ### Tag Examples for Information Retrieval
 From title "Average Newborn Children per Adult Owl in South Zoo":
@@ -77,6 +80,17 @@ From relationship "is equal to the Number of Adult Crows in Hamilton Farm":
 - Why: Maintains specificity with adult_crow combination
 - NOT: ["equal", "crow", "hamilton_farm"] - missing the age descriptor
 
+CRITICAL ANTI-PATTERNS TO AVOID:
+- Title: "Parrot and Crow Population Equation in Jefferson Circus"
+  - WRONG: ["parrot", "crow", "equation", "jefferson_circus"]
+  - CORRECT: ["adult_parrot", "adult_crow", "equation", "jefferson_circus"] (if context shows they are adults)
+  - WHY: Never use standalone animal names - always check context for qualifiers
+
+- Title mentions "2 times the number of adult crow in Jefferson Circus"
+  - WRONG: ["crow", "jefferson_circus"] 
+  - CORRECT: ["adult_crow", "jefferson_circus"]
+  - WHY: The text explicitly says "adult crow" so use the combined tag
+
 ## Input Format
 
 You will receive nodes formatted like this:
@@ -97,12 +111,12 @@ Summary: Overview of domestic cats and feline behavior
 
 ## Analysis Process
 
-1. **Read each node carefully** to understand all content
-2. **Extract from title**: Break down meaningful components
-3. **Extract from summary**: Identify key entities, concepts, and locations
-4. **Extract from relationships**: Capture connection types and referenced entities
-5. **Combine and deduplicate**: Merge tags from all sources, removing duplicates
-6. **Validate quality**: Ensure tags meet quality standards
+1. **Read each node carefully** to understand all content (title, summary, relationships)
+2. **Cross-reference animal mentions**: If an animal appears in the title, CHECK the summary/content to see if it has age qualifiers (adult, newborn)
+3. **Always use the most specific form**: If the content says "adult crow", NEVER tag as just "crow" even if the title only says "crow"
+4. **Extract tags holistically**: Don't extract from title/summary/relationships in isolation - consider the full context
+5. **For any animal species**: ALWAYS check if there's an age qualifier anywhere in the node and use the combined form
+6. **Deduplicate and validate**: Ensure no redundant tags (never both "crow" and "adult_crow")
 
 ## Existing Tags
 
@@ -124,6 +138,12 @@ By reusing existing tags, you ensure consistency across the entire tree structur
 - Extract 5-7 tags per node focusing on searchable terms
 - STRONGLY PREFER existing tags to maintain consistency
 - Prioritize tags that users would use in questions
+
+## FINAL CRITICAL RULE
+**NEVER create both a generic and specific version of the same entity**:
+- If you see "Parrot and Crow Population" in title but "adult parrot" and "adult crow" in content → use ONLY `adult_parrot` and `adult_crow`
+- If a node mentions both "crow" generically and "adult crow" specifically → use ONLY `adult_crow`
+- When in doubt about an animal, check the full node content for age qualifiers and use the most specific form available
 
 Now analyze the provided nodes and extract tags for each one.
 

@@ -47,21 +47,21 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "GSM Medium",
         "max_words": None,
         "processing_mode": "line",  # Process line by line for structured data
-        "currently_active": True
+        # "currently_active": True
     },
     {
         "file": "backend/benchmarker/input/igsm_op19_ip20_force_True_7_problem_question.txt",
         "name": "GSM hard hard hard",
         "max_words": None,
         "processing_mode": "line",  # Process line by line for structured data
-        "currently_active": False
+        # "currently_active": True
     },
     {
         "file": "backend/benchmarker/input/igsm_op17_ip20_force_True_0_problem_question.txt",
         "name": "GSM 16k hard",
         "max_words": None,
         "processing_mode": "line",  # Process line by line for structured data
-        # "currently_active": True
+        "currently_active": True
     }
 
 ]

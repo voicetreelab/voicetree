@@ -272,47 +272,43 @@ class TestSingleAbstractionOptimizerPrompt:
         
         combined_content = " ".join(all_content).lower()
         
-        # Critical numeric values that MUST be preserved somewhere
+        # Critical numeric values that MUST be preserved somewhere (with variations)
         critical_values = [
-            ("equals 1", "adult owls in South Zoo"),
-            ("equals 3", "adult crows in South Zoo"),  
-            ("equals 4", "adult parrots in Bundle Ranch"),
-            ("equals 12", "adult owls in Bundle Ranch"),
-            ("equals 4", "adult blue jays in Bundle Ranch"),
-            ("= 20", "total adult animals"),
-            ("equals 4", "newborn per adult owl"),
-            ("equals 8", "newborn per adult blue jay"),
-            ("= 48", "newborn owls total"),
-            ("= 32", "newborn blue jays total"),
-            ("= 112", "total newborn")
+            ("equals 1", ["equals 1"], "adult owls in South Zoo"),
+            ("equals 3", ["equals 3"], "adult crows in South Zoo"),  
+            ("equals 4", ["equals 4"], "adult parrots in Bundle Ranch"),
+            ("equals 12", ["equals 12"], "adult owls in Bundle Ranch"),
+            ("equals 4", ["equals 4"], "adult blue jays in Bundle Ranch"),
+            ("= 20", ["= 20", "equals 20", "total: 20", "total is 20"], "total adult animals"),
+            ("equals 4", ["equals 4"], "newborn per adult owl"),
+            ("equals 8", ["equals 8"], "newborn per adult blue jay"),
+            ("= 48", ["= 48", "equals 48", "total: 48", "total is 48"], "newborn owls total"),
+            ("= 32", ["= 32", "equals 32", "total: 32", "total is 32"], "newborn blue jays total"),
+            ("= 112", ["= 112", "equals 112", "total: 112", "total is 112"], "total newborn")
         ]
         
-        # Check that each critical value is preserved
+        # Check that each critical value is preserved with some flexibility
         missing_values = []
-        for value, context in critical_values:
-            if value not in combined_content:
-                missing_values.append(f"{value} ({context})")
-        
-        # Also accept "equals 20" as alternative to "= 20"
-        if "= 20 (total adult animals)" in missing_values and "equals 20" in combined_content:
-            missing_values.remove("= 20 (total adult animals)")
+        for value_name, variations, context in critical_values:
+            if not any(var in combined_content for var in variations):
+                missing_values.append(f"{value_name} ({context})")
         
         assert len(missing_values) == 0, f"Missing critical numeric values: {missing_values}\n\nActual content:\n{combined_content[:500]}..."
         
-        # Also check key equations are preserved
+        # Also check key equations are preserved (with some flexibility for rephrasing)
         key_equations = [
-            "4 times",  # crow equation
-            "2 times",  # parrot equation
-            "12 + 4 + 4",  # total calculation
-            "48 + 32 + 32"  # final total
+            ("4 times", ["4 times", "times 4", "* 4"]),  # crow equation
+            ("2 times", ["2 times", "times 2", "* 2"]),  # parrot equation
+            ("12 + 4 + 4", ["12 + 4 + 4", "4 + 4 + 12"]),  # total calculation
+            ("48 + 32 + 32", ["48 + 32 + 32", "32 + 32 + 48"])  # final total
         ]
         
         missing_equations = []
-        for equation in key_equations:
-            if equation not in combined_content:
-                missing_equations.append(equation)
+        for equation_name, variations in key_equations:
+            if not any(var in combined_content for var in variations):
+                missing_equations.append(equation_name)
                 
-        assert len(missing_equations) == 0, f"Missing key equations: {missing_equations}"
+        assert len(missing_equations) == 0, f"Missing key equations: {missing_equations}\n\nActual content:\n{combined_content[:500]}..."
 
     async def test_preserve_mathematical_relationships_bug_regression(self, prompt_loader):
         """

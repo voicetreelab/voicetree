@@ -105,6 +105,82 @@ def _extract_defined_parameter(node_text: str) -> str:
     return params[0] if params else ""
 
 
+def _extract_defined_parameters_from_metadata(node_content: str) -> List[str]:
+    """
+    Extract parameters defined by a node from its _Defines:_ metadata section.
+    
+    Args:
+        node_content: The full content of the node
+        
+    Returns:
+        List of parameters this node defines, or empty list if no metadata
+    """
+    if not node_content or "_Defines:" not in node_content:
+        return []
+    
+    defines = []
+    lines = node_content.split('\n')
+    in_defines_section = False
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Start of Defines section
+        if line == "_Defines:":
+            in_defines_section = True
+            continue
+            
+        # End of Defines section (next metadata section or links)
+        if in_defines_section and (line.startswith("_") or line == "_Links:"):
+            break
+            
+        # Extract defined items
+        if in_defines_section and line.startswith("- "):
+            param = line[2:].strip()
+            if param:
+                defines.append(param)
+    
+    return defines
+
+
+def _extract_needed_parameters_from_metadata(node_content: str) -> List[str]:
+    """
+    Extract parameters needed by a node from its _Still_Requires:_ metadata section.
+    
+    Args:
+        node_content: The full content of the node
+        
+    Returns:
+        List of parameters this node still requires, or empty list if no metadata
+    """
+    if not node_content or "_Still_Requires:" not in node_content:
+        return []
+    
+    requires = []
+    lines = node_content.split('\n')
+    in_requires_section = False
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Start of Still_Requires section
+        if line == "_Still_Requires:":
+            in_requires_section = True
+            continue
+            
+        # End of Still_Requires section (next metadata section or links)
+        if in_requires_section and (line.startswith("_") or line == "_Links:"):
+            break
+            
+        # Extract required items
+        if in_requires_section and line.startswith("- "):
+            param = line[2:].strip()
+            if param:
+                requires.append(param)
+    
+    return requires
+
+
 def _extract_needed_parameters(query: str) -> List[str]:
     """
     Extract what parameters are needed from a query (right side of equals).
@@ -295,17 +371,30 @@ def get_semantically_related_nodes(decision_tree, query: str, remaining_slots_co
             # Find nodes that define the needed parameters
             dependency_matches = []
             for node_id, node in unselected_nodes:
-                # Combine title, summary, and content for parameter extraction
-                # Use content if available, otherwise fallback to title+summary
+                # First try to extract from metadata if content is available
+                defined_params = []
                 if hasattr(node, 'content') and node.content:
-                    node_text = node.content
+                    # Try metadata extraction first
+                    defined_params = _extract_defined_parameters_from_metadata(node.content)
+                    
+                    # If no metadata, fall back to equation parsing
+                    if not defined_params:
+                        defined_param = _extract_defined_parameter(node.content)
+                        if defined_param:
+                            defined_params = [defined_param]
                 else:
+                    # No content, try title+summary
                     node_text = f"{node.title} {node.summary}"
-                defined_param = _extract_defined_parameter(node_text)
+                    defined_param = _extract_defined_parameter(node_text)
+                    if defined_param:
+                        defined_params = [defined_param]
                 
-                if defined_param and defined_param in needed_params:
-                    dependency_matches.append(node_id)
-                    logging.info(f"Node {node_id} defines needed parameter: {defined_param}")
+                # Check if any defined parameters match what we need
+                for defined_param in defined_params:
+                    if defined_param in needed_params:
+                        dependency_matches.append(node_id)
+                        logging.info(f"Node {node_id} defines needed parameter: {defined_param}")
+                        break  # Only add node once
             
             # Add dependency matches first (these are highest priority)
             for node_id in dependency_matches:
