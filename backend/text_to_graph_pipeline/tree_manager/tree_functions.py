@@ -129,37 +129,36 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
     if len(decision_tree.tree) <= limit:
         return [deepcopy(node) for node in decision_tree.tree.values()]
     
-    # Collect root nodes
-    root_nodes = []
-    for node_id, node in decision_tree.tree.items():
-        if node.parent_id is None:
-            root_nodes.append(node_id)
-    
+    # # Collect root nodes
+    # root_nodes = []
+    # for node_id, node in decision_tree.tree.items():
+    #     if node.parent_id is None:
+    #         root_nodes.append(node_id)
+    #
     # Get recent nodes sorted by modification time
     all_nodes_by_recency = sorted(
         decision_tree.tree.items(),
         key=lambda x: x[1].modified_at,
         reverse=True
     )
-    
+    #
     # Build selected set
     selected = set()
     
-    # Include root nodes (up to 12.5% of limit)
-    root_limit = min(len(root_nodes), limit // 8)
-    for i in range(root_limit):
-        selected.add(root_nodes[i])
+    # # Include root nodes (up to 12.5% of limit)
+    # root_limit = min(len(root_nodes), limit // 8)
+    # for i in range(root_limit):
+    #     selected.add(root_nodes[i])
     
-    # Fill up to 50% more slots with recent nodes
+    # Fill up to 3/8 slots with recent nodes
     for node_id, node in all_nodes_by_recency:
-        if len(selected) >= (5*limit) // 8:
+        if len(selected) >= (3*limit) // 8:
             break
         selected.add(node_id)
     
-    # Fill remaining slots based on query or branching factor
+    # Fill remaining slots based on query
     remaining_slots = limit - len(selected)
     if remaining_slots > 0:
-        if query:
             nodes_related_to_query = get_semantically_related_nodes(decision_tree, query, remaining_slots, selected)
             
             # Add the semantically related nodes to selected set
@@ -172,14 +171,6 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
             if nodes_related_to_query:
                 node_names = [decision_tree.tree[node_id].title for node_id in nodes_related_to_query if node_id in decision_tree.tree]
                 logging.info(f"Semantically related nodes are: {node_names}")
-        else:
-            # No query provided, use original branching factor approach
-            nodes_by_branching = decision_tree.get_nodes_by_branching_factor(remaining_slots)
-            for node_id in nodes_by_branching:
-                if node_id not in selected:
-                    selected.add(node_id)
-                    if len(selected) >= limit:
-                        break
 
     # Return Node objects (copies) in consistent order
     result = []

@@ -21,14 +21,14 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "VT Clustering",
         "max_words": 63 * 10 + 1,
         "processing_mode": "line",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        # "currently_active": True
+        "currently_active": True
     },
     {
         "file": "backend/benchmarker/input/og_vt_transcript.txt",
         "name": "VT Original Transcript",
         "max_words": 63*10 + 1,
         "processing_mode": "word",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        # "currently_active": True
+        "currently_active": True
     },
     {
         "file": "backend/benchmarker/input/owl_transcript.txt", 
@@ -54,6 +54,6 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "GSM 16k hard",
         "max_words": None,
         "processing_mode": "line",  # Process line by line for structured data
-        "currently_active": True
+        # "currently_active": True
     }
 ]

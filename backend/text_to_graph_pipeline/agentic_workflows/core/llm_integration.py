@@ -118,7 +118,7 @@ def _get_client() -> genai.Client:
         # Configure HTTP options with a 2-minute timeout to prevent hanging
         # Most Gemini API calls should complete within 30-60 seconds
         http_options: HttpOptions = HttpOptions.model_construct(
-            timeout=520000 # in millis
+            timeout=30000 # 30s in millis
         )
         _CLIENT = genai.Client(api_key=api_key, http_options=http_options)
     return _CLIENT

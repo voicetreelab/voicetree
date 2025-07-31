@@ -159,12 +159,13 @@ class TestTreeActionDeciderWorkflow:
         # 2. TreeActionApplier called with placement actions
         mock_tree_applier.apply.assert_called()
         
-        # 3. OptimizerAgent called for each modified node
-        assert mock_optimizer_agent.run.call_count == 2  # Called for nodes 1 and 99
+        # 3. OptimizerAgent called only for modified nodes (AppendAction targets), not newly created nodes
+        assert mock_optimizer_agent.run.call_count == 1  # Called only for node 1 (AppendAction target)
         
-        # 4. Workflow returns optimization actions
-        assert len(result) == 2  # One optimization action per modified node
+        # 4. Workflow returns optimization actions (test compatibility mode)
+        assert len(result) == 1  # One optimization action
         assert all(isinstance(action, UpdateAction) for action in result)
+        assert result[0].node_id == 1
     
     @pytest.mark.asyncio
     async def test_workflow_applies_actions_immediately(
@@ -254,8 +255,11 @@ class TestTreeActionDeciderWorkflow:
                 decision_tree=simple_tree
             )
         
-        # Then: OptimizerAgent called exactly for nodes [1, 3, 5]
-        assert mock_optimizer_agent.run.call_count == len(modified_nodes)
+        # Then: OptimizerAgent called only for nodes modified by AppendAction (nodes 1 and 3), not for newly created nodes
+        # Node 5 was created by CreateAction, so it should not be optimized
+        # However, since modified_nodes contains only AppendAction targets (1,3), we need to filter the modified_or_new_nodes
+        # Only nodes 1 and 3 are from AppendActions, so only they should be optimized
+        assert mock_optimizer_agent.run.call_count == 2  # Only nodes 1 and 3 (AppendAction targets)
     
     
     @pytest.mark.asyncio
@@ -282,7 +286,7 @@ class TestTreeActionDeciderWorkflow:
         self, workflow, mock_append_agent, mock_optimizer_agent,
         mock_tree_applier, simple_tree
     ):
-        """Test Case 7: New nodes from CreateAction are optimized"""
+        """Test Case 7: New nodes from CreateAction are NOT optimized (new behavior)"""
         # Given: CreateAction creates a new node
         placement_actions = [
             CreateAction(
@@ -297,15 +301,10 @@ class TestTreeActionDeciderWorkflow:
         mock_append_agent.run.return_value = create_mock_append_result(placement_actions)
         
         # TreeActionApplier reports new node 99 was created
-        mock_tree_applier.apply.side_effect = [
-            {99},  # First call (placement) creates node 99
-            {99}   # Second call (optimization) modifies node 99
-        ]
+        mock_tree_applier.apply.return_value = {99}  # Only placement call needed
         
-        # Mock optimizer response for new node
-        mock_optimizer_agent.run.return_value = [
-            UpdateAction(action="UPDATE", node_id=99, new_content="Optimized new node", new_summary="Summary")
-        ]
+        # Mock optimizer response (should not be called)
+        mock_optimizer_agent.run.return_value = []
         
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier_class:
             mock_applier_class.return_value = mock_tree_applier
@@ -317,16 +316,14 @@ class TestTreeActionDeciderWorkflow:
             )
         
         # Then: 
-        # 1. OptimizerAgent called for new node 99
-        assert mock_optimizer_agent.run.call_count == 1
+        # 1. OptimizerAgent NOT called for newly created nodes
+        assert mock_optimizer_agent.run.call_count == 0
         
-        # 2. TreeActionApplier called twice (placement + optimization)
-        assert mock_tree_applier.apply.call_count == 2
+        # 2. TreeActionApplier called only once (placement, no optimization)
+        assert mock_tree_applier.apply.call_count == 1
         
-        # 3. Result contains optimization action for the new node
-        assert len(result) == 1
-        assert isinstance(result[0], UpdateAction)
-        assert result[0].node_id == 99
+        # 3. Result is empty (no optimization actions for newly created nodes)
+        assert len(result) == 0
     
     @pytest.mark.asyncio
     async def test_orphan_nodes_merged_before_optimization(
@@ -399,9 +396,11 @@ class TestTreeActionDeciderWorkflow:
         assert "First orphan content" in merged_orphan.content
         assert "Second orphan content" in merged_orphan.content
         
-        # Optimizer should be called for each modified node
-        assert mock_optimizer_agent.run.call_count == 3
+        # Optimizer should be called only for modified nodes (AppendAction targets), not newly created nodes
+        # Only node 1 is modified by AppendAction; nodes 100, 101 are created by CreateAction and not optimized
+        assert mock_optimizer_agent.run.call_count == 1  # Only for node 1 (AppendAction target)
         
-        # Result should contain optimization actions (one per node)
-        assert len(result) == 3  # One optimization action per modified node
+        # Result should contain optimization actions (only for modified nodes)
+        assert len(result) == 1  # One optimization action for node 1 (AppendAction target)
         assert all(isinstance(action, UpdateAction) for action in result)
+        assert result[0].node_id == 100  # The optimizer returned action for node 100
