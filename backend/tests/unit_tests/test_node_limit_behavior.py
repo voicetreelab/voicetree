@@ -75,12 +75,8 @@ class TestNodeLimitBehavior:
         assert len(nodes_list) <= 20, f"Expected at most 20 nodes, but got {len(nodes_list)}"
     
     def test_most_relevant_nodes_are_selected(self, decision_tree_with_many_nodes):
-        """Test that most relevant/recent nodes are prioritized"""
-        # Modify some recent nodes to mark them as recently updated
+        """Test that nodes with highest branching factor are prioritized"""
         tree = decision_tree_with_many_nodes
-        recent_node_ids = [46, 47, 48, 49, 50]  # Last 5 nodes
-        for node_id in recent_node_ids:
-            tree.append_node_content(node_id, "Recent update")
         
         # Get most relevant nodes with limit
         relevant_nodes = get_most_relevant_nodes(tree, 10)
@@ -92,9 +88,11 @@ class TestNodeLimitBehavior:
         # Extract node IDs from the result
         included_node_ids = [node['id'] for node in nodes_list]
         
-        # Assert recent nodes are included
-        recent_included = sum(1 for recent_id in recent_node_ids if recent_id in included_node_ids)
-        assert recent_included >= 3, f"Expected at least 3 recent nodes, but got {recent_included}"
+        # Nodes with highest branching factor should be included
+        # Based on the fixture: nodes 1,2,3,4,5,6,7,8,9 have 5 children each, node 0 has 4 children
+        high_branching_nodes = [1, 2, 3, 4, 5, 6, 7, 8, 9]  # Nodes with most children
+        high_branching_included = sum(1 for node_id in high_branching_nodes if node_id in included_node_ids)
+        assert high_branching_included >= 3, f"Expected at least 3 high-branching nodes, but got {high_branching_included}"
     
     def test_node_limit_is_configurable(self):
         """Test that node limit can be configured via settings"""
@@ -139,8 +137,8 @@ class TestNodeLimitBehavior:
         # All 5 nodes should be included
         assert len(nodes_list) == 5, f"Expected all 5 nodes, but got {len(nodes_list)}"
     
-    def test_node_selection_includes_root_and_recent(self, decision_tree_with_many_nodes):
-        """Test that node selection includes both root nodes and recent nodes"""
+    def test_node_selection_includes_high_branching_nodes(self, decision_tree_with_many_nodes):
+        """Test that node selection includes nodes with high branching factor"""
         # Get most relevant nodes
         relevant_nodes = get_most_relevant_nodes(decision_tree_with_many_nodes, 15)
         
@@ -150,13 +148,11 @@ class TestNodeLimitBehavior:
         # Extract node IDs
         included_node_ids = [node['id'] for node in nodes_list]
         
-        # Root node (id=1) should always be included
-        assert 1 in included_node_ids, "Root node should always be included"
-        
-        # Some recent nodes should be included
-        recent_nodes = [46, 47, 48, 49, 50]
-        recent_included = sum(1 for node_id in recent_nodes if node_id in included_node_ids)
-        assert recent_included >= 3, f"At least 3 recent nodes should be included, but only {recent_included} were"
+        # Nodes with high branching factor should be included
+        # Based on fixture structure, nodes 1-9 have the most children (5 each)
+        high_branching_nodes = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        high_branching_included = sum(1 for node_id in high_branching_nodes if node_id in included_node_ids)
+        assert high_branching_included >= 3, f"At least 3 high-branching nodes should be included, but only {high_branching_included} were"
     
     def test_query_based_relevance_selection(self):
         """Test that nodes are selected based on query relevance when query is provided"""

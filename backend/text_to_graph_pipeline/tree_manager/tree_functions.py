@@ -460,12 +460,17 @@ def get_semantically_related_nodes(decision_tree, query: str, remaining_slots_co
             # Combine similarities: boost n-gram matches
             similarities = unigram_similarities + (2.0 * ngram_similarities)  # 2x weight for phrases
 
-            # Get nodes with similarity > threshold
+            # Get nodes with similarity > threshold, but ensure we return some nodes if we have few total nodes
             threshold = 0.01
             ranked_indices = np.argsort(similarities)[::-1]
+            
+            # If we have fewer nodes than requested and they exist, lower the threshold to include more
+            total_unselected_nodes = len(unselected_nodes)
+            if total_unselected_nodes <= original_limit:
+                threshold = 0.001  # Much lower threshold when we have few nodes
 
             for idx in ranked_indices:
-                if similarities[idx] > threshold:
+                if similarities[idx] > threshold or len(selected_nodes) < min(total_unselected_nodes, remaining_slots_count):
                     selected_nodes.append(node_ids[idx])
                     if len(selected_nodes) >= original_limit:
                         break
