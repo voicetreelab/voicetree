@@ -12,23 +12,39 @@ from .config import (
 )
 
 
-def setup_output_directory():
-    """Handles backing up previous results and setting up a clean output directory."""
-    if os.path.exists(OUTPUT_DIR):
-        # Create a timestamped backup directory name
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = os.path.join(BACKUP_DIR_BASE, f"backup_{timestamp}")
+def setup_output_directory(output_dir=None):
+    """Handles backing up previous results and setting up a clean output directory.
+    
+    Args:
+        output_dir: The output directory to setup. If None, uses OUTPUT_DIR from config.
+    """
+    if output_dir is None:
+        output_dir = OUTPUT_DIR
         
-        # Ensure the base backup directory exists
-        os.makedirs(BACKUP_DIR_BASE, exist_ok=True)
-        
-        print(f"Backing up existing output from {OUTPUT_DIR} to {backup_dir}")
-        shutil.copytree(OUTPUT_DIR, backup_dir)
-        
-        # Clear the output directory for a fresh run
-        shutil.rmtree(OUTPUT_DIR)
-        
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # For transcript-specific subdirectories, we don't backup the entire OUTPUT_DIR
+    # Just ensure the directory exists and is clean
+    if output_dir != OUTPUT_DIR:
+        # This is a subdirectory - just ensure it exists and is clean
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+    else:
+        # This is the main OUTPUT_DIR - do the full backup process
+        if os.path.exists(OUTPUT_DIR):
+            # Create a timestamped backup directory name
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_dir = os.path.join(BACKUP_DIR_BASE, f"backup_{timestamp}")
+            
+            # Ensure the base backup directory exists
+            os.makedirs(BACKUP_DIR_BASE, exist_ok=True)
+            
+            print(f"Backing up existing output from {OUTPUT_DIR} to {backup_dir}")
+            shutil.copytree(OUTPUT_DIR, backup_dir)
+            
+            # Clear the output directory for a fresh run
+            shutil.rmtree(OUTPUT_DIR)
+            
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def get_git_info():
