@@ -13,7 +13,7 @@ You have some tools to help you do this:
 2. Then, use python find_files_by_tags.py to filter backend/benchmarker/output_clustered 
 to possible relevant files,  
 
-Example: python find_files_by_tags.py ./backend/tests/animal_example_clustered adult_crow adult_parrot markons_commons
+Example: python find_files_by_tags_AND.py ./backend/tests/animal_example_clustered adult_crow adult_parrot markons_commons that will match files that contain atleast all these tags 
 
 Out of these possibly relevant files, choose ALLL the files that could at all possibly be related to our question.
 

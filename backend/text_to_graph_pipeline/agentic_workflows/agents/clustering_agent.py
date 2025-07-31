@@ -23,7 +23,7 @@ class ClusteringAgent(Agent):
         self.add_prompt_node(
             "clustering",
             TagResponse,
-            model_name="gemini-2.5-flash-lite"
+            model_name="gemini-2.5-flash"
         )
         self.add_dataflow("clustering", END)
     
