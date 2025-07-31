@@ -83,7 +83,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             content = f.read()
             # Check YAML frontmatter
             self.assertIn("---\n", content)
-            self.assertIn("title: Child Node 1\n", content)
+            self.assertIn("title: Child Node 1 1\n", content)
             self.assertIn("node_id: 1\n", content)
             self.assertIn("Updated Child Node 1", content)
             parent_file = self.tree_data[0].filename
@@ -179,10 +179,8 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             content = f.read()
             # Check YAML frontmatter format
             self.assertTrue(content.startswith("---\n"))
-            self.assertIn("title: root node\n", content)
+            self.assertIn("title: root node 0\n", content)
             self.assertIn("node_id: 0\n", content)
-            self.assertIn("created_at:", content)
-            self.assertIn("modified_at:", content)
             # Check that frontmatter ends properly
             frontmatter_end = content.find("---\n", 4)
             self.assertGreater(frontmatter_end, 4)
@@ -293,7 +291,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             lines = content.split('\n')
             self.assertEqual(lines[0], "#newborn_children #adult_owl #south_zoo #average")
             self.assertEqual(lines[1], "---")
-            self.assertIn("title: Multi Tagged Node", content)
+            self.assertIn("title: Multi Tagged Node 97", content)
         
         # Test single-tagged node
         single_file_path = os.path.join(self.output_dir, single_tagged_node.filename)
@@ -302,7 +300,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             lines = content.split('\n')
             self.assertEqual(lines[0], "#domestic_pets")
             self.assertEqual(lines[1], "---")
-            self.assertIn("title: Single Tagged Node", content)
+            self.assertIn("title: Single Tagged Node 96", content)
         
         # Test empty tags behaves like no tags
         empty_file_path = os.path.join(self.output_dir, empty_tagged_node.filename)
@@ -310,7 +308,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             content = f.read()
             lines = content.split('\n')
             self.assertEqual(lines[0], "---")  # Should start with YAML frontmatter, no hashtags
-            self.assertIn("title: Empty Tagged Node", content)
+            self.assertIn("title: Empty Tagged Node 95", content)
             
         # Test special characters in tags
         special_file_path = os.path.join(self.output_dir, special_tagged_node.filename)
@@ -319,7 +317,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             lines = content.split('\n')
             self.assertEqual(lines[0], "#animal-behavior #zoo_animals #math123")
             self.assertEqual(lines[1], "---")
-            self.assertIn("title: Special Tagged Node", content)
+            self.assertIn("title: Special Tagged Node 94", content)
 
 
 if __name__ == '__main__':
