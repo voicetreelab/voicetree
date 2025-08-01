@@ -49,13 +49,40 @@ For EVERY segment you create, assess its completeness:
 **`transcript_text`:** "I need to look into visualization libraries. hey mom yes please uh and converting text into a data format. But that's later. Oh yea, Myles mentioned Mermaid as a good visualization option. Overall visualization is"
 
 **Output:**
+```json
 {
-  "reasoning": "The speaker mentions three distinct thoughts: 1) needing to research visualization libraries (complete task), 2) converting text to data format which is immediately deprioritized (incomplete but still meaningful), 3) recalling Myles' suggestion about Mermaid (related to first thought).",
+  "reasoning": "The speaker mentions three distinct thoughts: 1) needing to research visualization libraries (complete task), 2) converting text to data format which is immediately deprioritized (incomplete but still meaningful), 3) recalling Myles' suggestion about Mermaid (related to first thought). The 'hey mom yes please uh' appears to be an interruption or cross-talk that should be removed as filler.",
   "segments": [
-    {"text": "I need to look into visualization libraries.", "is_routable": true},
-    {"text": "hey mom yes please uh", "is_routable": false},
-    {"text": "and converting text into a data format. But that's later.", "is_routable": true},
-    {"text": "Oh yeah, Myles mentioned Mermaid as a good visualization option.", "is_routable": true}
+    {
+      "reasoning": "First complete thought about needing to research visualization libraries",
+      "edited_text": "I need to look into visualization libraries.",
+      "raw_text": "I need to look into visualization libraries.",
+      "is_routable": true
+    },
+    {
+      "reasoning": "Interruption/cross-talk that doesn't convey meaningful content",
+      "edited_text": "hey mom yes please",
+      "raw_text": "hey mom yes please uh",
+      "is_routable": false
+    },
+    {
+      "reasoning": "Mentions converting text to data format but immediately deprioritizes it - still a complete thought",
+      "edited_text": "and converting text into a data format. But that's later.",
+      "raw_text": "and converting text into a data format. But that's later.",
+      "is_routable": true
+    },
+    {
+      "reasoning": "Recalls a specific suggestion about Mermaid, relating back to visualization",
+      "edited_text": "Oh yeah, Myles mentioned Mermaid as a good visualization option.",
+      "raw_text": "Oh yea, Myles mentioned Mermaid as a good visualization option.",
+      "is_routable": true
+    },
+    {
+      "reasoning": "Incomplete sentence cut off mid-thought",
+      "edited_text": "Overall visualization is",
+      "raw_text": "Overall visualization is",
+      "is_routable": false
+    }
   ],
   "debug_notes": null
 }
@@ -65,20 +92,26 @@ For EVERY segment you create, assess its completeness:
 **`transcript_text`:** "Okay, the dashboard is loading slowly. This is the third time this week. It only happens around 9 AM Eastern. The next thing we will have to look at is CPU spikes."
 
 **Output:**
+```json
 {
-  "reasoning": "This unit describes a single problem. The first sentence states the problem, and the next two provide elaborating details (frequency, timing). They are grouped as one coherent thought. The second segment marks a clear shift in intent from problem description to proposing a new, distinct action (investigating CPU spikes). This is a new thought unit.",
+  "reasoning": "This unit describes a single problem. The first sentence states the problem, and the next two provide elaborating details (frequency, timing). They are grouped as one coherent thought. The final sentence marks a clear shift in intent from problem description to proposing a new, distinct action (investigating CPU spikes). This is a new thought unit.",
   "segments": [
     {
-      "text": "Okay, the dashboard is loading slowly. This is the third time this week. It only happens around 9 AM Eastern.", 
+      "reasoning": "Complete problem description with frequency and timing details - all related to the same dashboard loading issue",
+      "edited_text": "Okay, the dashboard is loading slowly. This is the third time this week. It only happens around 9 AM Eastern.",
+      "raw_text": "Okay, the dashboard is loading slowly. This is the third time this week. It only happens around 9 AM Eastern.",
       "is_routable": true
     },
     {
-      "text": "The next thing we will have to look at is CPU spikes.", 
+      "reasoning": "Shift to proposing next investigative action - new intent",
+      "edited_text": "The next thing we will have to look at is CPU spikes.",
+      "raw_text": "The next thing we will have to look at is CPU spikes.",
       "is_routable": true
     }
   ],
   "debug_notes": null
 }
+```
 ────────────────────────────────────────
 EXISTING NODES (for context awareness):
 {{existing_nodes}}
