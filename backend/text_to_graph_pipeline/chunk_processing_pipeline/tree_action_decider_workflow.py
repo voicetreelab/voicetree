@@ -20,6 +20,7 @@ from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
 from ..text_buffer_manager import TextBufferManager
 from ..tree_manager.decision_tree_ds import DecisionTree
 from ..tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
+from ..tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 from .apply_tree_actions import TreeActionApplier
 
 
@@ -37,15 +38,15 @@ async def log_tree_actions(append_or_create_actions):
     for act in append_or_create_actions:
         if isinstance(act, CreateAction):
             create_log = f"CREATING new node:'{act.new_node_name}' "
-            if len(act.content) > 10:
-                create_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
+            # if len(act.content) > 10:
+                # create_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
             print(create_log)
             logging.info(create_log)
 
         elif isinstance(act, AppendAction):
             append_log = f"APPENDING to:'{act.target_node_name}' "
-            if len(act.content) > 10:
-                append_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
+            # if len(act.content) > 10:
+                # append_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
             print(append_log)
             logging.info(append_log)
 
@@ -221,7 +222,15 @@ class TreeActionDeciderWorkflow:
                     modified_nodes.add(action.target_node_id)
         
         logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}")
-        
+
+        # Sync markdown content back to tree before optimization
+        # This ensures manual edits to markdown files are preserved
+        if modified_nodes:
+            logging.info(f"Syncing {len(modified_nodes)} modified nodes from markdown before optimization")
+            sync_nodes_from_markdown(self.decision_tree, modified_nodes)
+
+
+
         # ======================================================================
         # PHASE 2: OPTIMIZATION
         # ======================================================================
@@ -253,22 +262,22 @@ class TreeActionDeciderWorkflow:
                 for opt_action in optimization_actions:
                     if isinstance(opt_action, UpdateAction):
                         update_log = f"OPTIMIZER: UPDATING node:{opt_action.node_id} "
-                        if len(opt_action.new_content) > 10:
-                            update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
+                        # if len(opt_action.new_content) > 10:
+                        #     update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
                         print(update_log)
                         logging.info(update_log)
                     
                     elif isinstance(opt_action, CreateAction):
                         create_log = f"OPTIMIZER: CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
-                        if len(opt_action.content) > 10:
-                            create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                        # if len(opt_action.content) > 10:
+                        #     create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
                         print(create_log)
                         logging.info(create_log)
                     
                     elif isinstance(opt_action, AppendAction):
                         append_log = f"OPTIMIZER: APPENDING to node:{opt_action.target_node_id} "
-                        if len(opt_action.content) > 10:
-                            append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
+                        # if len(opt_action.content) > 10:
+                        #     append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
                         print(append_log)
                         logging.info(append_log)
                     
