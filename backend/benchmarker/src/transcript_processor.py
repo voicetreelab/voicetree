@@ -81,7 +81,7 @@ class TranscriptProcessor:
         # Setup fresh output directory (with optional subdirectory)
         if output_subdirectory:
             transcript_output_dir = os.path.join(OUTPUT_DIR, output_subdirectory)
-            setup_output_directory(transcript_output_dir)
+            setup_output_directory(transcript_output_dir, transcript_identifier=transcript_identifier)
         else:
             setup_output_directory()
         

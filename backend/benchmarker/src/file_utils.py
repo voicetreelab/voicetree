@@ -12,39 +12,44 @@ from .config import (
 )
 
 
-def setup_output_directory(output_dir=None):
+def setup_output_directory(output_dir=None, transcript_identifier=None):
     """Handles backing up previous results and setting up a clean output directory.
     
     Args:
         output_dir: The output directory to setup. If None, uses OUTPUT_DIR from config.
+        transcript_identifier: If provided, backs up only this specific transcript's output
     """
     if output_dir is None:
         output_dir = OUTPUT_DIR
         
-    # For transcript-specific subdirectories, we don't backup the entire OUTPUT_DIR
-    # Just ensure the directory exists and is clean
-    if output_dir != OUTPUT_DIR:
-        # This is a subdirectory - just ensure it exists and is clean
+    # For transcript-specific subdirectories
+    if output_dir != OUTPUT_DIR and transcript_identifier:
+        # This is a transcript-specific subdirectory
         if os.path.exists(output_dir):
-            shutil.rmtree(output_dir)
-        os.makedirs(output_dir, exist_ok=True)
-    else:
-        # This is the main OUTPUT_DIR - do the full backup process
-        if os.path.exists(OUTPUT_DIR):
-            # Create a timestamped backup directory name
+            # Create a timestamped backup for this specific transcript
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_dir = os.path.join(BACKUP_DIR_BASE, f"backup_{timestamp}")
+            backup_dir = os.path.join(BACKUP_DIR_BASE, f"{transcript_identifier}_backup_{timestamp}")
             
             # Ensure the base backup directory exists
             os.makedirs(BACKUP_DIR_BASE, exist_ok=True)
             
-            print(f"Backing up existing output from {OUTPUT_DIR} to {backup_dir}")
-            shutil.copytree(OUTPUT_DIR, backup_dir)
+            print(f"Backing up existing output from {output_dir} to {backup_dir}")
+            shutil.copytree(output_dir, backup_dir)
             
-            # Clear the output directory for a fresh run
-            shutil.rmtree(OUTPUT_DIR)
-            
+            # Clear the transcript's output directory
+            shutil.rmtree(output_dir)
+        
+        # Create the directory fresh
+        os.makedirs(output_dir, exist_ok=True)
+    elif output_dir == OUTPUT_DIR and not transcript_identifier:
+        # This is the main OUTPUT_DIR without a specific transcript
+        # Just ensure it exists - don't backup the whole thing anymore
         os.makedirs(OUTPUT_DIR, exist_ok=True)
+    else:
+        # Legacy behavior for any other case
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
 
 def get_git_info():
