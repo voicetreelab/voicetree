@@ -48,7 +48,7 @@ class MarkdownToTreeSynchronizer:
         markdown_path = os.path.join(self.decision_tree.output_dir, node.filename)
         
         if not os.path.exists(markdown_path):
-            logging.debug(f"Markdown file not found for node {node_id}: {markdown_path}")
+            logging.warning(f"Markdown file not found for node {node_id}: {markdown_path}")
             return False
         
         try:

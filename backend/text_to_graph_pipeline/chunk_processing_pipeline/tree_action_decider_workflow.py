@@ -200,6 +200,21 @@ class TreeActionDeciderWorkflow:
         # todo, we should move this logic into append_agent
         actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions)
 
+        # --- SYNC MARKDOWN BEFORE APPLYING ACTIONS ---
+        # Identify which nodes will be modified by Phase 1 actions
+        nodes_to_sync_before_phase1: Set[int] = set()
+        for action in actions_to_apply:
+            if isinstance(action, (AppendAction, UpdateAction)):
+                # These actions modify existing nodes
+                node_id = action.target_node_id if isinstance(action, AppendAction) else action.node_id
+                nodes_to_sync_before_phase1.add(node_id)
+        
+        # Sync markdown content back to tree BEFORE applying Phase 1 actions
+        # This ensures manual edits to markdown files are preserved
+        if nodes_to_sync_before_phase1:
+            logging.info(f"Syncing {len(nodes_to_sync_before_phase1)} nodes from markdown BEFORE Phase 1 actions")
+            sync_nodes_from_markdown(self.decision_tree, nodes_to_sync_before_phase1)
+
         # --- First Side Effect: Apply Placement ---
         modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
         logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
@@ -222,14 +237,6 @@ class TreeActionDeciderWorkflow:
                     modified_nodes.add(action.target_node_id)
         
         logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}")
-
-        # Sync markdown content back to tree before optimization
-        # This ensures manual edits to markdown files are preserved
-        if modified_nodes:
-            logging.info(f"Syncing {len(modified_nodes)} modified nodes from markdown before optimization")
-            sync_nodes_from_markdown(self.decision_tree, modified_nodes)
-
-
 
         # ======================================================================
         # PHASE 2: OPTIMIZATION
