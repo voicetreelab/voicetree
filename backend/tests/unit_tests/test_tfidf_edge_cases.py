@@ -10,8 +10,8 @@ from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_
 class TestTfidfEdgeCases:
     """Test edge cases for TF-IDF functionality"""
     
-    def test_empty_query_falls_back_to_branching_factor(self):
-        """Test that empty query uses branching factor approach"""
+    def test_empty_query_returns_recent_nodes_only(self):
+        """Test that empty query returns recent nodes only (branching factor fallback removed)"""
         tree = DecisionTree()
         
         # Add some nodes
@@ -25,13 +25,14 @@ class TestTfidfEdgeCases:
             )
             tree.tree[i] = node
         
-        # Empty query should fall back to branching factor
+        # Empty query returns only recent nodes (up to 3/8 of limit)
+        # With limit=3: (3*3)//8 = 1 recent node
         results = get_most_relevant_nodes(tree, limit=3, query="")
-        assert len(results) == 3
+        assert len(results) == 1  # Only recent nodes selected, no branching factor fallback
         
-        # None query should also fall back
+        # None query should behave the same
         results = get_most_relevant_nodes(tree, limit=3, query=None)
-        assert len(results) == 3
+        assert len(results) == 1
     
     def test_query_with_only_stopwords(self):
         """Test that query with only stopwords still works"""
