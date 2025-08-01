@@ -1097,3 +1097,291 @@ See the light.
 Oh.
 All you know.
 Thank you.
+You have a teleprompter. Yeah, a teleprompter. And then you show the tree, the real world example, you speed it up to the final tree, explain what it's doing, show an agent, zoom in, and then you go show a benchmark, through the benchmark, that's the tree.
+This is how it's going to change. It world. And it works. At the end you say this is how it's going to change everything.
+Yeah, the impact from from productivity to yeah, yeah, that's the product. Exactly. Call it. And the 7th? CTA. The conclusion is YC. You've found your you.
+I see you found your view. And then a picture of you with a user class. I'd be like the idea of saying it. Sounds kind of cool. Yeah, cool. So this is, then you need to see this is how it is going to revolutionize. Okay, for a second.
+What are the current revolution now? All age before or? These things we already have. Okay, yeah, but so one month, show the tree, three, the benchmarks, and four, the impacts of the
+Yeah.
+Yeah. I'm mostly to recognize that this is an improvement and everything that's been out there until now.
+Yeah, I think it's big. Yeah, I think rather than you continue to work on it, to just one on that. Having the background video of these things. Yeah.
+And you want to want to get all that is better. Yeah, exactly. You're not going to do that in the weekend. No. We have lots of nature. So this is what's being made right then on. So this is what's being made right then on. I think so when you're talking about. I thought that was quite so do we, with the voice, not the actual video.
+Uh,
+like it's talking about you know what we talked about the demonstration preparation instruction demonstration installation for this benchmarking but I could force it to make new notes for you know that's sort of when you're like it does the video's to be shot live in edit. Yeah, definitely live. Exactly. Because that was the problem with the one you did with with your Google one. It was just too slow, the nodes being created. It was really slow after this. And you have like this 30 second thing of a reading, which I think is really good. I don't think we need to show the actual meeting and transcription of this. But it was just like, it was really slow to build this. you have to really be kind of honest. I think you should concentrate now finding one example of all the things you've already done. Yeah. Or your user meaning of something. I mean, I think it would be best to show how a software engineer which is. Yeah. Because you know something. And then you can see after because it's also going to be applicable for the...
+Project One, if it was a product. I don't know how I can engineer myself how it can be useful. But it can also be used in many other. Yeah, that I will only demonstrate one short one here.
+My too heavy, I was 8 kilos because all the other ways were gone. They only had to be 16, the age of 16, for my sports and the age in which hand. But my family definitely was. You and I can be rich.
+Thank you.
+All right, hey, I'm the CEO of Boy Street. Boy Street, West Street.
+software that he works text streams into abstraction grounds.
+Yeah.
+I have a little license.
+Okay.
+shape.
+Yeah.
+What time do peace indeed for this prayer?
+That's not short.
+7. Sorry for 7. We want to hear that of those six, right?
+But we're not going to do it, but it's going to smack.
+Okay.
+Okay, and we have a problem right now that we need to fix, which is, well right now it's actually the positioning of the nodes and the growth.
+Okay, and then another thing related to being a CEO of moisture is that I have to why see demo.
+I'm Immonon Mason and I'm the founder of Wiestry.
+Voice Street is a new way to interact with AI.
+Boistery has a core algorithm.
+which is.
+related to converting.
+So the main part we do is converting voice into a tree or a visual mind that was formed.
+Hey, why come there. I'm Bonner Mason. I'm a founder of a voice to tree.
+voice to tree converts live voice into a knowledge wrap.
+Okay. Um, and I went to shoot.
+And so one of all I have now is that the voice transcription is not quite high quality because I'm running it on a possible model for it to be more alive. What is what is the...
+Hey Y-Cominator, I'm Mahdi Mason.
+and I'm the founder of Voice Free.
+So what I'm here to show you today? I'm here to show you this software that I've created.
+that converts live spoken.
+boys into a graph woman.
+And.
+Thank you.
+Why is this useful?
+The reason why it isn't useful is that it externalizes your...
+short amendment.
+Maybe again.
+Yeah.
+I'm working on a voice tree and the first thing I'm realizing is we still have some problems in our voice to text transcription model.
+and that's all have to improve that. And that's potentially due to.
+Well, we don't know yet what it's to YouTube. So the first thing we're going to do is going to do to see what the, see if we can understand what the problems are.
+I'm not working on that right now. You can help, you can tell that to be a landlord.
+Jack it out the green one and 7th are here.
+No, ma'am. Thank you.
+Thank you.
+Thank you.
+All righty. Okay, cool. So today we're working on voice tree and we want to so the main thing we're doing is we want to be able to prepare for our Y Combinator live demo.
+and
+To do that we want essentially some
+Good.
+to be able to use voice tree live and have it look fairly decent.
+the new voice-to-text algorithm for voice tree and seeing how good it is.
+All righty, so how good is voice tree? How good is the voice to text? That's some of the questions we have and we want to see...
+also things like what is the total time out.
+So.
+Okay, and now we want to think about ways we could improve the voice to text algorithm for a voice tree and we want to figure out if the
+version that just got sent through is actually better. The one that Gemini sent us.
+Amazing. So our voice to text algorithm now is actually working really impressively well. Very rapid.
+very live it might be good enough to use for the demo because we have a demo for Y Combinator which is a while we're...
+to improve this algorithm and so maybe it's good enough now.
+Thank you.
+Oh, that's all good.
+You don't have to put.
+Great.
+And so now we're noticing more just some problems with the voice transcription.
+So let's do voice to text. Let's see what currently condition on previous text.
+You don't stop.
+Yeah.
+W.
+And in the form, now to the air. Yeah.
+Yes.
+Good luck.
+So we're asking to come on here. Oh. Yes. Great.
+But give it to where.
+I'm sorry.
+Yeah.
+I can.
+on Voice.
+Alrighty, okay, so today we're working in Voice Train. Voice and software which converts Voice into a
+graph format.
+All right now we're going to see if we can use the old
+turbo model for voice transcription and if that's any better.
+VoiceTree. VoiceTree is software which converts voice into a visual graph format.
+Alrighty, today we're working on VoiceTree. VoiceTree is software which converts voice into a visual graph format. Nice.
+Okay, so now we just want to test the total latency.
+Okay, cool. We are just working on improving the voice-to-text algorithm for VoiceTree. And we see...
+there's some sort of blocking or something with the main algorithm. So we want to check that.
+And so now I want to especially see if we can get text.
+If we can get text transcribed while the main algorithm is running.
+Au.
+and that is a bit hard to figure out. So let's test one, two, three.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Thanks.
+Only the second round he knows, so we're waiting.
+Thank you.
+I don't know.
+Alright, cool. So what is VoiceTree?
+and what all right cool so what is voice tree and what are we going to work on today
+All right, cool. So one thing we wanted to test was when we're creating new nodes, what exactly happens?
+So we had a problem before where new nodes would block. So when we're running our main loop, it would block.
+And we want to know now, is it still blocking?
+Okay, and now it looks like it's not blocking the main loop, which is rather excellent. And now...
+Ideally, one thing we still want to do is find out if there is a faster voice text model.
+So we currently get to choose between whisper medium and whisper large distill and whisper large.
+Turbo and whisper large turbo is the the fastest I'm sorry whisper large turbo is the best
+Um, whisper mediums are the fastest, but it's not quite good enough. Um, so we need to decide between those.
+I'll plug your G here.
+Hey, Y Combinator. I'm Hanu Mason, and I'm the founder of VoiceTree. VoiceTree is software which converts...
+extremes into abstraction graphs. So what the hell does that mean? I'll show you an example.
+Um, so what exactly I mean by this?
+Thanks.
+Hey Y Commenter, I'm Manu Mason, and I...
+have been working the past year and a half on software that
+improves the way that provides a new way of working.
+A lot of this has been centered around a core algorithm, which I call...
+VoiceTree. VoiceTree takes a text.
+and converts it into a visual graph format.
+Hey Y Combinator, I'm Manu Mason, and I've been busy building software that unlocks a new system of humanity.
+AI collaboration. What does that mean? So this system is centered around our core algorithm called
+voice stream which converts text streams for example live voice into a tree format like
+a Mindman.
+This is our platform and on top of it so much as possible. We have so far focused on two
+awesome use cases. The first is an interface for engineers to manage multiple coding agents. The second
+is improving agents themselves through compressing and better representing their context with VoiceTree.
+Hey Y Combinator, I'm Manu Mason. I've been busy building software that unlocks a new system for human
+AI collaboration. What does that mean? Well, to understand that, first...
+understand our core algorithm.
+called VoiceTree, which converts text streams, such as LiveVoice, into a tree format, like a mind map.
+This is our platform. On top of it, so much as possible. We have so far focused on two awesome use cases.
+The first...
+is an interface for engineers to manage multiple coding agents.
+The second is improving agents themselves through compressing and better representing their context with VoiceTree.
+So here it's listening and then if I have here
+I'll show you.
+so i can do it like this oops so you can see that it's recording yeah and if i have here and then it just needs to be
+perfect though, the transcript. Oh my god. Okay, let me close this one. And what happened to the idea that happened? So here is the transcript, and then it... Yeah, but it's...
+terrible when it tells you loaded environment well I don't need that you can get rid of that okay okay but then it can just show you what is actually happening okay
+And then you can see it appear live in the screen and what about the thing with the voice? So here it says like creating new node and then it the new node
+appears it helps people understand what's going on yeah cool okay and so here what what
+I can fine tune it to create the ideal graph, right? So we have introduction, I'm Monomason, I've been building the building.
+software that locks a new system for human eye calibration so this one it got pretty well
+And then...
+I have voice tree, the core algorithm.
+Mm-hmm. And then we have the use cases.
+And I don't know if it should be connected to a voice tree.
+Or if it should be connected to human eye collaboration so it looks better like this like this. Yeah
+Could we then show with the same one the agents start working on that or you would do a different example for that I can
+I can show them quickly, so on any node, you can open a terminal.
+which
+So, right now it's a... I don't like that it always rearranges. Yeah, I've been working on fixing that. So now, so right now I've fixed...
+it so that new nodes appear, don't rearrange it, but I just don't even fix it a terminal rearranges it. And then I can show them that you can open a terminal and run.
+Minor delusion.
+Um...
+And so that could be the dummy, you know, and then we show them the, here's what that looks like. And then there's a complex version. And what are you going to use for that?
+for the practice one, the real one.
+um what do you mean what what what voice tree are you going to use for when you're showing the real complex well i'll try and make one you'll try and make one yeah
+I think that's very good. Once you have some footage, you send to me. I keep doing a bit of research on the Canva. So what else should I say?
+does this make sense yeah like because it sort of is like wow okay human AI collaboration well
+What is that? Then they see the graph being made, and they say, oh, okay. And then...
+The first interface should I say the second which we didn't like should I tell them that we didn't realize it? I wouldn't say it
+We can say it in like the interview or in the documentation, but I wouldn't say in the video. Yeah, but should I say like
+say about why it's useful for humans and AIs, a bit about like that, like the memory optimization. Yeah, exactly.
+Where would I put that here? No a bit later when you started describing what the second is. Why?
+How are these two use cases connected? Disconnected.
+Why does it actually help? Let me get my, I have, I've been starting to work on a script.
+Hey Y Combinator, I'm Manu Mason. I've been busy building software that unlocks a new system for human AI collaboration.
+
+This system is centered around our core algorithm called VoiceTree, which converts text streams
+such as live voice.
+into a tree representation, similar to a mind map.
+
+Hey Y Combinator, I'm Manu Mason and I've been busy building software that unlocks a new system for human AI collaboration.
+This system is centered around our core algorithm called VoiceTree, which converts text streams, such as a live voice, into a tree representation.
+presentation, similar to a mind map.
+It's running right now live.
+What's the benefit of this? The tree allows for a more efficient representation of content, decreasing cognitive load by...
+providing a memory aid for the high-level concepts and the relationships between them rather than get lost in the detail.
+As we'll see soon, both humans and LLMs can benefit from this.
+On top of this VoiceTree platform, so much is possible. We have so far focused on two awesome use cases.
+The first is an interface for software engineers to manage multiple coding agents.
+The second is improving agents themselves through compressing and better representing their context with Voice Street.
+All righty. Hey, I'm working on VoiceTree today and I'm trying to get ready for the demo, which is due Monday. And today was meant to be spending working on recording some examples of using VoiceTree.
+Okay, cool. So, let's see. This one we can close. All right, so, voice-through demo preparation, what do we need to do? So, one thing we need to do is we wanted just a leftover task from yesterday was to improve the Zoom.
+So I'm going to improve the zoom behavior when we open a terminal.
+Okay, improved zoom behavior. Another thing we wanted to do on the UI side was to add the animation that shows a breathing effect for new nodes.
+Um, we're also doing sort of a meta thing right now, which is we want to get sort of an idea of the behavior right now of VoiceTree, um, so that we can, um, get some good intuition for how we could improve it in the future. Okay, let's talk a bit about add breathing animation for new nodes. What do we need to do there exactly? Um, so I think we already have the breathing animation. Um, yeah.
+on on when you um pin a node um so we can see that's working right now um and so all i think we need to do is um add the animation um for when just actually a new node is added um and i think we can do that um how can we do that we can do that i think on the ui side uh detecting when a node is either added or modified
+And perhaps we can have a slightly different animation for new nodes versus nodes that got appended to.
+Um...
+Cool. And I remember we had some example of that from before. So let me try to find that. It was here. Okay, let's just close these. So I think we had, if I do Claude, I think I can find an example. Might be this one. Yeah.
+We can either, so we have a choice now, we can either do it on the, completely on the front end side by adding this class when we detect a new node, or we can do it partly on the back end side by adding the class to new nodes versus just. So it might work, right, if we just, on the back end side.
+of VoiceTree, when we create a new node, create it with a class, and that class has an animation that stops after 15 seconds or so. And we can do the same when we append to a node. We can, in the back end, add a class recently appended. But then what are we going to do? We can't really remove the class. We want to see right now what the current process is for removing a class. So I think that would...
+Because in our commit history, we can find how we're currently removing the animation when hover is triggered. We have stop breathing animation for node, in previous method stop breathing animation for node, and where is that defined?
+Okay, I'm realizing is now as well is that these workspace mode TS files are huge and we should try to extract the logic for the breathing animation.
+Hmm.
+So now I want to figure out which approach we should go with, the back-end or front-end approach for breathing.
+And I don't really know yet, so we're going to have to split that into two nodes so we can make a decision there about it, backend versus frontend.
+Okay, I think now's a good time to get an agent to help with this. So let's open up an agent. Let me just check what cloud we have on that.
+I think we want to use a different demo prompt for Cloud.
+so we have new demo prompt we're just setting up um the ability to use agent from voice true really quickly
+Okay, so we should now have everything we need. Let's test it out now. So if I run cloud from here, and I just want to get our repository.
+So let's copy
+So wait, replay is in the news first.
+Now that is running.
+Let's also work on the extraction. Okay, what can you do? Just change the setting here.
+Zoom on active nodes, don't need them. Here we're going to run cloud again.
+Okay, what are you doing?
+Okay, so we got write thousand in.
+Okay, excellent. So our agent's gonna work on the extraction there. We do need to kind of figure out how to
+Yeah, it needs to be like the relative.
+hmm yeah i don't know quite how to do that so we could get clod to run in our root in just repos that could be the best option to stop all these errors um okay so yeah voice tree that's one problem we have right now where terminals um when they open agents when agents open on the tree um they don't they open in the directory of our voice tree um when they should probably open in the repo root um
+So they have access to all our different repos. Otherwise, they keep on having to do like relative path hacks. So that's one thing we can improve later. Okay, let's see what this guy is saying.
+Let's see.
+I don't know if the agent execution context in repository root is really a priority for now. I think let's just focus on getting the breathing working.
+And we can check the diff.
+that's going to be unversioned. Okay, let's go into
+Okay. I'm reviewing the breathing animation it wrote right now. Looks okay. I think we're just going to need to test it.
+Thank you.
+Okay, I think we should actually fix the agent execution context repository root because otherwise everything just takes twice as long. So let's get, I think we can just do this manually. So let's go into our clod. And then we want to do, we want to cd into finder repos.
+Man this is so so cool
+Is that the, let's just try this. Okay, those are all our repos. And then let's put the demo prompt that we want into there. And then we also have a few, we have agent workflow. These are our,
+Okay, cool.
+Okay, and now I'm just noticing, so we've done the running, we now run Claude from the repo route, and I'm also noticing just while I'm running VoiceTree Live, I'm noticing we're getting a few errors in our abstraction stage. Alarm returned invalid JSON.
+And that happens really often. And so we'd ideally want a better way of addressing the JSON, parsing the JSON. Let's copy all that and try run an agent on it. And so let's go into our, where's our JSON? Yep.
+We can add the actual error here and then please first look at the debug logs for the optimizer.
+all right all right okay let's get our terminals back um and then let's run a terminal adjacent
+Okay, so...
+Why didn't that work? Oh, right, it's in the root now. Okay, so now we should be able to call it. Oh, and now we need...
+to give the full link to the file that it got opened from so that should be let's think
+ObsidianVaultPath is what we want there
+Oh fuck, I'm just going to go put it in.
+Okay, cool. Let's try it again now. Okay, so now that's guys.
+gonna run on our invalid errors let's see what happened to this guy okay so you say he's updated he's done it let's see and it's not bad
+um
+Okay, let's see if this works now so we can, okay, I'll just run it for, I'm still using the old.
+Okay, now we need to update and go reload juggle.
+Okay, now we want to test if the breathing animation works if we add a new node. Let me reload juggle one more time. So we're now testing the animation for if it works. And it should be right now.
+Wow, it's pretty cool. That worked, actually. The appended content. Now, what is it doing? Under parent five. So it looked like, perhaps, where's test breathing? I don't see the test breathing.
+updating node 5 creating child node tests breathing animation functionality where is that i don't see it
+Oh, all right, so it doesn't seem to be working for new nodes, but it does seem to be working for appending a node. All right, let's just move on for a second and check how our other agents did. So unfortunately, when we reloaded juggle, we lost our terminals, but that is fine.
+Let's see what this guy did
+Okay, this guy got really confused.
+I think it might be because when we pasted the content, it got a bit fucked up. Oh, we have a problem right now where we overwrite. Yeah, okay, that's why. So I think what happened here is if I hover over it, yeah, the JSON got removed. So when we go to update, we need to actually send through the real content. For the update, that is another big problem with voice trees that currently we just store it internally.
+within the tree um but we actually need to store it to store it uh to read from markdown to see if anything's been modified um that's just really important we need that
+Okay, and then let's tell this guy, okay.
+Okay, so while that's running, let's check the...
+Okay, so they're thinking they might need to add a small delay to the new node to ensure that the animation actually gets created. There's probably like a bit of rest condition there. Okay, let's see.
+so we should be on version 129 they've built it let's reload okay um and now let's talk about a completely unrelated topic which is i want to go to the gym today um or go on a run and i want to figure out if i should go in a gym or go on a run um and i don't know what to do what what should i do um a bit of a backlog here but hopefully we should in a second be able to see a new node being created
+Let me just create some of your song. So, did that work? Where is our... No, it still didn't work. So, I'm looking...
+at gym versus run right now and i've decided i'm gonna go on a run because my priority is cardio would be nice to sort of be able to also search for node that could be cool as well
+But the breathing effect should be sufficient here, if it works. Okay, so there, appended content's working. Wait a second, that seemed to be the same as the still-timed-out. Maybe we're running on the old versions of the older console. Let's see. So it's...
+See what version of juggle we're on. 127. And what was this guy saying we should be on? 129. So he didn't actually build it. Weird. Let's build it one more time. Sometimes strange things happen, that's okay. Okay, let's open up a new...
+Okay, let's open up. There we go. All right, so we want to test two things. We want to test one, appending to a node. And we want to test two, creating a completely new node. Let's talk about, one thing I want to talk about is working with Elan today. I want to figure out what the best thing to do with Elan is. I'm not quite sure what that is going to be, but we'll figure it out together. Hopefully we'll get some overlap.
+time. I hope he's not driving off to Brussels today. Okay, nice. We got an append and a create. Let's see. Nice. Our append is working. That's awesome. And then new nodes still aren't getting the animation, which is very annoying. But that is really cool.
+Stops when I hover over. Awesome. Now let's just fix. So let's go terminal here. Thanks for the hover animation. We go Claude and then let's do breathing animation is working.
+New nerds.
+I wonder what happens if I hide a node since it's done. It'd be nice if hide would remove all the dependents as well. We could work on that later at some point. This one was done as well. Is there a collapse selection? Okay, that worked pretty well. Oh, wow, it worked. Ah, you can collapse the selection.
+I'll add new node. We need to add new node.
+Let's try to fix the internal storage now.
+Okay.
+Thank you.
+Let's see how this guy did. Okay, now let's deploy one more time. Build, building, it'd be 131.
+Now I want to add a new node about what food I might eat today. So that should be a completely new node, what food I should eat today. I think I might need to open a new graph, unfortunately. It's also... So...
+Okay, let's see if that worked. Completely new node. Fuck, man. Let's try like a five second delay.
+Okay, this is getting pretty messy. Let's just, I think we might need to open up a new version of Obsidian.
+Okay, we want another completely new node about buying some dental floss today.
+Okay, new node, dental floss, it still didn't work, what the hell?
+I'm going to turn this down.
+Okay, we have the logic here, the new node is in the wrong place. It should be, you can see, the bugs for the new node that we expect.
+Good idea.
+it was because i was i've took my earpods out and so the microphone stopped working um but it still might not work it's okay
+All right, it looks like finally we're working. So let's make a new node at breathing animation failure on new nodes. And let's call it, we have fixed the solution.
+Nice, so it got appended, and then that's going to result in soon some new nodes being spawned. So you can see the content right now as this newly appended content, which hasn't been resulted in new nodes yet. And now there's a new node, and it's doing the green animation. That is pretty awesome. So we're done.
