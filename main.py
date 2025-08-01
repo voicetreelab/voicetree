@@ -61,7 +61,7 @@ async def transcription_loop(voice_engine, text_queue):
                     await text_queue.put(transcription)
                     logger.info(f"Queue size: {text_queue.qsize()}")
                     # Append to transcription log
-                    with open("backend/text_to_graph_pipeline/voice_to_text/transcription_log.txt", "a", encoding="utf-8") as f:
+                    with open("backend/text_to_graph_pipeline/voice_to_text/transcription_log_old.txt", "a", encoding="utf-8") as f:
                         f.write(f"{transcription}\n")
             
             await asyncio.sleep(0.01)
@@ -69,41 +69,50 @@ async def transcription_loop(voice_engine, text_queue):
         executor.shutdown(wait=True)
 
 
+# --- REVISED llm_processing_loop ---
 async def llm_processing_loop(text_queue, processor):
-    """Process text from queue through LLM pipeline"""
+    """
+    Process text from queue through the LLM pipeline without blocking the main event loop.
+    """
+    # Use a thread pool to run the blocking/CPU-intensive LLM work.
+    # max_workers=1 ensures that LLM requests are processed sequentially.
     executor = ThreadPoolExecutor(max_workers=1)
     
-    def run_blocking_async(processor, text):
-        """Run the blocking async function in a new event loop"""
-        return asyncio.run(processor.process_new_text_and_update_markdown(text))
-    
+    # This synchronous wrapper function will be run in the separate thread.
+    # It creates a new, temporary event loop just for running our async LLM function.
+    def run_llm_in_thread(text_to_process):
+        """Synchronous wrapper to run our async processor function."""
+        try:
+            # asyncio.run() creates and manages a new event loop in this thread.
+            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process))
+        except Exception as e:
+            # Log errors that happen inside the thread
+            logger.error(f"Error in LLM processing thread: {e}", exc_info=True)
+
     try:
+        loop = asyncio.get_event_loop()
         while True:
-            # Wait for text from queue
-            logger.info(f"Waiting for text from queue, size: {text_queue.qsize()}")
+            # Wait for text from the transcription loop.
             transcription = await text_queue.get()
-            logger.info(f"Got text from queue: {transcription}")
+            logger.info(f"Got text from queue: {transcription[:50]}...")
             
-            try:
-                # Process through LLM pipeline in a separate thread
-                # This prevents blocking operations from freezing the main event loop
-                logger.info("Starting LLM processing in background thread...")
-                loop = asyncio.get_event_loop()
-                await loop.run_in_executor(
-                    executor,
-                    run_blocking_async,
-                    processor,
-                    transcription
-                )
-                logger.info("LLM processing complete")
-            except Exception as e:
-                logger.error(f"Error processing text: {e}")
-                # Continue processing next items even if one fails
-            await asyncio.sleep(0.1)
+            # Offload the blocking LLM call to the background thread.
+            # `await loop.run_in_executor` will yield control immediately,
+            # allowing the event loop to run other tasks (like transcription).
+            logger.info("Submitting LLM processing to background thread...")
+            await loop.run_in_executor(
+                executor,
+                run_llm_in_thread,  # The synchronous wrapper
+                transcription       # The argument for the wrapper
+            )
+            logger.info("LLM processing task submitted. Main loop is free.")
+            # The loop will now continue while the LLM works in the background.
 
     except asyncio.CancelledError:
+        logger.info("LLM processing loop cancelled.")
         raise
     finally:
+        logger.info("Shutting down LLM processor executor...")
         executor.shutdown(wait=True)
 
 
