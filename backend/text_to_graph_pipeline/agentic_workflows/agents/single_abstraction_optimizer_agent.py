@@ -1,7 +1,7 @@
 """
 SingleAbstractionOptimizerAgent - Optimizes individual nodes for cognitive clarity
 """
-
+import logging
 from typing import List, Union, Dict, Any, Optional
 from langgraph.graph import END
 
@@ -92,23 +92,28 @@ class SingleAbstractionOptimizerAgent(Agent):
             ))
         
         # Handle child node creation
-        for child_spec in optimization.create_new_nodes:
-            # Validate that child_spec is actually a ChildNodeSpec
-            if not hasattr(child_spec, 'name'):
-                raise RuntimeError(
-                    f"Invalid child_spec structure. Expected ChildNodeSpec but got: {child_spec}. "
-                    f"Type: {type(child_spec)}. This usually means the LLM returned extra fields "
-                    f"that don't exist in the model."
-                )
-            
-            typed_actions.append(CreateAction(
-                action="CREATE",
-                parent_node_id=node_id,
-                target_node_name=child_spec.target_node_name,
-                new_node_name=child_spec.name,
-                content=child_spec.content,
-                summary=child_spec.summary,
-                relationship=child_spec.relationship
-            ))
+        # if optimization.should_create_nodes:
+            for child_spec in optimization.new_nodes:
+                # Validate that child_spec is actually a ChildNodeSpec
+
+                if not optimization.should_create_nodes:
+                    logging.error("ERROR, LLM contradicting should create nodes")
+
+                if not hasattr(child_spec, 'name'):
+                    raise RuntimeError(
+                        f"Invalid child_spec structure. Expected ChildNodeSpec but got: {child_spec}. "
+                        f"Type: {type(child_spec)}. This usually means the LLM returned extra fields "
+                        f"that don't exist in the model."
+                    )
+                
+                typed_actions.append(CreateAction(
+                    action="CREATE",
+                    parent_node_id=node_id,
+                    target_node_name=child_spec.target_node_name,
+                    new_node_name=child_spec.name,
+                    content=child_spec.content,
+                    summary=child_spec.summary,
+                    relationship=child_spec.relationship
+                ))
         
         return typed_actions

@@ -176,7 +176,8 @@ You should output:
   "reasoning": "### STAGE 1: Synthesize\nThe node contains an introduction by Manu and newly appended content about VoiceTree algorithm. The appended content introduces a distinct technical concept that deserves its own node.\n\n### STAGE 2: Analyze\n- **Personal Introduction**: This is core content about the main node (Human-AI Collaboration System) and should be **absorbed**.\n- **VoiceTree Algorithm**: This is a distinct technical abstraction with its own identity and function. It should be a **new node** as it represents the core algorithm that powers the collaboration system.\n\n### STAGE 3: Refactor\nCreate 'VoiceTree Algorithm' as a new node that provides the core algorithm for the Human-AI Collaboration System. Update the original node to focus on Manu's introduction and the system overview.\n\n### STAGE 4: Edit & Validate\nThis structure separates the technical algorithm from the system overview, making both concepts clearer and more focused.",
   "original_new_content": "Hey I'm Manu, and I've been busy building software that unlocks a new system for human AI collaboration.",
   "original_new_summary": "Manu's building a system for human AI collaboration",
-  "create_new_nodes": [
+  "should_create_nodes": true,
+  "new_nodes": [
     {
       "name": "VoiceTree Algorithm",
       "content": "The Human-AI collaboration system is centered around our core algorithm called VoiceTree, which converts text streams, such as a live voice, into a tree representation, similar to a mind map. It's running live right now.",
@@ -209,7 +210,8 @@ You should output:
   "reasoning": "### STAGE 1: Synthesize\nThe node contains existing content about VoiceTree's function and newly appended content about its benefits. The appended content introduces a distinct conceptual abstraction.\n\n### STAGE 2: Analyze\n- **VoiceTree Function Description**: This is core content about the main node and should be **absorbed** and cleaned up.\n- **Benefits of VoiceTree**: This represents a distinct abstraction explaining the value proposition. It should be a **new node** as it represents why the algorithm is valuable, separate from what it does.\n\n### STAGE 3: Refactor\nCreate 'VoiceTree Benefits' as a new node explaining the cognitive advantages. Update the original node to focus on the technical function while referencing the benefits.\n\n### STAGE 4: Edit & Validate\nThis structure separates the technical function from the value proposition, making both concepts clearer and more actionable.",
   "original_new_content": "The core algorithm that converts text streams, such as live voice, into tree representations similar to mind maps. Currently running live.",
   "original_new_summary": "Core algorithm converting text streams to tree representations",
-  "create_new_nodes": [
+  "should_create_nodes": true,
+  "new_nodes": [
     {
       "name": "VoiceTree Benefits",
       "content": "The tree structure allows for more efficient representation of content, decreasing cognitive load by providing a memory aid for high-level concepts and relationships between them, rather than getting lost in detail.",
@@ -243,7 +245,8 @@ You should output:
   "reasoning": "### STAGE 1: Synthesize\nThe text introduces five concepts: 1) CTA design details, 2) a blocking issue about the brand style guide, 3) a sub-task for the style guide review, 4) a prerequisite task for A/B testing, and 5) a required approval from an existing stakeholder. The goal is to structure all five correctly.\n\n### STAGE 2: Analyze\n- **CTA Design Details**: These are attributes of the main node and should be **absorbed**.\n- **Brand Style Guide Review**: This is a distinct, blocking problem. It should be a **new node** targeting the original node.\n- **Competitor Research**: This is a sub-task of the style guide review. It should be a **new node** targeting the 'Review Brand Style Guide' node.\n- **A/B Test Success Metrics**: This is a new, prerequisite task for the 'A/B Test CTA Variations' process. It should be a **new node** targeting the neighbor.\n- **Executive Review Board Sign-off**: This is not a new task to be created, but a mention of an existing approval process. The neighbor 'Executive Review Board' already represents this entity. According to the **Reference-over-Duplication Rule**, this should be handled by **referencing** the neighbor in the parent node's content, not by creating a new, duplicate 'approval' node.\n\n### STAGE 3: Refactor\nThis analysis leads to a complex refactoring that demonstrates all key principles:\n1.  **Absorb** CTA details into the original node.\n2.  **Reference** the `Executive Review Board` neighbor in the updated content of the original node.\n3.  **Create** 'Review Brand Style Guide' as a child of the original node.\n4.  **Create** 'Research Competitor Color Palettes' as a child of the new 'Review Brand Style Guide' node.\n5.  **Create** 'Define A/B Test Success Metrics' as a child of the 'A/B Test CTA Variations' neighbor.\n\n### STAGE 4: Edit & Validate\nThis structure is optimal. It creates actionable tasks where needed, correctly models dependencies (including chains and links to neighbors), and avoids redundancy by referencing existing graph components as instructed. It perfectly balances clarity and structural efficiency.",
   "original_new_content": "The primary goal is to create a prominent homepage Call-to-Action (CTA) to guide users to sign up.\n\n**Note:** This task is currently blocked by the need for a `Review Brand Style Guide`.\n\n### Proposed Design Specification\n- **Color**: Bright orange (`#FF5733`) (Contingent on style guide review)\n- **Copy**: \"Start Your Free Trial\"\n\n### Process Notes\n- **Approval**: Final design requires sign-off from the `Executive Review Board`.\n- **Validation**: The `A/B Test CTA Variations` process will be used to validate the final design. A prerequisite task, `Define A/B Test Success Metrics`, has been created and linked to it.",
   "original_new_summary": "Specifies the initial design for the homepage CTA, noting it's blocked by a style guide review and requires approval from the Executive Review Board. Validation will be done via A/B testing after metrics are defined.",
-  "create_new_nodes": [
+  "should_create_nodes": true,
+  "new_nodes": [
     {
       "name": "Review Brand Style Guide",
       "content": "A bigger issue was identified: the entire brand style guide feels dated. It must be reviewed before committing to new component colors, such as for the 'Homepage CTA Design'.",
@@ -270,6 +273,34 @@ You should output:
 }
 ```
 
+
+Example 3 (No Node Creation):
+Input:
+- Original Node Name: 'User Authentication Flow'
+- Original Node Summary: 'Complete user authentication process'
+- Original Node Content: 
+```
+1. User submits credentials via login form
+2. Server validates credentials against database
+3. If valid, generate JWT token with user claims
+4. Return token to client for session management
+5. Client includes token in subsequent API requests
+6. Server validates token on each request
+7. Token automatically refreshes before expiration
+```
+
+You should output:
+```json
+{
+  "reasoning": "### STAGE 1: Synthesize\nThe node describes a complete user authentication flow with 7 sequential steps from credential submission to token refresh. The content is coherent and well-structured.\n\n### STAGE 2: Analyze\n- **Authentication Steps**: All 7 steps are part of a single, cohesive process. Each step depends on the previous ones and together they form a complete authentication workflow.\n- **Abstraction Level**: The content is already at the appropriate level of abstraction - it describes the workflow without getting into implementation details.\n\n### STAGE 3: Refactor\nNo splitting is needed. The authentication flow is a single, well-defined process. The steps are sequential and interdependent, making them inappropriate for separate nodes.\n\n### STAGE 4: Edit & Validate\nThe content is already well-organized and doesn't need restructuring. The summary accurately reflects the content.",
+  "should_create_nodes": false,
+  "new_nodes": [],
+  "original_new_content": null,
+  "original_new_summary": null,
+  "debug_notes": null
+}
+```
+
 ## Input Context
 
 **Node Data:**
@@ -286,6 +317,6 @@ You should output:
 
 Your final output MUST be a single, valid JSON object. After generating your reasoning, you will populate the JSON fields according to the following strict rules:
 
-1.  **Reasoning/Action Consistency:** Your primary task is to ensure your final JSON output perfectly matches the plan you outline in your `reasoning`. **If your reasoning concludes that new nodes should be created, the `create_new_nodes` array MUST NOT be empty.** An empty array in this case is an immediate failure.
-2.  **Schema Adherence:** The output must conform to this Pydantic-style schema. Do not omit the create_new_nodes array.
+1.  **Reasoning/Action Consistency:** Your primary task is to ensure your final JSON output perfectly matches the plan you outline in your `reasoning`. **If your reasoning concludes that new nodes should be created, you MUST set `should_create_nodes` to true and provide a non-empty `new_nodes` array.** Setting `should_create_nodes` to true with an empty `new_nodes` array is an immediate failure.
+2.  **Schema Adherence:** The output must conform to this Pydantic-style schema. Always include both `should_create_nodes` and `new_nodes` fields.
 
