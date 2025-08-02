@@ -182,7 +182,7 @@ Always ask agents to update markdown checkboxees tracking their progress.
 
 REMEMBER: SET YOUR TIMEOUTS TO BE VERY LONG. CLAUDE SUBAGENTS CAN TAKE UP TO 10 minutes for a task.
 
-REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in /Users/bobbobby/repos/VoiceTreePoc/agent-communication
+REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in /Users/bobbobby/repos/VoiceTree/agent-communication
 AND TELL YOUR AGENTS TO DO THE SAME.
 
 ## Best Practices for Multi-Agent Development

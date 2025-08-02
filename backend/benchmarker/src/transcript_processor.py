@@ -92,9 +92,10 @@ class TranscriptProcessor:
             if processing_mode == "line":
                 # Process line by line
                 lines = content.strip().split('\n')
-                print(f"Processing {len(lines)} lines ({len(content)} chars total)")
+                # print(f"Processing {len(lines)} lines ({len(content)} chars total)")
                 
                 for i, line in enumerate(lines):
+                    print(f"Transcribed:{line}")
                     if line.strip():  # Skip empty lines
                         # Send each line as a chunk
                         await self.processor.process_new_text_and_update_markdown(line.strip() + "\n")

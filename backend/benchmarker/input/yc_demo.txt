@@ -1,0 +1,11 @@
+Hey I'm Manu, and I've been busy building software that unlocks a new system for human AI collaboration.
+
+This system is centered around our core algorithm called VoiceTree, which converts text streams, such as a live voice, into a tree representation, similar to a mind map. It's running right now live.
+
+What's the benefit of this? The tree allows for a more efficient representation of content, decreasing cognitive load by providing a memory aid for the high-level concepts and the relationships between them rather than getting lost in the detail.
+
+As we'll see soon, both humans and LLMs can benefit from this.
+On top of the VoiceTree platform, so much is possible. We have so far focused on two breakthrough use cases.
+
+The first is an interface for software engineers to manage multiple coding agents.
+The second is improving agents themselves through compressing and better representing their context with VoiceTree.

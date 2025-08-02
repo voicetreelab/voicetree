@@ -63,9 +63,9 @@ class TestSingleAbstractionOptimizerPrompt:
         
         # Assertions
         # LLM should either split or update - both are reasonable
-        if len(result.create_new_nodes) >= 2:
+        if result.should_create_nodes and len(result.new_nodes) >= 2:
             # If splitting, check that nodes cover the different concepts
-            node_names = [child.name.lower() for child in result.create_new_nodes]
+            node_names = [child.name.lower() for child in result.new_nodes]
             
             # Should have nodes covering at least some of the concepts
             concepts_covered = sum([
@@ -131,16 +131,16 @@ class TestSingleAbstractionOptimizerPrompt:
         
         # Assertions - improved prompt may identify optimization opportunities
         # Should have reasonable number of new nodes for the authentication flow
-        assert len(result.create_new_nodes) >= 0  # May create nodes for flow steps
+        assert len(result.new_nodes) >= 0  # May create nodes for flow steps
         
         # If nodes are created, they should be for the authentication flow steps
-        if len(result.create_new_nodes) > 0:
+        if result.should_create_nodes and len(result.new_nodes) > 0:
             # Should update the original to be a higher-level summary
             assert result.original_new_summary is not None
             assert "authentication" in result.original_new_summary.lower()
             
             # Created nodes should represent distinct steps in the flow
-            node_names = [node.name.lower() for node in result.create_new_nodes]
+            node_names = [node.name.lower() for node in result.new_nodes]
             # Should have nodes covering some of the key authentication concepts
             has_auth_concepts = any(
                 concept in " ".join(node_names) 
@@ -196,9 +196,9 @@ class TestSingleAbstractionOptimizerPrompt:
         assert "caching" in result.original_new_summary.lower() or \
                "performance" in result.original_new_summary.lower()
 
-        if len(result.create_new_nodes) > 0:
+        if result.should_create_nodes and len(result.new_nodes) > 0:
             # If splitting, should have meaningful child nodes
-            child_contents = [child.content.lower() for child in result.create_new_nodes]
+            child_contents = [child.content.lower() for child in result.new_nodes]
             assert any("redis" in c or "cdn" in c or "database" in c or "api" in c 
                       for c in child_contents), "Child nodes should cover caching strategies"
         else:

@@ -9,6 +9,7 @@ MAKE SURE TO RUN FROM PROJECT ROOT
 import sys
 import os
 import shutil
+from asyncio import sleep
 from datetime import datetime
 from dotenv import load_dotenv
 # Add project root to Python path to allow running with: python backend/benchmarker/...
@@ -78,10 +79,21 @@ async def process_single_transcript(transcript_info):
     transcript_identifier = _generate_transcript_identifier(transcript_info)
     
     try:
+        # print(f"\n{'='*60}")
+        # print(f"Starting: {transcript_name}, limited to {transcript_info.get('max_words', 'all')} words")
+        # print(f"Output folder: backend/benchmarker/output/{transcript_identifier}/")
+        # print(f"{'='*60}\n")
+
         print(f"\n{'='*60}")
-        print(f"Starting: {transcript_name}, limited to {transcript_info.get('max_words', 'all')} words")
-        print(f"Output folder: backend/benchmarker/output/{transcript_identifier}/")
+        print(f"Starting VoiceTree")
+        # print(f"Output folder: backend/benchmarker/output/{transcript_identifier}/")
         print(f"{'='*60}\n")
+
+        await sleep(1)
+        print("Loading Whisper model 'mobiuslabsgmbh/faster-whisper-large-v3-turbo'...")
+        await sleep(1)
+        print("Whisper voice to text ready to transcribe")
+        await sleep(10)
 
         # Create a processor instance for this transcript
         processor = TranscriptProcessor()
@@ -100,14 +112,14 @@ async def process_single_transcript(transcript_info):
             transcript_identifier  # Pass identifier for output subdirectory
         )
         
-        # Evaluate quality with transcript-specific output directory
-        print(f"\nEvaluating quality for: {transcript_name}")
-        evaluator = QualityEvaluator()
-        evaluator.evaluate_tree_quality(
-            content,
-            transcript_name,
-            transcript_identifier  # Pass identifier for output subdirectory
-        )
+        # # Evaluate quality with transcript-specific output directory
+        # print(f"\nEvaluating quality for: {transcript_name}")
+        # evaluator = QualityEvaluator()
+        # evaluator.evaluate_tree_quality(
+        #     content,
+        #     transcript_name,
+        #     transcript_identifier  # Pass identifier for output subdirectory
+        # )
 
         # Copy debug logs to transcript-specific directory
         copy_debug_logs(transcript_identifier)
@@ -147,7 +159,7 @@ async def run_quality_benchmark(test_transcripts=None):
     # Clear debug logs once at the start
     clear_debug_logs()
     
-    print(f"\nStarting parallel processing of {len(test_transcripts)} transcript(s)...\n")
+    # print(f"\nStarting parallel processing of {len(test_transcripts)} transcript(s)...\n")
     
     # Process all transcripts in parallel
     results = await asyncio.gather(

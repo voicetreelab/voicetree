@@ -1548,3 +1548,95 @@ This is actually pretty good.
 Dad. Hey, you say it. Hey, YC. I'm Manu. I'm a performance engineer at Atlassian, and my obsession is optimization. Last year, I led products in the Jira system that saved our customers $8 million in AWS costs. Now, I'm applying that same obsession to a much bigger performance bottleneck, the way humans and AI work together. I've built VoiceTree, a platform that converts unstructured text from your thoughts, documents, or meetings into an efficient graph. For AI, this slashes LLM context by 85% and boosts accuracy. For you, it's a visual mind map that externalizes your working memory. It's one system that makes both humans and AI smarter. I've recently gone part-time to focus completely on this, and I'm excited to show you the breakthroughs we're making. Let's build this together. That's very good. I don't like the term obsession.
 But he has an obsession for optimization, he does, and that shines through. Let's see, let's think of another word for obsession.
 I sent it to you? My... I'm completely... My passion. My passion. Yeah. Let me look it up. Let me do that. Yeah, send me that. Key messages I call them. Obsession always has a slightly negative.
+Alrighty, okay, so we are working right now on VoiceTree and what have we spent today doing? Today we spent trying to work on our demo. The morning was very productive, we got some nice things done, some nice fix-ups, we got some intuition about the behavior of VoiceTree.
+And then we sort of practiced our demo.
+The demo, what do you call it? Like a demo.
+demo fuck what's it called demo script we worked on a demo script and we got a fairly good demo script working So that is one option for what we could do now. We could work on our demo script
+Um...
+And then...
+We could actually also record the first demo, the first part of the demo. We could get that over and done with, which could be good. And then we were practicing doing some work using VoiceTree, and it was really promising, actually. So that was really impressive. I loved that.
+Um...
+Cool, and then we spent a lot of time fucking around with terminal zoom positioning And that is just a complete clusterfuck. We should not spend any more time on that. That was such a mistake Really mad about that
+Um...
+Okay, um...
+So now we have this whole other part of the project, which is proving our benchmark results are correct. I don't know exactly how to prioritize that yet. It would be nice to first of all just get some really good demos done. So the first part of the demo we can do, the demo that's just explaining what VoiceTree is.
+We can already get that done now. The second part of the demo, which is actually using VoiceTree to work, I still need to get a really good example for.
+Okay, so that's one option, those are our options, okay cool.
+I think the really amazing thing right now is that the VoiceTree core algorithm is working well enough to actually use it for software engineering, which is pretty damn impressive, actually.
+Okay, one really quick thing I want to do is just go into the UI and change the time out of the breathing of animation on nodes. Should actually take almost no time.
+Um.
+Nice.
+And then we'll just get the new nodes that we haven't seen before.
+Okay, so we do, we would like to, one thing we need to do is come up with a really good example for what we're going to use for the second part of our demo where we're explaining what the showing using VoiceTree for engineering use case with the agentic part as well.
+Um...
+And then the other idea we had for
+sort of related to validating benchmark results was if VoiceTree actually does improve the benchmarks Well, what we were thinking is that we also just want a tool called answer question from tree
+which Claude can then use to answer a question from the tree.
+But it's not really demo-able, so there's no point in doing that yet. It is just cool though. So what is demo-able? We could have a large document.
+Okay, and then we do...
+Okay, so we need to check what the current state of our benchmark is
+Um, and what's the best way of doing that? We can...
+Just run Claude, I guess. Claude.
+Model Sonnet.
+And then we want to run sonnet on.
+the benchmark we have GSM infinite main benchmark
+I think I have that somewhere.
+Oh, that's in a completely different branch.
+Mmm.
+Okay.
+Okay, we might need to switch branches to have a look at what the state of that is.
+Um, should we first film the demo?
+All right, testing one, two, three, look at me, what's my name?
+all right now let's send that over to the buffer and see what they do with it
+Hey Siri, where are you?
+Mason and I've been busy building soft
+a new system for human and AI.
+This system is rent surrounded is centered around our core algorithm called voice tree which converts tech streams such as live voice Into a tree representation similar to a mind
+It's running live right now.
+So what's the benefit of this?
+The tree allows for more
+increasing cognitive load by providing a memory
+relationships between them, rather than getting lost in it.
+As we'll see soon, both humans and LLMs can
+On top of this VoiceTree platform,
+So much is possible.
+We have so far focused on two awesome uses.
+Hey, Y-Commander. I'm Manu Mason, and I've been busy building software.
+new system for human AI club.
+Hey Y commenter, I'm Manu Mason and I've been busy building software.
+This system is centered around our core algorithm called voice tree
+Which converts text streams such as live voice into a tree representation similar to a mind map
+I'm Manu Mason, and I've been busy building software that unlocks
+for human-AI collaboration.
+This system
+Hey Y Combinator, I'm Manu Mason and I've been busy building software that unlocks
+Hey Y Combinator, I'm Manu Mason and I've been busy building software that unlocks a new system for human and AI collaboration.
+This system is centered around our core algorithm called VoiceTree which converts text streams such as live voice into a tree representation similar to a mind map.
+It's running right now.
+What's the benefit of this? The tree allows for more...
+Decreasing cognitive load by providing memory aid for the high-level concept.
+and the relationships between them, rather than getting lost.
+As we'll soon see, both humans and elephants
+Hey Y Combinator, I'm Manu Mason. I've been busy building software that unlocks a new system for human AI cloud
+This system is centered around our core algorithm.
+Hey Y Commenter, I'm Manu Mason. I've been busy building software that unlocks a new system for human AI collaboration.
+This system is centered around our core algorithm called VoiceTree, which converts text into a visual, text streams, such as live voice, into a tree representation, similar to a mind map.
+Hey Y Commenter, I'm Manu Mason and I've been busy building software that unlocks a new system for human AI
+This system is centered around our core algorithm called VoiceTree, which converts text...
+streams such as live voice into a tree representation, similar to a mind map.
+Hey Y Combinator, I'm Manu and this last year I've been busy building
+Hey Y Combinator, I'm Manu. I've been busy building software that unlocks a new system for human AI
+This system is centered around our core algorithm called VoiceTree, which converts text streams, such as live voice, into a tree representation, similar to a mind map. It's running right now live.
+What's the benefit of this? The tree allows for a more efficient representation of content, decreasing cognitive load by providing
+for the high-level concepts and the relationships between them rather than getting lost in the
+As we'll see soon, both humans and LLMs can...
+On top of this VoiceTree platform, so much is possible.
+We've so far focused on two awesome users.
+The first is an interface for software engineers.
+The second is improving agents themselves through compressing and better representing
+Hey Y Combinator, I'm Manu, I've been busy building software that unlocks a new system for human AI collaboration. This system is centered around our core algorithm called VoiceTree, which converts text streams, such as live voice, into a tree representation, similar to my mind map.
+This system is centered on our core algorithm called VoiceTree, which converts text streams, such as live voice, into a tree representation similar to a mind map. It's running right now live.
+What's the benefit of this? The tree allows for more efficient representation.
+Decreasing cognitive load by providing a memory aid for the high-level concepts and relationships between them, rather than getting lost in the detail. As we'll see soon, both humans and LLMs can benefit from this.
+On top of this Voistry platform, so much as possible, we've so far focused on two awesome use cases. The first is an interface for software engineers to manage multiple .
+The second is improving agents themselves through compressing and better representing their context with VoiceTree.

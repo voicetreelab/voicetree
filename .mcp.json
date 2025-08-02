@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "zen": {
-      "command": "/Users/bobbobby/repos/VoiceTreePoc/.venv/bin/uvx",
+      "command": "/Users/bobbobby/repos/VoiceTree/.venv/bin/uvx",
       "args": [
         "--from",
         "git+https://github.com/BeehiveInnovations/zen-mcp-server.git",

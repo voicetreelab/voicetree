@@ -237,3 +237,246 @@ _Links:_
         assert "First paragraph" in node.content
         assert "def example():" in node.content
         assert "Final paragraph" in node.content
+    
+    def test_no_links_section(self, temp_dir):
+        """Test parsing of markdown file with no links section"""
+        no_links_content = """---
+node_id: 1
+title: Introduction to VoiceTree and its Founder (1)
+---
+### Manu, founder of VoiceTree, introduces the inefficiency of current LLMs in simulating memory through brute-force re-processing of chat history.
+
+Hey YC, I'm Manu, the founder of VoiceTree. Today's LLMs essentially simulate memory through brute force: they re-process the whole chat history and context for every single turn, which is inefficient.
+
+
+-----------------
+_Links:_
+"""
+        with open(os.path.join(temp_dir, "1_introduction.md"), 'w') as f:
+            f.write(no_links_content)
+        
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+        
+        assert len(tree_data) == 1
+        node = tree_data[1]
+        assert node.title == "Introduction to VoiceTree and its Founder (1)"
+        assert node.summary == "Manu, founder of VoiceTree, introduces the inefficiency of current LLMs in simulating memory through brute-force re-processing of chat history."
+        assert "Hey YC, I'm Manu" in node.content
+        assert node.parent_id is None
+        assert len(node.children) == 0
+        assert len(node.relationships) == 0
+    
+    def test_no_summary_section(self, temp_dir):
+        """Test parsing of markdown file without summary (no ### line)"""
+        no_summary_content = """---
+node_id: 6
+title: Agent in Shared Workspace (6)
+---
+An agent can be added into the shared workspace, getting the exact context it needs directly from the graph. This makes the interaction cheaper and more accurate, eliminating the need to re-explain any context. The agent's progress is also visible in real-time.
+
+
+-----------------
+_Links:_
+Parent:
+- describes_the_integration_and_benefits_of_an [[3_Graph_as_Shared_Human-AI_Memory.md]]
+"""
+        with open(os.path.join(temp_dir, "6_agent_workspace.md"), 'w') as f:
+            f.write(no_summary_content)
+        
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+        
+        assert len(tree_data) == 1
+        node = tree_data[6]
+        assert node.title == "Agent in Shared Workspace (6)"
+        assert node.summary == ""  # No summary should be empty
+        assert "An agent can be added into the shared workspace" in node.content
+        assert "The agent's progress is also visible in real-time." in node.content
+    
+    def test_complex_content_with_mermaid_diagram(self, temp_dir):
+        """Test parsing of markdown file with complex content including mermaid diagrams"""
+        complex_mermaid_content = """---
+node_id: 6_1
+title: Agent-Graph Interaction Flow (6_1)
+color: pink
+---
+```mermaid
+graph TD
+    A[Human User] --> B[VoiceTree Graph]
+    C[Agent] --> B
+    B --> D[Shared Context]
+    D --> E[Cost-Efficient Queries]
+    D --> F[Accurate Responses]
+    D --> G[Real-time Progress]
+    
+    B --> H[Historical Conversations]
+    B --> I[Project Knowledge]
+    B --> J[Task Dependencies]
+    
+    style A fill:#e1f5fe
+    style C fill:#fce4ec
+    style B fill:#f3e5f5
+    style D fill:#e8f5e8
+```
+
+This diagram illustrates how both humans and agents access the same VoiceTree graph, creating a shared workspace where context is preserved and leveraged for more efficient interactions.
+
+-----------------
+_Links:_
+Parent:
+- visualizes [[6_Agent_in_Shared_Workspace.md]]
+"""
+        with open(os.path.join(temp_dir, "6_1_agent_flow.md"), 'w') as f:
+            f.write(complex_mermaid_content)
+        
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+        
+        assert len(tree_data) == 1
+        node = tree_data[6_1]
+        assert node.title == "Agent-Graph Interaction Flow (6_1)"
+        assert node.color == "pink"
+        assert node.summary == ""  # No ### summary line
+        assert "```mermaid" in node.content
+        assert "graph TD" in node.content
+        assert "A[Human User] --> B[VoiceTree Graph]" in node.content
+        assert "style A fill:#e1f5fe" in node.content
+        assert "This diagram illustrates how both humans and agents" in node.content
+    
+    def test_empty_links_section_vs_no_links(self, temp_dir):
+        """Test difference between empty links section and completely missing links"""
+        # File with empty links section
+        empty_links_content = """---
+node_id: 1
+title: Empty Links Node
+---
+### Summary here
+
+Content here.
+
+-----------------
+_Links:_
+"""
+        
+        # File with no links section at all
+        no_links_content = """---
+node_id: 2
+title: No Links Node
+---
+### Summary here
+
+Content here.
+"""
+        
+        with open(os.path.join(temp_dir, "1_empty_links.md"), 'w') as f:
+            f.write(empty_links_content)
+        with open(os.path.join(temp_dir, "2_no_links.md"), 'w') as f:
+            f.write(no_links_content)
+        
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+        
+        assert len(tree_data) == 2
+        
+        # Both should have no relationships
+        empty_links_node = tree_data[1]
+        no_links_node = tree_data[2]
+        
+        assert len(empty_links_node.relationships) == 0
+        assert len(no_links_node.relationships) == 0
+        assert empty_links_node.parent_id is None
+        assert no_links_node.parent_id is None
+    
+    def test_mixed_content_types(self, temp_dir):
+        """Test parsing files with mixed content types (code, lists, quotes)"""
+        mixed_content = """---
+node_id: 100
+title: Mixed Content Example
+---
+### This node contains various content types
+
+Here's some regular text.
+
+## A heading
+
+- Bullet point 1
+- Bullet point 2
+  - Nested bullet
+  
+1. Numbered list
+2. Second item
+
+> This is a quote block
+> with multiple lines
+
+Some inline `code` and a code block:
+
+```python
+def process_data(data):
+    # Process the input
+    result = data.transform()
+    return result
+```
+
+**Bold text** and *italic text*.
+
+[Link text](https://example.com)
+
+| Table | Header |
+|-------|---------|
+| Cell 1| Cell 2  |
+
+-----------------
+_Links:_
+"""
+        with open(os.path.join(temp_dir, "100_mixed.md"), 'w') as f:
+            f.write(mixed_content)
+        
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+        
+        assert len(tree_data) == 1
+        node = tree_data[100]
+        assert node.title == "Mixed Content Example"
+        assert node.summary == "This node contains various content types"
+        
+        # Check that various content types are preserved
+        assert "## A heading" in node.content
+        assert "- Bullet point 1" in node.content
+        assert "> This is a quote block" in node.content
+        assert "```python" in node.content
+        assert "def process_data(data):" in node.content
+        assert "**Bold text**" in node.content
+        assert "[Link text](https://example.com)" in node.content
+        assert "| Table | Header |" in node.content
+    
+    def test_multiple_summary_lines(self, temp_dir):
+        """Test that only the first ### line is treated as summary"""
+        multiple_summary_content = """---
+node_id: 200
+title: Multiple Summary Test
+---
+### This is the actual summary
+
+Content starts here.
+
+### This is just a heading in the content
+
+More content after the heading.
+
+-----------------
+_Links:_
+"""
+        with open(os.path.join(temp_dir, "200_multi_summary.md"), 'w') as f:
+            f.write(multiple_summary_content)
+        
+        converter = MarkdownToTreeConverter()
+        tree_data = converter.load_tree_from_markdown(temp_dir)
+        
+        assert len(tree_data) == 1
+        node = tree_data[200]
+        assert node.summary == "This is the actual summary"
+        assert "Content starts here." in node.content
+        assert "### This is just a heading in the content" in node.content
+        assert "More content after the heading." in node.content

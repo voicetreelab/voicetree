@@ -291,8 +291,11 @@ def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) ->
         node_entry = []
         node_entry.append(f"Node ID: {node.id}")
         node_entry.append(f"Title: {node.title}")
-        node_entry.append(f"Summary: {node.summary}")
-        
+        if node.summary:
+            node_entry.append(f"Summary: {node.summary}")
+        else:
+            node_entry.append(f"Summary: {node.content[:1000]}")
+
         if node.parent_id:
             node_entry.append(f"Relationship: {node.relationships[node.parent_id]} ('{tree[node.parent_id].title})'")
 
