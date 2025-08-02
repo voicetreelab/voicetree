@@ -142,18 +142,22 @@ class MarkdownToTreeConverter:
             if line.strip().startswith('###') and not found_summary:
                 summary = line.strip().lstrip('#').strip()
                 found_summary = True
+                # Skip this line - don't add summary line to content
+                continue
             elif line.strip() == '-----------------':
                 # Stop before the links section
                 break
             elif found_summary:
                 content_lines.append(line)
+            elif not found_summary:
+                # If no summary found yet, these lines are part of content
+                content_lines.append(line)
         
         # Join content lines and clean up
         content = '\n'.join(content_lines).strip()
         
-        # If no summary found, use first line
-        if not summary and lines:
-            summary = lines[0].strip()
+        # Don't automatically create summary from first line
+        # Only return summary if explicitly found with ### prefix
         
         return summary, content
     

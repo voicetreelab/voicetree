@@ -17,11 +17,19 @@ EVALUATION_MODEL = 'models/gemini-2.5-pro'
 # Test Transcripts
 DEFAULT_TEST_TRANSCRIPTS = [
     {
-        "file": "backend/benchmarker/input/yc_demo.txt",
-        "name": "VT Clustering",
+        "file": "backend/benchmarker/input/visionary_demo.txt",
+        "name": "VT yt visionary demo",
         "max_words": 63 * 10 + 1,
         "processing_mode": "line",  # Options: "word" (30 words per chunk) or "line" (line by line)
         "currently_active": True
+    },
+
+    {
+        "file": "backend/benchmarker/input/yc_demo.txt",
+        "name": "VT yt demo",
+        "max_words": 63 * 10 + 1,
+        "processing_mode": "line",  # Options: "word" (30 words per chunk) or "line" (line by line)
+        # "currently_active": True
     },
     {
         "file": "backend/benchmarker/input/voiceTree_clustering.txt",

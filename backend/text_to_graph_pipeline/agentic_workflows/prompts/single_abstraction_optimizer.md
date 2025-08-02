@@ -5,6 +5,8 @@ Your task is to refactor individual nodes to minimize the cognitive load require
 Refactoring means updating the original node's concise summary and content with the core abstraction it represents, 
 and if present, any new abstractions become new nodes, with their own concise summary.
 
+Essentially you can perform two actions: update the original node, and create new nodes. You can do any combination of these two actions.
+
 The new nodes be linked to any of the existing nodes provided, through the fields `relationship` to `target_node_name`
 
 ## Key Terminology
@@ -157,9 +159,10 @@ STAGE 5: Validate - Quality Assurance
 Example 1:
 If you were to get as input:
 
-Original Node Name: Human-AI Collaboration System 
-Original Node Summary:  ""
-Original Node Content:
+**Node Data:**
+- Original Node Name: Human-AI Collaboration System 
+- Original Node Summary: ""
+- Original Node Content:
 ```
 Hey I'm Manu, and I've been busy building software that unlocks a new system for human AI collaboration.
 
@@ -168,6 +171,10 @@ This system is centered around our core algorithm called VoiceTree, which conver
 
 +++
 It's running right now live. (is the current status of this node)
+```
+- Neighbors:
+```
+[]
 ```
 
 You should output:
@@ -193,8 +200,10 @@ You should output:
 
 Example 2:
 Input:
-- Original Node Name: 'VoiceTree Algorithm'
-- Original Node Summary: {{node_summary}}
+
+**Node Data:**
+- Original Node Name: VoiceTree Algorithm
+- Original Node Summary: Core algorithm converting text streams to tree representations
 - Original Node Content: 
 ```
 Converts text streams into a tree representation, similar to a mind map.
@@ -202,6 +211,10 @@ The Human-AI collaboration system is centered around the core algorithm called V
 
 +++
 What's the benefit of this? The tree allows for a more efficient representation of content, decreasing cognitive load by providing a memory aid for the high-level concepts and the relationships between them rather than getting lost in the detail
+```
+- Neighbors:
+```
+[{'name': 'Human-AI Collaboration System', 'summary': 'Software system that unlocks new forms of human-AI collaboration', 'relationship': 'provides the core algorithm for'}]
 ```
 
 You should output:
@@ -230,13 +243,20 @@ You should output:
 This example shows a complex case where new information contains multiple distinct abstractions. The optimal solution is to absorb one, and create three new nodes, each linked to the most appropriate parent: the original node, a neighbor node, and another newly created node.
 
 Input:
-```json
-{
-  "node_name": "Homepage CTA Design",
-  "node_summary": "Design a primary Call-to-Action for the homepage.",
-  "node_content": "We need a primary CTA on the homepage to guide users to sign up. It should be prominent. \n...and speaking of the CTA, it should be a bright orange button, hex #FF5733, with the copy 'Start Your Free Trial'. This brings up a bigger issue though: our entire brand style guide feels dated. We should review it before we commit to this new orange. As part of that review, a good first step would be to research our top 5 competitors' color palettes. Also, for the homepage CTA, once we have the design, we need to run A/B tests. But before we can do that, we absolutely must define what the success metrics for that test will be—like, what's our target uplift in sign-ups? Oh, and this whole CTA change will definitely need sign-off from the Executive Review Board before it goes live.",
-  "neighbors": "[{'name': 'A/B Test CTA Variations', 'summary': 'Set up and run A/B tests to optimize CTA performance.'}, {'name': 'Executive Review Board', 'summary': 'Committee responsible for final project approvals.'}]"
-}
+
+**Node Data:**
+- Original Node Name: Homepage CTA Design
+- Original Node Summary: Design a primary Call-to-Action for the homepage.
+- Original Node Content:
+```
+We need a primary CTA on the homepage to guide users to sign up. It should be prominent.
+
++++
+...and speaking of the CTA, it should be a bright orange button, hex #FF5733, with the copy 'Start Your Free Trial'. This brings up a bigger issue though: our entire brand style guide feels dated. We should review it before we commit to this new orange. As part of that review, a good first step would be to research our top 5 competitors' color palettes. Also, for the homepage CTA, once we have the design, we need to run A/B tests. But before we can do that, we absolutely must define what the success metrics for that test will be—like, what's our target uplift in sign-ups? Oh, and this whole CTA change will definitely need sign-off from the Executive Review Board before it goes live.
+```
+- Neighbors:
+```
+[{'name': 'A/B Test CTA Variations', 'summary': 'Set up and run A/B tests to optimize CTA performance.', 'relationship': 'will validate the design from'}, {'name': 'Executive Review Board', 'summary': 'Committee responsible for final project approvals.', 'relationship': 'must approve changes from'}]
 ```
 
 You should output:
@@ -276,8 +296,10 @@ You should output:
 
 Example 3 (No Node Creation):
 Input:
-- Original Node Name: 'User Authentication Flow'
-- Original Node Summary: 'Complete user authentication process'
+
+**Node Data:**
+- Original Node Name: User Authentication Flow
+- Original Node Summary: Complete user authentication process
 - Original Node Content: 
 ```
 1. User submits credentials via login form
@@ -287,6 +309,10 @@ Input:
 5. Client includes token in subsequent API requests
 6. Server validates token on each request
 7. Token automatically refreshes before expiration
+```
+- Neighbors:
+```
+[{'name': 'JWT Token Management', 'summary': 'Handles token generation, validation, and refresh logic', 'relationship': 'manages tokens for'}]
 ```
 
 You should output:
@@ -301,7 +327,9 @@ You should output:
 }
 ```
 
-## Input Context
+## REAL Input
+
+Your task is now to update this following node (either by updating the original node, AND/OR creating new nodes):
 
 **Node Data:**
 - Original Node Name: {{node_name}}

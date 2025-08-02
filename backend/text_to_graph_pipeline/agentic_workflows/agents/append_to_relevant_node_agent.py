@@ -40,7 +40,7 @@ class AppendToRelevantNodeAgent(Agent):
         self.add_prompt_node(
             "identify_target_node",
             TargetNodeResponse,
-            model_name="gemini-2.5-flash-lite"
+            model_name="gemini-2.5-flash"
         )
         
         # Use conditional edge to decide whether to identify target nodes

@@ -5,7 +5,7 @@ Managing your agents.
 2. think very hard about the task, and the proposed implementation plan. Is it good? Any problems with it? 
 3. Decompose this parent task into subtasks.
 
-Use @/Users/bobbobby/repos/VoiceTreePoc/CREATE_SUBAGENTS_COMMAND.md as a guide for creating the subtask files, and then afterwards, for creating the .sh files which will launch the subagents.
+Use @/Users/bobbobby/repos/VoiceTree/CREATE_SUBAGENTS_COMMAND.md as a guide for creating the subtask files, and then afterwards, for creating the .sh files which will launch the subagents.
 
 After creating each subtask file, make sure you also generate the .sh command with the python tool outlined in the CREATE_SUBAGENTS_COMMAND.md file.
 

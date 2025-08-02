@@ -102,7 +102,7 @@ async def main():
     
     # Load the animal example tree
     input_dir = "backend/benchmarker/output/igsm_op17_ip20_force_True_0_problem_question"
-    output_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered"
+    output_dir = "/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output_clustered"
     
     print(f"Loading tree from: {input_dir}")
     converter = MarkdownToTreeConverter()

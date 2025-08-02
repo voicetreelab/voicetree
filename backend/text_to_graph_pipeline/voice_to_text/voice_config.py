@@ -21,7 +21,7 @@ class VoiceConfig:
     # Your old setting was 900ms, so we set this to 0.9 seconds.
     # A lower value (e.g., 0.5) feels more responsive.
     # A higher value (e.g., 1.5) is better for speakers who pause to think.
-    pause_threshold: float = 0.9
+    pause_threshold: float = 0.6
 
     # Corresponds to the old `vad_total_timeout_ms`.
     # The maximum number of seconds a phrase can be. This prevents the listener
@@ -46,7 +46,7 @@ class VoiceConfig:
     # If using dynamic energy, this is the multiplier for how much louder
     # speech must be than the ambient noise. The default is 1.5.
     # Higher values make the VAD less sensitive (like a higher aggressiveness).
-    dynamic_energy_ratio: float = 1.5
+    dynamic_energy_ratio: float = 1.3
 
 
     # =========================================================================
