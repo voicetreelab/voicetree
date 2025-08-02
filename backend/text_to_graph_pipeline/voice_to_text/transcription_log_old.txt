@@ -41,3 +41,238 @@ It does not go on? No, it's okay.
 Mm-hmm.
 I'll see you next time.
 Hmm
+Okay, and then let's have the logs there, so.
+All righty. Okay, so let's see.
+if it can now understand that there's a tree loading integration.
+can that we just built
+So we want to understand if that works.
+So
+Let's see, creating a new node.
+Hmm.
+All right, so we've just
+Um,
+So we just added functionality to the load in existing tree.
+We want to see if that works now.
+So tree loading integration
+access that node
+Hmm, okay, let's look at...
+Voice tree.log
+Alright, did we just...
+Mark down.
+3 volt
+What the fuck is going on?
+let's see ready to listen
+I have you loaded
+loading tree.
+Loaded 18 months.
+I love you.
+Okay, so we should be able to just add that there.
+Okay, so we want both a logging and a print statement.
+Okay, that should be sufficient.
+Okay, cool. Now it's working
+So if we're talking about the tree loading integrator.
+can it add a new node there?
+Um...
+Let's see
+Yeah, awesome. Okay, that's pretty cool.
+Alright, so that's first feature done.
+Let's just check the video.
+All righty, that is done. Okay, so cool now we can actually work on voice stream. So we had
+Um...
+What did we have? We were going on a couple of things.
+Oh, yeah, the two problems with voice.
+So we want to work on the terminal default height issue.
+And the, um,
+graph flickering issue.
+Um...
+So...
+Let's work on the Terminal Default Height issue.
+because that's going to be easy.
+Thank you.
+Okay, so if we open
+A terminal here now.
+Cool.
+Oh, actually.
+Before we do that, we.
+Um...
+We wanted to look at if we could.
+Let's hide some of that
+All right
+Hide.
+All right, so we wanted to see
+Um...
+So we did that
+And now we wanted to see.
+Okay, so that worked, cool.
+We can...
+Clear that node
+Okay, so we have demo complete.
+Um...
+Okay, so...
+What do I actually want to do right now?
+Um...
+Oh, yeah, okay, so we were working on...
+the ability to do a graph traversal search.
+So that's this graph dependency traversal tool.
+So if we open that up...
+And we can run Claude.
+Okay, and then...
+let's make that a little bit bigger
+Um...
+Um, okay, so...
+We have a tool
+Voice
+Tree
+Oh, okay
+So graph.
+Get a tool for this.
+Um...
+What do you want to do now?
+So we want.
+So what do we want actually to happen?
+Whenever you open
+from a node.
+We want to do a graph.
+On that node to its parent
+So up through its dependencies.
+One second.
+Hello?
+Okay, I hope it's time to go to the side.
+Where are you at?
+All right, we just had a packet come.
+um so yeah what do we actually want to do regarding the
+dependency traversal tool.
+Um...
+So...
+Um, we want...
+Returning only seven nodes from select-
+Why would that be?
+Oh, because...
+Right. Nothing was relevant.
+Hello?
+links
+Sorry, we're still Orbin or...
+Oben oder unten?
+Unten.
+Robin, okay, I'm going to go to the right side.
+Thank you.
+Oh man, fucking door.
+Um,
+Right, so...
+What do we want to do we want
+Um...
+when
+So instead of just getting the parents' content...
+we want to give the full graph dependency traversal.
+So, currently...
+when we open Claude.
+Oh, come on.
+When we...
+Okay, so in...
+markdown tree vault, add new node.
+No, here.
+Demo prompt dot wait
+Ah, okay, so.
+Um...
+So we have currently in.
+We just load
+So we have pump is.
+Doom.
+Wait.
+If you want.
+Injected in this prompt to be the full.
+I propose a way to do this.
+Okay, so I'm running an agent
+right now on
+So that's running.
+Okay, and now I realize that
+Um...
+when the graph moves
+Sometimes the terminal isn't moving.
+Do that. That seems to work
+But I guess if it happens while it's moving.
+Um...
+Okay.
+So let's see what's decided to do
+Okay, so now let's
+open
+A Gemini instant.
+Um...
+So
+We are getting lost in the tree a bit too easily.
+That is one problem because things just sort of flicker around too much, which is...
+The second problem we need to...
+Okay, so...
+Let's um
+delete that
+So we have here and here
+And now we want to go Gemini.
+Okay.
+And let's get it to review that.
+so this is
+forward dependency graph traversal into cloud SH.
+Let me see, review this.
+proposed
+navigate to
+All right, let's get more.
+Okay.
+And now let's go.
+Opus to work on that.
+and say,
+review this
+this
+Also look at the neighbors.
+So this does make me think that we're all
+have to be able to see
+Oh my god.
+So annoying zoom.
+Um...
+So let's see
+Um, okay, so...
+There's a problem here with the markdown.
+Let's, let's get, uh, do it. Okay.
+Thanks.
+Make sure they're known.
+problems with this.
+And then exit.
+So this guy's saying that the clod is
+the build is failing.
+So when you figure out why the builds
+And what does he actually change?
+No, we don't want that.
+So let's say no
+Shut the man.
+So we can't reference files easily
+Um...
+Yeah, it is a problem. Voice trademarked entry vault.
+I'm going to guess. Oh well.
+Okay, so let's test if that works.
+um so we can
+So we can open up a terminal here.
+Claude.
+Let me see, do the same for Gemini.
+And then we want to see.
+Um.
+There you go.
+Enhanced.
+So we want to loop.
+Okay.
+You
+I'll see you next time.
+Okay, let's see this guy.
+Okay, let's see what this guy did
+Don't want that action.
+Do you need to be able to specify a...
+folder for it to work in.
+Um...
+So maybe
+We could do like...
+I don't know.
+Claude sh
+Folder like that
+It's not a bad idea
+Okay, cool. So now we want to work on a new task.
+Um, actually, let me just see if I can open it.
+Okay, that did actually work.
+Okay.
+The flickering is really annoying.
