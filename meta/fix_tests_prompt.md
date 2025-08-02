@@ -15,6 +15,7 @@ Just fix the tests that are related to the changes in the last commit.
 The git diff below shows what changed in the production code. Use this to understand which tests to run, and how to update the failing tests.
 
 ## Your Task
+0. Find possibly relevant tests: navigate up the call hierarchy from the changed methods. up to 3 method distance away, you can use serena symbol search for this.
 1. Run the relevant tests to see current failures
 2. Analyze the git diff to understand what changed
 3. Fix the failing tests to work with the new code
