@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any, List, Type, Callable, Optional, Tuple, Union
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, END
-from langgraph.pregel import RetryPolicy
+from langgraph.types import RetryPolicy
 
 
 class Agent:

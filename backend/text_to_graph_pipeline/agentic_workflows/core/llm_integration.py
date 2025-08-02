@@ -50,7 +50,7 @@ class CONFIG:
         Path.cwd() / '.env',
         Path.cwd().parent / '.env',
         Path.cwd().parent.parent / '.env',
-        Path.home() / 'repos' / 'VoiceTreePoc' / '.env'
+        Path.home() / 'repos' / 'VoiceTree' / '.env'
     ]
     
     # Debug settings
@@ -69,10 +69,6 @@ def _load_environment() -> None:
     for env_path in CONFIG.ENV_SEARCH_PATHS:
         if env_path.exists():
             load_dotenv(env_path)
-            if CONFIG.PRINT_ENV_LOADING:
-                print(f"✅ Loaded environment variables from {env_path}")
-            break
-
 
 def _get_api_key() -> Optional[str]:
     """Get the Google API key from environment or settings"""

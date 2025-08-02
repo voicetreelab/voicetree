@@ -93,17 +93,22 @@ class OptimizationResponse(BaseModel):
     """Response model for single abstraction optimization - no union types"""
     reasoning: str = Field(description="COMPREHENSIVE reasoning notes for ALL stages.")
     
+    # Boolean flag to indicate intent to create nodes
+    should_create_nodes: bool = Field(description="Set to true if you want to create new child nodes, false otherwise")
+    
+    # New child nodes to create (only when should_create_nodes is true)
+    new_nodes: List[ChildNodeSpec] = Field(description="List of new nodes to create (required when should_create_nodes=true, ignored when false)")
+
     # Original node update (if needed)
     original_new_content: Optional[str] = Field(description="Updated content for the original node.")
     original_new_summary: Optional[str] = Field(default=None, description="Updated summary for the original node.")
     
-    # New child nodes to create (can be empty list)
-    create_new_nodes: List[ChildNodeSpec] = Field(
-        default_factory=list,
-        description="List of new nodes to create (empty if no split needed)"
-    )
-    
     debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instruction which created difficulties in completing the task")
+    
+    def model_post_init(self, __context):
+        """Validate consistency between should_create_nodes flag and new_nodes list"""
+        if self.should_create_nodes and not self.new_nodes:
+            raise ValueError("new_nodes cannot be empty when should_create_nodes is True")
 
 
 class TargetNodeIdentification(BaseModel):
