@@ -80,7 +80,7 @@ class DecisionTree:
         if parent_node_id is not None:
             self.tree[parent_node_id].children.append(new_node_id)
 
-        self.tree[new_node_id].summary = summary if summary is not None else extract_summary(content)
+        self.tree[new_node_id].summary = summary if summary else extract_summary(content)
         
         # Increment AFTER successful creation
         self.next_node_id += 1
