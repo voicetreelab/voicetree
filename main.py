@@ -13,6 +13,8 @@ from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
     DecisionTree
 from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
     TreeToMarkdownConverter
+from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import \
+    load_markdown_tree
 from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import \
     VoiceToTextEngine
 
@@ -23,7 +25,44 @@ logger = setup_logging('voicetree.log', console_level=logging.ERROR)
 temp_dir = tempfile.mkdtemp()
 workflow_state_file = os.path.join(temp_dir, "voicetree_workflow_state.json")
 
+# Initialize decision tree
 decision_tree = DecisionTree()
+
+# Load existing tree from markdown if available
+markdown_dir = "markdownTreeVault"
+if os.path.exists(markdown_dir):
+    # Check for date subdirectories (e.g., 2025-08-02)
+    subdirs = [d for d in os.listdir(markdown_dir) if os.path.isdir(os.path.join(markdown_dir, d))]
+    date_subdirs = [d for d in subdirs if d.count('-') == 2 and len(d) == 10]  # YYYY-MM-DD format
+    
+    if date_subdirs:
+        # Use the most recent date subdirectory
+        latest_subdir = sorted(date_subdirs)[-1]
+        markdown_load_dir = os.path.join(markdown_dir, latest_subdir)
+    else:
+        # Fall back to the main directory
+        markdown_load_dir = markdown_dir
+    
+    # Check if there are .md files to load
+    if os.path.exists(markdown_load_dir) and any(f.endswith('.md') for f in os.listdir(markdown_load_dir)):
+        try:
+            print(f"Loading existing tree from {markdown_load_dir}")
+            logger.info(f"Loading existing tree from {markdown_load_dir}")
+            loaded_tree = load_markdown_tree(markdown_load_dir)
+            decision_tree.tree = loaded_tree
+            # Update next_node_id to be higher than any existing node ID
+            if loaded_tree:
+                decision_tree.next_node_id = max(loaded_tree.keys()) + 1
+            logger.info(f"Loaded {len(loaded_tree)} nodes from markdown")
+        except Exception as e:
+            logger.info(f"Failed to load tree from markdown: {e}")
+            logger.info("Starting with empty tree")
+            print("Starting with empty tree")
+    else:
+        logger.info(f"No markdown files found in {markdown_load_dir}, starting with empty tree")
+else:
+    logger.info(f"Markdown directory {markdown_dir} does not exist, starting with empty tree")
+
 converter = TreeToMarkdownConverter(decision_tree.tree)
 processor = ChunkProcessor(decision_tree, 
                           converter=converter)
