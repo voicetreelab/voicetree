@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""
+Script to add a new node to the VoiceTree structure by creating a new markdown file
+and linking it to its parent file.
+"""
+
+import os
+import re
+import sys
+import argparse
+from pathlib import Path
+
+
+def addNewNode(parent_file, name, markdown_content, relationship_to, color="blue"):
+    """
+    Add a new node to the VoiceTree structure.
+    
+    Args:
+        parent_file (str): Path to the parent markdown file
+        name (str): Name/title of the new node
+        markdown_content (str): Content for the new node's markdown file
+        relationship_to (str): Relationship type to parent (e.g., "is_a_component_of", "is_a_feature_of")
+        color (str): Color for the node (default: "blue")
+    
+    Returns:
+        str: Path to the newly created file
+    """
+    # Get parent directory and parent filename
+    parent_path = Path(parent_file)
+    parent_dir = parent_path.parent
+    parent_filename = parent_path.name
+    
+    # Extract parent node ID from filename
+    parent_id_match = re.match(r'^(\d+(?:_\d+)*)', parent_filename)
+    if not parent_id_match:
+        raise ValueError(f"Could not extract node ID from parent filename: {parent_filename}")
+    
+    parent_id = parent_id_match.group(1)
+    
+    # Find the next available child ID
+    existing_children = []
+    for file in parent_dir.glob(f"{parent_id}_*.md"):
+        if file.name != parent_filename:
+            child_match = re.match(rf'^{re.escape(parent_id)}_(\d+)', file.name)
+            if child_match:
+                existing_children.append(int(child_match.group(1)))
+    
+    next_child_num = max(existing_children, default=0) + 1
+    new_node_id = f"{parent_id}_{next_child_num}"
+    
+    # Create safe filename from name
+    safe_name = re.sub(r'[^\w\s-]', '', name)
+    safe_name = re.sub(r'[-\s]+', '_', safe_name)
+    new_filename = f"{new_node_id}_{safe_name}.md"
+    new_file_path = parent_dir / new_filename
+    
+    # Create the new node content with frontmatter
+    new_content = f"""---
+node_id: {new_node_id}
+title: {name} ({new_node_id})
+color: {color}
+---
+{markdown_content}
+
+-----------------
+_Links:_
+Parent:
+- {relationship_to} [[{parent_dir.name}/{parent_filename}]]
+"""
+    
+    # Write the new file
+    with open(new_file_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+    
+    # Update parent file to add child link
+    with open(parent_file, 'r', encoding='utf-8') as f:
+        parent_content = f.read()
+    
+    # Check if parent already has a Children section
+    if '\nChildren:' in parent_content:
+        # Add to existing children section
+        lines = parent_content.split('\n')
+        for i, line in enumerate(lines):
+            if line.strip() == 'Children:':
+                # Find the next non-child line
+                j = i + 1
+                while j < len(lines) and (lines[j].startswith('- ') or lines[j].strip() == ''):
+                    j += 1
+                # Insert new child link
+                lines.insert(j, f"- [[{parent_dir.name}/{new_filename}]] {relationship_to} this")
+                break
+        parent_content = '\n'.join(lines)
+    else:
+        # Add new children section before the last line
+        lines = parent_content.rstrip().split('\n')
+        if lines[-1].strip() == '':
+            lines.pop()
+        lines.append('\nChildren:')
+        lines.append(f"- [[{parent_dir.name}/{new_filename}]] {relationship_to} this")
+        lines.append('')
+        parent_content = '\n'.join(lines)
+    
+    # Write updated parent content
+    with open(parent_file, 'w', encoding='utf-8') as f:
+        f.write(parent_content)
+    
+    print(f"Created new node: {new_file_path}")
+    print(f"Updated parent: {parent_file}")
+    
+    return str(new_file_path)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Add a new node to the VoiceTree structure",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python add_new_node.py yc_demo/3_1_Agent_Orchestration_Module.md "Task Manager" "Manages tasks" is_a_component_of
+  python add_new_node.py yc_demo/3_1_Agent_Orchestration_Module.md "Error Handler" "Handles errors" is_a_component_of --color red
+        """
+    )
+    
+    parser.add_argument("parent_file", help="Path to the parent markdown file")
+    parser.add_argument("name", help="Name/title of the new node")
+    parser.add_argument("markdown_content", help="Content for the new node's markdown file")
+    parser.add_argument("relationship_to", help="Relationship type to parent (e.g., is_a_component_of, is_a_feature_of)")
+    parser.add_argument("--color", default="blue", help="Color for the node (default: blue)")
+    
+    args = parser.parse_args()
+    
+    try:
+        new_file = addNewNode(
+            args.parent_file,
+            args.name,
+            args.markdown_content,
+            args.relationship_to,
+            args.color
+        )
+        print(f"\nSuccess! New node created at: {new_file}")
+    except Exception as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        sys.exit(1)
