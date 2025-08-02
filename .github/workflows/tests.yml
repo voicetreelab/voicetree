@@ -149,4 +149,4 @@ jobs:
           backend/benchmarker/quality_log.txt
           backend/benchmarker/latest_quality_log.txt
           backend/benchmarker/src/latest_run_context.json
-          oldVaults/VoiceTreePOC/QualityTest/
+          oldVaults/VoiceTree/QualityTest/
