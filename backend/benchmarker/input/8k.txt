@@ -1,0 +1,44 @@
+The number of adult parrot in Bundle Ranch equals the difference between the number of adult parrot in Hamilton Farm and the number of adult crow in Jefferson Circus.
+The average number of newborn children per adult eagle in Hamilton Farm equals the average number of newborn children per adult parrot in Bundle Ranch.
+The average number of newborn children per adult porcupine in Ashen Crag equals the sum of the number of adult eagle in Hamilton Farm and the average number of newborn children per adult parrot in Jefferson Circus.
+The average number of newborn children per adult rat in Ashen Crag equals the average number of newborn children per adult parrot in Bundle Ranch.
+The number of adult blue jay in Hamilton Farm equals 4.
+The number of adult crow in Bundle Ranch equals 4 times the average number of newborn children per adult parrot in Bundle Ranch.
+The average number of newborn children per adult parrot in Bundle Ranch equals 3 times the number of adult crow in Mayer Aquarium.
+The number of adult chipmunk in Ashen Crag equals the sum of the average number of newborn children per adult crow in Mayer Aquarium and the number of adult eagle in Hamilton Farm.
+The average number of newborn children per adult chinchilla in Ashen Crag equals the sum of the average number of newborn children per adult crow in Hamilton Farm and the number of adult crow in Mayer Aquarium.
+The number of adult parrot in Hamilton Farm equals 2 times the number of adult crow in Jefferson Circus.
+The number of adult crow in Hamilton Farm equals 3.
+The number of adult beaver in Ashen Crag equals the sum of the number of adult parrot in Bundle Ranch and the average number of newborn children per adult parrot in Jefferson Circus.
+The average number of newborn children per adult crow in Hamilton Farm equals the sum of the number of adult eagle in Hamilton Farm, the total number of adult animals in Hamilton Farm, and the average number of newborn children per adult eagle in Jefferson Circus.
+The number of adult porcupine in Ashen Crag equals the number of adult crow in Hamilton Farm.
+The average number of newborn children per adult guinea pig in Ashen Crag equals the difference between the number of adult parrot in Jefferson Circus and the total number of adult animals in Hamilton Farm.
+The average number of newborn children per adult capybara in Ashen Crag equals the sum of the number of adult parrot in Mayer Aquarium and the average number of newborn children per adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult squirrel in Ashen Crag equals the difference between the average number of newborn children per adult parrot in Bundle Ranch and the average number of newborn children per adult eagle in Hamilton Farm.
+The number of adult eagle in Hamilton Farm equals 3.
+The average number of newborn children per adult eagle in Jefferson Circus equals 2 times the total number of adult animals in Hamilton Farm.
+The average number of newborn children per adult blue jay in Hamilton Farm equals the number of adult crow in Jefferson Circus.
+The number of adult chinchilla in Ashen Crag equals the sum of the number of adult blue jay in Hamilton Farm and the average number of newborn children per adult parrot in Hamilton Farm.
+The average number of newborn children per adult crow in Bundle Ranch equals 2.
+The average number of newborn children per adult crow in Jefferson Circus equals 2 times the average number of newborn children per adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult parrot in Jefferson Circus equals the sum of the number of adult eagle in Jefferson Circus, the number of adult crow in Bundle Ranch, the average number of newborn children per adult eagle in Hamilton Farm, and the average number of newborn children per adult crow in Mayer Aquarium.
+The average number of newborn children per adult crow in Mayer Aquarium equals 1.
+The number of adult crow in Mayer Aquarium equals the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult eagle in Jefferson Circus equals the difference between the average number of newborn children per adult crow in Mayer Aquarium and the average number of newborn children per adult parrot in Hamilton Farm.
+The average number of newborn children per adult parrot in Hamilton Farm equals 3 times the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult chipmunk in Ashen Crag equals the average number of newborn children per adult eagle in Hamilton Farm.
+The number of adult rat in Ashen Crag equals the number of adult crow in Hamilton Farm.
+The average number of newborn children per adult blue jay in Mayer Aquarium equals 2 plus the average number of newborn children per adult parrot in Hamilton Farm.
+The number of adult parrot in Jefferson Circus equals the average number of newborn children per adult parrot in Hamilton Farm.
+The average number of newborn children per adult parrot in Mayer Aquarium equals 3 plus the sum of the number of adult parrot in Bundle Ranch and the average number of newborn children per adult blue jay in Hamilton Farm.
+The number of adult blue jay in Mayer Aquarium equals 2 times the average number of newborn children per adult crow in Mayer Aquarium.
+The number of adult crow in Jefferson Circus equals 2.
+The number of adult parrot in Mayer Aquarium equals the number of adult blue jay in Hamilton Farm.
+The number of adult squirrel in Ashen Crag equals the sum of the average number of newborn children per adult crow in Mayer Aquarium and the number of adult crow in Mayer Aquarium.
+The average number of newborn children per adult beaver in Ashen Crag equals the difference between the average number of newborn children per adult blue jay in Mayer Aquarium and the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult capybara in Ashen Crag equals the difference between the average number of newborn children per adult parrot in Bundle Ranch and the average number of newborn children per adult eagle in Hamilton Farm.
+The number of adult guinea pig in Ashen Crag equals the sum of the average number of newborn children per adult parrot in Hamilton Farm and the average number of newborn children per adult parrot in Bundle Ranch.
+
+
+
+How many adult crow does Bundle Ranch have?
