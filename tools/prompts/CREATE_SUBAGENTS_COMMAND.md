@@ -26,7 +26,7 @@ Identify independent tasks that can run simultaneously:
 
 Important, both you, and the agents, will keep all their documentation contained WITHIN a markdown tree. The entry point for this tree is whatever markdown documents you are already working with. Connections between nodes (markdown files), can be made with markdown links [[file]]
 
-i.e. you will extend the existing tree. for every new md file you make in markdown tree vault, 
+i.e. you will extend the existing tree. for every new md file you make in markdown tree vault at $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE, 
 prepend the file name with AGENT{NAME}_{TITLE}
 You are only allowed to modify existing nodes in the tree that start with AGENT_
 
@@ -118,7 +118,7 @@ After creating subtask markdown files, use the `generate_agent_script.py` tool t
 
 ```bash
 # Basic usage
-python generate_agent_script.py --agent-name <NAME> --color <COLOR> --task-file <TASK_FILE>
+python /Users/bobbobby/repos/VoiceTree/tools/generate_agent_script.py --agent-name <NAME> --color <COLOR> --task-file <TASK_FILE>
 
 # Examples for each agent
 python generate_agent_script.py --agent-name ALICE --color red --task-file AGENT_ALICE_integration_test.md
@@ -182,7 +182,7 @@ Always ask agents to update markdown checkboxees tracking their progress.
 
 REMEMBER: SET YOUR TIMEOUTS TO BE VERY LONG. CLAUDE SUBAGENTS CAN TAKE UP TO 10 minutes for a task.
 
-REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in /Users/bobbobby/repos/VoiceTree/agent-communication
+REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in $OBSIDIAN_VAULT_PATH (specifically in the directory of $OBSIDIAN_SOURCE_NOTE)
 AND TELL YOUR AGENTS TO DO THE SAME.
 
 ## Best Practices for Multi-Agent Development

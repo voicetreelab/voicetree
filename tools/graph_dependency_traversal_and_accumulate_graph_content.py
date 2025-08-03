@@ -51,19 +51,56 @@ def extract_markdown_links(content: str) -> List[str]:
     pattern = r'\[\[([^\]|]+\.md)(?:\|[^\|]+)?\]\]'
     return re.findall(pattern, content)
 
-# --- Core Logic: Graph Traversal and TF-IDF ---
+def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: Dict[str, str]) -> List[str]:
+    """Find all files that reference the parent file as their parent."""
+    children = []
+    parent_patterns = [
+        r'is_enabled_by\s*\[\[',
+        r'is_a_required_capability_for(?:_the)?\s*\[\[',
+        r'describes_the_underlying_approach_for(?:_the)?\s*\[\[',
+        r'is_a_new_requirement_for(?:_the)?\s*\[\[',
+        r'implements_pseudocode_for\s*\[\[',
+        r'clarifies_recursion_in\s*\[\['
+    ]
+    
+    # Remove .md extension if present for matching
+    parent_name = parent_filename.replace('.md', '')
+    
+    # Scan all markdown files
+    for md_file in markdown_dir.glob('**/*.md'):
+        if md_file.name == 'accumulated.md':  # Skip output file
+            continue
+            
+        relative_path = str(md_file.relative_to(markdown_dir))
+        
+        # Get content from cache or read file
+        if relative_path not in file_cache:
+            file_cache[relative_path] = read_markdown_file(md_file)
+        content = file_cache[relative_path]
+        
+        # Check if this file has a parent link to our target
+        for pattern in parent_patterns:
+            # Match patterns like: is_enabled_by [[filename.md]] or [[dir/filename.md]]
+            full_pattern = pattern + rf'.*?{re.escape(parent_name)}(?:\.md)?\]\]'
+            if re.search(full_pattern, content, re.IGNORECASE):
+                children.append(relative_path)
+                break
+                
+    return children
 
-def traverse_graph(
+def traverse_children_recursively(
     start_file: str,
     markdown_dir: Path,
     visited: Set[str],
-    file_cache: Dict[str, str]
+    file_cache: Dict[str, str],
+    depth: int = 0,
+    max_depth: int = 10
 ) -> List[Dict[str, str]]:
     """
-    Traverse the graph from a starting file, following all markdown links.
-    Returns a list of dictionaries with file info and content, using a cache.
+    Recursively traverse all child nodes (files that reference this file as parent).
+    Returns a list of dictionaries with file info and content.
     """
-    if start_file in visited:
+    if start_file in visited or depth > max_depth:
         return []
     
     visited.add(start_file)
@@ -78,20 +115,36 @@ def traverse_graph(
     if not content:
         return []
 
-    print(f"Processing: {start_file}")
-    linked_files = extract_markdown_links(content)
-    print(f"  Found {len(linked_files)} links: {linked_files}")
+    print(f"{' ' * (depth * 2)}Processing child: {start_file}")
     
-    result = [{'filename': start_file, 'content': content}]
+    # Find all files that reference this file as their parent
+    child_files = find_child_references(start_file, markdown_dir, file_cache)
+    print(f"{' ' * (depth * 2)}  Found {len(child_files)} children: {child_files}")
     
-    for linked_file in linked_files:
-        # Simple resolution: assume links are relative to the markdown_dir root
-        if (markdown_dir / linked_file).exists():
-            result.extend(traverse_graph(linked_file, markdown_dir, visited, file_cache))
-        else:
-            print(f"  Warning: Link not found: {linked_file} (from {start_file})")
+    result = [{'filename': start_file, 'content': content, 'depth': depth}]
+    
+    # Recursively traverse each child
+    for child_file in child_files:
+        child_results = traverse_children_recursively(
+            child_file, markdown_dir, visited, file_cache, depth + 1, max_depth
+        )
+        result.extend(child_results)
             
     return result
+
+# --- Core Logic: Graph Traversal and TF-IDF ---
+
+def traverse_graph(
+    start_file: str,
+    markdown_dir: Path,
+    visited: Set[str],
+    file_cache: Dict[str, str]
+) -> List[Dict[str, str]]:
+    """
+    Traverse the graph from a starting file by following child dependencies recursively.
+    Returns a list of dictionaries with file info and content, using a cache.
+    """
+    return traverse_children_recursively(start_file, markdown_dir, visited, file_cache)
 
 def find_top_relevant_nodes(
     traversed_content: str,
@@ -158,7 +211,10 @@ def format_traversed_content(branch_content: List[Dict[str, str]], start_file: s
     
     content_parts = []
     for file_info in reversed(branch_content):
-        file_header = f"\n{'-'*60}\nFile: {file_info['filename']}\n{'-'*60}\n"
+        # Add indentation for child nodes if depth information is available
+        depth = file_info.get('depth', 0)
+        indent = '  ' * depth if depth > 0 else ''
+        file_header = f"\n{'-'*60}\n{indent}File: {file_info['filename']}\n{'-'*60}\n"
         content_parts.append(file_header + file_info['content'])
         
     return header + "".join(content_parts)
