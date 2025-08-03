@@ -101,7 +101,7 @@ class TranscriptProcessor:
                         await self.processor.process_new_text_and_update_markdown(line.strip() + "\n")
                         
                         # Small delay to simulate streaming (optional)
-                        await asyncio.sleep(0.05)
+                        await asyncio.sleep(10)
                         
                         if (i + 1) % 10 == 0:  # Progress indicator every 10 lines
                             print(f"Processed {i + 1}/{len(lines)} lines")

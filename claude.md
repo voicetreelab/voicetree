@@ -2,6 +2,16 @@
 
 VoiceTree is a Python backend system that converts voice input into structured graphs using an LLM agentic pipeline. The system transcribes audio, processes it through agentic workflows, and outputs interconnected markdown files representing ideas as a visual tree.
 
+Key files:
+
+- Driver for taking a full chunk of text, getting the resulting tree node actions (create, append, update), and executing them. /Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/chunk_processing_pipeline/tree_action_decider_workflow.py
+- Agents: backend/text_to_graph_pipeline/agentic_workflows/agents
+- Prompts for agents: backend/text_to_graph_pipeline/agentic_workflows/prompts
+- Tree data structure and functions: backend/text_to_graph_pipeline/tree_manager
+- other core modules for text to graph pipeline: /Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline
+
+Use serena symbol tools to find the exactly relevant method for your task.
+
 ## Essential Commands
 
 # Run unit tests
@@ -12,7 +22,7 @@ pytest backend/tests/integration_tests/
 
 # Run benchmarker for quality testing
 python backend/benchmarker/src/quality_LLM_benchmarker.py
-```
+
 
 General Tips:
 
