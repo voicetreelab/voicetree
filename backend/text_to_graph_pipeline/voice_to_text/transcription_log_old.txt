@@ -1027,3 +1027,306 @@ How are you? Say.
 dollars.
 Sorry, what is it? A thousand people like to announce $500.
 Bye.
+So right now
+Voice trees running on this little window there. Can you see it there?
+Yeah, I see it. So it's it's recording me. It's transcribing And then in this window, I can have my note
+And then what happens is as I'm.
+for explaining things that's that's for explaining things and then you see how a new node just appears
+Yeah, that was from me talking.
+And so if I keep on talking about that node see now it's I you can see that it's live because it's
+It has that little text there so
+like there it's in green and blue the the comments from my my terminal and then there's the actual like
+nodes appearing and so while I'm
+like the theory for like a minute.
+The um...
+the nodes will still be appearing, and the logs here are quite clear, they're colored, so they understand what's going on. They say, ah, okay, he's explaining this stuff, but in parallel to that, VoiceTree is actually running here, and you can see the logs, and you can see the nodes appearing.
+No, so for the demo
+You read the demo script, right?
+good. So...
+I think that is a big vote.
+Well, it's the optimization part and then how that becomes
+So right now, this is how I'll do the demo. I'll have Voice Tree running here, and then I'll have my notes for what I'm gonna explain here in the bottom half.
+Yeah, they will see these notes.
+I mean, they also see Voice Tree running in the top.
+And so I'm explaining VoiceTree using some.
+And then at some point I tell them I'm doing a live demo right now. You can see VoiceTree running.
+And then I show I open like a node here like I can open cloud or Gemini you see that
+And then if I open Claude,
+Phone away.
+So you don't have to, you don't have to.
+No, I don't need to write it it automatically
+And then I'll show them. I'll show how it...
+Anyway, so it gets all the content.
+Um, and then I can.
+Yeah, it gets all the nodes from the chip.
+Actually, it's not working right now.
+But it does, and I can show them that.
+Um...
+And then I'll get it to like do something like write a mark down.
+Like to draw like a diagram or something something simple now just paste it in so I'll just do like
+draw
+Like okay, I haven't copied someone
+So if I just say...
+Add a new node.
+So I'll just paste that in, which just says add a new note of mark.
+And it will all work, so there's some bugs right now, but I'll make it all work. Yeah.
+Um...
+And then...
+It's going to add that node. And then what I'm thinking is either I switch over to
+Example
+Um.
+that we were talking about, that I have at the end of the script.
+Let me see that one again, one sec.
+what did you mean by that four different screens so you're going to just have a lot of different agents doing
+No, so, hang on.
+So there's two things I can do. So one option is I continue using this Example this like this. I don't I don't restart. I just use the same example
+And I just now say, okay, now I'm going to engineer an actual feature in VoiceTree, continuing off the same VoiceTree.
+And so, then I'll...
+And then after that we speed it up to like 10x so you hear me talking really quick
+and the nodes appearing.
+um and then we we stop at some point where i'm like now watch this and i get um i get one agent to decompose a task into subtasks and then run all the sub agents on those subtasks
+Um...
+But is this all possible in three minutes?
+that it would have to be really sped up.
+And just showing them like, or, so that's one alternative, is that I continue using the same tree to show like a real world example.
+Or I can switch over to some real world examples of me actually using it for engineering, sped up and just stop at key moments.
+No idea to develop a narrative.
+Yeah, yeah, I agree.
+of the context. Yeah. And then I can have 10 seconds at the end.
+like so like split screen right like like as in there's four screens
+And it's just like four videos of me using VoiceTree for work.
+So I'll show you an example.
+Like if I open
+so
+So I can show like some of these really sped up examples of me using
+VoiceTree to do engineering work.
+Yeah, but I think that's a bit true.
+But if we just have it for 10 seconds like split-screen for four ones of these and just like just to say Just for the one sentence of me saying I'm addicted to using voice tree engineering has never been this productive nor joyful before Just for that just for that one second
+Yeah, nice yeah
+Pretty cool, right?
+Because I told him, like, no worries, you don't have too much time. Even a quick glance could be useful. And he said, I'm super interested in the project. Just want to be able to give it my full attention in time. And then he says he spoke to a patent lawyer, a friend of his, and they told him it makes sense to file for patents in the countries you will want to sell to.
+I guess these are things for Y Combinator.
+Okay, so then ideally I should be sending him this this draft of just the text or send him me me doing an actual example like I can probably the next hour get a pretty okay example of me doing it
+Yeah, we have some problems, of course.
+It's not going to be the... Yeah, that's okay.
+Yeah. Do you think that's a good use of your time right now? Is that what you want to focus on?
+Getting the demo done
+I mean, doing kind of a mock video.
+Oh, I mean...
+just be practicing for the real video yeah i mean the real video is just gonna be
+they record like the best version
+whatever the best one is so you just want to keep track
+Yeah, but I mean if we record it early and send it to Zarin, he can give some advice. Yeah, exactly, I would do that. Yeah, and say this is maybe, I'll just tell him this is the draft. Do you want me to, do you want to send me Zarin?
+Okay, so do you think that's the perfect flow like as in
+what I sent you and then what I explained.
+What it looked like
+Yeah, dude, it makes it sound like it's a really...
+Hmm.
+So one thing is that I've completely stopped work on the GSM bench.
+And it would still be really cool to show like an image
+benchmark results.
+Yeah.
+But don't you have already one that you can show?
+I mean...
+I've stopped work on it. I think I could come up probably in three hours of work, I could get a nice graph that's actually accurate.
+Um, but there's a lot, a lot of.
+But I think that's fine. I mean, they just want to know it's promising not that
+Let me just check exactly what time it is. It's 5 a.m. Tuesday. Yeah. I think I'll be staying up.
+I don't know. I mean, hopefully not, but in case.
+All right, 5 a.m. Tuesday, one day left. Exciting. Okay, so can you read the...
+Yeah, I've read it. I think it's great. So you think it's perfect just just make that work
+What are you going to be showing in the first part of where all the text is?
+Before you say, I'll show you what I mean.
+So the whole time.
+So the whole time it's going to be.
+This screen, right? This is the screen I'm recording
+My face will be in the top right
+And here you see that there's like
+Um, there's... What is that?
+Well, it's just drawings so I can just draw whatever I want there
+So, and I can use that to explain what I'm talking about.
+So I could have like some little, you know, circles or whatever I need to explain, whatever I need to explain. Yeah.
+and then and then when I'm done with the explanation I drag it away and it's just the
+Awesome, he's perfect.
+Amazing, amazing, amazing.
+Yeah, I don't know. This is just so much better than...
+other ways of doing it where I have like a different slide and then I switch to this slide and then they're not sure.
+progress you've made in the last week I mean imagine with a few more months to work on this if we don't get this round you have six months to polish it well so what happened is right is that the past year and a half I've just been working on the core algorithm
+And in this past two weeks, I've just been working on like UI, which makes it look a lot better, but nothing's actually that functional.
+But it makes a huge difference for...
+But it's genuinely gone to the point where I prefer using it now to other ways of working.
+Yeah, it's so cool, so cool.
+That's awesome, dude. Yeah.
+It's your own invention. It's really cool. It's so cool.
+Okay, I'll try. So what's my priority to get to get you a draft of that?
+And Zen.
+Yeah, yeah
+Yeah, perfect.
+Exciting stuff, Manu. Amazing. All right.
+Um,
+Um...
+So, can you hear me?
+Now I can hear you. Yeah, you're back. What I want you to work...
+Um.
+Well, uh-huh.
+Well, uh-huh. So when I send you the draft...
+You could do the editing.
+Um,
+I don't know. I don't know. What's...
+What do we need once like the demo when you be edited slightly like when you speed up parts of it
+Yeah, but you'll have shot it, so you know every single line you said. I think you should do the speeding up, because you'll know what you want to, while you're making.
+It'll just be inefficient for me to figure that out. Okay, just stay on standby then.
+Yeah, that could be really good. Maybe out of all, you know, I've sent you lots and lots of prompts. I mean, like example scripts and stuff. Maybe we can fill it in a bit more.
+yeah and so and any of the personal stuff
+Don't worry about filling it out like a time. I've um like hacked something like I'm thinking like they all talk about like biohacking
+that's kind of cool and interesting
+Um, that I haven't done.
+and you could think about maybe because like in that one minute founder video we can i can mention some things about voicetreat to make the next demo more understandable
+Because I'm sure they just append them.
+um
+So maybe you think about if like the whole narrative of like Founder video plus demo video plus written application if it all really makes sense and nothing's left really confusing And they're not like you know what I mean like as in the whole thing is a cohesive story piece of narrative
+Best way to see this is if you already have drafts, you know, not the final version, but if you just take the one minute founder video, have mom record it up on the roof.
+Or just, I mean, behind with the bookshelf, that looks good, though.
+And then Zeronomy can feedback.
+Okay, okay, cool.
+I will...
+I'll record, I'll try to record all the drops that we need and send them to you ASAP. Nice. Okay. Should I make a group with Zarin? Yeah, yeah.
+All right, bye. All right. See you, man. Bye.
+All right, cool. Can you hear me voice, Tri?
+All right, we just need to get some little fix-ups working for our demo. Most things are already working. We just have a few things we need to do.
+Um,
+So for the demo
+Something we need to do is...
+for new node placement consider all other existing nodes in the graph so that like right here they don't appear too close to each other
+We also need to stop doing restarting layout after we drag a node. That's been really annoying.
+And I know that there's somewhere in our code base there's layout start.
+stop and we we just need to comment that out so that the layout doesn't restart
+Okay, and then the other thing we need to work
+is that
+Um,
+Currently, we've somehow broken the Claude.sh.
+So it used to get the whole Python dependency.
+and now it no longer does.
+So we need to fix that.
+You
+Alright now I want to figure out
+When we're going to go to the gym.
+We want to go to the gym. Let's check when the gym's closed.
+So it's a Berlin strength.
+Maybe it's not open on a Sunday.
+Okay, so we fixed the ClawDOSH broken functionality. Let's just quickly check that it's also working for Gemini
+Nice looks like it's working
+Cool, okay, so now we just want to make sure we need to work on optimized new node placement
+Um...
+Let's actually yeah, so let's get an agent to work on
+Restarting layer.
+Let's do Claude.
+Okay, and now we want to work on Optimize New Node Placement. Yeah, clone.
+Okay, let's add to a list of things we won't do but ideas
+Could be cool, but we're not going to do because you know
+So one thing is a way to actually delete a node and then have it deleted from our tree data structure as well.
+the other thing we wanted to do was to be able to...
+collapse a node and all its neighbors.
+into one container node.
+That's also a won't do task.
+All right, so now we need to...
+what exactly we need to be able to do the demo where we do agent.
+All right, so now we need to consider what exactly we need to be able to do the demo where we do agent orchestra.
+So, I guess the first thing we need to do is to be able to...
+So I guess the first thing we need to do is to be able to...
+So go down a chain of nodes.
+So go down a chain of notes.
+have those nodes created.
+have those nodes created.
+And then...
+Um, and then...
+run an orchestration agent.
+run an orchestration agent.
+Um...
+So to run an orchestration agent, we just give it the specific orchestration prompt. That's easy and then
+So, to run an organization agency.
+the specific orchestration prompt that's easy and then
+So we'd give it the orchestration prompt. It would turn, it would create the four subtasks.
+So we'd give it the orchestration prompt. It would turn It would create the four subtasks
+And then on each subtask.
+And then on each subtask.
+We could uh
+we could uh
+So in each sub-task, we could then run the sub-agent.
+So in each sub-task, we could then run the sub-agent.
+and
+And...
+the sub-agent
+the sub-agent
+Hmm, hmm, hmm, hmm.
+Hmm, hmm, hmm, hmm.
+Because before we didn't really have it completely integrated into our existing infra So the old way of doing agent orchestration was to create a new sub
+Because before we didn't really have it completely integrated into our existing infra. So the old way of doing agent orchestration was to create a new sub-agent shell.
+script. But now, ideally...
+But now, ideally,
+Just the subtask itself to contain all the information.
+Just the subtask itself to contain all the information.
+So we can try that in a minute
+So we can try that in a minute
+Um,
+Um...
+But for now, I just want to make sure that our new node plays
+But for now I just want to make sure that our new node placement logic is okay
+is okay.
+Okay, so.
+Okay, so...
+Give me one second.
+Give me one second.
+I'm recording.
+I'm recording.
+Okay, there's another problem with Gemini is that the ampersand doesn't actually inject the prompt file So we need to actually inject the content With an environment variable, I guess
+Okay, there's another problem with Gemini is that the ampersand doesn't actually inject the prompt file So we need to actually inject the content With an environment variable, I guess
+Let's add to our won't do list
+Um, let's add to our won't do list.
+that when we close a terminal
+that when we close a terminal,
+that when we close the hover editor for a terminal that the actual terminal node is also
+That when we close the hover editor for a terminal that the actual terminal node is also
+It cleared, deleted, hidden.
+It cleared, deleted, hidden.
+okay another won't do problem that we've noticed is that um so we just made uh so two orphan nodes just created got created actually three orphan nodes
+okay another won't do problem that we've noticed is that um so we just made uh so two orphan nodes just created got created actually three orphan nodes
+15, 16 and 16.
+15 16 and 16 and so two files
+And so two files...
+with the same
+with the same
+Node ID got made.
+node ID got made.
+And so we need to figure out exactly why that
+and so we need to figure out exactly why that
+That's a bug
+That's a bug.
+you
+Okay, so right now we're trying to figure out exactly what sort of layout logic and physics we actually want. So one thing I realized is that if I drag a node, ideally I would like all the nodes that it's connected to, to also be pulled towards that node.
+Okay, so right now we're trying to figure out exactly what sort of layout, logic, and physics we actually want. So one thing I realized is that if I drag a node, ideally I would like all the nodes that it's connected to, to also be pulled towards that node.
+Okay, so one thing we need for our orchestration mode is we need it to somehow be able to click
+Okay, so one thing we need for our orchestration mode is we need it to somehow be able to click
+Also children.
+Also children.
+Um...
+Um...
+So maybe we can do like dependency traversal can do.
+So maybe we can do like dependency traversal, can do dependencies.
+dependencies.
+Plus, go find...
+Plus, go find...
+Find the children of that node
+Find the children of that node.
+Um,
+Um,
+Um,
+Um,
+Uh...
+Uh...
+Yeah, yeah, we just need to then also do dependency traversal on the...
+Yeah, yeah, yeah, we just need to then also do dependency traversal on the
+Children of the node that we're running on and the children's children's children's children, etc, etc, etc
+children of the node that we're running on and the children's children's children's children, etc.
+One thing on our non-actionable ideas list should also be that our tree should be able to reference nodes which an agent has created, not just the ones that we've made manually.
+One thing on our non-actionable ideas list should also be that our tree should be able to reference nodes which an agent has created, not just the ones that we've made manually.
