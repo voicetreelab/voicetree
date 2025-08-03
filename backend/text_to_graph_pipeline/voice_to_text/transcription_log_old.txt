@@ -1372,3 +1372,148 @@ What are you going to do, have a run?
 Just do a bit of exercise.
 I'll see you next time.
 We'll see you next time.
+for new node placement, consider all other existing
+Nose in the graph, so that like right here they don't appear too close to each other
+um we also need to stop
+Alright cool, we're going to open our voice stream.
+That comes out.
+All right, we just need to get some little fix ups working for our demo. Most things are already working. We just have a few things we're going to do.
+So, for them.
+Cool, can you hear me voice three?
+We just need to get some little fix-ups working.
+Most things are already working, we just have a few things we're going to do.
+so for the demo something we need to do is um uh for you know placement um consider all other existing nodes in the graph so like right here they don't appear too close
+We also need to stop doing restarting layout after we drag a node, that's been really annoying. And I know that there's somewhere in our code base that there's a layout.
+And we have to comment that out.
+And I know that there's somewhere in our code base there's
+And we just need to comment that out so that the layout doesn't restart.
+Okay, and the other thing we need to work on is that currently we've somehow broken the clod.sh. So it used to get the whole Python dependency, and now it no longer does. So we need to fix that.
+The other thing we need to work on.
+Restarting layout after we drag a node, that's been really annoying. A Python dependency, and now it no longer does, so we need to fix that.
+So we need to fix that.
+I want to figure out when we're going to go to the gym. Let's check when the gym's closed.
+So it's Evelyn's rink. Maybe it's not in a Sunday.
+All right, so we fixed the cloudless edge broken functionality. Let's just quickly check this.
+Nice, looks like it's working. Cool. OK, so now we just want to make sure we need work on optimized.
+So it used to get the whole Python dependency.
+Python.
+All right, so we fixed the Clotus Edge.
+Nice, looks like it's working. Cool. Okay, so now we just want to make sure we work on optimizing node placement.
+Let's actually, yeah, so let's get an engine to work on resetting now.
+And let's add to a list of things we won't do, ideas that could be cool, but we're not going to do because of priority. So one thing is a way to actually delete a node and then have it deleted from our tree.
+The other thing we wanted to do was to be able to collapse a node and all its neighbors into one container node.
+That's also one of the new tasks.
+Alright, so now we need to consider what exactly...
+the demo where we do agent orchestration.
+So we can try that in a minute.
+That's me.
+Gemini is not using the same color for nodes, so we just ask it why.
+to add to a non-action ideas list, is that for some reason...
+Bum!
+Thank you.
+Currently we've somehow broken the...
+cloud.sh
+So it used to get the whole Python dependency, and now it normally does, so you fix that.
+One running.
+All right, cool. Can you give me a voice drink?
+All right, we just need to get some little fix-ups working for our demo. Most things are already working. We just have a few things we can do.
+So for the demo, something we need to do is, for new node placement, consider all other existing nodes in the graph, so that right here they don't appear too close to each other.
+We also need to stop doing restarting layout after we drag a node, that's been really annoying. And I know that there's somewhere in our code base there's...
+stop. And we need a comment out so that the layout doesn't restart.
+Okay, and then the other thing we need to work on is that currently we've somehow broken the clod.sh. So it used to get the whole Python dependency, and now it no longer does. So we need to fix that.
+All right, so we fixed the clodis edge functionally.
+All right, so we fixed it on this edge.
+and now it no longer does, so we need to fix that.
+All right, so we fixed the clodis edge button functionality.
+So it used to get the whole Python dependency.
+Ice, ice we fixed it ice we fixed the glottis edge
+All right, so we fixed the cludders. All right, so we fixed the cludders. Edge broken functionality. Let's just quickly check this out.
+As we fix the clodest edge functionality.
+OK, so we fixed the cloudless edge broken functionality. Let's just quickly check this.
+One ring.
+as we were sharing.
+I was six years old when I was missing a day.
+All right, I want to figure out when we're going to go to the gym. Let's check when the gym's closed.
+So it's evidence-wing.
+of followers of the Indian Guru.
+Bye.
+Children like me.
+All right, so we fixed the Clodos H broken functionality.
+Nice. Looks like it's working. Cool. Okay, so now we just want to make sure we work on optimized unit placement.
+Let's actually get an agent to work on restarting now. Let's do Claude.
+To know
+You
+Thank you.
+Thank you.
+Brrrr!
+Thank you.
+Hmm.
+See what mom's doing.
+Thank you.
+Working out.
+I'm going to have a run.
+Maybe, huh? Maybe.
+You
+I don't know how it works.
+work
+Crashing a bit
+Yeah, I've got some great ideas.
+Very useful.
+So current large language models performance becomes worse as their context length.
+Attention will always be complicated.
+You only know for sure of a new piece of
+by checking each one. There's quadratic complexity.
+VoiceTree solves this by optimizing the input itself.
+We take any text and progressively convert it into a graph containing those concepts and the relationships.
+Then, instead of repeatedly sending LLMs the same appended unstructured text, we work alongside the LLM to prune to only the relevant sub-tree.
+The results we have been seeing are amazing. We're seeing 70% fewer input tokens on average and 15% greater reasoning on the GSM Infinite benchmark.
+Moreover, VoiceTree provides those same performance benefits to humans.
+So humans, too, suffer from context degradation.
+And in fact, what we can do is.
+We can...
+Remove this.
+Entirely.
+and instead just work on a shared memory graph.
+I'll show you what I mean.
+So what you're seeing right now has been running live.
+I've been running VoiceTree.
+on my voice, and then it's converting it to text and then to this graph.
+I'll now launch an HR.
+Now, so what you can see here...
+Oh, what the fuck did I do here?
+ah
+LOL.
+All right.
+So LLM's performance decreases the longer their context gets. This is called context degradation. And the key reason for this is because they reprocess the entire context.
+VoiceTree solves this at the input layer. We optimize the input itself. We take any text and progressively convert it into a graph containing the concepts and the relationships
+Then, instead of repeatedly sending LLMs the same appended unstructured text, we work alongside the LLM to prune to only the relevant subtree.
+The results with this have been amazing. We're seeing 70% fewer input tokens.
+and 15% greater reasoning accuracy.
+I'm the GSM Infinite.
+Moreover, VoiceTree
+provides these same performance benefits to humans. Humans too suffer from context degradation.
+And in fact, the really exciting thing is
+Why don't we just remove this entirely?
+and work only
+with the graph presentation. Have the graph as a shared memory.
+between you and AI.
+i'll show you what i mean so what you're seeing above is voice tree actually running live um so it's converting my voice to text and then updating the graph
+What I can do now is I can spawn an agent.
+And tell it to do something, like for example, create a mermaid diagram explaining how this could work.
+So the agent
+got only the relevant context from the graph.
+Now that it's finished its task.
+it adds a new node back to the graph.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Hmm.
+Thank you.
+Thank you.
+We'll be right back.
+Thank you.
+We'll be right back.
+Thank you.
+Yeah.
+Thank you.
