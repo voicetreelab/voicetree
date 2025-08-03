@@ -276,3 +276,754 @@ Um, actually, let me just see if I can open it.
 Okay, that did actually work.
 Okay.
 The flickering is really annoying.
+Okay, cool.
+So today we're working on
+And there's a few different things we want to work on.
+um, mostly related to getting, um,
+A live demo, looking really good.
+Um...
+And so some of the improvements we want to do for VoiceTree right now.
+Uh...
+Um...
+So one thing is when a second node appears on voice tree
+on the juggle UI.
+a
+It flickers, the whole graph, the location of the graph.
+changes and you no longer see it in the notes.
+So when the second note appears, about three seconds later,
+Um, there's a large, uh,
+um flickering issue so we want to
+fix fix that so there it just happened you just saw
+Okay, the other thing we were working on.
+Um...
+was for the demo was improving the graph traversal to the LLM.
+Um...
+So what do we want? So right now we send a full graph traversal.
+But we also want to.
+inverse document search
+algorithm to find other potentially related nodes.
+to the user's query.
+Um...
+So what is that going to involve?
+Um,
+So that's going to involve, um,
+So when you run
+dot sh.
+we're going to
+So we currently give it, we run the Python.
+tool to do a graph traversal.
+and we give it the full traversal of the current node.
+Other functionality we want
+So on that current node,
+we want to do a inverse document search.
+Against that current node
+um
+to all other nodes
+in the folder.
+Um...
+Bet that note is in
+And also send back, like, for example, the...
+10% most related other nodes.
+Alright, so what are some things
+agent will need to know to work on this
+So...
+Um, the Python script is in our, um,
+root repose directory.
+And then there's some related
+Files.
+in VoiceTree for doing inverse document search.
+Um...
+And...
+Um...
+That will be useful to know as well
+So let's see here.
+Let's go, let's change the link here.
+Um...
+So let's make this.
+Define inverse type in switch scope.
+So can we edit a node here?
+Okay, so there we edited the voice tree slightly
+Um...
+And then we have some...
+Okay, so I'm going to also add to inverse document search invoice tree.
+Um,
+Other useful uTools
+All right
+There
+So
+Okay, so yeah, so you have access
+to the tree functions file.
+get most relevant nodes.
+But for now, to keep it simple, we don't want to load the whole market.
+into a
+decision into a tree data structure. We just want to replicate the inverse document search just without loading it in.
+tree
+Um,
+Cool. Does that make sense?
+Okay.
+So we have our dependency graph now.
+Um, okay.
+at relevant node retrieval.
+I'm now going to launch an agent.
+And let me just see if it has all the context.
+um
+So we'll open an agent here
+And we'll go claw.sh.
+And let's just see what context.
+Um.
+do you understand how to perform this task
+What other context do you need?
+Okay, so that guy is exploring.
+I'm going to add the the the the the the the the the the the the the
+Let's do it.
+Okay, now I'm going to get...
+Gemini to review his work.
+review Claude's work
+Okay, and then another thing I'm seeing
+now is that when an agent
+Adds a node to our graph
+Um, the colors are not that.
+Nice.
+um sorry the it makes it as a
+as a header.
+But we don't want that.
+Um...
+So we want to improve that so that when an agent adds a new node to the graph,
+um the formatting is better
+Okay, so let's see.
+You
+Okay, it looks like these people are done.
+Okay, now I do want to work on the...
+Add New Node Tool.
+and the Node Formatting Pro.
+um so let's just go there
+Uh, open Claude.
+Okay, I'm going to do a quick fix-up toss.
+which is to combine Gemini
+into one script so they don't have to keep on editing them both.
+Okay, so cool, we've done that task.
+We can just...
+Um...
+I think it's we can
+Collapse selection.
+Cool that guy worked
+So let's do.
+collapse on him as well.
+let's actually get um
+Gemini to work on.
+Cool. Right, we've done that feature.
+Okay, let's just end that
+Commit.
+Thank you.
+All righty, cool. So we're working on voice.
+We're working on making the live demos right now.
+And we're just making...
+some small improvements to the VoiceTree system to make the demos better.
+Um...
+Okay, cool. So one thing we just fixed is that when you run in a
+You now get
+a
+So when you run an agent
+an existing node.
+You get.
+um, a graph traversal.
+And it also does a TF-IDF search for the most relevant other nodes in the tree.
+Think let's make our voice settings
+slightly longer
+So we want in our...
+Voice to text config we want a bit more of a pause threshold
+0.9
+Cool, so that's what we've been doing and now we want to fix a few things with the UI.
+that have been really annoying for VoiceTree.
+Um, so one thing is, is.
+Um, one annoying.
+UI element.
+of VoiceTree is that when a new
+the graph restarts its layout.
+And that can mean that things sort of fly around.
+much too much.
+And so we need to think of a general solution to that so that things stay put in place.
+Um...
+So let's think about what possible solutions could be.
+for the VoiceTree Graph Layout Instability.
+Um...
+Oh, okay, before I start about that, I just want to talk about another VoiceTree UI issue.
+which is that newly appended nodes
+Um,
+get an animation for 15 seconds.
+but for some reason the timeout isn't working.
+And the animation appears for longer than 15 minutes.
+So let's figure out how to fix that as well, it's another task.
+I think...
+But it was working for the, when we added a timeout.
+create animation it was working working I know at some point we had the time
+but one of our recent changes must have regressed it.
+Okay, let's keep on thinking about solutions for the...
+Voice tree graph layout instability.
+So one thing is, is that we could, one option is to completely disable
+the layout change and juggle.
+And I think that's something called the cola layer.
+Animation.
+And if we do that, I think it's actually fine.
+Um,
+We just need to make sure that our new notifications
+are generally correct.
+So we'll sort of have to replicate the cola layout.
+but only for new nodes.
+So where are we putting you?
+the decision for where we put them.
+Um...
+needs to sort of replicate color logic so that our graph gets built in a nice way.
+Or, I'm thinking now,
+Cola layout.
+only run the layout on the new node.
+can choose some nodes and but then I think that gets too
+Um...
+So
+Okay, and now we're talking about another VoiceTree UI fix.
+which would be a really nice long-term solution for the current problem we have.
+um, with terminals on the canvas.
+Um...
+behaving really badly when they
+move or when the graph zooms.
+Um...
+And...
+what we want there
+Um,
+is potentially want to represent the terminal hover editor.
+itself
+as a
+Node on the graph with an edge connected to it that way you can always connect
+Terminal.
+to the node it was opened from.
+So currently we have sort of like a
+A very, um.
+Oh, okay. Actually, I think maybe we're pretty close to having that working.
+So actually a related fix so how we could fix that is if we're disabling voice tree layout changes
+What that means is
+is that new nodes
+I'm sorry, that moving node
+Um, it would just, whatever, wherever position.
+put the new node in manually, it will just stay there permanently.
+And what that means is there's no unexpected node movements other than the ones we're doing manually.
+And what that means...
+that then
+if the terminal, if we put it over
+then it's only going to move.
+if the terminal node moves.
+which is the current behavior that works well.
+So I think.
+we actually have a fairly good solution for that.
+All right, cool. So now we want to see if
+Um,
+if both the new node animation
+working now that we've rebuilt.
+Um, and also the other thing we want to.
+is if
+Actually, what did we just work out? Oh yeah, if adding a new node changes the...
+animation at all.
+And I just saw that it was still happening.
+So we can open and develop our console.
+Um,
+Okay, so we want to see first if we've opened the right.
+Plug-in
+1.59, okay.
+Let's unload that
+That is pretty annoying.
+Okay, so...
+Let's start running our agents to give it the feedback that it didn't work
+Okay, cool. Let's rebuild.
+juggle.
+And let's check if the animation is working.
+Um,
+and
+Look at what.
+So we can.
+Reload juggle.
+So let's make sure we're on the latest version.
+Oh, okay.
+I see, I see, I see.
+We have a problem.
+after we've renamed the repo. So let's go voice...
+So I think the problem was that we weren't building.
+which is why we weren't seeing the animation.
+Okay, let's see now it should work
+Okay, cool.
+let's open up a new graph
+and let's try the dragging functionality
+Um...
+So it works somewhat well.
+And now let's try create a new node.
+What we're gonna do what we're gonna eat for dinner today. I'm not sure yet exactly what we're gonna eat for dinner
+So I want to figure that out.
+Um...
+And now we want to...
+Cool, so it looks like we fixed it. The animation stops.
+After 10 seconds or so?
+Awesome.
+Um...
+And it also looks like new nodes don't really force much of a layout.
+Which is.
+Pretty awesome.
+Um...
+so that we can close.
+Um...
+All right, let's get while we're reading that another agent to get to work
+So that's, we're going to have.
+um, here a
+So we have another UI problem.
+Um...
+And...
+That UI problem
+that when you open
+terminal
+the initial size of the terminal.
+is a bit too small.
+Um, and so we want
+Um, the terminal.
+when it's converted into a hover editor.
+to be slightly bigger.
+So we'll get an agent to work on that as well.
+Um, so that
+problem of the initial size of the terminal.
+is when converted to a Hover editor is too...
+we want that to become a new node.
+Ah, so there we just saw that our position still flicked.
+so we need to definitely get that too
+Get an agent working on that.
+When and you know.
+Our viewport can still flick.
+to a completely different...
+Okay, we just want to check right now if we append to new content.
+Does that result in...
+Um, um,
+Uh, the...
+animation not being stopped by a hover.
+So that's what we want to figure out right now.
+Um,
+Okay, so it doesn't stop on hover.
+So we want to disable that.
+So append animation.
+Stop is now done.
+Um...
+Cool, so the agent thinks they found the root cause for the viewpoint. Flicking.
+You
+Okay, so now I remember that we have a lot of tech
+that in terminal hover editor positioning.
+So this is related to terminal size problem.
+we want to make a
+Um,
+to clean up that code and get Gemini to inspect it as well because it just has so many bugs.
+All right, so in that existing tech for terminal hover editing positioning
+we want to make a new node about
+Improving the
+Uh,
+have our edited positioning.
+code because it has currently lots of bugs.
+That I'm recording here
+Yes, please. Yeah, thank you. But you know that phone
+Now the phone.
+It's recording me.
+The phone.
+Well, if you get in the...
+in the way. Yeah, thank you.
+Thank you
+I'm just bringing you a drink.
+I'm realizing right now there'd be a really nice
+for voice tree if
+Um,
+If the agents can also modify.
+existing nodes.
+which they can actually do, I can just tell them that.
+Or I guess the other solution would be to have.
+Voice tree nodes.
+Actually,
+That to include the agent node
+in our tree, so where we can append to them.
+the nodes that the agents themselves have made.
+which we currently can't do.
+You're here.
+You didn't tell me I could come out now?
+Hey, wait, I'm recording!
+Okay, just give me five minutes and I'll stop
+Oh
+Done
+Okay, cool. So today we're working on VoiceTree, and there's a few different things we want to work on.
+mostly related to getting a live demo, looking really good.
+Um...
+And so some of the improvements you want to do for VoiceTree, right?
+Okay, okay, okay.
+not completely. I'm going to make it something quickly to eat and then I'm going to film after. Can we see what you've done?
+Yeah, when?
+Now, okay, we're just going to shake it.
+Are you ready to eat something Manu?
+Are you ready to eat?
+Thank you.
+I, uh...
+Do you want, I want to make pasta and I have...
+Fake meat.
+Is that okay?
+Was that too boring?
+Yeah
+What are you liking?
+Very good.
+Perfect.
+Hand from hand from.
+It's really keen-shaven and with a little Italian beer.
+by the time we were just
+I like an Italian beer, but you had a very easy...
+Right, did we just load up?
+It's not?
+But it's the same people. It's the same brand, yeah.
+Yes, you can see so much what the other one said.
+Tristan's reading this.
+And I don't see something else, don't they?
+do this.
+Follow Beagle
+Yeah, ask you to go.
+Do you want um
+Let me set the table here.
+Oh, yeah.
+We'll just take everything up.
+We have been wondering.
+I've watched it a long time.
+We're in there.
+What's beautiful up there?
+There's nothing in the washing machine. Are you sure? Oh yeah, no there is.
+There's stuff on the floor. What is that?
+Should we do it now?
+I'll do it, I'll do it. I have to add my white chalk.
+Why don't I put this in the dryer?
+It's just going to make noise.
+When he's finished the recording...
+Yeah, I'm finished recording for now.
+soon.
+3 load
+Thank you.
+Roll that in the back.
+Yeah
+The front stuff on the floor everyone.
+Honey, but how's it going? What are you doing?
+I was filming live.
+use cases of voice stream.
+Yeah, you gotta work down.
+It's great. Yeah, it's really good.
+so
+So with that, not enough.
+edit that into with your voiceover.
+I mean, I don't think Elon's going to do anything.
+He's at a party right now.
+I don't, I'm not counting on Ilana Dooney.
+but I need something. Okay.
+I need to add the thing in
+going for yoga.
+You can get it if you want.
+Where is it?
+Fake news.
+Right top.
+Yeah, and foot wash, you need to...
+I'm going to put it on my full wash mittel.
+white.
+And one of those calcium...
+What do you want me to use?
+I want you to use a full wash method, two tablespoons.
+Not that the length of my day.
+have good pressure.
+Peruvol
+Careful with this one.
+I bought two new boxes
+I'm going to do a little bit of a bowl of water.
+the white and the other
+Okay.
+For the wash metal, two tablespoons.
+Yeah, yeah.
+One tablespoon.
+Two tablespoons, and what else do I put in?
+The thing that says we've used the power systems.
+Today's LLMs don't.
+memory. They reprocess the entire chat history for every single turn, which is inefficient and expensive.
+VoiceTree solves this at the input layer. We convert any unstructured text into a graph and then ask the LLM what nodes it would like to have in context.
+On the GSM Infinite Benchmark,
+This results in 70% fewer tokens and 15% greater reasoning.
+But then what we discovered is that this graph itself
+can be more than just an optimization.
+It's an ideal foundation for an interface for human AI collaboration, a shared memory.
+I'll show you what I mean.
+So right now we are actually running
+I can add an agent.
+and tell it to do something like draw a mermaid die.
+So this agent that I added starts adding its own nodes to the graph.
+I didn't have to...
+rewrite any of my context in the prompt
+and its progress is visible to me.
+in real time. I could even, if I wanted to,
+Send its output to another AI.
+This workspace is the first product built on our core API, a new structured primitive for building with AI.
+I've been using the VoiceTree workspace every day to work on VoiceTree. Here are some recordings of me voice
+Today, the LLMs don't have a...
+They reprocess the entire chat history for every single turn, which is inefficient and expensive.
+Voice Tree solves this at the input layer. We convert any unstructured text into a graph and then ask LLM what nodes it would like to have in common.
+On the GSM Infinite benchmark, this results in 70% fewer tokens and 15% greater reasoning
+What we then discovered is that this graph itself can be more than just an optimization for LLMs.
+Today's LOMs
+Today's LLMs don't have true
+They reprocessed the entire chat history for every single...
+inefficient and expensive.
+Voice tree solves this at the
+We convert any unstructured text into a graph and then ask the LLM what nodes would
+on the GSM Infinite Benchmark.
+This resulted in 70% fewer tokens.
+Input tokens and 15% greater reasoning.
+What we then discovered is that this graph itself can be more than just an algorithm.
+for LLMs. It's an ideal foundation for an interface for human AI collaboration, a shared memory.
+I'll show you what I mean.
+So right now, we're actually running VoiceTreat live on what I'm saying. You can see the transcription in the bottom.
+I'll now add an agent.
+into our shared workspace.
+Thank you.
+Maybe we can keep it okay.
+Thank you.
+What do you think?
+All right, so today's LLMs have a pretty terrible architecture.
+They just chuck the whole conversation history back in every time you send a prompt.
+Boistree solves this at the input layer. We create a graph.
+for any content.
+and ask the LLM from that graph what nodes it would like.
+We've been testing this on the GSM Infinite benchmark, and we're getting 60% fewer input tokens and 15% more accurate reasoning, which is huge.
+All right, so today's large language models have a pretty terrible...
+memory. They reprocess the entire chat history every time you want to send the large language.
+VoiceTree solves that at the input layer we convert any type of text into a graph and then ask the LLM from that graph
+What nodes would it like to specifically read?
+We've been testing on the GSM Infinite Bench.
+and we're seeing 60% fewer input tokens sent and up to 10% better accuracy and reasoning.
+But the cool thing is is that this is actually much more than an optimization. It's a whole
+new foundation.
+for human AI collaboration. It's because it can become a shared memory. So I'll show you what I mean. Right now, I'm running VoiceTree live.
+It's transcribing my voice in the bottom left.
+And I can now launch an agent.
+So it gets sent all the relevant context from the graph
+And now I'm going to tell it to draw a simple moment.
+All right, so today the LMs have a pretty terrible architecture primary. They just chuck the whole conversation history back in every time you send a prompt. Boistry solves this at the input layer. We create a graph for any content.
+And ask the LM from that graph what nodes it would like to be.
+We've been testing this on the GSM infinite benchmark, and we're getting 60% fewer input tokens and 15% more accurate reasoning, which is huge.
+All right, so today's large language models have a pretty terrible architecture for memory. They reprocess the entire chat history every time you want to send a large language model.
+VoiceTree solves that at the input layer. We convert any type of text into a graph, and then ask the LLM from that graph, what nodes would it like to specific?
+We've been testing on the GSM benchmark, and we're seeing 60% fewer input tokens sent, and up to 10% better accuracy and reasoning.
+But the cool thing is, is that this is actually much more than optimization. It's a whole new foundation for human AI collaboration. It's because it can become a shared memory. So I'll show you what I mean. Right now, I'm running VoiceTree live.
+It's transcribing my voice in the bottom left, and I can now launch an agent from here.
+So, it gets sent all the relevant contacts from the group.
+And now I'm going to draw some format diagram.
+All right, so today's LLMs have a pretty bad architecture.
+They just send the whole chat history.
+back in for every single prompt.
+VoiceTree solves that at the input layer. We convert any text into a graph and then ask the LLM what nodes it would like to...
+We've been running this on the GSM infinite benchmark and we're seeing 60% fewer input tokens.
+and better reasoning.
+Right now, I'm running VoiceTree live.
+It's transcribing my voice.
+and converting it into that graph.
+And the cool thing is, is that VoiceTree is not just an optimization for LLMs.
+it actually can result in um so it's like essentially just like a whole new um interaction layer
+What is that bug?
+Okay, let's reset to where we were
+at the input layer we convert any text into a graph and then ask the lm what nodes would like to see
+and better reasoning up to 15%.
+So
+Right now, I'm running Boy Street live.
+is transcribing my voice and converting it into that graph. And the cool thing is that VoiceTree is not just an optimization for OMs. It actually can result in a whole new interaction layer.
+I'll see you next time.
+The current way that LLMs give themselves memory is really inefficient.
+they append the whole transcript history whenever you send a new
+Boystery solves that at the input layer.
+we convert any graph
+into a, we convert any text.
+So, the current way that large language...
+is really inefficient. They append the whole transcript history back into the model every time
+VoiceTree solves this at the input layer. We convert any text into a graph and then ask the LLM what nodes it would like to be.
+We've been looking at the GSM in...
+and we've been seeing 60% fewer input tokens on average and up to 15% more accurate reasoning.
+The cool thing is, what we realized is, is that this is not just an optimization. This now becomes a whole new foundational...
+interface for human AI.
+So I'll show you what I mean. So right now, I'm actually running VoiceTree live on what I'm...
+It's transcribing my voice to text and then creating the voice tree graph.
+And I can open an agent. I can spawn an agent.
+Um, and then...
+get it to do something. For example,
+Draw me a mermaid diagram.
+explaining a simple mermaid diagram explaining what this could look like.
+So the current way that large-language models give themselves a memory is really inefficient. They append the whole transcript history back into the model every time you send a new message. Voistry solves this at the input layer. We convert any text into a graph, and then ask the LM what nodes would like in this context. We've been looking at the GSM benchmark, and we've been seeing 60% fewer input tokens on average, and up to 15% more accurate reasoning. The cool thing is, what we realize is that this is not just an optimization. This now becomes a whole new foundational interface for human AI collaboration. So I'll show you what I mean. So right now, I'm actually running Voistry live, on what I'm saying. It's transcribing my voice of text and then creating the Voistry graph. And I can open an agent. I can open an agent.
+and then get it to do something, for example.
+Draw me a mermaid diagram.
+Explaining a simple mermaid, Doug, I'm explaining what this could look like.
+All right, I would like you to create a new node on the graph anywhere, please. Thank you, please anywhere, please
+So the current way that large...
+give themselves memory is really inefficient. They reprocess the entire transcript
+VoiceTree solves this at the input layer. For any type of text, we can convert it into a graph and then ask the LLM what nodes from that graph it would like to look at.
+We've been playing around with the GSM in
+and we're seeing up to 60% less tokens sent and 15% more accurate reasoning on the long contact.
+The cool thing we realized is that this isn't just an optimization, it actually is the perfect foundation
+for a new interface for human AI collaboration.
+shared memory. I'll show you what I mean. So right now, I'm actually running VoiceTree live on my text. It's converting my voice into this graph here.
+And what I can do is I can spawn a terminal.
+and get an agent to do something for me.
+It's already gotten all the relevant content.
+from the graph injected into its context. So I don't need to rewrite any.
+Alrighty, we are testing some things.
+Thank you.
+So it's going to be there, that's all right.
+And where is the new file going to be? That's the question.
+Okay.
+So the current way that large language
+themselves memory is really inefficient.
+They essentially reprocess the entire transcript history for every request.
+VoiceTree solves this at the input layer. We create a graph for any type of content.
+and then ask the LLM what nodes it would like from the graph in its context.
+We've been running this on the GSM in
+and we've been seeing 60% less input tokens and up to 15% more accurate reasoning.
+The amazing thing about this is that it's not just an optimization.
+It's actually a whole new foundation.
+for human AI collaboration.
+It's a shared memory. So I'll show you what I mean.
+So right now I can open an agent on my shared memory count.
+and get it to do some ink.
+So here I just got Gemini to add a
+A diagram.
+then
+I can get Claude.
+to write the pseudocode for this.
+So I don't need to Reprompt ever it gets a full tracing From the graph of what content could be relevant
+Hmm.
+So, the current way that wide language models give you is
+is really inefficient. They essentially reprocess the entire transfer history for every request. Voicery solved this at the input layer. We create a graph for any type of content, and then ask the LLM what nodes it would like from the graph in its context. We've been running this on the GSM Infinite benchmark, and we've been seeing 60% less input tokens and up to 15% more accurate reasoning.
+However, the amazing thing about this is that it's not just optimization. It's actually a whole new foundation for human AI collaboration. It's a shared memory. So I'll show you what I mean. So right now, I can open an agent on my shared memory canvas.
+and get to do something.
+So here I just got Gemini to add a diagram.
+I can get Claude to write the pseudocode for this.
+So I don't need to re-prompt ever, it gets a full tracing from the graph of what content could be relevant.
+So the current way that large language models give themselves an memory is really inefficient. They reprocess the entire transcript history on every request. VoiceTree solves this at the input layer. For any type of text, we can convert it into a graph, and then ask the LLM what nodes from that graph it would like.
+We've been playing around with the GSM infant benchmark, and we're seeing up to 60% less token consent and 15% more accurate reasoning on the long context problem.
+the cool thing we realized is that this isn't just an optimization it actually is the perfect foundation for a new interface for human collaboration a shared memory so right now i'm running voice tree live on my text
+So the correct way that large language models can
+is really inefficient. They essentially reprocess the entire transcript history for every request. Voice3 solved this at the input layer. We create a graph for any type of content, and then ask the LLM what nodes it would like from the graph in its content.
+We've been running this on the GSM infinite benchmark and we've been seeing 60% less input tokens and up to 15% more accurate reasoning.
+However, the amazing thing about this is that it's not just optimization. It's actually a whole new foundation for human AI collaboration. It's a shared memory. So I'll show you what I mean. So right now, I can open an agent on my shared memory canvas.
+and get to do something.
+So here I just got Gemini to add a diagram.
+I can get Claude to write the pseudocode for this.
+So I don't need to re-prompt ever, it gets a full tracing from the graph of what content could be
+So the correct way that large language models give
+really inefficient they essentially reprocess the entire transcript history for every request boistery solved this at the input
+So the correct way that large language models can
+is really inefficient. They essentially reprocess the entire transcript history.
+So the correct way that large language models can be
+really inefficient. They essentially reprocess the entire transcript history for every request. Voicetree solves this at the input layer. We create a graph for any type of content, and then ask the LLM what nodes it would like from the graph in its context.
+We've been running this on the GSM Infinite Benchmark, and we've been seeing 60% less input tokens and up to 15% more accurate reasoning.
+However, the amazing thing about this is that it's not just optimization. It's actually a whole new foundation for human AI collaboration. It's a shared memory. So I'll show you what I mean. So right now I can open an agent on my shared memory canvas.
+and get it to do something.
+So here I just got Gemini to add a diagram.
+I can get Claude to write the pseudocode for this.
+So I don't need to re-prompt ever. It gets a full tracing from the graph of what content could be relevant.
+And up to 15% more accurate reasoning.
+So the current way that large language models give.
+They essentially reprocess the entire transcript history for every request. Voicetree solves this at the input layer. We create a graph for any type of content and then ask the LLM what nodes it would like from the graph in its context.
+We've been running this on the GSM Infinite Benchmark, and we've been seeing 60% less input tokens and up to 15% more accurate reason.
+However, the amazing thing about this is that it's not just optimization. It's actually a whole new foundation for human AI collaboration. It's a shared memory. So I'll show you what I mean. So right now I can open an agent on my shared memory canvas.
+and get to do something.
+So here I just want Gemini to add a diagram.
+I can get Claude to write the pseudocode for this.
+so i don't need to re-prompt ever it gets a full tracing um from the graph of what content could be
+All right, testing one, two, three.
+Testing one, two, three
+Testing one two three
+That is awesome. Okay, cool. Yeah, let's definitely do that.
+So what we want to do right now is we want to make some improvements to VoiceTree and the first thing is we want to make improvements.
+to the output print statements.
+We want to make them coloured.
+So we want to color our output print statements.
+I'm using the term color module.
+And then you can just print colored red or colored green, for example. And the way we want to do that.
+is
+So what we want to use that for is, so in our output models, we currently have text that says creating a node and appending to a node.
+and we want to make sure that
+Those print statements are in either cyan or green. So cyan for append and green for create.
+All right. So while I'm getting that to run, the other thing that I wanted to work on is just a really quick fix up, which is the sidebar isn't.
+So we need to quickly fix that.
+Thank you.
+Yeah
+Damn, it's all in love.
+Thank you.
+Thank you very much.
+Yeah
+I said yes.
+I think we're out.
+Yeah, whatever you think.
+Give Dad some enzo to those two.
+Okay, take some Enzo's, take some Enzo's, an L-theanine and an Ibuprofen, and don't have any more caffeine.
+And stay very hydrated.
+No, no.
+Thank you.
+Thank you.
+It's a big one.
+Okay.
+Next.
+I'm not supposed to be one.
+Thank you.
+Thank you.
+We're trying to check right now if the color module
+is working correctly so we're doing a live test and seeing what colors come out.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+I'm not going to do that.
+Thank you.
+all right cool so i just want to do some quick fix-ups to our working environment um so we have a couple problems right now um so one is that in obsidian we see all our
+as well. So we see all the Python and shell files.
+And that's actually not the worst thing.
+Because it could be cool to have like a voicetree.sh tool, which we can open.
+However, it's too cluttered right now with all the prompts and Python tools.
+and shell scripts.
+So what's the best way to solve that?
+So one way to fix it would be if we put all those tools.
+one directory lower.
+and opened, when we open a terminal, it opens in that environment.
+Um, so the way we could do that.
+is we could in our zs hrc um when
+We open a terminal and we're in.
+in an obsidian space.
+we can cd dot dot to.
+to the parent directory.
+But we do need to make sure that that's going to work with our prompting system.
+So the prompts.
+um how do they currently work i think they currently open in
+Let's see
+Thank you.
+parents.
+Thank you.
+The core dichotomy that we need to solve is that the agent needs access to both the Markdown Tree Vault directory and whatever Git repository we're working on.
+Okay, so maybe the solution then is, so an agent can't enter the directory of a...
+whatever directory it started in.
+Yeah.
+There should be one here now.
+once you want to get out of this.
+Okay.
+Maybe we do.
+Thank you.
+Thank you.
+Stay down.
+Thank you.
+Thank you.
+Thank you.
+Thanks.
+Let's go.
+Thank you.
+Thanks.
+Yeah.
+Thank you.
+I'm going to finish that.
+I'm going to take a look at it.
+Mom, it's a common business.
+How are you? Say.
+dollars.
+Sorry, what is it? A thousand people like to announce $500.
+Bye.

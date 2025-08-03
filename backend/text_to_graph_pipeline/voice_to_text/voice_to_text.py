@@ -121,7 +121,7 @@ class VoiceToTextEngine:
             full_text = "".join(segment.text for segment in segments).strip()
 
             if full_text:
-                print(f"Transcription: {full_text}")
+                print(f"Transcribed: {full_text}")
                 logging.info(f"Transcription result: {full_text}")
             else:
                 logging.warning("No text transcribed from audio chunk.")

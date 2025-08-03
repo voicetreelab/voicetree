@@ -1,17 +1,8 @@
-Hey YC, I'm Manu the founder of VoiceTree.
-
-Today's LLMs essentially simulate memory through brute force: they re-process the whole chat history and context for every single turn. This is efficient.
-
+Today's LLMs essentially simulate memory through brute force: they re-process the whole chat history and context for every single turn. This is inefficient.
 VoiceTree solves this at the input layer. We convert any unstructured text into a losslessly compressed graph. On the GSM-infinite benchmark, this delivers 70% fewer tokens and 15% greater reasoning accuracy.
-
 What we then discovered is that this graph itself is the perfect interface for interacting with AI: a shared memory between humans and AI.
-
 I'll show you what I mean.
-
  This demo is running on our core API, structuring my voice into that shared graph right now.
-
  I'll now add an agent into our shared workspace.
-
  It gets the exact context it needs from the graph. It’s cheaper and more accurate, I don't need to re-explain it any context, its progress is visible to me in real-time.
-
 This workspace is the first product built on our core API: a new, structured primitive for building with AI.

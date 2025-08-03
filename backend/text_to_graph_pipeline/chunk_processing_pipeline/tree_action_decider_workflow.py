@@ -8,6 +8,7 @@ import logging
 from dataclasses import dataclass
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Set
+from termcolor import colored
 
 from ...settings import MAX_NODES_FOR_LLM_CONTEXT
 from ..agentic_workflows.agents.append_to_relevant_node_agent import \
@@ -40,14 +41,14 @@ async def log_tree_actions(append_or_create_actions):
             create_log = f"CREATING new node:'{act.new_node_name}' "
             # if len(act.content) > 10:
                 # create_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
-            print(create_log)
+            print(colored(create_log, 'green'))
             logging.info(create_log)
 
         elif isinstance(act, AppendAction):
             append_log = f"APPENDING to:'{act.target_node_name}' "
             # if len(act.content) > 10:
                 # append_log += f"with text: {act.content[0:10]}...{act.content[-10:]} "
-            print(append_log)
+            print(colored(append_log, 'cyan'))
             logging.info(append_log)
 
         else:
@@ -158,6 +159,9 @@ class TreeActionDeciderWorkflow:
         print(f"Buffer full, sending to agentic workflow, text: {text_chunk}\n") 
         
         self.nodes_to_update.clear()
+        
+        # Track merged orphan actions
+        self.merged_orphan_actions: List[CreateAction] = []
 
         # ======================================================================
         # PHASE 1: PLACEMENT (APPEND/CREATE)
@@ -178,8 +182,6 @@ class TreeActionDeciderWorkflow:
         
         append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
 
-        await log_tree_actions(append_or_create_actions)
-
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
         for segment in append_agent_result.segments:
@@ -199,6 +201,9 @@ class TreeActionDeciderWorkflow:
 
         # todo, we should move this logic into append_agent
         actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions)
+
+        # Log actions AFTER orphan merging to avoid duplicates
+        await log_tree_actions(actions_to_apply)
 
         # --- SYNC MARKDOWN BEFORE APPLYING ACTIONS ---
         # Identify which nodes will be modified by Phase 1 actions
@@ -222,6 +227,7 @@ class TreeActionDeciderWorkflow:
         # Separate newly created nodes from modified nodes
         newly_created_nodes: Set[int] = set()
         modified_nodes: Set[int] = set()
+        merged_orphan_node_ids: Set[int] = set()
         
         for action in actions_to_apply:
             if isinstance(action, CreateAction):
@@ -230,24 +236,31 @@ class TreeActionDeciderWorkflow:
                 for node_id in modified_or_new_nodes:
                     if node_id in self.decision_tree.tree and self.decision_tree.tree[node_id].title == action.new_node_name:
                         newly_created_nodes.add(node_id)
+                        # Check if this was a merged orphan
+                        if action in self.merged_orphan_actions:
+                            merged_orphan_node_ids.add(node_id)
                         break
             elif isinstance(action, AppendAction):
                 # AppendAction modifies existing nodes
                 if action.target_node_id in modified_or_new_nodes:
                     modified_nodes.add(action.target_node_id)
         
-        logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}")
+        logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}, Merged orphan nodes: {merged_orphan_node_ids}")
 
         # ======================================================================
         # PHASE 2: OPTIMIZATION
         # ======================================================================
         logging.info("Running Phase 2: Optimization Agent...")
-        logging.info(f"Only optimizing modified nodes ({len(modified_nodes)} nodes), skipping newly created nodes ({len(newly_created_nodes)} nodes)")
+        
+        # Combine modified nodes and merged orphan nodes for optimization
+        nodes_to_optimize = modified_nodes.union(merged_orphan_node_ids)
+        logging.info(f"Optimizing {len(modified_nodes)} modified nodes and {len(merged_orphan_node_ids)} merged orphan nodes")
 
-        # Only run optimizer on modified nodes, not newly created nodes
+        # Run optimizer on both modified nodes and merged orphan nodes
         all_optimization_modified_nodes: Set[int] = set()
-        for node_id in modified_nodes:
-            logging.info(f"Optimizing modified node {node_id}...")
+        for node_id in nodes_to_optimize:
+            node_type = "merged orphan" if node_id in merged_orphan_node_ids else "modified"
+            logging.info(f"Optimizing {node_type} node {node_id}...")
 
             # Get neighbors, remove 'id' key, and format as a string for the agent
             neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
@@ -278,14 +291,14 @@ class TreeActionDeciderWorkflow:
                         create_log = f"OPTIMIZER: CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
                         # if len(opt_action.content) > 10:
                         #     create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
-                        print(create_log)
+                        print(colored(create_log, 'green'))
                         logging.info(create_log)
                     
                     elif isinstance(opt_action, AppendAction):
                         append_log = f"OPTIMIZER: APPENDING to node:{opt_action.target_node_id} "
                         # if len(opt_action.content) > 10:
                         #     append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
-                        print(append_log)
+                        print(colored(append_log, 'cyan'))
                         logging.info(append_log)
                     
                     else:
@@ -315,6 +328,8 @@ class TreeActionDeciderWorkflow:
             if isinstance(action, CreateAction) and not action.parent_node_id
         ]
 
+        # Clear the tracked merged orphans
+        self.merged_orphan_actions = []
 
         if len(orphan_creates) > 1:
             # Sort orphans by name for groupby
@@ -347,6 +362,8 @@ class TreeActionDeciderWorkflow:
                         relationship=""  # Empty for orphan nodes
                     )
                     merged_orphans.append(merged_orphan)
+                    # Track this as a merged orphan that needs optimization
+                    self.merged_orphan_actions.append(merged_orphan)
                 else:
                     # Single orphan, add as-is
                     merged_orphans.extend(orphans)
