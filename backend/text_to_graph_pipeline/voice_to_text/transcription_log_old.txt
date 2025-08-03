@@ -1330,3 +1330,45 @@ Children of the node that we're running on and the children's children's childre
 children of the node that we're running on and the children's children's children's children, etc.
 One thing on our non-actionable ideas list should also be that our tree should be able to reference nodes which an agent has created, not just the ones that we've made manually.
 One thing on our non-actionable ideas list should also be that our tree should be able to reference nodes which an agent has created, not just the ones that we've made manually.
+You
+Again everything we're going to quickly add to our non actionable ideas list is that for some reason
+Again everything we're going to quickly add to our non actionable ideas list is that for some reason
+Gemini is not using the same color for nodes.
+Gemini is not using the same color for nodes.
+Um, so we need to just ask it why.
+Um, so we need to just ask it why.
+Oh, good.
+The Book of Al-Rajanesh is out now.
+Oh good, the Book of Arrajneesh is out now.
+in the shadow of enlightenment
+The Shadow of Enlightenment.
+Mm-mm.
+Mm-mm.
+I don't know.
+I don't know.
+Oh
+Cough.
+My darling.
+My darling, is that you?
+No.
+Yeah.
+Yeah.
+You
+Mm-hmm.
+Mm-hmm.
+Thank you.
+Alright, alright, alright, alright.
+Alright, so while working on that, we made a non-actionable ideas list.
+With all the little things.
+up but we didn't want to get distracted.
+And now we're going to get.
+Claude to act as an orchestrator
+for creating all those stuff
+So let's just, so now we should be able to say.
+So it's one of the...
+I'll see you next time.
+Okay.
+What are you going to do, have a run?
+Just do a bit of exercise.
+I'll see you next time.
+We'll see you next time.

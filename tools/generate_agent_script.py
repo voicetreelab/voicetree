@@ -79,7 +79,7 @@ def generate_agent_script(
     description: Optional[str] = None,
     max_turns: int = 30,
     model: str = "sonnet",
-    output_dir: str = "."
+    output_dir: Optional[str] = None
 ) -> str:
     """Generate an agent launch script from parameters."""
     
@@ -122,6 +122,10 @@ def generate_agent_script(
     )
     
     # Write script
+    if output_dir is None:
+        # Use OBSIDIAN_VAULT_PATH if available, otherwise current directory
+        output_dir = os.environ.get('OBSIDIAN_VAULT_PATH', '.')
+    
     output_path = Path(output_dir) / f"{agent_name_lower}.sh"
     output_path.write_text(script_content)
     
@@ -140,7 +144,7 @@ def main():
     parser.add_argument("--description", help="Task description (auto-generated if not provided)")
     parser.add_argument("--max-turns", type=int, default=30, help="Max turns for Claude")
     parser.add_argument("--model", default="sonnet", help="Model to use (sonnet/opus)")
-    parser.add_argument("--output-dir", default=".", help="Output directory for script")
+    parser.add_argument("--output-dir", help="Output directory for script (defaults to $OBSIDIAN_VAULT_PATH if set)")
     
     args = parser.parse_args()
     
