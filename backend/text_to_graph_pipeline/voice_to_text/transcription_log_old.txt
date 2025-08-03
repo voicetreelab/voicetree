@@ -1517,3 +1517,38 @@ We'll be right back.
 Thank you.
 Yeah.
 Thank you.
+The first thing is we want to change.
+one of our tools.
+which is I think called cleanup vault.
+Let me see exactly what it's called.
+Um...
+Yeah, it's called cleanupvault.sh.
+in the tools directory in
+the VoiceTree repo, and currently that's getting rid.
+of
+some files that we don't want to get.
+So currently it's getting rid of the XcaliDraw folder, which contains our drawings.
+And we don't want that folder to be.
+cleaned up when we run the cleanup.
+So we don't want that folder backed up, we just want to leave that folder.
+Um, yeah.
+in the markdown tree vault directory, just leave it alone. Don't remove it, don't back it up, don't move it.
+Now I get with the left hand.
+It's hiding my text.
+And he'd get rid of it.
+You're going to have to zoom out. Command minus. Try command minus.
+Okay.
+It should be possible to do that.
+it's just because you have your
+Display to load.
+I just restarted. No, just wait.
+Let me know it.
+Did you want to actually format it at all?
+double-face that.
+See, this would have... Double spacing. Yeah.
+They're a double.
+It's here.
+I don't know. You found it. It was ready. It was just there.
+it's really double spacing
+Yeah, I don't know sir
+If you ask AI or you Google it, you'll be able to do it.
