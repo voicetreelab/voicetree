@@ -46,6 +46,6 @@ generate_dependency_graph() {
 run_common_setup() {
     check_obsidian_env
     assign_agent_color
-    cd ~/repos
     generate_dependency_graph
+    cd ~/repos
 }
