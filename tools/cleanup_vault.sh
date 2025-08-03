@@ -18,7 +18,7 @@ mkdir -p "$DEST_DIR"
 
 # Move all directories except .obsidian and XcaliDraw from source to destination with timestamp
 for dir in "$SOURCE_DIR"/*; do
-    if [ -d "$dir" ] && [ "$(basename "$dir")" != ".obsidian" ] && [ "$(basename "$dir")" != "XcaliDraw" ]; then
+    if [ -d "$dir" ] && [ "$(basename "$dir")" != ".obsidian" ] && [ "$(basename "$dir")" != "XcaliDraw" ] && [ "$(basename "$dir")" != "Excalidraw" ]; then
         dir_name=$(basename "$dir")
         dest_path="$DEST_DIR/${dir_name}_$TIMESTAMP"
         
