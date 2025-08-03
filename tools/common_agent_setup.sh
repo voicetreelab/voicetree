@@ -42,10 +42,26 @@ generate_dependency_graph() {
     fi
 }
 
+# Function to read source note content  
+read_source_note_content() {
+    echo "Reading source note content..."
+    
+    # Construct the full path to the source note
+    local SOURCE_NOTE_PATH="$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE"
+    
+    # Check if the source note exists and read its content
+    if [ -f "$SOURCE_NOTE_PATH" ]; then
+        export OBSIDIAN_SOURCE_NOTE_CONTENT=$(cat "$SOURCE_NOTE_PATH")
+    else
+        export OBSIDIAN_SOURCE_NOTE_CONTENT="[Source note content unavailable: $SOURCE_NOTE_PATH not found]"
+    fi
+}
+
 # Function to run common setup
 run_common_setup() {
     check_obsidian_env
     assign_agent_color
     generate_dependency_graph
+    read_source_note_content
     cd ~/repos
 }

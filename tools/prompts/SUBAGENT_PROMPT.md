@@ -74,8 +74,16 @@ You are engineer {subagent_name}, helping with a focused task within the VoiceTr
 Also keep the checkboxes in your main task file up to date as you progress.
 
 **Instructions for subagents**:
-- Add color to YAML frontmatter of all markdown files you create
+- Add color: {color} to YAML frontmatter of all markdown files you create
 - Use your assigned color ({color}) consistently
+ANY MARKDOWN FILE YOU CREATE MUST HAVE THIS COLOR in YAML FRONTMATTER
+AND MUST HAVE YOUR NAME PREPENDED TO IT, 
+e.g.
+BOB_fix_xyz_impl_3_1_1.md
+---
+color: {color}
+name: BOB fix xyz impl (3_1_1)
+
 - This enables visual progress tracking in Obsidian/markdown viewers
 
 e.g.

@@ -4,7 +4,7 @@ State schema for VoiceTree LangGraph workflow with validation
 
 from typing import List, Dict, Any, Optional
 from typing_extensions import TypedDict
-from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec, SegmentationResponse, TargetNodeResponse, OptimizationResponse, TagResponse
+from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec, SegmentationResponse, TargetNodeResponse, OptimizationResponse, TagResponse, SubtreeClassificationResponse
 
 
 class AppendToRelevantNodeAgentState(TypedDict):
@@ -50,6 +50,15 @@ class ClusteringAgentState(TypedDict):
     
     # Agent prompt outputs (stored using prompt names with _response suffix)
     clustering_response: Optional[TagResponse]  # Typed response from clustering prompt
+
+
+class SubtreeClassifierAgentState(TypedDict):
+    """State for SubtreeClassifierAgent workflow"""
+    # Input
+    tree_data: Dict[str, Any]  # Structured tree data from Tree Loader
+    
+    # Agent prompt outputs (stored using prompt names with _response suffix)  
+    subtree_classification_response: Optional[SubtreeClassificationResponse]  # Typed response from subtree_classification prompt
 
 
 class VoiceTreeState(TypedDict):

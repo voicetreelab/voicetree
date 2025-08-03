@@ -167,3 +167,39 @@ class ClusteringResponse(BaseModel):
 class TagResponse(BaseModel):
     """Response model for multi-tag analysis"""
     tags: List[TagAssignment] = Field(description="List of tag assignments for each node")
+
+
+class TreeNode(BaseModel):
+    """Individual node in a tree structure"""
+    node_id: str = Field(description="Unique identifier for the node")
+    title: str = Field(description="Title of the node")
+    content: str = Field(description="Content of the node")
+    links: List[str] = Field(description="List of linked file names")
+
+
+class TreeData(BaseModel):
+    """Tree structure containing nodes and metadata"""
+    tree_id: str = Field(description="Unique identifier for the tree")
+    nodes: List[TreeNode] = Field(description="List of nodes in the tree")
+
+
+class SubtreeGroup(BaseModel):
+    """A classified subtree grouping"""
+    subtree_id: str = Field(description="Unique identifier for the subtree")
+    container_type: str = Field(description="Type of container (project, concept, theme, etc.)")
+    nodes: List[str] = Field(description="List of node IDs in this subtree")
+    theme: str = Field(description="Descriptive theme for this subtree grouping")
+
+
+class ClassifiedTree(BaseModel):
+    """Tree with subtree classifications"""
+    tree_id: str = Field(description="Unique identifier for the tree")
+    subtrees: List[SubtreeGroup] = Field(description="List of identified subtrees")
+    unclassified_nodes: List[str] = Field(description="Node IDs that don't fit into any subtree")
+
+
+class SubtreeClassificationResponse(BaseModel):
+    """Response model for subtree classification"""
+    classified_trees: List[ClassifiedTree] = Field(description="List of trees with subtree classifications")
+    reasoning: str = Field(description="Analysis of how subtrees were identified")
+    debug_notes: Optional[str] = Field(default=None, description="Optional debugging notes")
