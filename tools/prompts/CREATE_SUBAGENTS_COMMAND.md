@@ -61,7 +61,7 @@ You will also have to explain this to your subagents
 ```yaml
 ---
 color: {subagent_COLOR}
-title: {subagent_NAME}
+title: {subagent_NAME_{subtask_name} (i_j)
 ---
 ```
 
@@ -106,3 +106,6 @@ AND TELL YOUR subagentS TO DO THE SAME.
 
 
 Okay, now think! What's the best way to split up this task? Propose it to me now. 
+Your proposed subtask files should all be named <agent_name>_subtask_name, 
+with the yaml title containing this without underscores and (i_j)
+e.g. bob_implement_x (3_1)

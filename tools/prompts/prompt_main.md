@@ -32,5 +32,14 @@ This allows you to access the following repos:
 
 As you complete any actions, REMEMBER to grow the tree, by creating new nodes (markdown files with yaml+links) either at the source file, or at your other newly created nodes.
 
-Please now wait for the user to tell you the specific task.
+
+To emphasize, YOUR specific task, or most relevant context (i.e. the source note you were spawned from) is:
+```$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE
+$OBSIDIAN_SOURCE_NOTE_CONTENT
+```
+
+Please now wait for the user to tell you your specific action, unless it is very clear from your context what to do.
+
+
+
 

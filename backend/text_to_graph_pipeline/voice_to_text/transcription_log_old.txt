@@ -1552,3 +1552,203 @@ I don't know. You found it. It was ready. It was just there.
 it's really double spacing
 Yeah, I don't know sir
 If you ask AI or you Google it, you'll be able to do it.
+All right. So what I want to do.
+voice tree.
+And I want to come up with an example.
+which would look good for a demo, which I can work on.
+And I'm thinking that a good example would be either clustering or subtree identification.
+Um...
+So I think let's talk about what subtree identification could look like.
+Um, so what we would want is.
+where we ideally, given...
+like thousands of nodes with various subtrees and things can identify like the key groups within that.
+Um, um,
+And then...
+color those groups.
+Now,
+We can't just send us out.
+ones to a large language model.
+Um, so I think we're going to have to do it a bit more smart. We're going to have to do like a hundred nodes at a time.
+And...
+Maybe what we do is we send.
+each subtree.
+to the large language model because our subtree user
+up to like a 100, 200 nodes in size.
+If necessary, we can split them.
+a breaking point, but I don't think that'll be necessary yet because our subtrees are never that big.
+And then so for a given sub.
+We ask it.
+to
+identify the clear high-level groups within the subtree that itself
+should become a
+recursive tree.
+So essentially, if there's a subtree,
+of 100 nodes, and it's really talking about four highlights.
+ideas or projects or whatever containers make sense within the context.
+So that's important. We want it dynamic.
+to have been the contact.
+Um, um,
+We...
+So what am I talking about?
+So what I mean by dynamic is depending on the content.
+what the containers are that divide the subtree will be different. So sometimes it's objects.
+Each subtree is going to be a different project.
+And sometimes it's going to be.
+a different
+Sometimes each subtree is going to be a different, uh,
+I don't know, like class of concept or something, theme perhaps.
+Okay, now I think...
+what I want.
+is
+So I want to come up with some terminology.
+For what?
+Hey.
+So we want to differentiate.
+We need terminology that differentiates between the subtrees that we pass as input.
+So let's just call that the input tree.
+So we take a lot of different trees.
+We pass in, what do you call it? Like the islands.
+or maybe
+Perhaps.
+D.
+Um...
+Isolated trees.
+Um...
+Oh, like a connected component. Okay, yeah, connected component is probably the best.
+Um...
+Okay, yeah, let's use forest.
+which has a tree.
+And the tree can have a subtree.
+And so we want to clarify some terminology for what the subtree is.
+Um...
+So,
+a subtree.
+is
+Um...
+I actually don't know exactly.
+how to define it.
+It's...
+going to be
+So what we really want at a high level for the terminology or definition of a subtree is you have a tree, right?
+and each node
+has a left subtree and a right subtree.
+No, it has.
+um it can just have parent and children right because we're just general general trees so every subtree can have parents and children
+So, and then what's a good way?
+for identifying.
+sub trees, within a tree.
+like which nodes should be collapsed.
+to become sub-trees.
+Um...
+Actually, we don't even want.
+collapse a single existing node. In often cases, we want to create a new synthetic node.
+to represent the subtree node.
+And one idea I'm having is that that subtree node
+have a small degree of connection.
+So a subtree node, which has like 100 outgoing connections, 100 incoming.
+That's not good as a subtree because it hasn't encapsulated an abstraction.
+Thank you.
+Does that make sense?
+Or maybe it just means it's being used a lot.
+There's definitely something there, though, to the...
+out degree and how you want to minimize it.
+Um, so.
+Yeah.
+Okay, so then for a proof of concept for this.
+subtree identification. I'm thinking they'll all look good for a demo.
+and I'm thinking
+So I'm thinking...
+that what would look good is what we can do is we can identify.
+for a tree, identify the different subtrees.
+And...
+for each subtree.
+Um...
+Color the node.
+Maybe add a tag.
+Um,
+Adding a tag would make sense if we're going to be using obsidian default graph.
+Adding a color.
+Would make sense if we want to use the juggle global graph.
+I think it would be better to use the global graph for continuity.
+What we could first do is that because sometimes our nodes already have colors for the different work that the agents have done, each agent gets a different color, so our first step
+could be to remove all the existing colors.
+in the folder.
+and then do
+So that can be a first preprocessing step is remove color from front YAML.
+Um,
+And then...
+What we want is
+Um,
+We want...
+Um.
+to then get the LLM to divide the tree in.
+subtrees
+And return the nodes.
+And we also want to have it to be allowed to return like.
+Ah.
+The...
+nodes that aren't part of any sub-tree, like it's fine for a node to be basically irrelevant.
+That's okay. We can have irrelevant nodes that just don't get a subtree.
+Cool. Then we get the response back from the LLM saying,
+Hey, here's the different subtrees you have and the names and IDs of the nodes.
+in each subtree.
+Um...
+And then...
+Um...
+What we're going to do is we're going to process that response.
+Um...
+for, so we're gonna take,
+The response.
+from the LLM.
+and we're going to go through
+And
+color the node.
+So you color each.
+subtree that we got back, color each subtree that we got back.
+in a particular color.
+I'm thinking...
+Mmmmm.
+Okay. And then what do we need to do? We need to do that for every subtree.
+Um...
+So we repeat that for each, sorry, so that whole algorithm was for a tree. The next step is repeating that same process for each tree in our forest.
+Mm-hmm.
+All right, let's try to spawn an agent on this now to work on it.
+Um.
+So let me just give you a few more high-level details.
+So one thing for the subtree identification example is that we want...
+The input.
+to be
+Mark
+Okay, cool. So we've just added some more.
+to subtree identification examples about the input folder.
+Okay.
+Okay, let's also create a won't do node.
+with all the ideas that we're not going to work on as an orphan.
+And let's add to that one do node.
+Oh.
+What are we not going to do? We're not going.
+to add delete functionality for file.
+Currently, you can hide files, but you can't actually delete them.
+I'm not in the UI, at least.
+Same for terminals, if you close a terminal, the terminal node doesn't actually get removed, you have to hide it manually.
+which is pretty annoying.
+Thank you.
+Um, never won't do node.
+is we could do like minor fix-ups to the eye in terms of positioning. Nodes are a little bit too close to each other.
+once a lot of nudes start being created.
+No.
+I think I can just re-force a land.
+to make that work.
+Now, I am realizing that removing notes...
+functionality is actually really important.
+um because removing a node
+Um,
+means that you've pruned the context.
+And that's really important.
+You don't want to confuse the outlimbs.
+So maybe that will become a will-do.
+Okay, let's...
+Wow.
+Thank you.
+Thank you.
+Thank you.
