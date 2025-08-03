@@ -66,8 +66,12 @@ def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: 
     # Remove .md extension if present for matching
     parent_name = parent_filename.replace('.md', '')
     
-    # Scan all markdown files
-    for md_file in markdown_dir.glob('**/*.md'):
+    # Determine the directory of the parent file
+    parent_path = markdown_dir / parent_filename
+    parent_dir = parent_path.parent
+    
+    # Only scan markdown files in the same directory as the parent file
+    for md_file in parent_dir.glob('*.md'):
         if md_file.name == 'accumulated.md':  # Skip output file
             continue
             
