@@ -1752,3 +1752,630 @@ Wow.
 Thank you.
 Thank you.
 Thank you.
+So current LLMs have a performance problem with large context inputs and that's because for every request they append the, they resend the whole
+Very inefficient.
+and leads to context.
+So Voice Tree solves that by converting the text into a graph
+And then from that graph, so progressively converting your chat into a graph and then identifying relevant nodes and sending just the pruned tree back to the LLM, the pruned relevant nodes back to the LLM.
+So we've our early results so we have a system work
+And our early results are showing that on the GSM Infinite Benchmark, we're seeing significant...
+Um,
+a significant up to 70%
+fewer tokens sent to the LLM and Accuracy improvements and it gets the right answer more often
+Because there's just less context bloat, less to get confused about.
+Cool, so I'll show you now.
+So this has been running live, right now I've been running VoiceTreat live on my voice. So you can see here it's transcribing my text and then...
+uh, providing, um, tree update events.
+Um...
+So, we can see here the tree.
+And now, so I can also now spawn an agent.
+Oh yes, what I wanted to say as well was...
+We then had a breakthrough where we realized, hey, why even deal with linear text at all and instead send everything interface
+with the AI, do all your interactions with the AI through this tree as the interface, almost like a shared memory. So I'll show you what I mean.
+So, right, the tree is running and now I can open an agent.
+Um...
+you see here it gets all the
+relevant context from the graph.
+and
+I can say, create simple.
+So let's download Mackie.
+And I can tell the AI to now also add back to our tree, our shared memory.
+um
+Amazing. So now we have that document.
+Um,
+And...
+Cool. Yeah
+So today's large language...
+have a problem with performance at large input size.
+And partly that's because they reprocess the entire transcript.
+for every request to mimic a sort of memory but attention to items and memory
+scales quadratically because it's an all-to-all comparison so you get degrading performance
+VoiceTree solves this by progressively converting a linear text into a graph.
+we're optimizing the input itself.
+We then send the LLM only the pruned relevant
+So we're seeing really promising early results on the GSM Infinite benchmark, where we're seeing up to 70% fewer input tokens.
+And a step change from models previously not being able to answer the question at all and just going in circles, wasting output tokens.
+to getting the correct answer consistently.
+So current large language model...
+have a performance problem.
+especially at long input context length.
+And that's partly because they reprocess the entire transcript.
+for every request, to mimic a sort of memory, but attention to items and memory scales quadratically because it's an all-to-all comparison.
+So Voice Tree solves that problem.
+by optimizing the input itself, progressively converting the linear raw text into a graph of those key concepts and relationships.
+We then work with the LLM to identify the relevant nodes and prune the context only to what's useful.
+question. Our early results
+on the GSM Infinite Bench.
+have been really promising. We're seeing up to 70% fewer input tokens.
+and step function change in output where previously models that couldn't generate the correct answer and would just go in circles wasting out
+can now consistently get the correct answer to hard questions.
+So I'm running VoiceTree now live on my voice and so my I'm transcribing my voice to text and then you can see VoiceTree there doing graph
+Why? Why am I doing that? So what we realized is, is that once you're using this system...
+You don't actually
+Need to deal with this.
+format, linear text at all, and instead you can deal, you can interface with LM's directly through the graph.
+Uh, humans too.
+degrade, their context to degrade.
+So, when that happens, our memory is now, our working memory is now shared. And that's really cool because if I now...
+launch an agent here
+I can tell it to do something.
+it's going to get only the relevant content.
+from the graph.
+And when I get it to do something, it's going to add its response back to the graph itself.
+There we go. So I've been using this for software engineering.
+to build VoiceTree itself every single day. It is so, it's amazing. I'll show you an example now.
+I'll show you a real feature I've built with VoiceTree now.
+So today's large language models have a problem with performance at large input sizes. And partly that's because they reprocess the entire transcript history for every request to mimic a sort of memory. But attention to items in memory is scaled quadratically because it's an all-to-all comparison. So you get degrading performance. VoiceTree solves this by progressively converting linear text into a graph. We're optimizing the input itself. We then send the LM only the pruned relevant content.
+So, we're seeing really promising early results on the GSM Infinite benchmark, where we're seeing up to 70% fewer input tokens, and a step change from models previously not being able to answer the question at all, and just going in circles, wasting output tokens, to getting the correct answer.
+for every request um to mimic a sort of memory um but attention times memory scales quadratically because it's an all-to-all comparison so voice tree solves that problem by optimizing the input itself progressively converting the linear raw text into a graph of those key concepts
+We then work with the LM to identify the relevant nodes and the prune, the context only.
+question. Our early results on the GSM infinite benchmark have been really promising. We're seeing up to 70% fewer input tokens and step function change in output where previously models that couldn't generate the correct answer and would just go in circles wasting output tokens can now consistently get the correct answer to hard questions. So I'm running VoiceTree now live on my voice and so I'm transcribing my voice to text and then you can see VoiceTree there doing graph actions. Why? Why am I doing that? So what we realize is that once you're using the system you don't actually
+Alright, testing one, two, three, testing one, two, three, look at me, look, look, look at me, testing one, two, three, look, look at me, I'm testing one, two, three, look, look at me.
+All right, we're testing currently how well where the position of new nodes spawn in voice
+All right, we're testing right now where our nodes are.
+Alright, we're testing right now.
+what the exact position will be of a new note.
+All right, right now we're doing a completely live demo of VoiceTree.
+Let's create a new node for that.
+All right, right now we're doing a live demo of VoiceTree.
+and we'd like to see where the new note appears.
+So large language models currently have a performance problem.
+where especially at long input contact sites.
+they struggle.
+So current large language
+have a performance problem at long input lengths. And part of the reason for this is because they reprocess the entire chat history for every request. And then this is to mimic a sort of memory, but attention to items and memory scales quadratically because it's an all-to-all comparison.
+So VoiceTree solves this by optimizing the input itself. So we progressively convert input into a graph containing the key concepts and relationships between them. We then work together with the LLM.
+to identify what exactly is needed to answer.
+a specific question.
+So, our early results on the GSM infinite
+are amazingly promising. We're seeing up to 70% fewer input tokens.
+as well as a behavior where previous models couldn't even answer a hard question and would just go in circles wasting output.
+We're seeing them now get the correct answer.
+So I'm running VoiceTree right now live on my voice itself. So you can see this window here. It's transcribing my voice to text and then resulting in.
+tree actions.
+But, why am I doing that? Well, one of our key realizations...
+is that humans as well suffer from...
+and can get the same benefits from VoiceTree.
+So then what we realized is why not in fact completely get rid of this linear text format and instead only interface with the AI through this tree
+I'll show you what I mean by that.
+So our memory is now shared
+So if I open
+an agent on one of these nodes.
+it's going to get only the relevant input context from the tree.
+And then, if I tell it to do something...
+It's going to save its output back to the tree.
+So current large language models have a problem where their performance degrades at long input context length.
+And part of the reason for this is because they reprocess the entire chat history for every single request.
+to mimic a sort of memory, but attention to items and memory is quadratic, it's an all-to-all comparison.
+So, what VoiceTree does is we optimize this input itself, we progressively convert it into a graph with the key concepts and...
+And then we work with the LLM to identify what nodes are relevant and return only the pruned relevant.
+Our early results on the GSM Infinite Bank
+are very promising.
+we're seeing up to 70% fewer input tokens.
+we're seeing previous models that couldn't answer certain questions now being able to consistently as opposed to going in circles wasting output tokens confused on the hard problem
+So I'm running it right now live. I'm running the VoiceTree algorithm on my voice.
+that's what you're seeing in this top right corner and it's creating this concept graph here of what I'm saying
+And why am I doing that?
+So
+Mmm, so close, so close.
+All right, we're doing a live demo of voice.
+I would like that to appear as a new note.
+a new node to represent the live demo.
+So current large language models have a performance problem at long input context length And part of the reason for that is that they took mimic memory. They reprocess the entire transit transcript history for every single
+And then on top of that, attention to items and memory scales quadratically.
+So VoiceTree solves this performance.
+by optimizing the input it
+We progressively convert any raw text into a graph.
+All right, I would like to draw a new...
+to represent the live demo of
+Please create it.
+A live demo of VoiceTree.
+All right, so current large-language model.
+All right, so current large language models have a performance problem at long input.
+And part of the reason for that is because they mimic memory by reprocessing the entire transfer.
+for every request.
+And on top of that, attention to items in memory scales quadratically because it's an all-to-all comparison.
+So, VoiceTree solves this by optimizing the input itself. We progressively convert raw text into a graph containing the concepts and key relationships.
+We then work with the LLM to identify what nodes are
+and return just that pruned context back.
+So we're seeing very promising results on the GSM Infinite Bench.
+where we're seeing up to 70% fewer input tokens.
+and behavior where models that previously couldn't answer certain hard questions now are able to, instead of just wasting output tokens on the wrong answer.
+So, I'm running VoiceTree right now.
+completely live. So it's converting my voice to text to then do a tree action.
+such as that one there. But why am I doing that? Well, one of the key realizations we had was that,
+the same context integration that lms have humans have as well and voice tree can provide those same performance benefits to humans um but then we don't stop there what we realize is well then we can do away with linear interface completely and instead interact with ai purely through this tree itself
+And then our memory
+shared. I'll show you what I mean by that.
+I'll launch an agent here.
+And you can see that it gets only the relevant context from the tree.
+and inject it into it.
+And then if I get to do something like draw a diagram explaining what this would look like
+it's going to save its output back to the tree.
+like it just did here.
+So this is incredibly useful for software engineering and I'll show you some real examples of me using it to build features for VoiceTree using VoiceTree itself.
+All right, so current large-language models have a performance problem at long input lengths. And part of the reason for that is because they mimic memory by reprocessing the entire transcript history for every request. On top of that, attention to items in memory scales quadratically because it's an all-door.
+So, VoiceTree solves this by optimizing the input itself. We progressively convert raw text into a graph containing the concepts and key relationships within them. We then work with the LLM to identify what nodes are relevant.
+So, we're seeing very promising results on the GSM Infinite benchmark, where we're seeing up to 70% fewer input tokens. And behavior where models that previously...
+certain hard questions, now are able to, instead of just wasting output tokens on the wrong answer. So I'm running VoiceTree right now, completely live. So it's converting my voice to text to then do tree actions, such as that one there. But why am I doing that? Well, one of the key realizations we had was that the same context iteration that elements have, humans have as well. And VoiceTree can provide the same performance benefits.
+But then we don't stop there. What we realize is, well, then we can do away with linear interface completely. And instead, interact with AI purely through this tree itself. And then our memory is now shared. I'll show you what I mean by that.
+So, I'll launch an agent here.
+And you can see that it gets only the relevant context from the tree injected into it. And then if I could do something like draw a diagram explaining what this would be.
+It's going to save its output back to the...
+like it just did here.
+So this is incredibly useful for software engineering, and I'll show you some real examples of me using it to build features for VoiceTree using VoiceTree itself.
+All right, so current large language models have a performance problem.
+at long input length and part of the reason for that is because they mimic memory by repressing
+Thank you.
+contains the backups of all our Markdown volts of where our VoiceTree outputs are stored.
+All right, good.
+Let me show you the light.
+It's good to go in.
+Okay, let me show you.
+Or we can walk through the...
+How is the algorithm?
+Do you have my Roger letter? Yeah.
+You
+You
+Knödelri und Knödelro hat Gesundheit ebenso.
+All right, Lance calling.
+Hey bro, I just I just recorded a live demo and I'm about to show it to the parents
+Why don't you watch at the same time?
+while I show it to them, so I'll mute myself, I'm muting myself now.
+All right. So, so, so, so, so, so should I show you the early final founder video as well?
+Ilan, I'm showing them first the founder video and then immediately after the other video because I'm sure that's what YC will do as well.
+Hey YC, I'm Manu. I have a passion
+performance optimization really in all areas of my life but especially software hey yc i'm manu i have a passion for
+Really, in all areas of my life, but especially software. I just started out with my first role in the doctor.
+to now my work at Atlassian where last year I saved the
+$3 million through database optimization.
+I'm now applying that same mindset to AI. So I built VoiceTree, an algorithm which optimizes the inputs to LLMs by representing it as a tree.
+nodes. This decreases token usage and increases accuracy. Great, it's amazing, but the real breakthrough has been that I now, using this technology myself, no longer use linear chat. All my interactions with AI are through this tree itself, where it acts as sort of like a shared memory. So I'll show you what I mean in the demo, but it's real, it's working, it's very exciting, and now I'd like your help.
+For me to get this into the hand developers everywhere as quickly as possible. Let's do it
+Okay, next.
+They won't? Okay. Martin, what do you think?
+You can hear it. She's moving
+All right, so current large language models have a performance problem at long input.
+And part of the reason for that is because they mimic memory by reprocessing the entire trance
+for every request.
+And on top of that, attention to items and memory scales quadratically because it's an all-to-all comparison.
+So, Voice Tree solves this by optimizing the
+We progressively convert raw text into a graph containing the concepts and key relationships.
+We then work with the LLM to identify what nodes are relevant and return just that pruned context back to the LLM.
+So, we're seeing very promising results on the GSM.
+where we're seeing up to 70% fewer input.
+and behaviour where it models
+couldn't answer certain hard questions now are able
+instead of just wasting output token
+on the wrong answer.
+So I'm running VoiceTree right now completely live. So it's converting my voice to text to then do tree actions such as that one there. But why am I doing that? Well, one of the key realizations we had was that...
+the same context iteration that lms have humans have as well and voicetree can provide those same performance
+to humans. But then we don't stop there. What we realize is, well, then we can do away with linear interface completely, and instead interact with AI purely through this tree itself.
+And then our memory is
+shared. I'll show you what I mean by that.
+I'll launch an agent here.
+And you can see that it gets only the relevant context from the tree.
+and inject it into it.
+And then if I get to do something like draw a diagram explaining what this would look like
+it's going to save its output back to the tree.
+like it just did here.
+So, this is incredibly useful for software engineering. And I'll show you some real examples of me using it to build features for VoiceTree using VoiceTree itself. Yeah. I'm going to actually land clean. Hey, the parents just finished watching it. That was it? Yeah. So, there's not the real world use case there yet. How are you going to add that in because it's only a three month? Yeah. Well, I'm thinking I can cut this one down to two minutes. There's a bit of fat that I can trim. Um, this one I was trying to do without a script. Like, I was just using bullet points. But I realized that for the demo, it's actually better if it's perfectly scripted.
+Yeah.
+It's a good product. Yeah.
+i think we can just own yeah yeah i can do that um a bit more polished okay yeah that's true um and what do you think about um so you don't want me to use
+the
+the the pencil to rub it out or you want me to do it better just give me I think
+Okay, and do you think, um...
+Um...
+Should I get, like, mom?
+control my computer so I can focus just on speaking.
+it. Yeah. Can't you just speak afterwards? Record it after. That's what I would do.
+Um...
+Yeah, I could do that as well, but then getting like it's just an extra step of work that I need to Record on top of it and make sure it times up well And then it's not actually live which is
+They might be able to figure it out. I don't know how, but little small clues, right? Yeah, yeah. Yeah, I realize that's bad because it looks like I'm not typing. So should I film from the side so you can see my side profile of me typing? Or should I just...
+Yeah.
+Yeah, you think from the side with my iPhone camera. Yeah
+Yeah, the iPhone better cameras.
+That's when I filmed the founder introduction.
+Okay, nice.
+So, today's large language models become worse as context length increases because to mimic memory, they reprocess the whole chat history for every request.
+but full all-to-all attention.
+So today's large language models become worse as context length increases because to mimic memory, they reprocess the entire chat history for every request.
+but full all-to-all attention scales quadratically. So VoiceTree's solution is to progressively convert the conversation into a tree and then only send the relevant branches to the model.
+Our initial tests on complex long context reasoning benchmarks are incredibly promising.
+we're seeing input token reductions of up to 70 percent and more importantly models are solving questions they just couldn't answer
+Moreover, these benefits aren't just for the AI, they're for us too. We humans also suffer from context degradation.
+So the really exciting breakthrough we've made is why not just remove this chat interface?
+Completely.
+Instead
+Interact directly with the AI through a shared memory.
+I'll show you what I mean.
+What you're seeing is the voice tree algorithm running live on my voice, building this tree.
+I'll now launch an agent.
+And the agent is going to get injected into its context, only the relevant context.
+the graph.
+If I then get it to do a task, like draw me a diagram.
+It's going to add it back to the tree.
+Voila!
+So today's large language models become worse as context.
+Because to mimic memory, they reprocess the whole chat history for every request.
+but full all-to-all attention.
+So today's large language models become worse as context-
+because Dominic memory, they reprocessed the entire chat history frame.
+but full ultra-alt attention scales quadratically. So Voice Tree's solution is to progressively convert the conversation into a tree and then only send the relevant branches to the model. Our initial tests on complex, long-context reasoning benchmarks are incredibly promising. We're seeing input token reductions of up to 70%, and more importantly, models are solving questions that is...
+Moreover, these benefits aren't just for the AI, they're for us too. We humans also suffer from chronic degradation.
+So the really exciting breakthrough we've made is, why not just remove this chat interface completely? And instead, interact directly with the AI through a shared memory. I'll show you what I mean. So what you're seeing is the voice tree algorithm running live on my voice, building this tree in real time. I'll now launch an agent.
+And the agent is going to get injected into its context, only the relevant content from
+If I then get to do a task, like draw me a diagram.
+It's going to add it back to the tree.
+Voilà.
+So today's large language models become worse as context length increases because to mimic memory they reprocess the entire chat history for every
+But full, all to all attention.
+So voice-tree solution is to progressively convert the conversation into a tree and then only send the relevant branches to...
+Our initial tests on complex, long-context reasoning benchmarks are incredibly promising.
+We're seeing input token reductions of up to 70%, and more importantly, models are solving questions that just remove this chat and instead interact directly with the AI through a shared memory. I'll show you what I mean. So, what you're seeing is the VoiceTree algorithm running live on my voice, building this tree in real time. I'll now launch an agent.
+And the agent is going to get injected into its context, only the relevant content from
+If I then get to do a task, like draw me a diagram.
+It's going to add it back to the tree.
+Voila.
+So today's large language models become worse as context.
+because to mimic memory, they reprocess the entire chat history.
+but full ultra-alt attention scales quadratically. So voice-tree solution is to progressively convert the conversation into a tree and then only send the relevant branches to mod-
+Our initial tests on complex, long context reasoning benchmarks are incredibly promising. We're seeing input token reductions of up to 70%, and more importantly, models are solving questions they just couldn't answer correctly before.
+Moreover, these benefits aren't just for AI, they're for us too.
+We humans also suffer from...
+So the really exciting breakthrough we made is.
+So today's large language.
+So today's large language models become worse as context limiting.
+Because to mimic memory, they reprocess the whole chat history.
+But full ultra-ol tension scales quadratically.
+VoiceTree's solution is to progressively convert the conversation into a tree and then only send the relevant branches to the model. Our initial tests on complex, long-context reasoning
+So today's large language models become worse as they're...
+because to mimic memory, they reprocess the entire chat history.
+but full all-to-all attention scales quadruple.
+Voice tree solution is to progressively convert the conversation into a tree and then only then send the relevant
+Our initial tests on complex, long-context reasoning benchmarks are incredibly promising.
+we're seeing input token reductions of up to 70%. And more importantly, models are solving questions
+Now, these benefits aren't just for the age.
+They're for us to we humans also suffer from.
+So then the really exciting breakthrough
+Why not?
+Just remove this chat history entirely.
+and instead interact directly with the AI through a shared memory.
+I'll show you what I mean.
+So what you're seeing up top is the voice tree algorithm running live on my voice, building this tree in real time.
+I'll now launch an
+and
+As I launch the agent, it's going to get injected into it, only the relevant context from the tree.
+Then if I get it to do a task
+its output is going to be saved back to the tree.
+Hey Siri, where are you?
+So today's Largelink
+So today's large language models become worse as...
+increases because to mimic memory, they reprocess the whole chat.
+for every single request.
+but full all-to-all attention scales quadratically. So voice tree solution is to progressively convert the conversation into a tree and then only send the relevant branches to the model.
+Our initial tests on complex, long context reasoning benchmarks are incredibly promising.
+We're seeing input token reductions of up to 70%. And more importantly, models are solving questions they just couldn't answer.
+Moreover, these benefits aren't just for the AI, they're for us too. We humans also suffer from...
+So Ben, they're really exciting.
+Why don't we just remove this chat history entirely?
+and interact with the A.I.
+through directly with this shared memory.
+I'll show you what I mean.
+So right now, what you're seeing is VoiceTree, the VoiceTree algorithm running live on my voice, building this tree in real time.
+I can now spawn an agent.
+and it will get injected into it.
+only the relevant parts of the text.
+from the graph
+Now when I get it to do something for example explain this with a diagram its output is also going to be saved back to the
+Amazing.
+So today's large language models become worse as context link increases because to mimic memory, they reprocess the whole chat history for every record.
+But full all-to-all attention scales quadratically.
+VoiceTree's Solution
+is to progressively convert the conversation into a tree and then only send the relevant branches
+Our initial tests on complex, long context reasoning benchmarks are incredibly promising.
+We're seeing input token reductions of up to 70%, and more importantly, models are solving questions
+Moreover, these benefits aren't just for the
+We humans, too, also suffer from...
+So then the really exciting breakthrough.
+Why not remove this chat interface entirely?
+and interact directly
+with the AI through a shared memory.
+I'll show you what I mean.
+Today's large language...
+become worse as context length increases. Because to mimic memory, they reprocess the whole chat history.
+But full all-to-all attention scales quadratically.
+VoiceTree's solution is to progressively convert the conversation
+to a tree, and then only send the relevant branches.
+Our initial tests
+On long context, reasoning benchmarks are incredibly promising.
+we're seeing input token reductions of up to 70%. And more importantly, models are solving questions
+couldn't answer directly before. Moreover, these benefits aren't just for the
+They're for us, too. We humans also suffer from context degradation. So then the really exciting breakthrough is, why not remove this chat interface entirely and instead interact directly with the AI through a shared memory?
+I'll show you what I mean.
+So I can spawn an agent.
+on any one of these nodes
+Once I spawn the agent
+It gets only the relevant content.
+The graph.
+If I get it to do something.
+It's going to now also
+add back its context.
+back into the graph.
+Today's large language models become worse.
+increases because to mimic memory, Ray reprocessed the whole chat history.
+But full all-to-all attention
+VoiceTree's solution is to progressively convert the conversation into a tree.
+And then only send the relevant branches to the model.
+Our initial tests on complex long context reasoning
+We're seeing input token reductions of up to 70%, and more importantly, models are solving problems they just couldn't answer correctly before.
+Now, these benefits aren't just for the AI, they're for us too. We humans also suffer.
+So then the really exciting breakthrough.
+Why not just remove this chat interface entirely and interact with the AI directly through a shared memory?
+I'll show you what I mean.
+So right now,
+What you're seeing is the VoiceTree algorithm running live online.
+building this tree in real time.
+If I now launch an agent.
+It gets injected into it only the relevant content.
+If I get it to do a task,
+For example to explain this with a diagram
+It's gonna save it back to the graph
+Today's large language models become worse as context length increases because to mimic memory, they reprocess the whole chat history for every...
+But fool, out of-
+today's large language models become worse as context length increases because dominic memory they reprocess the whole chat history for every
+but full of attention scales.
+Wastry solution is to progressively convert the conversation into
+and then only send the relevant branches to the model. Our initial tests on long context reasoning benchmarks are incredible.
+We're seeing input token reductions up to 70%. And more importantly, models are solving questions.
+Moreover, these benefits aren't just for the AI, they're for us too. We humans also suffer from...
+So then the really exciting breakthrough is why not remove this chat interface entirely and instead interact directly with the AI through a shared memory. I'll show you what I mean.
+So I can spawn an agent on any one of these nodes.
+Once I spawn the agent, it gets only the relevant context from the graph.
+If I get to do something, it's going to now also add back its context.
+Back into the graph.
+Today's large language models become worse as contact length increases because to mimic memory they reprocess the whole chat history for
+but full all-to-all attention.
+VoiceTree's solution is to progressively convert the conversation
+into a tree, and then only send the relevant
+Our initial tests on complex long context reasoning benchmarks.
+We're seeing input token reductions of up to 70%, and more importantly, models are solving questions they just couldn't answer correctly before. Moreover, these benefits aren't just for the AI, they're for us too. We humans also...
+So then the really exciting thing
+why not just remove this chat interface entirely and instead interact directly with the AI through a shared memory?
+I'll show you what I mean.
+What you're seeing is the voice tree algorithm running live on my voice, building this tree in real time.
+I'll now launch an ad.
+As I launched the agent,
+it will get injected into it only the relevant content.
+from the existing tree.
+If I get it to do a task,
+It's going to add back its result to the tree.
+Today's large language...
+become worse as contact length increases because to mimic memory, they reprocess the whole chat history for every request.
+But full, all-to-all attention.
+VoiceTree's solution to this is to progressively convert the conversation into a tree and then only send the relevant branches to the model.
+Our initial tests on complex, long context reasoning
+are incredibly promising.
+We're seeing input token reductions of up to 70%. And more importantly, models are solving questions they just couldn't answer.
+Now, these benefits aren't just for the AI, they're for us too. We humans also...
+So then the really exciting breakthrough.
+Why not just remove this chat interface entirely and instead interact directly with the AI through a shared memory?
+I'll show you what I mean.
+So right now, VoiceTree has been running live on my voice.
+building this tree in real time.
+I'll now launch an agent.
+As I launch it, it's going to get injected into itself, only the relevant content.
+Then if I get it to do a task like draw a diagram
+It's going to add that back into the tree.
+saving its progress.
+Today's large language models become worse as context.
+Because Dominic memory, they reprocess the whole chat history for every time.
+Full ultra-attention scale is quadratic.
+VoiceTree's solution to this is to progressively convert the conversation into a tree and then only send the relevant branches to them.
+Our initial tests on complex, long context-reasoning benchmarks are incredibly promising. We're seeing input token reductions of about 70%, and more importantly, models are solving questions they just couldn't answer correctly before. Now, these benefits aren't just for the AI, they're for us too. We humans also suffer from...
+So then the really exciting breakthrough is why not just remove this chat interface entirely and instead interact directly with the AI through a shared memory. I'll show you what I mean. So right now, VoiceTree has been running live on my voice.
+building the street in real time. I'll now launch an agent.
+As I launch it, it's going to get injected into itself, only the relevant context.
+Then, if I get to do a task, like draw a diagram, it's going to add that back into the tree.
+Saving its progress.
+Today's large language model.
+You
+...become worse as contact length increases. Because Dominic Memory, they reprocess the whole chat history for every...
+Before all attention scales.
+VoiceTree's solution to this is to progressively convert the conversation into a tree and then only send the relevant branches to the model.
+Today's large language model
+I'm worse.
+length increases. Because to mimic memory they reprocess the whole chat history.
+for every request but full all-to-all attention scales quadratically.
+VoiceTree's solution is to progressively convert the conversation
+into a tree and then only send the relevant branches.
+Our initial tests on complex, long-context reasoning benchmarks are incredibly promising.
+We're seeing input token reductions.
+of up to 70% and more importantly models are solving questions.
+Now, these benefits aren't just for the AI. They're for us, too. Humans, too, suffer from...
+So then, the really exciting breakthrough.
+Why not just remove this chat interface entirely?
+and interact directly with the AI through a shared memory. I'll show you what I mean.
+What you're seeing is the voice tree algorithm running. Oh, I didn't do very well
+I'll see you next time.
+Today's large language
+become worse as context length increases.
+Today's large language models become worse as context length increases because to mimic memory, they reprocess the whole chat history
+But full all-to-all attentions
+VoiceTree's solution is to progressively convert the conversation into a
+and then only send the relevant branch.
+Our initial tests on complex long context reasoning benchmarks are incredibly promising.
+we're seeing input token reductions of up to 70%.
+And more importantly, models are sold.
+but they just couldn't answer correctly.
+Now, these benefits aren't just for the AI, they're for us too. Humans as well suffer from...
+So then the really exciting.
+why not just remove this chat interface entirely and Interact directly with the AI through a shared memory
+I'll show you what I mean.
+So
+What you're seeing is the voice tree algorithm
+running live on my voice.
+building this tree in real time.
+But it's a bit too far away, so yes.
+Today's large language models become worse as context length increases. Because to mimic memory, they reprocess the whole chat history for every request.
+But full, all-to-all attention scales quadruple.
+VoiceTree's solution is to progressively convert the conversation into a tree.
+and then only send the relevant brand.
+Our initial tests on complex, long context reasoning benchmarks are incredibly promising.
+We're seeing input token reductions of up to 70%. And more importantly, models are solving questions they just couldn't answer.
+Now, these benefits aren't just for the agent.
+They're for us too. Humans as well suffer from...
+So then the real exciting
+why not just remove this chat interface entirely?
+and interact directly with the AI through a shared memory instead.
+I'll show you what I mean.
+Are you fucking kidding me?
+Today's large language models become worse as context length increases because to mimic memory they reprocess the whole chat history.
+But full all-to-all tension scales quadratically.
+Voice Tree's solution is to progressively convert the conversation into a tree.
+and then only send the relevant brand.
+Our initial tests
+Today's large language models become worse as...
+Because to mimic memory, they reprocess the whole chat history.
+and full all-to-all attention.
+VoiceTree's solution is to progressively convert the conversation.
+tree, and then only send the relevant branches.
+Our initial tests on complex, long-context reasoning benchmarks are incredibly promising. We're seeing input token reductions of up to 70%, and more importantly, models are solving questions they just couldn't answer.
+Now, these benefits aren't just for the AI, they're for us too. Humans as well suffer from context degradation.
+So then the really exciting.
+why not just remove this chat interface in entirely, and instead, interface directly.
+through a shared memory.
+I'll show you what I mean.
+What you're seeing is the voice tree algorithm running live on my voice
+building this tree in real time.
+I'll now launch an agent.
+it's going to get injected into itself, only the relevant content.
+If I get it to do a task.
+it's going to add back its output back into the tree.
+Today's large language models become worse as contact
+Because mimic memory, they reprocess the whole chat history for everyone.
+and full all-to-all attention scale.
+Voice 3 solution is to progressively convert the conversation
+and then only send the relevant branches to the
+Our initial tests on complex long context reasoning
+We're seeing input token reductions up to 70%, and more importantly, models are solving questions.
+Now, these benefits aren't just for AI, they're for us too. Humans as well suffer from content.
+So then the really exciting breakthrough is.
+why not just remove this chat interface in entirely and instead interface directly through a shared memory i'll show you what i mean
+What you're seeing is the voice tree algorithm running live on my voice, building this tree in real time.
+I'll now launch an agent.
+It's going to get injected into itself, only the relevant context.
+If I get it to do a task.
+as context length increases because to mimic memory they reprocess the whole chat history
+and full all-to-all attentions.
+Voice tree solution is to progressively convert the conversation into a tree and then only send the relevant
+Our initial tests on complex, long-context reasoning benchmarks are incredibly promising.
+We're seeing input token reductions of up to 70%. And more importantly, models are solving questions they just couldn't answer.
+Now these benefits aren't just for the AI, they're for us too. Humans as well suffer from
+So then the really exciting breakthrough is
+Why not remove this chat interface entirely and instead interact directly with the AI through a shared memory?
+I'll show you what I mean.
+What you're seeing is the VoiceTree algorithm running live in my voice.
+building this tree in real time.
+I'll now launch an agent.
+No context warming, warm-up, or re-prompting.
+It's all
+already injected into the tree.
+Let's get it to draw us an architecture diagram.
+its progress is being saved back to the tree.
+Today's large language models become worse as context.
+Because to mimic memory, they reprocess the whole chat history for everyone.
+and full all-to-all attention scale.
+Voice tree solution is to progressively convert the conversation into a tree and then only send the relevant branches to model
+Our initial tests on complex, long-context reasoning benchmarks are incredibly promising. We're seeing input token reductions of up to 70.
+And more importantly, models are solving questions they just couldn't answer correctly.
+Now, these benefits aren't just for the AI, they're for us too. Humans as well suffer from...
+So then the really exciting breakthrough is why not remove this chat interface entirely and instead interact directly with the AI through a shared memory?
+I'll show you what I mean what you're seeing is the voice tree algorithm running live in my voice
+building this tree in real time.
+I'll now launch an agent.
+No context warming, warm up, or re-prompting.
+It's all already injected into the tree.
+Let's get it to draw us an architecture diagram.
+Its progress is being saved back to the tree.
+back into the tree
+Today's large language models become worse at this con.
+Because to mimic memory, they reprocess the whole chat history for everyone.
+and full all-to-all attention scale.
+Voice tree solution is to progressively convert the conversation into a tree and then only send the relevant branch
+on complex, long context reasoning benchmarks are incredibly promising. We're seeing input token reductions of up to 70%
+And more importantly, models are solving questions they just couldn't answer correctly.
+now these benefits aren't just for the ai they're for us too humans as well suffer from
+So then the really exciting breakthrough is, why not remove this chat interface entirely and instead interact directly with the AI through a shared memory?
+I'll show you what I mean. What you're seeing is the voice tree algorithm running live in my voice.
+building this tree in real time. I'll now launch an agent.
+No context warming warm-up or re-prompting.
+it's all already injected into the tree.
+Let's get it to draw us an architect.
+Its progress is being saved back to the tree.
+memory they reprocessed the whole chat history.
+But full all-to-all attention.
+VoiceTree's solution is to progressively convert the conversation into a tree, and then only send the relevant branches to the model.
+Our initial tests on complex, long context reasoning
+are incredibly promising.
+We're seeing input token reductions of up to 70%, and more importantly, models are solving questions they just couldn't answer correctly.
+Now, these benefits aren't just for the AI, they're for us too. Humans as well suffer from...
+So then the really exciting breakthrough is
+why not just remove this chat interface entirely and instead interact directly
+with the AI through a shared memory.
+I'll show you what I mean.
+So, right now...
+Voice tree algorithm running live on my voice, building this tree in real time.
+I'm worse as.
+increases because to mimic memory they reprocess the whole chat history
+But full all-to-all attention.
+VoiceTree's solution is to progressively convert the conversation in your voice.
+and then only send the relevant branch.
+Our initial tests on complex, long context reasoning benchmarks are incredibly promising.
+we're seeing input token reductions of up to 70%. And more importantly, models are solving
+now these benefits aren't just for the ai they're for us too humans as well suffer from
+So then the really exciting breakthrough is
+Why not just remove this chat interface entirely and interact directly with the AI?
+Through a shared memory
+I'll show you what I mean.
+What you're seeing here is the voice tree algorithm running live on my
+Building this tree in real
+I'll now launch an agent.
+So no context warmup or reprompting needed, it's already injected into the
+and all progress is being saved back to the tree as well.
+Today's large language models become worse as context.
+because the mimic memory they reprocess
+but full all-to-all attention scale
+Voice tree solution is aggressively convert the conversation.
+and then only send the relevant branch.
+Our initial tests on complex, long-context-reasoning benchmarks are incredibly promising. We're seeing input token reductions of up to 70%, and more importantly, models are solving questions they just couldn't answer correctly.
+Now, these benefits aren't just for the AI. They're for us too. Humans as well suffer from contact.
+So then the really exciting breakthrough is, why not just remove this chat interface entirely and interact directly with the AI through a shared memory? I'll show you what I mean.
+What you're seeing here is the VoiceTree algorithm running live on my voice.
+building this tree in real time.
+I'll now launch an agent.
+Oh, so no context, it's already indicated the tree and all progress is being saved back to the tree.
+Okay.
+Thank you.
+You

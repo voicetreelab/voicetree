@@ -206,9 +206,108 @@ Expected Output:
   ]
 }
 ```
+An example of very similar text to what you will actually be working on:
+In this context we NEVER create orphans:
+
+INPUT DATA:
+```
+Overall Text:
+"...Today's large language models become worse as context length increases. Because to mimic memory, they reprocess the whole chat history for every request.But full, all-to-all attention scales quadruple. VoiceTree's solution is to progressively convert the conversation into a tree."
+
+Existing Nodes:
+`===== Available Nodes =====
+Node ID: 1
+Title: Large Language Model Context Length Limitations
+Summary: Today's large language models become worse as context length increases
+----------------------------------------
+==========================`
+
+Current chunk of text to process:
+"But full, all-to-all attention scales quadruple. VoiceTree's solution is to progressively convert the conversation into a tree."
+
+Current chunk broken down into segments to analyze:
+`[{"text": "But full, all-to-all attention scales quadruple."}, {"text": "VoiceTree's solution is to progressively convert the conversation into a tree."}]`
+```
+------------------
+
+{
+"global_reasoning": "The overall text identifies a core problem with modern LLMs—performance degradation with long context—explains the technical cause (quadratic scaling of the attention mechanism), and then introduces a specific solution proposed by a system called 'VoiceTree'.",
+"target_nodes": [
+{
+"text": "But full, all-to-all attention scales quadruple.",
+"reasoning": "STEP 1, global understanding: This segment provides the technical reason for the problem stated in the preceding context ('Today's large language models become worse as context length increases'). It explains that the computational cost of the 'all-to-all attention' mechanism scales quadratically, which is the underlying cause of the performance degradation.\n\nSTEP 2, Correctness & Significance Analysis:\n\nPossible Node Relationships:\n1.  Node 1 (Large Language Model Context Length Limitations): The relationship is R(S,N) = 'is a technical cause of'. The segment directly explains the computational bottleneck that leads to the limitation described in Node 1. This is a very strong, specific, and correct relationship.\n\nFinal Decision: Node 1 is the only available node and it is the perfect target. The relationship 'is a technical cause of' is highly significant as it captures the explanatory purpose of the segment in direct relation to the existing node's topic.",
+"target_node_id": 1,
+"target_node_name": "Large Language Model Context Length Limitations",
+"is_orphan": false,
+"orphan_topic_name": null,
+"relationship_to_target": "is a technical cause of"
+},
+{
+"text": "VoiceTree's solution is to progressively convert the conversation into a tree.",
+"reasoning": "STEP 1, global understanding: This segment follows the description of a problem and its cause. The word 'solution' explicitly signals that this text introduces a remedy to the previously discussed issues. It's the proposed answer to the LLM context length problem.\n\nSTEP 2, Correctness & Significance Analysis:\n\nPossible Node Relationships:\n1.  Node 1 (Large Language Model Context Length Limitations): The relationship is R(S,N) = 'is a proposed solution to'. This is a direct and highly significant relationship. The segment's entire purpose within the text's narrative is to solve the problem defined in Node 1.\n\nFinal Decision: Node 1 is the most significant target. While one could argue for creating a new orphan node for 'VoiceTree's solution', the instruction is to avoid orphans if a correct relationship exists. Linking the solution directly to the problem it solves is a more significant and contextually rich relationship than creating a new, separate concept. It preserves the problem-solution structure inherent in the text.",
+"target_node_id": 1,
+"target_node_name": "Large Language Model Context Length Limitations",
+"is_orphan": false,
+"orphan_topic_name": null,
+"relationship_to_target": "is a proposed solution to"
+}
+]
+}
 
 
 INPUT DATA:
+```
+Overall Text:
+"...Today's large language... become worse as contact length increases because to mimic memory, they reprocess the whole chat history for every request. But full, all-to-all attention.VoiceTree's solution to this is to progressively convert the conversation into a tree and then only send the relevant branches to the model.Our initial tests on complex, long context reasoning are incredibly promising. We're seeing input token reductions of up to 70%. And more importantly, models are solving questions they just couldn't answer.Now, these benefits aren't just for the AI, they're for us too. We humans also... So then the really exciting breakthrough. Why not just remove this chat interface entirely and instead interact directly with the AI through a shared memory?"
+
+Existing Nodes:
+`===== Available Nodes =====
+Node ID: 1
+Title: Large Language Model Context Length Limitations and Attention Mechanisms
+Summary: LLMs degrade with increased context length due to reprocessing entire chat history with all-to-all attention.
+----------------------------------------
+Node ID: 2
+Title: VoiceTree's Context Management Solution
+Summary: VoiceTree progressively converts conversations into a tree, sending only relevant branches to the model to manage context.
+Relationship: provides a solution to ('Large Language Model Context Length Limitations and Attention Mechanisms)'
+----------------------------------------
+Node ID: 3
+Title: VoiceTree Initial Test Results
+Summary: Initial tests show up to 70% input token reduction and improved model problem-solving.
+Relationship: demonstrates the promising results of ('VoiceTree's Context Management Solution)'
+----------------------------------------
+Node ID: 4
+Title: VoiceTree Human Benefits
+Summary: VoiceTree's advantages extend to human users by reducing cognitive load and aiding memory.
+Relationship: also provides benefits for ('VoiceTree Initial Test Results)'
+----------------------------------------
+==========================`
+
+Current chunk of text to process:
+"We humans also... So then the really exciting breakthrough. Why not just remove this chat interface entirely and instead interact directly with the AI through a shared memory?"
+
+Current chunk broken down into segments to analyze:
+`[{"text": "So then the really exciting breakthrough. Why not just remove this chat interface entirely and instead interact directly with the AI through a shared memory?"}]`
+```
+
+{
+"global_reasoning": "The user is detailing a technology called VoiceTree. The narrative progresses from identifying a problem (LLM context degradation), to presenting VoiceTree's core solution (a context tree), sharing positive initial results, and explaining the benefits for human users. The final segment being analyzed introduces a visionary new concept that builds upon this foundation: a 'shared memory' interaction model that could replace traditional chat interfaces.",
+"target_nodes": [
+{
+"text": "So then the really exciting breakthrough. Why not just remove this chat interface entirely and instead interact directly with the AI through a shared memory?",
+"reasoning": "STEP 1, global understanding: This segment introduces a forward-looking, visionary concept that is presented as the ultimate culmination of the previously discussed ideas. It proposes a fundamental shift in the human-AI interaction model, from a linear chat to a direct manipulation of a 'shared memory', which is the logical endpoint of the VoiceTree system.\n\nSTEP 2, Correctness & Significance Analysis:\n\nPossible Node Relationships:\n1.  Node 2 (VoiceTree's Context Management Solution): A relationship exists. R(S,N) = 'is a visionary evolution of'. The proposed 'shared memory' interaction model is a direct and logical next step for the technology described in Node 2, which turns conversations into a structured tree (a form of shared memory).\n2.  Node 4 (VoiceTree Human Benefits): A relationship also exists. R(S,N) = 'is a proposed breakthrough for'. This new interaction model is presented as a major benefit for humans, tying into the preceding discussion of reducing human context degradation. \n\nSignificance Analysis: While a connection to Node 4 (Human Benefits) is correct, it is less significant. The segment's core is the proposal of a new *technical interaction paradigm* ('remove chat interface', 'interact directly with... shared memory'). This is a functional, architectural concept. Therefore, it is most significantly related to Node 2, which describes the core technology that would enable this new paradigm. The new model is an evolution of the *solution*, not just another benefit. Attaching it to Node 2 creates the most coherent conceptual grouping, framing the 'shared memory' as the ultimate application of the 'VoiceTree Context Management Solution'.\n\nFinal Decision: Node 2 is the most significant target. The proposed interaction model is a visionary application and evolution of the core technology described in that node.",
+"target_node_id": 2,
+"target_node_name": "VoiceTree's Context Management Solution",
+"is_orphan": false,
+"orphan_topic_name": null,
+"relationship_to_target": "is a visionary evolution of"
+}
+]
+}
+
+
+INPUT DATA:
+WITH THIS PARTICULAR INPUT DATA YOU ARE NEVER ALLOWED TO MAKE ORPHANS, EXCEPT IF NO NODES EXIST (initial input)
 ```
 Overall Text:
 "...{{transcript_history}}"
