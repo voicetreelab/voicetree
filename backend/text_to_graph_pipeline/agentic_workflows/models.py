@@ -167,3 +167,16 @@ class ClusteringResponse(BaseModel):
 class TagResponse(BaseModel):
     """Response model for multi-tag analysis"""
     tags: List[TagAssignment] = Field(description="List of tag assignments for each node")
+
+
+class Theme(BaseModel):
+    """A single theme identified from the nodes."""
+    theme_name: str = Field(description="A short, descriptive name for the theme.")
+    theme_description: str = Field(description="A brief description of the theme.")
+    node_names: List[str] = Field(description="A list of node titles/names belonging to this theme. Use the exact node titles as shown.")
+    confidence: float = Field(description="Confidence score for the theme identification.", ge=0.0, le=1.0)
+
+
+class ThemeResponse(BaseModel):
+    """Response model for theme identification analysis"""
+    themes: List[Theme] = Field(description="List of identified themes.")
