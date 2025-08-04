@@ -9,11 +9,9 @@ The number of adult tern in Lunarchasm Ridge equals the number of adult eagle in
 _Defines:_
 - number of adult tern in Lunarchasm Ridge
 
-_Requires:_
-- number of adult eagle in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[148_Number_of_Adult_Eagle_in_South_Zoo.md]]
 
 - is_related_to_the [[2_Equation_for_Albatross_Population_in_Lunarchasm_Ridge.md]]

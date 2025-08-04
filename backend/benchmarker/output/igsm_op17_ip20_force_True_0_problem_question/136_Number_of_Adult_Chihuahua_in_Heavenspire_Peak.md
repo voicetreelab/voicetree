@@ -9,11 +9,9 @@ The number of adult chihuahua in Heavenspire Peak equals the average number of n
 _Defines:_
 - number of adult chihuahua in Heavenspire peak
 
-_Requires:_
-- average number of newborn children per adult eagle in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
 
 - is_defined_by_the_parameter [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]

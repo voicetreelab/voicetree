@@ -10,7 +10,6 @@ Defines an equation relating the number of adult lionfish in Starlight Summit to
 _Defines:_
 - equation relating lionfish, Jefferson Circus animals, and Mayer Aquarium eagles
 
-
 -----------------
 _Links:_
 

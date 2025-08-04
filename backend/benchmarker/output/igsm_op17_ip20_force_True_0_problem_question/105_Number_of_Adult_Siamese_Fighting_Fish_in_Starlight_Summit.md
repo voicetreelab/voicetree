@@ -9,7 +9,6 @@ The number of adult siamese fighting fish in Starlight Summit equals the sum of 
 _Defines:_
 - number of adult siamese fighting fish in Starlight Summit
 
-
 -----------------
 _Links:_
 

@@ -9,7 +9,6 @@ The number of adult basenji in Heavenspire Peak equals the average number of new
 _Defines:_
 - number of adult basenji in Heavenspire Peak
 
-
 -----------------
 _Links:_
 

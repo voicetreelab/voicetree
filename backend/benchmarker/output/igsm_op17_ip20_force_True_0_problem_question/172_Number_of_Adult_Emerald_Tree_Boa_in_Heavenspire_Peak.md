@@ -6,7 +6,6 @@ title: Number of Adult Emerald Tree Boa in Heavenspire Peak 172
 
 The number of adult emerald tree boa in Heavenspire Peak equals the sum of the average number of newborn children per adult parrot in Bundle Ranch and the number of adult blue jay in South Zoo.
 
-
 -----------------
 _Links:_
 

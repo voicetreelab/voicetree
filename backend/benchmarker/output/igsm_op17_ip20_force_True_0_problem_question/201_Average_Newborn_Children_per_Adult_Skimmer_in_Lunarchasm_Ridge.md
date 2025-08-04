@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Skimmer in Lunarchasm Ridge 201
 
 The average number of newborn children per adult skimmer in Lunarchasm Ridge equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult parrot in Mayer Aquarium.
 
-
 -----------------
 _Links:_
 

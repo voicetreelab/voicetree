@@ -11,11 +11,9 @@ This calculation is part of determining elementary school counts in other cities
 _Defines:_
 - average number of newborn children per adult boomslang in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult crow in Jefferson Circus
-
-
 -----------------
 _Links:_
+
+- requires [[76_Average_Newborn_Children_per_Adult_Crow_in_Jefferson_Circus.md]]
 
 - defines_a_parameter_for_the [[76_Average_Newborn_Children_per_Adult_Crow_in_Jefferson_Circus.md]]

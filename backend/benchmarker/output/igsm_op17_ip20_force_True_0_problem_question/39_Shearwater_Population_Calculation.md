@@ -6,7 +6,6 @@ title: Shearwater Population Calculation 39
 
 The number of adult shearwater in Lunarchasm Ridge equals the difference between the number of adult parrot in South Zoo and the number of adult parrot in Bundle Ranch.
 
-
 -----------------
 _Links:_
 

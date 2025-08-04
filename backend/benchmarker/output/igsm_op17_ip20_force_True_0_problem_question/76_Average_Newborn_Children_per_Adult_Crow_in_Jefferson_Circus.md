@@ -11,11 +11,10 @@ This calculation is part of determining elementary school counts in other cities
 _Defines:_
 - average number of newborn children per adult crow in Jefferson Circus
 
-_Requires:_
-- average number of newborn children per adult crow in South Zoo
-
 -----------------
 _Links:_
+
+- requires [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]
 
 - provides_an_input_for [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]
 - has_a_dependency [[151_Average_Newborn_Children_per_Adult_Clownfish_in_Starlight_Summit.md]]

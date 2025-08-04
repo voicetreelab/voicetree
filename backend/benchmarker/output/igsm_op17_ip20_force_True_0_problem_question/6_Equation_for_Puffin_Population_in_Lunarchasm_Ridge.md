@@ -11,13 +11,11 @@ This calculation uses similar parameters as the equation for the average number 
 _Defines:_
 - average number of newborn children per adult puffin in Lunarchasm Ridge
 
-_Requires:_
-- number of adult puffin in Lunarchasm Ridge
-- number of adult crow in Jefferson Circus
-- average number of newborn children per adult parrot in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[109_Number_of_Adult_Puffin_in_Lunarchasm_Ridge.md]]
+- requires [[156_Number_of_Adult_Crow_in_Jefferson_Circus.md]]
+- requires [[207_Average_Newborn_Children_per_Adult_Parrot_in_Mayer_Aquarium.md]]
 
 - is_a_similar_type_of_equation_to_the [[2_Equation_for_Albatross_Population_in_Lunarchasm_Ridge.md]]

@@ -9,12 +9,10 @@ The number of adult eagle in South Zoo equals the sum of the average number of n
 _Defines:_
 - number of adult eagle in South Zoo
 
-_Requires:_
-- average number of newborn children per adult crow in South Zoo
-- number of adult crow in Jefferson Circus
-
-
 -----------------
 _Links:_
+
+- requires [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]
+- requires [[156_Number_of_Adult_Crow_in_Jefferson_Circus.md]]
 
 - is_an_input_for_the [[1_Equation_relating_goblin_shark_and_eagle_populations.md]]

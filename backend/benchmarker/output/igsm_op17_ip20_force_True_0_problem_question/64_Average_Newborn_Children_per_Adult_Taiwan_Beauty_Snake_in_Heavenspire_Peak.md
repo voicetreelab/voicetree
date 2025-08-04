@@ -10,12 +10,10 @@ The average number of newborn children per adult taiwan beauty snake in Heavensp
 _Defines:_
 - average number of newborn children per adult taiwan beauty snake in Heavenspire Peak
 
-_Requires:_
-- number of adult blue jay in Bundle Ranch
-- average number of newborn children per adult parrot in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[210_Number_of_Adult_Blue_Jay_in_Bundle_Ranch.md]]
+- requires [[207_Average_Newborn_Children_per_Adult_Parrot_in_Mayer_Aquarium.md]]
 
 - is_a_calculation_of [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]

@@ -9,11 +9,10 @@ The average number of newborn children per adult ball python in Heavenspire Peak
 _Defines:_
 - average number of newborn children per adult ball python in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult blue jay in South Zoo
-
 -----------------
 _Links:_
+
+- requires [[83_Average_Newborn_Children_per_Adult_Blue_Jay_in_South_Zoo.md]]
 
 - provides_an_input_for [[83_Average_Newborn_Children_per_Adult_Blue_Jay_in_South_Zoo.md]]
 - has_a_dependency [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]

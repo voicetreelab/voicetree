@@ -9,11 +9,9 @@ The number of adult coyote in Heavenspire Peak equals the average number of newb
 _Defines:_
 - number of adult coyote in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult parrot in Jefferson Circus
-
-
 -----------------
 _Links:_
+
+- requires [[67_Average_Newborn_Children_per_Adult_Parrot_in_Jefferson_Circus.md]]
 
 - defines_a_parameter_used_in_the [[67_Average_Newborn_Children_per_Adult_Parrot_in_Jefferson_Circus.md]]

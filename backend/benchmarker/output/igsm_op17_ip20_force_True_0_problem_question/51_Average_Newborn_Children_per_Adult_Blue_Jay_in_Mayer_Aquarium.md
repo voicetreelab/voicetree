@@ -13,11 +13,9 @@ Furthermore, this value is equal to the `Average Newborn Children per Adult Coyo
 _Defines:_
 - average number of newborn children per adult blue jay in Mayer Aquarium
 
-_Requires:_
-- total number of adult animals in Jefferson Circus
-
-
 -----------------
 _Links:_
+
+- requires [[159_Number_of_Adult_Arctic_Tern_in_Lunarchasm_Ridge.md]]
 
 - is_related_to_the_calculation_of [[9_Number_of_Adult_Copperhead_in_Heavenspire_Peak.md]]

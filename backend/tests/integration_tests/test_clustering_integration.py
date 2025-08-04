@@ -22,7 +22,7 @@ class TestClusteringIntegration:
     @pytest.fixture
     def animal_example_dir(self):
         """Path to the animal example test data"""
-        return "/Users/bobbobby/repos/VoiceTreePoc/backend/tests/animal_example"
+        return "/Users/bobbobby/repos/VoiceTree/backend/tests/animal_example"
     
     @pytest.fixture
     def temp_test_dir(self):
@@ -118,7 +118,7 @@ class TestClusteringIntegration:
         assert len(sample_tree) >= 40, f"Expected around 50 nodes, got {len(sample_tree)}"
         
         # Copy test files to temp directory for modification testing
-        animal_dir = "/Users/bobbobby/repos/VoiceTreePoc/backend/tests/animal_example"
+        animal_dir = "/Users/bobbobby/repos/VoiceTree/backend/tests/animal_example"
         for filename in os.listdir(animal_dir):
             if filename.endswith('.md'):
                 shutil.copy2(os.path.join(animal_dir, filename), temp_test_dir)

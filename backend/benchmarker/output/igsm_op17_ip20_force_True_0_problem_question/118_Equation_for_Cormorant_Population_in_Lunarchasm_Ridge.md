@@ -9,12 +9,10 @@ The number of adult cormorant in Lunarchasm Ridge equals the sum of the number o
 _Defines:_
 - number of adult cormorant in Lunarchasm Ridge
 
-_Requires:_
-- number of adult parrot in Mayer Aquarium
-- average number of newborn children per adult eagle in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[161_Number_of_Adult_Parrot_in_Mayer_Aquarium_Equation.md]]
+- requires [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
 
 - depends_on_the_parameter_defined_by [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]

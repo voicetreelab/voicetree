@@ -3,7 +3,7 @@ You are trying to answer the question: What is the total number of teachers from
 
 This question is about a very large document containing many mathematical relationships. We have compressed this document into a graph structure, each node representing a concept in the text, and it's relationship to another node.
 
-This graph is stored as markdown files at /Users/bobbobby/repos/VoiceTreePoc/backend/benchmarker/output_clustered_medium
+This graph is stored as markdown files at /Users/bobbobby/repos/VoiceTree/backend/benchmarker/output_clustered_medium
 
 Your goal is to answer the question, by reading the minimum amount of files. 
 

@@ -9,11 +9,9 @@ The number of adult bush viper in Heavenspire Peak equals the number of adult pa
 _Defines:_
 - number of adult bush viper in Heavenspire Peak
 
-_Requires:_
-- number of adult parrot in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[161_Number_of_Adult_Parrot_in_Mayer_Aquarium_Equation.md]]
 
 - is_defined_by_the_value_of [[161_Number_of_Adult_Parrot_in_Mayer_Aquarium_Equation.md]]

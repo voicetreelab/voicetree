@@ -9,11 +9,9 @@ The average number of newborn children per adult coelacanth in Starlight Summit 
 _Defines:_
 - average number of newborn children per adult coelacanth in Starlight Summit
 
-_Requires:_
-- average number of newborn children per adult parrot in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[80_Average_Newborn_Children_per_Adult_Parrot_in_South_Zoo.md]]
 
 - defines_the_value_for [[80_Average_Newborn_Children_per_Adult_Parrot_in_South_Zoo.md]]

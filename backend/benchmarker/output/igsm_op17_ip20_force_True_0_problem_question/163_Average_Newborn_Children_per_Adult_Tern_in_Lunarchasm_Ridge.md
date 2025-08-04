@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Tern in Lunarchasm Ridge 163
 
 The average number of newborn children per adult tern in Lunarchasm Ridge is defined by the average number of newborn children per adult crow in South Zoo.
 
-
 -----------------
 _Links:_
 

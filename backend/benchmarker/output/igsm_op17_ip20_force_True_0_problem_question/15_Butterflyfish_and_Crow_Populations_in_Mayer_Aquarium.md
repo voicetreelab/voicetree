@@ -12,12 +12,11 @@ _Defines:_
 - number of adult butterflyfish in Starlight Summit
 - average number of newborn children per adult butterflyfish in Starlight Summit
 
-_Requires:_
-- number of adult crow in Mayer Aquarium
-- average number of newborn children per adult crow in Mayer Aquarium
-
 -----------------
 _Links:_
+
+- requires [[186_Number_of_Adult_Crow_in_Mayer_Aquarium.md]]
+- requires [[215_Average_Newborn_Children_per_Adult_Crow_in_Mayer_Aquarium.md]]
 
 - uses_parameters_related_to [[3_Equation_relating_beluga_whale_and_crow_populations.md]]
 - has_a_dependency [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]

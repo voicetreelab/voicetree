@@ -10,10 +10,7 @@ The number of adult lionfish in Starlight Summit equals the sum of the total num
 _Defines:_
 - number of adult lionfish in Starlight Summit
 
-_Requires:_
-- total number of adult animals in Jefferson Circus
-- number of adult eagle in Mayer Aquarium
-
-
 -----------------
 _Links:_
+- requires [[159_Number_of_Adult_Arctic_Tern_in_Lunarchasm_Ridge.md]]
+- requires [[98_Number_of_Adult_Eagle_in_Mayer_Aquarium.md]]

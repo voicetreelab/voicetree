@@ -6,7 +6,6 @@ title: Number of Adult Aye-Aye in Radiant Crest 91
 
 The number of adult aye-aye in Radiant Crest equals the average number of newborn children per adult parrot in Bundle Ranch.
 
-
 -----------------
 _Links:_
 

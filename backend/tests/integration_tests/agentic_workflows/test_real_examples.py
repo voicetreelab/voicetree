@@ -13,7 +13,7 @@ import pytest
 
 # Add project root to path for imports
 current_dir = Path(__file__).parent
-project_root = current_dir.parent.parent.parent  # Go up to VoiceTreePoc directory
+project_root = current_dir.parent.parent.parent  # Go up to VoiceTree directory
 sys.path.insert(0, str(project_root))
 
 # Import the workflow directly

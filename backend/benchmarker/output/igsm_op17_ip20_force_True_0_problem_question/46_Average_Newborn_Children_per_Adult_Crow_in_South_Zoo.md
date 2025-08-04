@@ -11,11 +11,10 @@ This value is used to define the number of adult penguins in Lunarchasm Ridge.
 _Defines:_
 - average number of newborn children per adult crow in South Zoo
 
-_Requires:_
-- Number of Adult Crow in South Zoo (from Number of Adult Crow in South Zoo)
-
 -----------------
 _Links:_
+
+- requires [[68_Number_of_Adult_Crow_in_South_Zoo.md]]
 
 - provides_an_input_for [[26_Average_Newborn_Children_per_Adult_Dingo_in_Heavenspire_Peak.md]]
 - has_a_dependency [[92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md]]

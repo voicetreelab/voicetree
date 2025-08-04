@@ -9,11 +9,9 @@ The number of adult eyelash viper in Heavenspire Peak equals the average number 
 _Defines:_
 - number of adult eyelash viper in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult crow in South Zoo (from Average Newborn Children per Adult Dingo in Heavenspire Peak)
-
-
 -----------------
 _Links:_
+
+- requires [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]
 
 - is_related_to_the_calculation_of [[26_Average_Newborn_Children_per_Adult_Dingo_in_Heavenspire_Peak.md]]

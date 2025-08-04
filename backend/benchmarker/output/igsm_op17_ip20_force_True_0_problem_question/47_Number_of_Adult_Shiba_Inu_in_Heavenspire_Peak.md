@@ -9,11 +9,10 @@ The number of adult shiba inu in Heavenspire Peak equals the number of adult eag
 _Defines:_
 - number of adult shiba inu in Heavenspire Peak
 
-_Requires:_
-- number of adult eagle in South Zoo (from South Zoo)
-
 -----------------
 _Links:_
+
+- requires [[148_Number_of_Adult_Eagle_in_South_Zoo.md]]
 
 - provides_a_parameter_for_the [[18_Number_of_Adult_Golden_Retrievers_in_Heavenspire_Peak.md]]
 - has_a_dependency [[159_Number_of_Adult_Arctic_Tern_in_Lunarchasm_Ridge.md]]

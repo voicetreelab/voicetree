@@ -9,11 +9,9 @@ The average number of newborn children per adult coyote in Heavenspire Peak equa
 _Defines:_
 - average number of newborn children per adult coyote in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult blue jay in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]
 
 - is_equal_to_the_output_of [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]

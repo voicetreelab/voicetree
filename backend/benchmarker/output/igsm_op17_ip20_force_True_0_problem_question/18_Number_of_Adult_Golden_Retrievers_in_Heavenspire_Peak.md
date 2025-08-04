@@ -9,11 +9,10 @@ The number of adult golden retriever in Heavenspire Peak equals the difference b
 _Defines:_
 - number of adult golden retriever in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult crow in Jefferson Circus (from neighbor: Average Newborn Children per Adult Eagle in South Zoo)
-
 -----------------
 _Links:_
+
+- requires [[76_Average_Newborn_Children_per_Adult_Crow_in_Jefferson_Circus.md]]
 
 - is_related_to_the_calculation_of [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
 - has_a_dependency [[148_Number_of_Adult_Eagle_in_South_Zoo.md]]

@@ -7,6 +7,5 @@ title: Equation for Arctic Wolf and Parrot Populations in Lunarchasm Ridge and S
 
 The number of adult arctic wolf in Lunarchasm Ridge equals the number of adult parrot in South Zoo.
 
-
 -----------------
 _Links:_

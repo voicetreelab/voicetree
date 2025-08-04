@@ -11,11 +11,10 @@ This calculation is part of determining elementary school counts in other cities
 _Defines:_
 - average number of newborn children per adult eagle in Mayer Aquarium
 
-_Requires:_
-- average number of newborn children per adult blue jay in Mayer Aquarium (from neighbor)
-
 -----------------
 _Links:_
+
+- requires [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]
 
 - defines_a_parameter_for [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]
 - has_a_dependency [[67_Average_Newborn_Children_per_Adult_Parrot_in_Jefferson_Circus.md]]

@@ -1,0 +1,85 @@
+> @/Users/bobbobby/repos/VoiceTree/backend/benchmarker/input/igsm_op17_ip20_force_True_0_problem_ques
+  tion.txt
+  ⎿  Read backend/benchmarker/input/igsm_op17_ip20_force_True_0_problem_question.txt (233 lines)
+
+⏺ Looking at this problem file, I can see it's a
+  complex mathematical word problem involving animals
+   in different locations with various relationships
+  between populations and birth rates.
+
+  The question at the end asks: "How many adult
+  parrot does Mayer Aquarium have?"
+
+  To solve this, I need to work through the given
+  equations systematically. Let me trace through the
+  key relationships:
+
+  From the given facts:
+  - Line 46: The average number of newborn children
+  per adult crow in South Zoo equals 4
+  - Line 69: The number of adult crow in South Zoo
+  equals 1
+  - Line 84: The average number of newborn children
+  per adult blue jay in South Zoo equals 1
+  - Line 206: The number of adult parrot in South Zoo
+   equals 3
+  - Line 213: The number of adult blue jay in Bundle
+  Ranch equals 4
+  - Line 168: The average number of newborn children
+  per adult parrot in Bundle Ranch equals 3
+
+  From line 76: The average number of newborn
+  children per adult crow in Jefferson Circus equals
+  2 plus the average number of newborn children per
+  adult crow in South Zoo = 2 + 4 = 6
+
+  From line 159: The number of adult crow in
+  Jefferson Circus equals 4 plus the number of adult
+  blue jay in Mayer Aquarium
+
+  From line 211: The number of adult blue jay in
+  Mayer Aquarium equals the average number of newborn
+   children per adult crow in Jefferson Circus = 6
+
+  Therefore: The number of adult crow in Jefferson
+  Circus = 4 + 6 = 10
+
+  From line 164: The number of adult parrot in Mayer
+  Aquarium equals 2 times the average number of
+  newborn children per adult parrot in Mayer Aquarium
+
+  From line 210: The average number of newborn
+  children per adult parrot in Mayer Aquarium equals
+  the sum of the average number of newborn children
+  per adult blue jay in Mayer Aquarium, the average
+  number of newborn children per adult crow in South
+  Zoo, and the number of adult parrot in Jefferson
+  Circus
+
+  From line 93: The number of adult parrot in
+  Jefferson Circus equals 2 times the number of adult
+   crow in Jefferson Circus = 2 × 10 = 20
+
+  From line 52: The average number of newborn
+  children per adult blue jay in Mayer Aquarium
+  equals 2 times the total number of adult animals in
+   Jefferson Circus
+
+  I need to calculate the total number of adult
+  animals in Jefferson Circus, which includes crows
+  and parrots: 10 + 20 = 30
+
+  So: The average number of newborn children per
+  adult blue jay in Mayer Aquarium = 2 × 30 = 60
+
+  Now I can calculate line 210:
+  The average number of newborn children per adult
+  parrot in Mayer Aquarium = 60 + 4 + 20 = 84
+
+  Finally, from line 164:
+  The number of adult parrot in Mayer Aquarium = 2 ×
+  84 = 168
+
+  168
+
+╭────────────────

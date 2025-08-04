@@ -6,7 +6,6 @@ title: Equation for Ross's Gull Population in Lunarchasm Ridge 100
 
 The number of adult ross's gull in Lunarchasm Ridge equals the difference between the number of adult crow in Jefferson Circus and the total number of newborn animal children in Astral Ridge.
 
-
 -----------------
 _Links:_
 

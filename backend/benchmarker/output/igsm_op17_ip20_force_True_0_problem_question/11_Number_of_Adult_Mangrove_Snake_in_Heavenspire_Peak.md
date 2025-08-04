@@ -9,11 +9,10 @@ The number of adult mangrove snake in Heavenspire Peak equals the sum of the num
 _Defines:_
 - number of adult mangrove snake in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult chihuahua in Heavenspire Peak
-
 -----------------
 _Links:_
+
+- requires [[44_Average_Newborn_Children_per_Adult_Chihuahua_in_Heavenspire_Peak.md]]
 
 - defines_a_related_calculation_for [[9_Number_of_Adult_Copperhead_in_Heavenspire_Peak.md]]
 - has_a_dependency [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]

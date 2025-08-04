@@ -9,11 +9,9 @@ The average number of newborn children per adult heron in Lunarchasm Ridge equal
 _Defines:_
 - average number of newborn children per adult heron in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult blue jay in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[83_Average_Newborn_Children_per_Adult_Blue_Jay_in_South_Zoo.md]]
 
 - uses_the_value_defined_by [[83_Average_Newborn_Children_per_Adult_Blue_Jay_in_South_Zoo.md]]

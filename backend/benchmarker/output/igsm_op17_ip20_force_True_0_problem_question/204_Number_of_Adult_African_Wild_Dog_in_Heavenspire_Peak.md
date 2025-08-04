@@ -9,12 +9,10 @@ The number of adult african wild dog in Heavenspire Peak equals the difference b
 _Defines:_
 - number of adult african wild dog in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult crow in Jefferson Circus
-- average number of newborn children per adult parrot in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[76_Average_Newborn_Children_per_Adult_Crow_in_Jefferson_Circus.md]]
+- requires [[80_Average_Newborn_Children_per_Adult_Parrot_in_South_Zoo.md]]
 
 - is_related_to_the_calculation_of [[58_Number_of_Adult_Akita_in_Heavenspire_Peak.md]]

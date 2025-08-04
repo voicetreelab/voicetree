@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Walrus in Lunarchasm Ridge 140
 
 The average number of newborn children per adult walrus in Lunarchasm Ridge equals the average number of newborn children per adult crow in South Zoo.
 
-
 -----------------
 _Links:_
 

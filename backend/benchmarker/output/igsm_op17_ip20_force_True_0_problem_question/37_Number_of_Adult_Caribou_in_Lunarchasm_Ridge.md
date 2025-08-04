@@ -9,11 +9,10 @@ The number of adult caribou in Lunarchasm Ridge equals the sum of the average nu
 _Defines:_
 - number of adult caribou in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult blue jay in South Zoo
-
 -----------------
 _Links:_
+
+- requires [[83_Average_Newborn_Children_per_Adult_Blue_Jay_in_South_Zoo.md]]
 
 - provides_an_input_for_the [[25_Number_of_Adult_Gulls_in_Lunarchasm_Ridge.md]]
 - has_a_dependency [[210_Number_of_Adult_Blue_Jay_in_Bundle_Ranch.md]]

@@ -9,12 +9,10 @@ The number of adult angelfish in Starlight Summit equals the difference between 
 _Defines:_
 - number of adult angelfish in Starlight Summit
 
-_Requires:_
-- number of adult parrot in Jefferson Circus
-- number of adult eagle in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md]]
+- requires [[148_Number_of_Adult_Eagle_in_South_Zoo.md]]
 
 - defines_a_similar_calculation_for [[38_Number_of_Adult_Goblin_Sharks_in_Starlight_Summit.md]]

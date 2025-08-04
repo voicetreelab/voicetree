@@ -52,7 +52,7 @@ SCRIPT_TEMPLATE = """#!/bin/bash
 
 set -e  # Exit on error
 
-REPO_ROOT="/Users/bobbobby/repos/VoiceTreePoc"
+REPO_ROOT="/Users/bobbobby/repos/VoiceTree"
 MARKDOWN_VAULT="$REPO_ROOT/agent-communication/{vault_subdir}"
 
 echo "🚀 Starting {agent_name} agent for {description}..."
@@ -92,7 +92,7 @@ def generate_agent_script(
         description = f"{task_file_stem} implementation"
     
     # Build paths
-    repo_root = "/Users/bobbobby/repos/VoiceTreePoc"
+    repo_root = "/Users/bobbobby/repos/VoiceTree"
     markdown_vault = f"{repo_root}/agent-communication/{vault_subdir}"
     task_path = f"{markdown_vault}/{task_file}"
     

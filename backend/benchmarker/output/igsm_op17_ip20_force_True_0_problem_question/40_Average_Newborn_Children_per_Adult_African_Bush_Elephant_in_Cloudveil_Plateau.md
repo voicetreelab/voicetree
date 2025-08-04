@@ -7,7 +7,6 @@ title: Average Newborn Children per Adult African Bush Elephant in Cloudveil Pla
 
 The average number of newborn children per adult african bush elephant in Cloudveil Plateau equals the average number of newborn children per adult blue jay in Mayer Aquarium.
 
-
 -----------------
 _Links:_
 

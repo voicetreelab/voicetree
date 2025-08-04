@@ -9,7 +9,7 @@ The number of adult ivory gull in Lunarchasm Ridge equals the average number of 
 _Defines:_
 - number of adult ivory gull in Lunarchasm Ridge
 
-_Requires:_
+:_
 
 -----------------
 _Links:_

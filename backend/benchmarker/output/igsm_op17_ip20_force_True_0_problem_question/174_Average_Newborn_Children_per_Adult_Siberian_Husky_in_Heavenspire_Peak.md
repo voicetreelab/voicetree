@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Siberian Husky in Heavenspire Peak 174
 
 The average number of newborn children per adult siberian husky in Heavenspire Peak equals the number of adult crow in Jefferson Circus.
 
-
 -----------------
 _Links:_
 

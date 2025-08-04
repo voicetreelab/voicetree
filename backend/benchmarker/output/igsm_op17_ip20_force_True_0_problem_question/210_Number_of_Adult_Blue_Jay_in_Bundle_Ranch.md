@@ -9,7 +9,6 @@ The number of adult blue jay in Bundle Ranch equals 4.
 _Defines:_
 - number of adult blue jay in Bundle Ranch
 
-
 -----------------
 _Links:_
 

@@ -7,7 +7,6 @@ title: Average Newborn Children per Adult Siamese Fighting Fish in Starlight Sum
 
 The average number of newborn children per adult siamese fighting fish in Starlight Summit equals the sum of the average number of newborn children per adult blue jay in South Zoo and the number of adult blue jay in Mayer Aquarium.
 
-
 -----------------
 _Links:_
 

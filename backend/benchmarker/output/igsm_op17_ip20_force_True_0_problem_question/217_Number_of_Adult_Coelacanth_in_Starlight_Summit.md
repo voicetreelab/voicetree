@@ -9,7 +9,6 @@ The number of adult coelacanth in Starlight Summit equals the number of adult pa
 _Defines:_
 - number of adult coelacanth in Starlight Summit
 
-
 -----------------
 _Links:_
 

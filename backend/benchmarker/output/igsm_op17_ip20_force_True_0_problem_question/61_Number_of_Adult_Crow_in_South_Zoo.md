@@ -6,7 +6,6 @@ title: Number of Adult Crow in South Zoo 61
 
 The number of adult crow in South Zoo equals 4.
 
-
 -----------------
 _Links:_
 

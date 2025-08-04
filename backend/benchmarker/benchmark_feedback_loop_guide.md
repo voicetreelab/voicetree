@@ -7,7 +7,7 @@
 python -m backend.benchmarker.src.quality_LLM_benchmarker
 ```
 **Outputs:**
-- Markdown files: `backend/oldVaults/VoiceTreePOC/QualityTest/`
+- Markdown files: `backend/oldVaults/VoiceTree/QualityTest/`
 - Debug logs: `backend/text_to_graph_pipeline/agentic_workflows/debug_logs/`
 
 ### 2. Debug Workflow Analysis

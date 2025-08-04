@@ -72,10 +72,10 @@ Integration test → clustering_workflow_driver → clustering_agent → tree_to
 - DO NOT create any other test files - just this one integration test
 
 ## Files that may be relevant
-- /Users/bobbobby/repos/VoiceTreePoc/backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/segmentation/test_segmentation.py (example test structure)
-- /Users/bobbobby/repos/VoiceTreePoc/backend/tests/animal_example/ (test data)
-- /Users/bobbobby/repos/VoiceTreePoc/backend/text_to_graph_pipeline/tree_manager/markdown_to_tree.py
-- /Users/bobbobby/repos/VoiceTreePoc/backend/text_to_graph_pipeline/tree_manager/tree_functions.py
+- /Users/bobbobby/repos/VoiceTree/backend/tests/integration_tests/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/segmentation/test_segmentation.py (example test structure)
+- /Users/bobbobby/repos/VoiceTree/backend/tests/animal_example/ (test data)
+- /Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/tree_manager/markdown_to_tree.py
+- /Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/tree_manager/tree_functions.py
 
 ## Success Criteria
 - [ ] Test file created and runs (even if failing initially)

@@ -9,11 +9,9 @@ The average number of newborn children per adult collared lemming in Lunarchasm 
 _Defines:_
 - average number of newborn children per adult collared lemming in Lunarchasm Ridge
 
-_Requires:_
-- number of adult blue jay in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[84_Number_of_Adult_Blue_Jay_in_South_Zoo.md]]
 
 - is_defined_by_the [[84_Number_of_Adult_Blue_Jay_in_South_Zoo.md]]

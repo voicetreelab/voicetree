@@ -9,12 +9,11 @@ The average number of newborn children per adult goblin shark in Starlight Summi
 _Defines:_
 - average number of newborn children per adult goblin shark in Starlight Summit
 
-_Requires:_
-- average number of newborn children per adult eagle in South Zoo
-- number of adult eagle in Bundle Ranch (from Number of Adult Eagle in Bundle Ranch)
-
 -----------------
 _Links:_
+
+- requires [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
+- requires [[73_Number_of_Adult_Eagle_in_Bundle_Ranch.md]]
 
 _Links:_
 

@@ -9,12 +9,10 @@ The average number of newborn children per adult booby in Lunarchasm Ridge equal
 _Defines:_
 - average number of newborn children per adult booby in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult crow in South Zoo
-- average number of newborn children per adult eagle in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]
+- requires [[125_Average_Newborn_Children_per_Adult_Eagle_in_Mayer_Aquarium.md]]
 
 - shares_a_parameter_with_the [[3_Equation_relating_beluga_whale_and_crow_populations.md]]
