@@ -250,3 +250,27 @@ def load_markdown_tree(markdown_dir: str) -> Dict[int, Node]:
     """
     converter = MarkdownToTreeConverter()
     return converter.load_tree_from_markdown(markdown_dir)
+
+
+def load_markdown_repository_for_themes(input_forest_path: str) -> Dict[int, Node]:
+    """
+    Load markdown repository specifically for theme identification by stripping color metadata
+    
+    This function wraps the existing load_markdown_tree functionality and ensures all
+    color metadata is removed from nodes to prevent bias in theme identification.
+    
+    Args:
+        input_forest_path: Path to input_forest directory containing markdown files
+        
+    Returns:
+        Dictionary mapping node_id to Node objects with color metadata stripped
+    """
+    # Load the tree using existing functionality
+    tree_data = load_markdown_tree(input_forest_path)
+    
+    # Strip color metadata from all nodes
+    for node in tree_data.values():
+        if hasattr(node, 'color'):
+            node.color = None
+    
+    return tree_data

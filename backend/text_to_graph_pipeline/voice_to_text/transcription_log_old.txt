@@ -2179,6 +2179,135 @@ Oh, so no context, it's already indicated the tree and all progress is being sav
 Okay.
 Thank you.
 You
+All right, cool. So today I'm working...
+feature for VoiceTree, which is the ability to take an input forest and from that forest...
+color each subtree.
+And so what exactly I mean by that is we're going to take each forest and then for each tree in the forest.
+we're going to find the subtrees within that forest.
+Sorry, sorry, we're going to find the subtrees within a tree. And then we're going to...
+find all the possible
+groups, the themes within the...
+tree. So we'll find all the themes within the tree, general containers that might...
+projects, it might be different abstractions, who knows, it's dynamic, so we'll get a large language model to be given a tree, as in all the nodes in a markdown folder, and then to
+convert
+Okay, cool. So let's talk about what exactly.
+do um to get that done um all right so
+We want to talk a little bit about the term
+So I'm not 100% sure if I'm using the correct terminology of subtrees and trees.
+forests, so it would be good to clarify that and maybe get an LM.
+And then we need to figure out what are the steps required to do this.
+Theme identification is going to be done with a large language model agent.
+Um, and it's going to be given, um,
+input of a tree. We already have a function called, we already have a function to load a Markdown repository, put it into a tree data structure, and then send that tree data structure to LLM. We have a function called format nodes. So that should be quite helpful there.
+Um...
+Um, okay, so...
+The full flow, let's think about the full flow. So we need to take a folder and then convert it into our tree dial structure.
+And then we, for each subtree in that tree data structure,
+We send it to the LLM and say, hey, within this subject,
+um, find what are the, um,
+available nodes uh hang on let's hold that thought
+Um,
+Alright, so what were we saying?
+So one question I have is I don't know whether to input just a subtree Or for example, we could start maybe the MVP
+is just inputting a whole folder. Our folders really never have more than 100 nodes.
+Um, so it should be, um, not too large for, um,
+Gemini to be able to handle, Gemini Flash, but then let's create another node to connect.
+which is the future performance optimization we know we're going to have to make where in the future we know we're going to have to be able to run on
+a very large forest of potentially up to a thousand nodes.
+Um,
+And so...
+Um...
+Okay, cool. So for now, we need to figure out just the core components for the MVP, which is input a folder up to 100 nodes, convert it into a data structure, and then our tree data structure. So I think we have functions that already do that, markdown to tree. And then with that tree data structure, we need to call an agent to find all the groups within that tree, which can itself contain disconnected components. That's the word.
+And we want it to identify maybe.
+however many clear subtrees there could be and then for now I think what we want to do is we just want to color those sub
+Oh, okay, and one small thing we need to do is when we load the folder, the markdown folder, into our tree data structure, we want to remove all existing color in the YAML front matter, because we're going to overwrite that.
+with our new color, which will be the subtree color.
+Um...
+Okay, cool, I think...
+Um...
+we can now spawn and orchestrate.
+so
+Claude
+then I'm going to bring you.
+here
+Okay, and so then the voice tree performance optimizes
+The key thing there is, so if we want to find common groups among a thousand nodes, but we can't send all a thousand nodes at once, what that means is if we send a hundred at a time, they might find distinct groups. And then we need a way to sort of merge those groups back. So in the end, if we sent a thousand nodes, we still only want about 10 different subtree colors. And so the problem is, is that each of those, when we send a hundred nodes each, they might each come up with like five different subtrees. And so we need a smart way of ensuring that...
+We don't end up with 5 times 10 different...
+We don't end up with 5 times 10 different
+subtree groups.
+Sorry, that'll be 10 times 10.
+And I don't know the best way to do this, so we're going to need...
+Um, and then what we're going to do.
+after the VoiceTree sub-tree coloring feature, so what's going to come after that?
+is we want a way to then, out of those sub-truths,
+Collapse the subtree actually.
+into just one node and redo all the...
+edges as would be required so that you can sort of click on it on a subdry and it either expands or collapse
+It collapses into all the nodes that are contained within that subtree.
+So what we really want here is sort of like recursive trees. So each node itself can be a tree. Cool.
+Oh, okay. So I really like that solution for merging batched voice tree groups, which an AI just came up with, which is we can just send the existing subtree names that we already have.
+to the LLM call and that way it can know what existing groups it can already reference.
+No. Stop. Stop.
+Please go around me.
+You
+Here we go.
+Okay, at VoiceTree theme identification, I'm going to clarify that we don't need Carol, the implement subtree processor, because for now, for the MVP.
+Um, we're just going to implement.
+We're just going to input a folder, and in fact that folder can be called input forest, input underscore forest. And so we don't need to identify disconnected components yet or extract subtrees, we can do that later.
+Um,
+Okay, we're at the stage now where we want to test our solution. It looks like all sub-agents have finished their work.
+Um,
+Mm-hmm.
+Okay, cool. So now we're at the stage of testing again with our input first. So the agents have said that they've done it. However, I don't see the colors, so...
+All right, so we're talking about right now the next step.
+which is Voice Tree Performance Optimization.
+So let's open here Claude
+And we identified a key problem in the current solution of Voice3 theme identification, which is that it's too sparse.
+So we will need to improve that.
+All right, we've done it. It's good enough for now. We'll take a break and then we'll come back
+So we've now finished analyzing subjects.
+And our solution was quite complex, but we were able to manage more than.
+Um...
+So
+It worked in the end.
+So here, sub trees now have their own
+color, which is pretty cool.
+Uh...
+Let's look at the...
+Yeah, good enough.
+All right. I want to record an example of me using VoiceTree to build a new feature for VoiceTree, and quite a large feature, which is the ability to identify subtrees, wind trees, actually wind forests, and then to color each subtreet. OK, cool. So let's launch VoiceTree.
+All right, cool, today I'm working on a...
+feature which is the ability to take an input forest and from that forest color each subtree. And so what exactly I mean by that is we're going to take each forest and then for each tree in the forest we're going to find the subtrees within that forest. Sorry, we're going to find the subtrees within a tree and then we're going to find all the possible groups, the themes within the subtree. So we'll find all the themes within the tree, general containers that might be different projects, it might be different abstractions, who knows, it's dynamic. So we'll get a large language model to be given a tree as in all the nodes in a markdown folder and then to convert.
+Thank you.
+Hein.
+what's happening um just final fix-ups
+Well, actually some major, major work I still need to do.
+Would you just use the beef cutter money to be created? Well, I mean...
+I don't have time to think now.
+Okay.
+How much longer do you need?
+you know, a few hours.
+I mean, but this is it.
+Mmm.
+I need to work at eight.
+I don't have to. Do you have any meetings? I don't think so.
+Did you have a meeting with him today?
+Yeah. Mm-hmm.
+Ah.
+Okay. Yes, vegetables if you want.
+okay i'm gonna go to sleep do you need me can i do anything for you
+Um,
+I have water goods, pineapple on the fridge.
+Fresh pineapple.
+if we get hungry.
+Hmm, I think you know, thank you for this
+Five minutes of stretch.
+Did you go to the gym? Yeah, briefly.
+Thank you.
+I'm going to get rid of them tripped up. Ah, I'm going to...
+and then I went to the gym. That was good.
+Today it's very crowded but fine, I'm in such a big gym.
+Mm-hmm.
 Alright, we made one mistake.
 in the create agent sub-agents
 When they create the subtasks, they need to fill out all the content already in the tools slash prompt slash subagent prompt.md
