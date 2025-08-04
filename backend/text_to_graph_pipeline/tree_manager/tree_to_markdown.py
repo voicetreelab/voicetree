@@ -93,33 +93,34 @@ class TreeToMarkdownConverter:
                 clean_content = node_data.content
                 f.write(f"{clean_content}\n\n\n-----------------\n_Links:_\n")
 
+                # Write any existing links that don't follow parent/child structure
+                # This preserves links like "is_defined_by_the_calculation_of" etc.
+                written_links = []
+                
                 # Add child links
-                # DISABLING BECAUES IT JUST ADDS NOISE, WE CAN USE OBSIDIAN BACKLINKS INSTEAD
+                if node_data.children:
+                    f.write(f"\nChildren:\n")
+                    for child_id in node_data.children:
+                        child_node = self.tree_data.get(child_id)
+                        if child_node:
+                            if not child_node.filename:
+                                logging.warning(f"Child node {child_id} missing filename")
+                                continue
+                            child_file_name = child_node.filename
+                            # Get the relationship from child's perspective
+                            child_relationship = "child of"
+                            if child_id in self.tree_data and node_id in self.tree_data[child_id].relationships:
+                                child_relationship = self.tree_data[child_id].relationships[node_id]
+                                child_relationship = self.convert_to_snake_case(child_relationship)
+                            f.write(f"- [[{child_file_name}]] {child_relationship} (this node)\n")
+                            written_links.append(child_file_name)
+                        else:
+                            logging.error(f"Child node {child_id} not found in tree_data")
 
-                # if node_data.children:
-                #     f.write(f"Children:\n")
-                # for child_id in node_data.children:
-                #     child_node = self.tree_data.get(child_id)
-                #     if child_node:
-                #         if not child_node.filename:
-                #             logging.warning(f"Child node {child_id} missing filename")
-                #             continue
-                #         child_file_name = child_node.filename
-                #         # Get the relationship from child's perspective
-                #         child_relationship = "child of"
-                #         if child_id in self.tree_data and node_id in self.tree_data[child_id].relationships:
-                #             child_relationship = self.tree_data[child_id].relationships[node_id]
-                #             child_relationship = self.convert_to_snake_case(child_relationship)
-                #         f.write(f"- [[{child_file_name}]] {child_relationship} (this node)\n")
-                #     else:
-                #         logging.error(f"Child node {child_id} not found in tree_data")
-
-                # # add parent links
-
-
+                # add parent links
                 parent_id = self.get_parent_id(node_id)
                 if parent_id is not None:
-                    f.write(f"Parent:\n")
+                    f.write(f"\nParent:\n")
                     parent_file_name = self.tree_data[parent_id].filename
                     relationship_to_parent = "child of"
                     try:
@@ -128,6 +129,15 @@ class TreeToMarkdownConverter:
                         logging.error("Parent relationship not in tree_data")
                     relationship_to_parent = self.convert_to_snake_case(relationship_to_parent)
                     f.write(f"- {relationship_to_parent} [[{parent_file_name}]]\n")
+                    written_links.append(parent_file_name)
+                
+                # Write arbitrary links (non-parent/child relationships)
+                if hasattr(node_data, 'links') and node_data.links:
+                    for link in node_data.links:
+                        target = link.get('target', '')
+                        relationship = link.get('relationship', '')
+                        if target and target not in written_links:
+                            f.write(f"\n- {relationship} [[{target}]]\n")
 
                 # Flush to ensure immediate file visibility
                 f.flush()

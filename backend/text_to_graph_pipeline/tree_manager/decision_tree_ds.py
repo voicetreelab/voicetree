@@ -27,6 +27,7 @@ class Node:
         self.summary: str = summary
         self.num_appends: int = 0
         self.tags: List[str] = []  # Support for multiple tags per node
+        self.links: List[Dict[str, str]] = []  # List of {"relationship": str, "target": str} for arbitrary links
 
 
 

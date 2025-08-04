@@ -1,46 +1,26 @@
-Question: number adult crow Jefferson Circus number adult parrot Jefferson Circus
+Question: equals 6
 ================================================================================
 
 
 
 ====================
-BRANCH 1: Starting from 92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md
+BRANCH 1: Starting from 20_Number_of_Adult_Eastern_Coral_Snakes_in_Heavenspire_Peak.md
 ====================
 
 ------------------------------------------------------------
-  File: 138_Total_number_of_adult_animals_in_Jefferson_Circus.md
+File: 20_Number_of_Adult_Eastern_Coral_Snakes_in_Heavenspire_Peak.md
 ------------------------------------------------------------
-#total #number #adult_animal #jefferson_circus
+#number #adult_eastern_coral_snake #heavenspire_peak #equal #adult_crow #mayer_aquarium
 ---
-node_id: 138
-title: Total number of adult animals in Jefferson Circus 138 138
+node_id: 20
+title: Number of Adult Eastern Coral Snakes in Heavenspire Peak 20 20
 ---
-### States the total number of adult animals in Jefferson Circus.
+### Defines the number of adult eastern coral snakes in Heavenspire Peak as equal to the number of adult crows in Mayer Aquarium.
 
-The total number of adult animals in Jefferson Circus.
-
-To calculate this total, sum all adult animals in Jefferson Circus:
-- Adult Crows: See [[156_Number_of_Adult_Crow_in_Jefferson_Circus.md]]
-- Adult Parrots: See [[92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md]]
-
-
------------------
-_Links:_
-
-------------------------------------------------------------
-File: 92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md
-------------------------------------------------------------
-#parrot_population #crow_population #equation #jefferson_circus #adult_parrot #adult_crow
----
-node_id: 92
-title: Parrot and Crow Population Equation in Jefferson Circus 92 92
----
-### Defines the relationship between the number of adult parrots and adult crows in Jefferson Circus.
-
-The number of adult parrot in Jefferson Circus equals 2 times the number of adult crow in Jefferson Circus.
+The number of adult eastern coral snake in Heavenspire Peak equals the number of adult crow in Mayer Aquarium.
 
 _Defines:_
-- number of adult parrot in Jefferson Circus
+- number of adult eastern coral snake in Heavenspire Peak
 
 
 -----------------
@@ -48,43 +28,23 @@ _Links:_
 
 
 ====================
-BRANCH 2: Starting from 156_Number_of_Adult_Crow_in_Jefferson_Circus.md
+BRANCH 2: Starting from 47_Number_of_Adult_Shiba_Inu_in_Heavenspire_Peak.md
 ====================
 
 ------------------------------------------------------------
-  File: 138_Total_number_of_adult_animals_in_Jefferson_Circus.md
+File: 47_Number_of_Adult_Shiba_Inu_in_Heavenspire_Peak.md
 ------------------------------------------------------------
-#total #number #adult_animal #jefferson_circus
+#number #adult_shiba_inu #heavenspire_peak #equal #adult_eagle #south_zoo #calculation
 ---
-node_id: 138
-title: Total number of adult animals in Jefferson Circus 138 138
+node_id: 47
+title: Number of Adult Shiba Inu in Heavenspire Peak 47 47
 ---
-### States the total number of adult animals in Jefferson Circus.
+### States that the number of adult shiba inu in Heavenspire Peak is equal to the number of adult eagles in South Zoo. It also notes a related calculation for Siberian Huskies.
 
-The total number of adult animals in Jefferson Circus.
-
-To calculate this total, sum all adult animals in Jefferson Circus:
-- Adult Crows: See [[156_Number_of_Adult_Crow_in_Jefferson_Circus.md]]
-- Adult Parrots: See [[92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md]]
-
-
------------------
-_Links:_
-
-------------------------------------------------------------
-File: 156_Number_of_Adult_Crow_in_Jefferson_Circus.md
-------------------------------------------------------------
-#number #adult_crow #jefferson_circus #adult_blue_jay #mayer_aquarium
----
-node_id: 156
-title: Number of Adult Crow in Jefferson Circus 156 156
----
-### Defines the number of adult crows in Jefferson Circus as 4 plus the number of adult blue jays in Mayer Aquarium.
-
-The number of adult crow in Jefferson Circus equals 4 plus the number of adult blue jay in Mayer Aquarium.
+The number of adult shiba inu in Heavenspire Peak equals the number of adult eagle in South Zoo.
 
 _Defines:_
-- number of adult crow in Jefferson Circus
+- number of adult shiba inu in Heavenspire Peak
 
 
 -----------------
@@ -92,26 +52,23 @@ _Links:_
 
 
 ====================
-BRANCH 3: Starting from 222_Number_of_Adult_Coyote_in_Heavenspire_Peak.md
+BRANCH 3: Starting from 129_Average_Newborn_Children_per_Adult_King_Eider_in_Lunarchasm_Ridge.md
 ====================
 
 ------------------------------------------------------------
-File: 222_Number_of_Adult_Coyote_in_Heavenspire_Peak.md
+File: 129_Average_Newborn_Children_per_Adult_King_Eider_in_Lunarchasm_Ridge.md
 ------------------------------------------------------------
-#number #adult_coyote #heavenspire_peak #average #newborn_children #adult_parrot #jefferson_circus
+#average #newborn_children #adult_king_eider #lunarchasm_ridge #number #adult_crow #mayer_aquarium
 ---
-node_id: 222
-title: Number of Adult Coyote in Heavenspire Peak 222 222
+node_id: 129
+title: Average Newborn Children per Adult King Eider in Lunarchasm Ridge 129 129
 ---
-### Defines the number of adult coyotes in Heavenspire Peak based on the average number of newborn children per adult parrot in Jefferson Circus.
+### Calculates the average number of newborn children per adult king eider in Lunarchasm Ridge based on the number of adult crows in Mayer Aquarium.
 
-The number of adult coyote in Heavenspire Peak equals the average number of newborn children per adult parrot in Jefferson Circus.
+The average number of newborn children per adult king eider in Lunarchasm Ridge equals the number of adult crow in Mayer Aquarium.
 
 _Defines:_
-- number of adult coyote in Heavenspire Peak
-
-_Requires:_
-- average number of newborn children per adult parrot in Jefferson Circus
+- average number of newborn children per adult king eider in Lunarchasm Ridge
 
 
 -----------------
@@ -119,26 +76,23 @@ _Links:_
 
 
 ====================
-BRANCH 4: Starting from 67_Average_Newborn_Children_per_Adult_Parrot_in_Jefferson_Circus.md
+BRANCH 4: Starting from 53_Number_of_Adult_New_Guinea_Singing_Dog_in_Heavenspire_Peak.md
 ====================
 
 ------------------------------------------------------------
-File: 67_Average_Newborn_Children_per_Adult_Parrot_in_Jefferson_Circus.md
+File: 53_Number_of_Adult_New_Guinea_Singing_Dog_in_Heavenspire_Peak.md
 ------------------------------------------------------------
-#average #newborn_children #adult_parrot #jefferson_circus #adult_chihuahua #heavenspire_peak #adult_coyote
+#number #adult_new_guinea_singing_dog #heavenspire_peak #average #newborn_children #adult_parrot #mayer_aquarium
 ---
-node_id: 67
-title: Average Newborn Children per Adult Parrot in Jefferson Circus 67 67
+node_id: 53
+title: Number of Adult New Guinea Singing Dog in Heavenspire Peak 53 53
 ---
-### States that the average number of newborn children per adult parrot in Jefferson Circus is 4. It requires the average number of newborn children per adult chihuahua in Heavenspire Peak (from a neighbor) and also uses a calculation for the average number of newborn children per adult coyote in Heavenspire Peak, which is defined separately.
+### Calculates the number of adult new guinea singing dogs in Heavenspire Peak using the average number of newborn children per adult parrot in Mayer Aquarium.
 
-The average number of newborn children per adult parrot in Jefferson Circus equals 4.
+The number of adult new guinea singing dog in Heavenspire Peak equals the average number of newborn children per adult parrot in Mayer Aquarium.
 
 _Defines:_
-- average number of newborn children per adult parrot in Jefferson Circus
-
-_Requires:_
-- average number of newborn children per adult chihuahua in Heavenspire Peak (from neighbor link)
+- number of adult new guinea singing dog in Heavenspire Peak
 
 
 -----------------
@@ -146,23 +100,23 @@ _Links:_
 
 
 ====================
-BRANCH 5: Starting from 160_Number_of_Adult_Guppy_in_Starlight_Summit.md
+BRANCH 5: Starting from 10_Number_of_Adult_Reticulated_Python_in_Heavenspire_Peak.md
 ====================
 
 ------------------------------------------------------------
-File: 160_Number_of_Adult_Guppy_in_Starlight_Summit.md
+File: 10_Number_of_Adult_Reticulated_Python_in_Heavenspire_Peak.md
 ------------------------------------------------------------
-#number #adult_guppy #starlight_summit #sum #average #newborn_children #adult_parrot #jefferson_circus #adult_crow
+#number #adult_reticulated_python #heavenspire_peak #average #newborn_children #adult_eagle #bundle_ranch #adult_parrot #sum
 ---
-node_id: 160
-title: Number of Adult Guppy in Starlight Summit 160 160
+node_id: 10
+title: Number of Adult Reticulated Python in Heavenspire Peak 10 10
 ---
-### Defines the number of adult guppy in Starlight Summit as the sum of average newborn children per adult parrot in Jefferson Circus and adult crows in Jefferson Circus.
+### Calculates the number of adult reticulated python in Heavenspire Peak by summing the average number of newborn children per adult eagle in Bundle Ranch and the number of adult parrot in Bundle Ranch.
 
-The number of adult guppy in Starlight Summit equals the sum of the average number of newborn children per adult parrot in Jefferson Circus and the number of adult crow in Jefferson Circus.
+The number of adult reticulated python in Heavenspire Peak equals the sum of the average number of newborn children per adult eagle in Bundle Ranch and the number of adult parrot in Bundle Ranch.
 
 _Defines:_
-- number of adult guppy in Starlight Summit
+- number of adult reticulated python in Heavenspire Peak
 
 
 -----------------
@@ -170,26 +124,23 @@ _Links:_
 
 
 ====================
-BRANCH 6: Starting from 19_Average_Shearwater_Newborns_Lunarchasm_Ridge_vs_Jefferson_Circus_Crows.md
+BRANCH 6: Starting from 128_Average_Newborn_Children_per_Adult_Angelfish_in_Skyward_Pinnacle.md
 ====================
 
 ------------------------------------------------------------
-File: 19_Average_Shearwater_Newborns_Lunarchasm_Ridge_vs_Jefferson_Circus_Crows.md
+File: 128_Average_Newborn_Children_per_Adult_Angelfish_in_Skyward_Pinnacle.md
 ------------------------------------------------------------
-#average #newborn_children #adult_shearwater #lunarchasm_ridge #adult_crow #jefferson_circus
+#average #newborn_children #adult_angelfish #skyward_pinnacle #equal #number #adult_parrot #mayer_aquarium
 ---
-node_id: 19
-title: Average Shearwater Newborns Lunarchasm Ridge vs Jefferson Circus Crows 19 19
+node_id: 128
+title: Average Newborn Children per Adult Angelfish in Skyward Pinnacle 128 128
 ---
-### Calculates the average number of newborn children per adult shearwater in Lunarchasm Ridge using the average number of newborn children per adult crow in Jefferson Circus.
+### Defines the average number of newborn children per adult angelfish in Skyward Pinnacle, which is equal to the number of adult parrots in Mayer Aquarium.
 
-The average number of newborn children per adult shearwater in Lunarchasm Ridge equals the average number of newborn children per adult crow in Jefferson Circus.
+The average number of newborn children per adult angelfish in Skyward Pinnacle equals the number of adult parrot in Mayer Aquarium.
 
 _Defines:_
-- average number of newborn children per adult shearwater in Lunarchasm Ridge
-
-_Requires:_
-- average number of newborn children per adult crow in Jefferson Circus
+- average number of newborn children per adult angelfish in Skyward Pinnacle
 
 
 -----------------
@@ -197,69 +148,24 @@ _Links:_
 
 
 ====================
-BRANCH 7: Starting from 150_Number_of_Adult_Gannet_in_Lunarchasm_Ridge.md
+BRANCH 7: Starting from 139_Average_Newborn_Children_per_Adult_Scarlet_Macaw_in_Silvermist_Highlands.md
 ====================
 
 ------------------------------------------------------------
-File: 150_Number_of_Adult_Gannet_in_Lunarchasm_Ridge.md
+File: 139_Average_Newborn_Children_per_Adult_Scarlet_Macaw_in_Silvermist_Highlands.md
 ------------------------------------------------------------
-#number #adult_gannet #lunarchasm_ridge #adult_eagle #mayer_aquarium #average #newborn_children #adult_crow #jefferson_circus
+#average #newborn_children #adult_scarlet_macaw #silvermist_highlands #equal #number #adult_crow #south_zoo
 ---
-node_id: 150
-title: Number of Adult Gannet in Lunarchasm Ridge 150 150
+node_id: 139
+title: Average Newborn Children per Adult Scarlet Macaw in Silvermist Highlands 139
+  139
 ---
-### Calculates the number of adult gannets in Lunarchasm Ridge based on the number of adult eagles in Mayer Aquarium and the average number of newborn children per adult crow in Jefferson Circus.
+### Defines the average number of newborn children per adult scarlet macaw in Silvermist Highlands as equal to the number of adult crows in South Zoo.
 
-The number of adult gannet in Lunarchasm Ridge equals the sum of the number of adult eagle in Mayer Aquarium and the average number of newborn children per adult crow in Jefferson Circus.
-
-
------------------
-_Links:_
-
-
-====================
-BRANCH 8: Starting from 117_Average_Newborn_Children_per_Adult_Penguin_in_Lunarchasm_Ridge.md
-====================
-
-------------------------------------------------------------
-File: 117_Average_Newborn_Children_per_Adult_Penguin_in_Lunarchasm_Ridge.md
-------------------------------------------------------------
-#average #newborn_children #adult_penguin #lunarchasm_ridge #crow_children #jefferson_circus
----
-node_id: 117
-title: Average Newborn Children per Adult Penguin in Lunarchasm Ridge 117 117
----
-### Calculates the average number of newborn children per adult penguin in Lunarchasm Ridge using crow child counts from Jefferson Circus.
-
-The average number of newborn children per adult penguin in Lunarchasm Ridge equals the sum of the number of adult crow in Jefferson Circus and the average number of newborn children per adult crow in Jefferson Circus.
-
-
------------------
-_Links:_
-
-
-====================
-BRANCH 9: Starting from 115_Number_of_Adult_Arctic_Hare_in_Lunarchasm_Ridge.md
-====================
-
-------------------------------------------------------------
-File: 115_Number_of_Adult_Arctic_Hare_in_Lunarchasm_Ridge.md
-------------------------------------------------------------
-#number #adult_arctic_hare #lunarchasm_ridge #adult_parrot #bundle_ranch #average #newborn_children #adult_crow #jefferson_circus
----
-node_id: 115
-title: Number of Adult Arctic Hare in Lunarchasm Ridge 115 115
----
-### Calculates the number of adult arctic hare in Lunarchasm Ridge using the number of adult parrots in Bundle Ranch and the average number of newborn children per adult crow in Jefferson Circus.
-
-The number of adult arctic hare in Lunarchasm Ridge equals the sum of the average number of newborn children per adult crow in Jefferson Circus and the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult scarlet macaw in Silvermist Highlands equals the number of adult crow in South Zoo.
 
 _Defines:_
-- number of adult arctic hare in Lunarchasm Ridge
-
-_Requires:_
-- average number of newborn children per adult crow in Jefferson Circus
-- number of adult parrot in Bundle Ranch
+- average number of newborn children per adult scarlet macaw in Silvermist Highlands
 
 
 -----------------
@@ -267,27 +173,23 @@ _Links:_
 
 
 ====================
-BRANCH 10: Starting from 41_Number_of_Adult_Angelfish_in_Starlight_Summit.md
+BRANCH 8: Starting from 205_Number_of_Adult_Ostrich_in_Etherreach_Cliffs.md
 ====================
 
 ------------------------------------------------------------
-File: 41_Number_of_Adult_Angelfish_in_Starlight_Summit.md
+File: 205_Number_of_Adult_Ostrich_in_Etherreach_Cliffs.md
 ------------------------------------------------------------
-#number #adult_angelfish #starlight_summit #difference #adult_parrot #jefferson_circus #adult_eagle #south_zoo
+#number #adult_ostrich #etherreach_cliffs #adult_eagle #bundle_ranch #average #newborn_children #mayer_aquarium #sum
 ---
-node_id: 41
-title: Number of Adult Angelfish in Starlight Summit 41 41
+node_id: 205
+title: Number of Adult Ostrich in Etherreach Cliffs 205 205
 ---
-### Calculates the number of adult angelfish in Starlight Summit as the difference between adult parrots in Jefferson Circus and adult eagles in South Zoo.
+### Calculates the number of adult ostrich in Etherreach Cliffs by summing the number of adult eagles in Bundle Ranch and the average number of newborn children per adult eagle in Mayer Aquarium.
 
-The number of adult angelfish in Starlight Summit equals the difference between the number of adult parrot in Jefferson Circus and the number of adult eagle in South Zoo.
+The number of adult ostrich in Etherreach Cliffs equals the sum of the number of adult eagle in Bundle Ranch and the average number of newborn children per adult eagle in Mayer Aquarium.
 
 _Defines:_
-- number of adult angelfish in Starlight Summit
-
-_Requires:_
-- number of adult parrot in Jefferson Circus
-- number of adult eagle in South Zoo
+- number of adult ostrich in Etherreach Cliffs
 
 
 -----------------
@@ -295,43 +197,23 @@ _Links:_
 
 
 ====================
-BRANCH 11: Starting from 156_Number_of_Adult_Crow_in_Jefferson_Circus.md
+BRANCH 9: Starting from 79_Average_Newborn_Children_per_Adult_Fennec_Fox_in_Heavenspire_Peak.md
 ====================
 
 ------------------------------------------------------------
-  File: 138_Total_number_of_adult_animals_in_Jefferson_Circus.md
+File: 79_Average_Newborn_Children_per_Adult_Fennec_Fox_in_Heavenspire_Peak.md
 ------------------------------------------------------------
-#total #number #adult_animal #jefferson_circus
+#average #newborn_children #adult_fennec_fox #heavenspire_peak #equal #adult_eagle #mayer_aquarium
 ---
-node_id: 138
-title: Total number of adult animals in Jefferson Circus 138 138
+node_id: 79
+title: Average Newborn Children per Adult Fennec Fox in Heavenspire Peak 79 79
 ---
-### States the total number of adult animals in Jefferson Circus.
+### Defines the average number of newborn children per adult fennec fox in Heavenspire Peak, which is equal to the average number of newborn children per adult eagle in Mayer Aquarium.
 
-The total number of adult animals in Jefferson Circus.
-
-To calculate this total, sum all adult animals in Jefferson Circus:
-- Adult Crows: See [[156_Number_of_Adult_Crow_in_Jefferson_Circus.md]]
-- Adult Parrots: See [[92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md]]
-
-
------------------
-_Links:_
-
-------------------------------------------------------------
-File: 156_Number_of_Adult_Crow_in_Jefferson_Circus.md
-------------------------------------------------------------
-#number #adult_crow #jefferson_circus #adult_blue_jay #mayer_aquarium
----
-node_id: 156
-title: Number of Adult Crow in Jefferson Circus 156 156
----
-### Defines the number of adult crows in Jefferson Circus as 4 plus the number of adult blue jays in Mayer Aquarium.
-
-The number of adult crow in Jefferson Circus equals 4 plus the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult fennec fox in Heavenspire Peak equals the average number of newborn children per adult eagle in Mayer Aquarium.
 
 _Defines:_
-- number of adult crow in Jefferson Circus
+- average number of newborn children per adult fennec fox in Heavenspire Peak
 
 
 -----------------
@@ -339,43 +221,23 @@ _Links:_
 
 
 ====================
-BRANCH 12: Starting from 92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md
+BRANCH 10: Starting from 7_Equation_for_Harp_Seal_Population_in_Lunarchasm_Ridge.md
 ====================
 
 ------------------------------------------------------------
-  File: 138_Total_number_of_adult_animals_in_Jefferson_Circus.md
+File: 7_Equation_for_Harp_Seal_Population_in_Lunarchasm_Ridge.md
 ------------------------------------------------------------
-#total #number #adult_animal #jefferson_circus
+#equation #adult_harp_seal #lunarchasm_ridge #equal #adult_eagle #south_zoo #average #newborn_children
 ---
-node_id: 138
-title: Total number of adult animals in Jefferson Circus 138 138
+node_id: 7
+title: Equation for Harp Seal Population in Lunarchasm Ridge 7 7
 ---
-### States the total number of adult animals in Jefferson Circus.
+### Defines the number of adult harp seals in Lunarchasm Ridge as equal to the number of adult eagles in South Zoo. Also defines a related metric for average newborn children per adult harp seal.
 
-The total number of adult animals in Jefferson Circus.
-
-To calculate this total, sum all adult animals in Jefferson Circus:
-- Adult Crows: See [[156_Number_of_Adult_Crow_in_Jefferson_Circus.md]]
-- Adult Parrots: See [[92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md]]
-
-
------------------
-_Links:_
-
-------------------------------------------------------------
-File: 92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md
-------------------------------------------------------------
-#parrot_population #crow_population #equation #jefferson_circus #adult_parrot #adult_crow
----
-node_id: 92
-title: Parrot and Crow Population Equation in Jefferson Circus 92 92
----
-### Defines the relationship between the number of adult parrots and adult crows in Jefferson Circus.
-
-The number of adult parrot in Jefferson Circus equals 2 times the number of adult crow in Jefferson Circus.
+The number of adult harp seal in Lunarchasm Ridge equals the number of adult eagle in South Zoo.
 
 _Defines:_
-- number of adult parrot in Jefferson Circus
+- number of adult harp seal in Lunarchasm Ridge
 
 
 -----------------

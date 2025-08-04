@@ -69,6 +69,16 @@ class MarkdownToTreeConverter:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
         
+        # Extract tags from the first line if they exist
+        tags = []
+        lines = content.split('\n')
+        if lines and lines[0].strip().startswith('#'):
+            # Extract hashtags from first line
+            tag_line = lines[0].strip()
+            tags = re.findall(r'#(\w+)', tag_line)
+            # Remove the tag line from content
+            content = '\n'.join(lines[1:])
+        
         # Extract YAML frontmatter
         frontmatter_match = re.match(r'^---\n(.*?)\n---\n', content, re.DOTALL)
         if not frontmatter_match:
@@ -115,6 +125,10 @@ class MarkdownToTreeConverter:
         node.created_at = created_at
         node.modified_at = modified_at
         node.filename = filename
+        
+        # Set tags if they were extracted
+        if tags:
+            node.tags = tags
         
         # Extract any additional metadata fields
         if 'color' in metadata:
@@ -218,6 +232,23 @@ class MarkdownToTreeConverter:
                             child_node = self.tree_data[child_id]
                             child_node.parent_id = node_id
                             child_node.relationships[node_id] = relationship_type.replace('_', ' ')
+        
+        # Parse arbitrary links (not parent/child relationships)
+        # Look for lines like: - is_defined_by_the_calculation_of [[filename.md]]
+        link_pattern = r'-\s*(.+?)\s*\[\[(.*?)\]\]'
+        for line in links_content.split('\n'):
+            if line.strip() and not line.strip().startswith(('Parent:', 'Children:')):
+                link_match = re.match(link_pattern, line)
+                if link_match:
+                    relationship = link_match.group(1).strip()
+                    target_filename = link_match.group(2).strip()
+                    
+                    # Skip if this is a parent/child relationship line
+                    if '(this node)' not in line and relationship not in ['Parent', 'Children']:
+                        node.links.append({
+                            'relationship': relationship,
+                            'target': target_filename
+                        })
 
 
 def load_markdown_tree(markdown_dir: str) -> Dict[int, Node]:
