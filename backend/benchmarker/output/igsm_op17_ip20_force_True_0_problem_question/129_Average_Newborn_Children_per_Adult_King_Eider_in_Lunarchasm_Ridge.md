@@ -9,11 +9,9 @@ The average number of newborn children per adult king eider in Lunarchasm Ridge 
 _Defines:_
 - average number of newborn children per adult king eider in Lunarchasm Ridge
 
-_Requires:_
-- number of adult crow in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[186_Number_of_Adult_Crow_in_Mayer_Aquarium.md]]
 
 - uses_parameters_related_to [[63_Number_of_Adult_Polar_Bears_in_Lunarchasm_Ridge.md]]

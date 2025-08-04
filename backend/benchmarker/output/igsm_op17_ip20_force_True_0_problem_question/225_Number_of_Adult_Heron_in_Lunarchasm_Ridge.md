@@ -9,7 +9,6 @@ The number of adult heron in Lunarchasm Ridge equals the average number of newbo
 _Defines:_
 - number of adult heron in Lunarchasm Ridge
 
-
 -----------------
 _Links:_
 

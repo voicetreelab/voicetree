@@ -9,11 +9,9 @@ The number of adult sandpiper in Lunarchasm Ridge equals the average number of n
 _Defines:_
 - number of adult sandpiper in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult eagle in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
 
 - uses_the_value_defined_by [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]

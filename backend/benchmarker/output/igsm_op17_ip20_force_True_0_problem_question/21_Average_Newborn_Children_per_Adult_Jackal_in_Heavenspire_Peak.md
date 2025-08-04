@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Jackal in Heavenspire Peak 21
 
 The average number of newborn children per adult jackal in Heavenspire Peak equals the difference between the average number of newborn children per adult eagle in South Zoo and the average number of newborn children per adult crow in South Zoo.
 
-
 -----------------
 _Links:_
 

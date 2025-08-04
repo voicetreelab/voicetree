@@ -9,12 +9,10 @@ The number of adult crow in Mayer Aquarium equals 4 times the difference between
 _Defines:_
 - number of adult crow in Mayer Aquarium
 
-_Requires:_
-- number of adult blue jay in Mayer Aquarium
-- average number of newborn children per adult parrot in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[208_Number_of_Adult_Blue_Jay_in_Mayer_Aquarium.md]]
+- requires [[207_Average_Newborn_Children_per_Adult_Parrot_in_Mayer_Aquarium.md]]
 
 - is_related_to_the_calculation_of [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]

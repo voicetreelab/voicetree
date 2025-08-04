@@ -9,11 +9,9 @@ The average number of newborn children per adult african wild dog in Heavenspire
 _Defines:_
 - average number of newborn children per adult african wild dog in Heavenspire Peak
 
-_Requires:_
-- number of adult crow in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[68_Number_of_Adult_Crow_in_South_Zoo.md]]
 
 - is_a_calculation_for_the [[204_Number_of_Adult_African_Wild_Dog_in_Heavenspire_Peak.md]]

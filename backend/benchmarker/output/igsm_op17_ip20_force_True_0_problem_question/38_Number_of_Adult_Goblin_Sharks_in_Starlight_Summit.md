@@ -9,12 +9,11 @@ The number of adult goblin shark in Starlight Summit equals the difference betwe
 _Defines:_
 - number of adult goblin sharks in Starlight Summit
 
-_Requires:_
-- number of adult crow in South Zoo
-- average number of newborn children per adult parrot in Jefferson Circus
-
 -----------------
 _Links:_
+
+- requires [[68_Number_of_Adult_Crow_in_South_Zoo.md]]
+- requires [[67_Average_Newborn_Children_per_Adult_Parrot_in_Jefferson_Circus.md]]
 
 - provides_an_input_for_the [[1_Equation_relating_goblin_shark_and_eagle_populations.md]]
 - has_a_dependency [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]

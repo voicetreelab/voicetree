@@ -9,12 +9,10 @@ The number of adult arctic hare in Lunarchasm Ridge equals the sum of the averag
 _Defines:_
 - number of adult arctic hare in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult crow in Jefferson Circus
-- number of adult parrot in Bundle Ranch
-
-
 -----------------
 _Links:_
+
+- requires [[76_Average_Newborn_Children_per_Adult_Crow_in_Jefferson_Circus.md]]
+- requires [[181_Number_of_adult_parrot_in_Bundle_Ranch.md]]
 
 - provides_an_input_for [[34_Number_of_Adult_Parrot_in_Bundle_Ranch.md]]

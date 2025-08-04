@@ -9,7 +9,6 @@ The number of adult bowhead whale in Lunarchasm Ridge equals the number of adult
 _Defines:_
 - number of adult bowhead whale in Lunarchasm Ridge
 
-
 -----------------
 _Links:_
 

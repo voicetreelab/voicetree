@@ -9,12 +9,10 @@ The number of adult angelfish in Skyward Pinnacle equals the sum of the average 
 _Defines:_
 - number of adult angelfish in Skyward Pinnacle
 
-_Requires:_
-- average number of newborn children per adult crow in Jefferson Circus
-- average number of newborn children per adult crow in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[76_Average_Newborn_Children_per_Adult_Crow_in_Jefferson_Circus.md]]
+- requires [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]
 
 - is_calculated_using_values_from [[76_Average_Newborn_Children_per_Adult_Crow_in_Jefferson_Circus.md]]

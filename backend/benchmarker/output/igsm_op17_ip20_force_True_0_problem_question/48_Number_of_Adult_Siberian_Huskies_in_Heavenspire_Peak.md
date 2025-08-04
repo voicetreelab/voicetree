@@ -11,11 +11,9 @@ This calculation is informed by the 'Number of Adult Shiba Inu in Heavenspire Pe
 _Defines:_
 - number of adult siberian husky in Heavenspire Peak
 
-_Requires:_
-- total number of adult animals in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[159_Number_of_Adult_Arctic_Tern_in_Lunarchasm_Ridge.md]]
 
 - provides_a_parameter_for_the [[47_Number_of_Adult_Shiba_Inu_in_Heavenspire_Peak.md]]

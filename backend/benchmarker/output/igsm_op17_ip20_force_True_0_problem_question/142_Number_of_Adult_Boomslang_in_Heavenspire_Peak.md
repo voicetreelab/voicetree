@@ -9,7 +9,6 @@ The number of adult boomslang in Heavenspire Peak equals the number of adult par
 _Defines:_
 - number of adult boomslang in Heavenspire Peak
 
-
 -----------------
 _Links:_
 

@@ -9,12 +9,10 @@ The average number of newborn children per adult arctic hare in Lunarchasm Ridge
 _Defines:_
 - average number of newborn children per adult arctic hare in Lunarchasm Ridge
 
-_Requires:_
-- number of adult parrot in South Zoo
-- total number of newborn animal children in Etherreach Cliffs
-
-
 -----------------
 _Links:_
+
+- requires [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]
+- requires [[205_Number_of_Adult_Ostrich_in_Etherreach_Cliffs.md]]
 
 - is_a_related_metric_to_the [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]

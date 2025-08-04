@@ -11,7 +11,7 @@ This calculation is part of determining elementary school counts in other cities
 _Defines:_
 - average number of newborn children per adult gull in Lunarchasm Ridge
 
-_Requires:_
+:_
 
 -----------------
 _Links:_

@@ -10,7 +10,6 @@ _Defines:_
 - number of adult arctic tern in Lunarchasm Ridge
 - total number of adult animals in South Zoo
 
-
 -----------------
 _Links:_
 

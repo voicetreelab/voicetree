@@ -9,7 +9,6 @@ The average number of newborn children per adult blue jay in South Zoo.
 _Defines:_
 - average number of newborn children per adult blue jay in South Zoo
 
-
 -----------------
 _Links:_
 

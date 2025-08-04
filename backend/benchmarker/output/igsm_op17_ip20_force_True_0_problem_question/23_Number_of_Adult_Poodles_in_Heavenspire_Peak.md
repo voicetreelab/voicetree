@@ -6,7 +6,6 @@ title: Number of Adult Poodles in Heavenspire Peak 23
 
 The number of adult poodle in Heavenspire Peak equals the difference between the number of adult blue jay in Mayer Aquarium and the average number of newborn children per adult crow in Bundle Ranch.
 
-
 -----------------
 _Links:_
 

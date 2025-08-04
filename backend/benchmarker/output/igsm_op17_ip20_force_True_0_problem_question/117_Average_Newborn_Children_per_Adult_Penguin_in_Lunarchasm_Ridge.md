@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Penguin in Lunarchasm Ridge 117
 
 The average number of newborn children per adult penguin in Lunarchasm Ridge equals the sum of the number of adult crow in Jefferson Circus and the average number of newborn children per adult crow in Jefferson Circus.
 
-
 -----------------
 _Links:_
 

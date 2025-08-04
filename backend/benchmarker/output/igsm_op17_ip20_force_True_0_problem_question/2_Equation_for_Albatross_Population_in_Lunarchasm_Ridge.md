@@ -11,11 +11,10 @@ This calculation is part of determining elementary school counts in other cities
 _Defines:_
 - average number of newborn children per adult albatross in Lunarchasm Ridge
 
-_Requires:_
-- number of adult eagle in South Zoo
-
 -----------------
 _Links:_
+
+- requires [[148_Number_of_Adult_Eagle_in_South_Zoo.md]]
 
 _Links:_
 

@@ -9,7 +9,6 @@ The number of adult dingo in Heavenspire Peak equals the number of adult blue ja
 _Defines:_
 - number of adult dingo in Heavenspire Peak
 
-
 -----------------
 _Links:_
 

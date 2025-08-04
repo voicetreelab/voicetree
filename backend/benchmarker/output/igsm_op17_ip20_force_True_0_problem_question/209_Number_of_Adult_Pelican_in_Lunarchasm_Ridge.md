@@ -9,12 +9,10 @@ The number of adult pelican in Lunarchasm Ridge equals the difference between th
 _Defines:_
 - number of adult pelican in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult parrot in South Zoo
-- average number of newborn children per adult parrot in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[80_Average_Newborn_Children_per_Adult_Parrot_in_South_Zoo.md]]
+- requires [[207_Average_Newborn_Children_per_Adult_Parrot_in_Mayer_Aquarium.md]]
 
 - is_a_similar_calculation_to_the [[6_Equation_for_Puffin_Population_in_Lunarchasm_Ridge.md]]

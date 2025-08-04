@@ -9,12 +9,10 @@ The number of adult maned jackal in Heavenspire Peak equals the sum of the numbe
 _Defines:_
 - number of adult maned jackal in Heavenspire Peak
 
-_Requires:_
-- number of adult parrot in South Zoo
-- number of adult blue jay in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]
+- requires [[84_Number_of_Adult_Blue_Jay_in_South_Zoo.md]]
 
 - provides_the_specific_formula_for [[13_Equation_for_Jackal_Population_in_Heavenspire_Peak.md]]

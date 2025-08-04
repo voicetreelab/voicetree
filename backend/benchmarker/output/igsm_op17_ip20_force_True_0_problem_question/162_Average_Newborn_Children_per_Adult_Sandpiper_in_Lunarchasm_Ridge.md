@@ -9,11 +9,9 @@ The average number of newborn children per adult sandpiper in Lunarchasm Ridge e
 _Defines:_
 - average number of newborn children per adult sandpiper in Lunarchasm Ridge
 
-_Requires:_
-- number of adult parrot in South Zoo (from Average Newborn Children per Adult Parrot in South Zoo)
-
-
 -----------------
 _Links:_
+
+- requires [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]
 
 - uses_the_value_defined_by_the [[80_Average_Newborn_Children_per_Adult_Parrot_in_South_Zoo.md]]

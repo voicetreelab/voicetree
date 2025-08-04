@@ -13,12 +13,10 @@ It relies on the 'average number of newborn children per adult blue jay in Mayer
 _Defines:_
 - number of adult rainbow boa in Heavenspire Peak
 
-_Requires:_
-- number of adult blue jay in Mayer Aquarium
-- average number of newborn children per adult blue jay in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[208_Number_of_Adult_Blue_Jay_in_Mayer_Aquarium.md]]
+- requires [[83_Average_Newborn_Children_per_Adult_Blue_Jay_in_South_Zoo.md]]
 
 - provides_an_input_for [[37_Number_of_Adult_Caribou_in_Lunarchasm_Ridge.md]]

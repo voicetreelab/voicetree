@@ -9,7 +9,6 @@ The average number of newborn children per adult alaskan malamute in Heavenspire
 _Defines:_
 - average number of newborn children per adult alaskan malamute in Heavenspire Peak
 
-
 -----------------
 _Links:_
 

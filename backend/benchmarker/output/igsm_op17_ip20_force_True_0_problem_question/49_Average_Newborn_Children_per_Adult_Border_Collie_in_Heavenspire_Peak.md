@@ -9,11 +9,10 @@ The average number of newborn children per adult border collie in Heavenspire Pe
 _Defines:_
 - average number of newborn children per adult border collie in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult blue jay in Mayer Aquarium
-
 -----------------
 _Links:_
+
+- requires [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]
 
 - provides_an_input_for [[42_Number_of_Adult_Rainbow_Boa_in_Heavenspire_Peak.md]]
 - has_a_dependency [[74_Number_of_Adult_Border_Collie_in_Heavenspire_Peak.md]]

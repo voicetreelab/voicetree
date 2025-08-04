@@ -9,11 +9,10 @@ The average number of newborn children per adult crow in Mayer Aquarium equals t
 _Defines:_
 - average number of newborn children per adult crow in Mayer Aquarium
 
-_Requires:_
-- number of adult crow in Mayer Aquarium
-
 -----------------
 _Links:_
+
+- requires [[186_Number_of_Adult_Crow_in_Mayer_Aquarium.md]]
 
 - is_defined_by_the_calculation_of [[77_Number_of_Adult_Crow_in_Mayer_Aquarium.md]]
 - has_a_dependency [[73_Number_of_Adult_Eagle_in_Bundle_Ranch.md]]

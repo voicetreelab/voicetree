@@ -9,11 +9,10 @@ The number of adult fennec fox in Heavenspire Peak equals the sum of the average
 _Defines:_
 - number of adult fennec fox in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult eagle in Mayer Aquarium (from parent)
-
 -----------------
 _Links:_
+
+- requires [[125_Average_Newborn_Children_per_Adult_Eagle_in_Mayer_Aquarium.md]]
 
 - provides_an_input_for_the [[125_Average_Newborn_Children_per_Adult_Eagle_in_Mayer_Aquarium.md]]
 - has_a_dependency [[68_Number_of_Adult_Crow_in_South_Zoo.md]]

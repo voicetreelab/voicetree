@@ -9,11 +9,10 @@ The number of adult flamingo in Lunarchasm Ridge equals the difference between t
 _Defines:_
 - number of adult flamingo in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult eagle in South Zoo
-
 -----------------
 _Links:_
+
+- requires [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
 
 - depends_on_the_parameter_defined_by [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
 - has_a_dependency [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]

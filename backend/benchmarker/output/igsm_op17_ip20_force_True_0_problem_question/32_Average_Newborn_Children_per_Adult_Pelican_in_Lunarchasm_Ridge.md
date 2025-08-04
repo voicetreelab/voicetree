@@ -11,11 +11,9 @@ This calculation is part of determining elementary school counts in other cities
 _Defines:_
 - average number of newborn children per adult pelican in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult blue jay in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[51_Average_Newborn_Children_per_Adult_Blue_Jay_in_Mayer_Aquarium.md]]
 
 - is_a_similar_calculation_to_the [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]

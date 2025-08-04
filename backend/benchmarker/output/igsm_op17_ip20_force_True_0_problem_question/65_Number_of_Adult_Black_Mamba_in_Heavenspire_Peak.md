@@ -9,7 +9,6 @@ The number of adult black mamba in Heavenspire Peak equals the number of adult c
 _Defines:_
 - number of adult black mamba in Heavenspire Peak
 
-
 -----------------
 _Links:_
 

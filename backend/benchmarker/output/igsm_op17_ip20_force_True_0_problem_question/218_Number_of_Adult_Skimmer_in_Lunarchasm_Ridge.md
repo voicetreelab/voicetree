@@ -9,12 +9,10 @@ The number of adult skimmer in Lunarchasm Ridge equals the difference between th
 _Defines:_
 - number of adult skimmer in Lunarchasm Ridge
 
-_Requires:_
-- average number of newborn children per adult blue jay in Bundle Ranch
-- number of adult parrot in Jefferson Circus
-
-
 -----------------
 _Links:_
+
+- requires [[50_Average_Newborn_Children_per_Adult_Blue_Jay_in_Bundle_Ranch.md]]
+- requires [[92_Parrot_and_Crow_Population_Equation_in_Jefferson_Circus.md]]
 
 - is_calculated_using_data_from_the [[50_Average_Newborn_Children_per_Adult_Blue_Jay_in_Bundle_Ranch.md]]

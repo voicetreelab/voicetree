@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Lionfish in Starlight Summit 29
 
 The average number of newborn children per adult lionfish in Starlight Summit equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult crow in Mayer Aquarium.
 
-
 -----------------
 _Links:_
 

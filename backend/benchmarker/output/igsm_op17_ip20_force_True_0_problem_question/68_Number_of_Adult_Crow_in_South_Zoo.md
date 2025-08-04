@@ -9,7 +9,6 @@ The number of adult crow in South Zoo equals 1.
 _Defines:_
 - number of adult crow in South Zoo
 
-
 -----------------
 _Links:_
 

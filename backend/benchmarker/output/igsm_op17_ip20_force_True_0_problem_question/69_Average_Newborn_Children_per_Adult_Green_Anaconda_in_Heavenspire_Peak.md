@@ -9,12 +9,10 @@ The average number of newborn children per adult green anaconda in Heavenspire P
 _Defines:_
 - average number of newborn children per adult green anaconda in Heavenspire Peak
 
-_Requires:_
-- total number of adult animals in Jefferson Circus
-- number of adult crow in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[159_Number_of_Adult_Arctic_Tern_in_Lunarchasm_Ridge.md]]
+- requires [[186_Number_of_Adult_Crow_in_Mayer_Aquarium.md]]
 
 - defines_a_component_for_the [[9_Number_of_Adult_Copperhead_in_Heavenspire_Peak.md]]

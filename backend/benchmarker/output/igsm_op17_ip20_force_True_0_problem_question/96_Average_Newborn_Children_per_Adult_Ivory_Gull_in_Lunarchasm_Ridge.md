@@ -9,7 +9,7 @@ The average number of newborn children per adult ivory gull in Lunarchasm Ridge 
 _Defines:_
 - average number of newborn children per adult ivory gull in Lunarchasm Ridge
 
-_Requires:_
+:_
 
 -----------------
 _Links:_

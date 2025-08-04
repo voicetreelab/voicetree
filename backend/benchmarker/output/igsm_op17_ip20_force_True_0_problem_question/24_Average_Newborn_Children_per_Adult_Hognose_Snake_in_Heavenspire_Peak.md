@@ -9,11 +9,10 @@ The average number of newborn children per adult hognose snake in Heavenspire Pe
 _Defines:_
 - average number of newborn children per adult hognose snake in Heavenspire Peak
 
-_Requires:_
-- number of adult eagle in South Zoo (from neighbor 'Average Newborn Children per Adult Eagle in South Zoo')
-
 -----------------
 _Links:_
+
+- requires [[148_Number_of_Adult_Eagle_in_South_Zoo.md]]
 
 - depends_on_the_parameter_defined_by [[14_Average_Newborn_Children_per_Adult_Eagle_in_South_Zoo.md]]
 - has_a_dependency [[186_Number_of_Adult_Crow_in_Mayer_Aquarium.md]]

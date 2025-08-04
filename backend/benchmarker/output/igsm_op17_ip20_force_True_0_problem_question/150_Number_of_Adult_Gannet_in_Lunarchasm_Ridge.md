@@ -6,7 +6,6 @@ title: Number of Adult Gannet in Lunarchasm Ridge 150
 
 The number of adult gannet in Lunarchasm Ridge equals the sum of the number of adult eagle in Mayer Aquarium and the average number of newborn children per adult crow in Jefferson Circus.
 
-
 -----------------
 _Links:_
 

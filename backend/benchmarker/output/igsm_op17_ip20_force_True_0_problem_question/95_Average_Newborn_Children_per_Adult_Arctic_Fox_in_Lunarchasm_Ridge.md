@@ -6,7 +6,6 @@ title: Average Newborn Children per Adult Arctic Fox in Lunarchasm Ridge 95
 
 The average number of newborn children per adult arctic fox in Lunarchasm Ridge equals the average number of newborn children per adult blue jay in South Zoo.
 
-
 -----------------
 _Links:_
 

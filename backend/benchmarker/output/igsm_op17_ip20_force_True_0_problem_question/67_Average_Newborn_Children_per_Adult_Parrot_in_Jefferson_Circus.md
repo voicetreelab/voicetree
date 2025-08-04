@@ -9,11 +9,10 @@ The average number of newborn children per adult parrot in Jefferson Circus equa
 _Defines:_
 - average number of newborn children per adult parrot in Jefferson Circus
 
-_Requires:_
-- average number of newborn children per adult chihuahua in Heavenspire Peak (from neighbor link)
-
 -----------------
 _Links:_
+
+- requires [[44_Average_Newborn_Children_per_Adult_Chihuahua_in_Heavenspire_Peak.md]]
 
 - provides_an_input_for_the [[44_Average_Newborn_Children_per_Adult_Chihuahua_in_Heavenspire_Peak.md]]
 - has_a_dependency [[207_Average_Newborn_Children_per_Adult_Parrot_in_Mayer_Aquarium.md]]

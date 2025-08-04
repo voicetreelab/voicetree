@@ -9,12 +9,10 @@ The average number of newborn children per adult blue jay in Bundle Ranch equals
 _Defines:_
 - average number of newborn children per adult blue jay in Bundle Ranch
 
-_Requires:_
-- average number of newborn children per adult blue jay in South Zoo
-- number of adult blue jay in Bundle Ranch
-
-
 -----------------
 _Links:_
+
+- requires [[83_Average_Newborn_Children_per_Adult_Blue_Jay_in_South_Zoo.md]]
+- requires [[210_Number_of_Adult_Blue_Jay_in_Bundle_Ranch.md]]
 
 - provides_an_input_for_the [[37_Number_of_Adult_Caribou_in_Lunarchasm_Ridge.md]]

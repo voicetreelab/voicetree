@@ -9,11 +9,9 @@ The number of adult jackal in Heavenspire Peak equals the number of adult blue j
 _Defines:_
 - number of adult jackal in Heavenspire Peak
 
-_Requires:_
-- number of adult blue jay in Bundle Ranch (from Equation for Jackal Population in Heavenspire Peak)
-
-
 -----------------
 _Links:_
+
+- requires [[210_Number_of_Adult_Blue_Jay_in_Bundle_Ranch.md]]
 
 - provides_an_input_for [[13_Equation_for_Jackal_Population_in_Heavenspire_Peak.md]]

@@ -9,11 +9,10 @@ The average number of newborn children per adult caribou in Lunarchasm Ridge equ
 _Defines:_
 - average number of newborn children per adult caribou in Lunarchasm Ridge
 
-_Requires:_
-- total number of adult animals in South Zoo
-
 -----------------
 _Links:_
+
+- requires [[159_Number_of_Adult_Arctic_Tern_in_Lunarchasm_Ridge.md]]
 
 - uses_as_an_input_parameter_for_the [[125_Average_Newborn_Children_per_Adult_Eagle_in_Mayer_Aquarium.md]]
 - has_a_dependency [[67_Average_Newborn_Children_per_Adult_Parrot_in_Jefferson_Circus.md]]

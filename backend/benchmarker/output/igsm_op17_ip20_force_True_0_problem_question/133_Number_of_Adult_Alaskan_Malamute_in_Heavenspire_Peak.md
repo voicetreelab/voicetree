@@ -9,11 +9,9 @@ The number of adult alaskan malamute in Heavenspire Peak equals the number of ad
 _Defines:_
 - number of adult alaskan malamute in Heavenspire peak
 
-_Requires:_
-- number of adult parrot in South Zoo
-
-
 -----------------
 _Links:_
+
+- requires [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]
 
 - is_a_similar_calculation_for_the [[127_Number_of_Adult_Greyhound_in_Heavenspire_Peak.md]]

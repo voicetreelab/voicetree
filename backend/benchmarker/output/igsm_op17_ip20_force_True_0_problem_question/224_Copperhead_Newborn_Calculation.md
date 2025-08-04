@@ -6,7 +6,6 @@ title: Copperhead Newborn Calculation 224
 
 The average number of newborn children per adult copperhead in Heavenspire Peak equals the difference between the average number of newborn children per adult crow in South Zoo and the number of adult parrot in Bundle Ranch.
 
-
 -----------------
 _Links:_
 

@@ -9,12 +9,11 @@ The average number of newborn children per adult blue tang in Starlight Summit e
 _Defines:_
 - average number of newborn children per adult blue tang in Starlight Summit
 
-_Requires:_
-- average number of newborn children per adult crow in South Zoo
-- number of adult parrot in Bundle Ranch
-
 -----------------
 _Links:_
+
+- requires [[46_Average_Newborn_Children_per_Adult_Crow_in_South_Zoo.md]]
+- requires [[181_Number_of_adult_parrot_in_Bundle_Ranch.md]]
 
 - is_a_similar_type_of_equation_to_the [[1_Equation_relating_goblin_shark_and_eagle_populations.md]]
 - has_a_dependency [[80_Average_Newborn_Children_per_Adult_Parrot_in_South_Zoo.md]]

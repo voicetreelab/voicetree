@@ -9,11 +9,9 @@ The average number of newborn children per adult aye-aye in Radiant Crest equals
 _Defines:_
 - average number of newborn children per adult aye-aye in Radiant Crest
 
-_Requires:_
-- average number of newborn children per adult parrot in Mayer Aquarium
-
-
 -----------------
 _Links:_
+
+- requires [[207_Average_Newborn_Children_per_Adult_Parrot_in_Mayer_Aquarium.md]]
 
 - uses_the_parameter_defined_by_the [[6_Equation_for_Puffin_Population_in_Lunarchasm_Ridge.md]]

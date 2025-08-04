@@ -11,11 +11,9 @@ This value is used in calculations for the average number of newborn children pe
 _Defines:_
 - average number of newborn children per adult blue jay in South Zoo
 
-_Requires:_
-- number of adult razorbill in Lunarchasm Ridge
-
-
 -----------------
 _Links:_
+
+- requires [[166_Number_of_Adult_Razorbill_in_Lunarchasm_Ridge.md]]
 
 - provides_the_value_for [[80_Average_Newborn_Children_per_Adult_Parrot_in_South_Zoo.md]]

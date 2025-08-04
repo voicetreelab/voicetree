@@ -9,11 +9,10 @@ The number of adult green anaconda in Heavenspire Peak equals the difference bet
 _Defines:_
 - number of adult green anaconda in Heavenspire Peak
 
-_Requires:_
-- average number of newborn children per adult blue jay in Bundle Ranch
-
 -----------------
 _Links:_
+
+- requires [[50_Average_Newborn_Children_per_Adult_Blue_Jay_in_Bundle_Ranch.md]]
 
 - depends_on_the_parameter_defined_by [[50_Average_Newborn_Children_per_Adult_Blue_Jay_in_Bundle_Ranch.md]]
 - has_a_dependency [[203_Number_of_Adult_Parrot_in_South_Zoo.md]]
