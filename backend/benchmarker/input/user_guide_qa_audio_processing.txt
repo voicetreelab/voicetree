@@ -1,0 +1,612 @@
+Welcome to GPT-SoVITS
+
+GPT-SoVITS is a low-cost AI voice cloning software developed by the great Flower No Cry. Currently, it only has TTS (Text-to-Speech) functionality, and voice transformation features will be updated in the future.
+
+The correct abbreviation for GPT-SoVITS should be GSV. Please do not refer to it as sovits, as this can cause confusion with So-VITS-SVC, which has no relation to it.
+
+This document is a one-stop user manual for GPT-SoVITS written by the employee number 1145 of BaiCai Factory on Bilibili (continuously updated, you can urge updates on B Station).
+
+Project address: https://github.com/RVC-Boss/GPT-SoVITS
+
+Online trial: https://gsv.acgnai.top/
+
+What is TTS
+
+TTS (Text-To-Speech) is a speech synthesis technology that converts text into speech. Similar technologies include SVC (Singing Voice Conversion), SVS (Singing Voice Synthesis), etc. Currently, GPT-SoVITS only has TTS functionality, meaning it cannot sing.
+
+GPT-SoVITS-V1 has achieved:
+
+Controlling the emotion, timbre, and speaking speed of the synthesized audio through the emotion, timbre, and speaking speed of the reference audio.
+
+It allows for fine-tuning training with a small amount of voice data, or direct inference without training.
+
+It can generate across languages, meaning the language of the reference audio (training set) and the text for inference can be different.
+
+New features added in GPT-SoVITS-V2:
+
+Better synthesis quality for low-quality reference audio.
+
+The underlying training set has been increased to 5,000 hours, with better zero-shot performance, more similar timbre, and less required dataset.
+
+Added two languages, Korean and Cantonese, making it possible to synthesize across five languages: Chinese, Japanese, English, Korean, and Cantonese.
+
+Improved text front-end: Continuously updated iterations. V2 has optimized polyphone for Chinese and English.
+
+Language support (cross-synthesis capable)	GPT training set duration	SoVITS training set duration	Inference speed	Parameter amount	Text front-end	Features
+V1 (released in January)	Chinese, Japanese, English	2,000 hours	2,000 hours	Baseline	200M	Baseline
+V2	Chinese, Japanese, English, Korean, Cantonese	2.5k hours	vq encoder 2k hours, the rest 5k hours	Doubled	Unchanged	Enhanced logic for Chinese, Japanese, and English
+Official communication group:
+
+Group 2: 680744122
+***Before you begin, you must agree to and follow the usage agreement. When publishing works based on the GPT-SoVITS project or this integrated package on any audio and video website, you need to attribute the GPT-SOVITS tool; otherwise, it violates the open-source agreement. The introduction template is at the bottom of the homepage.
+
+This software is open-sourced under the MIT license; the author has no control over the software, and users and distributors of the software's exported voices assume full responsibility.
+
+If you do not agree to this term, you cannot use or reference any code and files within the software package. For details, see LICENSE in the root directory.
+
+Without further ado, the navigation bar below provides you with a series of useful links. Let's dive into this!
+
+Video tutorial (outdated): https://www.bilibili.com/video/BV1GJ4m1e7x2/
+
+Promotion video: A low-cost AI voice cloning software independently developed over two months, given to everyone for free! 【GPT-SoVITS】
+
+Introduction to the work template
+
+Source of voice: [Source of voice for the training set]
+
+Disclaimer: This work is published for entertainment purposes only, and any consequences are not the responsibility of the authors and contributors of the voice synthesis project used.
+
+It is best to tag GPT-SoVITS when posting videos.
+Quick Start
+Update Log
+←Click to expand view
+https://github.com/RVC-Boss/GPT-SoVITS/blob/main/docs/cn/Changelog_CN.md
+
+20240821
+1-The fast_inference branch has been merged into the main branch: #1490
+2-Support for optimizing numbers, phone numbers, time dates, etc., through SSML tags: #1508
+3-API fixes and optimizations: #1503
+4-Fixed the bug that only one reference audio could be uploaded for mixing: #1422
+5-Added various dataset checks, warnings will be displayed if any are missing: #1422
+20240806
+1-Added support for the bs-roformer voice and accompaniment separation model. #1306 #1356 Support for fp16 inference.
+2-Improved Chinese text frontend. #987 #1351 #1404 Optimized the logic of polyphones (exclusive to version 2). #488
+3-Automatically fill in the file path for the next step #1356
+4-Added logic to handle incorrect GPU numbering entered by the user, ensuring normal operation #bce451a 4c8b761
+5-Added support for Cantonese ASR
+6-Support for GPT-SoVITS-v2
+7-Optimized timing logic #1387
+20240727
+1-Cleaned up redundant i18n code #1298
+2-Fixed the issue where adding a '/' at the end of files and paths would cause command line errors #1299
+3-Fixed the calculation logic for GPT training steps #756
+Key point:
+4-Support for adjusting synthesis speech speed. Support for freezing randomness to adjust speech speed only.
+20240706
+Minor bug fixes:
+1-Corrected the default batch size for CPU inference to avoid decimal numbers https://github.com/RVC-Boss/GPT-SoVITS/commit/db50670598f0236613eefa6f2d5a23a271d82041
+
+2-Fixed the issue where denoising and ASR would exit abnormally in the middle, affecting all audio files that needed processing #1258 #1265 #1267
+3-Fixed the issue where decimals would be split when dividing according to punctuation #1253
+4-Fixed the logic for saving multiple processes during multi-card training
+https://github.com/RVC-Boss/GPT-SoVITS/commit/a208698e775155efc95b187b746d153d0f2847ca
+
+5-Removed redundant my_utils #1251
+Key point:
+6-After verification, the accelerated inference code has been merged into the main branch, with the inference effect being completely consistent with the base. The code used: https://github.com/RVC-Boss/GPT-SoVITS/pull/672. It supports accelerated inference without reference text mode.
+The following will gradually verify the consistency of the inference changes in the fast inference branch
+20240610
+Minor bug fixes:
+1-Improved the logic for judging pure punctuation and multiple punctuation text input #1168 #1169
+2-Fixed the cmd format of mdxnet for de-reverb in uvr5, compatible with paths containing spaces #501a74a
+3-Fixed the logic of the training progress bar for s2 #1159
+Major bug fixes:
+4-Fixed the issue where GPT Chinese fine-tuning did not read bert, leading to inconsistency with inference, and the effect may become worse if too much data is fine-tuned. It is recommended to re-tune the model for quality optimization if a large amount of data is fine-tuned #99f09c8
+Updates for March/April/May 2024
+2 Key Points
+1-Fixed the issue that vq was not frozen during sovits training (which may cause a decrease in effect)
+2-Added a fast inference branch (parallel inference, the speed is dozens of times faster)
+The following are minor fixes
+1-Fixed the issue of inference without reference text mode
+2-Optimized Chinese and English text frontend
+3-Optimized API format
+4-Fixed cmd format issues
+5-During the training data processing stage, prompt an error for unsupported languages
+6-Fixed the bug of hubert extraction when nan is automatically converted to fp32 stage
+Update on March 6, 2024
+1-Inference acceleration by 50% (RTX3090+pytorch2.2.1+cu11.8+win10+py39 tested) #672
+2-If using faster whisper for non-Chinese ASR, there is no need to download the Chinese funasr model first
+3-Fixed the issue that the uvr5 de-reverb model is reversed #610
+4-If faster whisper has no CUDA available, it will automatically use CPU for inference #675
+5-Modified the judgment of is_half to enable normal CPU inference on Mac #573
+Update on February 21, 2024
+1-Added voice denoising option to data processing
+2-Optimized front-end processing of Chinese and Japanese #559 #556 #532 #507 #509
+3-Since Mac CPU inference is faster, changed the inference device from mps to CPU
+4-Fixed the issue of not enabling the public URL on Colab
+Update on February 16, 2024
+1-Support for input without reference text
+2-Fixed the bug in the Chinese text frontend #475
+Update on February 14, 2024
+1-Support for Chinese experimental names during training (it would report an error before)
+2-DPO training is changed to an optional item instead of a must. If checked, the batch size is automatically halved. Fixed the issue that new parameters of the inference interface are not passed.
+Update on February 12, 2024
+1-Optimized the logic of faster whisper and funasr. Changed the mirror station for faster whisper to avoid the problem of not being able to connect to Huggingface.
+2-Experimental training option for DPO Loss is enabled (the demand for memory will increase several times, update with caution), which alleviates the problem of repetition and omission of words in GPT by constructing negative samples. Several inference parameters are publicized on the inference interface. #457
+Update on February 8, 2024
+1-Attempted to fix the issue of GPT training hanging (win10 1909) and #232 (the system language is traditional Chinese) GPT training error.
+Update on February 7, 2024
+1-Corrected the confusion of language parameters leading to a decline in Chinese inference effect #391
+2-Adapted uvr5 to a higher version of librosa #403
+3-Fixed the error of uvr5 inf everywhere (the parameter is_half is not converted to bool, which leads to constant half-precision inference, and the 16 series of graphics cards will inf) https://github.com/RVC-Boss/GPT-SoVITS/commit/14a285109a521679f8846589c22da8f656a46ad8
+
+4-Optimized the English text frontend
+5-Fixed the gradio dependency
+6-Support for automatically reading the full path of .list when the root directory is left empty for three consecutive times
+7-Integrated faster whisper ASR Japanese and English
+Update on February 2, 2024
+1-Fixed the error of saving file names with / at the end of the ASR path
+2-Introduced Normalizer from paddlespeech #377 to fix some problems, such as: xx.xx% (with a percentage sign), yuan/ton will be read as yuan per ton instead of yuan per ton, and underscores will no longer cause errors
+Update on February 1, 2024
+1-Fixed the problem that the uvr5 format error caused the separation to fail
+2-Support for automatic segmentation and recognition of Chinese, Japanese, and English mixed text
+Update on January 30, 2024
+1-All places involving paths automatically remove double quotes, and beginners who copy paths with double quotes will not report errors
+2-Fixed the problem of Chinese and English punctuation cutting and the problem of supplementary punctuation at the beginning and end of sentences
+3-Added segmentation according to punctuation marks
+Update on January 29, 2024
+1-For graphics cards with half-precision training problems on the 16th series, change the training configuration to single-precision training
+2-Tested and updated the available Colab version
+3-Fixed the error that occurs when the git clone modelscope funasr repository + old version funasr causes the interface to be misaligned
+Update on January 28, 2024
+1-Fixed the problem of converting numbers to Chinese readings
+2-Fixed the problem that a small number of characters at the beginning of a sentence are easily swallowed
+3-Limited and excluded unreasonable reference audio lengths
+4-Fixed the problem that GPT training does not save ckpt
+5-Improved the download model process of Dockerfile
+Todolist: Optimize Chinese polyphone inference
+Update on January 26, 2024
+
+Support for mixed Chinese and English output text, as well as mixed Japanese and English.
+Optional output splitting mode.
+Fixed the issue where uvr5 would automatically exit when reading a directory.
+Fixed the error caused by multiple line breaks during inference.
+Removed a large number of redundant logs from the inference interface.
+Supported training and inference on macOS.
+Automatically identify cards that do not support half-precision and enforce single-precision. Enforce single-precision for CPU inference.
+Update on January 23, 2024
+
+Resolved the issue where hubert extraction of nan would cause SoVITS/GPT training to throw a ZeroDivisionError.
+Supported fast switching of models in the inference interface.
+Optimized the sorting logic of model files.
+Chinese word segmentation now uses jieba_fast instead of jieba.
+To-Do List:
+V2 has been updated, what's left on the to-do list (jokingly said)?
+
+Configuration Requirements
+Training:
+Windows
+nVIDIA graphics card supporting CUDA, each with at least 6G of video memory
+Commonly unusable graphics cards: all cards before the 10 series, below 1060, below 1660, below 2060, 3050 4G
+Windows 10/11 operating system
+###If there's no graphics card, it will automatically detect and use the CPU for training, but it's incredibly slow
+CPU Training Inference Speed
+MAC
+macOS version 14 or higher
+Xcode command-line tools installed by running xcode-select --install
+Linux
+Proficient in using Linux
+A graphics card with at least 6G of video memory
+###If there's no graphics card, it will automatically detect and use the CPU for training, but it's incredibly slow
+CPU Training Inference Speed
+Inference:
+Windows
+nVIDIA graphics card supporting CUDA, each with at least 4G of video memory (untested, 3G is just not enough to synthesize a sentence, so it's speculated that 4G should be possible)
+Windows 10/11 operating system
+###If there's no graphics card, it will automatically detect and use the CPU for inference
+MAC
+macOS version 14 or higher
+Xcode command-line tools installed by running xcode-select --install
+Linux
+Proficient in using Linux
+A graphics card with at least 4G of video memory
+###If there's no graphics card, it will automatically detect and use the CPU for inference
+If unable to train and infer, you can use AutoDL or Colab or Compute Interconnect for cloud-based training
+AutoDL tutorial (only costs a few dollars, convenient)
+Colab tutorial (requires a proxy, can be used for free)
+Compute Interconnect tutorial (use when AutoDL is out of cards)
+Warm reminder: Laptop users, please ensure proper heat dissipation! There have been cases of fires due to lack of attention during training! Training will fully utilize both CPU and GPU! It's much more demanding than gaming! Please ensure proper heat dissipation! Safety first! If the heat dissipation opening is at the bottom, please suspend the laptop! Remember to replace the thermal paste in time for long-term training. Do not train when unattended! Any hardware issues after training will not be taken responsibility for!
+Download Address
+Complete Integrated Package (Choose the latest download)
+Baidu Netdisk:
+
+Baidu Netdisk Please enter the extraction code
+Baidu Netdisk provides online backup, synchronization, and sharing services for your files. Large space, fast speed, secure and stable, supporting education network acceleration, and mobile phone end. Register and use Baidu Netdisk to enjoy free storage space.
+https://pan.baidu.com/s/1OE5qL0KreO-ASHwm6Zl9gA?pwd=mqpi
+
+Extraction code: mqpi
+UC Cloud Disk (unlimited speed after login):
+
+UC Cloud Disk Sharing
+UC Cloud Disk is a cloud service product launched by UC Browser, featuring cloud storage, intelligent cloud synchronization, ultra-fast upload and download, file sharing, and sharing, which can be used anytime, anywhere to use or manage photos, documents, and mobile data; supports PC, iOS, and Android.
+https://drive.uc.cn/s/a1fd91ae0a4f4
+
+Online trial: https://gsv.acgnai.top/
+
+Manual Update Method:
+First, go to the GitHub official website to download the update package (requires scientific internet access)
+
+Unzip and drag into the root directory to replace, press win+r and enter cmd, locate to the GPT-Sovits folder. Or open the GPT-Sovits folder and enter cmd, then enter runtime\python -m pip install -r requirements.txt and press enter. The update is complete.
+Automatic Update Method:
+Download the update increment package:
+GPT-SoVITS_Fixed Repair Edition (Update Increment Package, with two-key update script).zip
+(7.2 MB)
+Cloud Disk: https://www.123pan.com/s/UHp9-ofL8H.html
+
+AutoDL Mirror
+Official Mirror:
+https://www.codewithgpu.com/i/issue/RVC-Boss/GPT-SoVITS/GPT-SoVITS-Official
+
+Tutorial:
+AutoDL tutorial (only costs a few dollars, convenient)
+A better third-party mirror that doesn't require web operation:
+https://www.codewithgpu.com/i/RVC-Boss/GPT-SoVITS/GPT-SoVITS Author: bilibili@kiss丿冷鸟鸟
+
+Tutorial made by the mirror author:
+
+[GPT-SoVITS] Cloud Mirror Tutorial, One-click Out-of-the-box Use, Training Cost as Low as 50 Cents_bili_bili_bilibili
+Voice ownership: bilibili﻿ @東雪蓮Official
+Source of materials used: Can't find it, will make up later
+The audio model used in the video, the materials used are from: bilibili﻿ @红血球AE3803
+The reference audio used in the video comes from:﻿ @Xz乔希 希
+The audio used in the video is made using the open-source project GPT-SoVITS
+GPT-SoVITS project address: https://github.com/RVC-Boss/GPT-SoVITS
+Autodl official website: https://www.autodl.com/
+
+If you have any questions, please leave a comment or private message, or join the group
+
+Geez, it's been a long time, making videos is so tiring (
+Subscribe for free, two connections are also appreciated, thank you meow
+Communication group: 829974025
+
+If there is any infringement, please delete
+
+https://i0.hdslb.com/bfs/static/jinkela/long/images/512.pnghttps://i0.hdslb.com/bfs/static/jinkela/video/asserts/oldfanIcon.svghttps://i0.hdslb.com/bfs/static/jinkela/video/asserts/oldfanIconFollow.svg
+
+Colab Link:
+https://colab.research.google.com/github/RVC-Boss/GPT-SoVITS/blob/main/colab_webui.ipynb
+
+Tutorial:
+Colab tutorial (requires a proxy, can be used for free)
+Video tutorial (watch with documentation)
+
+2 hours to easily get started with GPT-SoVITS, including integrated package, autodl, colab tutorial, watch with documentation_bili_bili_bilibili
+Document link: https://www.yuque.com/baicaigongchang1145haoyuangong/ib3g1e?#   《GPT-SoVITS Guide》The video is not very detailed, please refer to the document for viewing. Thank you for the co-authoring by Hua'er Buku and Haiyu Harry. Thank you to all contributors to the project. My small communication group: 941610468 Subtitles: Automatically recognized (I will upload subtitles again in a few days), video playback volume 6, barrage volume 0, like number 3, coin toss number 4, collection number 0, forwarding number 2, video author Baicai Factory 1145th employee, author introduction GPT-SoVITS Guide see the top dynamic, related videos: Like C Society was discovered by you~, [AI Ai / Ba] Lazy and handsome "Modern Love", "Will not meet again", Winter...
+To avoid various unexpected issues in subsequent use, please be sure to check your local environment against the following checklist.
+
+Disable global VPN / bypass local network
+Use the recommended browser (Chrome / Edge / Firefox)  
+Turn off the browser's built-in web page translation feature
+Turn off all third-party antivirus software / security guards, etc.
+If memory is tight, set the system's virtual memory to automatic
+It is recommended to turn off shared memory, tutorial:
+For Windows 11, turn off GPU acceleration, there seems to be a bug with insufficient occupation
+
+Some browsers (especially Edge) may encounter issues where WebUI does not function properly after opening. If you encounter freezing/unclickable interaction, etc., please try switching to one of the other recommended browsers above.
+
+If you are a newcomer, it is recommended that you first take a look at
+
+Please read the tutorial and error collection carefully before asking others questions politely, do not bring unnecessary trouble to yourself and others.
+
+Document update frequency:
+· If there is an update on GitHub every day, then a brief description of how to use the new features will be written
+· After the integration package is updated, a detailed explanation of how to use it will be given. The integration package cannot be updated immediately every day, it must wait until the optimization is completed before updating. Although the update frequency on GitHub is fast, there may be bugs and the functions are not so perfect.
+
+Video tutorial (V1 version, outdated) https://www.bilibili.com/video/BV1GJ4m1e7x2/
+If you are an old user who has used V1, you can go directly to watch.
+The features of V2 include:
+
+ Better sound quality for synthesized audio from low-quality reference audio.
+ The base membrane training set has been increased to 5,000 hours, resulting in better zero-shot performance, more realistic timbre, and less required dataset.
+ Added two languages, Korean and Cantonese, now supporting cross-language synthesis in five languages: Chinese, Japanese, English, Korean, and Cantonese.
+ Improved text front-end: Continuously updated. The V2 Chinese and English versions include optimizations for polyphonic characters.
+Download and update
+Complete integration package (choose the latest to download)
+Baidu Netdisk: Link Extraction code: mqpi
+UC Drive (unlimited speed after login): Link
+1.1: Download
+1.1.2: Baidu Netdisk (requires membership)
+
+If you have a Baidu Netdisk membership, you can choose to use Baidu Netdisk for downloading. The modification date is the update time. Open the V2 folder, check the zip file, click on the download at the top right, and it will automatically jump to the Baidu Netdisk client. If you do not have the client, please download it first.
+
+First, click Browse to select the download address, then click Download.
+1.1.2: UC Cloud (Register for Full-Speed Downloads)
+UC Cloud currently allows for full-speed downloads without restrictions as long as you are logged in. The modification date indicates the update time. Open the V2 folder, check the zip file, and click on "Save to Cloud" at the top right.
+
+Then open the client to download.
+
+1.2: Update (Not necessary under normal circumstances, skip this step)
+Download the auto-update package from the Quick Start.
+
+Double-click VisualStudioSetup.exe to install,
+
+Check the box for "Use C++ for desktop development," then proceed with the installation.
+
+After installation, replace the files in the root directory.
+
+Then first run "Update to the latest version of the project.bat," followed by "Run me to update dependencies after the update.bat." Once completed, you will be updated to the latest version.
+
+2: Unzip and Open
+2.1: Unzip
+Please use 7-Zip to unzip! Other unzip tools may cause file loss, such as 360 Unzip, Windows built-in unzip, 2345 Good Compression, and many other tools may swallow files!
+Official English version download: 7-Zip Download
+
+Chinese version direct link download: 7-Zip Chinese Version
+
+Unzip method:
+Right-click the zip file and select "Extract to GPT-SoVITS-v2-xxxx". If you are using Windows 11, you may need to first click on "Show more options."
+
+2.2: Open
+Navigate to the root directory and double-click on go-webui.bat to open. Do not run as an administrator!
+If there is no .bat extension, you can enable file extensions in the view settings, which you will encounter many times later.
+
+This is the normal way to open it. Wait a moment, and a web page will pop up. If the web page does not pop up, you can copy http://0.0.0.0:9874 and open it in your browser.
+
+This is the web interface.
+Before starting to use it, let me remind everyone: Do not close the opened bat! This black bat window is the console, and all logs will be displayed on it. All information is based on the console. If you want to ask others questions, please specify: which step + web interface (to facilitate checking whether you have filled in correctly) + console screenshot! All errors are on the console! Generally, the error message follows the word "Error."
+
+3: Dataset Processing
+Please prepare the dataset carefully to avoid various errors later on and to avoid training an unsatisfactory model! A good dataset is the foundation of training a good model!
+3.1: Use UVR5 to process the original audio (if the original audio is clean enough, you can skip this step, such as dry sounds extracted from games)
+3.1.1: Method 1: Use the built-in UVR5 to process audio
+Click to start UVR5-WebUI and wait a moment. The web page in Figure 2 will automatically pop up. If it does not pop up, copy http://0.0.0.0:9873 and open it in your browser.
+
+First, enter the audio folder path or directly select the file (choose one of the two).
+The address box above the folder is the folder path.
+
+If you want to copy the file path, it is like this↓
+
+First, process with the model_bs_roformer_ep_317_sdr_12.9755 model (which is already the best model currently) to extract the vocals, then use onnx_dereverb, and finally use DeEcho-Aggressive (to remove reverb). Choose wav as the output format. The output files will be in the GPT-SoVITS-beta\output\uvr5_opt folder by default. It is recommended not to change the output path, or you may not be able to find the files later. The processed audio (vocal) is the vocal, (instrument) is the accompaniment, (_vocal_main_vocal) is the one without reverb, and (others) is the one with reverb. The (vocal) (_vocal_main_vocal) are the files you need to use; you can delete the rest. After processing, remember to close UVR5 in the WebUI to save video memory.
+←Click to expand for a more detailed tutorial
+For example, here I have prepared two pieces of material. Click on the directory, this is the path name, copy it
+
+Paste it into the input path, select the model_bs_roformer_ep_317_sdr_12.9755 model from the drop-down, and then click on Convert. Wait a moment, and the output information will display xxxx->Success
+
+You can click on the status bar to open the bat console, where you can view the progress.
+
+Then open the output folder in the GPT-SoVITS integration package folder
+
+Open the uvr5_opt folder
+
+There will be twice as many files as the input files, among which the instrumental files are not needed and must be deleted, otherwise, it will affect the final result. Create a new folder and move these two files over
+
+Then change the input path to the newly created folder above, select the onnx_dereverb_By_FoxJoy model from the drop-down, and click on Convert. Then wait for a relatively long period. You can also check the progress in the bat console. If the waiting time is too long, you can skip this model; the impact is not significant. The input files are still in the uvr5_opt folder, among which others are not needed, delete them. The previous step's vocal is also not needed and can be deleted. Create a new folder and move the _vocal_main_vocal files over
+
+Then change the input path to the newly created folder above, select the VR-DeEchoAggressive model (if the reverb is heavy, select DeReverb, if it's lighter, select Normal, and if it's in between, select Aggressive), and click on Convert. Wait for a while, then open the uvr5_opt folder and delete the ones starting with instrument.
+
+If the output is not successful and an error occurs (the current version should not report errors).
+Then it is recommended to use the following method - UVR5 client. (✅There may be compatibility issues, but the effect is aligned with UVR5, do not blindly criticize the built-in tool for having problems)
+The reason for the error
+The reason for the error is generally that the audio is too short, causing the audio buffer to overflow. There are also some due to insufficient graphics card performance.
+
+3.1.2: Method 2: Use the UVR5 client (no bugs, more models)
+Official download link: beta version
+
+official version
+
+Cloud disk download (includes Windows and macOS): 123 Cloud Disk
+
+How to use on macOS and Linux
+Due to Apple's strict control over application security, you may need to follow these steps to open UVR:
+First, use the terminal to run the following command to allow applications to run from any source:
+
+sudo spctl --master-disable
+Secondly, run the following command to bypass verification:
+
+sudo xattr -rd com.apple.quarantine /Applications/Ultimate\ Vocal\ Remover.app
+Linux: Well? If you're using Linux, deploying it yourself with Git should be no problem, right? Hehe~
+
+For the best separation effect, the tutorial uses the beta version, and the Windows installation package in the cloud disk is the beta version.
+Currently, for MAC users to use the beta version, you need to pull the code and set up the environment yourself, or wait for the installation package to be ready.
+The installation package in the cloud disk is the official version.
+Warning: The installation path must be in English only!!! It is not recommended to change the default installation path, otherwise there will be permission issues!!!
+
+Detailed tutorial: bilibili tutorial Author@bilibili@bfloat16
+To open UVR5, you first need to download the model. It is recommended to download the one I packaged, which includes almost all models, including VIP models. After downloading and unzipping, first delete the models folder in the Ultimate Vocal Remover root directory, and then directly drag the unzipped folder into the Ultimate Vocal Remover root directory to replace the models folder.
+Model package: 123 Cloud Disk (Just download the simplified version, it contains the models you need to use. The full version is all the models of UVR5, which may be needed in the future) Direct download from Yuque ↓
+
+If you think the model package is too large, you can also download it yourself (you need to use a scientific method to access the Internet, and the speed is very slow, only one can be downloaded at a time). Click on the small wrench in the lower left corner to open the settings interface, and click on the third one to download the model. The required models to download are: MDX-Net: model_bs_roformer_ep_317_sdr_12.9755, VR Architecture: UVR-De-Echo-Normal, UVR-De-Echo-Aggressive, UVR-De-Echo-Dereverb, UVR-DeNoise.
+If you are an A card or I card user, you need to check the Use OpenCL option in the second settings interface.
+
+After downloading the model, start processing the audio. Select input to choose the input file, select output to choose the output folder, choose WAV as the output format, and remember to check GPU Conversion (use GPU). First, select the MDX-Net type and use Bs-Roformer-Viperx-1297 (currently the best model for extracting vocals, fast and good) to extract vocals. The processed audio (vocals) is the vocal. Then input the vocal again to de-reverb (choose one of the following three): VR Architecture: UVR-De-Echo-Normal (light reverb), UVR-De-Echo-Aggressive (heavy reverb), UVR-De-Echo-Dereverb (perverted reverb), and finally use UVR-DeNoise for noise reduction. This process will be better than the built-in UVR5 in terms of vocal extraction.
+
+3.1.3: Method 3: MDX23C (temporarily used by MAC users)
+Because there is no UVR5 beta version installation package for MAC at present, either pull the code and install it yourself, or you can only use the 5.6 official version.
+The best model for the official version is MDX23C, and the process is the same as 4.1.1.1.3.1, just replace Bs-Roformer-Viperx-1297 with MDX23C.
+
+3.2: Audio cutting
+Before cutting the audio, it is recommended to drag all audio into an audio software (such as au, video editing software) to adjust the volume, adjust the maximum volume to -9dB to -6dB, and delete the ones that are too high.
+First, enter the path of the original audio folder (no Chinese characters), if you have just gone through the UVR5 process, then it is the uvr5_opt folder. Then the parameters that can be adjusted are min_length, min_interval, and max_sil_kept, all in ms. min_length is adjusted according to the size of the video memory, the smaller the video memory, the smaller the adjustment. min_interval is adjusted according to the average interval of the audio, if the audio is too dense, it can be appropriately lowered. max_sil_kept will affect the coherence of the sentence, different audio adjustments, if you don't know how to adjust, keep the default. Other parameters are not recommended to be adjusted. Click on start voice cutting, and it will be cut immediately. The default output path is in output/slicer_opt. Of course, you can also use other cutting tools to cut.
+
+After cutting, the files are in output/slicer_opt. Open the cutting folder, choose size as the sorting method, and manually cut the audio longer than the video memory number of seconds to below the video memory number of seconds. For example, if the graphics card is 4090 and the video memory is 24g, then you need to manually cut the audio longer than 24 seconds to below 24 seconds, as the audio that is too long will blow up the video memory. If the voice cutting is still one file, it is because the audio is too dense. You can lower min_interval, adjust from 300 to 100, which can basically solve the problem. If it still doesn't work, manually cut with au.
+
+3.3: Audio noise reduction (if the original audio is clean enough, you can skip this step, such as dry sound extracted from the game)
+If you think your audio is clear enough, you can skip this step, noise reduction has a great destruction to the sound quality, use it with caution.
+Enter the folder of the audio that was just cut, the default is the output/slicer_opt folder. Then click on start voice noise reduction. The default output path is in output/denoise_opt.
+
+3.4: Marking
+Why mark: Marking is to match each audio with text, so that AI can learn how to read each word. The mark here refers to the label.
+If you have cut or noise reduced in the previous step, the path has been automatically filled in for you. Then choose Damo ASR or fast whisper. Damo ASR can only be used to recognize Chinese and Cantonese, and the effect is the best. Fast whisper can label 99 languages, and it is currently the best English and Japanese recognition, the model size is large V3, and the language is auto automatic. Whisper can choose accuracy, it is recommended to choose float16, float16 is faster than float32, int8 speed is almost the same as float16. Then click on start offline batch ASR, the default output is the output/asr_opt path. ASR will take some time, just look at the console to see if there are any errors.
+
+If you have subtitles, you can use subtitle marking, which is much more accurate. Embedded subtitles or external subtitles are both ok, tutorial.
+
+3.5: Proofreading marking (this step is time-consuming, if you don't pursue the ultimate effect, you can skip it)
+After the previous step of marking, the list path will be automatically filled in, you just need to click on start marking webui.
+After opening, it is SubFix, from left to right, from top to bottom, the meaning is: page number jump, save modification, merge audio, delete audio, previous page, next page, split audio, save file, reverse selection. After modifying each page, you need to click on save modification (Submit Text), if you don't save and turn the page, the text will be reset, before exiting, you need to click on save file (Save File), before any other operations, it is best to save modification (Submit Text) twice. Merge audio and split audio are not recommended, the accuracy is very poor, a lot of bugs. To delete audio, you need to click yes on the right side of the audio you want to delete, and then click delete audio (Delete Audio). After deleting, the audio in the folder will not be deleted, but the label has been deleted and will not be added to the training set. This SubFix has a lot of bugs, save more before any operation.
+Training
+4.1: Outputting Logs
+Proceed to the second page
+First, set the experiment name, which is essentially the model name; it can be in Chinese in theory! After tagging is completed, the path will be filled in automatically, just click on the one-click three-in-a-row.
+If it's English, Japanese, Cantonese, or Korean, the 3-bert folder in the logs will be empty, which is normal and doesn't need to be managed.
+
+4.2: Fine-tuning Training
+
+First, set the batch_size. It is recommended to set the batch_size to less than half of the video memory for SoVITS training; if it's too high, it will blow up the video memory. A higher bs is not necessarily faster! The batch_size also needs to be adjusted according to the size of the dataset and is not strictly set to half of the video memory count. For example, if there is 6g of video memory, it needs to be set to 1. If the video memory explodes, adjust it lower. When the GPU 3D occupancy is 100%, it means that bs is too high, and shared video memory is being used, which will slow down the speed by several times.
+
+The following are the maximum batch_size for SoVITS training with different video memories when the slice length is 10s. You can set it according to this. If the slice is longer and the dataset is larger, it should be appropriately reduced.
+Video memory	batch_size	Slice length
+6g	1	10s
+8g	2	10s
+12g	5	10s
+16g	8	10s
+22g	12	10s
+24g	14	10s
+32g	18	10s
+40g	24	10s
+80g	48	10s
+
+After the 0213 version, dpo training was added. Dpo greatly improves the effect of the model, almost no swallowing of words and repetition, and the number of characters that can be inferred has increased several times, but at the same time, the video memory occupancy during training has increased by more than 2 times, the training speed has slowed down by 4 times, and GPUs below 12g cannot be trained. The quality requirements of the dataset have also increased a lot. If the dataset has noise, reverb, poor sound quality, and unproofread tags, then there will be negative effects.
+
+If your GPU is greater than 12g, and the dataset is of good quality, and you are willing to wait for a long training time, then you can enable dpo training. Otherwise, please do not enable it. The following are the maximum batch_size for GPT training with different video memories when the slice length is 10s. If the slice is longer and the dataset is larger, it should be appropriately reduced.
+Video memory	No dpo batch_size	Enabled dpo batch_size	Slice length
+6g	1	Training not possible	10s
+8g	2	Training not possible	10s
+12g	4	1	10s
+16g	7	1	10s
+22g	10	4	10s
+24g	11	6	10s
+32g	16	6	10s
+40g	21	8	10s
+80g	44	18	10s
+
+Next, set the number of rounds. Compared with V1, V2 has better restoration of the training set, but it is also more likely to learn the negative content in the training set. So if your materials have background noise, reverb, popping, uneven loudness, electrical noise, slobber sound, unclear speech, poor sound quality, etc., then please do not increase the number of SoVITS model rounds, otherwise, there will be negative effects. The number of GPT model rounds is generally not higher than 20, and it is recommended to set it to 10. Then, first click on SoVITS training, and after training, click on GPT training. They cannot be trained together (unless you have two cards)! If it is interrupted halfway, just click on start training again, and it will start training from the nearest save point.
+
+During training, please press Ctrl+Shift+Esc to open the Task Manager, scroll down and open the options, and select CUDA. If the CUDA occupancy is 0, then it is not training. The dedicated GPU memory is the video memory, and other memories are shared, not the real video memory. If the video memory explodes, lower the bs. Or there may be excessively long audio that needs to go back to step 2.2 to remake the dataset.
+
+Win11 doesn't have CUDA. Open Settings --> System --> Display --> Graphics Card --> Default Graphics Settings.
+Turn off Hardware Accelerated GPU Scheduling and restart the computer.
+
+When training is completed, it will display that training is completed, and the rounds displayed on the console will stop at the round of (total rounds - 1).
+
+To check CUDA occupancy, you need to scroll down and select CUDA. If you can't find the CUDA interface on Win11, you need to turn off Hardware Accelerated GPU Scheduling and restart.
+
+Regarding learning rate weights:
+You can lower it but it is not recommended to raise it. Listen to the comparison directly and judge the effect by yourself.
+
+Regarding high training rounds:
+You might see people say they have trained for hundreds of rounds, thousands of rounds (tens of thousands of rounds would be a mistake between rounds and steps). But high rounds are not necessarily good. If you want to train for a high number of rounds, please first ensure that the dataset is of very high quality, all tags have been manually proofread, and the duration is at least more than 1 hour before it is necessary to increase the number of rounds. Otherwise, the default of more than ten rounds is already very good.
+Round comparison can be seen in the video: [video link]
+
+Regarding dataset length:
+Please ensure quality first! Audio must not have noise, it should be clear, loudness should be uniform, no reverb, each sentence should be complete, and all tags should be manually proofread. There is a significant improvement within 30 minutes, and it is not recommended to increase the length of the dataset (unless you have a bunch of 4090s).
+Detailed comparison can be seen in the video: [video link]
+
+How do you know if the model is well trained?
+This is a very boring and meaningless question. It's like asking a teacher how to learn well, and no one can answer it.
+Model training is related to the quality and duration of your dataset, the number of rounds, and even some supernatural factors; even if you have a finished model, the final conversion effect also depends on your reference audio and inference parameters. This is not a linear process, and there are too many variables in between, so if you have to ask "why doesn't my model come out like it should," or "how do you know if the model is well trained," I can only say WHO F**KING KNOWS?
+
+But it's not that there's no way at all, you can just pray. I don't deny that praying is an effective method, but you can also use some scientific tools, such as Tensorboard, but still put on your headphones and let your ears tell you. Listening with your ears is the most scientific way.
+If your model is always poor, then you should reflect on why you didn't prepare the dataset well.
+
+Outstanding model (V1) sharing (using 30 hours of Paimon dataset, 100% correct rate of annotation, enabling DPO)
+
+Emotion classification
+If you have more than 1 hour of dataset, you can first classify emotions with Emotion2Vec or ColorSplitter before training. You will get more stable and richer emotions, but the tags must be manually proofread. See video for details: [video link]
+
+Model demonstration (V1) (classified five types with Paimon)
+
+Regarding Tensorboard
+GPT-SoVITS can enable Tensorboard, but what's the significance of the loss value when the number of rounds is less than 30? Listen with your ears.
+5: Inference
+5.1: Launching the Inference Interface
+First, refresh the model and select the model for inference from the dropdown menu. 'e' represents the number of epochs, and 's' represents the number of steps. A higher number of epochs does not always mean better. After selecting the model, click on "Start TTS Inference," and the inference interface should pop up automatically. If it doesn't, copy and paste http://0.0.0.0:9872 into your browser to open it.
+
+Please strictly differentiate between Epoch (rounds of training) and Step: 1 Epoch means all samples in the training set have participated in one round of learning, and 1 Step means one step of learning has taken place. ​
+ 
+
+5.2: Starting Inference
+At the top, you can switch models, which is crucial when selecting a model immediately after training.
+
+Then, upload a reference audio clip, preferably one from the dataset. Ideally, it should be about 5 seconds long. The reference audio is very important as it helps in learning the speaking speed and tone, so please choose it carefully. The text for the reference audio should match what is being said in the audio clip, and the language should correspond. After version 0217, there is an option to use a model without reference text, but it is strongly discouraged as the results can be poor. It's just a matter of typing a few words in a few seconds; there's no need to be lazy. Note: It is a model without reference text, not without reference audio. Reference audio is always required!
+
+There is an optional feature in the top right corner to blend voice colors. Place the audio files you want to blend into a folder and drag the entire folder into the interface (this feature is not very practical).
+
+Next, input the text you want to synthesize, making sure the language matches. Currently, it is possible to mix Chinese with English, Japanese with English, and Chinese, Japanese, and English together. It is recommended to divide the text into segments, aiming for about four sentences per segment. If there are fewer than four sentences, they will not be divided. If dividing by the number of segments causes an error, it may be due to insufficient video memory, in which case you can divide the text at periods. If you do not divide the text, the more video memory you have, the more you can synthesize; the 4090 can synthesize about 1000 characters, but the result may be incoherent, so even if you have a 4090, it is recommended to divide and synthesize in segments. Synthesizing text that is too long can easily result in incoherent speech.
+
+Version 0213 introduced top_p, top_k, and temperature, which control randomness. It is recommended to keep the default settings as these values determine the randomness of the output. Increasing these values will increase randomness, so the default settings are recommended.
+
+If you are using version 0206 (which has been discontinued), the same principles apply as mentioned above.
+
+Version 0306fix3 introduced batch_size, segment interval, speed_factor, and repetition penalty. batch_size refers to the number of parallel inferences, which can be increased with more video memory for faster inference speed. Segment interval refers to the spacing of the divisions, not the spacing between each punctuation mark. speed_factor adjusts the speaking speed but is not recommended as it can affect audio quality. The repetition penalty is set by default.
+
+Version 0213 introduced top_p, top_k, and temperature, which control randomness. It is recommended to keep the default settings as these values determine the randomness of the output. Increasing these values will increase randomness, so the default settings are recommended.
+
+It is advised to divide the text into segments, aiming for about four sentences per segment. If there are fewer than four sentences, they will not be divided. If dividing by the number of segments causes an error, it may be due to insufficient video memory, in which case you can divide the text at periods. If you do not divide the text, the more video memory you have, the more you can synthesize; the 4090 can synthesize about 1000 characters, but the result may be incoherent, so even if you have a 4090, it is recommended to divide and synthesize in segments. Synthesizing text that is too long can easily result in incoherent speech.
+
+Parallel inference and data bucketing are recommended for speed improvements, and maintaining randomness can add emotional richness to the output.
+
+Regarding top_p, top_k, and temperature:
+These three values control sampling. During inference, the best token needs to be selected, but the machine does not know which one is the best. So, top_k is used to select the top tokens, and top_p filters tokens based on top_k. Finally, temperature controls the randomness of the output.
+
+For example, if there are 100 tokens in total, with top_k set to 5 and top_p set to 0.6, and temperature set to 0.5, the system will first select the 5 tokens with the highest probability (0.3, 0.3, 0.2, 0.2, 0.1). It will then select tokens with a cumulative probability not exceeding 0.6 (0.3 and 0.3), and randomly output one of these tokens, with the first token having a higher chance of being selected. This process continues.
+
+If you still don't understand, set it to maximum for a more random output, or set it to minimum for a more repetitive output.
+
+Regarding repetition penalty:
+A setting of 1 means no penalty for repetition, > 1 starts penalizing repetition, and < 1 encourages repetition. It is generally set to > 1 because repetition is quite common.
+
+If there are issues with missing words, repetition, or the mixing of reference audio, this is normal. To improve this, use a GPT model with a lower number of epochs, shorten the synthesis text, or change the reference audio. The official team is also working hard to fix these issues.
+
+If there is constant repetition, it is likely due to inaccurate labeling. Manually proofread and retrain the model.
+
+RefAudioEmoTagger Tool
+Project address: RefAudioEmoTagger on GitHub (if you can, give the project a star)
+Author: Alexw1111
+Download the integrated package here: 123 Cloud Disk
+After unzipping, double-click go-web.bat to open.
+
+The input folder should be the directory of the training set audio files from the previous step of outputting logs. Choose the list method for renaming audio, and the path of the .list file should be the path from the logs output step. Select the emotion2vec+ model for better results, then click on one-click inference.
+
+After completion, the output directory will be in the root directory's output folder.
+
+Audio will be categorized into up to five emotional classes, but it may also only have two or even just one class, depending on the richness of the data.
+
+At the same time, each audio file will be relabeled and renamed, ready for use.
+6: Sharing Models
+The required models for sharing are located in the SoVITS_weights_v2 and GPT_weights_v2 folders. Select the model with the appropriate number of epochs and remember to include the reference audio in a compressed file for sharing. Others can simply place the GPT model (with the ckpt extension) into the GPT_weights_v2 folder and the SoVITS model (with the pth extension) into the SoVITS_weights_v2 folder to start inference.
+
+7: Using Shared Models
+To use a model shared by someone else, place the GPT model (with the ckpt extension) into the GPT_weights_v2 folder and the SoVITS model (with the pth extension) into the SoVITS_weights_v2 folder. Refresh the model list to select the model for inference.
+
+8: Training a Second Model
+Remember to remove the audio from the previous slicing folder and the annotation files from the asr folder to avoid adding them to the training set. Be sure to change the model name when training! The steps remain the same. The models will still be located in the GPT_weights_v2 and SoVITS_weights_v2 folders.
+
+Regarding voice modification features:
+The feature is not yet completed, and everyone will see a "Construction in Progress, Please Wait for Good News" message for now. It's not a missing file issue, but rather the feature is still under development. Stay tuned.
+
+Frequently Asked Questions:
+
+Where can I download the integrated package? At the beginning of the document.
+Can A-card / Apple users run it? A-card is not supported, but you can train 30-second audio with the CPU, which is quite fast and the effect is not too bad. MAC users can check it out.
+Why does the training start but then seem to freeze? As long as there are no errors, it's running. If your dataset is not very large (less than 5 hours), the terminal should display the first training log within 10 minutes. If there is no new output log after more than 10 minutes, try increasing the virtual memory or reducing the batch size and then restart the training.
+What if I want to add more to the dataset during training? You will need to preprocess again and start training from the beginning.
+Is it normal for inference to take a long time, with minutes of audio taking tens of minutes to process? If the console has no response, it may be that Gradio is malfunctioning and not running at all, so you're waiting in vain. It is recommended to restart and reduce the amount of text. If the console is active, it is running, and some GPUs may take several minutes to process, so be patient.
+For other issues: there are solutions to some errors, and you can also visit GitHub to see if anyone has asked questions or post your own question. Copying the error message to ask ChatGPT is also a good method.
+
+If your question is not among the common ones listed above, you can consult the discussion group. However, there is an art to asking questions. A good question can stimulate others' interest in responding, which speeds up the problem-solving process, saving your time and reducing everyone's stress, which is a win-win situation.
+
+Crying out for help with phrases like "Help, someone!" will not get you faster assistance but may increase stress levels. Avoid irrelevant language.
+
+Describe in detail the problem you are encountering and what you did before encountering the problem. Many times, the issue you encounter may simply be due to forgetting a step, and sometimes you can discover the issue by going through your steps.
+
+Just posting a red "Error" won't help; even God could only guess. What I need is a detailed error log, which can be viewed in the terminal.
+
+Read the documentation, read the documentation, read the documentation. 90% of the questions asked in the group every day can be solved by consulting the documentation. Everyone's time is valuable, so solve it yourself if you can, without bothering others.
+
+An example of a good question:
+Hello everyone, I encountered a problem when fine-tuning the SoVITS model for training. The terminal error is "division by zero". Here is the terminal error screenshot: [Complete error screenshot], and here is the web screenshot: [Complete web screenshot]. I have checked the common errors and error collections in the documentation but did not find a similar issue. Does anyone know how to solve it? I would be very grateful!
+
+An example of a bad question:
+I got an error when training the SoVITS model, what should I do?
+
+If the original audio has low clarity, after completing the audio cutting,what should  I do?
