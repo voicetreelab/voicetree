@@ -209,5 +209,196 @@ class TestSingleAbstractionOptimizerPrompt:
                    "no changes" in result.reasoning.lower()
 
 
+    async def test_preserve_numeric_values_and_equations(self, prompt_loader):
+        """
+        Test Case 4: Node with many equations and numeric values that must be preserved
+        Tests the new requirement to preserve all numeric values exactly
+        """
+        # Test data - node with multiple equations and calculations
+        node_content = """
+        # Animal Population Calculations
+        
+        The number of adult owls in South Zoo equals 1.
+        The average newborn children per adult crow in Hamilton Farm equals 4 times the number of adult owls in South Zoo.
+        The number of adult crows in South Zoo equals 3.
+        The number of adult parrots in Bundle Ranch equals 4.
+        
+        The total number of adult animals in Bundle Ranch equals the sum of:
+        - Adult owls in Bundle Ranch (which equals 12)
+        - Adult blue jays in Bundle Ranch (which equals 4) 
+        - Adult parrots in Bundle Ranch (which equals 4)
+        
+        So the total is 12 + 4 + 4 = 20 adult animals.
+        
+        The average newborn children per adult owl in Bundle Ranch equals 4.
+        The average newborn children per adult blue jay in Bundle Ranch equals 8.
+        The average newborn children per adult parrot in Bundle Ranch equals 2 times the average newborn children per adult owl in Bundle Ranch.
+        
+        Therefore:
+        - Newborn owls: 12 × 4 = 48
+        - Newborn blue jays: 4 × 8 = 32
+        - Newborn parrots: 4 × 8 = 32
+        - Total newborn animal children in Bundle Ranch = 48 + 32 + 32 = 112
+        """
+        
+        node_summary = "Calculations for animal populations in various locations with specific numeric values"
+        node_id = 15
+        node_name = "Animal Population Calculations"
+        
+        neighbors = [
+            {"id": 14, "name": "Zoo Locations", "summary": "List of zoo and ranch locations", "relationship": "parent"},
+            {"id": 16, "name": "Population Metrics", "summary": "Methods for calculating animal populations", "relationship": "sibling"}
+        ]
+        
+        # Load and run prompt
+        prompt_text = prompt_loader.render_template(
+            "single_abstraction_optimizer",
+            node_id=node_id,
+            node_name=node_name,
+            node_content=node_content,
+            node_summary=node_summary,
+            neighbors=neighbors
+        )
+
+        result = await self.call_llm(prompt_text)
+        
+        # Assertions - Check that numeric values are preserved
+        # Combine all content from original and new nodes
+        all_content = []
+        if result.original_new_content:
+            all_content.append(result.original_new_content)
+        for node in result.create_new_nodes:
+            all_content.append(node.content)
+        
+        combined_content = " ".join(all_content).lower()
+        
+        # Critical numeric values that MUST be preserved somewhere (with variations)
+        critical_values = [
+            ("equals 1", ["equals 1"], "adult owls in South Zoo"),
+            ("equals 3", ["equals 3"], "adult crows in South Zoo"),  
+            ("equals 4", ["equals 4"], "adult parrots in Bundle Ranch"),
+            ("equals 12", ["equals 12"], "adult owls in Bundle Ranch"),
+            ("equals 4", ["equals 4"], "adult blue jays in Bundle Ranch"),
+            ("= 20", ["= 20", "equals 20", "total: 20", "total is 20"], "total adult animals"),
+            ("equals 4", ["equals 4"], "newborn per adult owl"),
+            ("equals 8", ["equals 8"], "newborn per adult blue jay"),
+            ("= 48", ["= 48", "equals 48", "total: 48", "total is 48"], "newborn owls total"),
+            ("= 32", ["= 32", "equals 32", "total: 32", "total is 32"], "newborn blue jays total"),
+            ("= 112", ["= 112", "equals 112", "total: 112", "total is 112"], "total newborn")
+        ]
+        
+        # Check that each critical value is preserved with some flexibility
+        missing_values = []
+        for value_name, variations, context in critical_values:
+            if not any(var in combined_content for var in variations):
+                missing_values.append(f"{value_name} ({context})")
+        
+        assert len(missing_values) == 0, f"Missing critical numeric values: {missing_values}\n\nActual content:\n{combined_content[:500]}..."
+        
+        # Also check key equations are preserved (with some flexibility for rephrasing)
+        key_equations = [
+            ("4 times", ["4 times", "times 4", "* 4"]),  # crow equation
+            ("2 times", ["2 times", "times 2", "* 2"]),  # parrot equation
+            ("12 + 4 + 4", ["12 + 4 + 4", "4 + 4 + 12"]),  # total calculation
+            ("48 + 32 + 32", ["48 + 32 + 32", "32 + 32 + 48"])  # final total
+        ]
+        
+        missing_equations = []
+        for equation_name, variations in key_equations:
+            if not any(var in combined_content for var in variations):
+                missing_equations.append(equation_name)
+                
+        assert len(missing_equations) == 0, f"Missing key equations: {missing_equations}\n\nActual content:\n{combined_content[:500]}..."
+
+    async def test_preserve_mathematical_relationships_bug_regression(self, prompt_loader):
+        """
+        Test Case 5: Regression test for formula corruption bug
+        Bug: LLM incorrectly rewrites mathematical relationships during optimization
+        
+        Original problem: "Jefferson Circus crow average = 2 + South Zoo crow average"
+        Got corrupted to: "Jefferson Circus crow average = 2 + [Number of adult crows in Jefferson Circus]"
+        
+        This test ensures mathematical relationships are preserved exactly.
+        """
+        # Test data - the exact case that failed in production
+        node_content = """
+        The average number of newborn children per adult crow in Jefferson Circus equals 2 plus the average number of newborn children per adult crow in South Zoo.
+        +++The average number of newborn children per adult arctic wolf in Lunarchasm Ridge equals the average number of newborn children per adult crow in Jefferson Circus. (is a component of an equation for this node)
+        """
+        
+        node_summary = "Calculates the average number of newborn children per adult crow in Jefferson Circus by adding 2 to the South Zoo average."
+        node_id = 73
+        node_name = "Average newborn children per adult crow in Jefferson Circus"
+        
+        neighbors = [
+            {
+                "name": "Average newborn children per adult crow in South Zoo", 
+                "summary": "The average number of newborn children per adult crow in South Zoo is 4, used in a calculation for Jefferson Circus and also equaling the number of adult narwhals in Lunarchasm Ridge.", 
+                "relationship": "is calculated using the"
+            },
+            {
+                "name": "Average newborn children per adult boomslang in Heavenspire Peak", 
+                "summary": "The average number of newborn children per adult boomslang in Heavenspire Peak is defined by the average number of newborn children per adult crow in Jefferson Circus.", 
+                "relationship": "is defined by the"
+            }
+        ]
+        
+        # Load and run prompt
+        prompt_text = prompt_loader.render_template(
+            "single_abstraction_optimizer",
+            node_id=node_id,
+            node_name=node_name,
+            node_content=node_content,
+            node_summary=node_summary,
+            neighbors=neighbors
+        )
+
+        result = await self.call_llm(prompt_text)
+        
+        # Combine all content to check preservation
+        all_content = []
+        if result.original_new_content:
+            all_content.append(result.original_new_content)
+        for node in result.create_new_nodes:
+            all_content.append(node.content)
+        
+        combined_content = " ".join(all_content)
+        
+        # CRITICAL: The mathematical relationship must be preserved EXACTLY
+        # Bug was: "2 + South Zoo average" became "2 + Jefferson Circus count"
+        
+        # Must contain the correct relationship
+        assert "2 plus the average number of newborn children per adult crow in South Zoo" in combined_content or \
+               "2 + average number of newborn children per adult crow in South Zoo" in combined_content or \
+               "average number of newborn children per adult crow in South Zoo" in combined_content, \
+               f"Mathematical relationship corrupted! Expected reference to South Zoo crow average, got: {combined_content}"
+        
+        # Must NOT contain the corrupted relationship
+        corrupted_patterns = [
+            "2 + [Number of adult crows in Jefferson Circus]",
+            "2 plus the number of adult crow in Jefferson Circus", 
+            "2 + number of adult crow in Jefferson Circus",
+            "Jefferson Circus" in combined_content and "2 +" in combined_content and "South Zoo" not in combined_content
+        ]
+        
+        for pattern in corrupted_patterns[:3]:  # Check string patterns
+            assert pattern not in combined_content, \
+                f"Found corrupted formula pattern: '{pattern}' in content: {combined_content}"
+        
+        # Special check for the last complex pattern
+        if "Jefferson Circus" in combined_content and "2 +" in combined_content:
+            assert "South Zoo" in combined_content, \
+                "Formula references Jefferson Circus with '2 +' but missing South Zoo reference - likely corruption!"
+        
+        # Ensure the dependency relationship is maintained
+        # The South Zoo node should still be referenced as the source
+        if len(result.create_new_nodes) > 0:
+            # Check that any new nodes maintain correct relationships
+            for new_node in result.create_new_nodes:
+                if "Jefferson Circus" in new_node.content and "2" in new_node.content:
+                    assert "South Zoo" in new_node.content or new_node.target_node_name == "Average newborn children per adult crow in South Zoo", \
+                        f"New node breaks mathematical dependency: {new_node.content}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

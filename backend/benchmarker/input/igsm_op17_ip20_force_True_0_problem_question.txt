@@ -1,0 +1,233 @@
+The average number of newborn children per adult goblin shark in Starlight Summit equals the sum of the average number of newborn children per adult eagle in South Zoo and the number of adult eagle in Bundle Ranch.
+The average number of newborn children per adult albatross in Lunarchasm Ridge equals the sum of the number of adult eagle in South Zoo and the total number of newborn animal children in Radiant Crest.
+The average number of newborn children per adult beluga whale in Lunarchasm Ridge equals the number of adult crow in South Zoo.
+The number of adult lionfish in Starlight Summit equals the sum of the total number of adult animals in Jefferson Circus and the number of adult eagle in Mayer Aquarium.
+The average number of newborn children per adult gaboon viper in Heavenspire Peak equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult puffin in Lunarchasm Ridge equals the difference between the number of adult crow in Jefferson Circus and the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult harp seal in Lunarchasm Ridge equals the number of adult eagle in South Zoo.
+The number of adult electric eel in Starlight Summit equals the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult copperhead in Heavenspire Peak equals the total number of adult animals in Jefferson Circus.
+The number of adult reticulated python in Heavenspire Peak equals the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult mangrove snake in Heavenspire Peak equals the sum of the number of adult parrot in South Zoo and the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult hammerhead shark in Starlight Summit equals the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult eagle in South Zoo equals the number of adult eagle in Mayer Aquarium.
+The average number of newborn children per adult jackal in Heavenspire Peak equals the number of adult eagle in Bundle Ranch.
+The number of adult butterflyfish in Starlight Summit equals the difference between the number of adult crow in Mayer Aquarium and the average number of newborn children per adult crow in Mayer Aquarium.
+The number of adult surgeonfish in Starlight Summit equals the sum of the average number of newborn children per adult parrot in South Zoo and the number of adult eagle in Mayer Aquarium.
+The average number of newborn children per adult booby in Lunarchasm Ridge equals the difference between the average number of newborn children per adult crow in South Zoo and the average number of newborn children per adult eagle in Mayer Aquarium.
+The number of adult golden retriever in Heavenspire Peak equals the difference between the average number of newborn children per adult crow in Jefferson Circus and the number of adult eagle in South Zoo.
+The average number of newborn children per adult shearwater in Lunarchasm Ridge equals the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult eastern coral snake in Heavenspire Peak equals the number of adult crow in Mayer Aquarium.
+The average number of newborn children per adult maned jackal in Heavenspire Peak equals the difference between the average number of newborn children per adult eagle in South Zoo and the average number of newborn children per adult crow in South Zoo.
+The average number of newborn children per adult electric eel in Starlight Summit equals the sum of the number of adult eagle in South Zoo and the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult poodle in Heavenspire Peak equals the difference between the number of adult blue jay in Mayer Aquarium and the average number of newborn children per adult eagle in Bundle Ranch.
+The average number of newborn children per adult hognose snake in Heavenspire Peak equals the difference between the number of adult eagle in South Zoo and the number of adult crow in Mayer Aquarium.
+The number of adult gull in Lunarchasm Ridge equals the sum of the average number of newborn children per adult blue jay in South Zoo and the average number of newborn children per adult parrot in Bundle Ranch.
+The average number of newborn children per adult dingo in Heavenspire Peak equals the average number of newborn children per adult crow in South Zoo.
+The average number of newborn children per adult black mamba in Heavenspire Peak equals the sum of the average number of newborn children per adult parrot in Mayer Aquarium and the number of adult blue jay in South Zoo.
+The average number of newborn children per adult flamingo in Lunarchasm Ridge equals the number of adult eagle in Bundle Ranch.
+The average number of newborn children per adult lionfish in Starlight Summit equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult crow in Mayer Aquarium.
+The average number of newborn children per adult emerald tree boa in Heavenspire Peak equals the sum of the average number of newborn children per adult parrot in Bundle Ranch and the average number of newborn children per adult parrot in Mayer Aquarium.
+The average number of newborn children per adult kittiwake in Lunarchasm Ridge equals the sum of the average number of newborn children per adult parrot in Mayer Aquarium and the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult guppy in Starlight Summit equals the sum of the average number of newborn children per adult parrot in Jefferson Circus and the number of adult crow in Jefferson Circus.
+The average number of newborn children per adult pelican in Lunarchasm Ridge equals the average number of newborn children per adult blue jay in Mayer Aquarium.
+The number of adult egret in Lunarchasm Ridge equals the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult parrot in Bundle Ranch equals the sum of the average number of newborn children per adult crow in Jefferson Circus, the number of adult parrot in Jefferson Circus, and the average number of newborn children per adult eagle in Bundle Ranch.
+The average number of newborn children per adult akita in Heavenspire Peak equals the number of adult parrot in South Zoo.
+The average number of newborn children per adult corn snake in Heavenspire Peak equals the number of adult parrot in South Zoo.
+The number of adult caribou in Lunarchasm Ridge equals the sum of the average number of newborn children per adult blue jay in South Zoo and the number of adult blue jay in Bundle Ranch.
+The number of adult goblin shark in Starlight Summit equals the difference between the number of adult crow in South Zoo and the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult shearwater in Lunarchasm Ridge equals the difference between the number of adult parrot in South Zoo and the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult african bush elephant in Cloudveil Plateau equals the average number of newborn children per adult blue jay in Mayer Aquarium.
+The number of adult angelfish in Starlight Summit equals the difference between the number of adult parrot in Jefferson Circus and the number of adult eagle in South Zoo.
+The number of adult rainbow boa in Heavenspire Peak equals the sum of the number of adult blue jay in Mayer Aquarium and the average number of newborn children per adult blue jay in South Zoo.
+The number of adult eyelash viper in Heavenspire Peak equals the average number of newborn children per adult crow in South Zoo.
+The number of adult tern in Lunarchasm Ridge equals the number of adult eagle in South Zoo.
+The average number of newborn children per adult crow in South Zoo equals 4.
+The average number of newborn children per adult chihuahua in Heavenspire Peak equals the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult shiba inu in Heavenspire Peak equals the number of adult eagle in South Zoo.
+The number of adult siberian husky in Heavenspire Peak equals the total number of adult animals in South Zoo.
+The average number of newborn children per adult border collie in Heavenspire Peak equals the average number of newborn children per adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult blue jay in Bundle Ranch equals 3 times the average number of newborn children per adult blue jay in South Zoo.
+The average number of newborn children per adult blue jay in Mayer Aquarium equals 2 times the total number of adult animals in Jefferson Circus.
+The average number of newborn children per adult gannet in Lunarchasm Ridge equals the sum of the number of adult blue jay in Bundle Ranch and the total number of adult animals in South Zoo.
+The number of adult new guinea singing dog in Heavenspire Peak equals the average number of newborn children per adult parrot in Mayer Aquarium.
+The average number of newborn children per adult box jellyfish in Aurora Crags equals the difference between the average number of newborn children per adult eagle in Bundle Ranch and the total number of newborn animal children in Heavenspire Peak.
+The number of adult beluga whale in Lunarchasm Ridge equals the sum of the average number of newborn children per adult crow in South Zoo and the average number of newborn children per adult blue jay in South Zoo.
+The number of adult corn snake in Heavenspire Peak equals the total number of adult animals in Jefferson Circus.
+The average number of newborn children per adult snowy owl in Lunarchasm Ridge equals the sum of the average number of newborn children per adult eagle in South Zoo and the average number of newborn children per adult blue jay in South Zoo.
+The number of adult akita in Heavenspire Peak equals the sum of the average number of newborn children per adult crow in Jefferson Circus and the number of adult parrot in South Zoo.
+The average number of newborn children per adult blue tang in Starlight Summit equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult barracuda in Starlight Summit equals the sum of the number of adult blue jay in Bundle Ranch and the number of adult parrot in Jefferson Circus.
+The average number of newborn children per adult tern in Lunarchasm Ridge equals the number of adult crow in South Zoo.
+The number of adult polar bear in Lunarchasm Ridge equals the average number of newborn children per adult crow in Mayer Aquarium.
+The average number of newborn children per adult taiwan beauty snake in Heavenspire Peak equals the difference between the number of adult blue jay in Bundle Ranch and the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult black mamba in Heavenspire Peak equals the number of adult crow in Mayer Aquarium.
+The average number of newborn children per adult gull in Lunarchasm Ridge equals the number of adult blue jay in Mayer Aquarium.
+The number of adult musk ox in Lunarchasm Ridge equals the sum of the average number of newborn children per adult parrot in South Zoo and the average number of newborn children per adult eagle in Bundle Ranch.
+The average number of newborn children per adult parrot in Jefferson Circus equals 4.
+The number of adult crow in South Zoo equals 1.
+The number of adult pufferfish in Starlight Summit equals the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult green anaconda in Heavenspire Peak equals the sum of the total number of adult animals in Jefferson Circus and the number of adult crow in Mayer Aquarium.
+The number of adult scarlet macaw in Silvermist Highlands equals the difference between the number of adult eagle in Bundle Ranch and the number of adult crow in South Zoo.
+The average number of newborn children per adult dhole in Heavenspire Peak equals the difference between the total number of adult animals in South Zoo and the number of adult parrot in Jefferson Circus.
+The number of adult eagle in Bundle Ranch equals the sum of the average number of newborn children per adult blue jay in South Zoo and the number of adult blue jay in Bundle Ranch.
+The number of adult border collie in Heavenspire Peak equals the difference between the average number of newborn children per adult blue jay in South Zoo and the average number of newborn children per adult eagle in Mayer Aquarium.
+The average number of newborn children per adult crow in Jefferson Circus equals 2 plus the average number of newborn children per adult crow in South Zoo.
+The number of adult coyote in Heavenspire Peak equals the difference between the average number of newborn children per adult crow in Jefferson Circus and the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult crow in Mayer Aquarium equals 4 times the difference between the number of adult blue jay in Mayer Aquarium and the average number of newborn children per adult parrot in Mayer Aquarium.
+The average number of newborn children per adult jaguar in Astral Ridge equals the difference between the number of adult blue jay in Bundle Ranch and the average number of newborn children per adult eagle in Mayer Aquarium.
+The average number of newborn children per adult fennec fox in Heavenspire Peak equals the average number of newborn children per adult eagle in Mayer Aquarium.
+The average number of newborn children per adult parrot in South Zoo equals the average number of newborn children per adult blue jay in South Zoo.
+The average number of newborn children per adult grebe in Lunarchasm Ridge equals the average number of newborn children per adult parrot in South Zoo.
+The number of adult frigatebird in Lunarchasm Ridge equals the number of adult blue jay in Bundle Ranch.
+The average number of newborn children per adult blue jay in South Zoo equals 1.
+The number of adult blue jay in South Zoo equals the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult alaskan malamute in Heavenspire Peak equals the average number of newborn children per adult parrot in South Zoo.
+The average number of newborn children per adult ball python in Heavenspire Peak equals the sum of the average number of newborn children per adult blue jay in South Zoo and the number of adult parrot in South Zoo.
+The number of adult angelfish in Skyward Pinnacle equals the sum of the average number of newborn children per adult crow in Jefferson Circus and the average number of newborn children per adult crow in South Zoo.
+The number of adult king cobra in Heavenspire Peak equals the difference between the number of adult parrot in Jefferson Circus and the average number of newborn children per adult parrot in Mayer Aquarium.
+The average number of newborn children per adult mangrove snake in Heavenspire Peak equals the average number of newborn children per adult eagle in Mayer Aquarium.
+The number of adult jackal in Heavenspire Peak equals the number of adult blue jay in Bundle Ranch.
+The number of adult aye-aye in Radiant Crest equals the average number of newborn children per adult parrot in Bundle Ranch.
+The number of adult parrot in Jefferson Circus equals 2 times the number of adult crow in Jefferson Circus.
+The number of adult maned jackal in Heavenspire Peak equals the sum of the number of adult parrot in South Zoo and the number of adult blue jay in South Zoo.
+The average number of newborn children per adult musk ox in Lunarchasm Ridge equals the difference between the average number of newborn children per adult crow in Jefferson Circus and the number of adult eagle in Bundle Ranch.
+The average number of newborn children per adult arctic fox in Lunarchasm Ridge equals the average number of newborn children per adult blue jay in South Zoo.
+The average number of newborn children per adult ivory gull in Lunarchasm Ridge equals the sum of the average number of newborn children per adult blue jay in Mayer Aquarium and the total number of newborn animal children in Starlight Summit.
+The average number of newborn children per adult butterflyfish in Starlight Summit equals the average number of newborn children per adult crow in South Zoo.
+The number of adult eagle in Mayer Aquarium equals 3 times the number of adult eagle in Bundle Ranch.
+The average number of newborn children per adult coelacanth in Starlight Summit equals the average number of newborn children per adult parrot in South Zoo.
+The number of adult ross's gull in Lunarchasm Ridge equals the difference between the number of adult crow in Jefferson Circus and the total number of newborn animal children in Astral Ridge.
+The average number of newborn children per adult king cobra in Heavenspire Peak equals the sum of the total number of adult animals in Jefferson Circus and the number of adult eagle in Mayer Aquarium.
+The number of adult barracuda in Starlight Summit equals the number of adult eagle in South Zoo.
+The number of adult milk snake in Heavenspire Peak equals the sum of the number of adult crow in Mayer Aquarium and the number of adult eagle in South Zoo.
+The number of adult jaguar in Astral Ridge equals the number of adult crow in Jefferson Circus.
+The number of adult siamese fighting fish in Starlight Summit equals the sum of the average number of newborn children per adult eagle in Bundle Ranch and the average number of newborn children per adult parrot in Mayer Aquarium.
+The average number of newborn children per adult boomslang in Heavenspire Peak equals the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult ivory gull in Lunarchasm Ridge equals the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult puffin in Lunarchasm Ridge equals the sum of the number of adult eagle in Mayer Aquarium and the average number of newborn children per adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult cormorant in Lunarchasm Ridge equals the average number of newborn children per adult blue jay in Mayer Aquarium.
+The number of adult booby in Lunarchasm Ridge equals the average number of newborn children per adult parrot in Bundle Ranch.
+The number of adult ball python in Heavenspire Peak equals the average number of newborn children per adult parrot in Bundle Ranch.
+The number of adult narwhal in Lunarchasm Ridge equals the average number of newborn children per adult crow in South Zoo.
+The number of adult king eider in Lunarchasm Ridge equals the difference between the number of adult blue jay in Mayer Aquarium and the average number of newborn children per adult parrot in South Zoo.
+The number of adult arctic hare in Lunarchasm Ridge equals the sum of the average number of newborn children per adult crow in Jefferson Circus and the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult eastern coral snake in Heavenspire Peak equals the difference between the number of adult blue jay in South Zoo and the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult guppy in Starlight Summit equals the average number of newborn children per adult blue jay in South Zoo.
+The average number of newborn children per adult penguin in Lunarchasm Ridge equals the sum of the number of adult crow in Jefferson Circus and the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult cormorant in Lunarchasm Ridge equals the sum of the number of adult parrot in Mayer Aquarium and the average number of newborn children per adult eagle in South Zoo.
+The average number of newborn children per adult arctic wolf in Lunarchasm Ridge equals the average number of newborn children per adult crow in Jefferson Circus.
+The average number of newborn children per adult bush viper in Heavenspire Peak equals the average number of newborn children per adult parrot in Bundle Ranch.
+The average number of newborn children per adult aye-aye in Radiant Crest equals the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult fox in Heavenspire Peak equals the sum of the number of adult blue jay in Bundle Ranch and the number of adult parrot in Mayer Aquarium.
+The number of adult hognose snake in Heavenspire Peak equals the average number of newborn children per adult parrot in Mayer Aquarium.
+The average number of newborn children per adult egret in Lunarchasm Ridge equals the sum of the number of adult crow in South Zoo and the number of adult parrot in Mayer Aquarium.
+The average number of newborn children per adult eagle in Mayer Aquarium equals the sum of the average number of newborn children per adult parrot in Jefferson Circus, the average number of newborn children per adult blue jay in Mayer Aquarium, and the total number of adult animals in South Zoo.
+The number of adult puffin in Lunarchasm Ridge equals the sum of the number of adult blue jay in Mayer Aquarium and the average number of newborn children per adult blue jay in Mayer Aquarium.
+The number of adult greyhound in Heavenspire Peak equals the number of adult parrot in South Zoo.
+The average number of newborn children per adult angelfish in Skyward Pinnacle equals the number of adult parrot in Mayer Aquarium.
+The average number of newborn children per adult king eider in Lunarchasm Ridge equals the number of adult crow in Mayer Aquarium.
+The average number of newborn children per adult ostrich in Etherreach Cliffs equals the average number of newborn children per adult eagle in Mayer Aquarium.
+The average number of newborn children per adult leopard seal in Lunarchasm Ridge equals the difference between the number of adult eagle in South Zoo and the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult green anaconda in Heavenspire Peak equals the difference between the average number of newborn children per adult blue jay in Bundle Ranch and the number of adult parrot in South Zoo.
+The average number of newborn children per adult eyelash viper in Heavenspire Peak equals the sum of the average number of newborn children per adult crow in Jefferson Circus and the number of adult crow in South Zoo.
+The number of adult alaskan malamute in Heavenspire Peak equals the number of adult parrot in South Zoo.
+The number of adult leopard seal in Lunarchasm Ridge equals the difference between the average number of newborn children per adult crow in Mayer Aquarium and the number of adult parrot in Mayer Aquarium.
+The average number of newborn children per adult hammerhead shark in Starlight Summit equals the difference between the average number of newborn children per adult crow in South Zoo and the number of adult blue jay in Bundle Ranch.
+The number of adult chihuahua in Heavenspire Peak equals the average number of newborn children per adult eagle in South Zoo.
+The number of adult taiwan beauty snake in Heavenspire Peak equals the sum of the average number of newborn children per adult eagle in Bundle Ranch and the average number of newborn children per adult parrot in South Zoo.
+The average number of newborn children per adult surgeonfish in Starlight Summit equals the total number of adult animals in Jefferson Circus.
+The average number of newborn children per adult scarlet macaw in Silvermist Highlands equals the number of adult crow in South Zoo.
+The average number of newborn children per adult walrus in Lunarchasm Ridge equals the average number of newborn children per adult crow in South Zoo.
+The average number of newborn children per adult collared lemming in Lunarchasm Ridge equals the number of adult blue jay in South Zoo.
+The number of adult boomslang in Heavenspire Peak equals the number of adult parrot in Mayer Aquarium.
+The number of adult greenland shark in Lunarchasm Ridge equals the sum of the average number of newborn children per adult parrot in Jefferson Circus and the number of adult eagle in Bundle Ranch.
+The average number of newborn children per adult heron in Lunarchasm Ridge equals the sum of the average number of newborn children per adult blue jay in South Zoo and the number of adult crow in South Zoo.
+The average number of newborn children per adult caribou in Lunarchasm Ridge equals the sum of the total number of adult animals in South Zoo and the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult african bush elephant in Cloudveil Plateau equals the average number of newborn children per adult eagle in Bundle Ranch.
+The average number of newborn children per adult polar bear in Lunarchasm Ridge equals the difference between the number of adult blue jay in Bundle Ranch and the average number of newborn children per adult blue jay in Bundle Ranch.
+The number of adult eagle in South Zoo equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult crow in Jefferson Circus.
+The average number of newborn children per adult milk snake in Heavenspire Peak equals the difference between the number of adult eagle in South Zoo and the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult gannet in Lunarchasm Ridge equals the sum of the number of adult eagle in Mayer Aquarium and the average number of newborn children per adult crow in Jefferson Circus.
+The average number of newborn children per adult clownfish in Starlight Summit equals the difference between the number of adult crow in Jefferson Circus and the average number of newborn children per adult crow in South Zoo.
+The average number of newborn children per adult pufferfish in Starlight Summit equals the average number of newborn children per adult eagle in Mayer Aquarium.
+The number of adult grebe in Lunarchasm Ridge equals the difference between the number of adult crow in Jefferson Circus and the number of adult crow in Mayer Aquarium.
+The average number of newborn children per adult arctic tern in Lunarchasm Ridge equals the sum of the number of adult crow in South Zoo and the total number of newborn animal children in Cloudveil Plateau.
+The number of adult albatross in Lunarchasm Ridge equals the number of adult blue jay in South Zoo.
+The average number of newborn children per adult marlin in Starlight Summit equals the number of adult blue jay in Mayer Aquarium.
+The number of adult crow in Jefferson Circus equals 4 plus the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult frigatebird in Lunarchasm Ridge equals the difference between the total number of adult animals in South Zoo and the number of adult parrot in Jefferson Circus.
+The average number of newborn children per adult ross's gull in Lunarchasm Ridge equals the number of adult parrot in Mayer Aquarium.
+The number of adult arctic tern in Lunarchasm Ridge equals the total number of adult animals in South Zoo.
+The number of adult kittiwake in Lunarchasm Ridge equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult parrot in Mayer Aquarium.
+The number of adult parrot in Mayer Aquarium equals 2 times the average number of newborn children per adult parrot in Mayer Aquarium.
+The average number of newborn children per adult sandpiper in Lunarchasm Ridge equals the number of adult parrot in South Zoo.
+The average number of newborn children per adult dovekie in Lunarchasm Ridge equals the average number of newborn children per adult crow in South Zoo.
+The number of adult blue tang in Starlight Summit equals the sum of the number of adult eagle in Mayer Aquarium and the average number of newborn children per adult crow in Jefferson Circus.
+The average number of newborn children per adult parrot in Bundle Ranch equals 3.
+The average number of newborn children per adult poodle in Heavenspire Peak equals the sum of the average number of newborn children per adult blue jay in South Zoo and the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult razorbill in Lunarchasm Ridge equals the difference between the number of adult blue jay in South Zoo and the total number of adult animals in Jefferson Circus.
+The average number of newborn children per adult cayote in Heavenspire Peak equals the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult bowhead whale in Lunarchasm Ridge equals the sum of the average number of newborn children per adult parrot in Mayer Aquarium and the number of adult parrot in Mayer Aquarium.
+The number of adult clownfish in Starlight Summit equals the difference between the number of adult parrot in South Zoo and the number of adult crow in Mayer Aquarium.
+The number of adult box jellyfish in Aurora Crags equals the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult angelfish in Starlight Summit equals the number of adult crow in Mayer Aquarium.
+The number of adult emerald tree boa in Heavenspire Peak equals the sum of the average number of newborn children per adult parrot in Bundle Ranch and the number of adult blue jay in South Zoo.
+The average number of newborn children per adult narwhal in Lunarchasm Ridge equals the difference between the number of adult blue jay in Bundle Ranch and the total number of newborn animal children in Skyward Pinnacle.
+The average number of newborn children per adult siberian husky in Heavenspire Peak equals the number of adult crow in Jefferson Circus.
+The average number of newborn children per adult greyhound in Heavenspire Peak equals the average number of newborn children per adult blue jay in South Zoo.
+The average number of newborn children per adult golden retriever in Heavenspire Peak equals the number of adult blue jay in Bundle Ranch.
+The number of adult collared lemming in Lunarchasm Ridge equals the sum of the average number of newborn children per adult blue jay in South Zoo and the total number of newborn animal children in Silvermist Highlands.
+The average number of newborn children per adult fox in Heavenspire Peak equals the sum of the number of adult crow in Jefferson Circus and the number of adult parrot in Mayer Aquarium.
+The number of adult arctic fox in Lunarchasm Ridge equals the difference between the average number of newborn children per adult parrot in Jefferson Circus and the total number of newborn animal children in Aurora Crags.
+The average number of newborn children per adult reticulated python in Heavenspire Peak equals the sum of the average number of newborn children per adult eagle in Bundle Ranch and the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult eagle in Bundle Ranch equals 2 plus the average number of newborn children per adult blue jay in South Zoo.
+The average number of newborn children per adult rainbow boa in Heavenspire Peak equals the average number of newborn children per adult crow in South Zoo.
+The number of adult arctic wolf in Lunarchasm Ridge equals the number of adult parrot in South Zoo.
+The average number of newborn children per adult basenji in Heavenspire Peak equals the difference between the average number of newborn children per adult parrot in Mayer Aquarium and the number of adult crow in Mayer Aquarium.
+The number of adult blue racer in Heavenspire Peak equals the total number of adult animals in Jefferson Circus.
+The average number of newborn children per adult siamese fighting fish in Starlight Summit equals the sum of the average number of newborn children per adult blue jay in South Zoo and the number of adult blue jay in Mayer Aquarium.
+The number of adult russell's viper in Heavenspire Peak equals the sum of the average number of newborn children per adult parrot in Mayer Aquarium and the average number of newborn children per adult crow in Jefferson Circus.
+The average number of newborn children per adult puffin in Lunarchasm Ridge equals the sum of the average number of newborn children per adult blue jay in Bundle Ranch and the number of adult crow in Mayer Aquarium.
+The number of adult walrus in Lunarchasm Ridge equals the difference between the average number of newborn children per adult parrot in Mayer Aquarium and the total number of adult animals in Jefferson Circus.
+The average number of newborn children per adult coyote in Heavenspire Peak equals the difference between the average number of newborn children per adult parrot in Mayer Aquarium and the number of adult parrot in Jefferson Circus.
+The average number of newborn children per adult harp seal in Lunarchasm Ridge equals the sum of the average number of newborn children per adult parrot in Mayer Aquarium and the number of adult parrot in Jefferson Circus.
+The number of adult bush viper in Heavenspire Peak equals the number of adult parrot in Mayer Aquarium.
+The number of adult dovekie in Lunarchasm Ridge equals the sum of the number of adult crow in Mayer Aquarium and the number of adult parrot in Bundle Ranch.
+The number of adult bowhead whale in Lunarchasm Ridge equals the number of adult parrot in Bundle Ranch.
+The number of adult snowy owl in Lunarchasm Ridge equals the difference between the number of adult blue jay in South Zoo and the number of adult eagle in Bundle Ranch.
+The number of adult dingo in Heavenspire Peak equals the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult yellow tang in Starlight Summit equals the sum of the average number of newborn children per adult crow in Jefferson Circus and the number of adult eagle in South Zoo.
+The average number of newborn children per adult blue racer in Heavenspire Peak equals the number of adult blue jay in Mayer Aquarium.
+The average number of newborn children per adult skimmer in Lunarchasm Ridge equals the sum of the average number of newborn children per adult crow in South Zoo and the number of adult parrot in Mayer Aquarium.
+The number of adult marlin in Starlight Summit equals the average number of newborn children per adult parrot in Bundle Ranch.
+The number of adult penguin in Lunarchasm Ridge equals the average number of newborn children per adult crow in South Zoo.
+The number of adult parrot in South Zoo equals 3.
+The number of adult african wild dog in Heavenspire Peak equals the difference between the average number of newborn children per adult crow in Jefferson Circus and the average number of newborn children per adult parrot in South Zoo.
+The number of adult ostrich in Etherreach Cliffs equals the sum of the number of adult eagle in Bundle Ranch and the average number of newborn children per adult eagle in Mayer Aquarium.
+The average number of newborn children per adult african wild dog in Heavenspire Peak equals the number of adult crow in South Zoo.
+The average number of newborn children per adult parrot in Mayer Aquarium equals the sum of the average number of newborn children per adult blue jay in Mayer Aquarium, the average number of newborn children per adult crow in South Zoo, and the number of adult parrot in Jefferson Circus.
+The number of adult blue jay in Mayer Aquarium equals the average number of newborn children per adult crow in Jefferson Circus.
+The number of adult pelican in Lunarchasm Ridge equals the difference between the average number of newborn children per adult parrot in South Zoo and the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult blue jay in Bundle Ranch equals 4.
+The average number of newborn children per adult new guinea singing dog in Heavenspire Peak equals the sum of the average number of newborn children per adult parrot in Bundle Ranch and the average number of newborn children per adult parrot in Mayer Aquarium.
+The number of adult fennec fox in Heavenspire Peak equals the sum of the average number of newborn children per adult eagle in Mayer Aquarium and the number of adult crow in South Zoo.
+The number of adult sandpiper in Lunarchasm Ridge equals the average number of newborn children per adult eagle in South Zoo.
+The number of adult yellow tang in Starlight Summit equals the number of adult blue jay in South Zoo.
+The average number of newborn children per adult crow in Mayer Aquarium equals the sum of the number of adult eagle in Bundle Ranch, the number of adult blue jay in Bundle Ranch, the total number of adult animals in South Zoo, and the number of adult crow in Mayer Aquarium.
+The average number of newborn children per adult arctic hare in Lunarchasm Ridge equals the difference between the number of adult parrot in South Zoo and the total number of newborn animal children in Etherreach Cliffs.
+The number of adult coelacanth in Starlight Summit equals the number of adult parrot in South Zoo.
+The number of adult skimmer in Lunarchasm Ridge equals the difference between the average number of newborn children per adult blue jay in Bundle Ranch and the number of adult parrot in Jefferson Circus.
+The average number of newborn children per adult shiba inu in Heavenspire Peak equals the difference between the number of adult parrot in Jefferson Circus and the average number of newborn children per adult crow in South Zoo.
+The average number of newborn children per adult greenland shark in Lunarchasm Ridge equals the average number of newborn children per adult parrot in Bundle Ranch.
+The number of adult cayote in Heavenspire Peak equals the average number of newborn children per adult parrot in Jefferson Circus.
+The average number of newborn children per adult razorbill in Lunarchasm Ridge equals the number of adult blue jay in Mayer Aquarium.
+The number of adult gaboon viper in Heavenspire Peak equals the sum of the number of adult parrot in Jefferson Circus and the number of adult blue jay in Bundle Ranch.
+The number of adult dhole in Heavenspire Peak equals the difference between the number of adult crow in South Zoo and the average number of newborn children per adult crow in Jefferson Circus.
+The average number of newborn children per adult copperhead in Heavenspire Peak equals the difference between the average number of newborn children per adult crow in South Zoo and the number of adult parrot in Bundle Ranch.
+The average number of newborn children per adult russell's viper in Heavenspire Peak equals the average number of newborn children per adult parrot in Jefferson Circus.
+The number of adult heron in Lunarchasm Ridge equals the average number of newborn children per adult eagle in Mayer Aquarium.
+The number of adult basenji in Heavenspire Peak equals the average number of newborn children per adult crow in Mayer Aquarium.
+The number of adult flamingo in Lunarchasm Ridge equals the difference between the average number of newborn children per adult eagle in South Zoo and the average number of newborn children per adult crow in South Zoo.
+How many adult parrot does Mayer Aquarium have?
