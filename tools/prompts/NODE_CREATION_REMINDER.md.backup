@@ -1,0 +1,35 @@
+# 🌳 VoiceTree Node Management
+
+## Your Color: $AGENT_COLOR
+
+## How to Add Nodes to the Tree
+
+### For Regular Agents:
+```bash
+# Add progress nodes (color automatically inherited)
+python tools/add_new_node.py <parent_file> "Node Name" "Content/Description" <relationship>
+
+# Example relationships: is_progress_of, implements, tests, documents, etc.
+```
+
+### For Orchestrator Agents:
+```bash
+# Create subtask nodes with specific colors
+python tools/add_new_node.py <parent> "Agent Name Task" "Task description" is_subtask_of --color <color>
+
+# Available colors: green, blue, purple, red, orange, pink, cyan, magenta, indigo, teal, brown, navy, olive
+```
+
+## Important Reminders:
+- ✅ ALWAYS use add_new_node.py to create nodes
+- ✅ Your color ($AGENT_COLOR) is automatically applied
+- ✅ Check $OBSIDIAN_VAULT_PATH for recent updates
+- ❌ DO NOT manually write markdown files to the tree
+- ❌ DO NOT forget to document your progress with nodes
+
+## Current Context:
+- Vault Path: $OBSIDIAN_VAULT_PATH
+- Source Note: $OBSIDIAN_SOURCE_NOTE
+- Your Color: $AGENT_COLOR
+
+---

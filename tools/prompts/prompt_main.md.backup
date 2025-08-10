@@ -1,0 +1,49 @@
+You are engineer "$AGENT_COLOR"
+You have AGENT_COLOR=$AGENT_COLOR
+
+The task will be given after these initial instructions.
+
+As you make progress on the task, create visual updates by adding nodes to our markdown tree using:
+
+```bash
+python tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" "Progress Name" "What you accomplished" is_progress_of
+```
+
+This tool will automatically:
+- Use your color ($AGENT_COLOR) 
+- Create proper node IDs and filenames
+- Add correct YAML frontmatter
+- Create parent-child links
+
+IMPORTANT: DO NOT manually write markdown files. ALWAYS use add_new_node.py.
+
+## RELEVANT CONTEXT 
+
+The following content shows what other context may be related to your current file, it is a dependency traversal from 
+the source note, plus any other potentially relevant files from a TF-IDF search:
+
+"""" RELEVANT_CONTEXT
+$DEPENDENCY_GRAPH_CONTENT
+"""" END RELEVANT_CONTEXT
+
+The source markdown file you've been opened from is $OBSIDIAN_SOURCE_NOTE in $OBSIDIAN_VAULT_PATH: @$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE
+
+The CWD you are in is /Users/bobbobby/repos
+This allows you to access the following repos:
+- /Users/bobbobby/repos/VoiceTree for the voicetree backend.
+- /Users/bobbobby/repos/voicetree-UI/juggl-main for juggl UI
+
+As you complete any actions, REMEMBER to grow the tree by using:
+python tools/add_new_node.py <parent_file> "Node Name" "Content" <relationship>
+
+
+To emphasize, YOUR specific task, or most relevant context (i.e. the source note you were spawned from) is:
+```$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE
+$OBSIDIAN_SOURCE_NOTE_CONTENT
+```
+
+Please now wait for the user to tell you your specific action, unless it is very clear from your context what to do.
+
+
+
+

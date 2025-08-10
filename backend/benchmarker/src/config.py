@@ -21,7 +21,7 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "VT yt visionary demo",
         "max_words": 63 * 10 + 1,
         "processing_mode": "line",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        "currently_active": True
+        # "currently_active": True
     },
 
     {
@@ -70,5 +70,13 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "max_words": None,
         "processing_mode": "line",  # Process line by line for structured data
         # "currently_active": True
+    },
+    {
+        "file": "backend/benchmarker/input/nolima_twohop_spain.txt",
+        "name": "NoLiMa Two-Hop Spain Question",
+        "max_words": None,
+        "processing_mode": "line",  # Process as complete context with embedded needle
+        "currently_active": True,
+        "description": "NoLiMa benchmark: Find 'Megan saw Garden of Earthly Delights' and infer Spain via Prado Museum"
     }
 ]

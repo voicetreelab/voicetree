@@ -89,11 +89,11 @@ async def process_single_transcript(transcript_info):
         # print(f"Output folder: backend/benchmarker/output/{transcript_identifier}/")
         print(f"{'='*60}\n")
 
-        await sleep(1)
+        # await sleep(1)
         print("Loading Whisper model 'mobiuslabsgmbh/faster-whisper-large-v3-turbo'...")
-        await sleep(1)
+        # await sleep(1)
         print("Whisper voice to text ready to transcribe")
-        await sleep(10)
+        # await sleep(10)
 
         # Create a processor instance for this transcript
         processor = TranscriptProcessor()

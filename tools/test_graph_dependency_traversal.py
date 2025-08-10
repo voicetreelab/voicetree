@@ -202,6 +202,102 @@ class TestGraphDependencyTraversal(unittest.TestCase):
         # Its child should also be found
         self.assertIn("21_2_Recursive_Traversal_Example.md", output)
         self.assertIn("clarifies_recursion_in", output)
+    
+    def test_actual_problem_case(self):
+        """Test the actual problem case from issue 14116 - should traverse to parent."""
+        # Create a test scenario similar to the problem
+        # We'll use an existing test file structure
+        output = self.run_traversal("3_2_Current_Node_Placement_Algorithm.md")
+        
+        # Should find its parent (3_1)
+        self.assertIn("3_1_Node_Placement_Optimization_Design.md", output)
+        
+        # Should also find the grandparent (3) if it exists in content
+        # Check that we traverse UP the hierarchy
+        file_count = output.count("File:")
+        self.assertGreaterEqual(file_count, 2, "Should traverse to at least parent node")
+        
+        # Verify parent content is actually included, not just mentioned
+        self.assertIn("Node Placement Optimization Design", output)
+    
+    def test_bidirectional_traversal(self):
+        """Test that traversal goes both up to parents and down to children."""
+        # Start from a middle node that has both parents and children
+        output = self.run_traversal("21_Recursive_Dependency_Traversal.md")
+        
+        # Should find the parent (node 20)
+        self.assertIn("20_Orchestration_Mode_Child_Node_Interaction.md", output)
+        self.assertIn("Orchestration Mode Child Node Interaction", output)
+        
+        # Should find the children (21_1 and 21_2)
+        self.assertIn("21_1_Recursive_Child_Traversal_Pseudocode.md", output)
+        self.assertIn("21_2_Recursive_Traversal_Example.md", output)
+        
+        # Verify content from both parent and children are included
+        self.assertIn("implements_pseudocode_for", output)  # Child relationship
+        
+        # Count that we have at least 3 files (parent + current + children)
+        file_count = output.count("File:")
+        self.assertGreaterEqual(file_count, 3, "Should traverse to parent and children")
+    
+    def test_max_depth_limit(self):
+        """Test that traversal stops at max_depth=10 even if more levels exist."""
+        # First, let's create a deep chain of test files to ensure we have >10 levels
+        test_dir = Path(self.test_vault_dir)
+        
+        # Create a chain of markdown files with parent links
+        # We'll create files in a temporary test subdirectory
+        deep_test_dir = test_dir / "deep_test"
+        deep_test_dir.mkdir(exist_ok=True)
+        
+        try:
+            # Create a chain of 15 files, each linking to the previous
+            for i in range(15):
+                filename = f"depth_{i}.md"
+                filepath = deep_test_dir / filename
+                
+                content = f"---\nnode_id: depth_{i}\ntitle: Depth Test {i}\n---\n"
+                content += f"### This is node at depth {i}\n\n"
+                
+                # Add link to parent (previous file)
+                if i > 0:
+                    parent_file = f"depth_{i-1}.md"
+                    content += f"Parent:\n- is_a_child_of [[deep_test/{parent_file}]]\n"
+                
+                filepath.write_text(content)
+            
+            # Now run traversal starting from the deepest file (depth_14.md)
+            # It should traverse up through parents but stop at depth 10
+            output = self.run_traversal("deep_test/depth_14.md")
+            
+            # Count how many files were traversed in the BRANCH section (not TF-IDF)
+            # Split output to only look at the traversed branch, not TF-IDF results
+            branch_section = output.split("RELEVANT NODES")[0] if "RELEVANT NODES" in output else output
+            file_count = branch_section.count("File: deep_test/depth_")
+            
+            # Should have exactly 11 files (depth_14 through depth_4, inclusive)
+            # That's: current (14) + 10 parent levels (13,12,11,10,9,8,7,6,5,4)
+            self.assertEqual(file_count, 11, 
+                f"Should stop at max_depth=10, got {file_count} files in traversal")
+            
+            # Verify we have the starting file in the branch section
+            self.assertIn("depth_14.md", branch_section)
+            
+            # Verify we have files up to depth 4 (10 levels up from 14) in the branch section
+            self.assertIn("depth_4.md", branch_section)
+            
+            # Verify we DON'T have files beyond depth 3 in the BRANCH section (would be 11+ levels)
+            # Note: They may appear in TF-IDF section, but not in the actual traversal
+            self.assertNotIn("File: deep_test/depth_3.md", branch_section)
+            self.assertNotIn("File: deep_test/depth_2.md", branch_section)
+            self.assertNotIn("File: deep_test/depth_1.md", branch_section)
+            self.assertNotIn("File: deep_test/depth_0.md", branch_section)
+            
+        finally:
+            # Clean up test files
+            import shutil
+            if deep_test_dir.exists():
+                shutil.rmtree(deep_test_dir)
 
 
 if __name__ == "__main__":
