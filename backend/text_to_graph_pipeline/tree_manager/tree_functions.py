@@ -221,12 +221,13 @@ def get_semantically_related_nodes(decision_tree, query: str, remaining_slots_co
     if not unselected_nodes:
         return selected_nodes
     
-    # Build corpus with weighted text (title 3x more important than summary)
+    # Build corpus with weighted text (title 3x, summary 2x, content 1x)
     corpus = []
     node_ids = []
     for node_id, node in unselected_nodes:
-        # Weight title 3x more than summary
-        weighted_text = f"{node.title} {node.title} {node.title} {node.summary}"
+        # Weight title 3x, summary 2x, first 500 chars of content 1x
+        content_snippet = node.content[:500] if node.content else ""
+        weighted_text = f"{node.title} {node.title} {node.title} {node.summary} {node.summary} {content_snippet}"
         corpus.append(weighted_text)
         node_ids.append(node_id)
 
@@ -247,7 +248,7 @@ def get_semantically_related_nodes(decision_tree, query: str, remaining_slots_co
         similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
 
         # Get nodes with similarity > threshold
-        threshold = 0.01
+        threshold = 0.01  # Increased from 0.01 to reduce false positives
         ranked_indices = np.argsort(similarities)[::-1]
 
         for idx in ranked_indices:

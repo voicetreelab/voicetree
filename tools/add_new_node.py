@@ -11,7 +11,7 @@ import argparse
 from pathlib import Path
 
 
-def addNewNode(parent_file, name, markdown_content, relationship_to, color_override=None):
+def addNewNode(parent_file, name, markdown_content, relationship_to, color_override=None, agent_name_override=None):
     """
     Add a new node to the VoiceTree structure.
     
@@ -21,6 +21,7 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
         markdown_content (str): Content for the new node's markdown file
         relationship_to (str): Relationship type to parent (e.g., "is_a_component_of", "is_a_feature_of")
         color_override (str, optional): Override color instead of using AGENT_COLOR env var
+        agent_name_override (str, optional): Override agent name instead of using AGENT_NAME env var
     
     Returns:
         str: Path to the newly created file
@@ -30,6 +31,12 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
         color = color_override
     else:
         color = os.environ.get('AGENT_COLOR', 'blue')
+    
+    # Get agent name from override or environment
+    if agent_name_override:
+        agent_name = agent_name_override
+    else:
+        agent_name = os.environ.get('AGENT_NAME', None)
     # Get parent directory and parent filename
     parent_path = Path(parent_file)
     parent_dir = parent_path.parent
@@ -76,18 +83,20 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     sanitized_content = '\n'.join(sanitized_lines)
     
     # Create the new node content with frontmatter
-    new_content = f"""---
-node_id: {new_node_id}
-title: {name} ({new_node_id})
-color: {color}
----
-{sanitized_content}
-
------------------
-_Links:_
-Parent:
-- {relationship_to} [[{parent_dir.name}/{parent_filename}]]
-"""
+    frontmatter_lines = [
+        "---",
+        f"node_id: {new_node_id}",
+        f"title: {name} ({new_node_id})",
+        f"color: {color}"
+    ]
+    
+    # Add agent_name to frontmatter if available
+    if agent_name:
+        frontmatter_lines.append(f"agent_name: {agent_name}")
+    
+    frontmatter_lines.append("---")
+    
+    new_content = "\n".join(frontmatter_lines) + f"\n{sanitized_content}\n\n-----------------\n_Links:_\nParent:\n- {relationship_to} [[{parent_dir.name}/{parent_filename}]]"
     
     # Write the new file
     with open(new_file_path, 'w', encoding='utf-8') as f:
@@ -139,13 +148,13 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Regular agent use (color from AGENT_COLOR env var):
+  # Regular agent use (color and name from env vars):
   python add_new_node.py parent.md "Task Manager" "Manages tasks" is_a_component_of
   
-  # Orchestrator creating subtask with specific color:
-  python add_new_node.py parent.md "Bob Subtask" "Implement feature X" is_subtask_of --color green
+  # Orchestrator creating subtask with specific color and name:
+  python add_new_node.py parent.md "Bob Subtask" "Implement feature X" is_subtask_of --color green --agent-name Bob
   
-Note: Color is taken from AGENT_COLOR env var unless --color override is specified
+Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden
         """
     )
     
@@ -154,6 +163,7 @@ Note: Color is taken from AGENT_COLOR env var unless --color override is specifi
     parser.add_argument("markdown_content", help="Content for the new node's markdown file")
     parser.add_argument("relationship_to", help="Relationship type to parent (e.g., is_a_component_of, is_a_feature_of)")
     parser.add_argument("--color", dest="color_override", help="Override color (for orchestrator agents creating subtasks)")
+    parser.add_argument("--agent-name", dest="agent_name_override", help="Override agent name (for orchestrator agents creating subtasks)")
     
     args = parser.parse_args()
     
@@ -163,7 +173,8 @@ Note: Color is taken from AGENT_COLOR env var unless --color override is specifi
             args.name,
             args.markdown_content,
             args.relationship_to,
-            args.color_override
+            args.color_override,
+            args.agent_name_override
         )
         print(f"\nSuccess! New node created at: {new_file}")
     except Exception as e:

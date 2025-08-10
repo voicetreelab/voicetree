@@ -73,10 +73,26 @@ DEFAULT_TEST_TRANSCRIPTS = [
     },
     {
         "file": "backend/benchmarker/input/nolima_twohop_spain.txt",
-        "name": "NoLiMa Two-Hop Spain Question",
+        "name": "NoLiMa Two-Hop Spain Question (Short)",
         "max_words": None,
         "processing_mode": "line",  # Process as complete context with embedded needle
-        "currently_active": True,
+        "currently_active": False,
         "description": "NoLiMa benchmark: Find 'Megan saw Garden of Earthly Delights' and infer Spain via Prado Museum"
+    },
+    {
+        "file": "backend/benchmarker/input/nolima_8k_spain.txt",
+        "name": "NoLiMa 8K Context Spain Question",
+        "max_words": None,
+        "processing_mode": "line",  # Process full 8K context with embedded needle
+        "currently_active": False,
+        "description": "NoLiMa 8K benchmark: Find 'Calvin saw Garden of Earthly Delights' at 50% depth and infer Spain"
+    },
+    {
+        "file": "backend/benchmarker/input/nolima_16k_vegan.txt",
+        "name": "NoLiMa 16K Context Vegan Question",
+        "max_words": None,
+        "processing_mode": "line",  # Process full 16K context with embedded needle
+        "currently_active": True,
+        "description": "NoLiMa 16K commonsense: Find 'Katie is vegan' at 50% depth and infer cannot eat omelette"
     }
 ]

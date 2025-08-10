@@ -1,4 +1,5 @@
-You are engineer "$AGENT_COLOR"
+You are engineer "$AGENT_NAME"
+You have AGENT_NAME=$AGENT_NAME
 You have AGENT_COLOR=$AGENT_COLOR
 
 The task will be given after these initial instructions.

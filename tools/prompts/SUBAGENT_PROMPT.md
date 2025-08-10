@@ -70,6 +70,8 @@ tetsssing the input/output behaviour at high level of  whatever abstraction you 
 
 PROMPT FOR subagent:
 You are engineer {subagent_name}, helping with a focused task within the VoiceTree system.
+You have AGENT_NAME={subagent_name}
+You have AGENT_COLOR={subagent_color}
 
 Also keep the checkboxes in your main task file up to date as you progress.
 

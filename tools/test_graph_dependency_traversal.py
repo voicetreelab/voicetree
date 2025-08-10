@@ -240,6 +240,145 @@ class TestGraphDependencyTraversal(unittest.TestCase):
         file_count = output.count("File:")
         self.assertGreaterEqual(file_count, 3, "Should traverse to parent and children")
     
+    def test_directory_path_resolution(self):
+        """Test that parent links without directory prefixes are resolved correctly."""
+        # Create test files in a dated subdirectory to simulate the real issue
+        test_dir = Path(self.test_vault_dir)
+        dated_dir = test_dir / "2025-test" 
+        dated_dir.mkdir(exist_ok=True)
+        
+        try:
+            # Create parent file
+            parent_file = dated_dir / "test_parent.md"
+            parent_content = """---
+node_id: test_parent
+title: Test Parent
+---
+### This is the parent node
+Some content here."""
+            parent_file.write_text(parent_content)
+            
+            # Create child file with link WITHOUT directory prefix (the issue we're fixing)
+            child_file = dated_dir / "test_child.md"
+            child_content = """---
+node_id: test_child
+title: Test Child
+---
+### This is the child node
+
+-----------------
+_Links:_
+Parent:
+- is_child_of [[test_parent.md]]"""
+            child_file.write_text(child_content)
+            
+            # Create grandchild to test deeper traversal
+            grandchild_file = dated_dir / "test_grandchild.md"
+            grandchild_content = """---
+node_id: test_grandchild  
+title: Test Grandchild
+---
+### This is the grandchild node
+
+-----------------
+_Links:_
+Parent:
+- is_child_of [[test_child.md]]"""
+            grandchild_file.write_text(grandchild_content)
+            
+            # Run traversal from grandchild
+            output = self.run_traversal("2025-test/test_grandchild.md")
+            
+            # Should find all three levels
+            self.assertIn("test_grandchild", output)
+            self.assertIn("test_child", output) 
+            self.assertIn("test_parent", output)
+            
+            # Verify the full chain is traversed
+            branch_section = output.split("RELEVANT NODES")[0] if "RELEVANT NODES" in output else output
+            file_count = branch_section.count("File: 2025-test/test_")
+            self.assertEqual(file_count, 3, 
+                f"Should traverse all 3 levels with directory resolution, got {file_count}")
+            
+            # Verify parent content is included
+            self.assertIn("This is the parent node", output)
+            self.assertIn("This is the child node", output)
+            self.assertIn("This is the grandchild node", output)
+            
+        finally:
+            # Clean up test files
+            import shutil
+            if dated_dir.exists():
+                shutil.rmtree(dated_dir)
+    
+    def test_mixed_link_formats(self):
+        """Test handling of mixed link formats (with and without directory prefixes)."""
+        test_dir = Path(self.test_vault_dir)
+        mixed_dir = test_dir / "mixed-test"
+        mixed_dir.mkdir(exist_ok=True)
+        
+        try:
+            # Create a chain with mixed link formats
+            # Node A (root)
+            node_a = mixed_dir / "node_a.md"
+            node_a.write_text("""---
+node_id: node_a
+title: Node A
+---
+### Root node A""")
+            
+            # Node B links to A with full path
+            node_b = mixed_dir / "node_b.md"
+            node_b.write_text("""---
+node_id: node_b
+title: Node B
+---
+### Node B
+Parent:
+- links_to [[mixed-test/node_a.md]]""")
+            
+            # Node C links to B without directory
+            node_c = mixed_dir / "node_c.md"
+            node_c.write_text("""---
+node_id: node_c
+title: Node C
+---
+### Node C
+Parent:
+- links_to [[node_b.md]]""")
+            
+            # Node D links to C without directory
+            node_d = mixed_dir / "node_d.md"
+            node_d.write_text("""---
+node_id: node_d
+title: Node D  
+---
+### Node D
+Parent:
+- links_to [[node_c.md]]""")
+            
+            # Run traversal from D
+            output = self.run_traversal("mixed-test/node_d.md")
+            
+            # Should find all four nodes
+            branch_section = output.split("RELEVANT NODES")[0] if "RELEVANT NODES" in output else output
+            
+            self.assertIn("Node A", branch_section)
+            self.assertIn("Node B", branch_section)
+            self.assertIn("Node C", branch_section)
+            self.assertIn("Node D", branch_section)
+            
+            # Count files in branch
+            file_count = branch_section.count("File: mixed-test/node_")
+            self.assertEqual(file_count, 4,
+                f"Should traverse all 4 levels with mixed formats, got {file_count}")
+            
+        finally:
+            # Clean up
+            import shutil
+            if mixed_dir.exists():
+                shutil.rmtree(mixed_dir)
+    
     def test_max_depth_limit(self):
         """Test that traversal stops at max_depth=10 even if more levels exist."""
         # First, let's create a deep chain of test files to ensure we have >10 levels

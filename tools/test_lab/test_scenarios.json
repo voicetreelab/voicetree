@@ -98,7 +98,7 @@
       "name": "Hook-Based Instruction Injection Test",
       "description": "Test agent response to dynamically injected instructions via hooks during execution",
       "source_content": "We need to document the integration process for calling the Gemini LLM from our VoiceTree system.",
-      "agent_prompt": "Create a progress node documenting pseudocode for integrating Gemini 1.5 Pro into VoiceTree. Include example API calls and basic error handling. As part of your workflow, periodically check the vault directory for any new nodes that may contain updated requirements from the user (especially node_id 99).",
+      "agent_prompt": "Create a progress node documenting pseudocode for integrating Gemini 1.5 Pro into VoiceTree. Include example API calls and basic error handling.",
       "hook_injection": {
         "enabled": true,
         "delay_seconds": 3,

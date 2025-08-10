@@ -18,8 +18,6 @@
 "hooks" : {
   "UserPromptSubmit": [
     {
-      "description": "Periodic reminders about tree updates and node creation",
-      "interval": 3,
       "hooks": [
         {
           "type": "command",
@@ -33,41 +31,12 @@
       "description": "Summary reminder to check created nodes",
       "hooks": [
         {
-          "type": "message",
-          "message": "🌳 Remember to review the nodes you created. Use 'ls -la $OBSIDIAN_VAULT_PATH' to see all files."
+          "type": "command",
+          "command": "echo '🌳 Remember to review the nodes you created, and new possibly relevant nodes. Use \"ls -la $OBSIDIAN_VAULT_PATH\" to see all files.'"
         },
         {
           "type": "command",
           "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
-        }
-      ]
-    }
-  ],
-  "SessionStart": [
-    {
-      "description": "Cloud environment initialization hooks",
-      "matcher": {
-        "environment": ["cloud", "remote"]
-      },
-      "hooks": [
-        {
-          "type": "command",
-          "command": "echo 'Initializing cloud environment for VoiceTree'"
-        }
-      ]
-    }
-  ],
-  "PreToolUse": [
-    {
-      "description": "Cloud tool validation for sensitive operations",
-      "matcher": {
-        "tools": ["Bash", "Write", "Edit"]
-      },
-      "hooks": [
-        {
-          "type": "command",
-          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/cloud_validation.py",
-          "timeout": 5000
         }
       ]
     }
