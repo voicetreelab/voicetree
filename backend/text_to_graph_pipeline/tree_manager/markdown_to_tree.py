@@ -69,6 +69,16 @@ class MarkdownToTreeConverter:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
         
+        # Extract tags from the first line if they exist
+        tags = []
+        lines = content.split('\n')
+        if lines and lines[0].strip().startswith('#'):
+            # Extract hashtags from first line
+            tag_line = lines[0].strip()
+            tags = re.findall(r'#(\w+)', tag_line)
+            # Remove the tag line from content
+            content = '\n'.join(lines[1:])
+        
         # Extract YAML frontmatter
         frontmatter_match = re.match(r'^---\n(.*?)\n---\n', content, re.DOTALL)
         if not frontmatter_match:
@@ -115,6 +125,10 @@ class MarkdownToTreeConverter:
         node.created_at = created_at
         node.modified_at = modified_at
         node.filename = filename
+        
+        # Set tags if they were extracted
+        if tags:
+            node.tags = tags
         
         # Extract any additional metadata fields
         if 'color' in metadata:

@@ -59,7 +59,7 @@ async def run_clustering_analysis(tree: Dict[int, Node]) -> None:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                print(f"Running tagging with model: gemini-2.5-flash-lite (attempt {attempt + 1}/{max_retries})")
+                print(f"Running clustering (attempt {attempt + 1}/{max_retries})")
                 # Pass existing tags and target count for entire tree
                 tagging_response = await clustering_agent.run(
                     formatted_nodes, 
