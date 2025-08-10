@@ -179,8 +179,18 @@ def traverse_bidirectional(
         print(f"{' ' * (depth * 2)}  Found {len(parent_links)} parent links: {parent_links}")
         
         for parent_file in parent_links:
-            # Check if the parent file exists in the markdown directory
-            if (markdown_dir / parent_file).exists():
+            # First try the link as-is (absolute path from markdown_dir)
+            parent_path = markdown_dir / parent_file
+            
+            # If not found and link doesn't have a directory, try in the same directory as current file
+            if not parent_path.exists() and '/' not in parent_file:
+                current_file_dir = Path(start_file).parent
+                if str(current_file_dir) != '.':
+                    # Try in the same directory as the current file
+                    parent_file = str(current_file_dir / parent_file)
+                    parent_path = markdown_dir / parent_file
+            
+            if parent_path.exists():
                 parent_results = traverse_bidirectional(
                     parent_file, markdown_dir, visited, file_cache, 
                     depth + 1, max_depth, 'parents'  # Only go up when following parents

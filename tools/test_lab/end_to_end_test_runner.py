@@ -65,12 +65,14 @@ Parent:
         
     def create_hook_injection_node(self, test_dir, injection_content, node_name="URGENT_INSTRUCTION_UPDATE"):
         """Create a hook injection node after agent has started"""
-        # Generate a unique node ID for the injection
-        injection_node = test_dir / f"99_{node_name}.md"
+        # Generate a random node ID to prevent cheating
+        import random
+        node_id = random.randint(100, 999)
+        injection_node = test_dir / f"{node_id}_{node_name}.md"
         
         injection_node_content = f"""---
-node_id: 99
-title: {node_name} (99)
+node_id: {node_id}
+title: {node_name} ({node_id})
 color: blue
 ---
 ## User Feedback
@@ -92,7 +94,7 @@ Parent:
         return injection_node
         
     def run_headless_agent_test(self, source_note_path, test_prompt, expected_behaviors=None, hook_injection=None):
-        """Run agent test using claude -p for headless execution with optional hook injection"""
+        """Run agent test using the actual VoiceTree agent system with optional hook injection"""
         test_id = str(uuid.uuid4())[:8]
         self.current_test = {
             'id': test_id,
@@ -104,16 +106,10 @@ Parent:
             'status': 'running'
         }
         
-        # Set up environment variables
+        # Set up environment variables for the VoiceTree agent system
         env = os.environ.copy()
         env['OBSIDIAN_VAULT_PATH'] = str(self.test_vault_root)
-        env['OBSIDIAN_SOURCE_NOTE'] = source_note_path.relative_to(self.test_vault_root)
-        env['AGENT_COLOR'] = 'test_blue'
-        
-        # Create test prompt file
-        prompt_file = self.test_vault_root / f"test_prompt_{test_id}.md"
-        with open(prompt_file, 'w') as f:
-            f.write(test_prompt)
+        env['OBSIDIAN_SOURCE_NOTE'] = str(source_note_path.relative_to(self.test_vault_root))
             
         # Set up hook injection if enabled
         injection_thread = None
@@ -133,28 +129,27 @@ Parent:
             injection_thread.daemon = True
             
         try:
-            # Run claude with -p (prompt from file) for headless execution
-            cmd = [
-                'claude', 
-                '--model', 'sonnet',
-                '--max-turns', '10',
-                '--settings', str(self.voicetree_root / '.claude/settings.json'),
-                '-p', str(prompt_file)
-            ]
+            # Use the actual VoiceTree agent system via claude.sh
+            cmd = ['bash', str(self.voicetree_root / 'tools' / 'claude.sh')]
             
-            print(f"Running headless test: {cmd}")
+            print(f"Running agent via VoiceTree system: {cmd}")
+            print(f"  OBSIDIAN_VAULT_PATH: {env['OBSIDIAN_VAULT_PATH']}")
+            print(f"  OBSIDIAN_SOURCE_NOTE: {env['OBSIDIAN_SOURCE_NOTE']}")
             
             # Start hook injection thread if configured
             if injection_thread:
                 injection_thread.start()
                 
+            # Run with headless mode by adding --max-turns to limit execution
+            # We need to modify claude.sh or pass the flag through
             result = subprocess.run(
                 cmd,
-                cwd=str(self.voicetree_root),
+                cwd=str(self.voicetree_root / 'tools'),
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
+                input="exit\n"  # Send exit command to terminate after processing
             )
             
             self.current_test.update({
@@ -166,9 +161,6 @@ Parent:
                 'execution_time': (datetime.now() - self.current_test['start_time']).total_seconds()
             })
             
-            # Clean up prompt file
-            prompt_file.unlink(missing_ok=True)
-            
             return result
             
         except subprocess.TimeoutExpired:
@@ -177,7 +169,6 @@ Parent:
                 'status': 'timeout',
                 'error': 'Test timed out after 300 seconds'
             })
-            prompt_file.unlink(missing_ok=True)
             return None
             
         except Exception as e:
@@ -186,7 +177,6 @@ Parent:
                 'status': 'error',
                 'error': str(e)
             })
-            prompt_file.unlink(missing_ok=True)
             return None
             
     def validate_test_output(self, test_dir, check_for_phrase=None):
@@ -194,7 +184,7 @@ Parent:
         validations = {
             'new_nodes_created': False,
             'proper_node_ids': False,
-            'color_consistency': False,
+            'agent_identity': False,  # Check for agent_name or color
             'parent_child_links': False,
             'yaml_frontmatter': False,
             'content_format': False
@@ -224,9 +214,9 @@ Parent:
                 if content.startswith('---') and 'node_id:' in content and 'title:' in content:
                     validations['yaml_frontmatter'] = True
                     
-                # Check color consistency
-                if 'color: test_blue' in content:
-                    validations['color_consistency'] = True
+                # Check agent identity (agent_name or color)
+                if 'agent_name:' in content or 'color:' in content:
+                    validations['agent_identity'] = True
                     
                 # Check parent-child links
                 if '_Links:_' in content and 'Parent:' in content:
@@ -252,10 +242,12 @@ Parent:
         
         # Setup
         test_dir = self.setup_test_environment()
-        source_note = self.create_dummy_source_note(test_dir, scenario_name, source_content)
+        # Combine source_content and test_prompt as the agent would receive it
+        full_content = f"{source_content}\n\n### Task:\n{test_prompt}"
+        source_note = self.create_dummy_source_note(test_dir, scenario_name, full_content)
         
-        # Execute
-        result = self.run_headless_agent_test(source_note, test_prompt, expected_behaviors, hook_injection)
+        # Execute (no need to pass test_prompt separately since it's in the source note)
+        result = self.run_headless_agent_test(source_note, "", expected_behaviors, hook_injection)
         
         if result is None:
             print(f"❌ Test failed to execute: {self.current_test.get('error', 'Unknown error')}")
@@ -287,10 +279,14 @@ Parent:
         if result.stderr:
             print(f"\nStderr:\n{result.stderr[:200]}...")
             
-        # Cleanup
-        self.cleanup_test_environment()
-        
+        # Calculate success before cleanup
         success = passed_validations >= total_validations * 0.7  # 70% pass rate
+        
+        # Cleanup only if successful (keep failed tests for debugging)
+        if success:
+            self.cleanup_test_environment()
+        else:
+            print(f"❗ Test vault preserved for debugging: {self.test_vault_root}")
         print(f"Overall Result: {'✅ PASS' if success else '❌ FAIL'}")
         
         return success

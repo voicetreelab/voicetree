@@ -361,7 +361,6 @@ Current chunk broken down into segments to analyze:
 
 
 INPUT DATA:
-WITH THIS PARTICULAR INPUT DATA YOU ARE NEVER ALLOWED TO MAKE ORPHANS, EXCEPT IF NO NODES EXIST (initial input)
 ```
 Overall Text:
 "...{{transcript_history}}"

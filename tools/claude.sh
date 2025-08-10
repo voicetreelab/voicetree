@@ -7,4 +7,4 @@ source "$(dirname "$0")/common_agent_setup.sh"
 run_common_setup
 
 # Substitute environment variables in the prompt file and pass to claude with settings
-envsubst < /Users/bobbobby/repos/VoiceTree/tools/prompts/prompt_main.md | claude --dangerously-skip-permissions --settings /Users/bobbobby/repos/VoiceTree/.claude/settings.json
+envsubst < /Users/bobbobby/repos/VoiceTree/tools/prompts/prompt_main.md | claude --dangerously-skip-permissions --debug --settings /Users/bobbobby/repos/VoiceTree/.claude/settings.json

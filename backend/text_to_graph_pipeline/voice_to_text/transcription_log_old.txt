@@ -2442,3 +2442,45 @@ Thank you.
 Perfect.
 Thank you.
 Thank you.
+Okay, what are we working on now?
+Um, um,
+so
+We want to be able to run the benchmark on LongLemur.
+And we have an agent working on creating the system for that right now. We're creating a Python file called Get Voice Tree Nodes.
+Um...
+We're also working on our test lab in parallel with an agent working on the test lab.
+Um,
+And we have an agent working on.
+Max depth and traversal which I think is done we can close that agent
+Nice.
+Now we see a problem with the test lab, which is the test lab should be testing our actual end-to-end flow where we create an agent from a node on the graph and it gets given automatic instructions.
+Um, and so we shouldn't be giving the agent any specific instructions.
+because
+That's just a bad idea.
+We want the test lab to mimic the real world, and the real world should already have sufficient
+instructions for the agents to create new nodes. And so if they're not, then that's a real test failure.
+Did you already figure out a plot of it? You've made it.
+No.
+big
+Okay, does that make sense?
+That's your hat. That's great. Okay.
+I also have just one little fix-up we're gonna have to make where we need to make give agents unique names Which are not just their colors because we have limited colors An agent could clash with a color But we don't have limited name
+create basically infinite first names.
+Um,
+And so we currently use
+the agent name to for when it gets tree update reminders it has a scene set for each agent name but currently agent names are just colors so we need to have a differentiate between an agent color and an agent
+Okay.
+Thank you.
+Thank you.
+You
+Are we going to the gym?
+You
+Oh
+Brilliant, just brilliant.
+Good app.
+When I love.
+He went all out.
+Oh my God.
+Hmm.
+Bugged.
+Thank you.

@@ -12,9 +12,10 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-def get_agent_state_file(agent_color):
+def get_agent_state_file(agent_name):
     """Get the CSV state file path for this agent."""
-    return Path(f"seen_nodes_{agent_color}.csv")
+    # Use agent name for unique tracking, fallback to color for backward compatibility
+    return Path(f"seen_nodes_{agent_name}.csv")
 
 def load_seen_files(state_file):
     """Load previously seen files from CSV."""
@@ -41,9 +42,9 @@ def save_seen_files(state_file, new_files):
     except Exception:
         pass
 
-def get_new_nodes(vault_path, agent_color):
+def get_new_nodes(vault_path, agent_name):
     """Find new markdown files this agent hasn't seen before."""
-    state_file = get_agent_state_file(agent_color)
+    state_file = get_agent_state_file(agent_name)
     seen_files = load_seen_files(state_file)
     
     new_nodes = []
@@ -80,23 +81,40 @@ def is_orchestrator_task(source_note):
 
 def main():
     # Read the hook input from stdin
-    hook_input = json.load(sys.stdin)
+    try:
+        hook_input = json.load(sys.stdin)
+        # Debug: save the input to see what Claude sends
+        with open('/tmp/hook_debug.json', 'w') as f:
+            json.dump(hook_input, f, indent=2)
+    except:
+        hook_input = {}
+    
+    # Get the hook event name from the input
+    # Claude uses 'hook_event_name' not 'hookEvent'
+    hook_event = hook_input.get('hook_event_name', hook_input.get('hookEvent', 'UserPromptSubmit'))
     
     # Get environment variables
+    agent_name = os.environ.get('AGENT_NAME', None)
     agent_color = os.environ.get('AGENT_COLOR', 'blue')
     vault_path = os.environ.get('OBSIDIAN_VAULT_PATH', 'markdownTreeVault')
     source_note = os.environ.get('OBSIDIAN_SOURCE_NOTE', '')
+    
+    # Use agent name if available, otherwise fallback to color for backward compatibility
+    agent_identifier = agent_name if agent_name else agent_color
     
     # Determine if this is an orchestrator or regular agent
     is_orchestrator = is_orchestrator_task(source_note)
     
     # Check for new tree updates this agent hasn't seen
-    new_nodes = get_new_nodes(vault_path, agent_color)
+    new_nodes = get_new_nodes(vault_path, agent_identifier)
     
     # Build reminder message
     messages = []
     
-    messages.append(f"🎨 Your color: {agent_color}")
+    if agent_name:
+        messages.append(f"👤 Agent: {agent_name} (color: {agent_color})")
+    else:
+        messages.append(f"🎨 Your color: {agent_color}")
     
     if is_orchestrator:
         # Orchestrator-specific reminders
@@ -115,11 +133,55 @@ def main():
         messages.append(f"📍 Context: {source_note}")
     
     
-    # Return the reminder as a system message
-    print(json.dumps({
-        "action": "message",
-        "message": "\n".join(messages)
-    }))
+    # Return appropriate format based on the hook event
+    if hook_event == "Stop":
+        # For Stop event, check if there are important new nodes to review
+        if new_nodes and len(new_nodes) > 0:
+            # Block the stop if there are new nodes that might be relevant
+            important_nodes = [n for n in new_nodes if 'update' in n.lower() or 'requirement' in n.lower() or 'urgent' in n.lower()]
+            
+            if important_nodes:
+                # Read the content of important nodes to show the agent
+                node_contents = []
+                for node in important_nodes[:2]:  # Limit to first 2 important nodes
+                    try:
+                        node_path = Path(vault_path) / node
+                        if node_path.exists():
+                            with open(node_path, 'r') as f:
+                                content = f.read()
+                                # Extract just the main content after frontmatter
+                                if '---' in content:
+                                    parts = content.split('---', 2)
+                                    if len(parts) > 2:
+                                        content = parts[2].strip()
+                                node_contents.append(f"📌 {node}:\n{content[:500]}")  # First 500 chars
+                    except:
+                        pass
+                
+                if node_contents:
+                    print(json.dumps({
+                        "decision": "block",  # Block the stop
+                        "reason": f"⚠️ IMPORTANT: New nodes detected that may affect your task!\n\n" + 
+                                 "\n\n".join(node_contents) + 
+                                 "\n\n🔄 Please review these updates and modify your work if needed, then you may stop."
+                    }))
+                    sys.exit(0)
+        
+        # Don't block if no important new nodes - return approve decision
+        print(json.dumps({
+            "decision": "approve",  # Allow the stop (not "null")
+            "reason": "\n".join(messages) if messages else "No new important updates"
+        }))
+        sys.exit(0)
+    else:
+        # For UserPromptSubmit, use the hookSpecificOutput format
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",  # Must be exactly "UserPromptSubmit"
+                "additionalContext": "\n".join(messages)
+            }
+        }))
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
