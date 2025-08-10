@@ -56,14 +56,23 @@ You will also have to explain this to your subagents
 ### 3. Color Coding and subagent naming for Visual Progress Tracking
 
 - Assign each subagent a unique name for their markdown subtask file
-- Assign each subagent a unique color for their markdown files:
+- Assign each subagent a unique color for their markdown files
+- Use the add_new_node.py tool with --color to create subtask nodes:
 
+```bash
+# Creating a subtask node with specific color for subagent
+python tools/add_new_node.py <parent_file> "Bob implement feature" "Task description" is_subtask_of --color green
+```
+
+This will create a node with:
 ```yaml
 ---
-color: {subagent_COLOR}
-title: {subagent_NAME_{subtask_name} (i_j)
+color: green
+title: Bob implement feature (i_j)
 ---
 ```
+
+When the subagent is spawned on this node, they will automatically inherit the green color for all their progress nodes.
 
 ### 5. Creating Module Contracts
 When subagents need to work on interconnected modules, create a module contract
@@ -104,6 +113,25 @@ AND TELL YOUR subagentS TO DO THE SAME.
 4. **Shared Documentation**: Keep task tracking in shared markdown vault
 5. **Module Contracts**: Define interfaces before parallel development begins
 
+
+## Example Workflow for Creating Subagent Tasks
+
+1. **Orchestrator creates subtasks with specific colors using full SUBAGENT_PROMPT.md template:**
+```bash
+# Create Bob's subtask (green) - content should be filled from SUBAGENT_PROMPT.md template
+python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Bob implement auth" "$(cat /Users/bobbobby/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Bob/g')" is_subtask_of --color green
+
+# Create Alice's subtask (blue) - content should be filled from SUBAGENT_PROMPT.md template  
+python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Alice create tests" "$(cat /Users/bobbobby/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Alice/g')" is_subtask_of --color blue
+
+# Create Charlie's subtask (purple) - content should be filled from SUBAGENT_PROMPT.md template
+python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Charlie write docs" "$(cat /Users/bobbobby/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Charlie/g')" is_subtask_of --color purple
+```
+
+2. **When subagents are spawned:**
+- They automatically inherit their task node's color
+- All their progress nodes will have consistent color
+- Visual tracking shows each agent's work clearly
 
 Okay, now think! What's the best way to split up this task? Propose it to me now. 
 Your proposed subtask files should all be named <agent_name>_subtask_name, 

@@ -74,26 +74,32 @@ You are engineer {subagent_name}, helping with a focused task within the VoiceTr
 Also keep the checkboxes in your main task file up to date as you progress.
 
 **Instructions for subagents**:
-- Add color: {color} to YAML frontmatter of all markdown files you create
-- Use your assigned color ({color}) consistently
-ANY MARKDOWN FILE YOU CREATE MUST HAVE THIS COLOR in YAML FRONTMATTER
-AND MUST HAVE YOUR NAME PREPENDED TO IT, 
-e.g.
-BOB_fix_xyz_impl_3_1_1.md
----
-color: {color}
-name: BOB fix xyz impl (3_1_1)
+- Your color has been automatically assigned based on your task node
+- Use the add_new_node.py tool to create progress nodes:
 
-- This enables visual progress tracking in Obsidian/markdown viewers
+```bash
+# Creating detailed progress nodes with Mermaid diagrams (color automatically inherited from AGENT_COLOR)
+python tools/add_new_node.py <parent_file> "Progress Update" "## Summary\n[What was accomplished]\n\n## Technical Details\n- **Files Modified**: [list]\n- **Key Changes**: [changes]\n\n## Architecture Diagram\n```mermaid\nflowchart TD\n    A[Input] --> B[Process]\n    B --> C[Output]\n```\n\n## Impact\n[System effects]" is_progress_of
+```
 
-e.g.
----
-color: {color}
----
+The tool will automatically:
+- Use your inherited color (no need to specify)
+- Create proper node IDs and filenames
+- Add correct YAML frontmatter
+- Create parent-child links
 
-When creating additional files connected to your source task, extending the markdown tree, ensure the new files are connected by markdown links
-e.g. `[[{task_file_stem}]]`
-For each of these new files, ensure the yaml front matter has `color: {color}`
+Example: If you're agent BOB with color green, your nodes will automatically have:
+```yaml
+---
+color: green
+title: Progress Update (i_j_k)
+---
+```
+
+IMPORTANT: 
+- DO NOT manually write markdown files to the tree
+- ALWAYS use add_new_node.py for adding nodes
+- Your color is already set in AGENT_COLOR environment variable
 
 Okay excellent. Here are the first four steps you should do:
 1. read your subtask markdown file (already included above)
