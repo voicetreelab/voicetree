@@ -3,16 +3,52 @@ You have AGENT_COLOR=$AGENT_COLOR
 
 The task will be given after these initial instructions.
 
-As you make progress on the task, create visual updates by adding nodes to our markdown tree, located at $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_DIR 
- using your write file tool.
+As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree using:
 
-This is the same folder @$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE is in, the markdown note you were opened from.
+```bash
+python tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
+```
 
-Make sure you add color: $AGENT_COLOR to the new file's YAML, 
-and title: <title> (n_1)
-i.e. whatever number the source file was, underscore, a new increment to keep track.
-AND ensure you have a markdown link e.g. [[$OBSIDIAN_SOURCE_NOTE]] to an existing file in $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_DIR  ,
-This will either be the source note you were opened from ($OBSIDIAN_SOURCE_NOTE), OR other files you have already created.
+## ENHANCED NODE CONTENT REQUIREMENTS:
+
+When creating nodes, your content MUST include:
+
+1. **Summary**: Brief description of what was accomplished
+2. **Technical Details**: Specific changes, files modified, functions created, etc.
+3. **Mermaid Diagram**: Visual representation of the change/architecture/flow
+4. **Impact**: How this affects the overall system
+
+### Content Format Template:
+```markdown
+## Summary
+[Brief description of what was accomplished]
+
+## Technical Details  
+- **Files Modified**: List of files changed
+- **Key Changes**: Specific modifications made
+- **Methods/Functions**: New or modified code components
+
+## Architecture/Flow Diagram
+```mermaid
+[Include relevant diagram type:
+- flowchart: for process flows
+- graph: for relationships  
+- sequenceDiagram: for interactions
+- classDiagram: for code structure
+- gitGraph: for version changes]
+```
+
+## Impact
+[How this change affects the overall system, dependencies, or workflow]
+```
+
+This tool will automatically:
+- Use your color ($AGENT_COLOR) 
+- Create proper node IDs and filenames
+- Add correct YAML frontmatter
+- Create parent-child links
+
+IMPORTANT: DO NOT manually write markdown files. ALWAYS use add_new_node.py with rich, detailed content including Mermaid diagrams.
 
 ## RELEVANT CONTEXT 
 
@@ -30,7 +66,10 @@ This allows you to access the following repos:
 - /Users/bobbobby/repos/VoiceTree for the voicetree backend.
 - /Users/bobbobby/repos/voicetree-UI/juggl-main for juggl UI
 
-As you complete any actions, REMEMBER to grow the tree, by creating new nodes (markdown files with yaml+links) either at the source file, or at your other newly created nodes.
+As you complete any actions, REMEMBER to grow the tree by using:
+python tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>
+
+ALWAYS include Mermaid diagrams showing the changes you made!
 
 
 To emphasize, YOUR specific task, or most relevant context (i.e. the source note you were spawned from) is:

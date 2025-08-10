@@ -13,6 +13,21 @@ check_obsidian_env() {
 
 # Function to assign a random color to the agent
 assign_agent_color() {
+    # Check if markdown source note already contains a color in frontmatter
+    local SOURCE_NOTE_PATH="$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE"
+    
+    if [ -f "$SOURCE_NOTE_PATH" ]; then
+        # Extract color from YAML frontmatter if it exists
+        local EXISTING_COLOR=$(grep -A 20 '^---$' "$SOURCE_NOTE_PATH" | grep '^color:' | sed 's/color: *//' | tr -d '\r\n' | head -1)
+        
+        if [ ! -z "$EXISTING_COLOR" ]; then
+            export AGENT_COLOR="$EXISTING_COLOR"
+            echo "Using existing color from source note: $AGENT_COLOR"
+            return
+        fi
+    fi
+    
+    # If no color found, assign a random one
     # Array of available colors for agents
     local COLORS=("red" "green" "blue" "purple" "orange" "pink" "cyan" "magenta" "indigo" "teal" "brown" "navy" "olive")
     
@@ -20,7 +35,7 @@ assign_agent_color() {
     local RANDOM_INDEX=$((RANDOM % ${#COLORS[@]}))
     export AGENT_COLOR="${COLORS[$RANDOM_INDEX]}"
     
-    echo "Assigned color: $AGENT_COLOR to this agent session"
+    echo "Assigned random color: $AGENT_COLOR to this agent session"
 }
 
 # Function to generate dependency graph content
