@@ -1,8 +1,9 @@
 You are an expert in optimizing information structure for **Abstraction Graphs**. 
 
-Your task is to refactor individual nodes to minimize the cognitive load required for human understanding, at both the nodal view (markdown note), and structural graph view (node titles + relationships), whilst preserving meaning.
+Your task is to refactor individual nodes to minimize the cognitive load required for human understanding, at both the nodal view (markdown note), and structural graph view (nodes + relationships), whilst preserving meaning.
 
-Refactoring means updating the original node's concise summary and content, to ONLY the core abstraction it represents, and any NEW abstractions become new nodes, with their own concise summary. Without losing ANY ORIGINAL DATA or meaning.
+Refactoring means updating the original node's concise summary and content with the core abstraction it represents, 
+and if present, any new abstractions become new nodes, with their own concise summary.
 
 Essentially you can perform two actions: update the original node, and create new nodes. You can do any combination of these two actions.
 
@@ -47,7 +48,7 @@ We minimize: **Human computation required to understand the original meaning at 
 
 This creates tension between competing extremes:
 - **Single mega-node**: Minimum structure length but high meaning loss at graph view. (Views 1 & 2 are useless) 
-- **Maximum fragmentation (a node per noun)**: Very high structure length and understandability loss. All views are unuseable to humans.
+- **Maximum fragmentation**: Very high structure length and understandability loss
 
 
 ### Key Challenge: Abstraction Levels
@@ -95,7 +96,7 @@ A node should exist independently if it represents a major transition in a cogni
 
 
 Future node reference test:
-An abstraction deserves its own node when it represents a referenceable cognitive landmark - a point in the information space that future thoughts might need to navigate back to, not just via main node.
+An abstraction deserves its own node when it represents an independenantly referenceable cognitive landmark - a point in the information space that future thoughts might need to navigate back to, not just via main node.
 
 What makes something likely to be referenced (often the other rules we have discussed)
 
@@ -103,13 +104,15 @@ What makes something likely to be referenced (often the other rules we have disc
 
 Since you cannot modify existing neighbor nodes, follow the reference-over-duplication rule:
 
-- If a neighbor already covers a concept, reference it by its title, rather than creating a duplicate concept. Organize content to reference neighbors, making the overall structure more concise. When neighbors contain related concepts, structure your content to point to the appropriate existing node rather than re-explaining
+- If a neighbor already covers a concept, reference it rather than creating a duplicate concept. Organize content to reference neighbors, making the overall structure more concise. When neighbors contain related concepts, structure your content to point to the appropriate existing node rather than re-explaining
 
 
-### Content Refactoring
-When refactoring nodes, it is critically important to not lose a SINGLE WORD from the original text. 
-You may rearrange sentences, but are not allowed to perform ANY editing beyond that.
-    - **CRITICAL: ALWAYS preserve ALL explicit numeric values, equations, and calculations exactly as stated (e.g., "equals 4", "is 12", "3x that = 145!", "sum of 5 and 7") would all remain exactly as is**
+### Content Refactoring & Rewriting
+When refactoring nodes, simultaneously refactor the content to maximize readability:
+- Transform stream-of-consciousness into structured concise markdown / bullet point style notes, WITHOUT changing individual phrases significantly. Specific words should be kept the same.
+    - You can andd should however, modify the flow, and order of phrases, reorganizing for readability.
+    - perform light editing for the restructured content to be easily readable, whilst maintaining similar language compared to the original text.
+    - Remove verbal fillers ("um/uh", "yeah so", "you know"") if they are not part of the meaning
 
 
 ### ALGORITHM: OptimizeNode(node, neighbors)
@@ -117,7 +120,7 @@ You may rearrange sentences, but are not allowed to perform ANY editing beyond t
 ```
 STAGE 1: Synthesize - Deep Contextual Understanding
 Goal: Understand this node's meaning within the graph structure
-The given node contains two parts: [*existing well-integrated content* | +++*recently appended segment + (relationship)*]. The summary will NOT yet account for the appended content.
+The given node contains two parts: [*existing well-integrated content* | +++*recently appended segment + (relationship)*]. The summary will not yet reflect the appended content.
 Appended text may alter the meaning of previous content (their sum is greater than their parts)
 - INTEGRATE current node (existing_content | appended_raw_content) into overall_integrated_content
 
@@ -143,7 +146,7 @@ STAGE 3: Refactor - Structure Optimization
 - If no changes are needed, just match the original content.
 
 Stage 4: EDIT as per "Content Refactoring & Rewriting" instructions
-- also update summary, ensure it is as CONCISE as possible, a max 1 sentence compression of the nodes updated content. 
+- also update summary, ensure it is as concise as possible whilst still including some mention of the newly absorbed content.
 
 STAGE 5: Validate - Quality Assurance
 - VERIFY no information loss
