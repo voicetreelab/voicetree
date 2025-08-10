@@ -2179,3 +2179,248 @@ Oh, so no context, it's already indicated the tree and all progress is being sav
 Okay.
 Thank you.
 You
+Alright, we made one mistake.
+in the create agent sub-agents
+When they create the subtasks, they need to fill out all the content already in the tools slash prompt slash subagent prompt.md
+and create the MD file of that template filled out. How should we do that?
+we have some options
+But the problem is...
+that in...
+the create sub-agents command.
+dot MD It gives an example of creating sub tasks Not using the template, but rather just using a string Like an example string
+which is misleading. So you wanna fix that example.
+in the createSubAgentCommand.md on line 117. It's in the git diff as well, you can just check the git diff for it.
+Thank you.
+You
+Thank you.
+Okay another problem I have I think is that the cloud hook configuration so the cloud settings dot JSON file
+which is in the tools folder.
+Um...
+I don't think the format of that JSON looks correct. I think there should be an outer hooks.
+thing and I also want to move that file to our project
+or global or local.
+code settings.
+Um...
+So let's fix the type.
+the json the format of the json and integrate it with our normal settings
+Thank you.
+I'll see you next time.
+Thank you.
+You
+We'll be right back.
+Thank you.
+You
+fix that when I give you a massage.
+I'll see you next time.
+Hmm.
+Okay, now I want an agent.
+To for me
+Create a detailed architecture diagram.
+of the current.
+system for launching agents.
+The key files we have for launching agents.
+and what prompts they get for the orchestrator agent or the subtosk agent.
+Um,
+And as a hint.
+I know that this system currently starts when you launch dot slash clod dot sh.
+So when you run dot slash cloud dot sh
+I think...
+that does something.
+Um...
+It calls like a common agent script.
+And then the common agent script.
+calls Claude with the prompt main file.
+So yeah, you have to figure all of this out by looking at the code.
+You
+I'll see you next time.
+Thank you.
+I'll see you next time.
+I'll see you next time.
+Okay, our current tree update reminder.py.
+which is meant to send agents updates when new nodes have been added to the tree. That is...
+It's not.
+What am I trying to say?
+It's not good, it's overly complex. All we want to do is look for new files that have been created.
+the folder maybe we can just use a set of scene markdown files and a CSV for that might be the easiest
+that actually could be really easy.
+and then if the file hasn't been seen before.
+Oh, actually, we can just run.
+Uh...
+Yeah, yeah, let's just save state in a CSV. That's the best. So tree update reminder should just send over the
+recently added nodes to the markdown folder that haven't been
+sent out yeah actually we can just do that that haven't been
+Files that have been modified in the last like two minutes
+And then we don't even need it.
+keep state except for has this been called two minutes ago and then you're only including
+Do we do it so that you're only seeing so that whoever calls it only sees files updates they haven't seen before? No, let's just do everything
+Oh, fuck. Actually, it's really hard. I know it's a hard problem to solve, but I know what to do.
+Thank you.
+You
+I'll see you next time.
+I thought you were going to help mom.
+Yeah, where is she?
+Okay, if you get a hero.
+Can you hear the lights on as well?
+Turn the lights on.
+Bye.
+I'll see you next time.
+I'll see you next time.
+Okay, now I want an agent to please help me brainstorm ways to test this whole...
+So I think we have somewhere made a read-me of the whole agent orchestration system, and we now want to understand.
+test it so I don't need to manually test it.
+So currently what I manually do is I start a voice tree, I open a terminal or an agent, and then I need to figure out like what hooks it got.
+And you figure out what what got injected into its prompt if it looks about right And then when that agent creates a new file
+I need to make sure that that new file is the right color, that I actually remembered to add a new file.
+So I think what I need...
+I need a little to make like a like a testing lab
+Um, right. Like where I have like an example set up where, where we actually do call an agent.
+So like an end-to-end system test. We do actually call an agent on a dummy task.
+and then that agent actually creates a subtask.
+And then we see what the subtasks actually look like and we can just view the output full
+So we want like an end-to-end system test of like what the user would be doing
+You
+Thank you.
+You
+We'll be right back.
+I'll see you next time.
+I'll see you next time.
+You
+Knudler, a bit of a slar thing.
+Hmm.
+No.
+Do you need me to?
+Mmm.
+computer okay I'll look in a minute yeah me too
+it's
+And I'm on the face train. Mm-hmm.
+Here's a distraction.
+Mommy, can I have a...
+Dessert
+Okay, I'm logging into your thing.
+Check for send grid
+Thank you.
+Mm-hmm.
+I haven't.
+Can you put it on?
+Is this something? Look at all my agents work.
+What are they working on?
+Voice tree.
+The black ones are the eight.
+Yeah.
+I need an adapter for them.
+Two two nine three
+You
+Tell them all that
+I'm trying to sign in yeah
+I already tried of one account.
+Was not working. Do I have that?
+Yeah, it's how you send email.
+It's a great sport for you.
+No, it's the other one.
+Where do I need to go?
+Maybe I should do it afterwards.
+Is that good? Yeah.
+I need a two-factor authentication.
+Okay, but I'm not getting it
+and my computer is running out of bed.
+Do you know I always get bills from your bill remains of
+Yeah, but I paid it now, right?
+Yeah, I assume you always just pay it.
+it is it should be automatic today at 1 30 a.m
+It's overdue? Yeah.
+78.38
+Okay, I didn't pay that. Okay, put credit card. I'll give you my credit card. Just do it now. But is it really not a scam message?
+But do you usually pay because I never pay?
+You want me to pay now?
+It's the seventh. Last number is for two.
+Why don't oh
+I think I just...
+at the bottom there's a date 0128
+We have to do it.
+Two, three, one.
+I must be wrong here, critic.
+Oh, mom.
+You
+Thank you.
+Thank you.
+You
+Thank you.
+Thank you.
+.
+Thank you.
+Thank you.
+Thank you.
+All right, testing one.
+Retesting.
+All right, so today we want to get Voicetree to be able to handle the NoLima benchmark.
+um and so the first step is just cloning that repo we let's clone that into
+Yeah, for now, let's just clone it into VoiceTree itself so that it makes it easy to work on.
+um
+All right, so that's going to involve.
+going
+to the GitHub and pulling it.
+Okay, thanks everyone.
+Git clone
+Nice, that got cloned.
+And now we're going to have to sort of.
+Investigate.
+Um...
+the NoLima repository.
+Um...
+um
+So, yeah, we want to investigate the repository.
+um research what what's the first thing we need to in research is um we need to figure out what the actual data sets look like so we can have just like a look through an example question on this benchmark and figure out exactly what what that looks like
+Oh, you made it! That's it.
+Okay, and then what I'm realizing right now, while just using this to test VoiceTree, is that we have a problem with the Python script that traverses.
+the dependency graph to inject relevant content.
+launch an agent. That is not working right now.
+um it oh it doesn't actually do the full traversal it just gets the uh parent know that you're launched from and it's and then it just doesn't actually do a traversal to the dependents
+which is a problem.
+Thank you.
+Thank you.
+Thank you. Love that.
+Thank you.
+Okay.
+Okay.
+Thank you.
+Thank you.
+Well, that's right.
+I'm going to hide.
+It's been a long time for a long time.
+Well, it was at 3,000 months.
+I didn't go back.
+Okay.
+You
+Oh
+No, one month.
+Now we're done.
+because
+We were out of the day.
+project and then do it again.
+We kind of want to have a...
+Thank you.
+It's all. It's all. It's all. It's all. It's all.
+Right.
+No, no, no, no.
+Okay. Love you, my darling. Bye.
+Let me go on with a movie.
+Thank you.
+Thank you.
+Thank you.
+Yeah.
+Hello
+All right.
+Thank you.
+What is this?
+Thank you.
+Yeah.
+Thank you.
+You
+Let's watch.
+Thank you.
+We'll do it.
+Okay. Okay.
+Thank you.
+Well
+I think
+Well,

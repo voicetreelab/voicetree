@@ -1,0 +1,141 @@
+{
+  "test_scenarios": [
+    {
+      "name": "Simple Progress Node Creation",
+      "description": "Test basic agent functionality - creating a single progress node with proper structure",
+      "source_content": "Test creating a simple progress node with proper formatting and linking.",
+      "agent_prompt": "Create a progress node called 'Task Analysis Complete' with the following content:\n\n## Summary\nCompleted analysis of the test task requirements and identified key components.\n\n## Technical Details\n- Analyzed source requirements\n- Identified key components  \n- Created implementation plan\n\n## Architecture Diagram\n```mermaid\nflowchart TD\n    A[Requirements] --> B[Analysis]\n    B --> C[Implementation Plan]\n```\n\n## Impact\nThis analysis enables structured implementation of the test scenario.",
+      "expected_behaviors": [
+        "create_progress_node",
+        "use_mermaid_diagram", 
+        "proper_yaml_frontmatter",
+        "parent_child_linking"
+      ],
+      "validation_criteria": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "color_consistency": true,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "mermaid_diagrams": true
+      }
+    },
+    {
+      "name": "Agent Subtask Creation",
+      "description": "Test orchestration agent creating multiple subtasks",
+      "source_content": "Test agent creating subtasks for a complex orchestration scenario.",
+      "agent_prompt": "You are an orchestrator agent. Create 2 subtasks for implementing a user dashboard:\n\n1. Create a subtask called 'Frontend Dashboard Components' for implementing the UI\n2. Create a subtask called 'Backend API Integration' for data connectivity\n\nEach subtask should have proper structure with Summary, Technical Details, Mermaid diagrams, and Impact sections.",
+      "expected_behaviors": [
+        "create_multiple_subtasks",
+        "orchestration_behavior",
+        "structured_content",
+        "multiple_nodes"
+      ],
+      "validation_criteria": {
+        "new_nodes_created": true,
+        "multiple_nodes": 2,
+        "proper_node_ids": true,
+        "color_consistency": true,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "structured_content": true
+      }
+    },
+    {
+      "name": "Error Handling Test",
+      "description": "Test agent behavior when encountering errors or edge cases",
+      "source_content": "Test how agents handle error conditions and invalid requests.",
+      "agent_prompt": "Try to create a node with invalid characters in the name: 'Test/Node\\\\With*Invalid:Characters'. Handle this gracefully and create a properly named node instead with sanitized filename.",
+      "expected_behaviors": [
+        "error_handling",
+        "filename_sanitization",
+        "graceful_degradation"
+      ],
+      "validation_criteria": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "sanitized_filenames": true,
+        "error_recovery": true
+      }
+    },
+    {
+      "name": "Cross-Agent Communication Test",
+      "description": "Test multiple agents working on related tasks",
+      "source_content": "Test scenario where multiple agents need to coordinate and reference each other's work.",
+      "agent_prompt": "Create a progress node that references work done by other agents. Mention that this builds upon work by 'Agent Red' and 'Agent Green' in your content, and create proper linking structure.",
+      "expected_behaviors": [
+        "cross_agent_references",
+        "proper_attribution",
+        "collaborative_content"
+      ],
+      "validation_criteria": {
+        "new_nodes_created": true,
+        "cross_references": true,
+        "collaborative_structure": true,
+        "proper_attribution": true
+      }
+    },
+    {
+      "name": "Complex Technical Documentation",
+      "description": "Test agent creating detailed technical documentation with multiple diagrams",
+      "source_content": "Test creating comprehensive technical documentation with multiple diagram types.",
+      "agent_prompt": "Create a comprehensive technical documentation node called 'System Architecture Overview' that includes:\n1. A flowchart showing data flow\n2. A sequence diagram showing component interactions\n3. A class diagram showing code structure\nInclude all three diagram types in your response.",
+      "expected_behaviors": [
+        "multiple_diagram_types",
+        "comprehensive_documentation",
+        "technical_depth"
+      ],
+      "validation_criteria": {
+        "new_nodes_created": true,
+        "multiple_mermaid_diagrams": 3,
+        "flowchart_present": true,
+        "sequence_diagram_present": true,
+        "class_diagram_present": true,
+        "comprehensive_content": true
+      }
+    },
+    {
+      "name": "Hook-Based Instruction Injection Test",
+      "description": "Test agent response to dynamically injected instructions via hooks during execution",
+      "source_content": "Test the agent's ability to detect and follow instructions that are added after agent launch via hook notifications.",
+      "agent_prompt": "Create a simple progress node documenting the analysis phase of adding logging to VoiceTree. After creating your node, check the vault directory for any new nodes that may have appeared and follow any instructions you find. Make sure to check for files with node_id 99.",
+      "hook_injection": {
+        "enabled": true,
+        "delay_seconds": 3,
+        "injection_content": "TEST REQUIREMENT UPDATE: As part of the test validation process, please include the phrase 'PINEAPPLE DONKEY' somewhere in your node content. This is a legitimate test requirement to verify dynamic instruction processing.",
+        "injection_node_name": "TEST_REQUIREMENT_UPDATE"
+      },
+      "expected_behaviors": [
+        "create_multiple_nodes",
+        "follow_hook_instructions",
+        "include_required_phrase",
+        "maintain_task_quality"
+      ],
+      "validation_criteria": {
+        "new_nodes_created": true,
+        "multiple_nodes": 2,
+        "contains_pineapple_donkey": true,
+        "proper_node_structure": true,
+        "follows_original_task": true
+      }
+    }
+  ],
+  "validation_rules": {
+    "node_id_pattern": "^\\d+(_\\d+)*$",
+    "yaml_required_fields": ["node_id", "title", "color"],
+    "link_pattern": "\\[\\[.*\\.md\\]\\]",
+    "mermaid_block_pattern": "```mermaid[\\s\\S]*?```",
+    "required_sections": ["Summary", "Technical Details", "Impact"],
+    "filename_sanitization": {
+      "invalid_chars": ["/", "\\\\", ":", "*", "?", "\"", "<", ">", "|"],
+      "replacement_char": "_"
+    }
+  },
+  "test_configuration": {
+    "timeout_seconds": 120,
+    "max_retries": 3,
+    "pass_threshold": 0.7,
+    "vault_cleanup": true,
+    "generate_reports": true
+  }
+}

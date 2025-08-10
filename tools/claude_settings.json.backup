@@ -1,0 +1,30 @@
+{
+    "UserPromptSubmit": [
+      {
+        "description": "Periodic reminders about tree updates and node creation",
+        "interval": 3,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "description": "Summary reminder to check created nodes",
+        "hooks": [
+          {
+            "type": "message",
+            "message": "🌳 Remember to review the nodes you created. Use 'ls -la $OBSIDIAN_VAULT_PATH' to see all files."
+          },
+          {
+            "type": "command",
+            "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+          }
+        ]
+      }
+    ]
+  }
+}

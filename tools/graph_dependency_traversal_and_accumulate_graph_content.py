@@ -51,6 +51,11 @@ def extract_markdown_links(content: str) -> List[str]:
     pattern = r'\[\[([^\]|]+\.md)(?:\|[^\|]+)?\]\]'
     return re.findall(pattern, content)
 
+def extract_parent_links(content: str) -> List[str]:
+    """Extract ALL markdown links as parent/dependency links."""
+    # Simply use the existing extract_markdown_links function
+    return extract_markdown_links(content)
+
 def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: Dict[str, str]) -> List[str]:
     """Find all files that reference the parent file as their parent."""
     children = []
@@ -136,6 +141,68 @@ def traverse_children_recursively(
             
     return result
 
+def traverse_bidirectional(
+    start_file: str,
+    markdown_dir: Path,
+    visited: Set[str],
+    file_cache: Dict[str, str],
+    depth: int = 0,
+    max_depth: int = 10,
+    direction: str = "both"
+) -> List[Dict[str, str]]:
+    """
+    Bidirectionally traverse the graph, following both parent and child links.
+    Direction can be: 'both', 'parents', 'children'
+    """
+    if start_file in visited or depth > max_depth:
+        return []
+    
+    visited.add(start_file)
+    
+    filepath = markdown_dir / start_file
+    
+    if start_file not in file_cache:
+        file_cache[start_file] = read_markdown_file(filepath)
+        
+    content = file_cache[start_file]
+    
+    if not content:
+        return []
+
+    print(f"{' ' * (depth * 2)}Processing: {start_file} (direction: {direction})")
+    
+    result = [{'filename': start_file, 'content': content, 'depth': depth}]
+    
+    # Traverse to parents
+    if direction in ['both', 'parents']:
+        parent_links = extract_parent_links(content)
+        print(f"{' ' * (depth * 2)}  Found {len(parent_links)} parent links: {parent_links}")
+        
+        for parent_file in parent_links:
+            # Check if the parent file exists in the markdown directory
+            if (markdown_dir / parent_file).exists():
+                parent_results = traverse_bidirectional(
+                    parent_file, markdown_dir, visited, file_cache, 
+                    depth + 1, max_depth, 'parents'  # Only go up when following parents
+                )
+                result.extend(parent_results)
+            else:
+                print(f"{' ' * (depth * 2)}  Warning: Parent link not found: {parent_file}")
+    
+    # Traverse to children
+    if direction in ['both', 'children']:
+        child_files = find_child_references(start_file, markdown_dir, file_cache)
+        print(f"{' ' * (depth * 2)}  Found {len(child_files)} children: {child_files}")
+        
+        for child_file in child_files:
+            child_results = traverse_bidirectional(
+                child_file, markdown_dir, visited, file_cache,
+                depth + 1, max_depth, 'children'  # Only go down when following children
+            )
+            result.extend(child_results)
+            
+    return result
+
 # --- Core Logic: Graph Traversal and TF-IDF ---
 
 def traverse_graph(
@@ -145,10 +212,10 @@ def traverse_graph(
     file_cache: Dict[str, str]
 ) -> List[Dict[str, str]]:
     """
-    Traverse the graph from a starting file by following child dependencies recursively.
+    Traverse the graph from a starting file by following both parent and child dependencies.
     Returns a list of dictionaries with file info and content, using a cache.
     """
-    return traverse_children_recursively(start_file, markdown_dir, visited, file_cache)
+    return traverse_bidirectional(start_file, markdown_dir, visited, file_cache)
 
 def find_top_relevant_nodes(
     traversed_content: str,

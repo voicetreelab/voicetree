@@ -1,0 +1,76 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(chmod:*)",
+      "Bash(rm:*)",
+      "Bash(./tools/test_color_flow.sh:*)",
+      "Bash(python tools/add_new_node.py:*)",
+      "Bash(python*/tools/add_new_node.py:*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "zen"
+  ],
+
+"hooks" : {
+  "UserPromptSubmit": [
+    {
+      "description": "Periodic reminders about tree updates and node creation",
+      "interval": 3,
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "description": "Summary reminder to check created nodes",
+      "hooks": [
+        {
+          "type": "message",
+          "message": "🌳 Remember to review the nodes you created. Use 'ls -la $OBSIDIAN_VAULT_PATH' to see all files."
+        },
+        {
+          "type": "command",
+          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "description": "Cloud environment initialization hooks",
+      "matcher": {
+        "environment": ["cloud", "remote"]
+      },
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Initializing cloud environment for VoiceTree'"
+        }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "description": "Cloud tool validation for sensitive operations",
+      "matcher": {
+        "tools": ["Bash", "Write", "Edit"]
+      },
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/cloud_validation.py",
+          "timeout": 5000
+        }
+      ]
+    }
+  ]
+}
+}
