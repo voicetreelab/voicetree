@@ -92,7 +92,15 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "NoLiMa 16K Context Vegan Question",
         "max_words": None,
         "processing_mode": "line",  # Process full 16K context with embedded needle
-        "currently_active": True,
+        # "currently_active": True,
         "description": "NoLiMa 16K commonsense: Find 'Katie is vegan' at 50% depth and infer cannot eat omelette"
+    },
+    {
+        "file": "backend/benchmarker/input/user_guide_qa_audio_processing.txt",
+        "name": "LongBench v2 User Guide QA - Audio Processing",
+        "max_words": None,
+        "processing_mode": "line",  # Process as complete user guide
+        "currently_active": True,
+        "description": "LongBench v2 User Guide QA: Audio processing manual (8.6K words) - requires understanding workflow after audio cutting with low clarity"
     }
 ]
