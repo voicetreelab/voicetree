@@ -209,13 +209,14 @@ def traverse_graph(
     start_file: str,
     markdown_dir: Path,
     visited: Set[str],
-    file_cache: Dict[str, str]
+    file_cache: Dict[str, str],
+    max_depth: int = 10
 ) -> List[Dict[str, str]]:
     """
     Traverse the graph from a starting file by following both parent and child dependencies.
     Returns a list of dictionaries with file info and content, using a cache.
     """
-    return traverse_bidirectional(start_file, markdown_dir, visited, file_cache)
+    return traverse_bidirectional(start_file, markdown_dir, visited, file_cache, depth=0, max_depth=max_depth)
 
 def find_top_relevant_nodes(
     traversed_content: str,
@@ -325,6 +326,7 @@ def main():
     parser.add_argument("input_files", type=str, nargs='+', help="One or more starting markdown filenames.")
     parser.add_argument("-o", "--output", type=str, default="/tmp/accumulated.md", help="The output file to write the accumulated content to.")
     parser.add_argument("-n", "--num-relevant", type=int, default=3, help="Number of relevant nodes to find.")
+    parser.add_argument("-d", "--max-depth", type=int, default=10, help="Maximum traversal depth in each direction (default: 10).")
     
     args = parser.parse_args()
     
@@ -344,7 +346,7 @@ def main():
         # or a new set for each branch if they should be treated independently.
         # For this logic, independent sets are better to show full paths for each branch.
         visited_in_branch = set()
-        branch_info = traverse_graph(start_file, markdown_path, visited_in_branch, file_cache)
+        branch_info = traverse_graph(start_file, markdown_path, visited_in_branch, file_cache, args.max_depth)
         
         if branch_info:
             all_traversed_info.append((start_file, branch_info))

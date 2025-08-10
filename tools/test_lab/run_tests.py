@@ -29,8 +29,8 @@ def run_specific_scenario(lab, scenario_config):
     check_for_phrase = None
     
     if hook_injection and hook_injection.get('enabled'):
-        # Extract the phrase we need to check for
-        check_for_phrase = "PINEAPPLE DONKEY"
+        # Extract the phrase we need to check for - looking for the model update
+        check_for_phrase = "Gemini 2.0 Flash"
     
     return lab.run_test_scenario(
         scenario_config['name'],
