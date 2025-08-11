@@ -1,10 +1,12 @@
 setuptools
+python-dotenv
 pyaudio
 SpeechRecognition
 --extra-index-url https://download.pytorch.org/whl/cu116
 torch~=2.7.1
 numpy~=1.26.4
 git+https://github.com/openai/whisper.git
+faster-whisper
 google~=3.0.0
 nltk~=3.8.1
 rake-nltk
