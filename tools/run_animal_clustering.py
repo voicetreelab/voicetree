@@ -6,6 +6,7 @@ and regenerate markdown files with cluster tags incrementally.
 
 import asyncio
 import os
+from pathlib import Path
 from typing import Dict
 from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import MarkdownToTreeConverter
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
@@ -121,8 +122,9 @@ async def main():
     """Run clustering on animal example data and regenerate markdown with tags incrementally"""
     
     # Load the animal example tree
+    # Simple relative paths from tools folder
     input_dir = "backend/benchmarker/output/igsm_op17_ip20_force_True_0_problem_question"
-    output_dir = "/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output_clustered_hard_16"
+    output_dir = "../backend/benchmarker/output_clustered_hard_16"
     
     print(f"Loading tree from: {input_dir}")
     converter = MarkdownToTreeConverter()

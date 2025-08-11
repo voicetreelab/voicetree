@@ -3,8 +3,11 @@
 # Source the common setup functions
 source "$(dirname "$0")/common_agent_setup.sh"
 
-# Run common setup
+# Run common setup (sets up environment variables)
 run_common_setup
 
+# Change to repos directory (parent of VoiceTree)
+cd ../..
+
 # Substitute environment variables in the prompt file and pass to claude with settings
-envsubst < /Users/bobbobby/repos/VoiceTree/tools/prompts/prompt_main.md | claude --dangerously-skip-permissions --debug --settings /Users/bobbobby/repos/VoiceTree/.claude/settings.json
+envsubst < VoiceTree/tools/prompts/prompt_main.md | claude --dangerously-skip-permissions --debug --settings VoiceTree/.claude/settings.json

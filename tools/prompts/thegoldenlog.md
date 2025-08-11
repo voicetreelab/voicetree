@@ -6,7 +6,7 @@ I have run VoiceTree on one of the example dataset questions:
 fairly good! Maybe some small problems.
 
 The output is here
-/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output
+$USER_ROOT_DIR/repos/VoiceTree/backend/benchmarker/output
 
 Let's test if it is now easier for you to answer the question.
 
@@ -255,18 +255,18 @@ this use case
 
 ⏺ Let me calculate the exact statistics:
 
-⏺ Bash(wc -c /Users/bobbobby/repos/VoiceTree/backend/benchmark
+⏺ Bash(wc -c $USER_ROOT_DIR/repos/VoiceTree/backend/benchmark
 er/input/owl_transcript.txt)
-⎿    18102 /Users/bobbobby/repos/VoiceTree/backend/benchmark
+⎿    18102 $USER_ROOT_DIR/repos/VoiceTree/backend/benchmark
 er/input/owl_transcript.txt
 
 
-⏺ Bash(wc -c /Users/bobbobby/repos/VoiceTree/backend/benchmark
+⏺ Bash(wc -c $USER_ROOT_DIR/repos/VoiceTree/backend/benchmark
 er/output/63_Owls_vs_Beverly_Forest_Animals_Count.md
-/Users/bobbobby/repos/VoiceTree/backend/benchm…)
-⎿      283 /Users/bobbobby/repos/VoiceTree/backend/benchmark
+$USER_ROOT_DIR/repos/VoiceTree/backend/benchm…)
+⎿      283 $USER_ROOT_DIR/repos/VoiceTree/backend/benchmark
 er/output/63_Owls_vs_Beverly_Forest_Animals_Count.md
-188 /Users/bobbobby/repos/VoiceTree/backend/benchmark
+188 $USER_ROOT_DIR/repos/VoiceTree/backend/benchmark
 … +4 lines (ctrl+r to expand)
 
 

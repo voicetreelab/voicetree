@@ -11,8 +11,12 @@ from pathlib import Path
 import tempfile
 
 class ClaudeHeadlessWrapper:
-    def __init__(self, voicetree_root="/Users/bobbobby/repos/VoiceTree"):
-        self.voicetree_root = Path(voicetree_root)
+    def __init__(self, voicetree_root=None):
+        # Simple relative path from test_lab folder if not provided
+        if voicetree_root is None:
+            self.voicetree_root = Path("../..")
+        else:
+            self.voicetree_root = Path(voicetree_root)
         self.common_setup_script = self.voicetree_root / "tools/common_agent_setup.sh"
         
     def run_headless_agent(self, source_note_path, agent_prompt, vault_path, agent_color="test_blue", timeout=120):
@@ -159,16 +163,16 @@ IMPORTANT: DO NOT manually write markdown files. ALWAYS use add_new_node.py with
 The following content shows what other context may be related to your current file, it is a dependency traversal from 
 the source note, plus any other potentially relevant files from a TF-IDF search:
 
-"""" RELEVANT_CONTEXT
+=== RELEVANT_CONTEXT ===
 {env.get('DEPENDENCY_GRAPH_CONTENT', '[No dependency context available]')}
-"""" END RELEVANT_CONTEXT
+=== END RELEVANT_CONTEXT ===
 
 The source markdown file you've been opened from is {env.get('OBSIDIAN_SOURCE_NOTE')} in {env.get('OBSIDIAN_VAULT_PATH')}: @{env.get('OBSIDIAN_VAULT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}
 
-The CWD you are in is /Users/bobbobby/repos
+The CWD you are in is the repos directory (parent of VoiceTree)
 This allows you to access the following repos:
-- /Users/bobbobby/repos/VoiceTree for the voicetree backend.
-- /Users/bobbobby/repos/voicetree-UI/juggl-main for juggl UI
+- ./VoiceTree for the voicetree backend.
+- ./voicetree-UI/juggl-main for juggl UI
 
 As you complete any actions, REMEMBER to grow the tree by using:
 python tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>

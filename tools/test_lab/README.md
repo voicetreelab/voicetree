@@ -16,7 +16,7 @@ The End-to-End Test Lab provides:
 - Python 3.8+
 - Claude CLI installed and configured
 - VoiceTree repository setup
-- Access to `/Users/bobbobby/repos/VoiceTree` (or update paths in configuration)
+- Access to `$USER_ROOT_DIR/repos/VoiceTree` (or update paths in configuration)
 
 ### Installation
 No additional installation required. The test lab uses only standard Python libraries and the existing VoiceTree environment.
@@ -25,7 +25,7 @@ No additional installation required. The test lab uses only standard Python libr
 
 Run all test scenarios:
 ```bash
-cd /Users/bobbobby/repos/VoiceTree/tools/test_lab
+cd $USER_ROOT_DIR/repos/VoiceTree/tools/test_lab
 python run_tests.py
 ```
 
@@ -163,7 +163,7 @@ After execution, a JSON report is generated containing:
 - Validation details for each scenario
 - Error messages and debugging information
 
-Report location: `/Users/bobbobby/repos/VoiceTree/test_results_TIMESTAMP.json`
+Report location: `$USER_ROOT_DIR/repos/VoiceTree/test_results_TIMESTAMP.json`
 
 ### Reading Test Results
 
@@ -191,7 +191,7 @@ print(f"Validations: {test['validations']}")
 
 **Test fails with "claude command not found"**
 - Ensure Claude CLI is installed and in your PATH
-- Verify Claude settings exist at `/Users/bobbobby/repos/VoiceTree/.claude/settings.json`
+- Verify Claude settings exist at `$USER_ROOT_DIR/repos/VoiceTree/.claude/settings.json`
 
 **Tests timeout after 120 seconds**
 - Check if your prompts are too complex

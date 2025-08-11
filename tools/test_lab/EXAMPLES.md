@@ -7,7 +7,7 @@ This document provides practical examples and usage scenarios for the VoiceTree 
 ### Example 1: Running All Tests
 
 ```bash
-cd /Users/bobbobby/repos/VoiceTree/tools/test_lab
+cd $USER_ROOT_DIR/repos/VoiceTree/tools/test_lab
 python run_tests.py
 ```
 
@@ -40,7 +40,7 @@ Total Scenarios: 5
 Passed: 5
 Failed: 0
 Pass Rate: 100.0%
-Report: /Users/bobbobby/repos/VoiceTree/test_results_20250808_143022.json
+Report: $USER_ROOT_DIR/repos/VoiceTree/test_results_20250808_143022.json
 ✅ TEST SUITE PASSED
 ```
 
@@ -284,7 +284,7 @@ python run_tests.py --scenario "Error Handling Test" --verbose
 **Output with debugging info:**
 ```
 === Running Test Scenario: Error Handling Test ===
-Running headless test: ['claude', '--model', 'sonnet', '--settings', '/Users/bobbobby/repos/VoiceTree/.claude/settings.json', '-p', '/tmp/test_prompt_def67890.md']
+Running headless test: ['claude', '--model', 'sonnet', '--settings', '$USER_ROOT_DIR/repos/VoiceTree/.claude/settings.json', '-p', '/tmp/test_prompt_def67890.md']
 Test Status: completed
 Exit Code: 0
 Execution Time: 34.21s
@@ -413,13 +413,13 @@ claude configure
 
 #### Permission Errors
 ```
-PermissionError: [Errno 13] Permission denied: '/Users/bobbobby/repos/VoiceTree/.claude/settings.json'
+PermissionError: [Errno 13] Permission denied: '$USER_ROOT_DIR/repos/VoiceTree/.claude/settings.json'
 ```
 
 **Solution:**
 ```bash
 # Fix permissions
-chmod 644 /Users/bobbobby/repos/VoiceTree/.claude/settings.json
+chmod 644 $USER_ROOT_DIR/repos/VoiceTree/.claude/settings.json
 
 # Or run with proper permissions
 sudo python run_tests.py

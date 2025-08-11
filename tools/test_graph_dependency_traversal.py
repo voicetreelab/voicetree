@@ -8,6 +8,7 @@ import unittest
 import subprocess
 import tempfile
 import json
+import os
 from pathlib import Path
 
 
@@ -17,8 +18,9 @@ class TestGraphDependencyTraversal(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test environment."""
-        cls.test_vault_dir = Path("/Users/bobbobby/repos/VoiceTree/markdownTreeVaultDefault/2025-08-03")
-        cls.script_path = Path("/Users/bobbobby/repos/VoiceTree/tools/graph_dependency_traversal_and_accumulate_graph_content.py")
+        # Simple relative paths from tools folder
+        cls.test_vault_dir = Path("../markdownTreeVaultDefault/2025-08-03")
+        cls.script_path = Path("./graph_dependency_traversal_and_accumulate_graph_content.py")
         
         # Verify test environment
         if not cls.test_vault_dir.exists():

@@ -17,8 +17,12 @@ import time
 import threading
 
 class EndToEndTestLab:
-    def __init__(self, voicetree_root="/Users/bobbobby/repos/VoiceTree"):
-        self.voicetree_root = Path(voicetree_root)
+    def __init__(self, voicetree_root=None):
+        # Simple relative path from test_lab folder if not provided
+        if voicetree_root is None:
+            self.voicetree_root = Path("../..")
+        else:
+            self.voicetree_root = Path(voicetree_root)
         self.test_vault_root = None
         self.test_results = []
         self.current_test = None
@@ -108,7 +112,10 @@ Parent:
         
         # Set up environment variables for the VoiceTree agent system
         env = os.environ.copy()
-        env['OBSIDIAN_VAULT_PATH'] = str(self.test_vault_root)
+        # Since claude.sh will cd to repos dir, we need paths relative to repos
+        # test_vault_root is at VoiceTree/test_vault_XXX, so from repos it's VoiceTree/test_vault_XXX
+        vault_path_from_repos = Path('VoiceTree') / self.test_vault_root.name
+        env['OBSIDIAN_VAULT_PATH'] = str(vault_path_from_repos)
         env['OBSIDIAN_SOURCE_NOTE'] = str(source_note_path.relative_to(self.test_vault_root))
             
         # Set up hook injection if enabled
@@ -130,7 +137,8 @@ Parent:
             
         try:
             # Use the actual VoiceTree agent system via claude.sh
-            cmd = ['bash', str(self.voicetree_root / 'tools' / 'claude.sh')]
+            # We need to run claude.sh from the tools directory so the relative paths work
+            cmd = ['bash', 'claude.sh']
             
             print(f"Running agent via VoiceTree system: {cmd}")
             print(f"  OBSIDIAN_VAULT_PATH: {env['OBSIDIAN_VAULT_PATH']}")
@@ -144,7 +152,7 @@ Parent:
             # We need to modify claude.sh or pass the flag through
             result = subprocess.run(
                 cmd,
-                cwd=str(self.voicetree_root / 'tools'),
+                cwd='..',  # Run from tools directory (parent of test_lab)
                 env=env,
                 capture_output=True,
                 text=True,

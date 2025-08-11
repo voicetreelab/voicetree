@@ -62,10 +62,10 @@ $DEPENDENCY_GRAPH_CONTENT
 
 The source markdown file you've been opened from is $OBSIDIAN_SOURCE_NOTE in $OBSIDIAN_VAULT_PATH: @$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE
 
-The CWD you are in is /Users/bobbobby/repos
+The CWD you are in is $USER_ROOT_DIR/repos
 This allows you to access the following repos:
-- /Users/bobbobby/repos/VoiceTree for the voicetree backend.
-- /Users/bobbobby/repos/voicetree-UI/juggl-main for juggl UI
+- $USER_ROOT_DIR/repos/VoiceTree for the voicetree backend.
+- $USER_ROOT_DIR/repos/voicetree-UI/juggl-main for juggl UI
 
 As you complete any actions, REMEMBER to grow the tree by using:
 python tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>

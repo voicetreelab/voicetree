@@ -2,6 +2,11 @@
 
 # Common setup functions for agent scripts
 
+# Load VoiceTree configuration if available
+if [ -f "$HOME/.config/voicetree/config" ]; then
+    source "$HOME/.config/voicetree/config"
+fi
+
 # Function to check required environment variables
 check_obsidian_env() {
     if [ -z "$OBSIDIAN_SOURCE_NOTE" ]; then
@@ -146,5 +151,5 @@ run_common_setup() {
     assign_agent_color
     generate_dependency_graph
     read_source_note_content
-    cd ~/repos
+    # Note: The calling script (claude.sh/gemini.sh) is responsible for changing to the repos directory
 }
