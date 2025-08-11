@@ -138,7 +138,7 @@ flowchart TD
 ```bash
 # Set environment variables (typically done by Juggl terminal)
 export OBSIDIAN_SOURCE_NOTE="2025-08-08/8_Request_for_Architecture_Diagram.md"
-export OBSIDIAN_VAULT_PATH="/Users/bobbobby/repos/VoiceTree/markdownTreeVault"
+export OBSIDIAN_VAULT_PATH="$USER_ROOT_DIR/repos/VoiceTree/markdownTreeVault"
 
 # Launch agent
 ./tools/claude.sh

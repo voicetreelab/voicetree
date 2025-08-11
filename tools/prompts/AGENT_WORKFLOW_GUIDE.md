@@ -121,14 +121,14 @@ TASK1_PROMPT="
 You are engineer {AGENT_NAME}, helping with a focused task within the VoiceTree system.
 
 Your task:
-A single node in a task/decision tree, located at /Users/bobbobby/repos/VoiceTree/agent-communication/agent-communication/{task}.md
+A single node in a task/decision tree, located at $USER_ROOT_DIR/repos/VoiceTree/agent-communication/agent-communication/{task}.md
 Contents of {task}:
-$(cat /Users/bobbobby/repos/VoiceTree/agent-communication/agent-communication/{task}.md)
+$(cat $USER_ROOT_DIR/repos/VoiceTree/agent-communication/agent-communication/{task}.md)
 
 IMPORTANT INSTRUCTIONS:
-We have shared markdown vault: /Users/bobbobby/repos/VoiceTree/agent-communication/
+We have shared markdown vault: $USER_ROOT_DIR/repos/VoiceTree/agent-communication/
 
-As you are building out the solution to your task, at every stage you should also be updating the markdown tree, adding new files connected to /Users/bobbobby/repos/VoiceTree/agent-communication/agent-communication/{task}.md) to show your progres. Keep these new notes extremely concise. 
+As you are building out the solution to your task, at every stage you should also be updating the markdown tree, adding new files connected to $USER_ROOT_DIR/repos/VoiceTree/agent-communication/agent-communication/{task}.md) to show your progres. Keep these new notes extremely concise. 
 
 Also keep the checkboxes in your main task file up to date as you progress.
 
@@ -204,7 +204,7 @@ Always ask agents to update markdown checkboxees tracking their progress.
 
 REMEMBER: SET YOUR TIMEOUTS TO BE VERY LONG. CLAUDE SUBAGENTS CAN TAKE UP TO 10 minutes for a task.
 
-REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in /Users/bobbobby/repos/VoiceTree/agent-communication
+REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in $USER_ROOT_DIR/repos/VoiceTree/agent-communication
 AND TELL YOUR AGENTS TO DO THE SAME.
 
 ## Best Practices for Multi-Agent Development

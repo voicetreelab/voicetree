@@ -9,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+            "command": "cd tools && python hooks/tree_update_reminder.py"
           }
         ]
       }
@@ -24,7 +24,7 @@
           },
           {
             "type": "command",
-            "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+            "command": "cd tools && python hooks/tree_update_reminder.py"
           }
         ]
       }

@@ -52,8 +52,8 @@ SCRIPT_TEMPLATE = """#!/bin/bash
 
 set -e  # Exit on error
 
-REPO_ROOT="/Users/bobbobby/repos/VoiceTree"
-MARKDOWN_VAULT="$REPO_ROOT/agent-communication/{vault_subdir}"
+# Simple relative paths from tools folder
+MARKDOWN_VAULT="../agent-communication/{vault_subdir}"
 
 echo "🚀 Starting {agent_name} agent for {description}..."
 
@@ -61,7 +61,7 @@ echo "🚀 Starting {agent_name} agent for {description}..."
 
 # Launch {agent_name}
 echo "🤖 Launching {agent_name} agent..."
-cd "$REPO_ROOT"
+cd ..
 
 # Use --dangerously-skip-permissions to avoid file access prompts
 # Increase max-turns for complex implementation
@@ -91,9 +91,8 @@ def generate_agent_script(
     if description is None:
         description = f"{task_file_stem} implementation"
     
-    # Build paths
-    repo_root = "/Users/bobbobby/repos/VoiceTree"
-    markdown_vault = f"{repo_root}/agent-communication/{vault_subdir}"
+    # Build paths using simple relative paths from tools folder
+    markdown_vault = f"../agent-communication/{vault_subdir}"
     task_path = f"{markdown_vault}/{task_file}"
     
     # Format prompt

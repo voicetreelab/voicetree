@@ -14,7 +14,7 @@ YOU ARE GRADED ON 4 pillars:
 
 Your task is to create the subtask markdown notes. We ALREADY have a template for that here
 
-/Users/bobbobby/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md
+$USER_ROOT_DIR/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md
 
 You must start by filling out this template for each subtask,
 and then creating the subtask nodes connected to their most relevant existing node in the graph
@@ -119,13 +119,13 @@ AND TELL YOUR subagentS TO DO THE SAME.
 1. **Orchestrator creates subtasks with specific colors using full SUBAGENT_PROMPT.md template:**
 ```bash
 # Create Bob's subtask (agent name: Bob, color: green) - content should be filled from SUBAGENT_PROMPT.md template
-python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Bob implement auth" "$(cat /Users/bobbobby/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Bob/g' | sed 's/{subagent_color}/green/g')" is_subtask_of --color green --agent-name Bob
+python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Bob implement auth" "$(cat $USER_ROOT_DIR/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Bob/g' | sed 's/{subagent_color}/green/g')" is_subtask_of --color green --agent-name Bob
 
 # Create Alice's subtask (agent name: Alice, color: blue) - content should be filled from SUBAGENT_PROMPT.md template  
-python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Alice create tests" "$(cat /Users/bobbobby/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Alice/g' | sed 's/{subagent_color}/blue/g')" is_subtask_of --color blue --agent-name Alice
+python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Alice create tests" "$(cat $USER_ROOT_DIR/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Alice/g' | sed 's/{subagent_color}/blue/g')" is_subtask_of --color blue --agent-name Alice
 
 # Create Charlie's subtask (agent name: Charlie, color: purple) - content should be filled from SUBAGENT_PROMPT.md template
-python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Charlie write docs" "$(cat /Users/bobbobby/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Charlie/g' | sed 's/{subagent_color}/purple/g')" is_subtask_of --color purple --agent-name Charlie
+python tools/add_new_node.py $OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE "Charlie write docs" "$(cat $USER_ROOT_DIR/repos/VoiceTree/tools/prompts/SUBAGENT_PROMPT.md | sed 's/{task_path}/current_task_path/g' | sed 's/{subagent_name}/Charlie/g' | sed 's/{subagent_color}/purple/g')" is_subtask_of --color purple --agent-name Charlie
 ```
 
 2. **When subagents are spawned:**

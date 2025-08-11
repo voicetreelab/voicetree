@@ -22,7 +22,7 @@ EOF
 # Step 2: Orchestrator creates subtask with specific color (green)
 echo "2. Orchestrator creating subtask with green color..."
 export AGENT_COLOR="orchestrator_default"  # Orchestrator's own color
-python /Users/bobbobby/repos/VoiceTree/tools/add_new_node.py \
+python add_new_node.py \
     "$OBSIDIAN_VAULT_PATH/1_parent_task.md" \
     "Bob implement feature" \
     "Task: Implement the feature X with requirements Y" \
@@ -45,7 +45,7 @@ echo "4. Testing subagent color inheritance..."
 export OBSIDIAN_SOURCE_NOTE="$SUBTASK_FILE"
 
 # Source the common setup to test color extraction
-source /Users/bobbobby/repos/VoiceTree/tools/common_agent_setup.sh
+source ./common_agent_setup.sh
 
 # Just test the color assignment function
 assign_agent_color
@@ -55,7 +55,7 @@ echo
 
 # Step 5: Verify subagent creates nodes with inherited color
 echo "5. Subagent creating progress node with inherited color..."
-python /Users/bobbobby/repos/VoiceTree/tools/add_new_node.py \
+python add_new_node.py \
     "$OBSIDIAN_VAULT_PATH/$SUBTASK_FILE" \
     "Progress Update 1" \
     "Completed initial setup" \
