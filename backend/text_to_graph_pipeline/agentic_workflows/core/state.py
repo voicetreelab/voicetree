@@ -62,6 +62,18 @@ class ThemeIdentificationAgentState(TypedDict):
     theme_identification_response: Optional[ThemeResponse]  # Will be replaced with a specific ThemeResponse model
 
 
+class ConnectOrphansAgentState(TypedDict):
+    """State for ConnectOrphansAgent workflow"""
+    # Input
+    roots_context: str  # Formatted string of root nodes to analyze
+    min_group_size: int  # Minimum number of roots required to form a group
+    tree: Any  # DecisionTree instance
+    
+    # Output
+    connect_orphans_response: Optional[Any]  # ConnectOrphansResponse
+    actions: List[Any]  # List of tree actions to apply
+
+
 class VoiceTreeState(TypedDict):
     """State that flows through the VoiceTree processing pipeline"""
     
