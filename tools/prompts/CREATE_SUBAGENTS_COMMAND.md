@@ -101,8 +101,6 @@ Here's where it fits: [minimal tree view]
 
 Always ask subagents to update markdown checkboxees tracking their progress.
 
-REMEMBER: SET YOUR TIMEOUTS TO BE VERY LONG. CLAUDE subagentS CAN TAKE UP TO 10 minutes for a task.
-
 REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in $OBSIDIAN_VAULT_PATH (specifically in the directory of $OBSIDIAN_SOURCE_NOTE)
 AND TELL YOUR subagentS TO DO THE SAME.
 
@@ -137,3 +135,5 @@ Okay, now think! What's the best way to split up this task? Propose it to me now
 Your proposed subtask files should all be named <agent_name>_subtask_name, 
 with the yaml title containing this without underscores and (i_j)
 e.g. bob_implement_x (3_1)
+
+DO NOT NOW SPAWN THE SUBTASKS, JUST PROPOSE THE SUBTASK FILES YOU WILL CREATE.
