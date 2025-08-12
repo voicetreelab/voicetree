@@ -111,10 +111,16 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     sanitized_content = '\n'.join(sanitized_lines)
     
     # Create the new node content with frontmatter
+    # Include agent name in title if it's an agent-created node
+    if agent_name and agent_name != 'default':
+        title_with_agent = f"({agent_name}) {name} ({new_node_id})"
+    else:
+        title_with_agent = f"{name} ({new_node_id})"
+    
     frontmatter_lines = [
         "---",
         f"node_id: {new_node_id}",
-        f"title: {name} ({new_node_id})",
+        f"title: {title_with_agent}",
         f"color: {color}"
     ]
     

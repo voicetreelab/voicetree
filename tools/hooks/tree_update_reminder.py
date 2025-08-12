@@ -91,7 +91,7 @@ def main():
         # Simple plain text output for context injection
         messages = []
         messages.append(f"Reminder for you, agent: {agent_name}")
-        messages.append("Add nodes detailing your progress: python VoiceTree/tools/add_new_node.py <parent_node_name> <new_node_name> <content> <relationship_to_parent>")
+        messages.append("Update existing nodes you have already written, or if it is worthy of a completely new progress file, add nodes concisely detailing your progress with `python VoiceTree/tools/add_new_node.py <parent_node_name> <new_node_name> <content> <relationship_to_parent>`")
         
         if new_nodes:
             messages.append(f"\n📌 NEW FILES DETECTED - Read these if potentially relevant to your task:")
