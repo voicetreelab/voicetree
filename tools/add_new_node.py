@@ -16,7 +16,7 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     Add a new node to the VoiceTree structure.
     
     Args:
-        parent_file (str): Path to the parent markdown file
+        parent_file (str): Path to the parent markdown file (relative to markdownTreeVault or absolute)
         name (str): Name/title of the new node
         markdown_content (str): Content for the new node's markdown file
         relationship_to (str): Relationship type to parent (e.g., "is_a_component_of", "is_a_feature_of")
@@ -36,18 +36,40 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     if agent_name_override:
         agent_name = agent_name_override
     else:
-        agent_name = os.environ.get('AGENT_NAME', None)
-    # Get parent directory and parent filename
+        agent_name = os.environ.get('AGENT_NAME', 'default')
+    
+    # Get the base vault directory
+    script_dir = Path(__file__).parent.parent  # Go up from tools/ to VoiceTree/
+    vault_dir = script_dir / "markdownTreeVault"
+    
+    # Convert parent_file to Path and make it relative to vault if needed
     parent_path = Path(parent_file)
-    parent_dir = parent_path.parent
-    parent_filename = parent_path.name
     
-    # Extract parent node ID from filename
+    # If parent_file is absolute and contains markdownTreeVault, make it relative
+    if parent_path.is_absolute():
+        if "markdownTreeVault" in str(parent_path):
+            # Extract the path relative to markdownTreeVault
+            parts = parent_path.parts
+            vault_idx = parts.index("markdownTreeVault")
+            parent_path = Path(*parts[vault_idx + 1:])
+        else:
+            # If absolute but not in vault, just use the filename
+            parent_path = Path(parent_path.name)
+    
+    # Now parent_path is relative to vault, resolve it
+    full_parent_path = vault_dir / parent_path
+    
+    # Get parent directory and parent filename
+    parent_dir = full_parent_path.parent
+    parent_filename = full_parent_path.name
+    
+    # Extract parent node ID from filename, or use a default
     parent_id_match = re.match(r'^(\d+(?:_\d+)*)', parent_filename)
-    if not parent_id_match:
-        raise ValueError(f"Could not extract node ID from parent filename: {parent_filename}")
-    
-    parent_id = parent_id_match.group(1)
+    if parent_id_match:
+        parent_id = parent_id_match.group(1)
+    else:
+        # If no ID in parent, use "1" as default parent ID
+        parent_id = "1"
     
     # Find the next available child ID
     existing_children = []
@@ -63,7 +85,13 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     # Create safe filename from name
     safe_name = re.sub(r'[^\w\s-]', '', name)
     safe_name = re.sub(r'[-\s]+', '_', safe_name)
-    new_filename = f"{new_node_id}_{safe_name}.md"
+    
+    # Always prepend agent_name to filename for agent-created nodes
+    if agent_name and agent_name != 'default':
+        new_filename = f"{new_node_id}_{agent_name}_{safe_name}.md"
+    else:
+        new_filename = f"{new_node_id}_{safe_name}.md"
+    
     new_file_path = parent_dir / new_filename
     
     # Sanitize markdown content to prevent header rendering issues
@@ -90,13 +118,14 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
         f"color: {color}"
     ]
     
-    # Add agent_name to frontmatter if available
-    if agent_name:
-        frontmatter_lines.append(f"agent_name: {agent_name}")
+    # Always add agent_name to frontmatter (defaults to 'default' if not set)
+    frontmatter_lines.append(f"agent_name: {agent_name}")
     
     frontmatter_lines.append("---")
     
-    new_content = "\n".join(frontmatter_lines) + f"\n{sanitized_content}\n\n-----------------\n_Links:_\nParent:\n- {relationship_to} [[{parent_dir.name}/{parent_filename}]]"
+    # Calculate relative path from vault root for the parent link
+    relative_parent_dir = parent_dir.relative_to(vault_dir)
+    new_content = "\n".join(frontmatter_lines) + f"\n{sanitized_content}\n\n-----------------\n_Links:_\nParent:\n- {relationship_to} [[{relative_parent_dir}/{parent_filename}]]"
     
     # Write the new file
     with open(new_file_path, 'w', encoding='utf-8') as f:
@@ -137,7 +166,7 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     #     f.write(parent_content)
     
     print(f"Created new node: {new_file_path}")
-    print(f"Updated parent: {parent_file}")
+    print(f"Updated parent: {full_parent_path}")
     
     return str(new_file_path)
 
