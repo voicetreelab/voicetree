@@ -26,9 +26,9 @@ def apply_content_filter(
         Same list with content filtered based on distance
         
     Filtering strategy:
-        - Far nodes (distance > 3): titles only
-        - Medium nodes (distance 1-3): titles + summaries  
-        - Close nodes (distance 0-1): full content
+        - Far nodes (distance > 12): titles only
+        - Medium nodes (distance 6-12): titles + summaries  
+        - Close nodes (distance 0-5): full content
     """
     filtered_nodes = []
     
@@ -45,14 +45,14 @@ def apply_content_filter(
             filtered_node['content'] = None
         # For FULL_CONTENT, apply distance-based filtering
         elif content_level == ContentLevel.FULL_CONTENT:
-            if distance > 3:
+            if distance > 12:
                 # Far nodes: titles only
                 filtered_node['summary'] = None
                 filtered_node['content'] = None
-            elif distance > 1:
+            elif distance > 5:
                 # Medium distance: titles + summaries
                 filtered_node['content'] = None
-            # Close nodes (distance 0-1): keep full content
+            # Close nodes (distance 0-5): keep full content
         
         filtered_nodes.append(filtered_node)
     
