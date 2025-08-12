@@ -13,12 +13,8 @@ from typing import Dict, List, Optional, Set
 # Import load_node from markdown_to_tree module
 from backend.markdown_to_tree import load_node, extract_markdown_links
 
-
-class ContentLevel(Enum):
-    """Content level for filtering."""
-    TITLES_ONLY = 1
-    TITLES_AND_SUMMARIES = 2
-    FULL_CONTENT = 3
+# Import ContentLevel from Casey's module to ensure consistency
+from backend.context_retrieval.content_filtering import ContentLevel
 
 
 @dataclass
@@ -232,10 +228,16 @@ def apply_content_filter(
 ) -> List[Dict[str, str]]:
     """
     Apply content filtering based on distance from target.
-    For now, returns nodes as-is - Casey will implement the actual filtering.
+    Delegates to Casey's content_filtering module.
     """
-    # This is a placeholder - Casey will implement the actual content filtering
-    return nodes
+    from backend.context_retrieval.content_filtering import apply_content_filter as casey_filter
+    
+    # Convert depth to distance_from_target for Casey's filter
+    for node in nodes:
+        if 'depth' in node and 'distance_from_target' not in node:
+            node['distance_from_target'] = node['depth']
+    
+    return casey_filter(nodes, content_level)
 
 
 def traverse_to_node(
