@@ -5,15 +5,31 @@ This provides true semantic matching beyond TF-IDF's keyword matching.
 
 import os
 import numpy as np
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import logging
+import google.generativeai as genai
 
-# Placeholder for future implementation
-USE_EMBEDDINGS = os.getenv("VOICETREE_USE_EMBEDDINGS", "false").lower() == "true"
+# Enable embeddings - can be toggled via environment variable
+USE_EMBEDDINGS = os.getenv("VOICETREE_USE_EMBEDDINGS", "true").lower() == "true"
+
+# Configure Gemini API
+_gemini_configured = False
+
+def _configure_gemini():
+    """Configure Gemini API (call once)"""
+    global _gemini_configured
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        _gemini_configured = False
+        raise ValueError("GEMINI_API_KEY environment variable not set")
+    if not _gemini_configured:
+        genai.configure(api_key=api_key)
+        _gemini_configured = True
+        logging.info("Configured Gemini API for embeddings")
 
 def get_node_embeddings(nodes: Dict) -> Dict[int, np.ndarray]:
     """
-    Get embeddings for all nodes in the tree.
+    Get embeddings for all nodes in the tree using Google Gemini.
     
     Args:
         nodes: Dictionary of node_id -> Node objects
@@ -21,66 +37,112 @@ def get_node_embeddings(nodes: Dict) -> Dict[int, np.ndarray]:
     Returns:
         Dictionary of node_id -> embedding vector
     """
-    if not USE_EMBEDDINGS:
+    if not USE_EMBEDDINGS or not nodes:
         return {}
     
-    # TODO: Implement actual embedding generation
-    # Options:
-    # 1. Google Gemini: gemini-embedding-001 (mentioned in comments)
-    # 2. OpenAI: text-embedding-ada-002
-    # 3. Sentence Transformers (local): all-MiniLM-L6-v2
-    #
-    # Example with sentence-transformers (runs locally, no API needed):
-    # from sentence_transformers import SentenceTransformer
-    # model = SentenceTransformer('all-MiniLM-L6-v2')
-    # 
-    # embeddings = {}
-    # for node_id, node in nodes.items():
-    #     text = f"{node.title} {node.summary} {node.content[:500]}"
-    #     embeddings[node_id] = model.encode(text)
-    # return embeddings
-    
-    logging.info("Embedding generation not yet implemented")
-    return {}
+    try:
+        _configure_gemini()
+        embeddings = {}
+        
+        # Prepare texts for batch encoding
+        texts = []
+        node_ids = []
+        
+        for node_id, node in nodes.items():
+            # Combine title (3x weight), summary (2x), and content snippet
+            # This weighting helps prioritize title matches
+            text_parts = []
+            if hasattr(node, 'title') and node.title:
+                text_parts.extend([node.title] * 3)  # Weight title 3x
+            if hasattr(node, 'summary') and node.summary:
+                text_parts.extend([node.summary] * 2)  # Weight summary 2x
+            if hasattr(node, 'content') and node.content:
+                text_parts.append(node.content[:500])  # First 500 chars of content
+            
+            combined_text = " ".join(text_parts)
+            if combined_text.strip():  # Only process non-empty nodes
+                texts.append(combined_text)
+                node_ids.append(node_id)
+        
+        if texts:
+            # Use Gemini's text-embedding-004 model (768 dimensions)
+            # Batch process for efficiency
+            result = genai.embed_content(
+                model="models/text-embedding-004",
+                content=texts,
+                task_type="retrieval_document"
+            )
+            
+            # Assign embeddings back to their node IDs
+            for node_id, embedding in zip(node_ids, result['embedding']):
+                embeddings[node_id] = np.array(embedding)
+            
+            logging.info(f"Generated Gemini embeddings for {len(embeddings)} nodes")
+        
+        return embeddings
+        
+    except Exception as e:
+        logging.error(f"Failed to generate Gemini embeddings: {e}")
+        return {}
 
 
 def find_similar_by_embedding(
     query: str,
     node_embeddings: Dict[int, np.ndarray],
     top_k: int = 5,
-    threshold: float = 0.5
+    threshold: float = 0.3
 ) -> List[Tuple[int, float]]:
     """
-    Find nodes similar to query using embeddings.
+    Find nodes similar to query using Gemini embeddings.
     
     Args:
         query: Search query
         node_embeddings: Pre-computed node embeddings
         top_k: Number of results to return
-        threshold: Minimum similarity threshold
+        threshold: Minimum similarity threshold (lowered to 0.3 for better recall)
         
     Returns:
         List of (node_id, similarity_score) tuples
     """
-    if not USE_EMBEDDINGS or not node_embeddings:
+    if not USE_EMBEDDINGS or not node_embeddings or not query.strip():
         return []
     
-    # TODO: Implement actual similarity search
-    # 1. Generate embedding for query
-    # 2. Compute cosine similarity with all node embeddings
-    # 3. Return top-k results above threshold
-    #
-    # Example:
-    # query_embedding = model.encode(query)
-    # similarities = []
-    # for node_id, node_embedding in node_embeddings.items():
-    #     similarity = cosine_similarity(query_embedding, node_embedding)
-    #     if similarity > threshold:
-    #         similarities.append((node_id, similarity))
-    # similarities.sort(key=lambda x: x[1], reverse=True)
-    # return similarities[:top_k]
-    
-    return []
+    try:
+        _configure_gemini()
+        
+        # Generate embedding for query using Gemini
+        result = genai.embed_content(
+            model="models/text-embedding-004",
+            content=query,
+            task_type="retrieval_query"  # Use query task type for search
+        )
+        query_embedding = np.array(result['embedding'])
+        
+        # Compute cosine similarities with all node embeddings
+        similarities = []
+        for node_id, node_embedding in node_embeddings.items():
+            # Compute cosine similarity
+            similarity = np.dot(query_embedding, node_embedding) / (
+                np.linalg.norm(query_embedding) * np.linalg.norm(node_embedding)
+            )
+            
+            if similarity > threshold:
+                similarities.append((node_id, float(similarity)))
+        
+        # Sort by similarity score (highest first)
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return top-k results
+        results = similarities[:top_k]
+        
+        if results:
+            logging.info(f"Found {len(results)} similar nodes using Gemini for query: '{query[:50]}...'")
+        
+        return results
+        
+    except Exception as e:
+        logging.error(f"Failed to find similar nodes with Gemini: {e}")
+        return []
 
 
 def hybrid_search(
