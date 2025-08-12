@@ -43,19 +43,10 @@ def extract_parent_links(content: str) -> List[str]:
 
 def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: Dict[str, str]) -> List[str]:
     """
-    Find all files that reference the parent file as their parent.
-    Extracted from tools/graph_dependency_traversal_and_accumulate_graph_content.py
+    Find all files that reference the parent file (i.e., children are files that link to this parent).
+    A child is ANY file that contains [[parent_filename]].
     """
     children = []
-    parent_patterns = [
-        r'is_enabled_by\s*\[\[',
-        r'is_a_required_capability_for(?:_the)?\s*\[\[',
-        r'describes_the_underlying_approach_for(?:_the)?\s*\[\[',
-        r'is_a_new_requirement_for(?:_the)?\s*\[\[',
-        r'implements_pseudocode_for\s*\[\[',
-        r'clarifies_recursion_in\s*\[\[',
-        r'is_subtask_of\s*\[\['  # Added for new pattern
-    ]
     
     # Remove .md extension if present for matching
     parent_name = parent_filename.replace('.md', '')
@@ -71,19 +62,21 @@ def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: 
             
         relative_path = str(md_file.relative_to(markdown_dir))
         
+        # Skip if this is the parent file itself
+        if relative_path == parent_filename:
+            continue
+        
         # Get content from cache or read file
         if relative_path not in file_cache:
             node_data = load_node(relative_path, markdown_dir)
             file_cache[relative_path] = node_data['content']
         content = file_cache[relative_path]
         
-        # Check if this file has a parent link to our target
-        for pattern in parent_patterns:
-            # Match patterns like: is_enabled_by [[filename.md]] or [[dir/filename.md]]
-            full_pattern = pattern + rf'.*?{re.escape(parent_name)}(?:\.md)?\]\]'
-            if re.search(full_pattern, content, re.IGNORECASE):
-                children.append(relative_path)
-                break
+        # Check if this file has ANY link to our parent file
+        # Match [[filename.md]] or [[filename]] patterns
+        pattern = rf'\[\[{re.escape(parent_name)}(?:\.md)?\]\]'
+        if re.search(pattern, content):
+            children.append(relative_path)
                 
     return children
 
