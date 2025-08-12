@@ -56,4 +56,17 @@ roots clearly relate to each other through a common theme, category, or concept.
 **Bad Example 3**: Forcing all roots under "Application Features"
 → Over-grouping loses meaningful structure
 
+## Output Format
+
+Provide your analysis as a JSON response with:
+- `reasoning`: Your explanation of why certain roots were grouped
+- `groupings`: Array of groupings, each containing:
+  - `root_node_titles`: Array of node TITLES (not IDs) to group together - use exact titles from input
+  - `parent_title`: Title for the new parent node
+  - `parent_summary`: Summary explaining the grouping
+  - `relationship`: The relationship type
+- `ungrouped_roots`: Array of root node TITLES that couldn't be meaningfully grouped
+
+IMPORTANT: Use the exact node titles as provided in the input, not node IDs.
+
 Remember: It's better to leave roots disconnected than to create forced, artificial groupings.

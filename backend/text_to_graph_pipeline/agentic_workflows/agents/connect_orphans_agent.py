@@ -33,7 +33,7 @@ class RootNodeInfo:
 # Pydantic models for LLM responses
 class OrphanGrouping(BaseModel):
     """A single grouping of related orphan roots"""
-    root_node_ids: List[int] = Field(description="IDs of root nodes to group")
+    root_node_titles: List[str] = Field(description="Titles of root nodes to group together")
     parent_title: str = Field(description="Title for the new parent node")
     parent_summary: str = Field(description="Summary for the new parent node")
     relationship: str = Field(description="Relationship type, e.g. 'is_a_category_of'")
@@ -46,8 +46,8 @@ class ConnectOrphansResponse(BaseModel):
         description="List of root groupings to create",
         default_factory=list
     )
-    ungrouped_roots: List[int] = Field(
-        description="Root node IDs that couldn't be grouped",
+    ungrouped_roots: List[str] = Field(
+        description="Root node titles that couldn't be grouped",
         default_factory=list
     )
 
@@ -105,26 +105,56 @@ class ConnectOrphansAgent(Agent):
         return roots
     
     def _format_roots_for_prompt(self, roots: List[RootNodeInfo]) -> str:
-        """Format root nodes for the LLM prompt"""
+        """Format root nodes for the LLM prompt - using titles only per node 76"""
         formatted = []
         for root in roots:
             formatted.append(
-                f"Node ID: {root.node_id}\n"
                 f"Title: {root.title}\n"
                 f"Summary: {root.summary}\n"
                 f"Subtree Size: {root.child_count} children\n"
             )
         return "\n---\n".join(formatted)
     
+    def _map_titles_to_ids(self, titles: List[str], roots: List[RootNodeInfo]) -> List[int]:
+        """
+        Map node titles back to their IDs, with fuzzy matching fallback.
+        
+        Args:
+            titles: List of node titles from LLM
+            roots: List of RootNodeInfo objects
+            
+        Returns:
+            List of corresponding node IDs
+        """
+        title_to_id = {root.title: root.node_id for root in roots}
+        node_ids = []
+        
+        for title in titles:
+            if title in title_to_id:
+                node_ids.append(title_to_id[title])
+            else:
+                # Fuzzy matching fallback - find closest match
+                self.logger.warning(f"Exact title match not found for '{title}', attempting fuzzy match")
+                # Simple fuzzy match: case-insensitive partial match
+                for root in roots:
+                    if title.lower() in root.title.lower() or root.title.lower() in title.lower():
+                        node_ids.append(root.node_id)
+                        self.logger.info(f"Fuzzy matched '{title}' to '{root.title}'")
+                        break
+        
+        return node_ids
+    
     def create_connection_actions(
         self,
-        response: ConnectOrphansResponse
+        response: ConnectOrphansResponse,
+        roots: List[RootNodeInfo]
     ) -> List[BaseTreeAction]:
         """
         Create tree actions to connect the grouped roots under new parent nodes.
         
         Args:
             response: The LLM response with groupings
+            roots: Original list of RootNodeInfo for title->ID mapping
             
         Returns:
             List of CreateAction for new parent nodes
@@ -132,6 +162,9 @@ class ConnectOrphansAgent(Agent):
         actions = []
         
         for grouping in response.groupings:
+            # Map titles back to IDs for logging
+            root_ids = self._map_titles_to_ids(grouping.root_node_titles, roots)
+            
             # Create action for new parent node
             parent_action = CreateAction(
                 action="CREATE",
@@ -149,7 +182,7 @@ class ConnectOrphansAgent(Agent):
             
             self.logger.info(
                 f"Creating parent '{grouping.parent_title}' "
-                f"for roots: {grouping.root_node_ids}"
+                f"for roots: {grouping.root_node_titles} (IDs: {root_ids})"
             )
         
         return actions
@@ -203,7 +236,7 @@ class ConnectOrphansAgent(Agent):
         # Extract actions from the response
         if final_state.get("connect_orphans_response"):
             response = final_state["connect_orphans_response"]
-            actions = self.create_connection_actions(response)
+            actions = self.create_connection_actions(response, roots)
             return actions
         
         return []

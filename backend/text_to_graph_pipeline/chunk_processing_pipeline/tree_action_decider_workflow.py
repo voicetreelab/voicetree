@@ -15,6 +15,8 @@ from ..agentic_workflows.agents.append_to_relevant_node_agent import \
     AppendToRelevantNodeAgent
 from ..agentic_workflows.agents.single_abstraction_optimizer_agent import \
     SingleAbstractionOptimizerAgent
+from ..agentic_workflows.agents.connect_orphans_agent import \
+    ConnectOrphansAgent
 from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
                                         BaseTreeAction, CreateAction,
                                         UpdateAction)
@@ -71,12 +73,17 @@ class TreeActionDeciderWorkflow:
         self.decision_tree: Optional[DecisionTree] = decision_tree
         self.append_agent: AppendToRelevantNodeAgent = AppendToRelevantNodeAgent()
         self.optimizer_agent: SingleAbstractionOptimizerAgent = SingleAbstractionOptimizerAgent()
+        self.connect_orphans_agent: ConnectOrphansAgent = ConnectOrphansAgent()
         self.nodes_to_update: Set[int] = set()
         
         # Track previous buffer remainder to detect stuck text
         self._prev_buffer_remainder: str = ""  # What was left in buffer after last processing
 
         self.content_stuck_in_buffer = {}
+        
+        # Track when to run orphan connection (every 10-20 nodes)
+        self._last_orphan_check_node_count: int = 0
+        self._orphan_check_interval: int = 15  # Check every 15 nodes
     
     def get_workflow_statistics(self) -> Dict[str, Any]:
         """Get statistics about the workflow state"""
@@ -318,6 +325,43 @@ class TreeActionDeciderWorkflow:
 
         # Always store current buffer state for next processing to detect stuck text
         self._prev_buffer_remainder = buffer_manager.getBuffer()
+
+
+        # todo, new code, haven't extensively tested this yet
+        # ======================================================================
+        # PHASE 3: CONNECT ORPHANS (Every N nodes)
+        # ======================================================================
+        current_node_count = len(self.decision_tree.tree)
+        nodes_added_since_last_check = current_node_count - self._last_orphan_check_node_count
+
+        if nodes_added_since_last_check >= self._orphan_check_interval:
+            logging.info(f"Running Phase 3: Connect Orphans Agent (tree has {current_node_count} nodes)...")
+
+            try:
+                # Run the connection agent to group orphan nodes
+                connection_actions = await self.connect_orphans_agent.run(
+                    tree=self.decision_tree,
+                    min_group_size=2,
+                    max_roots_to_process=20
+                )
+
+                if connection_actions:
+                    logging.info(f"Connect Orphans Agent created {len(connection_actions)} parent nodes")
+
+                    # Apply the connection actions
+                    connection_modified_nodes = tree_action_applier.apply(connection_actions)
+                    all_optimization_modified_nodes.update(connection_modified_nodes)
+
+                    logging.info(f"Connected orphan subtrees with new parent nodes: {connection_modified_nodes}")
+                else:
+                    logging.info("No obvious groupings found among orphan nodes")
+
+                # Update the last check count
+                self._last_orphan_check_node_count = current_node_count
+
+            except Exception as e:
+                logging.error(f"Error in Connect Orphans phase: {e}")
+                # Don't fail the whole workflow, just log the error
         
         # Return the set of all affected nodes (new + modified + optimization-modified)
         return modified_or_new_nodes.union(all_optimization_modified_nodes)
