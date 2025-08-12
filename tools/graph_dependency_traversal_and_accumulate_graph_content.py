@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """
-Graph traversal script to accumulate content from markdown files following parent links,
-and find the most relevant unvisited nodes using TF-IDF.
+Graph traversal script - thin wrapper around the refactored modules.
+Provides command-line interface for dependency traversal and TF-IDF search.
 """
 
-import os
-import re
 import sys
 import argparse
 from pathlib import Path
-from typing import Set, List, Dict, Tuple
+from typing import Set, List, Dict
 import nltk
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import re
+
+# Import from our refactored modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from backend.markdown_to_tree import load_node, read_markdown_file
+from backend.context_retrieval.dependency_traversal import traverse_to_node, TraversalOptions
+from backend.context_retrieval.content_filtering import ContentLevel
 
 # --- Setup and Text Preprocessing ---
 
@@ -36,197 +41,7 @@ def preprocess_text(text: str) -> str:
     tokens = [word for word in tokens if word not in STOP_WORDS]
     return ' '.join(tokens)
 
-# --- File and Link Operations ---
-
-def read_markdown_file(filepath: Path) -> str:
-    """Read content from a markdown file, returning empty string if not found."""
-    try:
-        return filepath.read_text(encoding='utf-8')
-    except FileNotFoundError:
-        print(f"Warning: File not found: {filepath}")
-        return ""
-
-def extract_markdown_links(content: str) -> List[str]:
-    """Extract all markdown links from content, e.g., [[file.md]] or [[file.md|title]]."""
-    pattern = r'\[\[([^\]|]+\.md)(?:\|[^\|]+)?\]\]'
-    return re.findall(pattern, content)
-
-def extract_parent_links(content: str) -> List[str]:
-    """Extract ALL markdown links as parent/dependency links."""
-    # Simply use the existing extract_markdown_links function
-    return extract_markdown_links(content)
-
-def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: Dict[str, str]) -> List[str]:
-    """Find all files that reference the parent file as their parent."""
-    children = []
-    parent_patterns = [
-        r'is_enabled_by\s*\[\[',
-        r'is_a_required_capability_for(?:_the)?\s*\[\[',
-        r'describes_the_underlying_approach_for(?:_the)?\s*\[\[',
-        r'is_a_new_requirement_for(?:_the)?\s*\[\[',
-        r'implements_pseudocode_for\s*\[\[',
-        r'clarifies_recursion_in\s*\[\['
-    ]
-    
-    # Remove .md extension if present for matching
-    parent_name = parent_filename.replace('.md', '')
-    
-    # Determine the directory of the parent file
-    parent_path = markdown_dir / parent_filename
-    parent_dir = parent_path.parent
-    
-    # Only scan markdown files in the same directory as the parent file
-    for md_file in parent_dir.glob('*.md'):
-        if md_file.name == 'accumulated.md':  # Skip output file
-            continue
-            
-        relative_path = str(md_file.relative_to(markdown_dir))
-        
-        # Get content from cache or read file
-        if relative_path not in file_cache:
-            file_cache[relative_path] = read_markdown_file(md_file)
-        content = file_cache[relative_path]
-        
-        # Check if this file has a parent link to our target
-        for pattern in parent_patterns:
-            # Match patterns like: is_enabled_by [[filename.md]] or [[dir/filename.md]]
-            full_pattern = pattern + rf'.*?{re.escape(parent_name)}(?:\.md)?\]\]'
-            if re.search(full_pattern, content, re.IGNORECASE):
-                children.append(relative_path)
-                break
-                
-    return children
-
-def traverse_children_recursively(
-    start_file: str,
-    markdown_dir: Path,
-    visited: Set[str],
-    file_cache: Dict[str, str],
-    depth: int = 0,
-    max_depth: int = 10
-) -> List[Dict[str, str]]:
-    """
-    Recursively traverse all child nodes (files that reference this file as parent).
-    Returns a list of dictionaries with file info and content.
-    """
-    if start_file in visited or depth > max_depth:
-        return []
-    
-    visited.add(start_file)
-    
-    filepath = markdown_dir / start_file
-    
-    if start_file not in file_cache:
-        file_cache[start_file] = read_markdown_file(filepath)
-        
-    content = file_cache[start_file]
-    
-    if not content:
-        return []
-
-    print(f"{' ' * (depth * 2)}Processing child: {start_file}")
-    
-    # Find all files that reference this file as their parent
-    child_files = find_child_references(start_file, markdown_dir, file_cache)
-    print(f"{' ' * (depth * 2)}  Found {len(child_files)} children: {child_files}")
-    
-    result = [{'filename': start_file, 'content': content, 'depth': depth}]
-    
-    # Recursively traverse each child
-    for child_file in child_files:
-        child_results = traverse_children_recursively(
-            child_file, markdown_dir, visited, file_cache, depth + 1, max_depth
-        )
-        result.extend(child_results)
-            
-    return result
-
-def traverse_bidirectional(
-    start_file: str,
-    markdown_dir: Path,
-    visited: Set[str],
-    file_cache: Dict[str, str],
-    depth: int = 0,
-    max_depth: int = 10,
-    direction: str = "both"
-) -> List[Dict[str, str]]:
-    """
-    Bidirectionally traverse the graph, following both parent and child links.
-    Direction can be: 'both', 'parents', 'children'
-    """
-    if start_file in visited or depth > max_depth:
-        return []
-    
-    visited.add(start_file)
-    
-    filepath = markdown_dir / start_file
-    
-    if start_file not in file_cache:
-        file_cache[start_file] = read_markdown_file(filepath)
-        
-    content = file_cache[start_file]
-    
-    if not content:
-        return []
-
-    print(f"{' ' * (depth * 2)}Processing: {start_file} (direction: {direction})")
-    
-    result = [{'filename': start_file, 'content': content, 'depth': depth}]
-    
-    # Traverse to parents
-    if direction in ['both', 'parents']:
-        parent_links = extract_parent_links(content)
-        print(f"{' ' * (depth * 2)}  Found {len(parent_links)} parent links: {parent_links}")
-        
-        for parent_file in parent_links:
-            # First try the link as-is (absolute path from markdown_dir)
-            parent_path = markdown_dir / parent_file
-            
-            # If not found and link doesn't have a directory, try in the same directory as current file
-            if not parent_path.exists() and '/' not in parent_file:
-                current_file_dir = Path(start_file).parent
-                if str(current_file_dir) != '.':
-                    # Try in the same directory as the current file
-                    parent_file = str(current_file_dir / parent_file)
-                    parent_path = markdown_dir / parent_file
-            
-            if parent_path.exists():
-                parent_results = traverse_bidirectional(
-                    parent_file, markdown_dir, visited, file_cache, 
-                    depth + 1, max_depth, 'parents'  # Only go up when following parents
-                )
-                result.extend(parent_results)
-            else:
-                print(f"{' ' * (depth * 2)}  Warning: Parent link not found: {parent_file}")
-    
-    # Traverse to children
-    if direction in ['both', 'children']:
-        child_files = find_child_references(start_file, markdown_dir, file_cache)
-        print(f"{' ' * (depth * 2)}  Found {len(child_files)} children: {child_files}")
-        
-        for child_file in child_files:
-            child_results = traverse_bidirectional(
-                child_file, markdown_dir, visited, file_cache,
-                depth + 1, max_depth, 'children'  # Only go down when following children
-            )
-            result.extend(child_results)
-            
-    return result
-
-# --- Core Logic: Graph Traversal and TF-IDF ---
-
-def traverse_graph(
-    start_file: str,
-    markdown_dir: Path,
-    visited: Set[str],
-    file_cache: Dict[str, str],
-    max_depth: int = 10
-) -> List[Dict[str, str]]:
-    """
-    Traverse the graph from a starting file by following both parent and child dependencies.
-    Returns a list of dictionaries with file info and content, using a cache.
-    """
-    return traverse_bidirectional(start_file, markdown_dir, visited, file_cache, depth=0, max_depth=max_depth)
+# --- TF-IDF Search ---
 
 def find_top_relevant_nodes(
     traversed_content: str,
@@ -283,7 +98,7 @@ def find_top_relevant_nodes(
 
 # --- Output Generation ---
 
-def format_traversed_content(branch_content: List[Dict[str, str]], start_file: str, branch_num: int) -> str:
+def format_traversed_content(nodes: List[Dict], start_file: str, branch_num: int) -> str:
     """Formats the content for a single traversed branch."""
     header = (
         f"\n{'='*20}\n"
@@ -292,12 +107,22 @@ def format_traversed_content(branch_content: List[Dict[str, str]], start_file: s
     )
     
     content_parts = []
-    for file_info in reversed(branch_content):
+    # Sort nodes by depth (root first) if depth information is available
+    sorted_nodes = sorted(nodes, key=lambda x: x.get('depth', 0), reverse=True)
+    
+    for node in sorted_nodes:
         # Add indentation for child nodes if depth information is available
-        depth = file_info.get('depth', 0)
+        depth = node.get('depth', 0)
         indent = '  ' * depth if depth > 0 else ''
-        file_header = f"\n{'-'*60}\n{indent}File: {file_info['filename']}\n{'-'*60}\n"
-        content_parts.append(file_header + file_info['content'])
+        
+        # Get content from node
+        content = node.get('content', '')
+        if not content and 'filename' in node:
+            # If content not in node, try to load it
+            content = f"[Content not loaded for {node['filename']}]"
+        
+        file_header = f"\n{'-'*60}\n{indent}File: {node.get('filename', 'Unknown')}\n{'-'*60}\n"
+        content_parts.append(file_header + content)
         
     return header + "".join(content_parts)
 
@@ -318,7 +143,6 @@ def format_relevant_nodes(relevant_nodes: List[Dict], markdown_dir: Path) -> str
         file_header = (
             f"\n{'-'*20}\n"
             f"File: {node['filename']} (Similarity: {node['similarity']:.4f})\n"
-            # f"{'-'*60}\n"
         )
         content_parts.append(file_header + content)
         
@@ -329,13 +153,13 @@ def format_relevant_nodes(relevant_nodes: List[Dict], markdown_dir: Path) -> str
 def main():
     """Main entry point with argument parsing."""
     parser = argparse.ArgumentParser(
-        description="Traverse a graph of markdown files, accumulate content, and find relevant unvisited nodes.",
+        description="Traverse a graph of markdown files using the refactored modules.",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("markdown_dir", type=str, help="The directory containing the markdown files.")
     parser.add_argument("input_files", type=str, nargs='+', help="One or more starting markdown filenames.")
     parser.add_argument("-o", "--output", type=str, default="/tmp/accumulated.md", help="The output file to write the accumulated content to.")
-    parser.add_argument("-n", "--num-relevant", type=int, default=3, help="Number of relevant nodes to find.")
+    parser.add_argument("-n", "--num-relevant", type=int, default=3, help="Number of relevant nodes to find via TF-IDF.")
     parser.add_argument("-d", "--max-depth", type=int, default=10, help="Maximum traversal depth in each direction (default: 10).")
     
     args = parser.parse_args()
@@ -347,27 +171,36 @@ def main():
 
     all_traversed_info = []
     all_traversed_filenames = set()
-    file_cache = {}  # Cache file content to avoid re-reading
 
-    # --- Step 1: Traverse graph for all input files ---
+    # --- Step 1: Use new modules for traversal ---
     for i, start_file in enumerate(args.input_files):
         print(f"\n--- Processing branch {i+1}: {start_file} ---")
-        # Use a shared visited set if you want to avoid re-processing nodes across branches,
-        # or a new set for each branch if they should be treated independently.
-        # For this logic, independent sets are better to show full paths for each branch.
-        visited_in_branch = set()
-        branch_info = traverse_graph(start_file, markdown_path, visited_in_branch, file_cache, args.max_depth)
         
-        if branch_info:
-            all_traversed_info.append((start_file, branch_info))
-            # Make sure we track the filenames exactly as they'll be compared
-            for info in branch_info:
-                all_traversed_filenames.add(info['filename'])
+        # Use the new traverse_to_node function with options
+        options = TraversalOptions(
+            include_parents=True,
+            include_children=True,
+            max_depth=args.max_depth,
+            include_neighborhood=False,  # Keep it simple for now
+            content_level=ContentLevel.FULL_CONTENT  # Get full content for TF-IDF
+        )
+        
+        print(f"Using new context_retrieval module for traversal...")
+        nodes = traverse_to_node(start_file, markdown_path, options)
+        
+        if nodes:
+            all_traversed_info.append((start_file, nodes))
+            # Track filenames for exclusion in TF-IDF search
+            for node in nodes:
+                if 'filename' in node:
+                    all_traversed_filenames.add(node['filename'])
+        
+        print(f"  Found {len(nodes)} nodes in traversal")
 
     # --- Step 2: Find relevant nodes based on ALL traversed content ---
     print("\n--- Performing inverse document search ---")
     aggregated_traversed_content = " ".join(
-        info['content'] for _, branch_info in all_traversed_info for info in branch_info
+        node.get('content', '') for _, nodes in all_traversed_info for node in nodes
     )
     
     top_relevant_nodes = find_top_relevant_nodes(
@@ -387,8 +220,8 @@ def main():
     # --- Step 3: Generate and write the output file ---
     final_output = []
     # Add content from traversed branches
-    for i, (start_file, branch_info) in enumerate(all_traversed_info):
-        final_output.append(format_traversed_content(branch_info, start_file, i + 1))
+    for i, (start_file, nodes) in enumerate(all_traversed_info):
+        final_output.append(format_traversed_content(nodes, start_file, i + 1))
         
     # Add content from relevant nodes
     final_output.append(format_relevant_nodes(top_relevant_nodes, markdown_path))
