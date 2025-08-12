@@ -2615,3 +2615,389 @@ Bugged.
 Thank you.
 Thank you.
 Thank you.
+All right, coolio. So today I'm working on VoiceTree.
+VoiceTree converts voice to text to then a tree, a visual tree, like a mind map.
+And we're focusing on the text to tree component of that because we're using that.
+um to actually build a better context representation for large language models themselves by representing
+the
+Okay.
+Uh-oh, uh-oh.
+And D3.
+All right, coolio. So today I'm working on VoiceTree. VoiceTree is the system that I've been working on that converts voice to text to graph or tree, like a visual tree, like a mind map.
+And...
+Um, I'm focusing right now on the text to tree component.
+Um, because that I'm seeing a very cool use.
+which is um better representation of large language model context um representing the context you input to an llm as a um tree um and then when you
+ask the LLM a question, you can send over only the relevant parts of the tree. So you prune the tree to only what is relevant for a given query. And that solves a big problem in LLMs where as you build a long chat history, you sort of
+uh you every request um send that whole chat history each time um which is very inefficient because that chat history has lots of irrelevant context and so we want to filter the context to only what is truly relevant and i think a good way of doing that is represent
+as a tree and then doing various
+tree searches on that and algorithms to get relevancy. Okay, cool. I've been playing around with various different benchmarks to prove this hypothesis.
+So my hypothesis is that representing it as a tree is going to make it the LLM.
+faster
+have lower input
+because we're not studying the whole context.
+have greater accuracy because it doesn't suffer from context blur.
+And, um,
+Yeah, it also lets you in the end sort of have like infinite length chats of LLMs because each time you can just be sending the.
+relevant context.
+Cool. So the benchmarks that I've been playing around with to prove that hypothesis...
+are um
+So I started out of GSM.
+And now I then went to No Lima.
+Um, and now I'm working.
+Longbench V2. And so for Longbench V2, I did it on a sample question from Longbench V2 and it did really well. And now I just want it to be able to scale up to larger input.
+Lengths, so I think that was like an 8k input question from long bench and now we want to do like a
+Uh, perhaps a, uh...
+like a 32 length, 32,000 length, and then 64,000 length, 128,000 length, up to probably 256,000 length, or wherever the LLMs really start struggling.
+Okay, so for scaling long bench v2, one thing we need to do right now, there's a problem where during voice tree creation, so converting the input context to a tree.
+you end up with lots of disconnected components and that's because the current algorithm for VoiceTree doesn't have a way.
+Connecting the components.
+That is...
+One thing I want to address and the way I want to address that is by creating an agent which looks at all the root nodes in a tree for each disconnected component within the tree. So each disconnected tree has a root node, right? One of the nodes of node.
+Each sub, each disconnected tree must have one of those. And then for each of those routes, you send them to an LLM and you say, hey, hey LLM.
+which of these roots have a common grouping whereby we should connect them through a parent node.
+Or perhaps one of the other alternatives is that instead of connecting it through a parent node, they should actually just be connected directly.
+Um
+So...
+that's what we need to create.
+And I'm thinking that during tree creation, we do this like every 10, 20 nodes, and we pass in also the relevant chat, like relevant history of the text. So it sort of has some idea of what's going on to the LLM. However, for now, for an MVP, what I want to do.
+is I want to
+Um...
+I want to just do this on an already existing tree. So, for example, in...
+In our benchmarker output, we have user guide QA audio.
+That is an example.
+Um,
+of the LongBenchV2 question that I've converted to a voice tree. And there's maybe like 10 or so disconnected components. And so the MVP should be that already built tree with various disconnected subtrees, connecting those subtrees together. For now, we can just not worry about the difference between connecting them directly versus connecting them through a parent node. Let's just always do it with a parent node.
+Um...
+So you get.
+at least two roots from disconnected subtrees.
+Um, so you, you give, you give the LM all of it, the.
+and the LLM must form groupings of at least two if they are directly related through an obvious parent grouping and it should output the...
+the parent grouping name and a summary for that parent.
+Um
+And as input, it's going to get all the root nodes. And of the root nodes, it's only going to get titles and summaries. We don't need to send through the whole content. That's unnecessary. Although we should also send over a neighborhood around the root node that we're sending. So you're sending a root node, and that root node has various children.
+those children have children um so we want to send the neighborhood but let's not do that for the mvp let's save that as a to-do item for um mvpv2 um same for um directly connecting uh disconnected subtrees let's not do that yet just we always form a parent node as the parent
+Um, and let's make.
+That, also a to-do item for V2.
+So just add two comments there.
+Okay, cool. So I think that is clear enough.
+And then the next steps on top of that is once our tree is well-connected, okay, so yeah, one caveat is that we
+be careful to not over encourage the LLM to connect disconnected components. We want to say only if there is an obvious relationship between some of these routes where you can connect them through a parent. We don't want to force unrelated subtrees to then get connected.
+just one caveat there all right cool so next step then is we need to implement a vector search so given a tree and given a query we want to
+convert each node into a vector embedding and then do a vector embedding search for the query against each node to then get the five most relevant nodes.
+And then with those five most relevant nodes, we're going to send over a.
+to the LLM, a dependency traversal from the root of our tree to the relevant node.
+um accumulating the context as we go um so we'll go from course to fine so we'll start with um
+uh just the titles of the node as we um traverse and then as we start getting closer like let's say
+seven hops away, 10 hops away, we start including summaries. And then as we start getting three hops away, we start including...
+full node content.
+And then we should also be doing this traversal for traversal v2. So that's MVP traversal. Traversal v2 will also start including the neighborhood around the traversal.
+to the LLM and also like the children after the
+target node that's relevant so you sort of continue the traversal a bit extra to the children we already have very very importantly we've we already have code to do dependency traversal in the tree but we'll want to clean it up and extract the dependency traversal into its own file to make sure that we're modular and
+and reusable and testable and all those good stuff.
+We will also want
+And then for a vector search and vector embeddings, I think we have some example code somewhere in the code base. But important there is that we want to use Gemini embeddings, and there's a very clear, short, concise example on the Google Docs. It makes it very easy to create the embedding and then do a for loop over all nodes to do.
+All right, and now there are some other fix-ups that I want to do in general outside of this main task. So let's just add like a won't do node where we...
+that content. So for example, hierarchical layout for VoiceTree, I want to encourage hierarchical layout, a hierarchical color layout. Currently you have to do sort of do it manually.
+I think we can do much better.
+Like right now I'm doing it manually doing the hierarchical layout, but it'd be nice for just
+for it to audit it.
+Um...
+Okay
+Let's now start launching our agents.
+So...
+All right, and we need to fix one problem that's blocking us right now before we start working on this which is that For our agent
+Um, orchestration, um,
+relevant context for some reason is broken so you can see that it's not getting any relevant context
+But I think it's just we've made some changes with environment variables.
+names and agent colors. So it definitely just has something to do with that that we could quickly fix up. So let's fix that first.
+Okay, so while that's working
+I don't really want to launch the agents until that problem is fixed.
+Oh, another won't do task is that currently the agents have like Z score a thousand. So they overlay on top of everything. That's really bad. We want to remove that manual hack. We just want them to overlay as per usual.
+as Hover editors.
+um so that other other hover editors can appear on top of them because right now everything appears below them um so
+might actually that might be a really easy fix um it should just be in
+obsidian um sorry in the in juggle juggle main um in our repo for um
+i think it's called agent canvas or voice tree ui um where we we just set the z score for terminal hover editors in the juggle in the juggle repo um important
+Cool that is running
+Nice. This guy fixed the context problem so we can get rid of him.
+Some other fix-ups that I would really like is to be able to just quickly close, when you close the editor for terminal for it to just...
+remove the node as well for the terminal. And also I really wanna be able to collapse and expand nodes so I don't see everything all at once.
+Um,
+And that can also provide hints to the LLM for what context might be relevant or irrelevant currently.
+Cool. All righty. Now we should be able to run Claude on our agent LLM connection mechanism.
+Cool, and now we have...
+so we now work on implementing vector search we'll launch an agent there
+Okay, now I'm thinking...
+So right now I have
+Um...
+I have...
+Um, so I would like to figure out a way. Um, so first I want to make dependency traversal for relevant nodes. I want to make sure that, um, in the current setup we have, that it does go through all children as well as all parents.
+And the reason why is because I what I wanted to do was I wanted to make a So for our agent orchestration system, you often want an orchestrator agent which manages sub agents
+Um, but often a workflow is you create the sub agents manually yourself. Um, but then later on you want an or.
+under all their work.
+For that reason, I would probably launch an agent on a root node, which has lots of children, and those children contain the agents. And I'd want the...
+Uh...
+the
+So if I launch an agent on a root node which has children with agents, I want it to get injected into its context all the child node relevancy, which just means that dependency traversal has to do with relevant nodes.
+Fine, not a problem.
+So, and then the next step on top of that is actually.
+agent orchestration system properly aware of what the agents are doing and the way to do that is it can just look for colors or agent names in the in the markdown nodes right very easy so it gets first dependency traversal of
+the all the human notes or human and agent um and then it gets uh specifically um hey here are all the different agents working under your um in your relevant content
+and your task is to manage them.
+All right, so the main thing I actually want the dependency traversal agent to currently work on is...
+making the
+Making the current dependency traversal file much better organized, much less tech debt, breaking it into the components so that I can then test each individual component and reuse components. So I want to have essentially my dependency traversal function very robust because I know I'm going to have to rely on it a lot. So what I'm going to want it to do is I want it to first write me a proposal document of...
+what changes it can make to improve the quality of the existing dependency traversal. None of the logic, just the code quality and organization and tech debt.
+Okay, so at implement vector search, I want to really specify that it should just be using Gemini embed.
+So, because it's got really simple code there, and I think right now it's using some random Python library. So I'll include the docs here. Is there a way to just...
+Um,
+so
+I'm just gonna copy
+All of this as well.
+Um, and the...
+Okay, so let's.
+Edit that.
+nice
+Cool. Now I'm telling the agent to make sure to use Gemini.
+Yeah, what is sentence transfer?
+Interesting.
+maybe we could in the future um yeah we should ask the LM we should ask the agent as well um whichever agent is the
+to tell us like is it actually better to use Gemini versus the other library. The other library being...
+Sentence Transformers, which I think is something to do with SBIRT. So we should ask it as well, like what it thinks is actually better. Cool.
+Um, okay. And so for the simplified traversal proposal for dependency traversal code refactor.
+The simplified proposal the agent has done. It looks pretty good.
+One thing I'm thinking here is, so I like that it's just a single module.
+Um, one thing is, is that, um, uh,
+load load node that should actually be so in voice tree back-end text to graph pipeline tree manager we have markdown to tree and tree to markdown so load node
+should be part of the markdown to tree module.
+And I think we should actually extract markdown to tree out of the text to graph pipeline, out of tree manager. And the reason for that is that we're going to be using it for both tree creation and context retrieval. So for pruning the tree to give LLM just a relevant context.
+So I think what we should have in back.
+have text to graph pipeline and we should also have
+Context Retrieval.
+And then the markdown to tree becomes a third module there.
+since both are going to be using.
+Does that make sense?
+it's a really interesting bug here where um claude decided
+Yes, I'm going to make this into a subtask, but I'm actually just gonna do it myself and pretend that it's a subtask by faking the colors. Document progress of AdiNodePi using orange color. Instead of just letting me...
+the subtask, so I think I need to explain to it.
+Um,
+I mean, it should be clear from the prompt already that it doesn't actually, it shouldn't actually be running the agents.
+But, oh well, it doesn't usually do that.
+Okay, now we are launching the sub-agents.
+That's right.
+So right now we've...
+The proposed system architecture. I'm just wondering do we want it in back-end or tools?
+That's fun, that's fun.
+having it in back-end or tools.
+Okay, so the bug with agents trying to launch their own sub-agents is being reproduced. So something must be different now. So let's just investigate that.
+Nice, vector search apparently is done.
+Um...
+Yeah, we can get Gemini to review a little bit.
+Okay, so I'm working on the bug for
+the fact that we're automatically spawning sub-agents from the parent agent. We shouldn't be doing that, we should be loading users manually, spawn them, although in the future we...
+We actually do want automatic spawning, but I'm just gonna work on that bug right now.
+So create subagent commit.
+Line 104.
+We can just tack that on for now, we just added to the prompt.
+to not spawn the subtasks.
+Which I think is...
+Good genug
+Another little minor
+is that the...
+The first node that's made by an agent has their agent name underscored, but future nodes created with agents.
+don't have their um
+agent name appended so that would be good
+Thank you.
+Cool so we've launched an agent to work on that. Do you understand what the problem is?
+Okay, cool already found add new node.py, which is perfect. So let's just get it to Tell us if it understands the full problem and then we're going to want to get the agent to just make sure that the Nodes created through add new node.py have the agent
+pre-pended to the file.
+I think we need to be a bit more specific, so I want...
+Nodes made by agents
+You always.
+Have agent name ended to file name.
+However.
+I'm trying to look at some of the code that's been made.
+Okay, so in tree action decider workflow, I'm seeing that it actually added code to do it every 15 nodes but remember This is actually fine. We'll just leave the code the code looks fine But I did say that we wanted to leave this for version 2 not the MVP. So please explain why that happened
+Embedding search looks fine.
+Hmm.
+So in tree functions, we're now using embeddings for our semantic search.
+Um...
+However,
+There's going to be a lot of complexity there because we don't yet actually Create the embeddings while we're doing tree creation. So this is again something I said
+for version two um because
+For now, we only actually want to use the embeddings for...
+uh, context retrieval, not for tree creation. Okay. Very important.
+Okay, let's look at add new node.py
+Add new node.py.
+Looks fine.
+What is it doing?
+We might need to...
+Okay, cool.
+Cool, now I'm looking through the code it wrote for
+um so now we split into context retrieval and mark down to tree so i'm just reviewing that
+Um...
+Ah, it's actually really neat. It's really good code.
+Mmm.
+Now I'm reviewing the Connect Orphan Nodes prompt.
+All right, so it's a common problem with the connect orphan prompts, which is it's asking for an array of node IDs to
+However, LLMs don't actually work well with NodeID.
+We instead want to give it node titles.
+Um,
+and then we can
+I want to return both a node ID and
+so this is how we currently do it in all our prompts you return a node ID and a node title and then if the node ID doesn't exist we can just fall back to fuzzy finding the node ID based on
+Um,
+And the other thing which is directly related to that is that you don't actually need to include the output format because if it's in state.py, if it's in a pedantic model, it gets injected into the prompt automatically. So we don't actually need that.
+Okay, now when you figure out which agent changed tree functions to use embedding-based search...
+um so we don't want that so where was that
+Oh, yep, here we are.
+Um,
+So we do actually want that code somewhere, right? So we want it in...
+So it's going to be in.
+Context retrieval? No.
+It's going to be, oh yeah, we'll be in.
+retrieval, right? Because context retrieval...
+So we have markdown a tree, text graph pipeline, context retrieval.
+Let's add a um
+Uhhh...
+Boo, boo, boo, boo.
+Yeah, let's add it to context.
+Thank you.
+So just want to make sure we have end-to-end tests for what are we even doing here? So we are doing
+Agent LLM Connect
+Oh, yeah, yeah, connecting subtrees.
+And we want to make sure it's tested
+So we're approaching opus usage limit, so we should start making sure that some of the subagents run on.
+and then start optimizing the plot itself so we don't run into that problem as often.
+Nice, um, title.
+naming conventions working
+Um...
+Just an agent to work on the little fix-ups that Iris mentioned.
+Cool that looks like
+We are done.
+Pretty amazing, huh?
+So there you see it gets hooks about all new files and the LM itself can decide if they're relevant or not.
+Um...
+And.
+So that was content filtering done.
+Um...
+Okay, so.
+okay yeah so i should have also explained so um uh there's always we keep on getting this problem with um them wanting to have like parent relationship patterns like specific um relationship words for parents um we don't want that so this is for um when looking for children or parents in um dependency traversals um so parents are always just the links in a markdown note so you have like um square bracket square bracket uh parent and then um
+That will link to a parent and the node that linked to the parent
+child and the parent is a parent so for a node X all children of X are nodes Y which have a link to X does that make sense
+So I would send that to the orchestrator as well but
+Um...
+I will tell it.
+Uh...
+So.
+So here I'm getting them to communicate.
+the tree.
+Nice so vector search looks like it's done
+Um,
+So it says it ran on...
+Um,
+So Grace says she ran on
+the actual
+input
+Uh, but I don't quite believe her.
+All right, cool. So I'm listening now to, um...
+I think it's Grace explain why when they were.
+end test it actually didn't connect any orphans and that's because we're only including the root nodes so as we discussed in version 2 of this for connecting disconnected subtrees we're going to have to include not just the route but the neighborhood around the route
+Um, so that the root sort of acts as, um,
+a summarization of the whole subtree.
+So we actually don't want to send it roots. We want to send.
+summary of that sub-tree, disconnected sub-tree. So I'm going to tell Grace that and let's get it to save that understanding to the tree and its context only has 13% context left so we'll have to be careful here.
+Oh, and then another problem here would be as well that we're not actually giving the LLM enough context.
+So we're just giving it these nodes, but we're not giving it like comprehensive overall context of the input text.
+um which we definitely should be doing as well um so almost like we need like uh like summary nodes of like just like overall cohesive
+of a text. So maybe that's like every 10 nodes as we're creating
+Summaries
+Um, we want.
+So every 10 nodes as we're creating, so every 10 nodes, we want to then connect disconnect.
+subtrees. And if it understands, if it gets also given the transcript history for the during the time those ten nodes were created, it has the context to understand the bigger picture.
+And then I think we're sorted. So that will fix it as well. So include that in your proposal as well, Grace.
+Awesome, I think that task is done.
+Um,
+I think.
+Let's see here.
+Grace wrote.
+Let's pin that
+Um...
+Cool
+We are done with this voice tree. Let's do the final git commits.
+Um...
+Might have some fix-ups to do on top of this, but as a first draft, we are chilling.
+Battery's going away anyway, so...
+So I'm doing my review now, depends each version, so we don't want...
+Okay, that's fine. What did I do?
+Why is um
+Why is markdown a tree?
+So mark down a tree, all the code is in...
+the init.py that seems kind of strange let's see
+so
+Yeah, so.
+In markdown a tree, all the code is in the underscore underscore init, which just seems like bad practice.
+Um,
+Let's just get an agent to quickly fix it up.
+Let's comment out.
+phase three connect orphans
+I mean, actually, we don't need a comment now. We can just see if it works, and if not...
+I'll just add a two to a comment.
+Um, so
+So I think, yeah, the idea here is that this is orphan connection.
+should be
+sub tree connection next where we don't want to connect orphans we want to connect whole subtrees
+Okay
+It's just a move.
+Okay, now this file.
+uh graph dependency traversal in a community graph content should no longer be necessary
+So let's see.
+So yeah, we want to keep that file, but redirect its usage, its actual logic to using our new modules.
+Um...
+These are just fix-ups.
+Okay, let's quickly check the...
+uh tests
+These tests actually look genuinely pretty okay
+Um...
+So let's just commit.
+I can review that later.
+Um,
+Ah, we have some Unversion 5.
+Okay.
+So now we have markdown to tree extraction done.
+done um let's just see so that would be um marked down to tree ah so we still have marked down a tree
+So
+We don't want to mark down a tree anymore.
+because we have the Moktano Tree module.
+um so let's see what
+worked on a tree
+Um,
+So that's actually gonna have to be a whole agent to we're gonna want to launch in a whole agent to do that but
+My computer's about to run out of battery.
+Um, so let's just.
+I'll add that as a comment.
+Um,
+And I think
+We are at a good place to pause.
+We've done some really cool stuff.
+Um,
+Everything's starting to lag now a little bit because of how huge everything's getting.
+But how many agents do we work on here?
+1, 2, 3, 4, 5, 6, 7, 8, 9, 10 at least. Not including the ones I've removed. This is pretty epic. This is a voice tree. How awesome is that?
+Thank you. Bye.
+Thank you.
+myself one second i'll be back in a minute
+Yeah.
+Thank you.
+I've never read such a thing that changed out books in my book.
+Thank you very much.
+We don't seem to do what?
+Thank you.
+No. Wonderful.
+What we have.
+I'll bring you more Linda. Look at this beautiful book. My favorite book.
+you
+That's nice.
+Nope.
+Thank you.
