@@ -7,7 +7,7 @@
 ### For Regular Agents:
 ```bash
 # Add detailed progress nodes with simple Mermaid diagrams (color automatically inherited)
-python tools/add_new_node.py <parent_file> "Node Name" "Rich content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>
+python VoiceTree/tools/add_new_node.py <parent_file> "Node Name" "Rich content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>
 
 # Example relationships: is_progress_of, implements, tests, documents, etc.
 ```
@@ -36,7 +36,7 @@ How this change affects the overall system
 ### For Orchestrator Agents:
 ```bash
 # Create subtask nodes with specific colors
-python tools/add_new_node.py <parent> "Agent Name Task" "Task description" is_subtask_of --color <color>
+python VoiceTree/tools/add_new_node.py <parent> "Agent Name Task" "Task description" is_subtask_of --color <color>
 
 # Available colors: green, blue, purple, red, orange, pink, cyan, magenta, indigo, teal, brown, navy, olive
 ```

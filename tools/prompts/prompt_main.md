@@ -7,7 +7,7 @@ The task will be given after these initial instructions.
 As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree using:
 
 ```bash
-python tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
+python VoiceTree/tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
 ```
 
 ## ENHANCED NODE CONTENT REQUIREMENTS:
@@ -68,7 +68,7 @@ This allows you to access the following repos:
 - $USER_ROOT_DIR/repos/voicetree-UI/juggl-main for juggl UI
 
 As you complete any actions, REMEMBER to grow the tree by using:
-python tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>
+python VoiceTree/tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>
 
 ALWAYS include Mermaid diagrams showing the changes you made!
 

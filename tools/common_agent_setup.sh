@@ -116,7 +116,9 @@ generate_dependency_graph() {
     echo "Generating dependency graph content..."
     
     # Run the graph traversal tool, redirecting stderr to /dev/null to suppress warnings
-    python graph_dependency_traversal_and_accumulate_graph_content.py "$OBSIDIAN_VAULT_PATH" "$OBSIDIAN_SOURCE_NOTE" 2>/dev/null
+    # Get the directory where this script is located
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    python "$SCRIPT_DIR/graph_dependency_traversal_and_accumulate_graph_content.py" "$OBSIDIAN_VAULT_PATH" "$OBSIDIAN_SOURCE_NOTE" 2>/dev/null
     
     # Check if accumulated.md was created successfully in /tmp/
     if [ -f "/tmp/accumulated.md" ]; then
