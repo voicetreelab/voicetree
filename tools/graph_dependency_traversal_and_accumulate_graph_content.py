@@ -200,7 +200,7 @@ def main():
     # --- Step 2: Find relevant nodes based on ALL traversed content ---
     print("\n--- Performing inverse document search ---")
     aggregated_traversed_content = " ".join(
-        node.get('content', '') for _, nodes in all_traversed_info for node in nodes
+        node.get('content') or '' for _, nodes in all_traversed_info for node in nodes
     )
     
     top_relevant_nodes = find_top_relevant_nodes(
