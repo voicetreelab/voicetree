@@ -65,8 +65,8 @@ class TextBufferManager:
             return
 
         # add space between phrases.
-        # only if previous phrase ended in an alphabetical character.
-        if self._buffer and self._transcript_history and not text[0] == " " and self._transcript_history[-1].isalpha() and self._buffer[-1].isalpha():
+        # only if previous phrase ended in an alphabetical character AND new text starts with alphabetical character.
+        if self._buffer and self._transcript_history and not text[0] == " " and self._transcript_history[-1].isalpha() and self._buffer[-1].isalpha() and text[0].isalpha():
             self._buffer += " "
             self._transcript_history += " "
 
