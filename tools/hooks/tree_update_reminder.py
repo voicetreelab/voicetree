@@ -12,7 +12,9 @@ from datetime import datetime
 
 def get_agent_state_file(agent_name):
     """Get the CSV state file path for this agent."""
-    return Path(f"seen_nodes_{agent_name}.csv")
+    state_dir = Path("tools/state")
+    state_dir.mkdir(exist_ok=True)
+    return state_dir / f"seen_nodes_{agent_name}.csv"
 
 def load_seen_files(state_file):
     """Load previously seen files from CSV."""
