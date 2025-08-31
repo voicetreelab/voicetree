@@ -30,6 +30,15 @@ class RootNodeInfo:
     child_count: int = 0
 
 
+@dataclass
+class RootGrouping:
+    """A grouping of related root nodes with their IDs"""
+    root_node_ids: List[int]
+    parent_title: str
+    parent_summary: str
+    relationship: str
+
+
 # Pydantic models for LLM responses
 class OrphanGrouping(BaseModel):
     """A single grouping of related orphan roots"""

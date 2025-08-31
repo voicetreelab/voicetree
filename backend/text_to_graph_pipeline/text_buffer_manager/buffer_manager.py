@@ -60,13 +60,13 @@ class TextBufferManager:
         logging.info(f"TextBufferManager initialized with threshold: {self.bufferFlushLength}")
         
     def addText(self, text: str) -> None:
-        if not text or text == "":
+        if not text or text.strip() == "":
             logging.warning("addText called empty text")
             return
 
         # add space between phrases.
-        # only if previous phrases didn't end in a space.
-        if self._buffer and self._transcript_history and not text[0] == " " and not self._transcript_history[-1] == " " and not self._buffer[-1] == " ":
+        # only if previous phrase ended in an alphabetical character.
+        if self._buffer and self._transcript_history and not text[0] == " " and self._transcript_history[-1].isalpha() and self._buffer[-1].isalpha():
             self._buffer += " "
             self._transcript_history += " "
 
@@ -103,7 +103,7 @@ class TextBufferManager:
             return self._buffer
 
         if text in self._buffer:
-            self._buffer = self._clean_buffer_text(self._buffer.replace(text, ""))
+            self._buffer = self._clean_buffer_text(self._buffer.replace(text, "", 1))
             return self._buffer
         # Use fuzzy matcher to remove the text
         result, success = self._fuzzy_matcher.remove_matched_text(self._buffer, text)

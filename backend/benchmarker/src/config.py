@@ -43,7 +43,7 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "VT Original Transcript",
         "max_words": 63*10 + 1,
         "processing_mode": "word",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        # "currently_active": True
+        "currently_active": True
     },
     {
         "file": "backend/benchmarker/input/owl_transcript.txt", 
@@ -100,7 +100,7 @@ DEFAULT_TEST_TRANSCRIPTS = [
         "name": "LongBench v2 User Guide QA - Audio Processing",
         "max_words": None,
         "processing_mode": "line",  # Process as complete user guide
-        "currently_active": True,
+        # "currently_active": True,
         "description": "LongBench v2 User Guide QA: Audio processing manual (8.6K words) - requires understanding workflow after audio cutting with low clarity"
     }
 ]
