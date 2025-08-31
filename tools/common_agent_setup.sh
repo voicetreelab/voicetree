@@ -22,7 +22,7 @@ generate_agent_name() {
     local FIRST_NAMES=("Alice" "Bob" "Charlie" "Diana" "Eve" "Frank" "Grace" "Henry" "Iris" "Jack" "Kate" "Leo" "Maya" "Noah" "Olivia" "Paul" "Quinn" "Ruby" "Sam" "Tara" "Uma" "Victor" "Wendy" "Xavier" "Yara" "Zoe")
     
     # Tracker file to maintain state across sessions
-    local TRACKER_FILE="$(dirname "$0")/.agent_names_tracker"
+    local TRACKER_FILE="$(dirname "$0")/state/.agent_names_tracker"
     
     # Read used names from tracker
     local USED_NAMES=()

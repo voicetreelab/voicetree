@@ -135,4 +135,6 @@ backend/text_to_graph_pipeline/agentic_workflows/core/debug_logs/*
 backend/tests/integration_tests/agentic_workflows/.obsidian/*
 /backend/tests/markdownTreeVaultDefault/*
 /backend/tests/animal_example/.obsidian/*
-**/.obsidian/*
+#**/.obsidian/*
+markdownTreeVault/.obsidian/workspace.json
+tools/state/*
