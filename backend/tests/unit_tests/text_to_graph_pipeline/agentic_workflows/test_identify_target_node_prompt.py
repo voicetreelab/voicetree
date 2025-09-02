@@ -21,8 +21,8 @@ class TestIdentifyTargetNodePrompt:
     def prompt_loader(self):
         """Get prompt loader instance"""
         # Get the absolute path to prompts directory
-        backend_dir = Path(__file__).parent.parent.parent.parent
-        prompts_dir = backend_dir / "text_to_graph_pipeline" / "agentic_workflows" / "prompts"
+        backend_dir = Path(__file__).parent.parent.parent.parent.parent
+        prompts_dir = backend_dir / "backend" / "text_to_graph_pipeline" / "agentic_workflows" / "prompts"
         return PromptLoader(str(prompts_dir.absolute()))
 
     def test_prompt_loads_successfully(self, prompt_loader):

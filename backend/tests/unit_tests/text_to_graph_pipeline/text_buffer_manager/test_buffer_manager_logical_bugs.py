@@ -171,8 +171,8 @@ class TestTextBufferManagerLogicalBugs:
         buffer_manager.addText("A" * 79)  # Just below flush threshold
         assert buffer_manager.getBufferTextWhichShouldBeProcessed() == ""
         
-        buffer_manager.addText("B")  # Now at 80 chars
-        assert len(buffer_manager.getBufferTextWhichShouldBeProcessed()) == 80
+        buffer_manager.addText("B")  # This adds space + B = 81 total chars (space added between A and B)
+        assert len(buffer_manager.getBufferTextWhichShouldBeProcessed()) == 81
         
     def test_long_text_flush_performance_issue(self):
         """

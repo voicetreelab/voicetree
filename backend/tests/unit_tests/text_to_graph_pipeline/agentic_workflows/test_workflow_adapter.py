@@ -153,6 +153,7 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
     
     def test_orphan_node_merging(self):
         """Test that multiple orphan nodes with same name are merged into one"""
+        # TODO: Orphan merging isn't fully developed yet - this test may fail until implementation is complete
         async def async_test():
             # Mock multiple orphan create actions with same name (this is when merging happens)
             placement_actions = [

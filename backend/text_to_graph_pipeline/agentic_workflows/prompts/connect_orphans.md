@@ -1,72 +1,21 @@
 # Connect Orphan Nodes Prompt
 
-You are analyzing a tree structure that has multiple disconnected components (orphan subtrees).
-Your task is to identify which disconnected root nodes share obvious relationships and should
-be grouped under a common parent node.
+You are analyzing orphan nodes (nodes without parents) in a knowledge tree. Your task is to identify which orphans could be grouped under a synthetic parent node to connect and clarify the tree structure.
 
-## Context
 
-You are given root nodes from disconnected subtrees. Each root represents the top of an 
-independent component in the tree. Your goal is to find natural groupings where multiple
-roots clearly relate to each other through a common theme, category, or concept.
+## Input: Orphan Nodes + their children for context
 
-## Root Nodes to Analyze
+{{roots_context}}
 
-{roots_context}
+## Your Task
 
-## Instructions
+For each pair or group of orphan nodes, ask yourself:
+1. How are these nodes related? Be a detective - the relationship may be transitive (through an intermediate concept). What are the concept nodes actually about? Is there a connection between them? Try explain how they may be connected.
+2. Try finish this sentence: 1. node_A and node_B are related since...
 
-1. **Analyze Relationships**: Look at the titles and summaries of all root nodes. Identify
-   which roots share obvious thematic, conceptual, or categorical relationships.
+This relationiship could be: 
+    - similar types of abstractions. (node_A and node_B are both ___.)
+    - related semantically / contextually (node_A is related to a larger plan that will unlock node_B) this will often be transitive, not direct.
 
-2. **Form Groupings**: Group at least {min_group_size} related roots together ONLY if there
-   is a clear and obvious relationship. Do not force unrelated topics together.
-
-3. **Create Parent Nodes**: For each grouping, define:
-   - A clear, descriptive title for the parent node that captures the common theme
-   - A summary that explains what unites these subtrees
-   - The relationship type (e.g., "is_a_category_of", "is_a_theme_grouping_of")
-
-## Important Constraints
-
-- **Only group roots with OBVIOUS relationships**: If roots don't clearly relate, leave them ungrouped
-- **Minimum group size**: Each grouping must contain at least {min_group_size} root nodes
-- **Avoid over-grouping**: Don't create overly broad parent categories just to connect everything
-- **Preserve independence**: Some roots may remain disconnected if they truly represent independent topics
-
-## Examples of Good Groupings
-
-**Example 1**: Roots about "User Authentication", "Password Management", and "Session Handling"
-→ Parent: "Security and Authentication System"
-
-**Example 2**: Roots about "React Components", "Vue Templates", and "Angular Directives"  
-→ Parent: "Frontend Framework Components"
-
-**Example 3**: Roots about "Database Queries", "SQL Optimization", and "Index Management"
-→ Parent: "Database Performance and Management"
-
-## Examples of Poor Groupings (Avoid These)
-
-**Bad Example 1**: Grouping "User Authentication" with "Color Themes" 
-→ Too unrelated, no clear connection
-
-**Bad Example 2**: Creating parent "System Stuff" for any technical topics
-→ Too vague and broad
-
-**Bad Example 3**: Forcing all roots under "Application Features"
-→ Over-grouping loses meaningful structure
-
-## Output Format
-
-Provide your analysis as a JSON response with:
-- `reasoning`: Your explanation of why certain roots were grouped
-- `groupings`: Array of groupings, each containing:
-  - `root_node_titles`: Array of node TITLES (not IDs) to group together - use exact titles from input
-  - `parent_title`: Title for the new parent node
-  - `parent_summary`: Summary explaining the grouping
-  - `relationship`: The relationship type
-- `ungrouped_roots`: Array of root node TITLES that couldn't be meaningfully grouped
-
-IMPORTANT: Use the exact node titles as provided in the input, not node IDs.
-
-Remember: It's better to leave roots disconnected than to create forced, artificial groupings.
+2. What would be the name and description of a synthetic parent node which could connect node_A -> synthetic_parent <- node_B
+- what would be the names of the relationships to the child nodes to the parent? i.e node_A <relatioinship_to> synthetic_parent

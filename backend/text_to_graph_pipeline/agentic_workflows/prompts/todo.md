@@ -1,1 +1,0 @@
-- single abstraction optimiser should be able to make children node targetting another child

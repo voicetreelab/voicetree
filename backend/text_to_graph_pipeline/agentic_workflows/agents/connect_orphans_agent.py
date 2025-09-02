@@ -10,7 +10,7 @@ components problem by:
 
 import logging
 from typing import List, Dict, Optional, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from langgraph.graph import END
 
@@ -28,6 +28,7 @@ class RootNodeInfo:
     title: str
     summary: str
     child_count: int = 0
+    children: List[Dict[str, str]] = field(default_factory=list)  # List of {title, summary} for children
 
 
 @dataclass
@@ -46,7 +47,8 @@ class OrphanGrouping(BaseModel):
     parent_title: str = Field(description="Title for the new parent node")
     parent_summary: str = Field(description="Summary for the new parent node")
     relationship: str = Field(description="Relationship type, e.g. 'is_a_category_of'")
-
+    # todo:
+    # separate new node model + connection to new node model
 
 class ConnectOrphansResponse(BaseModel):
     """LLM response for connecting orphan nodes"""
@@ -55,11 +57,6 @@ class ConnectOrphansResponse(BaseModel):
         description="List of root groupings to create",
         default_factory=list
     )
-    ungrouped_roots: List[str] = Field(
-        description="Root node titles that couldn't be grouped",
-        default_factory=list
-    )
-
 
 class ConnectOrphansAgent(Agent):
     """
@@ -100,30 +97,54 @@ class ConnectOrphansAgent(Agent):
         roots = []
         for node_id, node in tree.tree.items():
             if node.parent_id is None:
-                # Count children for context
-                child_count = len(node.children) if hasattr(node, 'children') else 0
+                # Get children information
+                children_info = []
+                if hasattr(node, 'children') and node.children:
+                    for child_id in node.children:
+                        if child_id in tree.tree:
+                            child_node = tree.tree[child_id]
+                            children_info.append({
+                                'title': child_node.title,
+                                'summary': child_node.summary if child_node.summary else child_node.content[:100]
+                            })
+                
+                child_count = len(children_info)
                 
                 roots.append(RootNodeInfo(
                     node_id=node_id,
                     title=node.title,
                     summary=node.summary if node.summary else node.content[:200],
-                    child_count=child_count
+                    child_count=child_count,
+                    children=children_info if children_info else []
                 ))
         
         self.logger.info(f"Found {len(roots)} disconnected root nodes")
         return roots
-    
+    # todo, we already have format nodes for prompt methods, should be using that instead
+    # see backend/text_to_graph_pipeline/tree_manager/tree_functions.py
+
     def _format_roots_for_prompt(self, roots: List[RootNodeInfo]) -> str:
-        """Format root nodes for the LLM prompt - using titles only per node 76"""
+        """Format root nodes for the LLM prompt including children info"""
         formatted = []
         for root in roots:
-            formatted.append(
-                f"Title: {root.title}\n"
-                f"Summary: {root.summary}\n"
-                f"Subtree Size: {root.child_count} children\n"
-            )
+            root_text = f"Title: {root.title}\n"
+            root_text += f"Summary: {root.summary}\n"
+            
+            # Add children information if present
+            if root.children:
+                root_text += f"Has {root.child_count} children:\n"
+                for i, child in enumerate(root.children[:5], 1):  # Show first 5 children
+                    root_text += f"  {i}. {child['title']}: {child['summary'][:50]}...\n"
+                if root.child_count > 5:
+                    root_text += f"  ... and {root.child_count - 5} more children\n"
+            else:
+                root_text += "Has no children (leaf node)\n"
+            
+            formatted.append(root_text)
         return "\n---\n".join(formatted)
-    
+
+
+   #todo, we already have method somewhere for this (tree utils?).
     def _map_titles_to_ids(self, titles: List[str], roots: List[RootNodeInfo]) -> List[int]:
         """
         Map node titles back to their IDs, with fuzzy matching fallback.

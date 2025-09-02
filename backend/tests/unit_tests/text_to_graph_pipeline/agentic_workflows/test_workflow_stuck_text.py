@@ -48,15 +48,16 @@ class TestWorkflowStuckTextRemoval:
         assert buffer_manager.getBuffer() == "Uh, uh, some"
         assert workflow._prev_buffer_remainder == "Uh, uh, some"
         
-        # Second processing - same buffer content, should trigger stuck text removal
-        await workflow.process_text_chunk(
-            text_chunk="Uh, uh, some",
-            transcript_history_context="",
-            tree_action_applier=tree_action_applier,
-            buffer_manager=buffer_manager
-        )
+        # Process 4 more times to reach the stuck text threshold (5 iterations total)
+        for i in range(4):
+            await workflow.process_text_chunk(
+                text_chunk="Uh, uh, some",
+                transcript_history_context="",
+                tree_action_applier=tree_action_applier,
+                buffer_manager=buffer_manager
+            )
         
-        # The entire stuck buffer should be cleared
+        # After 5 iterations, the stuck buffer should be cleared
         assert buffer_manager.getBuffer() == ""
         
     @pytest.mark.asyncio
@@ -94,16 +95,17 @@ class TestWorkflowStuckTextRemoval:
         assert buffer_manager.getBuffer() == "Uh, some incomplete text"
         assert workflow._prev_buffer_remainder == "Uh, some incomplete text"
         
-        # Second processing - same situation, should trigger stuck text removal
+        # Process 4 more times to reach the stuck text threshold (5 iterations total)
         placement_result.completed_text = "Still not in buffer"
-        await workflow.process_text_chunk(
-            text_chunk="Uh, some incomplete text",
-            transcript_history_context="",
-            tree_action_applier=tree_action_applier,
-            buffer_manager=buffer_manager
-        )
+        for i in range(4):
+            await workflow.process_text_chunk(
+                text_chunk="Uh, some incomplete text",
+                transcript_history_context="",
+                tree_action_applier=tree_action_applier,
+                buffer_manager=buffer_manager
+            )
         
-        # The entire stuck buffer should be cleared
+        # After 5 iterations, the stuck buffer should be cleared
         assert buffer_manager.getBuffer() == ""
         
     @pytest.mark.asyncio
