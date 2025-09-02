@@ -83,7 +83,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             content = f.read()
             # Check YAML frontmatter
             self.assertIn("---\n", content)
-            self.assertIn("title: Child Node 1 1\n", content)
+            self.assertIn("title: Child Node 1 (1)\n", content)
             self.assertIn("node_id: 1\n", content)
             self.assertIn("Updated Child Node 1", content)
             parent_file = self.tree_data[0].filename
@@ -179,7 +179,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             content = f.read()
             # Check YAML frontmatter format
             self.assertTrue(content.startswith("---\n"))
-            self.assertIn("title: root node 0\n", content)
+            self.assertIn("title: root node (0)\n", content)
             self.assertIn("node_id: 0\n", content)
             # Note: created_at and modified_at are not included in current YAML frontmatter format
             # Check that frontmatter ends properly

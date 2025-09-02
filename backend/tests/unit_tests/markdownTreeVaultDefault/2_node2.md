@@ -1,12 +1,10 @@
 ---
-title: node2
 node_id: 2
-created_at: 2025-07-24T13:34:45.157194
-modified_at: 2025-07-24T13:34:45.157198
+title: node2 (2)
 ---
 ### summary2
 
-content2.
+content2
 
 
 -----------------

@@ -1,13 +1,10 @@
 ---
-title: Test Node
 node_id: 1
-created_at: 2025-07-24T13:34:45.370551
-modified_at: 2025-07-24T13:34:45.371154
+title: test_node (1)
 ---
-### Original summary
+### test_summary
 
-Original content
-New content.
+test_content
 
 
 -----------------

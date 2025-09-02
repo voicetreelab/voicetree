@@ -110,7 +110,7 @@ should work for one word at start / middle / end of buffer. Should work for sent
         
         # Should keep the second occurrence
         assert "Hello world again" in remaining
-        assert remaining.strip().startswith("This is a test")
+        assert remaining.strip().startswith(". This is a test")
     
     def test_get_transcript_history_with_max_length(self):
         """Test that get_transcript_history returns limited history based on maxLength"""

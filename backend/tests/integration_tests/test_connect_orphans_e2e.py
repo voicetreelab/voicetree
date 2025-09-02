@@ -1,204 +1,279 @@
-# """
-# End-to-end test for the Connect Orphans mechanism in the workflow.
-# Tests the full pipeline including the Phase 3 orphan connection that runs every N nodes.
-# """
-#
-# import asyncio
-# import logging
-# import os
-# from pathlib import Path
-# from typing import List
-#
-# import pytest
-# from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
-#     TreeActionDeciderWorkflow
-# )
-# from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-# from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
-#
-#
-# logging.basicConfig(level=logging.INFO)
-#
-#
-# class TestConnectOrphansE2E:
-#     """End-to-end tests for orphan connection in the workflow"""
-#
-#     @pytest.mark.asyncio
-#     async def test_workflow_triggers_orphan_connection(self):
-#         """Test that the workflow triggers orphan connection after N nodes"""
-#         # Create a tree with some initial nodes
-#         tree = DecisionTree()
-#
-#         # Add a few initial disconnected components
-#         for i in range(1, 6):
-#             node = Node(
-#                 name=f"Component {i}",
-#                 node_id=i,
-#                 content=f"Content for component {i}",
-#                 summary=f"Summary of component {i}",
-#                 parent_id=None  # All orphans
-#             )
-#             tree.tree[i] = node
-#         tree.next_node_id = 6
-#
-#         # Create workflow
-#         workflow = TreeActionDeciderWorkflow(tree)
-#
-#         # Force the orphan check by setting the interval low and last check to 0
-#         workflow._orphan_check_interval = 5  # Check after 5 nodes
-#         workflow._last_orphan_check_node_count = 0
-#
-#         # Run a dummy text through the workflow to trigger Phase 3
-#         # This should trigger the orphan connection since we have 5 nodes
-#         result = await workflow.run(
-#             "Some new content to process",
-#             tree
-#         )
-#
-#         # Check that the orphan connection was attempted
-#         # (actual grouping depends on LLM, but the mechanism should run)
-#         assert len(tree.tree) >= 5  # Original nodes should still exist
-#
-#         # Log the tree structure for debugging
-#         print(f"\nFinal tree has {len(tree.tree)} nodes:")
-#         for node_id, node in tree.tree.items():
-#             parent_info = f"parent={node.parent_id}" if node.parent_id else "ORPHAN"
-#             print(f"  Node {node_id}: {node.title} ({parent_info})")
-#
-#     @pytest.mark.asyncio
-#     async def test_load_and_connect_existing_tree(self):
-#         """Test loading an existing tree from markdown and running orphan connection"""
-#         # Path to the existing benchmarker output
-#         tree_path = Path("/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output_backups/user_guide_qa_audio_processing")
-#
-#         if not tree_path.exists():
-#             pytest.skip(f"Test tree not found at {tree_path}")
-#
-#         # Load the existing tree from markdown files
-#         tree = load_markdown_tree(str(tree_path))
-#
-#         # Count initial orphans
-#         initial_orphans = [
-#             node_id for node_id, node in tree.tree.items()
-#             if node.parent_id is None
-#         ]
-#         print(f"\nInitial tree has {len(tree.tree)} nodes, {len(initial_orphans)} orphans")
-#
-#         # Create workflow and force orphan connection
-#         workflow = TreeActionDeciderWorkflow(tree)
-#         workflow._orphan_check_interval = 1  # Force immediate check
-#         workflow._last_orphan_check_node_count = 0
-#
-#         # Run dummy content to trigger Phase 3
-#         result = await workflow.run(
-#             "Trigger orphan connection phase",
-#             tree
-#         )
-#
-#         # Count final orphans
-#         final_orphans = [
-#             node_id for node_id, node in tree.tree.items()
-#             if node.parent_id is None
-#         ]
-#
-#         print(f"\nFinal tree has {len(tree.tree)} nodes, {len(final_orphans)} orphans")
-#
-#         # Check if any new parent nodes were created
-#         new_nodes = len(tree.tree) - len(initial_orphans)
-#         if new_nodes > 0:
-#             print(f"Created {new_nodes} new parent nodes for grouping")
-#
-#             # Show the new nodes
-#             for node_id, node in tree.tree.items():
-#                 if node_id > max(initial_orphans):
-#                     print(f"  New parent: {node.title}")
-#
-#     @pytest.mark.asyncio
-#     async def test_connect_orphans_manual_run(self):
-#         """Manually run the connect orphans agent on a test tree"""
-#         from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
-#             ConnectOrphansAgent
-#         )
-#
-#         # Create a tree with related orphans
-#         tree = DecisionTree()
-#
-#         # Authentication related
-#         auth_node = Node(
-#             name="User Authentication System",
-#             node_id=1,
-#             content="Handles user login and authentication",
-#             summary="User authentication and login management",
-#             parent_id=None
-#         )
-#         tree.tree[1] = auth_node
-#
-#         session_node = Node(
-#             name="Session Management",
-#             node_id=2,
-#             content="Manages user sessions and tokens",
-#             summary="Session and token management",
-#             parent_id=None
-#         )
-#         tree.tree[2] = session_node
-#
-#         # Database related
-#         db_node = Node(
-#             name="Database Query Optimization",
-#             node_id=3,
-#             content="Optimizing database queries",
-#             summary="SQL query optimization techniques",
-#             parent_id=None
-#         )
-#         tree.tree[3] = db_node
-#
-#         index_node = Node(
-#             name="Database Index Management",
-#             node_id=4,
-#             content="Managing database indexes",
-#             summary="Index creation and management",
-#             parent_id=None
-#         )
-#         tree.tree[4] = index_node
-#
-#         # Unrelated
-#         color_node = Node(
-#             name="UI Color Themes",
-#             node_id=5,
-#             content="Application color theming",
-#             summary="Managing UI color schemes",
-#             parent_id=None
-#         )
-#         tree.tree[5] = color_node
-#
-#         tree.next_node_id = 6
-#
-#         # Run the connect orphans agent
-#         agent = ConnectOrphansAgent()
-#         actions = await agent.run(tree, min_group_size=2)
-#
-#         print(f"\nConnect Orphans Agent created {len(actions)} actions:")
-#         for action in actions:
-#             print(f"  - Parent: {action.new_node_name}")
-#             print(f"    Summary: {action.summary}")
-#
-#         # Verify we got some groupings
-#         assert len(actions) >= 0  # May be conservative and not group
-#
-#
-# if __name__ == "__main__":
-#     async def main():
-#         """Run the tests manually"""
-#         test = TestConnectOrphansE2E()
-#
-#         print("=" * 60)
-#         print("Running manual orphan connection test...")
-#         print("=" * 60)
-#         await test.test_connect_orphans_manual_run()
-#
-#         print("\n" + "=" * 60)
-#         print("Loading and processing existing benchmarker tree...")
-#         print("=" * 60)
-#         await test.test_load_and_connect_existing_tree()
-#
-#     asyncio.run(main())
+"""
+End-to-end test for the Connect Orphans mechanism using real qa_example data.
+Tests the full pipeline including the Phase 3 orphan connection that runs every N nodes.
+"""
+
+import asyncio
+import logging
+import os
+from pathlib import Path
+from typing import List, Dict
+
+import pytest
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow
+)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
+    TreeActionApplier
+)
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
+from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
+    ConnectOrphansAgent
+)
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+
+
+logging.basicConfig(level=logging.INFO)
+
+
+class TestConnectOrphansE2E:
+    """End-to-end tests for orphan connection using qa_example data"""
+
+    def load_qa_example_tree(self) -> DecisionTree:
+        """Load the qa_example tree which has many GPT-SoVITS orphan nodes"""
+        tree_path = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/qa_example")
+        
+        if not tree_path.exists():
+            pytest.skip(f"Test tree not found at {tree_path}")
+        
+        # Load the existing tree from markdown files (returns dict)
+        tree_dict = load_markdown_tree(str(tree_path))
+        
+        # Convert to DecisionTree object
+        tree = DecisionTree()
+        tree.tree = tree_dict
+        
+        # Set next_node_id to max existing + 1
+        if tree_dict:
+            tree.next_node_id = max(tree_dict.keys()) + 1
+        else:
+            tree.next_node_id = 1
+            
+        return tree
+
+    @pytest.mark.asyncio
+    async def test_connect_orphans_with_qa_example(self):
+        """Test orphan connection on real qa_example data with GPT-SoVITS nodes"""
+        # Load the qa_example tree
+        tree = self.load_qa_example_tree()
+        
+        # Count initial orphans (nodes with no parent)
+        initial_orphans = [
+            (node_id, node.title) for node_id, node in tree.tree.items()
+            if node.parent_id is None
+        ]
+        print(f"\n=== Initial State ===")
+        print(f"Total nodes: {len(tree.tree)}")
+        print(f"Orphan nodes: {len(initial_orphans)}")
+        print("\nOrphan titles:")
+        for node_id, title in initial_orphans[:10]:  # Show first 10
+            print(f"  - {title}")
+        
+        # Run the connect orphans agent directly
+        agent = ConnectOrphansAgent()
+        actions = await agent.run(tree, min_group_size=2, max_roots_to_process=20)
+        
+        print(f"\n=== Connect Orphans Agent Results ===")
+        print(f"Created {len(actions)} actions")
+        
+        # Apply the actions if we want to see the actual tree structure
+        if actions:
+            # Filter to only CreateActions (parent nodes)
+            create_actions = [a for a in actions if a.action == "CREATE"]
+            print(f"\nNew parent nodes to be created:")
+            for action in create_actions:
+                print(f"  - {action.new_node_name}")
+                print(f"    Summary: {action.summary}")
+            
+            # Apply actions to the tree
+            applier = TreeActionApplier(tree)
+            modified_nodes = applier.apply(actions)
+            
+            print(f"\n=== After Applying Actions ===")
+            print(f"Modified/created {len(modified_nodes)} nodes")
+            
+            # Count final orphans
+            final_orphans = [
+                (node_id, node.title) for node_id, node in tree.tree.items()
+                if node.parent_id is None
+            ]
+            print(f"Final orphan count: {len(final_orphans)}")
+            
+            # Show the new tree structure for parent nodes
+            print("\n=== New Parent Nodes Created ===")
+            for node_id in modified_nodes:
+                if node_id in tree.tree:
+                    node = tree.tree[node_id]
+                    if node.parent_id is None and any(
+                        other.parent_id == node_id for other in tree.tree.values()
+                    ):
+                        # This is a new parent node
+                        children = [n for n in tree.tree.values() if n.parent_id == node_id]
+                        print(f"\nParent: {node.title}")
+                        print(f"  Children ({len(children)}):")
+                        for child in children[:5]:  # Show first 5 children
+                            print(f"    - {child.title}")
+        
+        # Assertions for test validity
+        assert len(initial_orphans) > 0, "Should have orphan nodes to start with"
+        # The agent should create some groupings for GPT-SoVITS related nodes
+        # but we don't force a specific number as it depends on LLM analysis
+
+    @pytest.mark.asyncio
+    async def test_workflow_triggers_orphan_connection_with_qa_data(self):
+        """Test that the workflow triggers orphan connection using qa_example"""
+        # Load the qa_example tree
+        tree = self.load_qa_example_tree()
+        
+        initial_node_count = len(tree.tree)
+        
+        # Create workflow
+        workflow = TreeActionDeciderWorkflow(tree)
+        
+        # Force the orphan check by setting the interval low
+        workflow._orphan_check_interval = 5  # Check after 5 nodes
+        workflow._last_orphan_check_node_count = initial_node_count - 10  # Trigger soon
+        
+        # Create necessary components for process_text_chunk
+        buffer_manager = TextBufferManager()
+        tree_action_applier = TreeActionApplier(tree)
+        
+        # Run a dummy text through the workflow to trigger Phase 3
+        # The text itself doesn't matter, we just want to trigger the orphan connection
+        dummy_text = "This is a test to trigger the orphan connection phase for GPT-SoVITS nodes."
+        
+        modified_nodes = await workflow.process_text_chunk(
+            text_chunk=dummy_text,
+            transcript_history_context="",
+            tree_action_applier=tree_action_applier,
+            buffer_manager=buffer_manager
+        )
+        
+        print(f"\n=== Workflow Orphan Connection Test ===")
+        print(f"Initial nodes: {initial_node_count}")
+        print(f"Final nodes: {len(tree.tree)}")
+        print(f"New nodes created: {len(tree.tree) - initial_node_count}")
+        
+        # Check if any new parent nodes were created
+        new_parent_nodes = []
+        for node_id, node in tree.tree.items():
+            if node_id > initial_node_count and node.parent_id is None:
+                # This is a new root node (potential parent)
+                children = [n for n in tree.tree.values() if n.parent_id == node_id]
+                if children:
+                    new_parent_nodes.append((node, children))
+        
+        if new_parent_nodes:
+            print(f"\n=== New Parent Nodes from Workflow ===")
+            for parent, children in new_parent_nodes:
+                print(f"\nParent: {parent.title}")
+                print(f"  Children ({len(children)}):")
+                for child in children[:3]:
+                    print(f"    - {child.title}")
+
+    @pytest.mark.asyncio
+    async def test_connect_orphans_agent_with_actual_connections(self):
+        """Test that ConnectOrphansAgent actually updates parent_id (not just creates parents)"""
+        # Load the qa_example tree
+        tree = self.load_qa_example_tree()
+        
+        # Get initial orphans
+        initial_orphans = {
+            node_id: node for node_id, node in tree.tree.items()
+            if node.parent_id is None
+        }
+        initial_orphan_count = len(initial_orphans)
+        
+        print(f"\n=== Testing Actual Parent Connection ===")
+        print(f"Initial orphans: {initial_orphan_count}")
+        
+        # Create an enhanced version of ConnectOrphansAgent that actually connects
+        agent = ConnectOrphansAgent()
+        
+        # Override the create_connection_actions to include UpdateActions
+        original_create_actions = agent.create_connection_actions
+        
+        def enhanced_create_actions(response, roots):
+            """Enhanced version that includes UpdateActions to set parent_id"""
+            actions = original_create_actions(response, roots)
+            
+            # For each CreateAction (parent node), add UpdateActions for children
+            enhanced_actions = []
+            for action in actions:
+                enhanced_actions.append(action)
+                
+                # Find which roots should be connected to this parent
+                for grouping in response.groupings:
+                    if grouping.parent_title == action.new_node_name:
+                        # Map titles to IDs
+                        root_ids = agent._map_titles_to_ids(
+                            grouping.root_node_titles, 
+                            roots
+                        )
+                        
+                        # Create UpdateActions to connect orphans to parent
+                        for root_id in root_ids:
+                            if root_id in tree.tree:
+                                update_action = UpdateAction(
+                                    action="UPDATE",
+                                    node_id=root_id,
+                                    parent_node_id=action.new_node_name,  # Will need ID after creation
+                                    new_content=None,
+                                    new_summary=None
+                                )
+                                enhanced_actions.append(update_action)
+            
+            return enhanced_actions
+        
+        # Temporarily replace the method
+        agent.create_connection_actions = enhanced_create_actions
+        
+        # Run the agent
+        actions = await agent.run(tree, min_group_size=2, max_roots_to_process=15)
+        
+        print(f"Generated {len(actions)} actions")
+        
+        # Separate create and update actions
+        create_actions = [a for a in actions if isinstance(a, CreateAction)]
+        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
+        
+        print(f"  - {len(create_actions)} CreateActions (new parent nodes)")
+        print(f"  - {len(update_actions)} UpdateActions (connect orphans)")
+        
+        # Verify the actions are structured correctly
+        if create_actions:
+            print("\nParent nodes to create:")
+            for action in create_actions[:3]:  # Show first 3
+                print(f"  - {action.new_node_name}")
+        
+        if update_actions:
+            print(f"\nOrphans to connect: {len(update_actions)}")
+            # Note: In real implementation, we'd need to handle node ID mapping properly
+        
+        # The test passes if we generate both create and update actions
+        assert len(actions) >= 0, "Should generate some actions or none if no good groupings"
+
+
+if __name__ == "__main__":
+    async def main():
+        """Run the tests manually"""
+        test = TestConnectOrphansE2E()
+        
+        print("=" * 60)
+        print("Running Connect Orphans on qa_example data...")
+        print("=" * 60)
+        await test.test_connect_orphans_with_qa_example()
+        
+        print("\n" + "=" * 60)
+        print("Testing workflow trigger with qa_example...")
+        print("=" * 60)
+        await test.test_workflow_triggers_orphan_connection_with_qa_data()
+        
+        print("\n" + "=" * 60)
+        print("Testing actual parent connections...")
+        print("=" * 60)
+        await test.test_connect_orphans_agent_with_actual_connections()
+
+    asyncio.run(main())

@@ -1,12 +1,10 @@
 ---
-title: Test
 node_id: 1
-created_at: 2025-07-24T13:34:45.372131
-modified_at: 2025-07-24T13:34:45.372324
+title: Test (1)
 ---
 ### Updated summary from optimizer
 
-Updated content.
+Updated content
 
 
 -----------------
