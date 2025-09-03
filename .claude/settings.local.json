@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest backend/tests/integration_tests/test_connect_orphans_e2e.py::TestConnectOrphansE2E::test_connect_orphans_with_qa_example -xvs)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
