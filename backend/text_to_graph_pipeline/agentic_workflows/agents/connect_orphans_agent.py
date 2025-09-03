@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from langgraph.graph import END
 
 from ...tree_manager.decision_tree_ds import DecisionTree, Node
+from ...tree_manager.tree_functions import format_nodes_for_prompt, map_titles_to_node_ids
 from ..core.agent import Agent
 from ..core.state import ConnectOrphansAgentState
 from ..models import CreateAction, BaseTreeAction
@@ -41,20 +42,22 @@ class RootGrouping:
 
 
 # Pydantic models for LLM responses
+class ChildRelationship(BaseModel):
+    """Relationship between a child node and its synthetic parent"""
+    child_title: str = Field(description="Title of the child node")
+    relationship_to_parent: str = Field(description="How this child relates to the parent")
+
 class OrphanGrouping(BaseModel):
-    """A single grouping of related orphan roots"""
-    root_node_titles: List[str] = Field(description="Titles of root nodes to group together")
-    parent_title: str = Field(description="Title for the new parent node")
-    parent_summary: str = Field(description="Summary for the new parent node")
-    relationship: str = Field(description="Relationship type, e.g. 'is_a_category_of'")
-    # todo:
-    # separate new node model + connection to new node model
+    """A grouping of orphan nodes under a synthetic parent"""
+    synthetic_parent_title: str = Field(description="Title for the new synthetic parent node")
+    synthetic_parent_summary: str = Field(description="Summary describing what unites these nodes")
+    children: List[ChildRelationship] = Field(description="Child nodes and their relationships to the parent")
 
 class ConnectOrphansResponse(BaseModel):
     """LLM response for connecting orphan nodes"""
     reasoning: str = Field(description="Explanation of grouping decisions")
     groupings: List[OrphanGrouping] = Field(
-        description="List of root groupings to create",
+        description="List of synthetic parent nodes to create",
         default_factory=list
     )
 
@@ -120,34 +123,48 @@ class ConnectOrphansAgent(Agent):
         
         self.logger.info(f"Found {len(roots)} disconnected root nodes")
         return roots
-    # todo, we already have format nodes for prompt methods, should be using that instead
-    # see backend/text_to_graph_pipeline/tree_manager/tree_functions.py
-
-    def _format_roots_for_prompt(self, roots: List[RootNodeInfo]) -> str:
-        """Format root nodes for the LLM prompt including children info"""
-        formatted = []
+    def _format_roots_for_prompt(self, roots: List[RootNodeInfo], include_full_content: bool = True) -> str:
+        """Format root nodes for the LLM prompt with children included for context
+        
+        Args:
+            roots: List of RootNodeInfo objects
+            include_full_content: If True, includes children info for context
+        
+        Returns:
+            Formatted string for prompt with orphans and their children for context
+        """
+        # Convert RootNodeInfo to Node objects for formatting
+        nodes = []
         for root in roots:
-            root_text = f"Title: {root.title}\n"
-            root_text += f"Summary: {root.summary}\n"
+            # Build content that includes children info within the orphan's description
+            content_parts = [root.summary]
             
-            # Add children information if present
-            if root.children:
-                root_text += f"Has {root.child_count} children:\n"
-                for i, child in enumerate(root.children[:5], 1):  # Show first 5 children
-                    root_text += f"  {i}. {child['title']}: {child['summary'][:50]}...\n"
+            if include_full_content and root.children:
+                content_parts.append(f"\n\n**Children of this orphan (for context - DO NOT include these in groupings):**")
+                for i, child in enumerate(root.children[:5], 1):
+                    child_summary = child.get('summary', '')[:100]
+                    content_parts.append(f"  {i}. {child['title']}: {child_summary}")
                 if root.child_count > 5:
-                    root_text += f"  ... and {root.child_count - 5} more children\n"
-            else:
-                root_text += "Has no children (leaf node)\n"
-            
-            formatted.append(root_text)
-        return "\n---\n".join(formatted)
+                    content_parts.append(f"  ... and {root.child_count - 5} more children")
+            elif root.child_count > 0:
+                content_parts.append(f"\n(Has {root.child_count} children)")
+                
+            node = Node(
+                name=root.title,
+                node_id=root.node_id,
+                content="\n".join(content_parts),
+                summary=root.summary
+            )
+            nodes.append(node)
+        
+        # Return formatted nodes - children are now embedded in parent content, not separate nodes
+        # Use include_full_content=True to show the full content with children info
+        return format_nodes_for_prompt(nodes, include_full_content=True)
 
 
-   #todo, we already have method somewhere for this (tree utils?).
     def _map_titles_to_ids(self, titles: List[str], roots: List[RootNodeInfo]) -> List[int]:
         """
-        Map node titles back to their IDs, with fuzzy matching fallback.
+        Map node titles back to their IDs using the utility function.
         
         Args:
             titles: List of node titles from LLM
@@ -156,23 +173,9 @@ class ConnectOrphansAgent(Agent):
         Returns:
             List of corresponding node IDs
         """
-        title_to_id = {root.title: root.node_id for root in roots}
-        node_ids = []
-        
-        for title in titles:
-            if title in title_to_id:
-                node_ids.append(title_to_id[title])
-            else:
-                # Fuzzy matching fallback - find closest match
-                self.logger.warning(f"Exact title match not found for '{title}', attempting fuzzy match")
-                # Simple fuzzy match: case-insensitive partial match
-                for root in roots:
-                    if title.lower() in root.title.lower() or root.title.lower() in title.lower():
-                        node_ids.append(root.node_id)
-                        self.logger.info(f"Fuzzy matched '{title}' to '{root.title}'")
-                        break
-        
-        return node_ids
+        # Convert RootNodeInfo to Node objects for the utility function
+        nodes = [Node(name=root.title, node_id=root.node_id, content="") for root in roots]
+        return map_titles_to_node_ids(titles, nodes, fuzzy_match=True)
     
     def create_connection_actions(
         self,
@@ -192,16 +195,17 @@ class ConnectOrphansAgent(Agent):
         actions = []
         
         for grouping in response.groupings:
-            # Map titles back to IDs for logging
-            root_ids = self._map_titles_to_ids(grouping.root_node_titles, roots)
+            # Extract child titles from the new structure
+            child_titles = [child.child_title for child in grouping.children]
+            root_ids = self._map_titles_to_ids(child_titles, roots)
             
-            # Create action for new parent node
+            # Create action for new synthetic parent node
             parent_action = CreateAction(
                 action="CREATE",
                 parent_node_id=None,  # New parent is also a root (for MVP)
-                new_node_name=grouping.parent_title,
-                content=f"# {grouping.parent_title}\n\n{grouping.parent_summary}",
-                summary=grouping.parent_summary,
+                new_node_name=grouping.synthetic_parent_title,
+                content=f"# {grouping.synthetic_parent_title}\n\n{grouping.synthetic_parent_summary}",
+                summary=grouping.synthetic_parent_summary,
                 relationship=""
             )
             actions.append(parent_action)
@@ -211,8 +215,8 @@ class ConnectOrphansAgent(Agent):
             # For MVP, we're just creating the parent nodes.
             
             self.logger.info(
-                f"Creating parent '{grouping.parent_title}' "
-                f"for roots: {grouping.root_node_titles} (IDs: {root_ids})"
+                f"Creating synthetic parent '{grouping.synthetic_parent_title}' "
+                f"for children: {child_titles} (IDs: {root_ids})"
             )
         
         return actions
@@ -220,16 +224,16 @@ class ConnectOrphansAgent(Agent):
     async def run(
         self,
         tree: DecisionTree,
-        min_group_size: int = 2,
-        max_roots_to_process: int = 20
+        max_roots_to_process: int = 20,
+        include_full_content: bool = True
     ) -> List[BaseTreeAction]:
         """
         Main entry point to run the connection mechanism.
         
         Args:
             tree: The DecisionTree to analyze and connect
-            min_group_size: Minimum roots needed to form a group
             max_roots_to_process: Maximum number of roots to process at once
+            include_full_content: If True, includes full content in prompt
             
         Returns:
             List of tree actions to apply
@@ -237,7 +241,8 @@ class ConnectOrphansAgent(Agent):
         # Find disconnected roots
         roots = self.find_disconnected_roots(tree)
         
-        if len(roots) < min_group_size:
+        # Minimum group size is always 2 (simplified)
+        if len(roots) < 2:
             self.logger.info("Not enough disconnected roots to group")
             return []
         
@@ -248,13 +253,12 @@ class ConnectOrphansAgent(Agent):
             )
             roots = roots[:max_roots_to_process]
         
-        # Format roots for prompt
-        roots_context = self._format_roots_for_prompt(roots)
+        # Format roots for prompt with full content if requested
+        roots_context = self._format_roots_for_prompt(roots, include_full_content=include_full_content)
         
-        # Prepare state for the agent workflow
+        # Prepare state for the agent workflow (simplified - removed min_group_size)
         initial_state = {
             "roots_context": roots_context,
-            "min_group_size": min_group_size,
             "tree": tree,
             "actions": []
         }

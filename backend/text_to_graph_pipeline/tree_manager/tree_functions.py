@@ -280,8 +280,17 @@ def get_semantically_related_nodes(decision_tree, query: str, remaining_slots_co
     return selected_nodes
 
 
-def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) -> str:
-    """Format nodes for LLM prompt in a consistent, readable format"""
+def format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None, include_full_content: bool = False) -> str:
+    """Format nodes for LLM prompt in a consistent, readable format
+    
+    Args:
+        nodes: List of nodes to format
+        tree: Optional tree dict for relationship context
+        include_full_content: If True, includes full content instead of summary
+    
+    Returns:
+        Formatted string representation of nodes
+    """
     if not nodes:
         return "No nodes available"
     
@@ -292,12 +301,15 @@ def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) ->
         node_entry = []
         node_entry.append(f"Node ID: {node.id}")
         node_entry.append(f"Title: {node.title}")
-        if node.summary:
+        
+        if include_full_content:
+            node_entry.append(f"Content: {node.content}")
+        elif node.summary:
             node_entry.append(f"Summary: {node.summary}")
         else:
             node_entry.append(f"Summary: {node.content[:1000]}")
 
-        if node.parent_id:
+        if node.parent_id and tree:
             node_entry.append(f"Relationship: {node.relationships[node.parent_id]} ('{tree[node.parent_id].title})'")
 
         formatted_nodes.append("\n".join(node_entry))
@@ -306,3 +318,40 @@ def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) ->
     formatted_nodes.append("==========================")
     
     return "\n".join(formatted_nodes)
+
+# Keep private version for backward compatibility
+def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) -> str:
+    """Format nodes for LLM prompt in a consistent, readable format (deprecated, use format_nodes_for_prompt)"""
+    return format_nodes_for_prompt(nodes, tree, include_full_content=False)
+
+
+def map_titles_to_node_ids(titles: List[str], nodes: List[Node], fuzzy_match: bool = True) -> List[int]:
+    """Map node titles to their IDs, with optional fuzzy matching
+    
+    Args:
+        titles: List of node titles to map
+        nodes: List of Node objects to search
+        fuzzy_match: If True, attempts fuzzy matching for unmatched titles
+    
+    Returns:
+        List of node IDs corresponding to the titles
+    """
+    title_to_id = {node.title: node.id for node in nodes}
+    node_ids = []
+    
+    for title in titles:
+        if title in title_to_id:
+            node_ids.append(title_to_id[title])
+        elif fuzzy_match:
+            # Simple fuzzy match: case-insensitive partial match
+            matched = False
+            for node in nodes:
+                if title.lower() in node.title.lower() or node.title.lower() in title.lower():
+                    node_ids.append(node.id)
+                    matched = True
+                    break
+            if not matched:
+                import logging
+                logging.warning(f"No match found for title: '{title}'")
+    
+    return node_ids

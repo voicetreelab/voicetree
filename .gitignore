@@ -128,6 +128,7 @@ backend/text_to_graph_pipeline/agentic_workflows/debug_logs/relationship_analysi
 test_chunk_boundaries_quick_state.json
 backend/oldVaults/*
 backend/tests/integration_tests/live_system/test_output/*
+backend/tests/integration_tests/connect_orphans_output/*
 .DS_Store
 backend/benchmarker/output/*
 backend/benchmarker/output*/*

@@ -123,7 +123,6 @@ class TestConnectOrphansAgentBehavior:
                 "roots_context": connect_orphans_agent._format_roots_for_prompt(
                     connect_orphans_agent.find_disconnected_roots(qa_example_tree)[:15]
                 ),
-                "min_group_size": 2,
                 "tree": qa_example_tree,
                 "actions": []
             }
