@@ -140,3 +140,4 @@ backend/tests/integration_tests/agentic_workflows/.obsidian/*
 markdownTreeVault/.obsidian/workspace.json
 tools/state/*
 /backend/tests/unit_tests/markdownTreeVaultDefault/*
+/backend/tests/qa_example/.obsidian/*
