@@ -7,6 +7,7 @@ You are analyzing orphan nodes (nodes without parents) in a knowledge tree. Your
 
 {{roots_context}}
 
+
 ## Your Task
 
 For each pair or group of orphan nodes, ask yourself:

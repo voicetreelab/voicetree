@@ -66,7 +66,6 @@ class ConnectOrphansAgentState(TypedDict):
     """State for ConnectOrphansAgent workflow"""
     # Input
     roots_context: str  # Formatted string of root nodes to analyze
-    min_group_size: int  # Minimum number of roots required to form a group
     tree: Any  # DecisionTree instance
     
     # Output

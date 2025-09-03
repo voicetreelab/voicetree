@@ -22,7 +22,8 @@ from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_ma
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
     ConnectOrphansAgent
 )
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction
+from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 
 logging.basicConfig(level=logging.INFO)
@@ -53,6 +54,26 @@ class TestConnectOrphansE2E:
             
         return tree
 
+    def write_tree_to_markdown_output(self, tree: DecisionTree, test_name: str) -> str:
+        """Write the tree to markdown files in the test output directory"""
+        output_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/integration_tests/connect_orphans_output") / test_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Clear existing files
+        for existing_file in output_dir.glob("*.md"):
+            existing_file.unlink()
+        
+        # Convert all nodes in the tree to markdown
+        converter = TreeToMarkdownConverter(tree.tree)
+        all_node_ids = list(tree.tree.keys())
+        converter.convert_nodes(output_dir=str(output_dir), nodes_to_update=all_node_ids)
+        
+        print(f"\n=== Markdown Output ===")
+        print(f"Tree written to: {output_dir}")
+        print(f"Files created: {len(all_node_ids)} markdown files")
+        
+        return str(output_dir)
+
     @pytest.mark.asyncio
     async def test_connect_orphans_with_qa_example(self):
         """Test orphan connection on real qa_example data with GPT-SoVITS nodes"""
@@ -73,7 +94,7 @@ class TestConnectOrphansE2E:
         
         # Run the connect orphans agent directly
         agent = ConnectOrphansAgent()
-        actions = await agent.run(tree, min_group_size=2, max_roots_to_process=20)
+        actions = await agent.run(tree, max_roots_to_process=20)
         
         print(f"\n=== Connect Orphans Agent Results ===")
         print(f"Created {len(actions)} actions")
@@ -115,6 +136,9 @@ class TestConnectOrphansE2E:
                         print(f"  Children ({len(children)}):")
                         for child in children[:5]:  # Show first 5 children
                             print(f"    - {child.title}")
+            
+            # Write the tree to markdown after applying actions
+            self.write_tree_to_markdown_output(tree, "test_connect_orphans_with_qa_example")
         
         # Assertions for test validity
         assert len(initial_orphans) > 0, "Should have orphan nodes to start with"
@@ -172,6 +196,9 @@ class TestConnectOrphansE2E:
                 print(f"  Children ({len(children)}):")
                 for child in children[:3]:
                     print(f"    - {child.title}")
+        
+        # Write the tree to markdown after workflow processing
+        self.write_tree_to_markdown_output(tree, "test_workflow_triggers_orphan_connection")
 
     @pytest.mark.asyncio
     async def test_connect_orphans_agent_with_actual_connections(self):
@@ -206,10 +233,12 @@ class TestConnectOrphansE2E:
                 
                 # Find which roots should be connected to this parent
                 for grouping in response.groupings:
-                    if grouping.parent_title == action.new_node_name:
+                    if grouping.synthetic_parent_title == action.new_node_name:
+                        # Extract child titles from the new structure
+                        child_titles = [child.child_title for child in grouping.children]
                         # Map titles to IDs
                         root_ids = agent._map_titles_to_ids(
-                            grouping.root_node_titles, 
+                            child_titles, 
                             roots
                         )
                         
@@ -220,8 +249,8 @@ class TestConnectOrphansE2E:
                                     action="UPDATE",
                                     node_id=root_id,
                                     parent_node_id=action.new_node_name,  # Will need ID after creation
-                                    new_content=None,
-                                    new_summary=None
+                                    new_content="",  # Empty string instead of None
+                                    new_summary=""   # Empty string instead of None
                                 )
                                 enhanced_actions.append(update_action)
             
@@ -231,7 +260,7 @@ class TestConnectOrphansE2E:
         agent.create_connection_actions = enhanced_create_actions
         
         # Run the agent
-        actions = await agent.run(tree, min_group_size=2, max_roots_to_process=15)
+        actions = await agent.run(tree, max_roots_to_process=15)
         
         print(f"Generated {len(actions)} actions")
         
@@ -251,6 +280,9 @@ class TestConnectOrphansE2E:
         if update_actions:
             print(f"\nOrphans to connect: {len(update_actions)}")
             # Note: In real implementation, we'd need to handle node ID mapping properly
+        
+        # Write the tree to markdown (before applying actions to show initial state)
+        self.write_tree_to_markdown_output(tree, "test_connect_orphans_agent_with_actual_connections")
         
         # The test passes if we generate both create and update actions
         assert len(actions) >= 0, "Should generate some actions or none if no good groupings"
