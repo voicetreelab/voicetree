@@ -50,6 +50,10 @@ async def process_tree(tree_path: str, output_path: str = None):
         (node_id, node.title) for node_id, node in tree.tree.items()
         if node.parent_id is None
     ]
+
+    # todo, we should ignore orphan pairis that have already been processed and
+    # are not related, but we hvae to be careful here, since other new pairs
+    # may still be relevant.
     
     logger.info(f"Initial tree statistics:")
     logger.info(f"  Total nodes: {len(tree.tree)}")
@@ -68,9 +72,8 @@ async def process_tree(tree_path: str, output_path: str = None):
     logger.info("="*60)
     
     agent = ConnectOrphansAgent()
-    actions = await agent.run(
+    actions, parent_child_mapping = await agent.run(
         tree=tree,
-        min_group_size=2,
         max_roots_to_process=20  # Process up to 20 roots at once
     )
     
@@ -86,12 +89,41 @@ async def process_tree(tree_path: str, output_path: str = None):
         new_node_ids = applier.apply(actions)
         logger.info(f"Created nodes with IDs: {new_node_ids}")
         
+        # Now connect the orphans to their new parents
+        logger.info("\nConnecting orphans to parent nodes...")
+        nodes_to_update = set()
+        for action in actions:
+            parent_name = action.new_node_name
+            # Find the newly created parent node by name
+            parent_id = None
+            for node_id, node in tree.tree.items():
+                if node.title == parent_name and node_id in new_node_ids:
+                    parent_id = node_id
+                    break
+            
+            if parent_id and parent_name in parent_child_mapping:
+                child_ids = parent_child_mapping[parent_name]
+                for child_id in child_ids:
+                    if child_id in tree.tree:
+                        # Update the child's parent_id
+                        tree.tree[child_id].parent_id = parent_id
+                        # Add the child to parent's children list
+                        if child_id not in tree.tree[parent_id].children:
+                            tree.tree[parent_id].children.append(child_id)
+                        nodes_to_update.add(child_id)
+                        logger.info(f"  Connected node {child_id} to parent {parent_id} ({parent_name})")
+        
+        # Update the nodes_to_update set to include all modified nodes
+        new_node_ids.update(nodes_to_update)
+        
         # Save the updated tree if output path provided
         if output_path:
             logger.info(f"\nSaving updated tree to: {output_path}")
             Path(output_path).mkdir(parents=True, exist_ok=True)
-            converter = TreeToMarkdownConverter(tree.tree, output_dir=output_path)
-            converter.convert()
+            converter = TreeToMarkdownConverter(tree.tree)
+            # Convert all nodes to markdown
+            all_node_ids = list(tree.tree.keys())
+            converter.convert_nodes(output_dir=output_path, nodes_to_update=all_node_ids)
             logger.info("Tree saved successfully!")
     else:
         logger.info("\nNo groupings were created.")
@@ -112,7 +144,7 @@ async def process_tree(tree_path: str, output_path: str = None):
     logger.info(f"  Orphan nodes: {len(final_orphans)}")
     logger.info(f"  Change: {len(initial_orphans)} → {len(final_orphans)} orphans")
     
-    return tree, actions
+    return tree, actions, parent_child_mapping
 
 
 async def main():

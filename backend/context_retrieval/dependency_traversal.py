@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Dependency traversal module for context retrieval.
-Extracts and reorganizes traversal logic from tools/graph_dependency_traversal_and_accumulate_graph_content.py
 """
 
 import re
@@ -11,7 +10,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 # Import load_node from markdown_to_tree module
-from backend.markdown_to_tree import load_node, extract_markdown_links
+from backend.markdown_to_tree.node_loader import load_node
+from backend.markdown_to_tree.link_extraction import extract_markdown_links
 
 # Import ContentLevel from Casey's module to ensure consistency
 from backend.context_retrieval.content_filtering import ContentLevel
@@ -202,9 +202,9 @@ def get_children_recursive(
     # Filter out the parent node itself
     children = [r for r in child_results if r['filename'] != parent_file]
     
-    # Adjust depths to be relative to parent
+    # Adjust depths to be negative for children (opposite of parents)
     for child in children:
-        child['depth'] = child['depth']
+        child['depth'] = -abs(child['depth']) if child['depth'] != 0 else -1
     
     return children
 
@@ -216,10 +216,47 @@ def get_neighborhood(
 ) -> List[Dict[str, str]]:
     """
     Get nodes within N hops of target (siblings, cousins, etc).
-    For now, returns empty list - Casey will implement content filtering.
+    Finds nodes that share common parents or children with the target.
     """
-    # This is a placeholder - Casey will implement the actual neighborhood logic
-    return []
+    neighbors = []
+    visited = set()
+    file_cache = {}
+    
+    # Load the target node
+    target_node = load_node(target_file, markdown_dir)
+    if not target_node or not target_node.get('content'):
+        return []
+    
+    # Get immediate parents of target
+    target_parents = extract_parent_links(target_node['content'])
+    
+    # Get immediate children of target  
+    target_children = find_child_references(target_file, markdown_dir, file_cache)
+    
+    # For each parent, find its other children (siblings of target)
+    for parent_file in target_parents:
+        parent_path = markdown_dir / parent_file
+        if not parent_path.exists() and '/' not in parent_file:
+            # Try in same directory as target
+            current_dir = Path(target_file).parent
+            if str(current_dir) != '.':
+                parent_file = str(current_dir / parent_file)
+                parent_path = markdown_dir / parent_file
+        
+        if parent_path.exists():
+            siblings = find_child_references(parent_file, markdown_dir, file_cache)
+            for sibling in siblings:
+                if sibling != target_file and sibling not in visited:
+                    visited.add(sibling)
+                    sibling_node = load_node(sibling, markdown_dir)
+                    sibling_node['depth'] = 0  # Same level as target
+                    sibling_node['distance_from_target'] = 1  # One hop away
+                    neighbors.append(sibling_node)
+    
+    # For radius > 1, could extend to cousins, etc.
+    # For now, just immediate siblings
+    
+    return neighbors
 
 
 def apply_content_filter(

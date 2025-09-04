@@ -9,7 +9,7 @@ components problem by:
 """
 
 import logging
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Tuple
 from dataclasses import dataclass, field
 
 from langgraph.graph import END
@@ -181,7 +181,7 @@ class ConnectOrphansAgent(Agent):
         self,
         response: ConnectOrphansResponse,
         roots: List[RootNodeInfo]
-    ) -> List[BaseTreeAction]:
+    ) -> Tuple[List[BaseTreeAction], Dict[str, List[int]]]:
         """
         Create tree actions to connect the grouped roots under new parent nodes.
         
@@ -190,9 +190,12 @@ class ConnectOrphansAgent(Agent):
             roots: Original list of RootNodeInfo for title->ID mapping
             
         Returns:
-            List of CreateAction for new parent nodes
+            Tuple of:
+            - List of CreateAction for new parent nodes
+            - Dict mapping parent node names to child node IDs
         """
         actions = []
+        parent_child_mapping = {}
         
         for grouping in response.groupings:
             # Extract child titles from the new structure
@@ -210,23 +213,22 @@ class ConnectOrphansAgent(Agent):
             )
             actions.append(parent_action)
             
-            # Note: In phase 2, we would also create UpdateActions to set the
-            # parent_id of the grouped roots to point to this new parent.
-            # For MVP, we're just creating the parent nodes.
+            # Store the mapping of parent name to child IDs
+            parent_child_mapping[grouping.synthetic_parent_title] = root_ids
             
             self.logger.info(
                 f"Creating synthetic parent '{grouping.synthetic_parent_title}' "
                 f"for children: {child_titles} (IDs: {root_ids})"
             )
         
-        return actions
+        return actions, parent_child_mapping
     
     async def run(
         self,
         tree: DecisionTree,
         max_roots_to_process: int = 20,
         include_full_content: bool = True
-    ) -> List[BaseTreeAction]:
+    ) -> Tuple[List[BaseTreeAction], Dict[str, List[int]]]:
         """
         Main entry point to run the connection mechanism.
         
@@ -236,7 +238,9 @@ class ConnectOrphansAgent(Agent):
             include_full_content: If True, includes full content in prompt
             
         Returns:
-            List of tree actions to apply
+            Tuple of:
+            - List of tree actions to apply
+            - Dict mapping parent node names to child node IDs
         """
         # Find disconnected roots
         roots = self.find_disconnected_roots(tree)
@@ -244,15 +248,27 @@ class ConnectOrphansAgent(Agent):
         # Minimum group size is always 2 (simplified)
         if len(roots) < 2:
             self.logger.info("Not enough disconnected roots to group")
-            return []
+            return [], {}
         
         # Limit roots for processing (for performance)
         if len(roots) > max_roots_to_process:
             self.logger.warning(
                 f"Found {len(roots)} roots, limiting to {max_roots_to_process}"
             )
-            roots = roots[:max_roots_to_process]
-        
+            roots = roots[-max_roots_to_process:] #todo confirm roots were sorted by time, so this gives the most recent orphans
+        # run on only the latest orphans created
+        # todo there should be another upstream layer to handle this
+
+        # todo, needs to split into equal batches of max,
+        # we should ensure the roots are sorted by time of node creation, so earlier roots/orphans
+        # are in the same batch.
+        # to handle problem of not covering all pairs:
+        # should have some amount of overlap (~15%).
+        # or we should first do a vector similarity search to group orphans.
+
+        # for current QA testcase usecase we can just get away with running all orphans at once, or batches with some overlap...
+        # OR sequential batches (so unprocessed orphans go back in for resampling)
+
         # Format roots for prompt with full content if requested
         roots_context = self._format_roots_for_prompt(roots, include_full_content=include_full_content)
         
@@ -270,7 +286,7 @@ class ConnectOrphansAgent(Agent):
         # Extract actions from the response
         if final_state.get("connect_orphans_response"):
             response = final_state["connect_orphans_response"]
-            actions = self.create_connection_actions(response, roots)
-            return actions
+            actions, parent_child_mapping = self.create_connection_actions(response, roots)
+            return actions, parent_child_mapping
         
-        return []
+        return [], {}

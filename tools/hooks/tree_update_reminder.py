@@ -12,8 +12,9 @@ from datetime import datetime
 
 def get_agent_state_file(agent_name):
     """Get the CSV state file path for this agent."""
-    state_dir = Path("tools/state")
-    state_dir.mkdir(exist_ok=True)
+    script_dir = Path(__file__).parent.parent  # Go up from hooks/ to tools/
+    state_dir = script_dir / "state"
+    state_dir.mkdir(exist_ok=True, parents=True)
     return state_dir / f"seen_nodes_{agent_name}.csv"
 
 def load_seen_files(state_file):
