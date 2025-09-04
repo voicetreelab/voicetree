@@ -94,7 +94,7 @@ class TestConnectOrphansE2E:
         
         # Run the connect orphans agent directly
         agent = ConnectOrphansAgent()
-        actions = await agent.run(tree, max_roots_to_process=20)
+        actions, parent_child_mapping = await agent.run(tree, max_roots_to_process=20)
         
         print(f"\n=== Connect Orphans Agent Results ===")
         print(f"Created {len(actions)} actions")
@@ -110,7 +110,30 @@ class TestConnectOrphansE2E:
             
             # Apply actions to the tree
             applier = TreeActionApplier(tree)
-            modified_nodes = applier.apply(actions)
+            new_node_ids = applier.apply(actions)
+            
+            # Connect the orphans to their new parents
+            for action in actions:
+                parent_name = action.new_node_name
+                # Find the newly created parent node by name
+                parent_id = None
+                for node_id, node in tree.tree.items():
+                    if node.title == parent_name and node_id in new_node_ids:
+                        parent_id = node_id
+                        break
+                
+                if parent_id and parent_name in parent_child_mapping:
+                    child_ids = parent_child_mapping[parent_name]
+                    for child_id in child_ids:
+                        if child_id in tree.tree:
+                            # Update the child's parent_id
+                            tree.tree[child_id].parent_id = parent_id
+                            # Add the child to parent's children list
+                            if child_id not in tree.tree[parent_id].children:
+                                tree.tree[parent_id].children.append(child_id)
+                            new_node_ids.add(child_id)
+            
+            modified_nodes = new_node_ids
             
             print(f"\n=== After Applying Actions ===")
             print(f"Modified/created {len(modified_nodes)} nodes")
@@ -142,8 +165,21 @@ class TestConnectOrphansE2E:
         
         # Assertions for test validity
         assert len(initial_orphans) > 0, "Should have orphan nodes to start with"
-        # The agent should create some groupings for GPT-SoVITS related nodes
-        # but we don't force a specific number as it depends on LLM analysis
+        
+        if actions:
+            # Verify that the orphans were actually connected
+            connected_count = 0
+            for action in actions:
+                parent_name = action.new_node_name
+                if parent_name in parent_child_mapping:
+                    child_ids = parent_child_mapping[parent_name]
+                    for child_id in child_ids:
+                        if child_id in tree.tree and tree.tree[child_id].parent_id is not None:
+                            connected_count += 1
+            
+            assert connected_count > 0, f"Should have connected at least some orphans, but connected {connected_count}"
+            print(f"\n=== Test Verification ===")
+            print(f"Successfully connected {connected_count} orphan nodes to new parent nodes")
 
     @pytest.mark.asyncio
     async def test_workflow_triggers_orphan_connection_with_qa_data(self):
