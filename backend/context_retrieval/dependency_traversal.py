@@ -13,8 +13,8 @@ from typing import Dict, List, Optional, Set
 from backend.markdown_to_tree.node_loader import load_node
 from backend.markdown_to_tree.link_extraction import extract_markdown_links
 
-# Import ContentLevel from Casey's module to ensure consistency
-from backend.context_retrieval.content_filtering import ContentLevel
+# Import ContentLevel and apply_content_filter from content_filtering module
+from backend.context_retrieval.content_filtering import ContentLevel, apply_content_filter
 
 
 @dataclass
@@ -259,22 +259,6 @@ def get_neighborhood(
     return neighbors
 
 
-def apply_content_filter(
-    nodes: List[Dict[str, str]],
-    content_level: ContentLevel
-) -> List[Dict[str, str]]:
-    """
-    Apply content filtering based on distance from target.
-    Delegates to Casey's content_filtering module.
-    """
-    from backend.context_retrieval.content_filtering import apply_content_filter as casey_filter
-    
-    # Convert depth to distance_from_target for Casey's filter
-    for node in nodes:
-        if 'depth' in node and 'distance_from_target' not in node:
-            node['distance_from_target'] = node['depth']
-    
-    return casey_filter(nodes, content_level)
 
 
 def traverse_to_node(
@@ -326,3 +310,118 @@ def traverse_to_node(
     
     # Apply content filtering based on distance
     return apply_content_filter(nodes, options.content_level)
+
+
+def accumulate_content(
+    nodes: List[Dict[str, str]],
+    include_metadata: bool = True,
+    separator: str = "\n\n" + "="*60 + "\n\n"
+) -> str:
+    """
+    Convert a list of node dictionaries into flattened text content.
+    
+    Args:
+        nodes: List of node dictionaries from traversal
+        include_metadata: Whether to include node metadata in output
+        separator: String to separate nodes in output
+        
+    Returns:
+        Accumulated text content from all nodes
+    """
+    if not nodes:
+        return ""
+    
+    accumulated_parts = []
+    seen_node_ids = set()  # Track seen node IDs to avoid duplicates
+    
+    # Group nodes by their properties for organized output
+    nodes_by_type = {
+        'targets': [],
+        'parents': [],
+        'children': [],
+        'neighbors': []
+    }
+    
+    for node in nodes:
+        # Skip if we've already seen this node
+        node_id = node.get('node_id') or node.get('filename', '')
+        if node_id in seen_node_ids:
+            continue
+        seen_node_ids.add(node_id)
+        
+        if node.get('is_search_target', False):
+            nodes_by_type['targets'].append(node)
+        elif node.get('depth', 0) > 0:
+            nodes_by_type['parents'].append(node)
+        elif node.get('depth', 0) < 0:
+            nodes_by_type['children'].append(node)
+        else:
+            # Depth 0 but not target = neighbor or special case
+            if not node.get('is_search_target', False):
+                nodes_by_type['neighbors'].append(node)
+    
+    # Process each group
+    for group_name, group_nodes in nodes_by_type.items():
+        if not group_nodes:
+            continue
+            
+        if include_metadata and group_nodes:
+            accumulated_parts.append(f"### {group_name.upper()} ({len(group_nodes)} nodes)")
+            accumulated_parts.append("")
+        
+        # Sort by depth/relevance
+        if group_name == 'parents':
+            group_nodes.sort(key=lambda x: x.get('depth', 0), reverse=True)
+        elif group_name == 'children':
+            group_nodes.sort(key=lambda x: abs(x.get('depth', 0)))
+        
+        for node in group_nodes:
+            node_parts = []
+            
+            # Add metadata header if requested
+            if include_metadata:
+                title = node.get('title', 'Unknown')
+                node_id = node.get('node_id', '')
+                filename = node.get('filename', '')
+                depth = node.get('depth', 0)
+                
+                node_parts.append(f"**[{node_id}] {title}**")
+                if filename:
+                    node_parts.append(f"File: {filename}")
+                if group_name in ['parents', 'children']:
+                    node_parts.append(f"Distance from target: {abs(depth)}")
+                node_parts.append("")
+            
+            # Add summary if available
+            summary = node.get('summary', '')
+            if summary:
+                node_parts.append(f"Summary: {summary}")
+                node_parts.append("")
+            
+            # Add content if available
+            content = node.get('content', '')
+            if content:
+                # Clean up the content - remove YAML frontmatter
+                lines = content.split('\n')
+                content_lines = []
+                in_frontmatter = False
+                
+                for line in lines:
+                    if line.strip() == '---':
+                        in_frontmatter = not in_frontmatter
+                        continue
+                    if not in_frontmatter:
+                        # Skip redundant metadata lines
+                        if not (line.startswith('node_id:') or 
+                               line.startswith('title:') or
+                               line.startswith('###')):
+                            content_lines.append(line)
+                
+                cleaned_content = '\n'.join(content_lines).strip()
+                if cleaned_content:
+                    node_parts.append(cleaned_content)
+            
+            if node_parts:
+                accumulated_parts.append('\n'.join(node_parts))
+    
+    return separator.join(accumulated_parts)

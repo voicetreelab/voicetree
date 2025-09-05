@@ -14,32 +14,25 @@ def test_apply_content_filter_with_distance_based_pruning():
     # Test data with various distances from target
     nodes = [
         {
-            'filename': 'root.md',
-            'title': 'Root Node',
-            'summary': 'This is the root',
-            'content': 'Full root content here',
-            'distance_from_target': 5
+            'filename': 'very_far.md',
+            'title': 'Very Far Node',
+            'summary': 'Very far from target',
+            'content': 'Full very far content',
+            'distance_from_target': 15
         },
         {
-            'filename': 'far.md', 
-            'title': 'Far Node',
-            'summary': 'Far from target',
-            'content': 'Full far content',
-            'distance_from_target': 4
-        },
-        {
-            'filename': 'medium.md',
-            'title': 'Medium Node', 
-            'summary': 'Medium distance',
-            'content': 'Full medium content',
-            'distance_from_target': 2
+            'filename': 'medium_far.md',
+            'title': 'Medium Far Node',
+            'summary': 'Medium far from target',
+            'content': 'Full medium far content',
+            'distance_from_target': 8
         },
         {
             'filename': 'close.md',
             'title': 'Close Node',
             'summary': 'Close to target',
             'content': 'Full close content',
-            'distance_from_target': 1
+            'distance_from_target': 3
         },
         {
             'filename': 'target.md',
@@ -53,26 +46,23 @@ def test_apply_content_filter_with_distance_based_pruning():
     # Test with automatic coarse-to-fine filtering
     filtered_nodes = apply_content_filter(nodes, ContentLevel.FULL_CONTENT)
     
-    # Far nodes (distance > 3) should have titles only
-    assert filtered_nodes[0]['title'] == 'Root Node'
+    # Very far nodes (distance > 12) should have titles only
+    assert filtered_nodes[0]['title'] == 'Very Far Node'
     assert filtered_nodes[0]['summary'] is None
     assert filtered_nodes[0]['content'] is None
-    assert filtered_nodes[1]['title'] == 'Far Node'
-    assert filtered_nodes[1]['summary'] is None
+    
+    # Medium distance nodes (distance 6-12) should have titles and summaries
+    assert filtered_nodes[1]['title'] == 'Medium Far Node'
+    assert filtered_nodes[1]['summary'] == 'Medium far from target'
     assert filtered_nodes[1]['content'] is None
     
-    # Medium nodes (distance 1-3) should have titles and summaries
-    assert filtered_nodes[2]['title'] == 'Medium Node'
-    assert filtered_nodes[2]['summary'] == 'Medium distance'
-    assert filtered_nodes[2]['content'] is None
-    
-    # Close nodes (distance 0-1) should have full content
-    assert filtered_nodes[3]['title'] == 'Close Node'
-    assert filtered_nodes[3]['summary'] == 'Close to target'
-    assert filtered_nodes[3]['content'] == 'Full close content'
-    assert filtered_nodes[4]['title'] == 'Target Node'
-    assert filtered_nodes[4]['summary'] == 'This is the target'
-    assert filtered_nodes[4]['content'] == 'Full target content'
+    # Close nodes (distance 0-5) should have full content
+    assert filtered_nodes[2]['title'] == 'Close Node'
+    assert filtered_nodes[2]['summary'] == 'Close to target'
+    assert filtered_nodes[2]['content'] == 'Full close content'
+    assert filtered_nodes[3]['title'] == 'Target Node'
+    assert filtered_nodes[3]['summary'] == 'This is the target'
+    assert filtered_nodes[3]['content'] == 'Full target content'
     
     # Test with TITLES_ONLY level
     filtered_nodes = apply_content_filter(nodes.copy(), ContentLevel.TITLES_ONLY)
@@ -85,10 +75,59 @@ def test_apply_content_filter_with_distance_based_pruning():
     filtered_nodes = apply_content_filter(nodes.copy(), ContentLevel.TITLES_AND_SUMMARIES)
     for node in filtered_nodes:
         assert node['title'] is not None
-        # Original summary should be preserved if it existed
-        if node['distance_from_target'] <= 3:
-            assert node['summary'] is not None
+        # With TITLES_AND_SUMMARIES, all nodes should keep their summaries
+        assert node['summary'] is not None
         assert node['content'] is None
+
+
+def test_depth_to_distance_conversion():
+    """Test that apply_content_filter correctly converts depth to distance_from_target."""
+    
+    # Test data using 'depth' field instead of 'distance_from_target'
+    nodes_with_depth = [
+        {
+            'filename': 'far.md',
+            'title': 'Far Node',
+            'summary': 'Far from target',
+            'content': 'Full far content',
+            'depth': 15
+        },
+        {
+            'filename': 'medium.md',
+            'title': 'Medium Node',
+            'summary': 'Medium distance',
+            'content': 'Full medium content',
+            'depth': 7
+        },
+        {
+            'filename': 'close.md',
+            'title': 'Close Node',
+            'summary': 'Close to target',
+            'content': 'Full close content',
+            'depth': 2
+        }
+    ]
+    
+    # Apply filter with FULL_CONTENT
+    filtered_nodes = apply_content_filter(nodes_with_depth, ContentLevel.FULL_CONTENT)
+    
+    # Verify depth was converted to distance_from_target
+    assert filtered_nodes[0]['distance_from_target'] == 15
+    assert filtered_nodes[1]['distance_from_target'] == 7
+    assert filtered_nodes[2]['distance_from_target'] == 2
+    
+    # Verify filtering worked correctly
+    # Far node (distance > 12): titles only
+    assert filtered_nodes[0]['summary'] is None
+    assert filtered_nodes[0]['content'] is None
+    
+    # Medium node (distance 6-12): titles + summaries
+    assert filtered_nodes[1]['summary'] == 'Medium distance'
+    assert filtered_nodes[1]['content'] is None
+    
+    # Close node (distance 0-5): full content
+    assert filtered_nodes[2]['summary'] == 'Close to target'
+    assert filtered_nodes[2]['content'] == 'Full close content'
 
 
 def test_get_neighborhood_finds_nodes_within_n_hops():
