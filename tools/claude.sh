@@ -10,4 +10,6 @@ run_common_setup
 cd ../..
 
 # Substitute environment variables in the prompt file and pass to claude with settings
-envsubst < VoiceTree/tools/prompts/prompt_main.md | claude --dangerously-skip-permissions --debug --settings VoiceTree/.claude/settings.json
+#envsubst < VoiceTree/tools/prompts/prompt_main.md | claude --dangerously-skip-permissions --settings VoiceTree/.claude/settings.json
+promptstr=$(envsubst < VoiceTree/tools/prompts/prompt_main.md )
+claude --dangerously-skip-permissions --settings VoiceTree/.claude/settings.json "$promptstr"

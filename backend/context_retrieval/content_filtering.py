@@ -19,7 +19,7 @@ def apply_content_filter(
     Apply coarse-to-fine content filtering based on distance from target.
     
     Args:
-        nodes: List of node dictionaries with distance_from_target field
+        nodes: List of node dictionaries with distance_from_target or depth field
         content_level: The maximum level of content to include
         
     Returns:
@@ -35,7 +35,13 @@ def apply_content_filter(
     for node in nodes:
         # Create a copy to avoid modifying the original
         filtered_node = node.copy()
-        distance = node.get('distance_from_target', 0)
+        
+        # Support both distance_from_target and depth fields
+        # Convert depth to distance_from_target if needed
+        if 'distance_from_target' not in filtered_node and 'depth' in filtered_node:
+            filtered_node['distance_from_target'] = filtered_node['depth']
+        
+        distance = filtered_node.get('distance_from_target', 0)
         
         # Apply content level restrictions first
         if content_level == ContentLevel.TITLES_ONLY:

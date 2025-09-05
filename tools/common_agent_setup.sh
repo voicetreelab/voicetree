@@ -115,10 +115,11 @@ assign_agent_color() {
 generate_dependency_graph() {
     echo "Generating dependency graph content..."
     
-    # Run the graph traversal tool, redirecting stderr to /dev/null to suppress warnings
+    # Run the graph traversal tool, capturing stderr for error reporting
     # Get the directory where this script is located
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    python "$SCRIPT_DIR/graph_dependency_traversal_and_accumulate_graph_content.py" "$OBSIDIAN_VAULT_PATH" "$OBSIDIAN_SOURCE_NOTE" 2>/dev/null
+    ERROR_OUTPUT=$(python "$SCRIPT_DIR/graph_dependency_traversal_and_accumulate_graph_content.py" "$OBSIDIAN_VAULT_PATH" "$OBSIDIAN_SOURCE_NOTE" 2>&1)
+    EXIT_CODE=$?
     
     # Check if accumulated.md was created successfully in /tmp/
     if [ -f "/tmp/accumulated.md" ]; then
@@ -127,8 +128,14 @@ generate_dependency_graph() {
         # Clean up the generated file
         rm -f /tmp/accumulated.md
     else
-        # If graph traversal failed, set empty content
-        export DEPENDENCY_GRAPH_CONTENT="[Dependency graph content unavailable]"
+        # If graph traversal failed, include the actual error message
+        if [ $EXIT_CODE -ne 0 ]; then
+            export DEPENDENCY_GRAPH_CONTENT="[Dependency graph error - Exit code: $EXIT_CODE]
+Error output:
+$ERROR_OUTPUT"
+        else
+            export DEPENDENCY_GRAPH_CONTENT="[Dependency graph content unavailable - No error output but /tmp/accumulated.md not created]"
+        fi
     fi
 }
 

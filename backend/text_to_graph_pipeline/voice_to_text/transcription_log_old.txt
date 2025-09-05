@@ -3131,3 +3131,154 @@ I do it a bit better
 Wait, why are some of them green?
 that's just when they're new okay and if you can just like it's like a notification yeah and they're blue if they just got
 This one else is working with bugs right now.
+Hello, testing one, two, three. Hello, testing one, two, three.
+Hello, testing one, two.
+All right, so let's see if we create a testing node.
+Hello, testing 1, 2, 3. Hello, testing 1, 2, 3. Hello, testing 1, 2, 3. Alright, so let's see if we create a testing node.
+And if we create a test node, where does it appear?
+And if we create a test node, where does it appear?
+it's the main things i want to know now so let me say
+This man things don't know and also so many sick
+Wait, wait, wait, wait, wait, wait.
+Hmm
+Hmm
+Oh, my aunt.
+My wife's so mean to me
+Bye-bye.
+One and one.
+No, I got that running down.
+I would be having a lot of room.
+Go, under these.
+You're very good friends.
+All right.
+That's a video.
+Yeah.
+How does it work here for us?
+Good.
+Thank you.
+Ha, ha, ha.
+Okay, tell me more of them, and here we go.
+Let's go. Let's go. Let's go. Let's go. Let's go.
+Oh fuck, now we have a dumb truck.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Okay, so we're working right now on the context retrieval algorithm
+Okay, so we're working right now on the context retrieval algorithm.
+So that takes as input
+So that takes as input...
+a concept tree representing an existing context.
+a concept tree representing an existing context.
+And...
+And...
+A query.
+A query.
+and okay so we got two fucking hell we got two running at once right now
+And, okay, so we've got two, fucking hell, we've got two running at once right now.
+Oh my god.
+Oh my god.
+Okay, let's activate it.
+Okay, let's activate it.
+All right.
+All right, cool, so today I am working on
+um context pruning and context retrieval um so
+The idea is, is that we want to optimize LLM context.
+through removing irrelevant.
+content from the context
+Um, cool. Okay.
+and
+The current idea we have is, so we have voice tree which converts
+text or voice into a concept graph.
+And right now our idea is given that graph and given a user query, we can prune the graph to only what is relevant.
+Or, alternatively, we can...
+Um...
+yeah basically that um and then that is the context for the llm
+All right, and we have version zero of
+pruning algorithm.
+which involves a few steps, involves creating vector embeddings for each node in the tree, and then does a search against the query for the most relevant nodes with vector similarity search.
+And then...
+does a traversal
+from the roots of the tree to those most relevant nodes, plus their children.
+Um...
+and includes all that context.
+Um, and right now...
+We want to sort of just...
+Create a version of the algorithm.
+That is the idea we have with the relationships working with the full content.
+Right now we have some hacks to get that working but it's not quite right. So we want to create a generally more correct version.
+So the current version is in backend slash context retrieval.
+and also uses the embeddings underscore output folder.
+Um...
+and it was traverse underscore all underscore relevant underscore nodes dot pi.
+that we were using but that there you had to specify
+the relevant nodes manually, it was a bit hacky. So I think first step is to create a script that sort of puts this all together.
+So we have, let's assume for this version that we have the embeddings outputs already generated. So we have that ready.
+But then we need to do a search against that, against the query to find the most relevant node.
+Um...
+And...
+So what do we want that to specifically do? So.
+I think we can use the...
+second half of Traverse All Relevant Nodes.
+but what we want it to do is we want it to be given a query.
+Um...
+Do the search as well So we have vector search dot PI
+Um...
+And we have traversal relevant nodes.
+So we just don't want to manually specify the relevant nodes.
+search-based, so only input is the query and the tree.
+so the embeddings are in that
+output folder I think the
+The vectors file might still already include the...
+weary.
+but we can just ignore that.
+for now.
+So like, you know, when you do a vector simulation,
+query is going to show up because it's in the um tsv so it would be like 100 similarity so we just want to ignore that
+Um...
+Later on, we'll have to fix up the dependency traversal script. I think apply content filtering is a bit fucked up.
+Um...
+There's just multiple layers of indirection which is completely unnecessary It's just been made overly complex
+applying content filtering
+um
+has like this casey's filter which i think
+doesn't actually, shouldn't be named that.
+Like we should just do apply content filter and then...
+Um, we don't need a whole, uh,
+We don't need the apply content.
+Well, we still want that, but we don't need the...
+We just don't need both that method and the Casey filter method. We can just merge those into one.
+Thank you.
+Thank you.
+Mm-hmm.
+Thank you.
+Mm-hmm.
+She is hungry.
+Thank you.
+Yep.
+Thank you.
+All right.
+Thank you.
+Cool.
+Thank you.
+No
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Hey Shane, this is Manu.
+I'm hoping to, I want to start doing hair loss treatment.
+Uh, this is the hair loss treatment clinic, right?
+Yes. Yeah, I'm hoping to have an appointment.
+or start looking into hair loss treatment.
+Okay, Thursday or Friday would be ideal.
+Um, afternoon.
+and anytime after 11 a.m.
+Should be good
+On Thursday, yeah, 2 p.m.
+Manu. M-A-N-U.
+Uh, probably by car. Is it in Redfern?
+Cool, just on street parking
+Yeah, sweet.
+Great, thank you.
+Sweet, thank you.

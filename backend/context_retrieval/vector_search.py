@@ -5,6 +5,7 @@ Uses Gemini embeddings to find semantically similar nodes.
 
 import os
 import numpy as np
+from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 import logging
 import google.generativeai as genai
@@ -84,38 +85,74 @@ def get_node_embeddings(nodes: Dict) -> Dict[int, np.ndarray]:
         return {}
 
 
+def load_query_embedding_from_tsv(embeddings_path: Path) -> Optional[np.ndarray]:
+    """
+    Load pre-generated query embedding from TSV file.
+    
+    Args:
+        embeddings_path: Path to directory containing query_vector.tsv
+        
+    Returns:
+        Query embedding vector or None if not found
+    """
+    query_vector_file = embeddings_path / "query_vector.tsv"
+    
+    if not query_vector_file.exists():
+        return None
+    
+    try:
+        with open(query_vector_file, 'r') as f:
+            line = f.readline().strip()
+            vector = np.array([float(val) for val in line.split('\t')])
+            logging.info(f"Loaded pre-generated query embedding from {query_vector_file}")
+            return vector
+    except Exception as e:
+        logging.error(f"Failed to load query embedding from TSV: {e}")
+        return None
+
+
 def find_similar_by_embedding(
     query: str,
     node_embeddings: Dict[int, np.ndarray],
     top_k: int = 5,
-    threshold: float = 0.3
+    threshold: float = 0.3,
+    query_embedding: Optional[np.ndarray] = None
 ) -> List[Tuple[int, float]]:
     """
-    Find nodes similar to query using Gemini embeddings.
+    Find nodes similar to query using embeddings.
     
     Args:
         query: Search query
         node_embeddings: Pre-computed node embeddings
         top_k: Number of results to return
         threshold: Minimum similarity threshold (lowered to 0.3 for better recall)
+        query_embedding: Optional pre-computed query embedding
         
     Returns:
         List of (node_id, similarity_score) tuples
     """
-    if not USE_EMBEDDINGS or not node_embeddings or not query.strip():
+    if not USE_EMBEDDINGS or not node_embeddings:
         return []
     
+    # Use pre-computed query embedding if provided
+    if query_embedding is None:
+        if not query.strip():
+            return []
+        try:
+            _configure_gemini()
+            
+            # Generate embedding for query using Gemini
+            result = genai.embed_content(
+                model="models/text-embedding-004",
+                content=query,
+                task_type="retrieval_query"  # Use query task type for search
+            )
+            query_embedding = np.array(result['embedding'])
+        except Exception as e:
+            logging.error(f"Failed to generate query embedding: {e}")
+            return []
+    
     try:
-        _configure_gemini()
-        
-        # Generate embedding for query using Gemini
-        result = genai.embed_content(
-            model="models/text-embedding-004",
-            content=query,
-            task_type="retrieval_query"  # Use query task type for search
-        )
-        query_embedding = np.array(result['embedding'])
-        
         # Compute cosine similarities with all node embeddings
         similarities = []
         for node_id, node_embedding in node_embeddings.items():
@@ -143,10 +180,52 @@ def find_similar_by_embedding(
         return []
 
 
+def load_embeddings_from_tsv(embeddings_path: Path) -> Dict[int, np.ndarray]:
+    """
+    Load pre-generated embeddings from TSV files.
+    
+    Args:
+        embeddings_path: Path to directory containing vectors.tsv and metadata.tsv
+        
+    Returns:
+        Dictionary of node_id -> embedding vector
+    """
+    embeddings = {}
+    vectors_file = embeddings_path / "vectors.tsv"
+    metadata_file = embeddings_path / "metadata.tsv"
+    
+    if not vectors_file.exists() or not metadata_file.exists():
+        logging.warning(f"Embeddings files not found in {embeddings_path}")
+        return {}
+    
+    try:
+        # Load metadata to get node IDs
+        with open(metadata_file, 'r') as f:
+            lines = f.readlines()[1:]  # Skip header
+            node_ids = [line.split('\t')[0] for line in lines]
+        
+        # Load vectors
+        with open(vectors_file, 'r') as f:
+            for node_id, line in zip(node_ids, f):
+                # Skip non-numeric IDs (like "QUERY")
+                if not node_id.isdigit():
+                    continue
+                vector = np.array([float(val) for val in line.strip().split('\t')])
+                embeddings[int(node_id)] = vector
+        
+        logging.info(f"Loaded {len(embeddings)} embeddings from {embeddings_path}")
+        return embeddings
+        
+    except Exception as e:
+        logging.error(f"Failed to load embeddings from TSV: {e}")
+        return {}
+
+
 def find_relevant_nodes_for_context(
     tree: Dict,
     query: str,
-    top_k: int = 5
+    top_k: int = 5,
+    embeddings_path: Optional[Path] = None
 ) -> List[int]:
     """
     Find the most relevant nodes for a given query using vector search.
@@ -156,6 +235,7 @@ def find_relevant_nodes_for_context(
         tree: Dictionary of node_id -> Node objects
         query: Search query
         top_k: Number of nodes to retrieve
+        embeddings_path: Optional path to pre-generated embeddings (backend/embeddings_output)
         
     Returns:
         List of node IDs ordered by relevance
@@ -164,15 +244,27 @@ def find_relevant_nodes_for_context(
         logging.info("Vector search disabled or empty tree")
         return []
     
-    # Generate embeddings for all nodes
-    embeddings = get_node_embeddings(tree)
+    # Try to load pre-existing embeddings first
+    embeddings = {}
+    if embeddings_path and embeddings_path.exists():
+        embeddings = load_embeddings_from_tsv(embeddings_path)
+    
+    # If no pre-existing embeddings, generate them
+    if not embeddings:
+        logging.info("Generating new embeddings...")
+        embeddings = get_node_embeddings(tree)
     
     if not embeddings:
-        logging.warning("No embeddings generated")
+        logging.warning("No embeddings available")
         return []
     
+    # Try to load pre-generated query embedding if embeddings path provided
+    query_embedding = None
+    if embeddings_path and embeddings_path.exists():
+        query_embedding = load_query_embedding_from_tsv(embeddings_path)
+    
     # Find similar nodes
-    results = find_similar_by_embedding(query, embeddings, top_k=top_k)
+    results = find_similar_by_embedding(query, embeddings, top_k=top_k, query_embedding=query_embedding)
     
     # Extract just the node IDs
     node_ids = [node_id for node_id, _ in results]

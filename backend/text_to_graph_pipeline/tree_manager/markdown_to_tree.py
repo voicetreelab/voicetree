@@ -4,7 +4,7 @@ from typing import Dict, Optional
 from pathlib import Path
 
 from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-from backend.markdown_to_tree import (
+from backend.markdown_to_tree.comprehensive_parser import (
     parse_markdown_file_complete,
     parse_relationships_from_links
 )
