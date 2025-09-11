@@ -343,11 +343,14 @@ def accumulate_content(
     }
     
     for node in nodes:
-        # Skip if we've already seen this node
-        node_id = node.get('node_id') or node.get('filename', '')
-        if node_id in seen_node_ids:
+        # Skip if we've already seen this node - use filename as unique identifier
+        # Remove .md extension if present for consistent comparison
+        filename = node.get('filename', '')
+        unique_id = filename.replace('.md', '') if filename else node.get('node_id', '')
+        
+        if unique_id in seen_node_ids:
             continue
-        seen_node_ids.add(node_id)
+        seen_node_ids.add(unique_id)
         
         if node.get('is_search_target', False):
             nodes_by_type['targets'].append(node)
@@ -385,9 +388,9 @@ def accumulate_content(
                 filename = node.get('filename', '')
                 depth = node.get('depth', 0)
                 
-                node_parts.append(f"**[{node_id}] {title}**")
-                if filename:
-                    node_parts.append(f"File: {filename}")
+                node_parts.append(f"**Node: [{node_id}] {title}**")
+                # if filename:
+                #     node_parts.append(f"File: {filename}")
                 if group_name in ['parents', 'children']:
                     node_parts.append(f"Distance from target: {abs(depth)}")
                 node_parts.append("")
@@ -400,6 +403,10 @@ def accumulate_content(
             
             # Add content if available
             content = node.get('content', '')
+
+            # todo should have relationiships at the top (connectioin to tree: <rel>)
+            # todo this will be easiiest by storing relationship
+            # todo we should use actual node datastruct from node.py
             if content:
                 # Clean up the content - remove YAML frontmatter
                 lines = content.split('\n')

@@ -19,7 +19,7 @@ from backend.context_retrieval.dependency_traversal import traverse_to_node, Tra
 from backend.context_retrieval.content_filtering import ContentLevel
 from backend.context_retrieval.vector_search import find_relevant_nodes_for_context
 
-def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[Path] = None, top_k: int = 10, embeddings_path: Optional[Path] = None):
+def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[Path] = None, top_k: int = 15, embeddings_path: Optional[Path] = None):
     """
     Traverse relevant nodes found via vector search based on query and tree.
     
@@ -41,8 +41,16 @@ def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[P
     relevant_nodes = []
     for i, node_id in enumerate(node_ids):
         # Find the node in the tree to get its filename
+        # Try both string and integer keys since tree might have mixed types
+        node = None
         if node_id in tree:
             node = tree[node_id]
+        elif str(node_id) in tree:
+            node = tree[str(node_id)]
+        elif isinstance(node_id, str) and node_id.isdigit() and int(node_id) in tree:
+            node = tree[int(node_id)]
+        
+        if node:
             if hasattr(node, 'filename'):
                 # Use index-based scoring as we don't have actual scores from the simplified API
                 similarity = 1.0 - (i * 0.05)  # Decreasing scores
@@ -97,7 +105,17 @@ def main():
     from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
     
     # Example query
-    query = "If the original audio has low clarity, after completing the audio cutting, what should I do?"
+    query = """
+    A user is training a model on a powerful computer with a 24GB graphics card. They have a high-quality, 3-hour dataset and want the absolute best result, regardless of training time. Based on the documentation's guidelines and warnings, what is the most appropriate training strategy for them to adopt?
+
+    A) Set the SoVITS model to train for several hundred rounds and enable DPO training, as high rounds are best for large datasets and powerful hardware.
+
+    B) Keep the SoVITS and GPT model rounds low (e.g., around 10-20), enable DPO training, and first use Emotion2Vec to classify the dataset.
+
+    C) Disable DPO training to maximize the batch size for faster training, and increase the SoVITS rounds significantly since the dataset is high quality.
+
+    D) Enable DPO training and set the GPT model rounds to the maximum possible, but keep the SoVITS rounds at the default, as it's more prone to negative effects.
+    """
     
     # Load tree from markdown directory
     markdown_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output/user_guide_qa_audio_processing_connected_final")
@@ -119,9 +137,11 @@ def main():
         
         # Also ensure each node has its filename attribute
         for node_id, node in tree.items():
+            # Convert node_id to string for filename matching
+            node_id_str = str(node_id)
             # Look for the actual file that starts with the node_id
             for filename in md_files:
-                if filename.startswith(f"{node_id}_"):
+                if filename.startswith(f"{node_id_str}_"):
                     node.filename = filename
                     break
             else:
@@ -135,7 +155,8 @@ def main():
         print("\nPerforming vector search and traversal...")
         
         # Run the traversal with vector search, using pre-generated embeddings
-        results = traverse_all_relevant_nodes(query, tree, markdown_dir, embeddings_path=embeddings_path)
+        # Use top_k=15 to ensure we get nodes like 113 which has child 116
+        results = traverse_all_relevant_nodes(query, tree, markdown_dir, top_k=15, embeddings_path=embeddings_path)
         
         print(f"\nTraversal complete. Found content for {len(results)} nodes.")
         
