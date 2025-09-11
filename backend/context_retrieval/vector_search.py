@@ -114,7 +114,7 @@ def load_query_embedding_from_tsv(embeddings_path: Path) -> Optional[np.ndarray]
 def find_similar_by_embedding(
     query: str,
     node_embeddings: Dict[int, np.ndarray],
-    top_k: int = 5,
+    top_k: int = 10,
     threshold: float = 0.3,
     query_embedding: Optional[np.ndarray] = None
 ) -> List[Tuple[int, float]]:
@@ -224,7 +224,7 @@ def load_embeddings_from_tsv(embeddings_path: Path) -> Dict[int, np.ndarray]:
 def find_relevant_nodes_for_context(
     tree: Dict,
     query: str,
-    top_k: int = 5,
+    top_k: int = 10,
     embeddings_path: Optional[Path] = None
 ) -> List[int]:
     """
