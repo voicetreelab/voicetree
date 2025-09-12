@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 import logging
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Enable embeddings - can be toggled via environment variable
 USE_EMBEDDINGS = os.getenv("VOICETREE_USE_EMBEDDINGS", "true").lower() == "true"
@@ -20,9 +24,10 @@ def _configure_gemini():
     """Configure Gemini API (call once)"""
     global _gemini_configured
     if not _gemini_configured:
-        api_key = os.getenv("GEMINI_API_KEY")
+        # Try both possible env var names
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
+            raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set")
         genai.configure(api_key=api_key)
         _gemini_configured = True
         logging.info("Configured Gemini API for embeddings")
@@ -258,10 +263,9 @@ def find_relevant_nodes_for_context(
         logging.warning("No embeddings available")
         return []
     
-    # Try to load pre-generated query embedding if embeddings path provided
-    query_embedding = None
-    if embeddings_path and embeddings_path.exists():
-        query_embedding = load_query_embedding_from_tsv(embeddings_path)
+    # Don't load pre-generated query embedding - generate it for the actual query!
+    # The query embedding should be generated fresh for each query
+    query_embedding = None  # Let find_similar_by_embedding generate it
     
     # Find similar nodes
     results = find_similar_by_embedding(query, embeddings, top_k=top_k, query_embedding=query_embedding)

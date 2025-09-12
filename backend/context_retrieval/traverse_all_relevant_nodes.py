@@ -19,7 +19,7 @@ from backend.context_retrieval.dependency_traversal import traverse_to_node, Tra
 from backend.context_retrieval.content_filtering import ContentLevel
 from backend.context_retrieval.vector_search import find_relevant_nodes_for_context
 
-def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[Path] = None, top_k: int = 15, embeddings_path: Optional[Path] = None):
+def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None):
     """
     Traverse relevant nodes found via vector search based on query and tree.
     
@@ -36,7 +36,8 @@ def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[P
     
     # Pass embeddings path if available
     node_ids = find_relevant_nodes_for_context(tree, query, top_k=top_k, embeddings_path=embeddings_path)
-    
+    print(f"relevant nodes are {node_ids}")
+
     # Convert node IDs to filenames with similarity scores
     relevant_nodes = []
     for i, node_id in enumerate(node_ids):
@@ -45,17 +46,19 @@ def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[P
         node = None
         if node_id in tree:
             node = tree[node_id]
+
         elif str(node_id) in tree:
             node = tree[str(node_id)]
         elif isinstance(node_id, str) and node_id.isdigit() and int(node_id) in tree:
             node = tree[int(node_id)]
         
         if node:
+            print(node.title)
             if hasattr(node, 'filename'):
                 # Use index-based scoring as we don't have actual scores from the simplified API
                 similarity = 1.0 - (i * 0.05)  # Decreasing scores
                 relevant_nodes.append((node.filename, similarity))
-                
+
                 # Infer markdown_dir from first node if not provided
                 if markdown_dir is None and hasattr(node, 'filepath'):
                     node_path = Path(node.filepath)
@@ -78,7 +81,7 @@ def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[P
         options = TraversalOptions(
             include_parents=True,
             include_children=True,
-            max_depth=20,  # Deeper traversal to see full dependency chains
+            max_depth=7,  # Deeper traversal to see full dependency chains
             include_neighborhood=True,
             content_level=ContentLevel.FULL_CONTENT
         )
