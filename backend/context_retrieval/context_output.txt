@@ -1,0 +1,798 @@
+Query: 
+    A user is training a model on a powerful computer with a 24GB graphics card. They have a high-quality, 3-hour dataset and want the absolute best result, regardless of training time. Based on the documentation's guidelines and warnings, what is the most appropriate training strategy for them to adopt?
+
+    A) Set the SoVITS model to train for several hundred rounds and enable DPO training, as high rounds are best for large datasets and powerful hardware.
+
+    B) Keep the SoVITS and GPT model rounds low (e.g., around 10-20), enable DPO training, and first use Emotion2Vec to classify the dataset.
+
+    C) Disable DPO training to maximize the batch size for faster training, and increase the SoVITS rounds significantly since the dataset is high quality.
+
+    D) Enable DPO training and set the GPT model rounds to the maximum possible, but keep the SoVITS rounds at the default, as it's more prone to negative effects.
+    
+Total nodes: 100
+================================================================================
+
+### TARGETS (6 nodes)
+
+============================================================
+
+
+
+============================================================
+
+**Node: [121] GPT-SoVITS-V2 Training Guidelines**
+
+Summary: Provides core guidelines for GPT-SoVITS-V2 training, including model round recommendations, warnings against increasing SoVITS rounds with low-quality audio, and sequential training steps.
+
+When setting the number of rounds for GPT-SoVITS-V2 training, note that V2 has better restoration of the training set but is also more likely to learn negative content. If your materials have background noise, reverb, popping, uneven loudness, electrical noise, slobber sound, unclear speech, poor sound quality, etc., do not increase the number of SoVITS model rounds, as this will lead to negative effects. The number of GPT model rounds is generally not higher than 20, and it is recommended to set it to 10. First, click on SoVITS training, and after it completes, click on GPT training. They cannot be trained together unless you have two cards. If training is interrupted halfway, click on start training again, and it will resume from the nearest save point.
+
+
+-----------------
+_Links:_
+Parent:
+- provides_operational_guidelines_for [[13_GPT-SoVITS-V2_Features.md]]
+
+============================================================
+
+**Node: [119] DPO Training Details**
+
+Summary: DPO training significantly improves model effect and inference length but increases VRAM usage, slows training, requires 12GB+ GPUs, and demands high-quality, clean datasets to avoid negative effects.
+
+After the 0213 version, dpo training was added. Dpo greatly improves the effect of the model, almost no swallowing of words and repetition, and the number of characters that can be inferred has increased several times, but at the same time, the video memory occupancy during training has increased by more than 2 times, the training speed has slowed down by 4 times, and GPUs below 12g cannot be trained. The quality requirements of the dataset have also increased a lot. If the dataset has noise, reverb, poor sound quality, and unproofread tags, then there will be negative effects.
+
+
+-----------------
+_Links:_
+Parent:
+- explains_the_implications_of [[35_GSV_Update_February_14_2024.md]]
+
+============================================================
+
+**Node: [87] GPT-SoVITS Dataset Processing Guidelines**
+
+Summary: Emphasizes that meticulous dataset preparation is foundational for training a high-quality GPT-SoVITS model, directly impacting its performance.
+
+Careful dataset preparation is crucial for avoiding errors and training a high-quality GPT-SoVITS model. A good dataset is the fundamental basis for a good model; if model performance is consistently poor, the quality of the dataset preparation should be re-evaluated.
+
+
+-----------------
+_Links:_
+Parent:
+- child_of [[175_GPT-SoVITS_Dataset_Preparation_and_Processing.md]]
+
+============================================================
+
+**Node: [118] GSV Fine-tuning Batch Size Optimization**
+
+Summary: Guidelines for optimizing `batch_size` in GSV fine-tuning, considering video memory, dataset size, and troubleshooting GPU occupancy, with a reference to specific recommendations.
+
+For GSV fine-tuning training, the `batch_size` must be carefully set and optimized. It is recommended to set the `batch_size` to less than half of the video memory for SoVITS training; if it's too high, it will blow up the video memory. A higher `batch_size` is not necessarily faster. The `batch_size` also needs to be adjusted according to the size of the dataset and is not strictly set to half of the video memory count. For example, if there is 6g of video memory, it needs to be set to 1. If the video memory explodes, adjust it lower. When the GPU 3D occupancy is 100%, it indicates that `batch_size` is too high, and shared video memory is being used, which will significantly slow down the training speed. Refer to the `GSV Batch Size Recommendation Table` for specific values.
+
+
+-----------------
+_Links:_
+Parent:
+- provides_optimization_guidance_for [[55_GSV_Training_Hardware_Requirements.md]]
+
+============================================================
+
+**Node: [135] GPT-SoVITS V1 Model Features**
+
+Summary: Describes the features of the GPT-SoVITS V1 model, including dataset, annotation accuracy, and DPO.
+
+The V1 model is described as an outstanding model sharing, using 30 hours of Paimon dataset, with a 100% correct rate of annotation, and enabling DPO (Diffusion Policy Optimization).
+
+
+-----------------
+_Links:_
+Parent:
+- describes_features_of_the [[16_GPT-SoVITS_Outdated_Video_Tutorial.md]]
+
+============================================================
+
+**Node: [24] GPT-SoVITS General Fixes and Improvements**
+
+Summary: Corrects CPU inference batch size, resolves denoising/ASR exit issues, fixes decimal splitting, improves multi-card training save logic, and includes various minor bug fixes and improvements for punctuation, mdxnet/uvr5 compatibility, training progress, and VQ freezing, covering updates from March to May 2024, and specific fixes/features from January 2024.
+
+This update includes general fixes and improvements released between March and May 2024, along with an update on January 23, 2024:
+
+- Corrected the default batch size for CPU inference to avoid decimal numbers.
+- Fixed the issue where denoising and ASR would exit abnormally in the middle, affecting all audio files that needed processing.
+- Fixed the issue where decimals would be split when dividing according to punctuation.
+- Fixed the logic for saving multiple processes during multi-card training.
+- Improved the logic for judging pure punctuation and multiple punctuation text input.
+- Fixed the cmd format of mdxnet for de-reverb in uvr5, compatible with paths containing spaces.
+- Fixed the logic of the training progress bar for s2 (#1159).
+- Fixed the issue that vq was not frozen during sovits training (which may cause a decrease in effect).
+
+- Fixed cmd format issues.
+- During the training data processing stage, prompt an error for unsupported languages.
+
+
+-----------------
+_Links:_
+Parent:
+- details_changes_in_the [[2_GPT-SoVITS_User_Manual.md]]
+
+============================================================
+
+### PARENTS (9 nodes)
+
+============================================================
+
+
+
+============================================================
+
+**Node: [174] GPT-SoVITS Software Overview**
+Distance from target: 3
+
+Summary: A comprehensive overview of the GPT-SoVITS software, including its core functionalities, user resources, and development updates.
+
+# GPT-SoVITS Software Overview
+
+A comprehensive overview of the GPT-SoVITS software, including its core functionalities, user resources, and development updates.
+
+
+-----------------
+_Links:_
+
+============================================================
+
+**Node: [1] GPT-SoVITS Software**
+Distance from target: 2
+
+Summary: Low-cost AI voice cloning software (GSV) by Flower No Cry, offering TTS, future voice transformation, and various advanced capabilities. An environmental checklist is available for setup.
+
+GPT-SoVITS (abbreviated as GSV) is a low-cost AI voice cloning software developed by Flower No Cry. Please refer to it as GSV, not 'sovits', to avoid confusion with So-VITS-SVC, which is unrelated.
+
+- **Current Feature**: Text-to-Speech (TTS) functionality.
+- **Future Update**: Voice transformation features.
+
+GSV offers advanced capabilities and improvements, including:
+- `GSV Audio Control`
+- `GSV Training and Inference Flexibility`
+- `GSV Cross-Language Generation` (which includes `GSV Supported Languages`)
+- `GSV Low-Quality Audio Synthesis Improvement`
+- `GSV Training Set Expansion`
+- `GSV Text Front-End Improvements`
+
+- **Project Address**: https://github.com/RVC-Boss/GPT-SoVITS
+- **Online Trial**: https://gsv.acgnai.top/
+
+
+-----------------
+_Links:_
+Parent:
+- child_of [[174_GPT-SoVITS_Software_Overview.md]]
+
+============================================================
+
+**Node: [7] GSV Training and Inference Flexibility**
+Distance from target: 2
+
+Summary: Offers flexible training options: fine-tuning with small data or direct inference.
+
+GPT-SoVITS offers flexible training and inference options:
+- **Fine-tuning training**: Requires only a small amount of voice data.
+- **Direct inference**: Can be performed without any prior training.
+
+
+-----------------
+_Links:_
+Parent:
+- provides_flexible_training_and_inference_options_for [[1_GPT-SoVITS_Software.md]]
+
+============================================================
+
+**Node: [2] GPT-SoVITS User Manual**
+Distance from target: 2
+
+Summary: A continuously updated user manual for GPT-SoVITS by Bilibili user 1145, including navigation, general usage advice, links to update logs, and attributions for materials, co-authors, and contributors.
+
+This document serves as a continuously updated, one-stop user manual for GPT-SoVITS, written by Bilibili user 1145 of BaiCai Factory. Users can urge updates on B Station.
+
+-   The manual includes a navigation bar with useful links.
+-   It provides an introduction to the work template.
+-   Users are advised to tag GPT-SoVITS when posting videos.
+
+For detailed update history, refer to the [Quick Start Update Log](https://github.com/RVC-Boss/GPT-SoVITS/blob/main/docs/cn/Changelog_CN.md). Specific update logs for `20240821`, `20240806`, and recent general fixes are available as separate nodes. Additionally, specific updates from `February 8, 2024`, and `February 7, 2024`, are detailed in their respective nodes.
+
+-   The audio used in the video is made using the open-source project GPT-SoVITS.
+-   Specific attributions for voice ownership, audio model, and reference audio are detailed in linked nodes.
+
+-   Thank you to co-authors Hua'er Buku and Haiyu Harry.
+-   Thank you to all contributors to the project.
+
+
+-----------------
+_Links:_
+Parent:
+- child_of [[174_GPT-SoVITS_Software_Overview.md]]
+
+============================================================
+
+**Node: [13] GPT-SoVITS-V2 Features**
+Distance from target: 1
+
+Summary: Details GPT-SoVITS-V2's enhancements, including expanded language support (Korean, Cantonese, Chinese, Japanese, English), increased GPT and SoVITS training set durations, doubled inference speed, improved sound quality from low-quality audio, better zero-shot performance, and enhanced text front-end.
+
+GPT-SoVITS-V2 introduces significant enhancements over V1, focusing on improved performance, broader language support, and higher audio quality. Key features include:
+- **Expanded Language Support**: Now includes Korean and Cantonese, in addition to Chinese, Japanese, and English, enabling cross-language synthesis across five languages. The text front-end logic for Chinese, Japanese, and English has been enhanced, with V2 Chinese and English versions including optimizations for polyphonic characters.
+- **Increased Training Set Durations**:
+  - **GPT Training Set**: Increased from 2,000 hours (V1) to 2,500 hours.
+  - **SoVITS Training Set**: V2 uses a VQ encoder with 2,000 hours, with the rest at 5,000 hours, compared to V1's 2,000 hours. The base membrane training set has been increased to 5,000 hours.
+- **Improved Audio Quality & Performance**:
+  - Better sound quality for synthesized audio, even from low-quality reference audio.
+  - Enhanced zero-shot performance and more realistic timbre.
+  - Less dataset required for training due to the increased base membrane training set.
+- **Inference Speed**: Doubled in V2.
+- **Parameter Amount**: Unchanged at 200M.
+
+
+-----------------
+_Links:_
+Parent:
+- introduces_new_features_and_improvements_in [[1_GPT-SoVITS_Software.md]]
+
+============================================================
+
+**Node: [35] 'GSV Update: February 14, 2024 (35) (35)'**
+Distance from target: 1
+
+Summary: Updated with Chinese experimental name support, optional DPO training (halved batch size), and fixed inference parameter passing.
+
+On February 14, 2024, GPT-SoVITS was updated to support Chinese experimental names during training (which previously caused errors). DPO training was changed to an optional item instead of a requirement, with batch size automatically halved if checked. An issue where new parameters of the inference interface were not passed was also fixed.
+
+
+-----------------
+_Links:_
+Parent:
+- details_a_software_update_for [[7_GSV_Training_and_Inference_Flexibility.md]]
+
+============================================================
+
+**Node: [175] GPT-SoVITS Dataset Preparation and Processing**
+Distance from target: 1
+
+Summary: Guidelines and tools for preparing and processing audio datasets essential for training high-quality GPT-SoVITS models.
+
+# GPT-SoVITS Dataset Preparation and Processing
+
+Guidelines and tools for preparing and processing audio datasets essential for training high-quality GPT-SoVITS models.
+
+
+-----------------
+_Links:_
+A part of the [[2_GPT-SoVITS_User_Manual]]
+
+============================================================
+
+**Node: [55] GSV Training Hardware Requirements**
+Distance from target: 1
+
+Summary: Specifies the minimum hardware requirements for training GPT-SoVITS on Windows, Mac, and Linux, including GPU memory and CPU fallback performance.
+
+For training with GPT-SoVITS, the following hardware configurations are required:
+
+*   **Windows:**
+    *   NVIDIA graphics card supporting CUDA, with at least 6GB of video memory.
+    *   Commonly unusable graphics cards include: all cards before the 10 series, those below 1060, below 1660, below 2060, and the 3050 4G.
+    *   Windows 10/11 operating system.
+
+*   **Mac/Linux:**
+    *   Proficient in using Linux.
+    *   A graphics card with at least 6GB of video memory.
+
+*   **General Note:** If no graphics card is detected, the system will automatically use the CPU for training, but this process is incredibly slow.
+
+
+-----------------
+_Links:_
+Parent:
+- specifies_the_hardware_requirements_for [[7_GSV_Training_and_Inference_Flexibility.md]]
+
+============================================================
+
+**Node: [16] GPT-SoVITS Outdated Video Tutorial**
+Distance from target: 1
+
+Summary: An outdated V1 video tutorial for GPT-SoVITS, potentially useful for old V1 users.
+
+An outdated video tutorial (V1 version) for GPT-SoVITS is available at: https://www.bilibili.com/video/BV1GJ4m1e7x2/
+
+**Note:** If you are an old user who has used V1, you may still find this tutorial relevant.
+
+
+-----------------
+_Links:_
+Parent:
+- provides_an_outdated_tutorial_for [[2_GPT-SoVITS_User_Manual.md]]
+
+============================================================
+
+### CHILDREN (30 nodes)
+
+============================================================
+
+
+
+============================================================
+
+**Node: [159] Training a Second GPT-SoVITS-V2 Model**
+Distance from target: 1
+
+Summary: Specific instructions for training a second GPT-SoVITS-V2 model, including data cleanup and naming.
+
+When training a second GPT-SoVITS-V2 model, remember to remove the audio from the previous slicing folder and the annotation files from the asr folder to avoid adding them to the training set. Be sure to change the model name when training! The steps remain the same as general training. The models will still be located in the GPT_weights_v2 and SoVITS_weights_v2 folders.
+
+
+-----------------
+_Links:_
+Parent:
+- details_the_process_for [[121_GPT-SoVITS-V2_Training_Guidelines.md]]
+
+============================================================
+
+**Node: [129] GPT-SoVITS-V2 Round Comparison Video**
+Distance from target: 1
+
+Summary: A video link is provided for comparing GPT-SoVITS-V2 training rounds.
+
+Round comparison can be seen in the video: [video link]
+
+
+-----------------
+_Links:_
+Parent:
+- provides_a_visual_comparison_for [[121_GPT-SoVITS-V2_Training_Guidelines.md]]
+
+============================================================
+
+**Node: [133] Evaluating GPT-SoVITS-V2 Training Quality**
+Distance from target: 1
+
+Summary: Evaluating GPT-SoVITS-V2 training quality involves using tools like Tensorboard, but ultimately relies on auditory assessment, especially when loss values are ambiguous at low training rounds.
+
+While praying is an effective method, you can also use scientific tools like Tensorboard, but ultimately, you should put on your headphones and let your ears tell you. Listening with your ears is the most scientific way to evaluate GPT-SoVITS-V2 training quality. Regarding Tensorboard, while GPT-SoVITS can enable it, the significance of the loss value when the number of rounds is less than 30 is minimal; in such cases, you should still listen with your ears.
+
+
+-----------------
+_Links:_
+Parent:
+- provides_methods_for_evaluating [[121_GPT-SoVITS-V2_Training_Guidelines.md]]
+
+============================================================
+
+**Node: [128] High Training Rounds Considerations**
+Distance from target: 1
+
+Summary: High training rounds are not inherently better; they require a very high-quality, proofread dataset of at least 1 hour duration.
+
+You might see people say they have trained for hundreds of rounds, thousands of rounds (tens of thousands of rounds would be a mistake between rounds and steps). But high rounds are not necessarily good. If you want to train for a high number of rounds, please first ensure that the dataset is of very high quality, all tags have been manually proofread, and the duration is at least more than 1 hour before it is necessary to increase the number of rounds. Otherwise, the default of more than ten rounds is already very good.
+
+
+-----------------
+_Links:_
+Parent:
+- details_considerations_for [[121_GPT-SoVITS-V2_Training_Guidelines.md]]
+
+============================================================
+
+**Node: [127] Learning Rate Weights Recommendation**
+Distance from target: 1
+
+Summary: Lowering learning rate weights is permissible, but increasing them is not recommended; evaluate effects personally.
+
+Regarding learning rate weights for GPT-SoVITS-V2 training: You can lower it but it is not recommended to raise it. Listen to the comparison directly and judge the effect by yourself.
+
+
+-----------------
+_Links:_
+Parent:
+- provides_recommendations_for [[121_GPT-SoVITS-V2_Training_Guidelines.md]]
+
+============================================================
+
+**Node: [140] Epoch vs. Step Definition**
+Distance from target: 1
+
+Summary: Differentiates between Epoch (full training set learning round) and Step (single learning step) in training.
+
+Please strictly differentiate between Epoch (rounds of training) and Step: 1 Epoch means all samples in the training set have participated in one round of learning, and 1 Step means one step of learning has taken place.
+
+
+-----------------
+_Links:_
+Parent:
+- defines_key_terminology_for [[121_GPT-SoVITS-V2_Training_Guidelines.md]]
+
+============================================================
+
+**Node: [132] GPT-SoVITS-V2 Training Unpredictability**
+Distance from target: 1
+
+Summary: Model training is a non-linear process influenced by dataset quality, duration, rounds, and other factors, making outcomes unpredictable.
+
+Model training is related to the quality and duration of your dataset, the number of rounds, and even some supernatural factors; even if you have a finished model, the final conversion effect also depends on your reference audio and inference parameters. This is not a linear process, and there are too many variables in between, so if you have to ask 'why doesn't my model come out like it should,' or 'how do you know if the model is well trained,' I can only say WHO F**KING KNOWS?
+
+
+-----------------
+_Links:_
+Parent:
+- describes_the_inherent_unpredictability_of [[121_GPT-SoVITS-V2_Training_Guidelines.md]]
+
+============================================================
+
+**Node: [123] DPO Batch Size Table**
+Distance from target: 1
+
+Summary: Table detailing maximum GPT training batch sizes for various GPU VRAMs with and without DPO enabled, based on a 10s slice length.
+
+The following are the maximum batch_size for GPT training with different video memories when the slice length is 10s. If the slice is longer and the dataset is larger, it should be appropriately reduced.
+ Video memory	No dpo batch_size	Enabled dpo batch_size	Slice length
+ 6g	1	Training not possible	10s
+ 8g	2	Training not possible	10s
+ 12g	4	1	10s
+ 16g	7	1	10s
+ 22g	10	4	10s
+ 24g	11	6	10s
+ 32g	16	6	10s
+ 40g	21	8	10s
+ 80g	44	18	10s
+
+
+-----------------
+_Links:_
+Parent:
+- provides_batch_size_recommendations_for [[119_DPO_Training_Details.md]]
+
+============================================================
+
+**Node: [122] DPO Training Prerequisites**
+Distance from target: 1
+
+Summary: DPO training requires GPUs greater than 12GB, high-quality datasets, and willingness to accept longer training times.
+
+If your GPU is greater than 12g, and the dataset is of good quality, and you are willing to wait for a long training time, then you can enable dpo training. Otherwise, please do not enable it.
+
+
+-----------------
+_Links:_
+Parent:
+- outlines_the_prerequisites_for [[119_DPO_Training_Details.md]]
+
+============================================================
+
+**Node: [139] Emotion Classification for GPT-SoVITS Datasets**
+Distance from target: 1
+
+Summary: Emotion classification using Emotion2Vec or ColorSplitter can enhance emotional stability and richness for datasets over 1 hour, requiring manual tag proofreading.
+
+For datasets exceeding 1 hour, emotion classification can be performed using Emotion2Vec or ColorSplitter prior to training. This process yields more stable and richer emotions in the model, but requires manual proofreading of the tags. Refer to the provided video for detailed instructions: [video link].
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_specific_guideline_for [[87_GPT-SoVITS_Dataset_Processing_Guidelines.md]]
+
+============================================================
+
+**Node: [130] GPT-SoVITS Audio Quality Requirements**
+Distance from target: 1
+
+Summary: Specific guidelines for ensuring high-quality audio data for GPT-SoVITS training.
+
+Audio must not have noise, it should be clear, loudness should be uniform, no reverb, each sentence should be complete, and all tags should be manually proofread.
+
+
+-----------------
+_Links:_
+Parent:
+- details_the_audio_quality_requirements_for [[87_GPT-SoVITS_Dataset_Processing_Guidelines.md]]
+
+============================================================
+
+**Node: [131] GPT-SoVITS Dataset Length Recommendation**
+Distance from target: 1
+
+Summary: Recommends dataset length based on observed improvements and hardware considerations, with a video for detailed comparison.
+
+There is a significant improvement within 30 minutes of dataset length, and it is not recommended to increase the length of the dataset (unless you have a bunch of 4090s). A detailed comparison can be seen in the video: [video link].
+
+
+-----------------
+_Links:_
+Parent:
+- provides_a_length_recommendation_for [[87_GPT-SoVITS_Dataset_Processing_Guidelines.md]]
+
+============================================================
+
+**Node: [124] Monitor CUDA Occupancy**
+Distance from target: 1
+
+Summary: Instructions for monitoring CUDA occupancy in Task Manager to verify training activity and troubleshoot video memory issues, including excessively long audio.
+
+During training, please press Ctrl+Shift+Esc to open the Task Manager, scroll down and open the options, and select CUDA. If the CUDA occupancy is 0, then it is not training. The dedicated GPU memory is the video memory, and other memories are shared, not the real video memory. If the video memory explodes, lower the `bs`. Or there may be excessively long audio that needs to go back to step 2.2 to remake the dataset.
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_related_troubleshooting_step_for [[118_GSV_Fine-tuning_Batch_Size_Optimization.md]]
+
+============================================================
+
+**Node: [120] GSV Batch Size Recommendation Table**
+Distance from target: 1
+
+Summary: Provides a table of recommended maximum batch sizes for SoVITS training based on video memory and a 10s slice length.
+
+The following are the maximum `batch_size` for SoVITS training with different video memories when the slice length is 10s. You can set it according to this. If the slice is longer and the dataset is larger, it should be appropriately reduced.
+
+| Video memory | batch_size | Slice length |
+|---|---|---|
+| 6g | 1 | 10s |
+| 8g | 2 | 10s |
+| 12g | 5 | 10s |
+| 16g | 8 | 10s |
+| 22g | 12 | 10s |
+| 24g | 14 | 10s |
+| 32g | 18 | 10s |
+| 40g | 24 | 10s |
+| 80g | 48 | 10s |
+
+
+-----------------
+_Links:_
+Parent:
+- provides_specific_recommendations_for [[118_GSV_Fine-tuning_Batch_Size_Optimization.md]]
+
+============================================================
+
+**Node: [125] Troubleshoot Win11 CUDA Interface**
+Distance from target: 1
+
+Summary: Steps to enable CUDA interface visibility in Task Manager on Windows 11 by disabling Hardware Accelerated GPU Scheduling.
+
+Win11 doesn't have CUDA in Task Manager by default. To resolve this, open Settings --> System --> Display --> Graphics Card --> Default Graphics Settings. Turn off Hardware Accelerated GPU Scheduling and restart the computer. This is also needed if you can't find the CUDA interface on Win11 when checking CUDA occupancy.
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_solution_for_issues_with [[118_GSV_Fine-tuning_Batch_Size_Optimization.md]]
+
+============================================================
+
+**Node: [164] Troubleshoot GSV Training Freeze**
+Distance from target: 1
+
+Summary: Addresses the issue of GSV training appearing to freeze, providing steps to diagnose and resolve it by adjusting virtual memory or batch size.
+
+If GSV training starts but then appears to freeze (no new output log after more than 10 minutes), as long as there are no errors, it is still running. This typically occurs with smaller datasets (less than 5 hours), where the first training log should appear within 10 minutes. If no output log appears, try increasing the virtual memory or reducing the batch size and then restart the training.
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_troubleshooting_guide_for [[118_GSV_Fine-tuning_Batch_Size_Optimization.md]]
+
+============================================================
+
+**Node: [126] GSV Training Completion Indicators**
+Distance from target: 1
+
+Summary: Describes how to identify when GSV training is completed by checking console output and round count.
+
+When training is completed, it will display that training is completed, and the rounds displayed on the console will stop at the round of (total rounds - 1).
+
+
+-----------------
+_Links:_
+Parent:
+- provides_indicators_for [[118_GSV_Fine-tuning_Batch_Size_Optimization.md]]
+
+============================================================
+
+**Node: [50] Inference Multi-Line Break Error Fix**
+Distance from target: 1
+
+Summary: Corrects inference errors caused by multiple line breaks.
+
+Fixed the error caused by multiple line breaks occurring during the inference process.
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_specific_fix_for [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [29] GPT Chinese Fine-tuning BERT Inconsistency**
+Distance from target: 1
+
+Summary: Addresses a critical BERT reading inconsistency during GPT Chinese fine-tuning, advising model re-tuning for quality with large datasets.
+
+Fixed an issue where GPT Chinese fine-tuning did not read BERT, leading to inconsistency with inference. This issue may cause the effect to worsen if too much data is fine-tuned. It is recommended to re-tune the model for quality optimization if a large amount of data has been fine-tuned (ref: #99f09c8).
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_critical_fix_within [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [25] Inference Consistency Verification**
+Distance from target: 1
+
+Summary: Plan to verify consistency of inference changes in the fast inference branch.
+
+The consistency of the inference changes in the fast inference branch will be gradually verified.
+
+
+-----------------
+_Links:_
+Parent:
+- details_a_future_action_for [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [53] Model File Sorting Optimization**
+Distance from target: 1
+
+Summary: Optimizes the sorting logic for model files.
+
+Optimized the sorting logic for model files, improving organization and access.
+
+
+-----------------
+_Links:_
+Parent:
+- is_an_improvement_to_the [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [51] Inference Interface Log Reduction**
+Distance from target: 1
+
+Summary: Reduces redundant logs in the inference interface.
+
+Removed a large number of redundant logs from the inference interface to improve clarity.
+
+
+-----------------
+_Links:_
+Parent:
+- is_an_improvement_to_the [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [33] Performance and Compatibility Improvements**
+Distance from target: 1
+
+Summary: Enhances inference speed, simplifies Faster Whisper use, corrects UVR5 de-reverb, and improves CPU inference fallback and Mac CPU inference.
+
+This set of updates includes:
+- Inference acceleration by 50% (tested on RTX3090+pytorch2.2.1+cu11.8+win10+py39, #672).
+- Simplified Faster Whisper use for non-Chinese ASR; no need to download Chinese funasr model first.
+- Fixed the issue where the UVR5 de-reverb model was reversed (#610).
+- Automatic CPU inference fallback for Faster Whisper if no CUDA is available (#675).
+- Modified `is_half` judgment to enable normal CPU inference on Mac (#573).
+
+
+-----------------
+_Links:_
+Parent:
+- details_performance_and_compatibility_improvements_within [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [32] Hubert Extraction FP32 Fix**
+Distance from target: 1
+
+Summary: Corrects Hubert extraction bug where NaN converts to FP32, resolving ZeroDivisionError in SoVITS/GPT training.
+
+Fixed a bug in Hubert extraction where NaN (Not a Number) was automatically converted to FP32, which caused SoVITS/GPT training to throw a ZeroDivisionError. This update was released on March 6, 2024.
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_major_bug_fix_included_in [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [52] Fast Model Switching Support**
+Distance from target: 1
+
+Summary: Enables quick model changes in the inference interface.
+
+Supported fast switching of models directly within the inference interface.
+
+
+-----------------
+_Links:_
+Parent:
+- adds_a_new_feature_to_the [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [49] UVR5 Directory Read Fix**
+Distance from target: 1
+
+Summary: Resolves UVR5 automatic exit when reading directories.
+
+Fixed the issue where UVR5 would automatically exit when attempting to read a directory.
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_specific_fix_for [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]
+
+============================================================
+
+**Node: [165] GSV CPU Training for Short Audio**
+Distance from target: 1
+
+Summary: Enables A-card/Apple users to train 30-second audio on CPU with good performance.
+
+A-card is not supported for GSV training. However, Apple users can train 30-second audio using the CPU, which is quite fast and yields an acceptable effect. MAC users are encouraged to check this option.
+
+
+-----------------
+_Links:_
+Parent:
+- provides_a_training_option_for [[55_GSV_Training_Hardware_Requirements.md]]
+
+============================================================
+
+**Node: [58] GSV Training Safety Precautions**
+Distance from target: 1
+
+Summary: Critical safety guidelines for GSV training, emphasizing heat dissipation, full resource utilization, and a disclaimer of responsibility for hardware issues.
+
+For laptop users, ensure proper heat dissipation during training. There have been cases of fires due to lack of attention during training. Training will fully utilize both CPU and GPU, being much more demanding than gaming. Ensure proper heat dissipation! If the heat dissipation opening is at the bottom, suspend the laptop. Remember to replace the thermal paste in time for long-term training. Do not train when unattended! Any hardware issues after training will not be taken responsibility for.
+
+
+-----------------
+_Links:_
+Parent:
+- are_critical_for_the [[55_GSV_Training_Hardware_Requirements.md]]
+
+============================================================
+
+**Node: [134] Evaluating Model Training Difficulty**
+Distance from target: 2
+
+Summary: Assessing model training quality is a complex, unanswerable question.
+
+The question 'How do you know if the model is well trained?' is considered very boring and meaningless, akin to asking a teacher how to learn well, with no definitive answer.
+
+
+-----------------
+_Links:_
+Parent:
+- is_an_insight_regarding [[131_GPT-SoVITS_Dataset_Length_Recommendation.md]]
+
+============================================================
+
+**Node: [48] macOS Training and Inference Support**
+Distance from target: 2
+
+Summary: Enables training and inference on macOS, requiring macOS 14+ and Xcode command-line tools.
+
+This update introduces full support for both training and inference operations on macOS.
+
+- macOS version 14 or higher
+- Xcode command-line tools installed by running `xcode-select --install`
+
+
+-----------------
+_Links:_
+Parent:
+- introduces_support_for [[33_Performance_and_Compatibility_Improvements_March-May_2024.md]]
