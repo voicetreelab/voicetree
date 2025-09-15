@@ -14,8 +14,8 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
     AppendAction, AppendAgentResult, CreateAction, SegmentModel)
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
     TreeActionDeciderWorkflow)
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
-    DecisionTree, Node)
+from backend.tree_manager.markdown_tree_ds import (
+    MarkdownTree, Node)
 
 
 class TestOrphanTopicGrouping:
@@ -24,7 +24,7 @@ class TestOrphanTopicGrouping:
     @pytest.fixture
     def decision_tree(self):
         """Create a basic decision tree for testing"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node = Node(
             name="Root",
             node_id=1,

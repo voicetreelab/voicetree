@@ -14,9 +14,9 @@
 #     ChunkProcessor
 # from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
 #     WorkflowResult
-# from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
+# from backend.tree_manager.markdown_tree_ds import \
 #     DecisionTree
-# from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+# from backend.tree_manager.tree_to_markdown import \
 #     TreeToMarkdownConverter
 
 

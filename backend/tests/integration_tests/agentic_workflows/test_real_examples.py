@@ -19,7 +19,7 @@ sys.path.insert(0, str(project_root))
 # Import the workflow directly
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
     TreeActionDeciderWorkflow
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 
 
 @pytest.mark.asyncio
@@ -51,7 +51,7 @@ async def test_complex_tree_creation():
     )
     
     # Start with empty tree (just root node)
-    decision_tree = DecisionTree()
+    decision_tree = MarkdownTree()
     
     results = []
     
@@ -155,9 +155,9 @@ async def test_single_transcript():
     """
     
     # Create tree with some existing nodes
-    decision_tree = DecisionTree()
+    decision_tree = MarkdownTree()
     # Add some existing nodes
-    from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+    from backend.tree_manager.markdown_tree_ds import Node
     decision_tree.tree[1] = Node(name="VoiceTree Project", node_id=1, content="", summary="Main project for voice-to-knowledge-graph system")
     decision_tree.tree[2] = Node(name="Backend Development", node_id=2, content="", summary="Work on the backend API and processing")
     decision_tree.tree[3] = Node(name="Testing", node_id=3, content="", summary="Unit and integration tests")

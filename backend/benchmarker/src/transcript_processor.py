@@ -8,9 +8,9 @@ import time
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
     ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
-    DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+from backend.tree_manager.markdown_tree_ds import \
+    MarkdownTree
+from backend.tree_manager.tree_to_markdown import \
     TreeToMarkdownConverter
 
 from .config import OUTPUT_DIR
@@ -35,7 +35,7 @@ class TranscriptProcessor:
         clear_workflow_log()
         
         # Create fresh instances for each transcript
-        self.decision_tree = DecisionTree()
+        self.decision_tree = MarkdownTree()
         
         # Use a unique state file in temp directory for each transcript to avoid cross-contamination
         temp_dir = tempfile.gettempdir()

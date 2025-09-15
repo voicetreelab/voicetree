@@ -13,8 +13,8 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-from backend.text_to_graph_pipeline.tree_manager.domain_stopwords import get_domain_aware_stopwords
+from backend.tree_manager.markdown_tree_ds import Node
+from backend.tree_manager.domain_stopwords import get_domain_aware_stopwords
 
 # Download stopwords if not already present
 try:

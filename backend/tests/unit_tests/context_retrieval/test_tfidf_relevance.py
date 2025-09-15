@@ -6,8 +6,8 @@ Test 3: Handling Domain-Specific Terminology
 """
 import pytest
 from datetime import datetime
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfRelevance:
@@ -21,7 +21,7 @@ class TestTfidfRelevance:
         domain-specific terms like "Dijkstra's algorithm"
         """
         # Create a decision tree
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add Node A: Introduction to Algorithms
         node_a = Node(

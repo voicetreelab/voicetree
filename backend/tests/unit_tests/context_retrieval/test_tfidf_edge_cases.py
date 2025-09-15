@@ -3,8 +3,8 @@ Edge case tests for TF-IDF implementation
 """
 import pytest
 from datetime import datetime
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfEdgeCases:
@@ -12,7 +12,7 @@ class TestTfidfEdgeCases:
     
     def test_empty_query_returns_recent_nodes_only(self):
         """Test that empty query returns recent nodes only (branching factor fallback removed)"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add some nodes
         for i in range(1, 6):
@@ -36,7 +36,7 @@ class TestTfidfEdgeCases:
     
     def test_query_with_only_stopwords(self):
         """Test that query with only stopwords still works"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add nodes
         node1 = Node(
@@ -65,7 +65,7 @@ class TestTfidfEdgeCases:
     
     def test_special_characters_in_query(self):
         """Test that special characters in query are handled properly"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add nodes
         node1 = Node(
@@ -95,7 +95,7 @@ class TestTfidfEdgeCases:
     
     def test_very_long_query(self):
         """Test that very long queries are handled efficiently"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add nodes
         for i in range(1, 11):
@@ -117,7 +117,7 @@ class TestTfidfEdgeCases:
     
     def test_unicode_characters(self):
         """Test that unicode characters are handled properly"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add nodes with unicode
         node1 = Node(

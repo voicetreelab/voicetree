@@ -9,7 +9,7 @@ import os
 import shutil
 from typing import Dict, Any
 
-from backend.text_to_graph_pipeline.tree_manager.color_writer import (
+from backend.tree_manager.color_writer import (
     write_theme_colors_to_markdown,
     _assign_colors_to_themes,
     _extract_node_id_from_filename

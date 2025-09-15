@@ -18,24 +18,31 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.context_retrieval.dependency_traversal import traverse_to_node, TraversalOptions, accumulate_content
 from backend.context_retrieval.content_filtering import ContentLevel
 from backend.context_retrieval.vector_search import find_relevant_nodes_for_context
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 
-def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None):
+def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None):
     """
     Traverse relevant nodes found via vector search based on query and tree.
-    
+
     Args:
         query: Search query for finding relevant nodes
-        tree: Dictionary of node_id -> Node objects
+        tree: MarkdownTree object containing the tree structure
         markdown_dir: Path to markdown directory (optional, will be inferred from tree)
         top_k: Number of relevant nodes to retrieve (default: 10)
         embeddings_path: Optional path to pre-generated embeddings (backend/embeddings_output)
     """
-    
+
+    # Extract the tree dictionary from MarkdownTree
+    tree_dict = tree.tree
+    # Use the output_dir from MarkdownTree if markdown_dir not provided
+    if markdown_dir is None and tree.output_dir:
+        markdown_dir = Path(tree.output_dir)
+
     # Use vector search to find relevant nodes dynamically
     print(f"🔍 Searching for relevant nodes for query: '{query}'")
-    
+
     # Pass embeddings path if available
-    node_ids = find_relevant_nodes_for_context(tree, query, top_k=top_k, embeddings_path=embeddings_path)
+    node_ids = find_relevant_nodes_for_context(tree_dict, query, top_k=top_k, embeddings_path=embeddings_path)
     print(f"relevant nodes are {node_ids}")
 
     # Convert node IDs to filenames with similarity scores
@@ -44,14 +51,14 @@ def traverse_all_relevant_nodes(query: str, tree: Dict, markdown_dir: Optional[P
         # Find the node in the tree to get its filename
         # Try both string and integer keys since tree might have mixed types
         node = None
-        if node_id in tree:
-            node = tree[node_id]
+        if node_id in tree_dict:
+            node = tree_dict[node_id]
 
-        elif str(node_id) in tree:
-            node = tree[str(node_id)]
-        elif isinstance(node_id, str) and node_id.isdigit() and int(node_id) in tree:
-            node = tree[int(node_id)]
-        
+        elif str(node_id) in tree_dict:
+            node = tree_dict[str(node_id)]
+        elif isinstance(node_id, str) and node_id.isdigit() and int(node_id) in tree_dict:
+            node = tree_dict[int(node_id)]
+
         if node:
             print(node.title)
             if hasattr(node, 'filename'):
@@ -105,8 +112,8 @@ def main():
     Loads tree from markdown directory and performs vector search.
     """
     # Import the tree loader from the correct location
-    from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
-    
+    from backend.tree_manager.markdown_to_tree import load_markdown_tree
+
     # Example query
     query = """
     A user is training a model on a powerful computer with a 24GB graphics card. They have a high-quality, 3-hour dataset and want the absolute best result, regardless of training time. Based on the documentation's guidelines and warnings, what is the most appropriate training strategy for them to adopt?
@@ -119,27 +126,27 @@ def main():
 
     D) Enable DPO training and set the GPT model rounds to the maximum possible, but keep the SoVITS rounds at the default, as it's more prone to negative effects.
     """
-    
+
     # Load tree from markdown directory
     markdown_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output/user_guide_qa_audio_processing_connected_final")
-    
+
     # Path to pre-generated embeddings
     embeddings_path = Path("/Users/bobbobby/repos/VoiceTree/backend/embeddings_output")
-    
+
     print(f"Loading tree from: {markdown_dir}")
     print(f"Using embeddings from: {embeddings_path}")
-    
+
     try:
-        # Load the tree using the existing function
-        tree = load_markdown_tree(str(markdown_dir))
-        print(f"Successfully loaded {len(tree)} nodes from markdown files")
-        
+        # Load the tree as MarkdownTree object
+        markdown_tree = load_markdown_tree(str(markdown_dir))
+        print(f"Successfully loaded {len(markdown_tree.tree)} nodes from markdown files")
+
         # Map node IDs to actual filenames by checking the markdown directory
         import os
         md_files = {f: f for f in os.listdir(markdown_dir) if f.endswith('.md')}
-        
+
         # Also ensure each node has its filename attribute
-        for node_id, node in tree.items():
+        for node_id, node in markdown_tree.tree.items():
             # Convert node_id to string for filename matching
             node_id_str = str(node_id)
             # Look for the actual file that starts with the node_id
@@ -153,13 +160,14 @@ def main():
                     node.filename = node.file_name
                 else:
                     logging.warning(f"Could not find filename for node {node_id}")
-        
+
         print(f"\nQuery: {query}")
         print("\nPerforming vector search and traversal...")
-        
+
         # Run the traversal with vector search, using pre-generated embeddings
+        # Now passing the MarkdownTree object instead of dictionary
         # Use top_k=15 to ensure we get nodes like 113 which has child 116
-        results = traverse_all_relevant_nodes(query, tree, markdown_dir, top_k=15, embeddings_path=embeddings_path)
+        results = traverse_all_relevant_nodes(query, markdown_tree, markdown_dir, top_k=15, embeddings_path=embeddings_path)
         
         print(f"\nTraversal complete. Found content for {len(results)} nodes.")
         

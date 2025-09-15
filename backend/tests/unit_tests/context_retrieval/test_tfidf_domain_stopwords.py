@@ -5,8 +5,8 @@ This test demonstrates how domain-specific stopwords improve relevance
 for queries about animals and locations in mathematical contexts.
 """
 import pytest
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfDomainStopwords:
@@ -18,7 +18,7 @@ class TestTfidfDomainStopwords:
         rather than common pattern words (average, number, adult, etc.)
         """
         # Create a decision tree with animal/location nodes
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Node 1: Giraffe in Shardlight Chasms
         node_1 = Node(
@@ -85,7 +85,7 @@ class TestTfidfDomainStopwords:
         """
         Test that locations become more important when pattern words are filtered
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add nodes with same animal but different locations
         locations = [
@@ -118,7 +118,7 @@ class TestTfidfDomainStopwords:
         """
         Test that animal types become more important when pattern words are filtered
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add nodes with same location but different animals
         animals = [

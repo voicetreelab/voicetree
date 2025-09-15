@@ -4,8 +4,8 @@ import shutil
 from datetime import datetime
 import pytest
 
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import MarkdownToTreeConverter, load_markdown_tree
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.tree_manager.markdown_to_tree import MarkdownToTreeConverter, load_markdown_tree
+from backend.tree_manager.markdown_tree_ds import Node
 
 
 class TestMarkdownToTreeConverter:

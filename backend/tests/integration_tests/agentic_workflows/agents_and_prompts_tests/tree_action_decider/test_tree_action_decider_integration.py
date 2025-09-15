@@ -17,7 +17,7 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
     UpdateAction,
     BaseTreeAction
 )
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
 
 
 class TestTreeActionDeciderIntegration:
@@ -84,7 +84,7 @@ class TestTreeActionDeciderIntegration:
     @pytest.fixture
     def simple_tree(self):
         """Create a simple tree with one node about database design"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node = Node(
             name="Database Design",
             node_id=1,
@@ -97,7 +97,7 @@ class TestTreeActionDeciderIntegration:
     @pytest.fixture
     def multi_node_tree(self):
         """Create a tree with multiple nodes for testing"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Root node about architecture
         arch_node = Node(
@@ -294,7 +294,7 @@ class TestTreeActionDeciderIntegration:
         - Empty tree is handled gracefully
         - May trigger optimization if improved prompt identifies enhancements
         """
-        empty_tree = DecisionTree()
+        empty_tree = MarkdownTree()
         
         transcript_text = "Let's build a task management system with real-time updates."
         

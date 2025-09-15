@@ -6,7 +6,7 @@ Handles applying integration decisions to the decision tree
 import logging
 from typing import List, Set, Union
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction, AppendAction
 
 
@@ -18,7 +18,7 @@ class TreeActionApplier:
     based on integration decisions from agentic workflows and optimization actions.
     """
     
-    def __init__(self, decision_tree: DecisionTree):
+    def __init__(self, decision_tree: MarkdownTree):
         """
         Initialize the TreeActionApplier
         

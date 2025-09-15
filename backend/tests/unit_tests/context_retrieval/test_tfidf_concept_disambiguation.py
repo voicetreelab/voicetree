@@ -8,8 +8,8 @@ Verifies that TF-IDF can distinguish between related technical concepts
 and select the most relevant node based on specific terminology.
 """
 import pytest
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfConceptDisambiguation:
@@ -24,7 +24,7 @@ class TestTfidfConceptDisambiguation:
         among related machine learning topics.
         """
         # Create a decision tree
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add Node A: Machine Learning Fundamentals
         node_a = Node(
@@ -88,7 +88,7 @@ class TestTfidfConceptDisambiguation:
         """
         Additional test to verify TF-IDF handles queries with different levels of specificity
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Same nodes as above
         tree.tree[1] = Node(

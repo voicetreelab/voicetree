@@ -10,9 +10,9 @@ from pathlib import Path
 # Add the current directory to the Python path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 
 def main():
     # Load the markdown tree
@@ -22,7 +22,7 @@ def main():
     tree_dict = load_markdown_tree(markdown_dir)
     
     # Create a DecisionTree object
-    tree = DecisionTree()
+    tree = MarkdownTree()
     tree.tree = tree_dict
     
     print(f"Loaded tree with {len(tree.tree)} nodes")
@@ -91,7 +91,7 @@ def main():
     print("\n\n=== DEPENDENCY-AWARE SEARCH ANALYSIS ===")
     
     # Extract needed parameters from the query
-    from backend.text_to_graph_pipeline.tree_manager.tree_functions import _extract_needed_parameters, _extract_defined_parameter
+    from backend.tree_manager.tree_functions import _extract_needed_parameters, _extract_defined_parameter
     
     needed_params = _extract_needed_parameters(query)
     print(f"\nQuery needs these parameters: {needed_params}")

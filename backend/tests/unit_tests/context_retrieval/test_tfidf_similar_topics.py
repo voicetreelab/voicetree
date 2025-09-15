@@ -8,8 +8,8 @@ Verifies that TF-IDF can differentiate between similar Python-related topics
 based on specific domain terminology.
 """
 import pytest
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfSimilarTopics:
@@ -23,7 +23,7 @@ class TestTfidfSimilarTopics:
         that share common terminology but focus on different domains.
         """
         # Create a decision tree
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add Node A: Python Programming Basics
         node_a = Node(
@@ -87,7 +87,7 @@ class TestTfidfSimilarTopics:
         """
         Test that web development queries correctly identify the web development node
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Same nodes as above
         tree.tree[1] = Node(
@@ -128,7 +128,7 @@ class TestTfidfSimilarTopics:
         """
         Test that basic Python queries select the fundamentals node
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Same nodes
         tree.tree[1] = Node(

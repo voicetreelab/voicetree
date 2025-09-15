@@ -14,8 +14,8 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
     TreeActionDeciderWorkflow
 from backend.text_to_graph_pipeline.text_buffer_manager import \
     TextBufferManager
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
-    DecisionTree
+from backend.tree_manager.markdown_tree_ds import \
+    MarkdownTree
 
 
 class TestTreeActionDeciderWorkflow:
@@ -23,7 +23,7 @@ class TestTreeActionDeciderWorkflow:
     @pytest.fixture
     def decision_tree(self):
         """Create a simple decision tree for testing"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         tree.create_new_node(name="Root", parent_node_id=None, content="Root content", 
                            summary="Root summary", relationship_to_parent="root")
         return tree

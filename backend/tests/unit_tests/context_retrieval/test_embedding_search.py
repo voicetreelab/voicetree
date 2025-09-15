@@ -13,7 +13,7 @@ from backend.context_retrieval.vector_search import (
     hybrid_search,
     extract_key_entities
 )
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.tree_manager.markdown_tree_ds import Node
 
 
 class TestEmbeddingGeneration:

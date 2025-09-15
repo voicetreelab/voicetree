@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Optional
 from pathlib import Path
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
 from backend.markdown_to_tree.comprehensive_parser import (
     parse_markdown_file_complete,
     parse_relationships_from_links
@@ -151,18 +151,28 @@ class MarkdownToTreeConverter:
                     child_node.relationships[node_id] = relationship_type
 
 
-def load_markdown_tree(markdown_dir: str) -> Dict[int, Node]: #todo output DecisionTree type
+def load_markdown_tree(markdown_dir: str) -> MarkdownTree:
     """
     Convenience function to load a tree from markdown files
-    
+
     Args:
         markdown_dir: Directory containing markdown files
-        
+
     Returns:
-        Dictionary mapping node_id to Node objects
+        MarkdownTree object with loaded nodes
     """
     converter = MarkdownToTreeConverter()
-    return converter.load_tree_from_markdown(markdown_dir)
+    tree_dict = converter.load_tree_from_markdown(markdown_dir)
+
+    # Create MarkdownTree object with the loaded data
+    markdown_tree = MarkdownTree(output_dir=markdown_dir)
+    markdown_tree.tree = tree_dict
+
+    # Set the next_node_id based on the highest existing ID
+    if tree_dict:
+        markdown_tree.next_node_id = max(tree_dict.keys()) + 1
+
+    return markdown_tree
 
 
 def load_markdown_repository_for_themes(input_forest_path: str) -> Dict[int, Node]:

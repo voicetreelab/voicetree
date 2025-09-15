@@ -10,15 +10,15 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
     TreeActionDeciderWorkflow
 from backend.text_to_graph_pipeline.text_buffer_manager import \
     TextBufferManager
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
-    DecisionTree, Node)
+from backend.tree_manager.markdown_tree_ds import (
+    MarkdownTree, Node)
 
 
 class TestTreeActionDeciderWorkflow(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures"""
-        self.decision_tree = DecisionTree()
+        self.decision_tree = MarkdownTree()
         # Override the default tree with test nodes that have proper names and summaries
         self.decision_tree.tree = {
             0: Node(name="Parent Node", node_id=0, content="parent content", summary="Parent summary", parent_id=None),

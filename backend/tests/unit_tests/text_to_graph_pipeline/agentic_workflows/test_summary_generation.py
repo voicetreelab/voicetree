@@ -4,7 +4,7 @@ Unit tests for summary generation in optimizer only
 
 import pytest
 from unittest.mock import Mock, call
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
 
 
 class TestSummaryGeneration:
@@ -13,7 +13,7 @@ class TestSummaryGeneration:
     @pytest.fixture
     def decision_tree(self):
         """Create a decision tree with test nodes"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         # Create root node
         tree.create_new_node(
             name="Root",
@@ -25,7 +25,7 @@ class TestSummaryGeneration:
     
     def test_append_content_no_summary_update(self):
         """Test that append_node_content doesn't update summary"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node_id = tree.create_new_node(
             name="Test Node",
             parent_node_id=None,
@@ -44,7 +44,7 @@ class TestSummaryGeneration:
     
     def test_update_node_changes_summary(self):
         """Test that update_node (used by optimizer) changes the summary"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node_id = tree.create_new_node(
             name="Test",
             parent_node_id=None,
@@ -65,7 +65,7 @@ class TestSummaryGeneration:
     
     def test_append_preserves_summary_until_optimization(self):
         """Test workflow: append doesn't change summary, optimization does"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node_id = tree.create_new_node(
             name="Workflow Test",
             parent_node_id=None,
@@ -98,7 +98,7 @@ class TestSummaryGeneration:
     def test_append_node_content_method_signature(self):
         """Test that DecisionTree.append_node_content has the correct signature"""
         import inspect
-        sig = inspect.signature(DecisionTree.append_node_content)
+        sig = inspect.signature(MarkdownTree.append_node_content)
         
         # Check that the method has the expected parameters
         params = list(sig.parameters.keys())

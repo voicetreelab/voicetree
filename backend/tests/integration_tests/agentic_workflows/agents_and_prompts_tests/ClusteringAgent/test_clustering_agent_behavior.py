@@ -6,8 +6,8 @@
 # import pytest
 # from typing import List
 #
-# from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-# from backend.text_to_graph_pipeline.tree_manager.tree_functions import _format_nodes_for_prompt
+# from backend.tree_manager.markdown_tree_ds import Node
+# from backend.tree_manager.tree_functions import _format_nodes_for_prompt
 # from backend.text_to_graph_pipeline.agentic_workflows.agents.clustering_agent import ClusteringAgent
 # from backend.text_to_graph_pipeline.agentic_workflows.models import TagResponse, TagAssignment
 #

@@ -9,7 +9,7 @@ import numpy as np
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
 from backend.context_retrieval.vector_search import (
     get_node_embeddings,
     find_similar_by_embedding,
@@ -29,7 +29,7 @@ class TestEmbeddingSearchIntegration:
     @pytest.fixture
     def loaded_tree(self, test_data_dir):
         """Load test markdown files into a DecisionTree"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Manually load nodes from test files (simplified loader)
         for md_file in sorted(test_data_dir.glob("*.md")):

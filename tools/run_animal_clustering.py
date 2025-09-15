@@ -8,11 +8,11 @@ import asyncio
 import os
 from pathlib import Path
 from typing import Dict
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import MarkdownToTreeConverter
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import _format_nodes_for_prompt
+from backend.tree_manager.markdown_to_tree import MarkdownToTreeConverter
+from backend.tree_manager.markdown_tree_ds import Node
+from backend.tree_manager.tree_functions import _format_nodes_for_prompt
 from backend.text_to_graph_pipeline.agentic_workflows.agents.clustering_agent import ClusteringAgent
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 
 async def save_current_progress(tree: Dict[int, Node], output_dir: str, batch_num: int, total_batches: int):

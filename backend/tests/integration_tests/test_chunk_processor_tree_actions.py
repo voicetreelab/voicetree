@@ -8,7 +8,7 @@ from unittest.mock import Mock, AsyncMock
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class TestChunkProcessorWithNewActions:
@@ -16,7 +16,7 @@ class TestChunkProcessorWithNewActions:
     @pytest.fixture
     def decision_tree(self):
         """Create a simple decision tree for testing"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         tree.create_new_node(name="Root", parent_node_id=None, content="Root content", 
                            summary="Root summary", relationship_to_parent="root")
         return tree

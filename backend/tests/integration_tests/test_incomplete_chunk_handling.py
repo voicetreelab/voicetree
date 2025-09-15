@@ -8,7 +8,7 @@
 # from unittest.mock import Mock, patch, AsyncMock
 # from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
 # from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-# from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+# from backend.tree_manager.markdown_tree_ds import DecisionTree
 
 
 # class TestIncompleteChunkHandling:

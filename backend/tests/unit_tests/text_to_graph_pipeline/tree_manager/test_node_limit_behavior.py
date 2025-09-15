@@ -9,8 +9,8 @@ import json
 import pytest
 import re
 from unittest.mock import Mock, MagicMock
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
 
 
@@ -46,7 +46,7 @@ class TestNodeLimitBehavior:
     @pytest.fixture
     def decision_tree_with_many_nodes(self):
         """Create a decision tree with many nodes to simulate long context"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Create 50 nodes to simulate a large tree
         for i in range(50):
@@ -103,7 +103,7 @@ class TestNodeLimitBehavior:
         assert MAX_NODES_FOR_LLM_CONTEXT <= 50, "MAX_NODES_FOR_LLM_CONTEXT should not be too large"
         
         # Create a tree and test with different limits
-        tree = DecisionTree()
+        tree = MarkdownTree()
         for i in range(30):
             tree.create_new_node(
                 name=f"Node {i}",
@@ -120,7 +120,7 @@ class TestNodeLimitBehavior:
     def test_all_nodes_included_when_under_limit(self):
         """Test that all nodes are included when total is under limit"""
         # Create small tree with only 5 nodes
-        small_tree = DecisionTree()
+        small_tree = MarkdownTree()
         for i in range(5):
             small_tree.create_new_node(
                 name=f"Node {i}",
@@ -164,7 +164,7 @@ class TestNodeLimitBehavior:
     def test_query_based_relevance_selection(self):
         """Test that nodes are selected based on query relevance when query is provided"""
         # Create tree with specific node titles/summaries for testing
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Create nodes with different content
         tree.create_new_node(

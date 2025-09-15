@@ -12,13 +12,13 @@ from typing import Set, Optional
 from pathlib import Path
 
 from .markdown_to_tree import MarkdownToTreeConverter
-from .decision_tree_ds import DecisionTree, Node
+from .markdown_tree_ds import MarkdownTree, Node
 
 
 class MarkdownToTreeSynchronizer:
     """Synchronizes markdown file content back to tree nodes"""
     
-    def __init__(self, decision_tree: DecisionTree):
+    def __init__(self, decision_tree: MarkdownTree):
         """
         Initialize the synchronizer
         
@@ -95,7 +95,7 @@ class MarkdownToTreeSynchronizer:
         return synced_count
 
 
-def sync_nodes_from_markdown(decision_tree: DecisionTree, node_ids: Set[int]) -> int:
+def sync_nodes_from_markdown(decision_tree: MarkdownTree, node_ids: Set[int]) -> int:
     """
     Convenience function to sync nodes from markdown files
     

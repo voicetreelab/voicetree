@@ -15,9 +15,9 @@ from typing import Any, List, Optional, Set
 from backend import settings
 from backend.text_to_graph_pipeline.text_buffer_manager import \
     TextBufferManager
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
-    DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+from backend.tree_manager.markdown_tree_ds import \
+    MarkdownTree
+from backend.tree_manager.tree_to_markdown import \
     TreeToMarkdownConverter
 
 from .apply_tree_actions import TreeActionApplier
@@ -42,7 +42,7 @@ class ChunkProcessor:
     
     def __init__(
         self,
-        decision_tree: DecisionTree,
+        decision_tree: MarkdownTree,
         converter: Optional[TreeToMarkdownConverter] = None,
         output_dir: str = output_dir_default,
         workflow: Optional[TreeActionDeciderWorkflow] = None

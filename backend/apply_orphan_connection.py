@@ -12,11 +12,11 @@ import logging
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.markdown_to_tree import load_markdown_tree
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
     ConnectOrphansAgent
 )
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
     TreeActionApplier
 )
@@ -39,8 +39,8 @@ async def process_tree(tree_path: str, output_path: str = None):
     tree_data = load_markdown_tree(tree_path)
     
     # Create a DecisionTree from the loaded data
-    from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-    tree = DecisionTree()
+    from backend.tree_manager.markdown_tree_ds import MarkdownTree
+    tree = MarkdownTree()
     tree.tree = tree_data
     if tree_data:
         tree.next_node_id = max(tree_data.keys()) + 1
