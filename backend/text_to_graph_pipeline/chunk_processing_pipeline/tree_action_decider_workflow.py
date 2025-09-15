@@ -401,7 +401,7 @@ class TreeActionDeciderWorkflow:
                         parent_node_id=None,
                         new_node_name=name,  # Use the common name
                         content="\n\n".join(orphan.content for orphan in orphans),
-                        summary="",
+                        summary="\n\n".join(orphan.summary for orphan in orphans if orphan.summary),
                         relationship=""  # Empty for orphan nodes
                     )
                     merged_orphans.append(merged_orphan)

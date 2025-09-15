@@ -192,10 +192,15 @@ created_at: '2025-07-28T10:00:00.000000'
     
     def test_convenience_function(self, sample_markdown_files):
         """Test the convenience function load_markdown_tree"""
-        tree_data = load_markdown_tree(sample_markdown_files)
-        
-        assert len(tree_data) == 3
-        assert all(isinstance(node, Node) for node in tree_data.values())
+        markdown_tree = load_markdown_tree(sample_markdown_files)
+
+        # Test that it returns a MarkdownTree object
+        from backend.tree_manager.markdown_tree_ds import MarkdownTree
+        assert isinstance(markdown_tree, MarkdownTree)
+
+        # Test that the tree contains the expected nodes
+        assert len(markdown_tree.tree) == 3
+        assert all(isinstance(node, Node) for node in markdown_tree.tree.values())
     
     def test_nonexistent_directory(self):
         """Test handling of nonexistent directory"""
