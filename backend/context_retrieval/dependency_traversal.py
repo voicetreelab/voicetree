@@ -201,11 +201,10 @@ def get_children_recursive(
     
     # Filter out the parent node itself
     children = [r for r in child_results if r['filename'] != parent_file]
-    
-    # Adjust depths to be negative for children (opposite of parents)
-    for child in children:
-        child['depth'] = -abs(child['depth']) if child['depth'] != 0 else -1
-    
+
+    # Children already have positive depth values from traversal
+    # No need to adjust them
+
     return children
 
 
