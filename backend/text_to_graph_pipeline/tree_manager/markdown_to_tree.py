@@ -151,7 +151,7 @@ class MarkdownToTreeConverter:
                     child_node.relationships[node_id] = relationship_type
 
 
-def load_markdown_tree(markdown_dir: str) -> Dict[int, Node]:
+def load_markdown_tree(markdown_dir: str) -> Dict[int, Node]: #todo output DecisionTree type
     """
     Convenience function to load a tree from markdown files
     

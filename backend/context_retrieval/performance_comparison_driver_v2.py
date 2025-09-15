@@ -14,6 +14,10 @@ import statistics
 from tqdm import tqdm
 from dotenv import load_dotenv
 import google.generativeai as genai
+from colorama import init, Fore, Style
+
+# Initialize colorama for cross-platform colored output
+init(autoreset=True)
 
 # Load environment variables
 load_dotenv()
@@ -38,15 +42,14 @@ class GeminiClient:
         def __init__(self, model):
             self.model = model
             
-        def create(self, model=None, messages=None, temperature=0.1, max_tokens=128):
+        def create(self, model=None, messages=None, temperature=0.5):
             """Create a completion using Gemini."""
             prompt = messages[0]["content"] if messages else ""
             
             response = self.model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
+                    temperature=temperature
                 )
             )
             
@@ -74,15 +77,14 @@ class GeminiClient:
             })()
         })()
         
-    def _create_completion(self, model=None, messages=None, temperature=0.4, max_tokens=428):
+    def _create_completion(self, model=None, messages=None, temperature=0.4):
         """Create a completion using Gemini."""
         prompt = messages[0]["content"] if messages else ""
         
         response = self._model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
-                temperature=temperature,
-                max_output_tokens=max_tokens,
+                temperature=temperature
             )
         )
         
@@ -151,8 +153,8 @@ class PerformanceComparatorV2:
         # Correct answers based on the documentation
         correct_answers = {
             "1.md": "B",
-            "2.md": "D", 
-            "3.md": "B",
+            "2.md": "B",
+            "3.md": "D",
             "4.md": "A"
         }
         
@@ -298,14 +300,12 @@ Format your response as follows: "The correct answer is (insert answer here)".""
 
         completion = self.client.chat.completions.create(
             model="gemini-2.5-flash-lite",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-            max_tokens=500,  # Increased to avoid cutoff
+            messages=[{"role": "user", "content": prompt}]
         )
         response = completion.choices[0].message.content
         
         print(f"   LLM Response length: {len(response)} chars")
-        print(f"   LLM Response: {response}")
+        print(f"   {Fore.GREEN}LLM Response: {response}{Style.RESET_ALL}")
         
         if not response:
             raise ValueError("Empty response from LLM!")
@@ -341,6 +341,11 @@ Format your response as follows: "The correct answer is (insert answer here)".""
         print(f"Using Gemini API with pred.py evaluation")
         print(f"{'='*60}\n")
         
+        # Track accumulative accuracy
+        total_pruned_correct = 0
+        total_unpruned_correct = 0
+        total_runs_completed = 0
+        
         for question_data in questions:
             question_id = question_data["_id"]
             correct_answer = question_data["answer"]
@@ -369,11 +374,13 @@ Format your response as follows: "The correct answer is (insert answer here)".""
             else:
                 query_for_search = raw_content  # Fallback to full content
             
-            # Run pruned method tests
+            # Alternate between pruned and unpruned for each run
             pruned_runs = []
-            print(f"\n=== PRUNED METHOD ===")
+            unpruned_runs = []
+            
             for run in range(num_runs):
-                print(f"\nRun {run + 1}/{num_runs}:")
+                # PRUNED RUN
+                print(f"\n=== PRUNED METHOD - Run {run + 1}/{num_runs} ===")
                 start_time = time.time()
                 context = self.get_pruned_context(query_for_search)
                 retrieval_time = time.time() - start_time
@@ -388,13 +395,22 @@ Format your response as follows: "The correct answer is (insert answer here)".""
                     **eval_result
                 })
                 
+                # Update accumulative stats
+                if eval_result["judge"]:
+                    total_pruned_correct += 1
+                total_runs_completed += 1
+                
+                # Print accumulative accuracy in orange
+                pruned_acc = (total_pruned_correct / total_runs_completed) * 100 if total_runs_completed > 0 else 0
+                unpruned_acc = (total_unpruned_correct / total_runs_completed) * 100 if total_runs_completed > 0 else 0
+                print(f"\n{Fore.YELLOW}📊 Accumulative Accuracy:{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}   Pruned:   {total_pruned_correct}/{total_runs_completed} ({pruned_acc:.1f}%){Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}   Unpruned: {total_unpruned_correct}/{total_runs_completed} ({unpruned_acc:.1f}%){Style.RESET_ALL}")
+                
                 time.sleep(0.5)  # Rate limiting
-            
-            # Run unpruned method tests
-            unpruned_runs = []
-            print(f"\n=== UNPRUNED METHOD ===")
-            for run in range(num_runs):
-                print(f"\nRun {run + 1}/{num_runs}:")
+                
+                # UNPRUNED RUN
+                print(f"\n=== UNPRUNED METHOD - Run {run + 1}/{num_runs} ===")
                 start_time = time.time()
                 context = self.get_unpruned_context(query_for_search)  # Use same query
                 retrieval_time = time.time() - start_time
@@ -409,6 +425,18 @@ Format your response as follows: "The correct answer is (insert answer here)".""
                     "retrieval_time": retrieval_time,
                     **eval_result
                 })
+                
+                # Update accumulative stats
+                if eval_result["judge"]:
+                    total_unpruned_correct += 1
+                total_runs_completed += 1
+                
+                # Print accumulative accuracy in orange
+                pruned_acc = (total_pruned_correct / (total_runs_completed // 2)) * 100 if (total_runs_completed // 2) > 0 else 0
+                unpruned_acc = (total_unpruned_correct / (total_runs_completed // 2)) * 100 if (total_runs_completed // 2) > 0 else 0
+                print(f"\n{Fore.YELLOW}📊 Accumulative Accuracy:{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}   Pruned:   {total_pruned_correct}/{total_runs_completed // 2} ({pruned_acc:.1f}%){Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}   Unpruned: {total_unpruned_correct}/{total_runs_completed // 2} ({unpruned_acc:.1f}%){Style.RESET_ALL}")
                 
                 time.sleep(0.5)  # Rate limiting
             

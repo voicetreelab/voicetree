@@ -3282,3 +3282,740 @@ Cool, just on street parking
 Yeah, sweet.
 Great, thank you.
 Sweet, thank you.
+All right, so what I'm working on
+is let's get our context first so what are we working on
+So, I think...
+The state we were in before was we had improved our pruning algorithm.
+And now we want to...
+Um...
+do an accuracy score so in back-end context retrieval qa test
+We now have...
+four questions.
+And what we wanted to do was set up just a simple script to run our traversal on each of those four questions and run it 10 times.
+And...
+get the accuracy score so out of those 10 executions how many times do you get the correct answer
+Um, and we also want.
+to
+um also run the just the default option which is just running the um without our context pruning um just doing the og mode
+Uh, hmm.
+It's like you just paste the original context.
+Um...
+okay now another thing that we just need to quickly fix up is we're getting an error during um orphan connection
+Um,
+That would be nice to see.
+Okay, so let's paste that error in.
+And we know where the error is going to be.
+It's going to be in...
+Tree manager.
+All right, so with the accuracy score, so this is related to the long bend.
+long contact benchmark.
+And they do have a way of...
+Queering the LLM
+Um, so...
+We could maybe try to use their code, so that's pred.py.
+Um, which like read us like certain problems that we know are going to come up like, um,
+predicting i mean sorry extracting the answer so if the lm says the answer is c um we need to extract that and so that code already exists um pred.py
+So that could be good to use.
+Um...
+okay yeah I mean we may as well use
+should actually really use the benchmarks.
+function because that
+um then we're using the benchmarks if we want to publish our results we want to be using the um the open source runner um and then so in um context retrieval
+Um,
+So I think there's a, what is it?
+Uh...
+So traverse all relevant nodes currently has the query hard-coded, and so instead it's going to have to be given an input query, and then we need the driver to run it on each question in the QA test questions, and do it 10 times. Once with the context retrieval algorithm that we're building, and once with...
+with just the full output without it being pruned.
+Um, and
+That should then work
+Okay, let's try now.
+Mm-hmm.
+Okay, now we do want to do some general fix-ups to VoiceTree as well to enhance.
+ability I'm realizing that's very important the ability to restart voice tree voice to text to tree and have it
+Um,
+correctly resume from where you left off.
+Oh, yeah.
+The other thing I want to do is I want to make start making
+VoiceTree algorithm start using actually
+vector embeddings plus keyword search to find relevant nodes.
+Okay, one feedback is more me
+flash, did you have a 2.5 flash light?
+not Gemini 2.5, not Gemini 2.9, Gemini 2.5 is the one we want to use.
+Um...
+And then I'm trying to see, it doesn't look like it's using pred.py.
+Let's see why it's doing that. It looks like you would have it. Use pred.py.
+Thank you.
+You
+Buh.
+Mm-hmm.
+Okay, okay, okay, fine.
+what i've done here is i've just launched voice tree it's currently a terminal app because that's that makes it easy to develop quickly on yeah um actually i'm not so the it does voice to text to tree that's what voice three is and i'm not sure how well it's going to
+um because there's a lot of background noise but we'll see so
+Yep.
+So it's essentially now it's like there's now a node for voice stream right and it has
+essentially what I talked about.
+Um, and now the connection to that node is like, so now I'm going to.
+Like we want to start talking about...
+like a bit more about VoiceTree, about what it does and what the use cases are and so
+This, originally, and it's still how I'm thinking, is framed for software engineering.
+So as you're working, you can talk about what you're doing.
+and all the different tasks you have to do.
+like in your day-to-day self-engineering and you know because there's just like so much random stuff we do so much like context and so this can help you like decide what to work on and problem solve
+And as you're talking about problems, you'll start to see the tree emerge and reflect the way you've been thinking about the problem.
+So here you can select the use cases.
+Um, and
+it's yes and then there's software doing this so like
+it is a little bit slow right now like you can see there was a bit of a lag
+But it's like, you know, if you're not hyper concerned about the latency, it's you look back 10 seconds later and it's more or less where you're.
+working from.
+Cool. And so you can see sort of like the branch of what we've been talking about. It's like I mentioned like the performance concerns in the cafe, right? And so that metanode there. And then we started talking about like software engineering and thought visualization. And it's...
+As I'm talking, it's reflecting what I'm saying, which is a really nice way to work.
+If you're explaining everything you're working on.
+um you could also imagine like it'd be useful for meetings right now like right like if we're talking about the business and the different things um that we can do and the different options and if it all appears as a tree it's pretty easy for you to point at one thing and be like oh what about that let's talk about that yeah it's like it provides like a a um a visual
+It's a visual canvas for mind mapping and thought exploration.
+Cool. And now the main feature right now.
+is that you can launch an agent.
+Oh, wow.
+Here I hover over it
+and hit enter and then Claude opens up.
+quad code the agent and it gets like the relevant context from the tree so you can see here
+Thank you.
+Like it gets like all the content in the dream
+So it has some understanding already of what's going on.
+Um...
+And so then I can tell it to do something like, wait. Like if the task is clear, I would just start doing it.
+But here is a bit unfair, so I'm just going to say wait for the...
+you are made for something
+Hey
+And green, when the nodes are called green, it means like there's a
+So, they already talked a little bit about meetings, right?
+And then here we have the agent feature. Blue means there's new.
+Um...
+like when you're talking if there's an existing node that's relevant it'll just append it to that instead of making a new node
+um
+and so these the agents like draggable
+and so they stay in the space so you can imagine like i'm working on
+I'm going to launch an agent and say...
+Um, let's say like.
+Um...
+explore ways to
+is check the performance.
+Thank you very much.
+It's very great.
+And so then this guy finished.
+and he now sends over like a little diagram right like he just he did a task essentially yes and like obviously this is like a dummy example
+can imagine if you're actually working on something you just get it to do it right like it it has the context of your work um you can zoom out and stuff and the idea is like you know
+Slowly this grows and grows and grows and represents your whole work context.
+So then you never have to like reprobate.
+all the context is already there. If you start a new, new task.
+It's like a contact screen.
+Yeah, yeah. Chronix cache. And it can, it can, but it can extend. So right now it's like a cache as in like a short term memory.
+But it can also be extended to be like medium term, long term memory.
+With some extra features.
+one thing i really need to build is if you zoom out it needs to sort of collapse yes right so that if you have a hundred things going on yeah it collapses into like um the clusters
+Yeah, yeah, yeah, I see what you mean, like, that would be essentially a case on top of that.
+I like when I say Keisha I just mean
+a conceptual summary as opposed to like a short living.
+This is super cool. The more you talk about it, the more I'm like, my mind is just going in so many different directions to how you speak this.
+and that's honestly the problem with that which is like this core technology is pretty dope yeah i mean it has so many use cases now
+um and okay the other cool thing is that this the like one of the main things that built right is just the API to convert voice to text the tree to concept tree yes and that API uh
+can be used.
+to, like, um...
+can be used for context printing so like given this tree like you could represent a whole like conversation in LLM as a tree and then you can like discard some branches of the trees that are irrelevant Like maybe this section here Like maybe this branch here of performance concerns. Yeah, maybe I'm asking you something about this and so it doesn't need to include that in context Yeah, and that's why I'm seeing
+on long bench, benchmark for long context. You can represent the context as a tree and then only select relevant branches.
+Oh, okay.
+I feel like there's so many ways that you can go about doing that though. It's like, like algorithm wise.
+Yeah.
+this is off the top of my head like the context reading sounds like the best option right because you reduce your search your search points
+Fuck life.
+Like, can you consider, like, I'm sure you have a question, like, did you do anything into, like,
+how
+like I don't know anything I don't know much about LLM's but
+Is it possible to have, like, cold storage?
+Right, so like when you set up pruning you put the the less relevant concepts into old storage So the element makes slightly longer to go find those concepts, they can't find them under graphs, but those concepts haven't disappeared
+Yeah, it's an interesting idea, like L1, L2.
+yeah so like
+The thing is, it's like, so all the files are here, right? We're talking about, it's just like markdown notes.
+You can just open one and like edit it, for example.
+And because storage is so cheap, you can actually include all of these.
+And then you have like nice algorithms, which let you scale, right? Like as in.
+You don't? You can scale this to hundreds of thousands of nodes with vector embeddings and things like that.
+I'll show you now, that's the demo.
+I think a few extra features like a I feel like one little thing
+Here, like, stop hook, it gets new file detected.
+So it tells you.
+It says there's a new node.
+and it says um so this gets the agent gets told in your notes
+and it gets it has to say like is it if they're relevant to your work
+Oh, I need to fix that. It's meant to be the opposite of that.
+Anyway, all right, let's.
+Wait, sorry, what was it? So, like, when there's a new node appears, like, if I keep talking, the agent will get alerted of what I've said, like, without me having to type in here. And it will get alerted of what other agents have done as well. Because it gets, like, messages sent of new nodes.
+Thank you very much.
+Let's do it.
+Okay.
+Thank you.
+This has become corrupted.
+Thank you.
+Okay.
+So the vision is is like it's a whole this becomes then a whole voice tree becomes a whole platform
+for managing agent.
+so you have at the top this canvas interface which is um like this yeah
+Um,
+And then below that is the context tree. Yeah.
+right which is like the data data storage format which as as markdown notes
+And then under that, you have like the semantic retrieval, like smart rag, basically like rag plus plus, like a rag that can take into account the meaning because the meaning is encoded within the tree. The tree is like a concept tree and it contains like how each concept relates to other concepts. So you can do like a much smarter search.
+and then you both
+Thank you.
+Both agents and humans.
+can interact with the same tree like it's it's shared right like as in You know, I can edit the tree editing now
+Right. And so kind of agents and agents can like add here and then if I like, you know, did, right. Like.
+Yeah, thanks.
+And so that's like, this is like the ecosystem for man.
+um under the assumption that like
+um you know uh ai is gonna get better and better but at some point you're still gonna have to have human feedback in the loop yeah uh or direction human direction and it's gonna the level of abstraction is going to grow and grow and grow like um humans are going to take a higher and higher level approach but my assumption is is that having a human in the loop
+is going to almost always be useful and massively, like as in you could build a fully automated agent system, but that's going to require like 10 times the dev effort and require like, you know, some sort of like a closed environment. But if you keep it slightly open and it's, you can have humans like managing it as well and providing feedback, like 10 agents at once.
+then you can build things way way faster. It's like human orchestration. Yeah.
+And
+Um, and then there's, um,
+uh use cases on top of that yeah
+So, like, for software engineering, I think is the first, like, use case. Yep.
+yeah um and then things like question answering
+because of the semantic retrieval can be like really effective.
+Um, and that's like the dotted room could come in like the dotted room could, um,
+Yeah, be a product sitting on top of this whole platform. Yeah.
+And one other really cool thing,
+You could, in 30 seconds, describe an AI workflow with your voice.
+And then you could mention like, oh, yes, step one is checking the benchmark data. Step two is comparing it.
+to the upper version and then understanding where it went wrong and then looking at the code vets to figure out where the bug is. You could like describe an agent works well.
+And then it would come as cross nodes, and then you could just run an agent on.
+And so now you've like
+you can run your workflows within this ecosystem and build them within like 30 seconds. But then keep them well maintained because you can edit them and build on top of them.
+lots of cool like use cases and products um but all sitting on top of this uh
+agent management
+That's the that's the vision
+That's it!
+That's a lot to think about.
+Yeah, yeah. I mean, yeah, this is like two years in the works for me.
+Like I've been,
+This has been going on for ages. At least a year and a half. And this is my current thinking, but it's always changing.
+But I do keep on gravitating towards this sort of like platform-ish system with software engineering as the initial wedge or like target.
+and
+There is, yeah, I might like to be flopping, I have pink. I'll say, feel free to order me out. Mine, grab something if you want.
+You know what I did right now to like help me get my thoughts down
+Thank you.
+first the um initial product um and
+That's what you can see here, it's called Voice Tree.
+And what it does is it converts what you say. So it converts your voice. So it's transcribing my voice right now. Oh yeah. And then it converts it into a tree. Essentially like a visual mind map.
+And so...
+Quite soon, you'll see, like it'll pop up in a second. Oh, wait, sorry, I wasn't clicking the white button.
+Thank you.
+all right yeah so it'll then like start creating a mind map what you're saying
+um and so here it has a
+like a node like a concept node of like the what did it like the initial product called VoiceTree and then if I keep on talking like so I might start talking about the use cases for this and so one of the main use cases I want to start off with is for software engineering
+um
+or you can describe the work you need to do.
+and it will like for uh it'll form a tree like representing your thoughts um which is useful for like uh problem solving and decision
+because you can see the exact puffs right in front of me.
+So there's a little bit of a lag right now, right?
+Maybe 10, 15 second lag.
+But as you keep on talking it slowly starts building this this tree here
+Oh, wow.
+and then
+What you can do from the tree.
+is you can launch agents.
+like AI agents.
+so here
+this has um
+Like here I might go the voice tree system
+And I'm going to open an agent.
+And this is now like an agent here.
+And I can tell it to do something like...
+Like, just as I said,
+What?
+Amen.
+And then this agent is going to...
+it gets like all the context from the tree already given to it so it knows like
+It knows what's going on.
+I don't have to, like, re-explain anything.
+There are.
+And it'll do its work. And then...
+it'll add back to the tree which you'll see in a second
+Um,
+Thank you.
+So like here the agent itself
+Um, added back to the.
+Add it back to the tree, like suggestions on how we can make it faster, reduce lag from 10 to 15 seconds.
+And so you're doing work, you can describe the work, you can get agents to like automatically start working on it And you can have multiple agents like all over and so
+that's like the current product that exists um and the vision
+Thank you.
+is that it becomes like a whole...
+whole management system for ai agents yeah so you have that canvas interface um which sits on top of this like context tree which contains all your data uh and like memories or context
+And beneath that, you have...
+Semantic retrieval, which means that.
+like when i launched the agent it was given like all the relevant context from the tree and essentially did like a smart search um against the existing uh data in the tree like what is relevant for the given query or task yeah um
+And so...
+That means that you can have like huge amounts of data, but always get just the relevant context at each time. Yeah, right. That's really cool. Yeah. So just kind of talk to it. It figures out what you're saying, like map that to like a mind map in a way, and then.
+with that linemap use the age what do you use the agents for in that linemap so for software engineering
+you can use it like to actually do things like I couldn't feel like
+I like write the code to do this
+Right and it would start like it would go into my code base and start like actually doing the work
+Um, maybe like an investment banking example.
+You'd say, okay, like...
+add this to the investment sheet whatever right and it could go and do that um apparently it's only set up for software
+But it has access to all the tools like write code, run code.
+And
+yeah so that is one product that could sit on this like platform
+um
+And like QA could be as well, like for data rooms, you could use this whole infrastructure, maybe like more like these two things to ask questions and get really good responses. So like this semantic retrieval, it's it can make large language models.
+themselves like uh more accurate um so large language models like as you get more and more context or like as you give like larger and larger documents their performance gets worse and worse yeah um but this way you can
+can prune the tree to only what's relevant at each stage um and so you maintain always just the relevant data and so that it actually like uh large language was like more accurate in answering your question it doesn't hallucinate as much it doesn't hallucinate as much yeah right because there's less like um like things to mislead it um
+yeah and so like i'm there's a open benchmark called long bench which is like um like different models to compete to see how uh how good they are at handling like problems with a lot of context
+um and like gemini is currently the best um oh yeah i reckon yeah i use term and i work way better than chachi yeah but like why in this case yeah absolutely but this gemini plus this uh is even more accurate so right now i'm working on that
+So use Gemini to be an AI nerd. Yeah.
+So, yeah, it's like on top of Gemini, but it can make Gemini itself more efficient. And so it's looking like we'll beat the benchmark, which is really cool. And so it'll be the new state of the art on the benchmark.
+Which hopefully should give like some
+right like basically funded that yeah it's 50 million dollars yeah
+Yeah, if you can- Fuck, that'd be really- Yeah, that's good. Yeah.
+yeah yeah but i'm thinking like even from like what i could use it for like we have a lot of men like looking at looking to buy a new business
+Sometimes you just sit there late at night for a few hours, just, like, spippling ideas in a meeting room. You just have this thing turned on with microphone on. You guys could get ideas for a while. It just, instead of me having to fucking sit there and take notes, like, really messy notes, trying to figure out how to structure it, like, it's just doing that. Yeah, exactly. That's, like, I think that'd be really cool. You just have this running in all your team's meetings or something, and, like, over the course of months and months of doing a seal, and, like, build out this mind map, all the issues from PD, and, like, legal, financial.
+Yeah, it can like that's like how the mind map breaks out. It all draws it back together like yeah, what's your investment thesis?
+Talk generation.
+Like let's say you want to invest in cases, you want my train, you want my Yeah.
+yeah yeah that's currently my yeah i mean that's what my job is like i'll have a legal dd report yeah and all these legal issues from like the fucking account of emails back and forth and stuff and i have to summarize all of that into one page for my ic paper that's like the job that i do yeah i was gonna go what you could do there is like you know wherever you wherever you've been talking about um like it's a bit messy but let's say like this was your um you
+You could just open it and say, like, write a one-page doc.
+But yeah, give me a one-page summary. Yeah, then you can feed it This is examples of what legal summaries would look like for the last 20 pages of it. Yeah. Yeah, just do something similar similar language
+and you have it so you can make powerpoint files and stuff
+That's the big thing.
+Gemini, it just gives you a f***ing table, like, make it a PowerPoint card for me. Yeah. Yeah. If you have just PowerPoint engine on top. Yeah. If you can get all the Microsoft stuff on here, like, f***, like, because Microsoft stuff is so embedded in corporate finance, like, Outlook, Excel, PowerPoint, Word.
+and within it within a lot of those things like people have their custom like toolbars from their firms and stuff on like all of that it's like so embedded and graded to like workflow do you think you'd use it like as in if we if we built that made it so you could edit powerpoints like what would what would convince you to actually use it
+i mean i've i've been using more and more ai for that like for that purpose of just like
+i'll have a lot of mess like a lot of thoughts right yeah messy i've been using like gem and i'll just
+it like a brain dump yeah and i'll get i'll use like i'll think through my thoughts structure my thoughts and all of that it's like that's like that's something i'll probably use a lot like so i can just have this running in a meeting just hit record and yeah yeah i think um the thing is
+like loom for example can do that yes there's a loom note taker if you take notes should be meetings right put it in a dock yeah but there's no order like context like context
+Yeah, I can't relate it to like.
+discuss in the meetings yeah go like like get relevant connections like legal
+yeah that's the thing like there's so many siloed work streams and then like if you're using ai for something
+it's only like whatever you feed it at one time if you can have something that like from the very inception of like a deal all the way to the end that's like you fed every fucking bit of context like thousands and thousands of emails thousands hundreds and hundreds of documents um all the meetings all the meetings
+basically like a copilot copilot
+copart is good it links to like your outlook and your tribe and all of that but like i i think it's true yeah
+Well, I think the nice thing is like what you're describing applies to sort of any knowledge-based work
+not just like investment like you have your vision for how you use it for investment but like when i talk to my brother who's in
+like policy and government policy it's it sounds quite similar to what you're describing like how he would use it yeah i mean a lot of jobs is just taking a lot of knowledge and like kind of synthesize it to an idea
+And like, that's what AI is really.
+off so yeah yeah the barrier to it is like feeding it the information feeding the contact at the moment so the easier you can make someone to feed it that information i think that like yeah if it's automatic like you know like even right now if you open like on teams and zoom calls and stuff people have like those automatic like note taking agents to join it you can just have this it's like an automatic note-taking agent it's a good idea because that's something that people already use like there's a couple apps that people download yeah every time you join team school it's like this random bot with its camera turned off yeah it takes notes
+and then yeah like
+you have like another app on your phone similar like the gemini or chat gpt app and like you can like you know you have this thing on the gemini app yeah you just have that sitting in like the corner of your meeting or something and then um
+It like takes any contact from that conversation. I'll be cool.
+I could, yeah, maybe.
+like, which is, the last thing is all about.
+So, we have all of these broad jobs, so it basically is that, everything, like, one thing is, like, sorting that. Like, is that the gap year or the annual? Yeah. Two is, like...
+cross product, high texture, let me see. That's the whole reason we're going to see my crap.
+But more than that.
+It's, there's no concept.
+Like there's no, like, male, black, here's what these dogs actually mean, like, completely underrated.
+Absolutely. And that captures the document, the concept, and how it relates to other documents.
+yeah yeah so yeah as you can see it gets a bit messy after a while right like i need a way to like better like you know start like collapsing things as i zoom in and out
+Um, but
+Here we talk about like here you talk about like voice tree for automated note-taking for knowledge-based work and Microsoft Office and PowerPoint editing
+legal due diligence and so it has all the different things you've talked about um and how it how it relates to the larger idea of voice free and the product and
+um it's really cool i like the candacy it's kind of it's kind of neat right yeah
+And like the agents, I thought it was so good that the agents can just go start by watching out your ideas.
+Yeah.
+did you do that yeah like um i'll say like um let's do we can do one that's a bit more relevant so i'll show you what exactly happens like i'm opening an agent from this node of um
+voice tree for knowledge-based work and it gets like all the relevant data from the tree so it says the following content shows what other context might be related to you and then like it starts from voice tree product and core functional
+right and then it just goes all the way up to like where we are here and i can say um
+like write a one-page business plan with it.
+And then it takes 30 seconds, a minute, but it'll do it in the end.
+It's a rolling question. Yeah.
+It's like the little stuff you put in it, you know what I'm just gonna have.
+The better it's going to be able to go get those phones, it's like a big chunk of text.
+and it's like add another chunk of text to it the more you add the shitter it gets
+reach back for those old-time selves. Yeah. Yeah, the longer you chat to them, it starts hallucinating, making shit up, I forget some things you told them before, yeah.
+So you say it always saves this like knowledge tree and then you can open this three months later and feed thousands of documents, but it still knows that the relationships are doing everything. Actually, all the documents are just files. So these are just markdown, like text files basically. So it's all just saved on your computer.
+Um,
+oh so it's all just it saves us all it's just text files so it's like yeah pretty it's like
+yeah yeah yeah um because a lot of like they don't you don't want like the stored like on my servers or something right like a so it's like actually pretty like simple for your computer to run it's all text files it is very simple yeah
+Yeah, it is, it's better than, like, proper infrastructure. Yeah. I reckon, like, something like this is sure to be, like, what Microsoft is thinking is, like, an end goal for, like, Copilot. Yeah. Because that's, Copilot's, like, the benefit of Copilot, it's got the integration into, like, Outlook.
+call your onedrive outlook um or the microsoft suite one note all of that kind of stuff and that's like the tools my people in corporate finance
+I'm sure like government or like everyone uses Outlook kind of thing.
+So here I wrote a business plan.
+Voice tree transforms how knowledge workers capture organizing synthesize information honestly not that bad trying to turn a billion dollar knowledge man
+Boom done 200 billion dollar mouth
+It's all right, it's done the consultant's job. Yeah, it's done. Fuck, I don't know how to consult it now. No you don't. Dude, literally a PowerPoint agent...
+Yeah, it would be really good.
+Um, yeah, dude. I mean, if you, if you want to start using it, I'll, you know, I'll send it to you for free. You're welcome to just like play around with it. Run it as you say, just in a meeting and see if it's useful. I don't know if my company would let me do that. Yeah. Yeah. Fair enough.
+It is a weird analogy, but it's kind of how a brain works.
+It's like, like, different parts of Ukraine are good at doing different things, right?
+Like you split it up into concepts and then those concepts look differently handled at the possible pressure.
+Like specificity exists and that's why it's such an efficient system.
+It's like different agents like one for PowerPoint
+so I guess that's a really interesting point where like of like oh my my company might not let me use it like yeah because I don't think I get around that because if you're using like public Gemini it feeds that like
+Gemini will train itself in that. We have an enterprise agreement with Gemini. Right, right. So if you can create like a secure like. Yeah, so maybe if either a call on device or.
+yeah wall on device AI but then it's not gonna be as powerful as like Gemini or like or provide proof that it's not training on your data like it's not we're not storing any of your data yeah
+which is there's a startup that exists right now which essentially just candles boil them off.
+So it's like, they do all the plants to every standard, they make sure that your daughter is not being stored in the models that are doing it. I think that would help, because if you have certification for Banter, which is just the guys that are doing it, then we're going to...
+The company be more, I say that in turn in.
+Thank you.
+yeah i mean like for my company like we're a small business we're not like a massive multinational organization
+So our compliance checklist is just like, data hosting locally, it's not being shared outside of anything.
+the weed i wanted to be shared with um that's part of the so what would i have to tell you to you for you to be like yeah i can use it at work you'd have to tell an it guy convincing
+They have an IT guy. Oh, really?
+it would be like we have like we have an agreement with with the companies that none of your dollars will be still which is actually yeah yeah yeah yeah i mean like my company already has an enterprise gemini yeah so if you could like sell it if a client already has enterprise gemini you can like to use their gemini yeah yeah and then you know like that's where you secure
+Like, it's Google's guaranteeing that security.
+So, yeah, yeah, it might be nice to say, I think it would be better to do as like.
+it's like oh you like you have those enterprise agreements like really enterprise agreements about data storage yeah yeah it could models that you employ
+Maybe.
+every time there's a new model that we have but i like bigger organizations they're so like if you're trying to sell this to a bank like it's like three years of compliance checklists to go through and by the time it gets into a bank like what i can say is like like there are like this is a known problem and like there are current i know that for a fact that there are some solutions already share for this as in like solutions where like there is no doubt being involved by the
+yeah like it was like he just instantly took everything we don't hold any of it they don't hold any of them
+Yeah. I mean, the barriers, I don't think it's necessarily the compliance checklist. You can always vote for that. The barriers, like the six-year-old board director to approve this and is like, I don't trust AI.
+yeah that's like what a big guy is going to be
+audience, five, we're going to talk to you.
+Yeah, I mean, ANZ just announced 4,500 shots.
+I'm going away, that's like 10% of their workflow.
+so do you have a recommendation and how i turn this into a business because there's like there's this product that i can start like i have like people who want to use it like i've got a wait list of
+And I can start giving it to them for software engineering. I mean, there's like the larger vision of this whole platform.
+but yeah what like what would you what do you advise yeah i think i i think it's really good for how this whole thing works yeah um is this is this hosted on like chrome or like is this a platform that you feel like an app that you feel so this right now is all local and like
+Yeah, so one problem I have right now is like I need to spend a month of work to like be able to give it to other people.
+Yeah, I guess in like within a month, I'll be able to just like give it to someone. Yeah, right now It's a bit like just connect to my computer a bit too much. Yeah, right. Yeah I mean, yeah, once you get past that, I think being able to host this on like your browser Yeah, whether it's like a browser app or like yeah, it's just a website you can log in to because it makes like I can open my phone I can hear Browser solves the whole like Right and then you wouldn't have to get a security approval I mean you'd still need to like well, you would you could just open the website and get started You just need to make sure like the issues probably from the security perspective Not hosting an AI like
+Yeah, I don't know how you get around the AI thing. I'm sure, like you said, people have tried. This isn't the first time someone's come across this issue where people don't want to feed AI sensitive information. Yeah. Someone's probably figured it out.
+As in like, as the time it comes, or you pick with this, no one gives a f*** in your own. It's like how 10 years ago, there was that whole thing around...
+Like three years ago, everyone was like, oh, we can't give AI access.
+it's gonna fucking catch you and kill everything like now it has like yeah access to everything like in the same way as i becomes like hey i like companies will engineer
+But how do I?
+I'll see you at the bottom. Bye. Bye.
+How would I monetize this?
+You've told my boyfriend also. Yeah, right. How do I monetize the shit out of this?
+that's what I'm saying, there are tons of use cases, but I'm just saying, that is it.
+allow other QPPs to save them about using it.
+Um, one piece, I didn't actually subcute about it, it's a hard piece.
+Oh, so you just create the back end and let someone else put like a GUI rapper on top.
+It's not that you are, Rafa, it's more like they have access to these technologies, and they can build it. Yeah, it's like an open source kind of... It's almost like a foundation model. You go into a contract with the foundation model to provide you certain second limits.
+We do the same thing. You can use this technology, pay on demand.
+what's stopping google from just doing that themselves from building this yeah i think that that's the second part so like when i did analysis of this like in the morning like i'm going to be in the pool
+The two big props that I had was...
+This is like super useful teaching technique, meaning it's like it can make your long context windows better, so every validation model company would want it.
+So you have to pilot it because like...
+That will, like, if you've had an internet, then they can't just do it, if they do it, then they have to pay for it. Yeah, I mean, it's hard to fucking fight against Microsoft Meta.
+The second point is, this has massive value as an older screen. As an older screen.
+So like as models become, as models get.
+I've got a competitive advantage, for example, Gemini's better than some stuff. Yeah. Maybe someone comes out with a private equity model.
+Thank you.
+So you talk to her, right?
+and it would go like let's say you talk to it and like suddenly we talk about some legal stuff right yeah like google can't do this google can't go oh let's use some other companies for the legal model
+to understand what's being said
+agents to solve
+But doesn't Google already like Gemini and Chachiki already has an orchestration layer, but like if it's a very mathematical task They won't even plug it to the LM They have that orchestration layer already
+and it's not about like which models are better like they have internally maybe they have their own models that are better at certain things that they can rewrap to
+But fundamentally, some foundation model company is going to have an actual competitive advantage.
+And those changes are only going to grow and change.
+That's what you make for yourself.
+There will be a legal model that will be better than others.
+there will be like
+Yeah, like due to like a key diligence model.
+Go ahead. That makes sense. And so you don't have to build those models.
+but you can all come straight to the jungle.
+That's a pretty good idea.
+But yeah, something like this I think
+Could you even just do this like you just create like like normal consumers can just like you have a website It will make an account pay $10 a month whatever it is Yeah
+Then you have no shield, bearded wings. I think that's a really good way to start. Just make a website that people can load up in like 10 seconds.
+yeah and just go boom straight to it and start playing around with them then you get you get real-time feedback yeah yeah using it and then they download them all hardcore local versions and then once you like find that you can go to a business and be like hey do you want an enterprise version where you like secure those everything
+Is that every kind of... This is like...
+I also did this quick flight, they started with my calendar and moved to entertainments.
+Like, it's pretty fun to be a shame to grab and then it'll be great. Most platforms have like that. Yeah.
+It was like, yeah, because it's hard to go to a business and sell them a product.
+you know hasn't been tested yeah if it's like the first time but it could be it could be a great product they don't really need that trust from them and that comes from like having a user base
+Well, like, somebody's like, Laurie, it just makes sense to me.
+Maybe
+It's like, you know, it comes with ice.
+they just do that like you can call up on the phone a business for support and it's like that ai agent talking to you oh yeah
+yeah except the pan it just so like this makes it look yeah oh yeah we we own um a fucking full center business like that really i don't know why i mean i don't know i'm probably gonna fucking
+I wouldn't be surprised. It's not my asset, it's not my asset. Sell it, eh? Yeah, we bought it a year, two years ago. We knew the whole AI thing was coming. I think part of the plan was to, like...
+supplement AI with the people and stuff. But I think, like, customer service is a weird one. We have, like, very complex needs from, like, big corporations. Yeah. And a lot of stuff, it's, like, government. Like, you're doing, like, one of your clients is, like, the tax office. And you're calling people up to collect fucking debt money or tax, and people ask them to have questions and stuff.
+Tax office lawyer has like very specific requirements of what they need in the customer service.
+yeah business so yeah so do you think i should prioritize like getting this to users as quickly as possible making a website which makes it really easy to open or should i focus on getting the benchmark
+which proves like the value of this for like foundational models improving like accuracy and like uh cost decreasing cost um which could have like a so like you know a larger make it more valuable long
+But, you know, at the expense of that means the next few months, I'm not getting users.
+Yeah, I mean, what's your vision and what's your roadmap?
+oh that's the question right yeah um yeah like i think yeah it'd be cool my like ideally i spent a month i beat the benchmark yeah the benchmark gives me a lot of publicity and i release while i'll have that publicity for users i get like you know 10 000 users hopefully um people just using it um and then either i transitioned
+or I get, like, VC.
+funding and then with vc funding i try filled out like the this larger vision
+Yeah, which is like more like the platform where like someone else can come in and do
+various different um how much money do you think you need to build that out
+um this would be hiring devs by this yeah yeah hiring devs so like i would say like
+uh like two mil would mean that i could get like eight devs like two teams of devs basically um which would mean that we could like move really quickly
+yeah or that's him like is that one here oh yeah for one year yeah
+But like, yeah, like even I think like a team of like four maybe it's like
+600k, 500k for a year could be enough to get to the next milestone.
+It's being milked from a VC, probably not that much, is it? I don't know. They got a lot of money to throw around.
+Yeah, I've never I've never dealt with these days. I've not that before. Yeah
+Yeah, I've never dealt with PCs. What I've heard, they like really back ideas and they back the founders behind it.
+So maybe the VC part, getting the benchmark, this is a good idea, I just need the capital to build it out. Maybe that's what a VC would be looking for versus like, yeah, we've got some users.
+yeah and um the benchmarks the benchmarks and then you get really polished products yeah it's that money you have a good front-end developer like a really really polished product then you get out to market
+with like a very
+Yeah, I just don't know what VCs look for typically, I'm sure if you sit in enough cafes in Sorry Hills, you'll be plenty of VCs around there.
+Yeah, just open up some thing with this code on your screen and sit there like a fucking And just talk to my computer. Yeah. That's what X found us. Oh, nice.
+Thanks to this, that's useful. I think with the VC, can I just reach out to VC people and get the feedback? I've got, yeah, I've got a couple of VC meetings coming up. There you go. Yeah.
+then yeah you can just ask them what do you look for like yeah what i need to do in three months six months one year yeah for you to want to back me and then you just work towards that
+Absolutely, yeah. I'm going to grab no coffee. Do you want one? No, I'm with us.
+I just had a second. Okay, can I go back?
+I could like it.
+Good luck.
+Oh, no, don't do that.
+Thank you.
+That's not enough to go so I can do shit like this. It's a fucking slave.
+so this
+is a question from Lungbench. Okay. It's...
+Um...
+So I'll find it for you
+So it's 10,000 words The question is if the original audio is low clarity blah blah blah, which I do multiple choice And then it gives you like a whole like manual
+like a readme basically of some like software. Yes.
+and then yeah does the LLM get the right answer yeah and obviously like you know 80% of this is irrelevant to the uh question
+So, with the given question.
+You know, it might be that.
+Zerp, zerp, zerp, zerp, like that is what's useful for the model, like this, this sort of section, right? Yeah. And the rest of the stuff can be like just collapsed. Yeah.
+And then you send that to the model and then.
+returns.
+uh you give it like essentially just like the path to the what's what's relevant yes um
+Well, it's sub-tree the sub-tree you get the sub-tree and then you have to wait like convert the sub-tree into like flat text
+Because I have to go back into it. Yeah, so I have a shitty way of doing that right now.
+which has like roughly like it has slightly worse accuracy.
+original I give you just input all the original text but the nice thing about my current algorithm is it does scale so for 10,000 words it's been Ellen can answer fairly easily but at a hundred thousand words it's just it can really struggle where if I can reduce that context by 90% my method I assume will become what
+And so my method right now is.
+embed every node as a vector.
+a vector embedding. Yeah.
+and then you can do a vector embedding search and so you can have the query and you have your tree and you can ask like compare the query against each node in the tree and say like which one is the most relevant yeah um and then you can rank them sort them and then like send over like the top 10 um but you don't just send you don't send nodes individually you send the traversal to the nodes um because the traversal to the nodes like contains like where it sits in the context
+like how does this fit into the bigger picture because a lot of these types of questions
+that require the bigger picture understanding.
+Just like what relationship
+Yeah, yeah. Relationships between nodes. And that's like the semantic meaning that I'm embedding in the graph. Yeah. Kind of like relates to.
+Like, it's a subset of all of them.
+Yeah, like this, for example, text segmentation for TTS provides guidelines for text.
+like it's just how it
+how it relates video memory constraints details constraints
+provides a solution for.
+describes common issues encountered during yeah do you have subset would seem to say
+no what do you mean so like you know how you're talking about
+this is really great like this is exactly what you wanted to grab um so like here at the root you have the very like root which is gpt software it's like the overview of the software yeah and then you have a child of relationship yeah of like the user manual
+and so like that's a subset um i think i have a nice a nice visualization for this um
+Um
+Thank you.
+so like there's your like subset superset model but then like that is just a rep that's just a different view of a tree yes it is yeah
+but it's also it also becomes like L1, L2, L3 like
+you you cache like not cache um i keep saying the word cache what i mean is like
+Alright, so...
+Um, so...
+so this is the full context right yeah and what you could do is like
+Thank you.
+So exclude would be,
+You take this
+And you just say, um,
+You say collapsed
+um vpn
+right yeah yeah um and that's like the concept of using it like uh it'd be like using bpn to do x
+Yeah.
+And then you're hiding that data.
+If you think it's irrelevant. But the LLM can decide, hey, actually, I do want to.
+um that's why i'm doing it the current way i have it is like um i get like you know like six target nodes
+And then I output those nodes, the name of the node, the summary, and the full content, and then the parent, like, the relationship to its parent. Yeah. And I do, like, just, like, the...
+just i keep on going essentially yeah um and that can be good because then it contains
+The relationships.
+Like you've pre-computed like where that concept fits into the bigger picture already. Yeah, and so you may as well use that data While the exclusion principle doesn't do that as much
+um because the problem is right like
+when i convert the context to a tree yeah
+If I now find a node that's not relevant, like by exclusion principle.
+and then i go to exclude that that concept might not exist one-to-one
+back in original text like the original text might have like um concept abc abc abc yeah like the concept is sort of like segmented
+so then when i go to remove concept c it's like not removing it in one place it's removing it from like three different places kind of yeah yeah from the original yeah yeah so you by distro by excluding concept you destroyed meaning
+this isn't explain right like
+Hmm.
+Yeah, I just why not just like again like why
+Um...
+Have I shown you that website where you can see like
+Back to Visualization
+Can I have your wife, though?
+Common? No, no, it should be error 404.
+The person is pal
+I need a...
+my computer. I can grab your charger. Thank you.
+Thank you.
+Yeah
+I don't know if there's a PowerPoint here, but I have to move inside. Oh, okay. Or, let me see if I can actually...
+We have been outside for a while.
+Yeah, I feel like you might even move the table already.
+Yeah, maybe it's 30 minutes.
+Thank you.
+Thanks.
+I'll see you next time.
+Alright, let's go.
+Okay, so...
+load a TSV filter. So here I'm loading the vectors for
+Um, this.
+This? Yeah. Which is a question from the data set.
+about the user manual.
+Um.
+Anyway, so...
+So these are the vectors.
+metadata
+Alright, so that's...
+every node in vector space.
+okay embedded and then if i ask for the
+So I have a query as well.
+Right, which I want to like search query.
+Um
+And this will be your modern job.
+So what was the...
+If the original audio has low clarity, after completing the audio, what should I do? And you can also include this in the query. So if I do this, and then...
+so
+So this is the query here
+Um.
+And you can find like.
+from the
+query
+You can find what are the nearest points in the...
+Yeah. All right.
+and so you can see like it's about troubleshooting dense audio cutting
+That sounds pretty accurate and that number is that like audio quality and
+And then if you...
+let's see if i can um
+like i can you can see like you know you can keep on searching and these are things that like not very well
+yeah like related image assets right it's like
+Not that close
+Gen.
+Yeah.
+And so you might want to start with 15 of these.
+And then...
+that these 15 nodes are going to
+correspond to like you know
+this node and that node and that node and that
+And from there, you can include in the context a traversal to that node from a root.
+From a root to that node.
+um plus it's children it's like let's say this is our target node yeah one of the 15. we can do the traversal to that node yeah and then it's children as well and maybe like also a neighborhood around
+Imagine like I have a highlighter right now and I'm...
+like everything sort of like in this area
+right? And then you can do that for all your target nodes.
+And then you end up with like a subtree. A subtree, yep. It's one way of doing it.
+another way of doing it is you could
+Yeah, add a score to each note in the tree of like...
+essentially like, nodes, so...
+Every node initially gets a similarity score from just this initial search to the query. But then you also, nodes close to troubleshooting dense audio cutting also get. So let's say this is a target node.
+um and then all the ones dark here we'd also add some points to yeah because it's close to a target
+even if they weren't like at all related to the original.
+because they're close in the conceptual system.
+in our conceptual space yeah so there should be a score on close
+Because it's still a relevancy score.
+It's like... Mm, mm.
+to some weight on the
+Yeah. Yeah. And then you can then, yeah. Include.
+um, the most.
+relevant notes yeah oh like yeah yeah discard the bottom 20 or whatever
+Um, so yeah, various, does that make sense from, from like, cause that's like, I think the foundational principles, um,
+what yeah what uh do you do you get that because it is it is quite complex yeah i i had to do a lot of research to like understand things like vector embeddings and stuff yeah this is really really cool actually i didn't know you could
+Yeah, it makes sense.
+Is there existing research on this?
+Um... Because this feels like a...
+Yeah.
+I should really don't sit.
+like do you have an existing
+specifically um you know what i like i've read some um papers and stuff but i don't have a
+that good of a...
+Like, I'm not, um, but, um...
+Yeah.
+yeah so let's yeah research a bit i'll ask yeah and we can find some papers and try read them
+Okay.
+I'm trying deep research. I haven't tried it before. Yeah, it's useful.
+Fucking love you, man.
+Mm-hmm.
+Yeah, I've got some cool stuff.
+Um...
+So this is interesting.
+Yeah. So this is what the AI is recommending based on based on research.
+Yeah.
+and it has references, so
+So selecting the relevant subtree.
+State-of-the-art is treat selection as an optimal connected subgroup.
+A prize collecting stunner.
+so that's from like this paper um so give each note a prize which is how relevant it is to the query yeah and then choose the cheapest connected sub graph whose total prize minus edge costs is maximized
+So I think each node has a score of how relevant it is, and you want to maximize the subtree, but that provides the total relevance. But each node also has a certain cost of inclusion, because you don't want to include all the nodes. Otherwise, that would be the maximum.
+So if it's like an optimization problem of like where you...
+Yeah, because it may be like maybe one note answers it perfectly and you only need to include one note, but So that's kind of cool. I like that
+How that, and then there's algorithms to do.
+like so if we just had um if we had each node has a has a score of how relevant we think it is then there's an uh then choosing the sub trees like there's a solve from
+Um, G Retriever.
+retrieval augmentation for textual graph understanding and question answering.
+enable users to chat with the graph.
+Oh, cool. Mm-hmm.
+so that we could and then
+Um,
+There's another family of methods. This is...
+to use bi-directional traversal refusal walk up to parents summaries and then down to the most relevant children that's kind of what i basically do now okay yeah um but i think
+that's interesting because you start from node and you walk up to the parent. Yeah. And then you go back to the node and walk down to the children is what it makes it seem like. Yeah. And that's what you do for...
+And that makes sense because in a vector space,
+It may not be the parent that is the
+It would be, it would just be anything that matches this, this, um, the initial semantic search. Yeah.
+Yeah. So one thing to keep in mind is that semantic search...
+So that the initial vector search is not semantic.
+as in it's like it's smarter than keyword search yeah like you can it has some sort of meaning but it still doesn't understand
+It won't capture all relationships.
+concepts. So if you ask something like,
+What is Neil's favorite dessert?
+Um...
+And then it's going to have some amount of relevancy to like apple pie because apple pie is a type of dessert. But if the answer was none.
+Nio only eats savoury, like that might have very low relevance, right? Because conceptually they're not related, but there is a relationship. Like it's the answer to the question, but in the conceptual space, they're not actually the vectors aren't close to each other. So that's like the limitation of like a vector.
+yes yeah yeah that makes sense yeah that that's kind of the question that uh that i started with which was like if i have a a semantic tree and i have a vectors and i have like a vector search how do i combine
+to like um essentially output the most relevant result to a query yeah
+Yeah, and the vector search is there so that we can see.
+so that you can have 10,000 nodes and do an initial.
+to the top 15 yeah yeah um because otherwise what you can do as well is you can just like send all the titles of the nerds yeah and ask the lm like which
+Okay. And that works well for like smaller contexts, but it doesn't scale.
+Yeah, it's like
+like you google like you're doing a set result like yeah every like everything is probably irrelevant
+because it's relevant but not because
+that's rank us
+Mm, mm, mm.
+Cool, so that is an interesting idea and I don't, this bidirectional traversal is not what I do right now because right now I start from the parents.
+Yeah, all the way down. I think it's good to start from the node
+get to where it is in the context by going to the parents and then go back down to the children.
+I like that. Um...
+And then I asked her about the best way to live.
+Yeah.
+Graph linearization.
+So here there's an interesting idea of like
+yeah uh red comes mine kept represent mine kept recommending graph that
+yeah yeah yeah graph rag is um definitely similar to
+um our idea um but they're the thing with graphic they're a competitor um but they
+are not, like, generic content.
+Like in graph reg an example graph rag
+I'm not sure exactly, but like.
+Let's see if they have an example, it's more like people or like
+um like it's not concepts that are the nodes it's like um objects or people chunks which is much less abstract yeah
+Because I'm assuming maybe it's used.
+Oh, would be useful for I cut.
+yeah yeah yeah just to visualize that like
+This is the most relevant note.
+that we found with vector search yeah now that gets a score yeah and each one of its neighbors gets a score divided by two yeah and then two away
+one two it's a score divided by three or something yeah or you could even have it logarithmic
+like a rhythmic yeah because yeah reduce your
+Yeah, yeah, true.
+two. Yeah. Like divide by two each time.
+So, um, 2, 2, 2, 2.
+until like you're five away or you can do the whole thing.
+Oh, cool. And then...
+Fusion ranking.
+Reciprocal Rank Fusion.
+Oh, thanks for representing you. Yes, 100%.
+There are some smart people out there. There are, aren't there?
+but the cool thing is like you know initially you you see this research like what the fuck
+How would anyone ever come up with that? But then you can see, like, by working in a project.
+you can end up with something like that emerges
+It's quite complex. Yeah. Yeah.
+Um...
+Target graph dressers performed on the tree structure to collect a contextual subgraph
+Yeah, so this is essentially what we were doing.
+which is like one initial semantic retrieval
+to structural content.
+That just does the, like we discussed, like...
+Um.
+Like given a tree.
+For given query.
+Oh my god, is this still going?
+VoiceTree is still running.

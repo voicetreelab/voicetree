@@ -339,9 +339,8 @@ class TreeActionDeciderWorkflow:
 
             try:
                 # Run the connection agent to group orphan nodes
-                connection_actions = await self.connect_orphans_agent.run(
+                connection_actions, parent_child_mapping = await self.connect_orphans_agent.run(
                     tree=self.decision_tree,
-                    min_group_size=2,
                     max_roots_to_process=20
                 )
 
