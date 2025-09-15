@@ -16,9 +16,9 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor im
     ChunkProcessor
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
     WorkflowResult
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
-    DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+from backend.tree_manager.markdown_tree_ds import \
+    MarkdownTree
+from backend.tree_manager.tree_to_markdown import \
     TreeToMarkdownConverter
 
 
@@ -33,7 +33,7 @@ class TestChunkBoundariesIntegration:
         output_dir.mkdir(exist_ok=True)
         
         # Initialize components
-        decision_tree = DecisionTree()
+        decision_tree = MarkdownTree()
         converter = TreeToMarkdownConverter(decision_tree.tree)
         processor = ChunkProcessor(
             decision_tree,

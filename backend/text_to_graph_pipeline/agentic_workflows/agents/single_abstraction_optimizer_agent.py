@@ -8,7 +8,7 @@ from langgraph.graph import END
 from ..core.agent import Agent
 from ..core.state import SingleAbstractionOptimizerAgentState
 from ..models import UpdateAction, CreateAction, BaseTreeAction, OptimizationResponse
-from ...tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
 
 
 class SingleAbstractionOptimizerAgent(Agent):

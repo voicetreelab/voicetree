@@ -7,7 +7,7 @@ from unittest.mock import Mock, AsyncMock
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
 from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import TextBufferManager
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, BaseTreeAction
 
 
@@ -18,7 +18,7 @@ class TestWorkflowStuckTextRemoval:
         """Test that stuck text is removed when no actions are returned repeatedly"""
         # Setup
         workflow = TreeActionDeciderWorkflow()
-        tree = DecisionTree()
+        tree = MarkdownTree()
         tree.create_new_node("Root", None, "Root content", "Root summary")
         workflow.decision_tree = tree
         
@@ -65,7 +65,7 @@ class TestWorkflowStuckTextRemoval:
         """Test stuck text removal when flush fails due to buffer mismatch"""
         # Setup
         workflow = TreeActionDeciderWorkflow()
-        tree = DecisionTree()
+        tree = MarkdownTree()
         tree.create_new_node("Root", None, "Root content", "Root summary")
         workflow.decision_tree = tree
         

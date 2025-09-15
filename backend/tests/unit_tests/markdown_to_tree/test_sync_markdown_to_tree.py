@@ -4,8 +4,8 @@ import shutil
 from datetime import datetime
 import pytest
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.sync_markdown_to_tree import (
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
+from backend.tree_manager.sync_markdown_to_tree import (
     MarkdownToTreeSynchronizer,
     sync_nodes_from_markdown
 )
@@ -24,7 +24,7 @@ class TestMarkdownToTreeSync:
     @pytest.fixture
     def decision_tree(self, temp_dir):
         """Create a decision tree with test nodes"""
-        tree = DecisionTree(output_dir=temp_dir)
+        tree = MarkdownTree(output_dir=temp_dir)
         
         # Create a test node
         node_id = tree.create_new_node(

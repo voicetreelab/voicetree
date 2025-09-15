@@ -14,7 +14,7 @@ from typing import List
 
 from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.tree_manager.markdown_tree_ds import Node
 
 
 class TestSingleAbstractionOptimizerAgent:

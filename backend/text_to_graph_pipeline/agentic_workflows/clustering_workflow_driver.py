@@ -6,9 +6,9 @@ Takes a tree DS and updates it in place with tags attributes.
 
 import math
 from typing import Dict
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import _format_nodes_for_prompt
-from backend.text_to_graph_pipeline.agentic_workflows.agents.clustering_agent import ClusteringAgent
+from backend.tree_manager.markdown_tree_ds import Node
+from backend.tree_manager.tree_functions import _format_nodes_for_prompt
+from backend.text_to_graph_pipeline.agentic_workflows.agents.spike.clustering_agent import ClusteringAgent
 
 
 async def run_clustering_analysis(tree: Dict[int, Node]) -> None:

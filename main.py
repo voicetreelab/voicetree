@@ -9,11 +9,11 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
     clear_debug_logs
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
     ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
-    DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+from backend.tree_manager.markdown_tree_ds import \
+    MarkdownTree
+from backend.tree_manager.tree_to_markdown import \
     TreeToMarkdownConverter
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import \
+from backend.tree_manager.markdown_to_tree import \
     load_markdown_tree
 from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import \
     VoiceToTextEngine
@@ -26,7 +26,7 @@ temp_dir = tempfile.mkdtemp()
 workflow_state_file = os.path.join(temp_dir, "voicetree_workflow_state.json")
 
 # Initialize decision tree
-decision_tree = DecisionTree()
+decision_tree = MarkdownTree()
 
 # Load existing tree from markdown if available
 markdown_dir = "markdownTreeVault"

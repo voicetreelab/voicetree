@@ -17,13 +17,13 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions
     TreeActionApplier
 )
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.tree_manager.markdown_to_tree import load_markdown_tree
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
     ConnectOrphansAgent
 )
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 
 
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.INFO)
 class TestConnectOrphansE2E:
     """End-to-end tests for orphan connection using qa_example data"""
 
-    def load_qa_example_tree(self) -> DecisionTree:
+    def load_qa_example_tree(self) -> MarkdownTree:
         """Load the qa_example tree which has many GPT-SoVITS orphan nodes"""
         tree_path = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/qa_example")
         
@@ -43,7 +43,7 @@ class TestConnectOrphansE2E:
         tree_dict = load_markdown_tree(str(tree_path))
         
         # Convert to DecisionTree object
-        tree = DecisionTree()
+        tree = MarkdownTree()
         tree.tree = tree_dict
         
         # Set next_node_id to max existing + 1
@@ -54,7 +54,7 @@ class TestConnectOrphansE2E:
             
         return tree
 
-    def write_tree_to_markdown_output(self, tree: DecisionTree, test_name: str) -> str:
+    def write_tree_to_markdown_output(self, tree: MarkdownTree, test_name: str) -> str:
         """Write the tree to markdown files in the test output directory"""
         output_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/integration_tests/connect_orphans_output") / test_name
         output_dir.mkdir(parents=True, exist_ok=True)

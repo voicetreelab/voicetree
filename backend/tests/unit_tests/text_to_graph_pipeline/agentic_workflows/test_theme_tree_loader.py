@@ -3,8 +3,8 @@ import tempfile
 import shutil
 import pytest
 
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_repository_for_themes
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.tree_manager.markdown_to_tree import load_markdown_repository_for_themes
+from backend.tree_manager.markdown_tree_ds import Node
 
 
 class TestThemeTreeLoader:

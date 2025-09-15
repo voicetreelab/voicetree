@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from typing import Dict
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+from backend.tree_manager.markdown_tree_ds import Node
 from backend.text_to_graph_pipeline.agentic_workflows.models import TagResponse, TagAssignment
 from backend.text_to_graph_pipeline.agentic_workflows.clustering_workflow_driver import run_clustering_analysis
 

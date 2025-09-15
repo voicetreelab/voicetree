@@ -4019,3 +4019,111 @@ Like given a tree.
 For given query.
 Oh my god, is this still going?
 VoiceTree is still running.
+Alrighty, cool. So today I want to work on improving the, clearing up some tech debt that I have with VoiceTree.
+Um,
+Because
+uh it's slowing down development right now i haven't really done a good um i've coded a bit too much and now i need to go clean up the experiments
+it. So what specifically is that? So
+First, the typing system.
+Tithing system's a bit worked right now, so one problem.
+is that one of the recent architecture changes we made
+was in VoiceTree, Backend.
+Um...
+We built the...
+context retriever context retrieval module and
+What else did we make?
+I think markdown to tree.
+We also made a module.
+and then
+Parts of that aren't using the correct tree manager.
+So decision tree data structure.
+So that's one thing, is to use the decisions tree data structure, because in some places, instead of the tree class and the node class, we're just using dictionaries, which is terrible. So we want to enforce the typing.
+And so one thing is just like changing it to use, you know, all the methods to use the tree. But another aspect is I want to prevent that from being possible in the future. Like I don't want anyone to be able to not use the decision tree class to represent a tree. So I don't know how we could like come up with some type checker or something that prevents that.
+another thing is decision tree underscore ds that should be
+It shouldn't be called Decision Tree. It should actually be called... I'm going to rename it right now, actually. Let's just call it Markdown Tree.
+Um,
+That's what it is a markdown tree
+And then we can rename DecisionTree to MarkdownTreeDS.
+And we actually want to move free manager out of text to graph pipeline.
+Um, um,
+And to back end.
+So I'm going to do that reflectoring right now.
+um might break some things um so first up we'll probably be making sure that the renaming i just did and the moving the um moving the folder didn't didn't break anything
+um
+Yeah, so in general, we want to use data classes or identic.
+Um, Identic.
+Um,
+at the API, like anytime the data is dynamic.
+but internally just data classes.
+or actual Python classes.
+And yeah, we want a way to kind of enforce that so that when we use coding agents, they can't just use dictionaries.
+That just destroys everything.
+and so a lot of the tech that we're worried about is
+Context retrieval.
+So, for example,
+Um,
+Which one is it?
+Thank you.
+I think it was...
+Yeah, traverse all relevant notes.
+Um...
+Traverse all relevant nodes
+context retrieval.
+It's a dictionary to represent the tree and that's probably the first thing we want to fix
+I shouldn't take a dictionary.
+should take the actual tree class.
+And the other thing we want to do later is traverse all relevant nodes.
+just returns the relevant node.
+But we actually want it to be a deeper method.
+perverse the no
+and accumulate their content.
+Because right now that's in the...
+kind of in the main function, convert the results to text using accumulated content. We want that to be hidden inside the method instead of the main function.
+and update any references there's a reference some performance comparison driver that does something similar as well oh that uses it so
+Okay, so let's...
+Yep.
+Thank you.
+Okay, the other tech debt type thing we have to do is...
+So when using VoiceTree, the positioning of new nodes.
+the terminal windows requires way too much
+you know, dragging around right now because
+not quite right, either the terminal.
+big. That's one problem. Terminals are too big. Terminals have too much padding around them.
+I don't know if that's something we can fix, but that'd be nice.
+And then the other thing is, yeah, we need more spacing between nodes.
+and a better node positioning algorithm.
+And the reason why this is tech debt kind of is because right now we're wasting so much time.
+nodes.
+Um.
+But I know that's not an easy problem to fix.
+Um, the...
+And also...
+Yeah.
+Thank you.
+Thank you.
+Okay, and now we are seeing that there obviously is a problem with imports and stuff. So we're getting all sorts of import failures. No module named backend, textograph like pipeline tree manager.
+Thank you.
+Thank you.
+All right, one important thing is that we do not ever want to have backwards compatibility.
+so do not do not maintain backwards compatibility that just introduces extra complexity
+Just make sure there's only one system.
+Thank you.
+One thing we just saw is that the LM was getting confused with relative and absolute imports.
+And we want to add to our claw.md file a very...
+It's a single line that says always prefer absolute imports over relative imports. Never use relative imports.
+Um,
+So...
+Thank you.
+The other thing that would be nice is to like, not, as with the UI, um,
+not let terminals
+fly away from the
+criminal icon um because that just confuses the fuck out of thing and lets you have bad um visual organization
+We just don't want to let that be possible.
+Thank you.
+Yeah, I think we really want to focus on this session, not making new features, just making sure that our existing
+aren't making us waste tons of time.
+Psst.
+Thank you.
+We'll see you next time.
+Thank you.
+Thank you.

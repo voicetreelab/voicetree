@@ -16,7 +16,7 @@ Formats nodes for LLM prompts in a consistent, readable format.
 
 **Example:**
 ```python
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import format_nodes_for_prompt
+from backend.tree_manager.tree_functions import format_nodes_for_prompt
 
 formatted = format_nodes_for_prompt(nodes, tree, include_full_content=True)
 ```
@@ -35,7 +35,7 @@ Maps node titles to their IDs, with optional fuzzy matching for inexact matches.
 
 **Example:**
 ```python
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import map_titles_to_node_ids
+from backend.tree_manager.tree_functions import map_titles_to_node_ids
 
 node_ids = map_titles_to_node_ids(["Node Title 1", "Node Title 2"], nodes)
 ```
@@ -80,7 +80,7 @@ Creates a new node in the tree with proper ID assignment.
 
 ### Formatting nodes for LLM prompts
 ```python
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import format_nodes_for_prompt
+from backend.tree_manager.tree_functions import format_nodes_for_prompt
 
 # Get nodes to format
 nodes = list(tree.values())
@@ -94,7 +94,7 @@ formatted = format_nodes_for_prompt(nodes, tree, include_full_content=False)
 
 ### Mapping LLM responses back to node IDs
 ```python
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import map_titles_to_node_ids
+from backend.tree_manager.tree_functions import map_titles_to_node_ids
 
 # LLM returns node titles
 selected_titles = response.node_titles

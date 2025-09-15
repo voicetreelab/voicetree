@@ -5,10 +5,10 @@ import re
 import traceback
 from typing import Dict, TYPE_CHECKING
 
-from backend.text_to_graph_pipeline.tree_manager.utils import deduplicate_content, insert_yaml_frontmatter
+from backend.tree_manager.utils import deduplicate_content, insert_yaml_frontmatter
 
 if TYPE_CHECKING:
-    from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+    from backend.tree_manager.markdown_tree_ds import Node
 
 
 def generate_filename_from_keywords(node_title, max_keywords=3):

@@ -5,10 +5,10 @@ Takes a path to input_forest folder and returns structured theme groupings.
 """
 
 from typing import Dict, Any
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import _format_nodes_for_prompt
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_repository_for_themes
+from backend.tree_manager.tree_functions import _format_nodes_for_prompt
+from backend.tree_manager.markdown_to_tree import load_markdown_repository_for_themes
 from backend.text_to_graph_pipeline.agentic_workflows.agents.theme_identification_agent import ThemeIdentificationAgent
-from backend.text_to_graph_pipeline.tree_manager.color_writer import write_theme_colors_to_markdown
+from backend.tree_manager.color_writer import write_theme_colors_to_markdown
 
 
 class ThemeIdentificationWorkflow:

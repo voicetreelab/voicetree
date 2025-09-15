@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 import pytest
 
-from backend.markdown_to_tree import load_node
+from backend.markdown_to_tree.node_loader import load_node
 
 
 class TestLoadNodeFunction:

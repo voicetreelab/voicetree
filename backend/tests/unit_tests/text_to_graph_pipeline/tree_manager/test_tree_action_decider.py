@@ -20,8 +20,8 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import (
     SegmentModel, UpdateAction)
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
     TreeActionDeciderWorkflow
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
-    DecisionTree, Node)
+from backend.tree_manager.markdown_tree_ds import (
+    MarkdownTree, Node)
 
 
 def create_mock_append_result(actions):
@@ -76,7 +76,7 @@ class TestTreeActionDeciderWorkflow:
     @pytest.fixture
     def simple_tree(self):
         """Create a simple tree for testing"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         # Add multiple nodes for testing
         for node_id in [1, 2, 3, 5, 99, 100, 101]:
             node = Node(

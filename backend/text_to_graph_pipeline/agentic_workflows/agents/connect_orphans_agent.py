@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 
 from langgraph.graph import END
 
-from ...tree_manager.decision_tree_ds import DecisionTree, Node
-from ...tree_manager.tree_functions import format_nodes_for_prompt, map_titles_to_node_ids
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.tree_manager.tree_functions import format_nodes_for_prompt, map_titles_to_node_ids
 from ..core.agent import Agent
 from ..core.state import ConnectOrphansAgentState
 from ..models import CreateAction, BaseTreeAction
@@ -86,7 +86,7 @@ class ConnectOrphansAgent(Agent):
         # Direct flow to END after grouping
         self.add_dataflow("connect_orphans", END)
     
-    def find_disconnected_roots(self, tree: DecisionTree) -> List[RootNodeInfo]:
+    def find_disconnected_roots(self, tree: MarkdownTree) -> List[RootNodeInfo]:
         """
         Find all root nodes (nodes with no parent) in the tree.
         These represent disconnected components.
@@ -225,7 +225,7 @@ class ConnectOrphansAgent(Agent):
     
     async def run(
         self,
-        tree: DecisionTree,
+        tree: MarkdownTree,
         max_roots_to_process: int = 20,
         include_full_content: bool = True
     ) -> Tuple[List[BaseTreeAction], Dict[str, List[int]]]:

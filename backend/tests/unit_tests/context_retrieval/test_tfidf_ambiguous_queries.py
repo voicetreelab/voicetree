@@ -8,8 +8,8 @@ Verifies that TF-IDF can handle queries that touch on multiple topics
 and select the most relevant node based on key terms.
 """
 import pytest
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfAmbiguousQueries:
@@ -24,7 +24,7 @@ class TestTfidfAmbiguousQueries:
         on the primary focus of the query.
         """
         # Create a decision tree
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add Node A: Introduction to Databases
         node_a = Node(
@@ -87,7 +87,7 @@ class TestTfidfAmbiguousQueries:
         """
         Test with query that could match multiple nodes but has basic focus
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Same nodes
         tree.tree[1] = Node(
@@ -129,7 +129,7 @@ class TestTfidfAmbiguousQueries:
         """
         Test with query focused on big data despite mentioning general database concepts
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Same nodes
         tree.tree[1] = Node(

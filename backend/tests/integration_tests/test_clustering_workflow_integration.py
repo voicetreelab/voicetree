@@ -8,8 +8,8 @@
 # import tempfile
 # import os
 # from datetime import datetime
-# from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
-# from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import TreeToMarkdownConverter
+# from backend.tree_manager.markdown_tree_ds import Node
+# from backend.tree_manager.tree_to_markdown import TreeToMarkdownConverter
 # from backend.text_to_graph_pipeline.agentic_workflows.clustering_workflow_driver import run_clustering_analysis
 #
 #

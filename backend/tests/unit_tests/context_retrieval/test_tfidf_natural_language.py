@@ -8,8 +8,8 @@ This test demonstrates both the capabilities and limitations of TF-IDF
 when handling natural language queries.
 """
 import pytest
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfNaturalLanguage:
@@ -28,7 +28,7 @@ class TestTfidfNaturalLanguage:
         3. Domain-specific terms like "sprint planning" are diluted by other words
         """
         # Create a decision tree
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Add Node A: Project Management Methodologies
         node_a = Node(
@@ -86,7 +86,7 @@ class TestTfidfNaturalLanguage:
         """
         Test that TF-IDF works better with queries containing distinctive keywords
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Same nodes
         tree.tree[1] = Node(
@@ -128,7 +128,7 @@ class TestTfidfNaturalLanguage:
         """
         Test that tool-specific queries correctly identify the tools node
         """
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Same nodes
         tree.tree[1] = Node(

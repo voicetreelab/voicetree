@@ -3,25 +3,25 @@ from datetime import datetime, timedelta
 import time
 from typing import List, Dict
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
 
 
 class TestDecisionTree(unittest.TestCase):
     def test_append_to_node(self):
-        dt = DecisionTree()
+        dt = MarkdownTree()
         node_id = dt.create_new_node("test_node", None, "test_content", "test_summary")
         dt.append_node_content(node_id, "appended content")
         self.assertIn("appended content", dt.tree[node_id].content)
 
     def test_create_new_node(self):
-        dt = DecisionTree()
+        dt = MarkdownTree()
         new_node_id = dt.create_new_node("test_node", None, "test_content", "test_summary")
         self.assertEqual(new_node_id, 1)
         self.assertIn(1, dt.tree)
         self.assertEqual(dt.tree[1].parent_id, None)
 
     def test_get_recent_nodes(self):
-        dt = DecisionTree()
+        dt = MarkdownTree()
         
         # Create some nodes
         created_nodes = []
@@ -56,7 +56,7 @@ class TestDecisionTree(unittest.TestCase):
                          f"Node ID {node_id} from recent_nodes should exist in tree")
 
     def test_get_parent_id(self):
-        dt = DecisionTree()
+        dt = MarkdownTree()
         node1_id = dt.create_new_node("node1", None, "content1", "summary1")
         node2_id = dt.create_new_node("node2", node1_id, "content2", "summary2")
         parent_id = dt.get_parent_id(node2_id)
@@ -64,7 +64,7 @@ class TestDecisionTree(unittest.TestCase):
 
     def test_get_neighbors(self):
         """Test that get_neighbors returns immediate neighbors (parent, siblings, children) with summaries"""
-        dt = DecisionTree()
+        dt = MarkdownTree()
         
         # Create a tree structure:
         #       A
@@ -113,7 +113,7 @@ class TestDecisionTree(unittest.TestCase):
 
     def test_update_node(self):
         """Test that update_node replaces content and summary completely"""
-        dt = DecisionTree()
+        dt = MarkdownTree()
         
         # Create initial node
         node_id = dt.create_new_node(

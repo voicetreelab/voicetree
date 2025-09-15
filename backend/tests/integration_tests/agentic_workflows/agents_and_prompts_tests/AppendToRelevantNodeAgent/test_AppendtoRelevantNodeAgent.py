@@ -16,9 +16,9 @@ from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_
     AppendToRelevantNodeAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
     AppendAction, BaseTreeAction, CreateAction)
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import (
-    DecisionTree, Node)
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
+from backend.tree_manager.markdown_tree_ds import (
+    MarkdownTree, Node)
+from backend.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
 
 
@@ -32,7 +32,7 @@ class TestAppendToRelevantNodeAgent:
     @pytest.fixture
     def simple_tree(self):
         """Create a simple tree with one node"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node = Node(
             name="Database Design",
             node_id=1,
@@ -65,7 +65,7 @@ class TestAppendToRelevantNodeAgent:
     async def test_simple_create(self, agent):
         """Test Case 2: Text is unrelated to any existing node"""
         # Create tree with a very specific node to ensure new topic is created
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node = Node(
             name="Frontend React Components",
             node_id=1,
@@ -94,7 +94,7 @@ class TestAppendToRelevantNodeAgent:
     @pytest.mark.asyncio
     async def test_mixed_append_and_create(self, agent):
         """Test Case 3: Multiple segments, some append, some create"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         node = Node(
             name="User Authentication",
             node_id=1,
@@ -130,7 +130,7 @@ class TestAppendToRelevantNodeAgent:
     @pytest.mark.asyncio
     async def test_empty_tree(self, agent):
         """Test Case 4: Empty tree, all creates"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         text = "First, let's define the project requirements. Second, we need to choose a tech stack."
         
@@ -154,7 +154,7 @@ class TestAppendToRelevantNodeAgent:
     @pytest.mark.asyncio
     async def test_choosing_more_relevant_node(self, agent):
         """Test Case 5: Agent correctly distinguishes between two related but distinct topics"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         # Create two nodes
         node1 = Node(
             name="API Security",

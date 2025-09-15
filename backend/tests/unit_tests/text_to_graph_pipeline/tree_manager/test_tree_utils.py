@@ -3,7 +3,7 @@ Unit tests for tree manager utilities
 """
 
 import pytest
-from backend.text_to_graph_pipeline.tree_manager.utils import (
+from backend.tree_manager.utils import (
     extract_summary,
     deduplicate_content,
     extract_complete_sentences,

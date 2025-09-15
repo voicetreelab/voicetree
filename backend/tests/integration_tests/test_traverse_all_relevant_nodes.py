@@ -11,7 +11,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class TestTraverseAllRelevantNodes:
@@ -23,14 +24,14 @@ class TestTraverseAllRelevantNodes:
         markdown_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output/user_guide_qa_audio_processing_connected_final")
         embeddings_path = Path("/Users/bobbobby/repos/VoiceTree/backend/embeddings_output")
         
-        # Load the tree
+        # Load the tree as MarkdownTree object
         tree = load_markdown_tree(str(markdown_dir))
-        
+
         # Ensure each node has filename attribute
         import os
         md_files = {f: f for f in os.listdir(markdown_dir) if f.endswith('.md')}
-        
-        for node_id, node in tree.items():
+
+        for node_id, node in tree.tree.items():
             # Look for the actual file that starts with the node_id
             for filename in md_files:
                 if filename.startswith(f"{node_id}_"):
@@ -40,7 +41,7 @@ class TestTraverseAllRelevantNodes:
                 # Fallback if no matching file found
                 if hasattr(node, 'file_name') and node.file_name:
                     node.filename = node.file_name
-        
+
         return {
             'tree': tree,
             'markdown_dir': markdown_dir,

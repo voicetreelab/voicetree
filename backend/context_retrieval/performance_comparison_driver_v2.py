@@ -28,7 +28,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Import our context retrieval functions
 from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
 from backend.context_retrieval.dependency_traversal import accumulate_content
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class GeminiClient:
@@ -119,10 +120,10 @@ class PerformanceComparatorV2:
         # Initialize Gemini client with OpenAI-compatible interface
         self.client = GeminiClient(self.api_key)
         
-        # Load tree once
+        # Load tree as MarkdownTree object
         print(f"Loading tree from: {self.markdown_dir}")
         self.tree = load_markdown_tree(str(self.markdown_dir))
-        print(f"Successfully loaded {len(self.tree)} nodes")
+        print(f"Successfully loaded {len(self.tree.tree)} nodes")
         self._setup_node_filenames()
         
         # Load full context once
@@ -134,8 +135,8 @@ class PerformanceComparatorV2:
         """Ensure each node has its filename attribute set."""
         import os
         md_files = {f: f for f in os.listdir(self.markdown_dir) if f.endswith('.md')}
-        
-        for node_id, node in self.tree.items():
+
+        for node_id, node in self.tree.tree.items():
             node_id_str = str(node_id)
             for filename in md_files:
                 if filename.startswith(f"{node_id_str}_"):

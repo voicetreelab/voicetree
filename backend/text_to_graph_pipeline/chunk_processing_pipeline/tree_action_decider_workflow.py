@@ -21,9 +21,9 @@ from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
                                         BaseTreeAction, CreateAction,
                                         UpdateAction)
 from ..text_buffer_manager import TextBufferManager
-from ..tree_manager.decision_tree_ds import DecisionTree
-from ..tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
-from ..tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
+from backend.tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 from .apply_tree_actions import TreeActionApplier
 
 
@@ -63,14 +63,14 @@ class TreeActionDeciderWorkflow:
     NOT an agent - pure deterministic coordination with result wrapping.
     """
     
-    def __init__(self, decision_tree: Optional[DecisionTree] = None) -> None:
+    def __init__(self, decision_tree: Optional[MarkdownTree] = None) -> None:
         """
         Initialize the workflow
         
         Args:
             decision_tree: Optional decision tree instance (can be set later)
         """
-        self.decision_tree: Optional[DecisionTree] = decision_tree
+        self.decision_tree: Optional[MarkdownTree] = decision_tree
         self.append_agent: AppendToRelevantNodeAgent = AppendToRelevantNodeAgent()
         self.optimizer_agent: SingleAbstractionOptimizerAgent = SingleAbstractionOptimizerAgent()
         self.connect_orphans_agent: ConnectOrphansAgent = ConnectOrphansAgent()
@@ -103,7 +103,7 @@ class TreeActionDeciderWorkflow:
     async def run(
         self, 
         transcript_text: str, 
-        decision_tree: DecisionTree,
+        decision_tree: MarkdownTree,
         transcript_history: str = ""
     ) -> List[BaseTreeAction]:
         # TODO WE SHOULD REMOVE THIS, WE SHOULD NEVER HAVE BACKWARDS COMPATABILITY

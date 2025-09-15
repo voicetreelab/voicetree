@@ -6,9 +6,9 @@ import pytest
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
     ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import \
-    DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_to_markdown import \
+from backend.tree_manager.markdown_tree_ds import \
+    MarkdownTree
+from backend.tree_manager.tree_to_markdown import \
     TreeToMarkdownConverter
 
 # Apply nest_asyncio to allow nested event loops
@@ -18,7 +18,7 @@ nest_asyncio.apply()
 class TestIntegration:
     @pytest.fixture(autouse=True)
     def setup_method(self, tmp_path):
-        self.decision_tree = DecisionTree()
+        self.decision_tree = MarkdownTree()
         # Use pytest's tmp_path for test output
         self.output_dir = str(tmp_path / "test_output")
         self.cleanUp()

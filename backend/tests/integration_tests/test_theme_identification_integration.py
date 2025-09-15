@@ -11,8 +11,8 @@
 # from unittest.mock import AsyncMock, patch
 # from typing import Dict
 #
-# from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import MarkdownToTreeConverter
-# from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node
+# from backend.tree_manager.markdown_to_tree import MarkdownToTreeConverter
+# from backend.tree_manager.markdown_tree_ds import Node
 #
 #
 # class TestThemeIdentificationIntegration:
@@ -119,7 +119,7 @@
 #         # Test Bob's enhanced loader (removes color metadata)
 #         try:
 #             # Import Bob's enhanced loader function
-#             from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_repository_for_themes
+#             from backend.tree_manager.markdown_to_tree import load_markdown_repository_for_themes
 #
 #             # Load tree using Bob's function
 #             cleaned_tree = load_markdown_repository_for_themes(

@@ -7,8 +7,8 @@ import pytest
 from typing import List
 from pathlib import Path
 
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree, Node
-from backend.text_to_graph_pipeline.tree_manager.markdown_to_tree import load_markdown_tree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.tree_manager.markdown_to_tree import load_markdown_tree
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import ConnectOrphansAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, BaseTreeAction
 
@@ -18,13 +18,13 @@ class TestConnectOrphansAgentBehavior:
     """Test ConnectOrphansAgent behavioral patterns using real qa_example data"""
 
     @pytest.fixture
-    def qa_example_tree(self) -> DecisionTree:
+    def qa_example_tree(self) -> MarkdownTree:
         """Load the qa_example tree with GPT-SoVITS orphan nodes"""
         tree_path = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/qa_example")
         
         if not tree_path.exists():
             # Fallback to creating a sample tree if qa_example not available
-            tree = DecisionTree()
+            tree = MarkdownTree()
             
             # Create sample GPT-SoVITS related nodes
             tree.create_new_node(
@@ -68,7 +68,7 @@ class TestConnectOrphansAgentBehavior:
         tree_dict = load_markdown_tree(str(tree_path))
         
         # Convert to DecisionTree object
-        tree = DecisionTree()
+        tree = MarkdownTree()
         tree.tree = tree_dict
         
         # Set next_node_id to max existing + 1
@@ -87,7 +87,7 @@ class TestConnectOrphansAgentBehavior:
     async def test_groups_gpt_sovits_nodes_correctly(
         self,
         connect_orphans_agent: ConnectOrphansAgent,
-        qa_example_tree: DecisionTree
+        qa_example_tree: MarkdownTree
     ):
         """Test that agent correctly identifies and groups GPT-SoVITS related components"""
         
@@ -211,7 +211,7 @@ class TestConnectOrphansAgentBehavior:
     ):
         """Test that agent respects minimum group size constraint"""
         # Create a minimal tree with just one orphan
-        tree = DecisionTree()
+        tree = MarkdownTree()
         tree.create_new_node(
             "GPT-SoVITS Single Node",
             None,
@@ -230,7 +230,7 @@ class TestConnectOrphansAgentBehavior:
     ):
         """Test agent handles diverse GPT-SoVITS topics appropriately"""
         # Create a tree with diverse GPT-SoVITS related topics
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Technical features
         tree.create_new_node(
@@ -298,7 +298,7 @@ class TestConnectOrphansAgentBehavior:
     async def test_agent_internal_processing(
         self,
         connect_orphans_agent: ConnectOrphansAgent,
-        qa_example_tree: DecisionTree
+        qa_example_tree: MarkdownTree
     ):
         """Test the agent's internal processing functions"""
         # Test root finding
@@ -329,7 +329,7 @@ class TestConnectOrphansAgentBehavior:
     async def test_qa_example_produces_meaningful_groups(
         self,
         connect_orphans_agent: ConnectOrphansAgent,
-        qa_example_tree: DecisionTree
+        qa_example_tree: MarkdownTree
     ):
         """Test that qa_example data produces meaningful groupings"""
         # Get the roots that will be analyzed
@@ -458,7 +458,7 @@ class TestConnectOrphansAgentBehavior:
         connect_orphans_agent: ConnectOrphansAgent
     ):
         """Test agent handles nodes with empty or minimal summaries"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Create nodes with edge case content
         node1 = Node(

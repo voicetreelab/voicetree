@@ -4,14 +4,14 @@ Performance test for TF-IDF implementation
 import time
 import pytest
 from datetime import datetime
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 def test_tfidf_performance():
     """Test that TF-IDF search completes within 50ms for trees with <1000 nodes"""
     # Create a decision tree with many nodes
-    tree = DecisionTree()
+    tree = MarkdownTree()
     
     # Add 500 nodes with varied content
     for i in range(1, 501):

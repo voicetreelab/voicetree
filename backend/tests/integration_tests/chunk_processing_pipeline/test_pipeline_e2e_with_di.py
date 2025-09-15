@@ -32,7 +32,7 @@ from typing import Dict, List, Any, Optional
 import pytest
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import DecisionTree
+from backend.tree_manager.markdown_tree_ds import MarkdownTree
 from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction, UpdateAction
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
 
@@ -193,7 +193,7 @@ class TestPipelineE2EWithDI:
     async def test_pipeline_with_mock_agent(self):
         """Test the full pipeline with a mock agent"""
         # Create components
-        decision_tree = DecisionTree()
+        decision_tree = MarkdownTree()
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
         # Create ChunkProcessor with injected mock workflow
@@ -243,7 +243,7 @@ class TestPipelineE2EWithDI:
     @pytest.mark.asyncio
     async def test_text_preservation(self):
         """Test that all completed text is preserved through the pipeline"""
-        decision_tree = DecisionTree()
+        decision_tree = MarkdownTree()
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
         chunk_processor = ChunkProcessor(
@@ -294,7 +294,7 @@ class TestPipelineE2EWithDI:
     @pytest.mark.asyncio
     async def test_tree_structure_integrity(self):
         """Test that the tree structure maintains integrity"""
-        decision_tree = DecisionTree()
+        decision_tree = MarkdownTree()
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
         chunk_processor = ChunkProcessor(
@@ -333,7 +333,7 @@ class TestPipelineE2EWithDI:
     @pytest.mark.asyncio
     async def test_100_random_sentences_with_invariants(self):
         """Test with 100 random sentences and verify invariants."""
-        decision_tree = DecisionTree()
+        decision_tree = MarkdownTree()
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
         
         chunk_processor = ChunkProcessor(
@@ -418,7 +418,7 @@ class TestPipelineE2EWithDI:
 @pytest.mark.asyncio
 async def test_empty_text_handling():
     """Test handling of empty text input"""
-    decision_tree = DecisionTree()
+    decision_tree = MarkdownTree()
     mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
     
     chunk_processor = ChunkProcessor(

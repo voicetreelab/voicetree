@@ -30,7 +30,7 @@ class Node:
 
 
 
-class DecisionTree:
+class MarkdownTree:
     def __init__(self, output_dir: Optional[str] = None):
         self.tree: Dict[int, Node] = {}
         self.next_node_id: int = 1

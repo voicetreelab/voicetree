@@ -3,8 +3,8 @@ Comprehensive behavioral tests for TF-IDF implementation
 Implements all 5 tests from the specification
 """
 import pytest
-from backend.text_to_graph_pipeline.tree_manager.decision_tree_ds import Node, DecisionTree
-from backend.text_to_graph_pipeline.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.tree_manager.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfComprehensive:
@@ -12,7 +12,7 @@ class TestTfidfComprehensive:
     
     def test_technical_concept_disambiguation(self):
         """Test 1: Technical Concept Disambiguation"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Node A: Machine Learning Fundamentals
         tree.tree[1] = Node(
@@ -51,7 +51,7 @@ class TestTfidfComprehensive:
     
     def test_distinguishing_similar_topics(self):
         """Test 2: Distinguishing Similar Topics"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Node A: Python Programming Basics
         tree.tree[1] = Node(
@@ -90,7 +90,7 @@ class TestTfidfComprehensive:
     
     def test_natural_language_queries(self):
         """Test 4: Natural Language Queries - Demonstrates TF-IDF limitation"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Node A: Project Management Methodologies
         tree.tree[1] = Node(
@@ -130,7 +130,7 @@ class TestTfidfComprehensive:
     
     def test_handling_ambiguous_queries(self):
         """Test 5: Handling Ambiguous Queries"""
-        tree = DecisionTree()
+        tree = MarkdownTree()
         
         # Node A: Introduction to Databases
         tree.tree[1] = Node(
