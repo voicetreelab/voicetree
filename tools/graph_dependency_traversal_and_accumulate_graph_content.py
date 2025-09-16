@@ -16,8 +16,7 @@ import re
 
 # Import from our refactored modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from backend.markdown_to_tree.node_loader import load_node
-from backend.markdown_to_tree.file_operations import read_markdown_file
+from backend.markdown_tree_manager.markdown_to_tree.file_operations import read_markdown_file
 from backend.context_retrieval.dependency_traversal import traverse_to_node, TraversalOptions
 from backend.context_retrieval.content_filtering import ContentLevel
 

@@ -4,7 +4,7 @@ Unit tests for summary generation in optimizer only
 
 import pytest
 from unittest.mock import Mock, call
-from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
 
 
 class TestSummaryGeneration:

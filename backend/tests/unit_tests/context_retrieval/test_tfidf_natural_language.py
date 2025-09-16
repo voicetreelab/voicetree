@@ -7,9 +7,8 @@ Test 4: Natural Language Queries
 This test demonstrates both the capabilities and limitations of TF-IDF
 when handling natural language queries.
 """
-import pytest
-from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfNaturalLanguage:

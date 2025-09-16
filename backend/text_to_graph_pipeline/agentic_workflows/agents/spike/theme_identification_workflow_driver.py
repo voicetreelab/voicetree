@@ -5,10 +5,10 @@
 # """
 #
 # from typing import Dict, Any
-# from backend.tree_manager.tree_functions import _format_nodes_for_prompt
-# from backend.tree_manager.markdown_to_tree import load_markdown_repository_for_themes
+# from backend.markdown_tree_manager.tree_functions import _format_nodes_for_prompt
+# from backend.markdown_tree_manager.markdown_to_tree import load_markdown_repository_for_themes
 # from backend.text_to_graph_pipeline.agentic_workflows.agents.theme_identification_agent import ThemeIdentificationAgent
-# from backend.tree_manager.color_writer import write_theme_colors_to_markdown
+# from backend.markdown_tree_manager.color_writer import write_theme_colors_to_markdown
 #
 #
 # class ThemeIdentificationWorkflow:

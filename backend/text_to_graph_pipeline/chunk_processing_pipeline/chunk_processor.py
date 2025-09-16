@@ -3,21 +3,19 @@ Chunk Processing Pipeline
 Processes text chunks through agentic workflows and updates the tree
 """
 
-import asyncio
-import inspect
 import logging
 import os
 import time
 import traceback
 from datetime import datetime
-from typing import Any, List, Optional, Set
+from typing import Optional, Set
 
 from backend import settings
 from backend.text_to_graph_pipeline.text_buffer_manager import \
     TextBufferManager
-from backend.tree_manager.markdown_tree_ds import \
+from backend.markdown_tree_manager.markdown_tree_ds import \
     MarkdownTree
-from backend.tree_manager.tree_to_markdown import \
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import \
     TreeToMarkdownConverter
 
 from .apply_tree_actions import TreeActionApplier

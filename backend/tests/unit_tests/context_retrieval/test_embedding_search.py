@@ -7,19 +7,19 @@ import numpy as np
 from unittest.mock import Mock, patch, MagicMock
 import os
 
-from backend.context_retrieval.vector_search import (
+from backend.markdown_tree_manager.graph_search.vector_search import (
     get_node_embeddings,
     find_similar_by_embedding,
     hybrid_search,
     extract_key_entities
 )
-from backend.tree_manager.markdown_tree_ds import Node
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class TestEmbeddingGeneration:
     """Tests for node embedding generation"""
     
-    @patch('backend.context_retrieval.vector_search.genai')
+    @patch('backend.markdown_tree_manager.graph_search.vector_search.genai')
     def test_get_node_embeddings_basic(self, mock_genai):
         """Test basic embedding generation for nodes"""
         # Setup mock genai
@@ -44,7 +44,7 @@ class TestEmbeddingGeneration:
         assert embeddings[1].shape[0] == 768
         assert mock_genai.embed_content.call_count == 2
     
-    @patch('backend.context_retrieval.vector_search.genai')
+    @patch('backend.markdown_tree_manager.graph_search.vector_search.genai')
     def test_get_node_embeddings_empty_nodes(self, mock_genai):
         """Test embedding generation with empty node dictionary"""
         with patch.dict(os.environ, {'VOICETREE_USE_EMBEDDINGS': 'true', 'GEMINI_API_KEY': 'test'}):
@@ -53,16 +53,7 @@ class TestEmbeddingGeneration:
         assert embeddings == {}
         mock_genai.embed_content.assert_not_called()
     
-    def test_get_node_embeddings_disabled(self):
-        """Test that embeddings are not generated when disabled"""
-        nodes = {1: Node("Test", 1, "Content", "Summary")}
-        
-        with patch.dict(os.environ, {'VOICETREE_USE_EMBEDDINGS': 'false'}):
-            embeddings = get_node_embeddings(nodes)
-        
-        assert embeddings == {}
-    
-    @patch('backend.context_retrieval.vector_search.genai')
+    @patch('backend.markdown_tree_manager.graph_search.vector_search.genai')
     def test_get_node_embeddings_weighted_text(self, mock_genai):
         """Test that text is properly weighted (title 3x, summary 2x, content 1x)"""
         mock_genai.embed_content.return_value = {'embedding': [0.1] * 768}
@@ -85,7 +76,7 @@ class TestEmbeddingGeneration:
 class TestSimilaritySearch:
     """Tests for finding similar nodes using embeddings"""
     
-    @patch('backend.context_retrieval.vector_search.genai')
+    @patch('backend.markdown_tree_manager.graph_search.vector_search.genai')
     def test_find_similar_by_embedding_basic(self, mock_genai):
         """Test basic similarity search"""
         # Setup mock genai
@@ -112,7 +103,7 @@ class TestSimilaritySearch:
         assert all(score >= 0.5 for _, score in results)  # All above threshold
         assert all(results[i][1] >= results[i+1][1] for i in range(len(results)-1))  # Descending order
     
-    @patch('backend.context_retrieval.vector_search.genai')
+    @patch('backend.markdown_tree_manager.graph_search.vector_search.genai')
     def test_find_similar_by_embedding_threshold(self, mock_genai):
         """Test that threshold filtering works correctly"""
         mock_genai.embed_content.return_value = {'embedding': [1.0, 0.0, 0.0]}

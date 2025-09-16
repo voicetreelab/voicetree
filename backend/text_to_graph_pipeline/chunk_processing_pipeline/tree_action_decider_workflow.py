@@ -21,9 +21,10 @@ from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
                                         BaseTreeAction, CreateAction,
                                         UpdateAction)
 from ..text_buffer_manager import TextBufferManager
-from backend.tree_manager.markdown_tree_ds import MarkdownTree
-from backend.tree_manager.tree_functions import get_most_relevant_nodes, _format_nodes_for_prompt
-from backend.tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import _format_nodes_for_prompt
+from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 from .apply_tree_actions import TreeActionApplier
 
 

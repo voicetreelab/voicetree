@@ -12,12 +12,10 @@ from typing import Any, Dict, List, Union
 
 from langgraph.graph import END
 
-from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
 from ..core.agent import Agent
 from ..core.state import AppendToRelevantNodeAgentState
-from ..models import (AppendAction, AppendAgentResult, CreateAction, SegmentationResponse, SegmentModel,
-                      TargetNodeResponse, TargetNodeIdentification)
-from backend.tree_manager.tree_functions import _format_nodes_for_prompt
+from ..models import (AppendAction, AppendAgentResult, CreateAction, SegmentationResponse, TargetNodeResponse)
+
 
 class AppendToRelevantNodeAgent(Agent):
     """Agent that determines where to place new content in the tree"""
