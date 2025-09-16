@@ -6,7 +6,7 @@ Handles applying integration decisions to the decision tree
 import logging
 from typing import List, Set, Union
 
-from backend.tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction, AppendAction
 
 

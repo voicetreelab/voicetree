@@ -6,9 +6,9 @@ import pytest
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
     ChunkProcessor
-from backend.tree_manager.markdown_tree_ds import \
+from backend.markdown_tree_manager.markdown_tree_ds import \
     MarkdownTree
-from backend.tree_manager.tree_to_markdown import \
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import \
     TreeToMarkdownConverter
 
 # Apply nest_asyncio to allow nested event loops

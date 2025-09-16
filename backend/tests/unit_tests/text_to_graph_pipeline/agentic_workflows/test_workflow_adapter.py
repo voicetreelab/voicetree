@@ -10,7 +10,7 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
     TreeActionDeciderWorkflow
 from backend.text_to_graph_pipeline.text_buffer_manager import \
     TextBufferManager
-from backend.tree_manager.markdown_tree_ds import (
+from backend.markdown_tree_manager.markdown_tree_ds import (
     MarkdownTree, Node)
 
 

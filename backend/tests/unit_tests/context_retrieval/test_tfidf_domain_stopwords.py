@@ -4,9 +4,8 @@ Test TF-IDF with domain-aware stopwords for mathematical word problems
 This test demonstrates how domain-specific stopwords improve relevance
 for queries about animals and locations in mathematical contexts.
 """
-import pytest
-from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfDomainStopwords:

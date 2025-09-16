@@ -17,8 +17,8 @@ from typing import List, Dict, Tuple, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.context_retrieval.dependency_traversal import traverse_to_node, TraversalOptions, accumulate_content
 from backend.context_retrieval.content_filtering import ContentLevel
-from backend.context_retrieval.vector_search import find_relevant_nodes_for_context
-from backend.tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.graph_search.vector_search import find_relevant_nodes_for_context
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None):
     """
@@ -112,7 +112,7 @@ def main():
     Loads tree from markdown directory and performs vector search.
     """
     # Import the tree loader from the correct location
-    from backend.tree_manager.markdown_to_tree import load_markdown_tree
+    from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
 
     # Example query
     query = """

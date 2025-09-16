@@ -28,8 +28,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Import our context retrieval functions
 from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
 from backend.context_retrieval.dependency_traversal import accumulate_content
-from backend.tree_manager.markdown_to_tree import load_markdown_tree
-from backend.tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class GeminiClient:

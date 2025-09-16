@@ -4129,3 +4129,329 @@ Thank you.
 Thank you.
 Thanks.
 So
+Mm-hmm
+All right, okay
+So
+Recently, I've been working on VoiceTree.
+Um, so big picture is that I...
+have spent the year and a half building a
+piece of software
+Convert speed.
+into Markdown
+Good morning.
+Now it represents a concept.
+And so part of that is text to concept tree or concept graph.
+And that whole product suite is called VoiceTree.
+I built the MVP.
+It honestly worked way better than I expected
+So it's really dope.
+I use it for...
+Um.
+I started using it for software engineering.
+So, I started using it to build VoiceTreat itself. So, you know, the first half is just explaining what I have to do as part of self-organization and problem-solving, which is really helpful because...
+First of all, speaking was useful, but then having my thoughts presented back to me visually was really neat.
+And then the coolest thing.
+was that on top of it
+we could then start launching a
+on top of a markdown note.
+like a coding agent.
+and that coating agent on the markdown note.
+Um...
+I could start doing things.
+on your computer like any coding agent
+But then it could also add back its progress as a markdown note on the tree. So you see visually how the agent is doing.
+And also the tree acts as like a context layer for all your agenda.
+usage, which is pretty dope as well.
+Um...
+Yeah, like.
+So you can just like talk about your project
+forgot the things you do and then you know instead of having to then launch the agent separately and tell them what to do again I everything all the context already there so you can just launch an agent
+from an existing markdown note.
+um which was which was really cool um worked really useful worked really well
+The UI is kind of buggy.
+But generally, it's working well enough.
+And.
+some other cool things you can do with that is like you could for example very quickly
+your voice describe a workflow an agentic workflow and that would be visualized as a
+each step in the workflow being a markdown note and then you can run the workflow really easily just by launching an agent
+um, initial note, um, start note, and then it will just, uh,
+The agent will complete the workflow.
+So that's cool as well. And so then overall, my vision...
+for VoiceTree as a business and as a start-up started becoming.
+this sort of like a three-layer system. So you have the canvas layer, the UI layer.
+which is a visualization for the tree and the agents on top of the tree where it can allow you like you know manage like multiple five agents at once and run workflows and
+um see the progress essentially like a the interface from from managing ai agents
+But it's the interface for the future of work, really.
+future of work with agents.
+Because part of it as well is just like that voice too.
+voice to tree to a tree of your thoughts is also really useful in itself but then managing agents on top of that is also awesome and then below that so that's layer one the UI layer layer two below that is the context tree storing all your context
+and being able to be interfaced by both you you can just edit the markdown notes and agents which is really powerful because a lot of databases are you know either only like
+uh can certainly be programmatically modified or maybe by agents with some apis um but not very human readable without another interface um but this is um can be both read by humans and agents
+and modified and searched.
+And so in the layer below that...
+um so layer two was the uh
+the markdown tree markdown context tree layer three is
+like smart
+Semantic search.
+on top of that
+Ah
+context tree um smart semantic search so kind of like a better rag rag plus plus
+Because RAG or even GraphRAG has limitations.
+But with this concept tree you can sort of get
+the perfect context you need to answer any query that's related to the context tree. And so that's...
+is a three-layer system.
+um sort of like a three-layer framework or ecosystem
+that i want the business to be long-term future vision um because that's where i see it make the most sense because it enables all these cool
+um product-based ideas that i've been thinking
+So, for example,
+So like one of the things we realized early on
+Was that the.
+API for converting
+into a tree can be used for context pruning. So if you represent the LLM's context,
+as a context tree.
+um so you know if you have a lot really like long back and forth conversation on lm the context keeps on growing um and each time you ask the lm a question it sends that whole unfiltered context back to the lm um or you know uses some
+But with the context tree, because it captures the semantics, we can do really smart.
+and filtering. So you can ask the LM a question and it gives it only the relevant context.
+And that means the LLM will be more accurate and solves essentially the long context problem for LLMs, solves context flow, and also means the less input tokens to the LLM.
+And so...
+From that, some really cool use cases are possible. One thing is infinite LLM. So infinite LLM is...
+a chat interface for a large language model where you never run out of content.
+since it keeps on just repeatedly pruning. So you can talk to 1LM forever because it just maintains a memory in the context tree of everything that's relevant and all the algorithms to be able to...
+um search that at scale
+Another thing it enables is better question answering, or even just better search against your document or against your knowledge base. Because we can do a combination of vector search, so each markdown can be stored as a vector.
+That filters down to like you listed like 1020 nodes
+like a sub tree from the original concept tree
+And then we can sort of explore around those relevant nodes.
+capturing the semantically related nodes.
+Which is pretty dope as well.
+Huh. Well, one idea I just had is that, like, one really big problem with that is linearization, so converting a subgraph back to linear text.
+but maybe we could get an LLM to do that, right? Like given a collection of nodes that are related, um it could weave that back into a linear story, um that's just an additional LLM call.
+Not completely sure if it's necessary, but it could be could be useful
+I don't know just just that okay. Yeah, just an idea we can explore later
+And
+One other use case for the QA thing was like data room. So in investment banking, they often have these really expensive data rooms, which don't have many AI features yet. And so we could invent a data room product. And the reason why companies would use it is because our question answering against the documents would be better because we have this intermediate context tree layer.
+um but like all those you know different different products the the nice thing about them is they all come back to this um vision of the three-layer ecosystem of um
+UI, and then context tree, and then smart semantic search.
+And one thing we've been doing recently is
+on long bench beats.
+a benchmark that shows how good a language model is at handling.
+um long context um and we're confident that we can beat long bench
+as in be the new state of the art for long bench um because by using this context tree um and we've been like so i mean it's just me right now but i've been working on
+Beat long bench And it's possible I think it just requires a few weeks of dev effort But the problem is is that
+That is like one thing that I want to do and it's sort of you know It's not super clear that it's gonna work out But I'm like 80% sure that it'll work out fairly well The amount of dev effort as well is like, you know, not clear like yeah, I'm like 95% company will work out But is that gonna be
+two weeks of dev effort or two months or six months is
+It's hard to know.
+because it is like you know solving a really huge problem and it's just required a lot of like hard algorithms and problem solving um and so i've sort of been procrastinating doing that a little bit um and also it's like not clear that like you know if i solve this long bench thing it's not clear like what that leads to like do investors how much do investors care about that i don't really know you
+Um, and that's why it'd be great. Like, so I have some, like, investor meters meetings coming up. Um, and so it'd be interesting to know, like, for those investor meetings.
+I could like in the first meeting I have like you know different
+scales of meetings, some are just with like friends and some are like with like proper huge VCs.
+So I can just ask the friends what they think about whatever an investor would care more about.
+benchmark or the other avenue for VoiceTree that is a priority which is
+shipping the product, and getting users.
+So right now, VoiceTree does.
+work on my computer locally through some like complex obsidian setup it's not that complex but like it just requires a few um dependent plugins so there's like three plugins you have to install on obsidian and then voice tree works and that's been fine for like prototyping but to deploy to users i think i really want to have like a one-click install
+Which again, is another thing that's just going to require like a month or two of dev work, although this one's less ambiguous, for converting the shitty, complex, unshipable obsidian system I have right now into something that people can one-click install on their computers and try out. And then that means I can start getting users.
+I have 50 people on the waitlist right now to they want to be users. And so I I know that like if I ship a product, I will get users and I can start scaling. But
+I guess, okay, so one open question is,
+You know, if I ship this product, will they be like, ah, this kind of sucks. I don't want to use it. Even though I'm getting value from it myself right now, it's a bit janky, a bit complicated. And.
+So that is a question.
+Ah.
+Achtung.
+So I yeah, I have a few different things I can do right now
+Work on the benchmark.
+or general like semantic retrieval
+the context retrieval smart semantic search layer.
+Or I can work on distribution and getting...
+getting something in people's hands, so getting users, which VC I think would care a lot about.
+And...
+The other thing that I could do.
+You know, like, I have some of those use cases.
+and I could start producing demos of-
+For example, the workflow use case, the managing multiple agents use case.
+maybe even the
+Query LN
+use case and that could actually be like not that much extra effort um if just like on my ui i just add a
+I can ask questions as well like chat interface type shit
+Like is the ability to launch an agent
+in the tree, but not on any particular note.
+Maybe.
+or that could be
+So if I add text input, it could just.
+fclm you can add text input that creates a node and then you can launch an agent on that node
+And it's going to...
+Do vector search for that
+versus the rest of the content.
+or have like a
+Yeah, I could do that. Anyway, okay, so I could do that use case
+But as you can see, I really just have like so much going on.
+Investor meeting.
+the benchmark
+use cases.
+And then like, you know, like also things like tech debt, like I've introduced some tech debt to my code base recently.
+And it'd be nice to clean that up because otherwise development speed gets slow. So that's something I need to do in the side as well
+Another thing is like, you know, whenever I use VoiceTree, I'm getting value from it. There's always like little features I want to add and stuff.
+And I know I'm just really focused right now.
+um but i think it's being it's hard to focus right now because the there is no clear option of what to do um and so in the back of my head you know if i'm doing anything i'm always doubting is this the right thing to be doing um and then i don't fully uh commit to it and so
+You know don't get as far in it
+get as much progress on it as I'd like so a bit of like ADHD going on
+prioritization problem and
+struggling to focus um but i think part of that is that there's just like this is a huge vision i have something really powerful and trying to figure out like where
+turning this into a huge business, like this could be a multi-billion dollar business.
+I know it could be. There's vision, but there's just like, it's a huge, I've entered into a huge problem space with something really powerful, but it's like a double-edged sword because it's so powerful, the technology, that it has so many different use cases.
+and a big you know platform vision like it's just like fuck what do i just do day to day week to week
+um and there's a whole other side of it of like you know i'm always worrying about like uh who is my co-founder
+networking with people at work
+So, yeah, I guess.
+That is my current state.
+I guess the question is, what do I think?
+You know, sometimes you can't rely on AI for this kind of stuff.
+You just gotta sort of figure it out yourself.
+And, you know, human advice is going to be really used to as well, but that will happen.
+Yeah, okay, and okay one final other problem is that on top of all this right there is
+There is I there is value in like having
+clear thoughts around my vision.
+and, you know, all the follow-up questions that come along and just having, like, really well thought out my idea maze.
+and that
+is hard because it's such a big forum space and you know things like it
+Fuck, like.
+You know, like node-based programming is another thing, a whole thing that this unlocks, where you represent your files as nodes and you're just like moving up abstraction levels, but it always stays as a tree or a graph.
+Oh fuck
+Yeah, I feel like that's hard to do at the same time
+have big visionary type thinking, but then also do like a low level.
+day-to-day code of like the feature you need to build for the next week that has kind of nothing to do with your five-year vision. I mean it's just like a minor stepping stone along the way.
+So that's another problem
+yeah i mean just i mean you know it's just like a makes things hard
+And it's like yeah, I feel like in a way it is easier to alternate some days are really like visionary
+Talking to people, going on hikes, thinking big picture. Other days are more like...
+Low-level code
+But yeah, I haven't really been doing that. I've been kind of combining the days
+mixing them up and getting like not getting great progress on the actual coding right now
+Yeah, I could and definitely do more structure like you know, I could run like three structured experiments like one week is on context retrieval one week is on automatic
+voice-to-workflow.
+Another week is on.
+Whatever, whatever, whatever.
+but then i feel like in my head i have so many constraints about like
+Investor Outreach and
+There's so much unclear, unclearness in my mind.
+And then the other fucking thing is that I have work three days a week right now at Alassian's.
+So I'm still working part time.
+So I only get like three or four days really to work on this per week.
+Because the other three days I have to do you know I can I can coast at work, and I'm trying to do bare minimum I still have to spend like a couple hours a day
+Yeah, just a lot of complexity. So much fucking complexity.
+in the idea space here.
+And I guess that's why they say that.
+In a startup, execution is everything, man.
+Fuck, man. Executing this is hard. Really hard. No easy answer.
+That is for sure. Definitely no easy.
+But I do have to figure out some amount of clarity.
+so
+I don't have any, like, deadlines right now.
+I do have...
+What are my real constraints? Okay, so I'm meeting Farquhar.
+Yeah, and I don't know which makes it hard like if I if I I was told meeting him in three weeks
+Boom bing bam boom.
+Then I would know I would have to prioritize something for in those three weeks probably a demo
+And I guess the biggest question right now.
+is
+Um...
+Biggest question right now,
+is
+Do I focus on the benchmark?
+Or do I focus on being able to do it?
+And I'm tossing and turning on that one.
+I
+has at some point said focus on the benchmark because it provides some credibility
+I also, there's also an argument.
+And other AIs have said to focus on users, saying that investors care way more about users than sort of academic proof, since that doesn't make sense.
+The group users make money.
+And that's kind of fair.
+I guess the other thing I could do, right, is, like, not give a fuck about the benchmark.
+Have my internal sort of benchmark
+Which is just question answering.
+voice trees
+And have that.
+We're good enough.
+And then I can show that as a use case, my launch.
+Have a demo like
+Question answering from within the tree.
+And...
+One little thing I just thought about for linearization is that for graph linearization, graph to linear text,
+we can maybe use the time-based ordering. So we hit the number one from one, two, three, four, five, incremental counter.
+And so we might just be able to...
+Linearize by converting
+back into timestamps.
+That'll work really well.
+Like order by time. I don't know. Fuck doesn't matter. What was I saying before? Dude, what was I saying?
+Oh, yeah, yeah. The idea that, like,
+I can build up the use case in the demo for like question answering against the tree like launching a general agent that can answer questions on the tree.
+And the reason why that's cool is that's something I want myself.
+It wraps up like the context retrieval work, but doesn't bother trying to be the benchmark.
+And then we can start.
+We can do that, get it done.
+and then start shipping to users.
+With a product suite that has like three pretty killer features Managing multiple agents
+quick voice to workflow and smart search and context retrieval against the tree.
+against your knowledge base. Those are pretty fucking epic.
+Use cases.
+I think I'll get users from that. I think I might get a lot of users
+And...
+Then I go to VC with, hey, bros, we got a thousand.
+users, or 10, whatever, as long as we have some amount of active users.
+and we can with the benchmark i mean honestly what's the difference between me having the benchmark and just saying i have it because we kind of know that like the benchmark is going to work with some dev work so at this point now we're going to say yeah we have it working for some questions on the bench
+because if the use case internal benchmark works for just like asking question answering
+Then that's enough to be confident the benchmark will work
+and
+Yeah, yeah
+So does that timeline actually make sense? Is that something I truly believe in, that we should get internal benchmark working?
+um integrate the um sort of smart somatic search mvp into the um voice tree product and then we already have a version
+layer system going on.
+And then we can start.
+Wow.
+Building out really nice.
+use cases
+maybe with the help of some friends like Yasmin
+Um,
+and then we just completely we we get that working we think fuck are we providing enough value right now so we have the three use cases working internally for ourselves we say we ask how amazing is this
+And if it's like, yeah, this is genuinely useful.
+I'm going to be using this at least once a week.
+Then...
+For sure, for sure, we should start.
+prioritizing
+getting users.
+I think we can forget about investors for now.
+They're just going to be so much more likely to want.
+to be there
+Once we have users
+I mean, from my perspective, yeah, if I was investing.
+i'm gonna invest when there's when there's users for sure even if it's just like even if it's just 50 users
+I mean, I know I can get 50.
+I don't know whether I can make them stay with the tech I currently have.
+Maybe we'll have like a 10% stay rate
+But yeah, that's just you know, that's just making the product better. That's fine. We can do that
+Oh man
+I think this session has been helpful to clarify my thoughts, though.
+Which is really good.
+I do wonder, it would have been much more useful if I had, so I've been driving while
+I wonder if it would have been useful to have the...
+to see it visually as well.
+how much of a difference would that have made my thinking to see all the thoughts i have in front of me visually instead of just stream of thought stream of consciousness
+I mean, because right now the value I get from Poistree is that I can now query against this all and have it all stored.
+in quite a structured format.
+But would it have also helped my thinking if I...
+Wasn't driving and could have just looked at the screen while doing this
+I think one aspect that wouldn't have helped is that I would.
+started like building out a feature or opening an agent.
+instead of just talking for a long amount of time.
+and potentially also gotten lost, because as we know...
+The voice tree gets big and currently there's um...
+Yeah, colors for new notes.
+Um, which, what do we need, like, one color for, like, the newest?
+Or just have them disappear after like 10 minutes.
+Yeah, I guess the thing with the investors is that my parents have
+kind of, um...
+set this up, this meeting with Farquhar. And I don't really know, like, should I be going to them now?
+Or when I have users, or just say, hey, I'd love to get some advice. We're launching right now to users and have the long bench thing going on.
+be fine as well
+Alright, but anyway, I'm at sprinting now, so I'm gonna have to end this session, but it's been really good. Thanks, VoiceTree.
+Oh, you're so welcome, Manu.
+Thank you.

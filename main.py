@@ -11,7 +11,7 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor im
     ChunkProcessor
 from backend.tree_manager.markdown_tree_ds import \
     MarkdownTree
-from backend.tree_manager.tree_to_markdown import \
+from backend.tree_manager.graph_flattening.tree_to_markdown import \
     TreeToMarkdownConverter
 from backend.tree_manager.markdown_to_tree import \
     load_markdown_tree

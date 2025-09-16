@@ -9,13 +9,14 @@ components problem by:
 """
 
 import logging
-from typing import List, Dict, Optional, Set, Tuple
+from typing import List, Dict, Tuple
 from dataclasses import dataclass, field
 
 from langgraph.graph import END
 
-from backend.tree_manager.markdown_tree_ds import MarkdownTree, Node
-from backend.tree_manager.tree_functions import format_nodes_for_prompt, map_titles_to_node_ids
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.markdown_tree_manager.utils import map_titles_to_node_ids
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import format_nodes_for_prompt
 from ..core.agent import Agent
 from ..core.state import ConnectOrphansAgentState
 from ..models import CreateAction, BaseTreeAction

@@ -7,9 +7,8 @@ Test 5: Handling Ambiguous Queries
 Verifies that TF-IDF can handle queries that touch on multiple topics
 and select the most relevant node based on key terms.
 """
-import pytest
-from backend.tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.tree_manager.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
+from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
 
 
 class TestTfidfAmbiguousQueries:

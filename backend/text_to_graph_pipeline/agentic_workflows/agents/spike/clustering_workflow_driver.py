@@ -6,8 +6,8 @@
 #
 # import math
 # from typing import Dict
-# from backend.tree_manager.markdown_tree_ds import Node
-# from backend.tree_manager.tree_functions import _format_nodes_for_prompt
+# from backend.markdown_tree_manager.markdown_tree_ds import Node
+# from backend.markdown_tree_manager.tree_functions import _format_nodes_for_prompt
 # from backend.text_to_graph_pipeline.agentic_workflows.agents.spike.clustering_agent import ClusteringAgent
 #
 #

@@ -17,8 +17,14 @@ if [ ! -d "$INPUT_DIR" ]; then
     exit 1
 fi
 
-# Find and concatenate all markdown files
-find "$INPUT_DIR" -type f -name "*.md" -exec cat {} \; > "$OUTPUT_FILE"
+# Find all markdown files, sort them numerically by node ID, then concatenate
+find "$INPUT_DIR" -type f -name "*.md" | \
+    sed 's/.*\/\([0-9]*\)_.*/\1 &/' | \
+    sort -n | \
+    cut -d' ' -f2- | \
+    while read file; do
+        cat "$file"
+    done > "$OUTPUT_FILE"
 
 # Display results
 FILE_COUNT=$(find "$INPUT_DIR" -type f -name "*.md" | wc -l)
