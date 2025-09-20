@@ -9,8 +9,8 @@ Usage:
 import argparse
 import os
 from pathlib import Path
-from typing import Dict, Optional
-
+from typing import Dict
+from typing import Optional
 
 PROMPT_TEMPLATE = """You are engineer {agent_name}, helping with a focused task within the VoiceTree system.
 

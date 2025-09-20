@@ -1,8 +1,11 @@
 """
 Edge case tests for TF-IDF implementation
 """
-from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class TestTfidfEdgeCases:

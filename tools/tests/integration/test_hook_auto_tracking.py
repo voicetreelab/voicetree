@@ -4,16 +4,18 @@ Integration test for the new hook auto-tracking functionality.
 Tests that agents don't get notified about files they create themselves.
 """
 
-import tempfile
 import sys
+import tempfile
 from pathlib import Path
+
 import pytest
 
 # Add tools to path for testing hook functions
 TOOLS_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(TOOLS_DIR / "hooks"))
 
-from tree_update_reminder import mark_file_as_seen_by_agent, get_new_nodes
+from tree_update_reminder import get_new_nodes
+from tree_update_reminder import mark_file_as_seen_by_agent
 
 
 class TestHookAutoTracking:

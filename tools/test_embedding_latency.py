@@ -1,10 +1,12 @@
-import time
 import os
+import time
+from statistics import mean
+from statistics import stdev
+
+import numpy as np
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-import numpy as np
-from statistics import mean, stdev
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()

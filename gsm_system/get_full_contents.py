@@ -5,9 +5,9 @@ Usage: python get_full_contents.py <dir> <node1> <node2> ...
 Where nodes can be either filenames (with or without .md) or node titles.
 """
 
+import json
 import os
 import sys
-import json
 from pathlib import Path
 
 

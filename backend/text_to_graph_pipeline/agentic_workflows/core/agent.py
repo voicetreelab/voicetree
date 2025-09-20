@@ -6,10 +6,19 @@ Clean agent abstraction that matches the mental model:
 """
 
 import logging
-from typing import Dict, Any, List, Type, Callable, Optional, Tuple, Union
-from pydantic import BaseModel
-from langgraph.graph import StateGraph, END
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import Union
+
+from langgraph.graph import END
+from langgraph.graph import StateGraph
 from langgraph.types import RetryPolicy
+from pydantic import BaseModel
 
 
 class Agent:
@@ -108,9 +117,10 @@ class Agent:
         Returns:
             Compiled LangGraph
         """
+        from pathlib import Path
+
         from .llm_integration import call_llm_structured
         from .prompt_engine import PromptLoader
-        from pathlib import Path
         
         # Create the graph
         graph = StateGraph(self.state_schema)

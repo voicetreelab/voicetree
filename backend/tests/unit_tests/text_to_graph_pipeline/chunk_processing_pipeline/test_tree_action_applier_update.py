@@ -3,10 +3,15 @@ Test UPDATE action support for TreeActionApplier
 Following TDD approach - write tests first, then implementation
 """
 
-import pytest
 from unittest.mock import Mock
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction
+
+import pytest
+
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
+    TreeActionApplier,
+)
 
 
 class TestTreeActionApplierUpdate:

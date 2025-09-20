@@ -4,11 +4,13 @@ API for common functions on top of tree ds
 e.g. get summareis
 """
 import logging
-from typing import List
 from copy import deepcopy
+from typing import List
+from typing import Tuple
+
 import nltk
-from nltk.corpus import stopwords
 import numpy as np
+from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -158,9 +160,73 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
     return result
 
 
+def search_similar_nodes_tfidf(decision_tree, query: str, top_k: int = 10, already_selected: set = None) -> List[Tuple[int, float]]:
+    """
+    Search for similar nodes using TF-IDF with scores.
+
+    Args:
+        decision_tree: DecisionTree instance
+        query: Search query string
+        top_k: Number of results to return
+        already_selected: Set of node IDs to exclude
+
+    Returns:
+        List of (node_id, tfidf_score) tuples ordered by relevance
+    """
+    if already_selected is None:
+        already_selected = set()
+
+    # Get unselected nodes
+    unselected_nodes = [(node_id, node) for node_id, node in decision_tree.tree.items()
+                        if node_id not in already_selected]
+
+    if not unselected_nodes:
+        return []
+
+    # Build corpus with weighted text (title 3x, summary 2x, content 1x)
+    corpus = []
+    node_ids = []
+    for node_id, node in unselected_nodes:
+        content_snippet = node.content[:500] if node.content else ""
+        weighted_text = f"{node.title} {node.title} {node.title} {node.summary} {node.summary} {content_snippet}"
+        corpus.append(weighted_text)
+        node_ids.append(node_id)
+
+    try:
+        # Get domain-aware stopwords
+        domain_stopwords = set(stopwords.words('english'))
+        mathematical_stopwords = {
+            'average', 'number', 'adult', 'children', 'newborn', 'per', 'total',
+            'equals', 'sum', 'calculation', 'count', 'population', 'quantity'
+        }
+        domain_stopwords.update(mathematical_stopwords)
+
+        vectorizer = TfidfVectorizer(
+            stop_words=list(domain_stopwords),
+            min_df=1,
+            ngram_range=(1, 2)
+        )
+        tfidf_matrix = vectorizer.fit_transform(corpus)
+        query_vector = vectorizer.transform([query])
+        similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+
+        # Create (node_id, score) pairs and sort by score
+        scored_results = [(node_ids[i], float(similarities[i])) for i in range(len(similarities))]
+        scored_results.sort(key=lambda x: x[1], reverse=True)
+
+        # Filter by threshold and return top_k
+        threshold = 0.01
+        filtered_results = [(node_id, score) for node_id, score in scored_results if score > threshold]
+        return filtered_results[:top_k]
+
+    except Exception as e:
+        logging.error(f"TF-IDF search failed: {e}")
+        return []
+
+
 def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_count: int, already_selected: set) -> List[int]:
     """
-    Find semantically related nodes using vector embeddings or TF-IDF fallback
+    Find semantically related nodes using combined TF-IDF and vector search
 
     Args:
         decision_tree: DecisionTree instance
@@ -169,114 +235,47 @@ def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_c
         already_selected: Set of node IDs already selected
 
     Returns:
-        List of node IDs ordered by relevance
+        List of node IDs ordered by combined relevance score
     """
-    # First try vector search if embeddings are available
-    if hasattr(decision_tree, 'search_similar_nodes'):
+    combined_scores = {}
+
+    # Get vector search results with scores
+    vector_results = []
+    if hasattr(decision_tree, 'search_similar_nodes_vector'):
         try:
-            # Use vector search for semantic similarity
-            vector_results = decision_tree.search_similar_nodes(query, top_k=remaining_slots_count * 2)
-
-            # Filter out already selected nodes and limit to remaining slots
-            # search_similar_nodes returns List[int] (node IDs), not node objects
-            filtered_results = []
-            for node_id in vector_results:
-                if node_id not in already_selected and len(filtered_results) < remaining_slots_count:
-                    filtered_results.append(node_id)
-
-            if filtered_results:
-                logging.info(f"Found {len(filtered_results)} semantically related nodes using vector search")
-                return filtered_results
-
+            vector_results = decision_tree.search_similar_nodes_vector(query, top_k=remaining_slots_count * 2)
+            logging.info(f"Vector search found {len(vector_results)} candidates")
         except Exception as e:
-            logging.error(f"VECTOR SEARCH FAILURE - This should not happen normally: {e}")
-            # Consider raising in development/test environments
+            logging.error(f"VECTOR SEARCH FAILURE: {e}")
 
-    # Fallback to TF-IDF if vector search unavailable or failed
-    #
-    # TF-IDF Limitations (why we need embeddings):
-    # 1. Natural language with common words in titles:
-    #    Query: "Our team needs better planning" -> picks "Team Building" over "Project Planning"
-    #    because "team" in title overwhelms semantic meaning
-    # 2. Synonyms and related concepts:
-    #    Query: "AI and deep neural networks" -> misses "Machine Learning Basics"
-    #    because TF-IDF doesn't know AI = Machine Learning
-    # 3. Context-dependent ambiguous terms:
-    #    Query: "make application run faster" -> weak matches
-    #    because can't understand "faster" + "performance" = optimization
+    # Get TF-IDF results with scores
+    tfidf_results = search_similar_nodes_tfidf(decision_tree, query, top_k=remaining_slots_count * 2, already_selected=already_selected)
+    logging.info(f"TF-IDF search found {len(tfidf_results)} candidates")
 
-    selected_nodes = []
+    # Combine scores with simple weighting
+    VECTOR_WEIGHT = 0.7
+    TFIDF_WEIGHT = 0.3
 
-    # Use TF-IDF for better relevance scoring
-    unselected_nodes = [(node_id, node) for node_id, node in decision_tree.tree.items()
-                        if node_id not in already_selected]
+    # Add vector scores
+    for node_id, score in vector_results:
+        if node_id not in already_selected:
+            combined_scores[node_id] = VECTOR_WEIGHT * score
 
-    if not unselected_nodes:
-        return selected_nodes
-    
-    # Build corpus with weighted text (title 3x, summary 2x, content 1x)
-    corpus = []
-    node_ids = []
-    for node_id, node in unselected_nodes:
-        # Weight title 3x, summary 2x, first 500 chars of content 1x
-        content_snippet = node.content[:500] if node.content else ""
-        weighted_text = f"{node.title} {node.title} {node.title} {node.summary} {node.summary} {content_snippet}"
-        corpus.append(weighted_text)
-        node_ids.append(node_id)
-
-    # Create TF-IDF matrix
-    try:
-        # Get domain-aware stopwords (NLTK + domain-specific)
-        domain_stopwords = set(stopwords.words('english'))
-
-        # Add domain-specific stopwords for mathematical word problems
-        mathematical_stopwords = {
-            'average', 'number', 'adult', 'children', 'newborn', 'per', 'total',
-            'equals', 'sum', 'calculation', 'count', 'population', 'quantity'
-        }
-        domain_stopwords.update(mathematical_stopwords)
-
-        vectorizer = TfidfVectorizer(
-            stop_words=list(domain_stopwords),  # Use domain-aware stopwords
-            min_df=1,
-            ngram_range=(1, 2)  # Include bigrams for better phrase matching
-        )
-        tfidf_matrix = vectorizer.fit_transform(corpus)
-
-        # Transform query and compute similarities
-        query_vector = vectorizer.transform([query])
-        similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
-
-        # Get nodes with similarity > threshold
-        threshold = 0.01  # Increased from 0.01 to reduce false positives
-        ranked_indices = np.argsort(similarities)[::-1]
-
-        for idx in ranked_indices:
-            if similarities[idx] > threshold:
-                selected_nodes.append(node_ids[idx])
-                if len(selected_nodes) >= remaining_slots_count:
-                    break
+    # Add TF-IDF scores
+    for node_id, score in tfidf_results:
+        if node_id not in already_selected:
+            if node_id in combined_scores:
+                combined_scores[node_id] += TFIDF_WEIGHT * score
             else:
-                # Since indices are sorted by similarity, we can break early
-                break
+                combined_scores[node_id] = TFIDF_WEIGHT * score
 
-    except Exception as e:
-        # Fallback to keyword search if TF-IDF fails
-        print(f"[WARNING] TF-IDF failed, falling back to keyword search: {e}")
-        query_tokens = _tokenize_query(query)
+    # Sort by combined score and return top results
+    sorted_results = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
+    result_node_ids = [node_id for node_id, score in sorted_results[:remaining_slots_count]]
 
-        # Score all unselected nodes
-        node_scores = []
-        for node_id, node in unselected_nodes:
-            score = _calculate_keyword_relevance(node, query_tokens)
-            if score > 0:  # Only include nodes with some relevance
-                node_scores.append((node_id, score))
+    if result_node_ids:
+        logging.info(f"Hybrid search returned {len(result_node_ids)} nodes (vector_weight={VECTOR_WEIGHT}, tfidf_weight={TFIDF_WEIGHT})")
 
-        # Sort by relevance and add top matches
-        node_scores.sort(key=lambda x: x[1], reverse=True)
-        for node_id, score in node_scores[:remaining_slots_count]:
-            selected_nodes.append(node_id)
-    
-    return selected_nodes
+    return result_node_ids
 
 

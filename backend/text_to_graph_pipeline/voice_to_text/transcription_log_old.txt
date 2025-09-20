@@ -4666,3 +4666,82 @@ Um...
 Um, yeah.
 What is it?
 Well, uh...
+Yeah, one cool thing would be to do, let's make tree update remind.
+Yeah, one cool thing would be to do, let's make tree update remind.
+Um,
+Um...
+Hmm...
+Hmm...
+Okay, so it looks like what we're currently working on or what the agents have realized that they need to do is...
+make get similar numbers.
+Okay, so it looks like what we're currently working on or what the agents have realized that they need to do is make get similar nodes
+Let's do a vector search.
+Do a vector search.
+um which is just reasonable
+which is just reasonable.
+We can just go over the trend.
+So we can just go over the train.
+That would be in backend, Markdown Tree Manager.
+That would be in backend, Markdown Tree Manager.
+embeddings and graph search.
+beddings and rough search the vector search and then
+vector search and then
+Um, this should be like a just...
+Um, this should be like a just...
+in Paris and in
+in Paris and in
+So it thinks it's made a...
+So it thinks it's made a...
+Thank you.
+Okay, I'm just looking through the...
+And I'm just looking through the.
+Git commit.
+Git commit.
+Um,
+Um...
+and we are doing something called like filtering results.
+and we are doing something called like filtering results.
+But I feel like we should just filter out at the end.
+but I feel like we should just filter out at the end. So we should just add all the nodes.
+Um...
+So we should just add all the nodes.
+Um...
+And then...
+And then.
+Yeah, okay, now I get it.
+Oh, yeah, okay, now I go.
+So we want to be doing a test.
+So, we want to test it now.
+Um.
+um
+Do search
+your search
+Let's make sure it's settings.py.
+Let's make sure it's settings.py.
+as max nodes for LLM context 15 sounds about right.
+max nodes for lm context 15 sounds about right and let's make sure
+And let's make sure.
+that
+that
+So I'm just seeing that we have some...
+So I'm just seeing that we have some fallbacks for whether ChromaDB is available or not. We want to remove that fallback.
+We have fallbacks for whether ChromaDB is available or not. We want to remove that fallback.
+So that's in vector search.
+So that's in vector search. I.
+Bye.
+Let me just make sure.
+Let me just make sure.
+Great, let's see.
+Let's see.
+Um...
+Um...
+Okay, now, so yeah, with df, idf, what we want.
+Okay, now, so, yeah, with tf.idf, what we want.
+is we want to actually do a combination of tfs idfs and semantically related nodes
+is we want to actually do it
+of TF, IDF, and semantically related nodes.
+Oh, I don't know exactly what that's going to look like.
+Oh, I don't know exactly what that's going to look like.
+I don't know.
+I don't know.
+oh

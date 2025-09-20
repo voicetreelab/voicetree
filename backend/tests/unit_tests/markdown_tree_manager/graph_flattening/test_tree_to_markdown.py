@@ -1,12 +1,14 @@
-import unittest
 import os
+import unittest
 from datetime import datetime
 
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    TreeToMarkdownConverter,
+)
 from backend.markdown_tree_manager.markdown_tree_ds import Node
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import TreeToMarkdownConverter
-from backend.markdown_tree_manager.utils import generate_filename_from_keywords, slugify
+from backend.markdown_tree_manager.utils import generate_filename_from_keywords
 from backend.markdown_tree_manager.utils import insert_yaml_frontmatter
-
+from backend.markdown_tree_manager.utils import slugify
 
 # import nltk
 # import ssl

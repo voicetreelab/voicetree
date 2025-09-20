@@ -1,7 +1,11 @@
 """Content filtering module for coarse-to-fine context pruning."""
 
 from enum import Enum
-from typing import List, Dict, Any, Optional, Callable
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
 
 
 class ContentLevel(Enum):

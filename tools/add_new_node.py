@@ -4,10 +4,10 @@ Script to add a new node to the VoiceTree structure by creating a new markdown f
 and linking it to its parent file.
 """
 
+import argparse
 import os
 import re
 import sys
-import argparse
 from pathlib import Path
 
 

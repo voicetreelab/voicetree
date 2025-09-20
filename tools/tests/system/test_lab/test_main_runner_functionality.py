@@ -4,12 +4,13 @@ Focused TDD test for main test runner functionality
 Tests the core components of the end-to-end test lab system.
 """
 
-import os
 import json
+import os
 import shutil
-import tempfile
 import subprocess
+import tempfile
 from pathlib import Path
+
 
 def test_test_lab_components():
     """Test the main components of the test lab system"""

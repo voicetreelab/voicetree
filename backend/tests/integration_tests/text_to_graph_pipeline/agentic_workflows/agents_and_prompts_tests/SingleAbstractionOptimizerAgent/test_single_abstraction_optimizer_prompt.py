@@ -4,8 +4,13 @@ Tests the optimization decisions for node abstraction levels
 """
 
 import pytest
-from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm_structured
-from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptLoader
+
+from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+    call_llm_structured,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import (
+    PromptLoader,
+)
 from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse
 
 

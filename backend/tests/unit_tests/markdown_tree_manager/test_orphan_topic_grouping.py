@@ -5,16 +5,21 @@ Tests verify that orphan nodes (nodes with no parent) are grouped and merged
 before processing to handle long contexts better.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, AppendAgentResult, CreateAction, SegmentModel)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAgentResult
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import SegmentModel
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
-    TreeActionDeciderWorkflow)
-from backend.markdown_tree_manager.markdown_tree_ds import (
-    MarkdownTree, Node)
+    TreeActionDeciderWorkflow,
+)
 
 
 class TestOrphanTopicGrouping:

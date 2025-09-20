@@ -4,21 +4,27 @@ Graph traversal script - thin wrapper around the refactored modules.
 Provides command-line interface for dependency traversal and TF-IDF search.
 """
 
-import sys
 import argparse
+import re
+import sys
 from pathlib import Path
-from typing import Set, List, Dict
+from typing import Dict
+from typing import List
+from typing import Set
+
 import nltk
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import re
 
 # Import from our refactored modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from backend.markdown_tree_manager.markdown_to_tree.file_operations import read_markdown_file
-from backend.context_retrieval.dependency_traversal import traverse_to_node, TraversalOptions
 from backend.context_retrieval.content_filtering import ContentLevel
+from backend.context_retrieval.dependency_traversal import TraversalOptions
+from backend.context_retrieval.dependency_traversal import traverse_to_node
+from backend.markdown_tree_manager.markdown_to_tree.file_operations import (
+    read_markdown_file,
+)
 
 # --- Setup and Text Preprocessing ---
 

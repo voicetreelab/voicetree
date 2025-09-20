@@ -3,12 +3,18 @@ Behavioral integration test for ConnectOrphansAgent using qa_example data
 Tests the agent's ability to group related GPT-SoVITS components and leave unrelated ones alone
 """
 
-import pytest
 from pathlib import Path
 
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import ConnectOrphansAgent
+import pytest
+
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
+    load_markdown_tree,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
+from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
+    ConnectOrphansAgent,
+)
 from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
 
 

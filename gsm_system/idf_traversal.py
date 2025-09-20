@@ -4,17 +4,20 @@ Graph traversal script to accumulate content from markdown files following paren
 and find the most relevant unvisited nodes using TF-IDF.
 """
 
+import argparse
 import os
 import re
 import sys
-import argparse
 from pathlib import Path
-from typing import Set, List, Dict, Tuple
+from typing import Dict
+from typing import List
+from typing import Set
+from typing import Tuple
+
 import nltk
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
 
 # --- Setup and Text Preprocessing ---
 

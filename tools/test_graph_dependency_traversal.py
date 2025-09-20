@@ -4,11 +4,11 @@ Test suite for graph_dependency_traversal_and_accumulate_graph_content.py
 Tests behavioral aspects including child traversal, parent traversal, and TF-IDF functionality.
 """
 
-import unittest
-import subprocess
-import tempfile
 import json
 import os
+import subprocess
+import tempfile
+import unittest
 from pathlib import Path
 
 

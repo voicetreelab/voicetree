@@ -2,11 +2,14 @@
 Unit tests for unified action model in TreeActionApplier
 """
 
-import pytest
 from unittest.mock import Mock
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    UpdateAction, CreateAction
+
+import pytest
+
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
+    TreeActionApplier,
 )
 
 
@@ -104,7 +107,9 @@ class TestUnifiedActionModel:
     
     def test_base_action_inheritance(self):
         """Test that all action types inherit from BaseTreeAction"""
-        from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+        from backend.text_to_graph_pipeline.agentic_workflows.models import (
+            BaseTreeAction,
+        )
         
         # All action types should inherit from BaseTreeAction
         assert issubclass(UpdateAction, BaseTreeAction)

@@ -2,9 +2,13 @@
 Pydantic models for VoiceTree agentic workflow structured output
 """
 
-from typing import List, Literal, Optional, Union
+from typing import List
+from typing import Literal
+from typing import Optional
+from typing import Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 
 class BaseTreeAction(BaseModel):

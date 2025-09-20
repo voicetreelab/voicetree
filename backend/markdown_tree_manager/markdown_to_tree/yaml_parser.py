@@ -5,8 +5,11 @@ This module handles extraction and parsing of YAML frontmatter from markdown fil
 """
 
 import re
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+
 import yaml
-from typing import Dict, Optional, Tuple
 
 
 def extract_frontmatter(content: str) -> Tuple[Optional[Dict], str]:

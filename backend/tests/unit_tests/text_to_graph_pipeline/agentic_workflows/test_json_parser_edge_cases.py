@@ -1,4 +1,6 @@
-from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown
+from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import (
+    parse_json_markdown,
+)
 
 
 class TestJsonParserEdgeCases:

@@ -4,6 +4,7 @@ Test embedding batching behavior in MarkdownTree.
 
 import unittest
 from unittest.mock import Mock
+
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 

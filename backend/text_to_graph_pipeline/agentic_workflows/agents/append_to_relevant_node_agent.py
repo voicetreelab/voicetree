@@ -8,13 +8,20 @@ This agent:
 """
 
 import logging
-from typing import Any, Dict, List, Union
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Union
 
 from langgraph.graph import END
 
 from ..core.agent import Agent
 from ..core.state import AppendToRelevantNodeAgentState
-from ..models import (AppendAction, AppendAgentResult, CreateAction, SegmentationResponse, TargetNodeResponse)
+from ..models import AppendAction
+from ..models import AppendAgentResult
+from ..models import CreateAction
+from ..models import SegmentationResponse
+from ..models import TargetNodeResponse
 
 
 class AppendToRelevantNodeAgent(Agent):

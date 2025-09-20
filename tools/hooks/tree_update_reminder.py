@@ -3,12 +3,13 @@
 Simple hook to track and report new tree nodes to agents.
 """
 
-import json
-import sys
-import os
 import csv
-from pathlib import Path
+import json
+import os
+import sys
 from datetime import datetime
+from pathlib import Path
+
 
 def get_agent_state_file(agent_name):
     """Get the CSV state file path for this agent."""

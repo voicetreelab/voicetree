@@ -9,9 +9,12 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.markdown_tree_manager.embeddings.chromadb_vector_store import ChromaDBVectorStore
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+
+from backend.markdown_tree_manager.embeddings.chromadb_vector_store import (
+    ChromaDBVectorStore,
+)
 
 logging.basicConfig(level=logging.INFO)
 

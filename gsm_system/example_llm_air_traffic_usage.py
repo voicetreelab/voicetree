@@ -4,7 +4,10 @@ Example usage of the LLM Air Traffic Control system
 """
 
 from pathlib import Path
-from llm_air_traffic_control import SeenNodesTracker, process_question
+
+from llm_air_traffic_control import SeenNodesTracker
+from llm_air_traffic_control import process_question
+
 
 def example_usage():
     """Example of how to use the air traffic control system."""

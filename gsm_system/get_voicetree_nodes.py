@@ -4,9 +4,9 @@ Simple tool to retrieve VoiceTree nodes for question answering.
 Returns node titles and summaries from a VoiceTree output directory.
 """
 
+import json
 import os
 import sys
-import json
 from pathlib import Path
 
 

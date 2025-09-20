@@ -3,10 +3,14 @@ Test integration between vector search and context retrieval pipeline.
 Verifies that tree.search_similar_nodes() properly integrates with get_most_relevant_nodes().
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
+
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
 
 
 class TestVectorSearchIntegration:

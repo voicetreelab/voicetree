@@ -1,6 +1,8 @@
 import logging
-from queue import Queue, Empty
-from typing import Optional, Callable
+from queue import Empty
+from queue import Queue
+from typing import Callable
+from typing import Optional
 
 import numpy as np
 import speech_recognition as sr

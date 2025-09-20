@@ -7,8 +7,11 @@ Test 2: Distinguishing Similar Topics
 Verifies that TF-IDF can differentiate between similar Python-related topics
 based on specific domain terminology.
 """
-from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class TestTfidfSimilarTopics:

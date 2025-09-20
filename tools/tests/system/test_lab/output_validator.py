@@ -4,10 +4,13 @@ Output Validator for Agent Test Results
 Validates agent output against expected behaviors and format requirements.
 """
 
-import re
 import json
+import re
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 
 class AgentOutputValidator:

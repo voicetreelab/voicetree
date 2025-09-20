@@ -3,23 +3,22 @@ Vector search functionality for context retrieval.
 Uses Gemini embeddings to find semantically similar nodes.
 """
 
-import os
-import numpy as np
-from pathlib import Path
-from typing import List, Dict, Tuple, Optional
 import logging
+import os
+from pathlib import Path
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+
 import google.generativeai as genai
+import numpy as np
 from dotenv import load_dotenv
 
-# Import ChromaDB store if available
-try:
-    from backend.markdown_tree_manager.embeddings.chromadb_vector_store import ChromaDBVectorStore
-    CHROMADB_AVAILABLE = True
-    ChromaDBVectorStoreType = ChromaDBVectorStore
-except ImportError:
-    CHROMADB_AVAILABLE = False
-    ChromaDBVectorStoreType = None  # type: ignore
-    logging.info("ChromaDB not available, falling back to in-memory search")
+# Import ChromaDB store - required dependency
+from backend.markdown_tree_manager.embeddings.chromadb_vector_store import (
+    ChromaDBVectorStore,
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -29,7 +28,6 @@ USE_EMBEDDINGS = os.getenv("VOICETREE_USE_EMBEDDINGS", "true").lower() == "true"
 # In test mode, don't use ChromaDB for hybrid search
 IS_TEST_MODE = os.getenv("VOICETREE_TEST_MODE", "").lower() == "true"
 USE_CHROMADB = (os.getenv("VOICETREE_USE_CHROMADB", "true").lower() == "true"
-                and CHROMADB_AVAILABLE
                 and not IS_TEST_MODE)
 
 # Configure Gemini API
@@ -197,30 +195,13 @@ def find_relevant_nodes_for_context(
         logging.info("Vector search disabled or empty tree")
         return []
 
-    # Always use ChromaDB for vector search (eliminates duplication)
-    if CHROMADB_AVAILABLE:
-        logging.info("Using ChromaDB for vector search")
-        store = ChromaDBVectorStore(persist_directory=persist_directory)
-        store.add_nodes(tree)
-        results = store.search(query, top_k=top_k, include_scores=False)
-        # include_scores=False should return List[int]
-        return results if isinstance(results, list) and all(isinstance(x, int) for x in results) else []
-
-    # ChromaDB not available - generate embeddings in memory only
-    logging.warning("ChromaDB not available, using in-memory search")
-    embeddings = get_node_embeddings(tree)
-
-    if not embeddings:
-        logging.warning("No embeddings available")
-        return []
-
-    # Find similar nodes using in-memory search
-    results = find_similar_by_embedding(query, embeddings, top_k=top_k)
-
-    # Extract just the node IDs
-    node_ids = [node_id for node_id, _ in results]
-
-    return node_ids
+    # Use ChromaDB for vector search - required dependency
+    logging.info("Using ChromaDB for vector search")
+    store = ChromaDBVectorStore(persist_directory=persist_directory)
+    store.add_nodes(tree)
+    results = store.search(query, top_k=top_k, include_scores=False)
+    # include_scores=False should return List[int]
+    return results if isinstance(results, list) and all(isinstance(x, int) for x in results) else []
 
 
 def hybrid_search(
@@ -247,8 +228,8 @@ def hybrid_search(
     if use_chromadb is None:
         use_chromadb = USE_CHROMADB
 
-    if use_chromadb and CHROMADB_AVAILABLE and hasattr(ChromaDBVectorStore, 'hybrid_search'):
-        store = ChromaDBVectorStoreType()
+    if use_chromadb and hasattr(ChromaDBVectorStore, 'hybrid_search'):
+        store = ChromaDBVectorStore()
         return store.hybrid_search(query, tfidf_results, top_k=len(tfidf_results), alpha=alpha)
 
     # Fallback to manual combination

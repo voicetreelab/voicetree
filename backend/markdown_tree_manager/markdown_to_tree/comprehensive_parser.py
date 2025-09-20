@@ -6,14 +6,19 @@ YAML frontmatter, tags, content, and relationships.
 """
 
 import re
-from pathlib import Path
-from typing import Dict, Tuple, Optional, Any, Union
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 from .file_operations import read_markdown_file
-from .yaml_parser import extract_frontmatter, extract_tags
-from .metadata_extraction import extract_node_id
 from .link_extraction import extract_markdown_links
+from .metadata_extraction import extract_node_id
+from .yaml_parser import extract_frontmatter
+from .yaml_parser import extract_tags
 
 
 def parse_markdown_file_complete(filepath: Path) -> Optional[Dict[str, Any]]:

@@ -4,7 +4,8 @@ These are no longer used by the new Agent-based implementation
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 

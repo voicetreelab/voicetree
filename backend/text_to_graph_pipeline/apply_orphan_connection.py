@@ -5,20 +5,24 @@ This script loads a tree from markdown files and runs the orphan connection agen
 """
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
-import logging
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
-    ConnectOrphansAgent
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    TreeToMarkdownConverter,
 )
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import TreeToMarkdownConverter
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
+    load_markdown_tree,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
+    ConnectOrphansAgent,
+)
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
-    TreeActionApplier
+    TreeActionApplier,
 )
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')

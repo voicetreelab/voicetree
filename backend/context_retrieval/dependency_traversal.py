@@ -6,14 +6,21 @@ Dependency traversal module for context retrieval.
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set, Union, Any
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Set
+from typing import Union
+
+# Import ContentLevel and apply_content_filter from content_filtering module
+from backend.context_retrieval.content_filtering import ContentLevel
+from backend.context_retrieval.content_filtering import apply_content_filter
+from backend.markdown_tree_manager.markdown_to_tree.link_extraction import (
+    extract_markdown_links,
+)
 
 # Import load_node from markdown_to_tree module
 from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node
-from backend.markdown_tree_manager.markdown_to_tree.link_extraction import extract_markdown_links
-
-# Import ContentLevel and apply_content_filter from content_filtering module
-from backend.context_retrieval.content_filtering import ContentLevel, apply_content_filter
 
 
 @dataclass

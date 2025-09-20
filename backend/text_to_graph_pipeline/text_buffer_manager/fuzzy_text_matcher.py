@@ -6,8 +6,11 @@ variations that occur when LLMs process text (e.g., punctuation changes,
 whitespace differences, minor word modifications).
 """
 
-from typing import Tuple, Optional, List
 import logging
+from typing import List
+from typing import Optional
+from typing import Tuple
+
 from rapidfuzz import fuzz
 from rapidfuzz.fuzz import partial_ratio_alignment
 

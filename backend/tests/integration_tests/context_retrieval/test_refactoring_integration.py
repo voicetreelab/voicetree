@@ -3,12 +3,17 @@ Integration tests for the refactored dependency traversal system.
 Tests the integration between markdown_to_tree, context_retrieval, and content_filtering modules.
 """
 
-import pytest
 import tempfile
 from pathlib import Path
+
+import pytest
+
+from backend.context_retrieval.content_filtering import ContentLevel
+from backend.context_retrieval.content_filtering import apply_content_filter
+from backend.context_retrieval.content_filtering import get_neighborhood
+from backend.context_retrieval.dependency_traversal import TraversalOptions
+from backend.context_retrieval.dependency_traversal import traverse_to_node
 from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node
-from backend.context_retrieval.dependency_traversal import traverse_to_node, TraversalOptions
-from backend.context_retrieval.content_filtering import apply_content_filter, ContentLevel, get_neighborhood
 
 
 class TestRefactoringIntegration:

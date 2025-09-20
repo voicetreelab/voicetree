@@ -4,17 +4,18 @@ End-to-End Test Lab for Agent Orchestration System
 Tests the complete agent lifecycle from task initiation to output validation.
 """
 
-import os
-import sys
 import json
+import os
 import shutil
-import tempfile
 import subprocess
-from pathlib import Path
-from datetime import datetime
-import uuid
-import time
+import sys
+import tempfile
 import threading
+import time
+import uuid
+from datetime import datetime
+from pathlib import Path
+
 
 class EndToEndTestLab:
     def __init__(self, voicetree_root=None):

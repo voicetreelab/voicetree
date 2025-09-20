@@ -7,8 +7,9 @@ class TestAgenticWorkflowComponents(unittest.TestCase):
     def setUp(self):
         """Import the function once for all tests"""
         try:
-            from backend.text_to_graph_pipeline.agentic_workflows.nodes import \
-                extract_json_from_response
+            from backend.text_to_graph_pipeline.agentic_workflows.nodes import (
+                extract_json_from_response,
+            )
             self.extract_json = extract_json_from_response
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
@@ -95,8 +96,9 @@ class TestWorkflowErrorHandling(unittest.TestCase):
     def test_malformed_json_handling(self):
         """Test handling of various malformed JSON inputs"""
         try:
-            from backend.text_to_graph_pipeline.agentic_workflows.nodes import \
-                extract_json_from_response
+            from backend.text_to_graph_pipeline.agentic_workflows.nodes import (
+                extract_json_from_response,
+            )
         except ImportError:
             self.skipTest("extract_json_from_response function not available")
         

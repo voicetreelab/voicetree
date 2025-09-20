@@ -8,21 +8,26 @@ import logging
 from pathlib import Path
 
 import pytest
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
-    TreeActionDeciderWorkflow
+
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    TreeToMarkdownConverter,
 )
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
+    load_markdown_tree,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
+    ConnectOrphansAgent,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
-    TreeActionApplier
+    TreeActionApplier,
+)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow,
 )
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
-    ConnectOrphansAgent
-)
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import TreeToMarkdownConverter
-
 
 logging.basicConfig(level=logging.INFO)
 

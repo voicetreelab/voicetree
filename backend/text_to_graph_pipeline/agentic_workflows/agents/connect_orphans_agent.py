@@ -9,18 +9,27 @@ components problem by:
 """
 
 import logging
-from typing import List, Dict, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 from langgraph.graph import END
+from pydantic import BaseModel
+from pydantic import Field
 
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    format_nodes_for_prompt,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 from backend.markdown_tree_manager.utils import map_titles_to_node_ids
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import format_nodes_for_prompt
+
 from ..core.agent import Agent
 from ..core.state import ConnectOrphansAgentState
-from ..models import CreateAction, BaseTreeAction
-from pydantic import BaseModel, Field
+from ..models import BaseTreeAction
+from ..models import CreateAction
 
 
 @dataclass

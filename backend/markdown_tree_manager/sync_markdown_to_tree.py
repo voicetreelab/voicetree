@@ -6,8 +6,8 @@ the corresponding nodes in the DecisionTree before UPDATE operations
 are performed, ensuring manual edits are preserved.
 """
 
-import os
 import logging
+import os
 from typing import Set
 
 from .markdown_to_tree.markdown_to_tree import MarkdownToTreeConverter

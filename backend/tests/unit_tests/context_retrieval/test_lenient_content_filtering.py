@@ -6,15 +6,15 @@ Test for lenient content filtering with new thresholds:
 - Distance > 12: titles only
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
-from backend.context_retrieval.dependency_traversal import (
-    traverse_to_node,
-    TraversalOptions,
-    ContentLevel
-)
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from backend.context_retrieval.dependency_traversal import ContentLevel
+from backend.context_retrieval.dependency_traversal import TraversalOptions
+from backend.context_retrieval.dependency_traversal import traverse_to_node
 
 
 class TestLenientContentFiltering:

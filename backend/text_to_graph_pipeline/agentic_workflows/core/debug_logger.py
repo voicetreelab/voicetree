@@ -6,7 +6,8 @@ Logs input/output variables to individual files for each stage
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+from typing import Dict
 
 # Create debug logs directory at the agentic_workflows level for better visibility
 DEBUG_DIR = Path(__file__).parent.parent / "debug_logs"

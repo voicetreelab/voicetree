@@ -16,8 +16,9 @@ PRIVATE:
 """
 
 
-from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import \
-    TextBufferManager
+from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import (
+    TextBufferManager,
+)
 
 
 class TestTextBufferManager:

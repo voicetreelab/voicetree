@@ -11,9 +11,13 @@ These tests verify the agent correctly:
 
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction
 from backend.markdown_tree_manager.markdown_tree_ds import Node
+from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import (
+    SingleAbstractionOptimizerAgent,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
 
 
 class TestSingleAbstractionOptimizerAgent:

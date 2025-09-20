@@ -4,9 +4,10 @@ Analyze tag patterns to identify duplicates and similar tags that could be conso
 """
 import os
 import re
-from collections import Counter, defaultdict
-from pathlib import Path
 import sys
+from collections import Counter
+from collections import defaultdict
+from pathlib import Path
 
 
 def extract_tags_from_file(file_path):

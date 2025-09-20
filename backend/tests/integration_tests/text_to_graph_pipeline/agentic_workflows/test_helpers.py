@@ -2,10 +2,14 @@
 Test helpers for integration tests
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
-    TreeActionDeciderWorkflow
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow,
+)
 
 
 class PipelineHelper:

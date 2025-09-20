@@ -3,16 +3,19 @@
 Test case for node selection algorithm to reproduce the issue where Node 51 was not selected.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add the current directory to the Python path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
 from backend.markdown_tree_manager.markdown_to_tree import load_markdown_tree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+
 
 def main():
     # Load the markdown tree
@@ -91,7 +94,12 @@ def main():
     print("\n\n=== DEPENDENCY-AWARE SEARCH ANALYSIS ===")
     
     # Extract needed parameters from the query
-    from backend.markdown_tree_manager.graph_search.tree_functions import _extract_needed_parameters, _extract_defined_parameter
+    from backend.markdown_tree_manager.graph_search.tree_functions import (
+        _extract_defined_parameter,
+    )
+    from backend.markdown_tree_manager.graph_search.tree_functions import (
+        _extract_needed_parameters,
+    )
     
     needed_params = _extract_needed_parameters(query)
     print(f"\nQuery needs these parameters: {needed_params}")
