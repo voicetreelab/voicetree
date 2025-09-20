@@ -7,12 +7,12 @@ YAML frontmatter, tags, content, and relationships.
 
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple, Optional
 from datetime import datetime
 
 from .file_operations import read_markdown_file
 from .yaml_parser import extract_frontmatter, extract_tags
-from .metadata_extraction import extract_node_id, extract_title, extract_summary
+from .metadata_extraction import extract_node_id
 from .link_extraction import extract_markdown_links
 
 

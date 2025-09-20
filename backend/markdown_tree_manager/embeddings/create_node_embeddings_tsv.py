@@ -7,7 +7,7 @@ import os
 import sys
 import numpy as np
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 import logging
 import google.generativeai as genai
 
@@ -15,7 +15,6 @@ import google.generativeai as genai
 sys.path.append(str(Path(__file__).parent))
 
 from markdown_to_tree.node_loader import load_node
-from context_retrieval.vector_search import _configure_gemini
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -195,7 +194,7 @@ def main():
     print("\nTo visualize in TensorFlow Projector:")
     print("1. Go to https://projector.tensorflow.org/")
     print("2. Click 'Load' in the left sidebar")
-    print(f"3. Upload vectors.tsv for 'Data' and metadata.tsv for 'Metadata'")
+    print("3. Upload vectors.tsv for 'Data' and metadata.tsv for 'Metadata'")
     print("   (or use labels.tsv for simpler labels)")
 
 if __name__ == "__main__":

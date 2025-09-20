@@ -1,5 +1,4 @@
 import logging
-import time
 from queue import Queue, Empty
 
 import numpy as np

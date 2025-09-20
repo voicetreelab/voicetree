@@ -8,11 +8,10 @@ are performed, ensuring manual edits are preserved.
 
 import os
 import logging
-from typing import Set, Optional
-from pathlib import Path
+from typing import Set
 
 from .markdown_to_tree.markdown_to_tree import MarkdownToTreeConverter
-from .markdown_tree_ds import MarkdownTree, Node
+from .markdown_tree_ds import MarkdownTree
 
 
 class MarkdownToTreeSynchronizer:

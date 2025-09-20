@@ -5,7 +5,7 @@ Provides a clean interface for text buffering and chunk processing
 
 import logging
 import re
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
 from .fuzzy_text_matcher import FuzzyTextMatcher

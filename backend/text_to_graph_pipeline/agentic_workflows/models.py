@@ -139,7 +139,6 @@ class TargetNodeResponse(BaseModel):
     debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
 
-from typing import Union
 
 
 class AppendAgentResult(BaseModel):
