@@ -13,7 +13,7 @@ def extract_title_from_md(node_content):
     return title
 
 class Node:
-    def __init__(self, name : str, node_id: int, content: str, summary: str = "", parent_id: int = None):
+    def __init__(self, name : str, node_id: int, content: str, summary: str = "", parent_id: Optional[int] = None):
         self.transcript_history = ""
         self.id: int = node_id
         self.content: str = content
