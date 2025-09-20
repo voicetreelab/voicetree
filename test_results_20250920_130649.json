@@ -1,0 +1,172 @@
+{
+  "test_run_timestamp": "2025-09-20T13:06:49.753774",
+  "total_tests": 6,
+  "passed_tests": 6,
+  "test_results": [
+    {
+      "id": "a17af937",
+      "source_note": "../../../../test_vault_20250920_130649/2025-08-08/1_Simple_Progress_Node_Creation.md",
+      "prompt": "",
+      "expected_behaviors": [
+        "create_progress_node",
+        "use_mermaid_diagram",
+        "proper_yaml_frontmatter",
+        "parent_child_linking"
+      ],
+      "hook_injection": null,
+      "start_time": "2025-09-20 13:06:49.563306",
+      "status": "completed",
+      "end_time": "2025-09-20 13:06:49.681447",
+      "exit_code": 127,
+      "stdout": "",
+      "stderr": "bash: claude.sh: No such file or directory\n",
+      "execution_time": 0.118161,
+      "validations": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "agent_identity": false,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "content_format": true
+      }
+    },
+    {
+      "id": "885bed50",
+      "source_note": "../../../../test_vault_20250920_130649/2025-08-08/1_Agent_Subtask_Creation.md",
+      "prompt": "",
+      "expected_behaviors": [
+        "create_multiple_subtasks",
+        "orchestration_behavior",
+        "structured_content",
+        "multiple_nodes"
+      ],
+      "hook_injection": null,
+      "start_time": "2025-09-20 13:06:49.682645",
+      "status": "completed",
+      "end_time": "2025-09-20 13:06:49.697981",
+      "exit_code": 127,
+      "stdout": "",
+      "stderr": "bash: claude.sh: No such file or directory\n",
+      "execution_time": 0.015357,
+      "validations": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "agent_identity": false,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "content_format": false
+      }
+    },
+    {
+      "id": "fc21b737",
+      "source_note": "../../../../test_vault_20250920_130649/2025-08-08/1_Error_Handling_Test.md",
+      "prompt": "",
+      "expected_behaviors": [
+        "error_handling",
+        "filename_sanitization",
+        "graceful_degradation"
+      ],
+      "hook_injection": null,
+      "start_time": "2025-09-20 13:06:49.698759",
+      "status": "completed",
+      "end_time": "2025-09-20 13:06:49.710758",
+      "exit_code": 127,
+      "stdout": "",
+      "stderr": "bash: claude.sh: No such file or directory\n",
+      "execution_time": 0.012019,
+      "validations": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "agent_identity": false,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "content_format": false
+      }
+    },
+    {
+      "id": "9d23e076",
+      "source_note": "../../../../test_vault_20250920_130649/2025-08-08/1_Cross-Agent_Communication_Test.md",
+      "prompt": "",
+      "expected_behaviors": [
+        "cross_agent_references",
+        "proper_attribution",
+        "collaborative_content"
+      ],
+      "hook_injection": null,
+      "start_time": "2025-09-20 13:06:49.711573",
+      "status": "completed",
+      "end_time": "2025-09-20 13:06:49.725847",
+      "exit_code": 127,
+      "stdout": "",
+      "stderr": "bash: claude.sh: No such file or directory\n",
+      "execution_time": 0.014293,
+      "validations": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "agent_identity": false,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "content_format": false
+      }
+    },
+    {
+      "id": "631adba8",
+      "source_note": "../../../../test_vault_20250920_130649/2025-08-08/1_Complex_Technical_Documentation.md",
+      "prompt": "",
+      "expected_behaviors": [
+        "multiple_diagram_types",
+        "comprehensive_documentation",
+        "technical_depth"
+      ],
+      "hook_injection": null,
+      "start_time": "2025-09-20 13:06:49.726600",
+      "status": "completed",
+      "end_time": "2025-09-20 13:06:49.738654",
+      "exit_code": 127,
+      "stdout": "",
+      "stderr": "bash: claude.sh: No such file or directory\n",
+      "execution_time": 0.012073,
+      "validations": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "agent_identity": false,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "content_format": false
+      }
+    },
+    {
+      "id": "6bdbf38a",
+      "source_note": "../../../../test_vault_20250920_130649/2025-08-08/1_Hook-Based_Instruction_Injection_Test.md",
+      "prompt": "",
+      "expected_behaviors": [
+        "create_multiple_nodes",
+        "follow_hook_instructions",
+        "include_required_phrase",
+        "maintain_task_quality"
+      ],
+      "hook_injection": {
+        "enabled": true,
+        "delay_seconds": 3,
+        "injection_content": "USER UPDATE: I just realized we should use Gemini 2.0 Flash instead of Gemini 1.5 Pro for better performance. Please update your documentation to reflect using Gemini 2.0 Flash with its improved context window and faster response times. Make sure to mention the model change reason: 'switched to Gemini 2.0 Flash for improved latency'.",
+        "injection_node_name": "User_Requirement_Update"
+      },
+      "start_time": "2025-09-20 13:06:49.739443",
+      "status": "completed",
+      "end_time": "2025-09-20 13:06:49.753156",
+      "exit_code": 127,
+      "stdout": "",
+      "stderr": "bash: claude.sh: No such file or directory\n",
+      "execution_time": 0.013732,
+      "validations": {
+        "new_nodes_created": true,
+        "proper_node_ids": true,
+        "agent_identity": false,
+        "parent_child_links": true,
+        "yaml_frontmatter": true,
+        "content_format": false,
+        "contains_required_phrase": false
+      }
+    }
+  ]
+}
