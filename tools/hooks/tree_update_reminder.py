@@ -128,6 +128,8 @@ def main():
             save_seen_files(get_agent_state_file(agent_name), new_nodes)
         
         print("\n".join(messages))
+        # Also output to stderr for user visibility
+        print("\n".join(messages), file=sys.stderr)
         sys.exit(0)
 
     elif hook_event == "Stop":
@@ -138,7 +140,8 @@ def main():
                 "decision": "block",
                 "reason": f"📌 NEW FILES DETECTED - Review these before stopping:\n" +
                          "\n".join([f"  • {node}" for node in new_nodes[:5]]) +
-                         "\n\nRead these files if they are not relevant to your work, then you can stop. Otherwise, please consider whether you need to change your approach given this information."
+                         "\n\nRead these files if they could be relevant to the work you have done. If they are not relevant to your work, then you can stop."
+                         " Otherwise, please consider whether you need to change your approach given the information contained within the markdown files."
             }))
             # Save state after blocking
             save_seen_files(get_agent_state_file(agent_name), new_nodes)
