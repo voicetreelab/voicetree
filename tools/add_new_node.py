@@ -137,6 +137,15 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     with open(new_file_path, 'w', encoding='utf-8') as f:
         f.write(new_content)
 
+    # Mark this file as seen by the current agent to prevent hook notifications
+    try:
+        sys.path.insert(0, str(Path(__file__).parent / "hooks"))
+        from tree_update_reminder import mark_file_as_seen_by_agent
+        mark_file_as_seen_by_agent(str(vault_dir), str(new_file_path), agent_name)
+    except ImportError:
+        # Hook module not available, silently continue
+        pass
+
     # DO NOT ADD CHILD LINKS FOR NOW
 
     # # Update parent file to add child link

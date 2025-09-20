@@ -42,6 +42,31 @@ def save_seen_files(state_file, new_files):
     except Exception:
         pass
 
+def mark_file_as_seen_by_agent(vault_path, file_path, agent_name):
+    """Mark a specific file as seen by an agent to prevent hook notifications."""
+    try:
+        # Convert file_path to relative path from vault
+        vault = Path(vault_path)
+        file = Path(file_path)
+
+        if file.is_absolute():
+            # Get relative path from vault
+            try:
+                rel_path = str(file.relative_to(vault))
+            except ValueError:
+                # File not in vault, just use filename
+                rel_path = file.name
+        else:
+            rel_path = str(file)
+
+        # Get state file and save this file as seen
+        state_file = get_agent_state_file(agent_name)
+        save_seen_files(state_file, [rel_path])
+
+    except Exception:
+        # Silently fail - this is just optimization to prevent noise
+        pass
+
 def get_new_nodes(vault_path, agent_name, save_state=True):
     """Find new markdown files this agent hasn't seen before."""
     state_file = get_agent_state_file(agent_name)
@@ -114,7 +139,7 @@ def main():
                 "decision": "block",
                 "reason": f"📌 NEW FILES DETECTED - Review these before stopping:\n" + 
                          "\n".join([f"  • {node}" for node in new_nodes[:5]]) +
-                         "\n\nRead these files if they're relevant to your work, then you can stop."
+                         "\n\nRead these files if they are not relevant to your work, then you can stop. Otherwise, please consider whether you need to change your approach given this information."
             }))
             # Save state after blocking
             save_seen_files(get_agent_state_file(agent_name), new_nodes)
