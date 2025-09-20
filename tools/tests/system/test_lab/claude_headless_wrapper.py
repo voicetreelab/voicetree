@@ -5,10 +5,11 @@ Wraps claude command execution with proper environment setup for headless testin
 """
 
 import os
-import sys
 import subprocess
-from pathlib import Path
+import sys
 import tempfile
+from pathlib import Path
+
 
 class ClaudeHeadlessWrapper:
     def __init__(self, voicetree_root=None):

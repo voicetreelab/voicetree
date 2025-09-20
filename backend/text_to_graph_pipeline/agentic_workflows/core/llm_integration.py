@@ -3,23 +3,27 @@ LLM integration for VoiceTree LangGraph workflow using Google GenAI
 
 Easy configuration: Modify the CONFIG class below to change models, temperature, or other settings.
 """
+import json
 import logging
 import os
-from pathlib import Path
-from typing import Optional, Type
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+from typing import Type
+
 from dotenv import load_dotenv
-from google.genai.types import HttpOptions, SafetySetting
-from pydantic import BaseModel
 from google import genai
-import json
 from google.genai import types
+from google.genai.types import HttpOptions
+from google.genai.types import SafetySetting
+from pydantic import BaseModel
 
-from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
-    log_llm_io
-from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import \
-    parse_json_markdown
-
+from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import (
+    log_llm_io,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import (
+    parse_json_markdown,
+)
 
 # Schema models are no longer imported here - they're passed from agents
 

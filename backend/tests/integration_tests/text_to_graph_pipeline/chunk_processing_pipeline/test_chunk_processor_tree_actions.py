@@ -2,13 +2,21 @@
 TDD Integration tests for ChunkProcessor with new tree_actions format
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import ChunkProcessor
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
+import pytest
+
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
+    TreeActionApplier,
+)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import (
+    ChunkProcessor,
+)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow,
+)
 
 
 class TestChunkProcessorWithNewActions:

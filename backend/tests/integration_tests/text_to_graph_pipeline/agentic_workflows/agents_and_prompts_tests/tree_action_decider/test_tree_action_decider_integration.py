@@ -5,16 +5,18 @@ These tests verify the actual behavior of the two-step pipeline with real LLMs.
 They complement the unit tests by ensuring our mocks are realistic.
 """
 
-import pytest
-from unittest.mock import patch
 import json
+from unittest.mock import patch
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow as TreeActionDecider
-from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    CreateAction, 
-    UpdateAction
+import pytest
+
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow as TreeActionDecider,
 )
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
 
 
 class TestTreeActionDeciderIntegration:
@@ -30,10 +32,23 @@ class TestTreeActionDeciderIntegration:
                 except Exception as e:
                     if "identify_target_node" in stage_type and "TargetNodeResponse" in str(output_schema):
                         # Handle the format mismatch for identify_target_node
-                        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import _get_client, CONFIG
-                        from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown
-                        from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeIdentification, TargetNodeResponse
                         from google.genai.types import GenerateContentConfigDict
+
+                        from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import (
+                            parse_json_markdown,
+                        )
+                        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+                            CONFIG,
+                        )
+                        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+                            _get_client,
+                        )
+                        from backend.text_to_graph_pipeline.agentic_workflows.models import (
+                            TargetNodeIdentification,
+                        )
+                        from backend.text_to_graph_pipeline.agentic_workflows.models import (
+                            TargetNodeResponse,
+                        )
                         
                         client = _get_client()
                         model_name = model_name or CONFIG.DEFAULT_MODEL
@@ -68,7 +83,9 @@ class TestTreeActionDeciderIntegration:
                         raise e
             return wrapper
         
-        from backend.text_to_graph_pipeline.agentic_workflows.core import llm_integration
+        from backend.text_to_graph_pipeline.agentic_workflows.core import (
+            llm_integration,
+        )
         original_call = llm_integration.call_llm_structured
         with patch.object(llm_integration, 'call_llm_structured', format_conversion_wrapper(original_call)):
             yield
@@ -305,7 +322,9 @@ class TestTreeActionDeciderIntegration:
         assert isinstance(result, list)
         # If optimization occurs, it should be valid UPDATE actions
         if len(result) > 0:
-            from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+            from backend.text_to_graph_pipeline.agentic_workflows.models import (
+                UpdateAction,
+            )
             assert all(isinstance(action, UpdateAction) for action in result)
             assert all(action.node_id > 0 for action in result)
     

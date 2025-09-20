@@ -4,10 +4,15 @@ Handles applying integration decisions to the decision tree
 """
 
 import logging
-from typing import List, Set, Union
+from typing import List
+from typing import Set
+from typing import Union
 
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction, AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
 
 
 class TreeActionApplier:

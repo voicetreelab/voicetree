@@ -27,12 +27,17 @@ import random
 import shutil
 import string
 from datetime import datetime
+
 import pytest
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, AppendAction, UpdateAction
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow,
+)
 
 
 def generate_random_sentence(min_words=1, max_words=110):

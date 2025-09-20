@@ -3,12 +3,18 @@ ChromaDB vector store implementation for context retrieval.
 Uses ChromaDB with Google Gemini embeddings for efficient vector search.
 """
 
-import os
 import logging
-from typing import List, Dict, Tuple, Optional, Any, Union
+import os
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
 import chromadb
-from chromadb.config import Settings
 import chromadb.utils.embedding_functions as embedding_functions
+from chromadb.config import Settings
 from dotenv import load_dotenv
 
 # Load environment variables

@@ -6,9 +6,9 @@ Loads test scenarios and runs them through the testing framework.
 YOU MUST RUN THESE WITH ATLEAST A 5 MIN TIMEOUT"
 """
 
+import argparse
 import json
 import sys
-import argparse
 from pathlib import Path
 
 # Add parent directory to path to import test modules

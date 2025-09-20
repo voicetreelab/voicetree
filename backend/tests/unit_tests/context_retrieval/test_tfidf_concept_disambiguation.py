@@ -7,8 +7,11 @@ Test 1: Technical Concept Disambiguation
 Verifies that TF-IDF can distinguish between related technical concepts
 and select the most relevant node based on specific terminology.
 """
-from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class TestTfidfConceptDisambiguation:

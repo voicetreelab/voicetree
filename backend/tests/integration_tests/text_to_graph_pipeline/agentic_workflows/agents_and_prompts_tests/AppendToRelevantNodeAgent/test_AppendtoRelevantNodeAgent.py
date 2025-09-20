@@ -10,15 +10,20 @@ This agent's responsibilities:
 
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import \
-    AppendToRelevantNodeAgent
-from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, CreateAction)
-from backend.markdown_tree_manager.markdown_tree_ds import (
-    MarkdownTree, Node)
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import _format_nodes_for_prompt
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    _format_nodes_for_prompt,
+)
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
+from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import (
+    AppendToRelevantNodeAgent,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
 
 
 class TestAppendToRelevantNodeAgent:

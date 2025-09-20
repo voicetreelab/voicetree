@@ -5,15 +5,17 @@ import hashlib
 import os
 import tempfile
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
-    ChunkProcessor
-from backend.markdown_tree_manager.markdown_tree_ds import \
-    MarkdownTree
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import \
-    TreeToMarkdownConverter
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    TreeToMarkdownConverter,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import (
+    ChunkProcessor,
+)
 
 from .config import OUTPUT_DIR
-from .file_utils import clear_workflow_log, setup_output_directory
+from .file_utils import clear_workflow_log
+from .file_utils import setup_output_directory
 
 
 class TranscriptProcessor:

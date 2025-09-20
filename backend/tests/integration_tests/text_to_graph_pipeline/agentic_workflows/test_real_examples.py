@@ -7,10 +7,13 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+
 import pytest
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
-    TreeActionDeciderWorkflow
+
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow,
+)
 
 # Add project root to path for imports
 current_dir = Path(__file__).parent

@@ -4,12 +4,14 @@ Tool to find test files that are dependent on given production files.
 Helps identify which tests need to be checked when modifying production code.
 """
 
-import sys
 import ast
-import os
-from pathlib import Path
-from typing import List, Set, Dict
 import importlib.util
+import os
+import sys
+from pathlib import Path
+from typing import Dict
+from typing import List
+from typing import Set
 
 
 def get_import_paths(file_path: Path) -> Set[str]:

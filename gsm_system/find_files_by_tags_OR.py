@@ -4,9 +4,10 @@ Find markdown files that contain at least one of the specified tags.
 """
 import os
 import re
-from pathlib import Path
 import sys
-from typing import List, Set
+from pathlib import Path
+from typing import List
+from typing import Set
 
 
 def extract_tags_from_file(file_path: Path) -> Set[str]:

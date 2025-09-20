@@ -3,12 +3,11 @@ Unit tests for tree manager utilities
 """
 
 import pytest
-from backend.markdown_tree_manager.utils import (
-    extract_summary,
-    deduplicate_content,
-    extract_complete_sentences,
-    remove_first_word
-)
+
+from backend.markdown_tree_manager.utils import deduplicate_content
+from backend.markdown_tree_manager.utils import extract_complete_sentences
+from backend.markdown_tree_manager.utils import extract_summary
+from backend.markdown_tree_manager.utils import remove_first_word
 
 
 class TestExtractSummary:

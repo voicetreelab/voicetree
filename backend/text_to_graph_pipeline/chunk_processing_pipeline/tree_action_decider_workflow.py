@@ -7,24 +7,37 @@ Combines the functionality of TreeActionDecider and WorkflowAdapter into a singl
 import logging
 from dataclasses import dataclass
 from itertools import groupby
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Set
+
 from termcolor import colored
 
-from ...settings import MAX_NODES_FOR_LLM_CONTEXT
-from ..agentic_workflows.agents.append_to_relevant_node_agent import \
-    AppendToRelevantNodeAgent
-from ..agentic_workflows.agents.single_abstraction_optimizer_agent import \
-    SingleAbstractionOptimizerAgent
-from ..agentic_workflows.agents.connect_orphans_agent import \
-    ConnectOrphansAgent
-from ..agentic_workflows.models import (AppendAction, AppendAgentResult,
-                                        BaseTreeAction, CreateAction,
-                                        UpdateAction)
-from ..text_buffer_manager import TextBufferManager
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    _format_nodes_for_prompt,
+)
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import _format_nodes_for_prompt
 from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
+
+from ...settings import MAX_NODES_FOR_LLM_CONTEXT
+from ..agentic_workflows.agents.append_to_relevant_node_agent import (
+    AppendToRelevantNodeAgent,
+)
+from ..agentic_workflows.agents.connect_orphans_agent import ConnectOrphansAgent
+from ..agentic_workflows.agents.single_abstraction_optimizer_agent import (
+    SingleAbstractionOptimizerAgent,
+)
+from ..agentic_workflows.models import AppendAction
+from ..agentic_workflows.models import AppendAgentResult
+from ..agentic_workflows.models import BaseTreeAction
+from ..agentic_workflows.models import CreateAction
+from ..agentic_workflows.models import UpdateAction
+from ..text_buffer_manager import TextBufferManager
 from .apply_tree_actions import TreeActionApplier
 
 

@@ -4,19 +4,29 @@ Compares pruned (vector search) vs unpruned (full context) performance
 by calling pred.py's functions for evaluation.
 """
 
-import os
-import sys
 import json
+import os
+import statistics
+import sys
 import time
 from pathlib import Path
-from typing import List, Dict, Any
-import statistics
-from dotenv import load_dotenv
+from typing import Any
+from typing import Dict
+from typing import List
+
 import google.generativeai as genai
-from colorama import init, Fore, Style
-from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
+from colorama import Fore
+from colorama import Style
+from colorama import init
+from dotenv import load_dotenv
+
 from backend.context_retrieval.dependency_traversal import accumulate_content
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
+from backend.context_retrieval.traverse_all_relevant_nodes import (
+    traverse_all_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
+    load_markdown_tree,
+)
 
 # Initialize colorama for cross-platform colored output
 init(autoreset=True)

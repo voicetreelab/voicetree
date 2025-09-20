@@ -1,15 +1,15 @@
 """File and directory utilities for quality benchmarking."""
 
+import json
 import os
 import shutil
-from datetime import datetime
 import subprocess
-import json
+from datetime import datetime
 
-from .config import (
-    OUTPUT_DIR, BACKUP_DIR_BASE,
-    LATEST_RUN_CONTEXT_FILE, WORKFLOW_IO_LOG
-)
+from .config import BACKUP_DIR_BASE
+from .config import LATEST_RUN_CONTEXT_FILE
+from .config import OUTPUT_DIR
+from .config import WORKFLOW_IO_LOG
 
 
 def setup_output_directory(output_dir=None, transcript_identifier=None):

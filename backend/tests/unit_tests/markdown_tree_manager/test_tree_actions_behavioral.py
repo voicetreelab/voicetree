@@ -3,11 +3,16 @@ Behavioral tests for tree actions with ID-only operations
 Tests the complete flow: AppendAction, CreateAction, UpdateAction through unified apply()
 """
 
+from unittest.mock import MagicMock
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
-from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    UpdateAction, CreateAction, AppendAction
+
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
+    TreeActionApplier,
 )
 
 
@@ -178,7 +183,9 @@ class TestTreeActionsBehavioral:
     
     def test_append_action_inheritance_and_fields(self):
         """Test AppendAction structure and inheritance"""
-        from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+        from backend.text_to_graph_pipeline.agentic_workflows.models import (
+            BaseTreeAction,
+        )
         
         # Verify inheritance
         assert issubclass(AppendAction, BaseTreeAction)

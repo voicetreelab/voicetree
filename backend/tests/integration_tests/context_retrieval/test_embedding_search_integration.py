@@ -4,17 +4,21 @@ Tests the complete pipeline from loading nodes to finding relevant results.
 """
 
 import os
-import pytest
-import numpy as np
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
+import numpy as np
+import pytest
+
 from backend.markdown_tree_manager.graph_search.vector_search import (
-    get_node_embeddings,
-    find_similar_by_embedding,
-    find_relevant_nodes_for_context
+    find_relevant_nodes_for_context,
 )
+from backend.markdown_tree_manager.graph_search.vector_search import (
+    find_similar_by_embedding,
+)
+from backend.markdown_tree_manager.graph_search.vector_search import get_node_embeddings
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class TestEmbeddingSearchIntegration:

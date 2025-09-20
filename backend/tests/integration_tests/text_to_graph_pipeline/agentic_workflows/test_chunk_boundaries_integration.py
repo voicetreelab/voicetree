@@ -5,12 +5,13 @@ Uses mocked LLM responses for deterministic testing.
 
 import pytest
 
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
-    ChunkProcessor
-from backend.markdown_tree_manager.markdown_tree_ds import \
-    MarkdownTree
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import \
-    TreeToMarkdownConverter
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    TreeToMarkdownConverter,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import (
+    ChunkProcessor,
+)
 
 
 class TestChunkBoundariesIntegration:

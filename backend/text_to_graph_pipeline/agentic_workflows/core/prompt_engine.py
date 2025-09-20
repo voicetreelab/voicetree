@@ -6,8 +6,10 @@ brace escaping in JSON examples, preventing the recurring KeyError issues.
 """
 
 import re
-from typing import Any, Optional, Dict
 from pathlib import Path
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 
 class PromptTemplate:

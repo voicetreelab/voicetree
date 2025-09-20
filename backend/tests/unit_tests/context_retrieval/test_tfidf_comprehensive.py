@@ -2,8 +2,11 @@
 Comprehensive behavioral tests for TF-IDF implementation
 Implements all 5 tests from the specification
 """
-from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class TestTfidfComprehensive:

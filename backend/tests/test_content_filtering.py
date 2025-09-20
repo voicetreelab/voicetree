@@ -1,10 +1,8 @@
 """Behavioral test for content filtering module."""
 
-from backend.context_retrieval.content_filtering import (
-    ContentLevel,
-    apply_content_filter,
-    get_neighborhood
-)
+from backend.context_retrieval.content_filtering import ContentLevel
+from backend.context_retrieval.content_filtering import apply_content_filter
+from backend.context_retrieval.content_filtering import get_neighborhood
 
 
 def test_apply_content_filter_with_distance_based_pruning():

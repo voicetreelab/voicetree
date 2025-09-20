@@ -7,10 +7,13 @@ import json
 
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import \
-    PromptLoader
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import (
+    PromptLoader,
+)
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    TargetNodeIdentification, TargetNodeResponse)
+    TargetNodeIdentification,
+)
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
 
 
 class TestIdentifyTargetNodeWithIDs:
@@ -28,10 +31,17 @@ class TestIdentifyTargetNodeWithIDs:
 
     async def call_LLM(self, prompt_text):
         """Call LLM with format conversion for new array-based response format"""
-        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import _get_client
-        from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown
-        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import CONFIG
         from google.genai.types import GenerateContentConfigDict
+
+        from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import (
+            parse_json_markdown,
+        )
+        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+            CONFIG,
+        )
+        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
+            _get_client,
+        )
         
         # Get client directly to handle array format
         client = _get_client()

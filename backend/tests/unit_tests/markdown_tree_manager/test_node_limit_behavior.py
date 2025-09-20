@@ -5,11 +5,17 @@ This test ensures that VoiceTree limits the number of nodes sent to the LLM
 to prevent long context failures (8000+ tokens).
 """
 
-import pytest
 import re
+
+import pytest
+
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    _format_nodes_for_prompt,
+)
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import _format_nodes_for_prompt
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
 
 

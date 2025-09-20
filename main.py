@@ -5,18 +5,20 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
 from backend.logging_config import setup_logging
-from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
-    clear_debug_logs
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
-    ChunkProcessor
-from backend.markdown_tree_manager.markdown_tree_ds import \
-    MarkdownTree
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import \
-    TreeToMarkdownConverter
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import \
-    load_markdown_tree
-from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import \
-    VoiceToTextEngine
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    TreeToMarkdownConverter,
+)
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
+    load_markdown_tree,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import (
+    clear_debug_logs,
+)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import (
+    ChunkProcessor,
+)
+from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import VoiceToTextEngine
 
 # Configure logging
 logger = setup_logging('voicetree.log', console_level=logging.ERROR)

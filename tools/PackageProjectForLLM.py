@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess  # Import subprocess for running shell commands
+import sys
 
 
 def package_project(project_dir, file_extension=".py"):

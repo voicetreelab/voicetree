@@ -3,6 +3,7 @@ Unit tests for summary generation in optimizer only
 """
 
 import pytest
+
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 

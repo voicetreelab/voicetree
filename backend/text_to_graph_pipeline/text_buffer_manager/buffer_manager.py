@@ -8,6 +8,7 @@ import re
 from typing import Optional
 
 from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
+
 from .fuzzy_text_matcher import FuzzyTextMatcher
 
 

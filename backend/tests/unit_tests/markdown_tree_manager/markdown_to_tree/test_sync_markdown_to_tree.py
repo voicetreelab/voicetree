@@ -1,13 +1,14 @@
 import os
-import tempfile
 import shutil
+import tempfile
+
 import pytest
 
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.sync_markdown_to_tree import (
     MarkdownToTreeSynchronizer,
-    sync_nodes_from_markdown
 )
+from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 
 
 class TestMarkdownToTreeSync:

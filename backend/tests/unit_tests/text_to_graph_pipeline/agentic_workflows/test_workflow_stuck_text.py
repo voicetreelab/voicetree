@@ -2,13 +2,22 @@
 Test stuck text removal functionality in TreeActionDeciderWorkflow
 """
 
+from unittest.mock import AsyncMock
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow
-from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import TextBufferManager
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
+
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
+    TreeActionApplier,
+)
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import (
+    TreeActionDeciderWorkflow,
+)
+from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import (
+    TextBufferManager,
+)
 
 
 class TestWorkflowStuckTextRemoval:

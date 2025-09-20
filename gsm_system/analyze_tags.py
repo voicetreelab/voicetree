@@ -4,9 +4,9 @@ Analyze tags in markdown files and output them sorted by frequency.
 """
 import os
 import re
+import sys
 from collections import Counter
 from pathlib import Path
-import sys
 
 
 def extract_tags_from_file(file_path):

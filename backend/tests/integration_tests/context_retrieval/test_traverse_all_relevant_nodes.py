@@ -3,15 +3,20 @@ Integration test for traverse_all_relevant_nodes module.
 Tests the integration script with specific inputs and verifies behavioral output.
 """
 
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
+from backend.context_retrieval.traverse_all_relevant_nodes import (
+    traverse_all_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
+    load_markdown_tree,
+)
 
 
 class TestTraverseAllRelevantNodes:

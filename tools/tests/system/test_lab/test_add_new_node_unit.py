@@ -5,11 +5,12 @@ Tests the core node creation and linking functionality in isolation.
 """
 
 import os
-import sys
 import shutil
-import tempfile
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
+
 
 def test_add_new_node_functionality():
     """Test that add_new_node.py creates nodes correctly"""

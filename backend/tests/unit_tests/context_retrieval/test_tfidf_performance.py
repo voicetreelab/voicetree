@@ -2,8 +2,12 @@
 Performance test for TF-IDF implementation
 """
 import time
-from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
+
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 def test_tfidf_performance():

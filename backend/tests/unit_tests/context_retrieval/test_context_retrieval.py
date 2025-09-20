@@ -4,14 +4,14 @@ Behavioral test for the context_retrieval module's traverse_to_node function.
 Tests the input/output behavior without implementation details.
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
-from backend.context_retrieval.dependency_traversal import (
-    traverse_to_node,
-    TraversalOptions
-)
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from backend.context_retrieval.dependency_traversal import TraversalOptions
+from backend.context_retrieval.dependency_traversal import traverse_to_node
 
 
 class TestTraverseToNode:

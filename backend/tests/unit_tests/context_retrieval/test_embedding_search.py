@@ -2,17 +2,20 @@
 Unit tests for embedding-based search functionality
 """
 
-import pytest
-import numpy as np
-from unittest.mock import patch
 import os
+from unittest.mock import patch
+
+import numpy as np
+import pytest
 
 from backend.markdown_tree_manager.graph_search.vector_search import (
-    get_node_embeddings,
-    find_similar_by_embedding,
-    hybrid_search,
-    extract_key_entities
+    extract_key_entities,
 )
+from backend.markdown_tree_manager.graph_search.vector_search import (
+    find_similar_by_embedding,
+)
+from backend.markdown_tree_manager.graph_search.vector_search import get_node_embeddings
+from backend.markdown_tree_manager.graph_search.vector_search import hybrid_search
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 

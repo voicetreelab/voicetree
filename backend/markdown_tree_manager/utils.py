@@ -1,5 +1,7 @@
 import re
-from typing import Dict, Any, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 # Node import moved inside functions to avoid circular imports
 

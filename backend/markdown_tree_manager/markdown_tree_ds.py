@@ -1,10 +1,17 @@
+import difflib
 import logging
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Set
-import difflib
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Set
+from typing import Tuple
+
 # Import these after Node class is defined to avoid circular import issues
-from .utils import extract_summary, generate_filename_from_keywords
+from .utils import extract_summary
+from .utils import generate_filename_from_keywords
+
 
 def extract_title_from_md(node_content):
     title_match = re.search(r'#+(.*)', node_content, re.MULTILINE)
@@ -64,7 +71,9 @@ class MarkdownTree:
         """Lazy initialization of markdown converter"""
         if self._markdown_converter is None:
             # Import here to avoid circular dependency
-            from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import TreeToMarkdownConverter
+            from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+                TreeToMarkdownConverter,
+            )
             self._markdown_converter = TreeToMarkdownConverter(self.tree)
         return self._markdown_converter
 
@@ -77,7 +86,9 @@ class MarkdownTree:
         else:
             # Production mode - return real manager
             try:
-                from backend.markdown_tree_manager.embeddings.embedding_manager import EmbeddingManager
+                from backend.markdown_tree_manager.embeddings.embedding_manager import (
+                    EmbeddingManager,
+                )
                 manager = EmbeddingManager(tree=self, enabled=True)
                 logging.info("Real embeddings initialized")
                 return manager
@@ -463,5 +474,33 @@ class MarkdownTree:
                 return self._embedding_manager.search(query, top_k)
             except Exception as e:
                 logging.error(f"Search failed: {e}")
+        return []
+
+    def search_similar_nodes_vector(self, query: str, top_k: int = 10) -> List[Tuple[int, float]]:
+        """
+        Search for similar nodes using vector embeddings with scores.
+
+        Args:
+            query: Search query text
+            top_k: Number of results to return
+
+        Returns:
+            List of (node_id, similarity_score) tuples ordered by relevance
+        """
+        self.flush_embeddings()
+
+        if self._embedding_manager:
+            try:
+                # Use the embedding manager's search with scores
+                results = self._embedding_manager.vector_store.search(
+                    query=query,
+                    top_k=top_k,
+                    include_scores=True
+                )
+                # Ensure we return List[Tuple[int, float]]
+                if isinstance(results, list) and results and isinstance(results[0], tuple):
+                    return results
+            except Exception as e:
+                logging.error(f"Vector search failed: {e}")
         return []
 

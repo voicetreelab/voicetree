@@ -1,13 +1,17 @@
-import os
 import logging
-from typing import Dict, Optional
+import os
 from pathlib import Path
+from typing import Dict
+from typing import Optional
 
-from backend.markdown_tree_manager.markdown_tree_ds import Node, MarkdownTree
 from backend.markdown_tree_manager.markdown_to_tree.comprehensive_parser import (
     parse_markdown_file_complete,
-    parse_relationships_from_links
 )
+from backend.markdown_tree_manager.markdown_to_tree.comprehensive_parser import (
+    parse_relationships_from_links,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class MarkdownToTreeConverter:

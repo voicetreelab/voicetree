@@ -3,8 +3,14 @@ Embedding manager for automatic synchronization of embeddings with tree modifica
 """
 
 import logging
-from typing import Set, Dict, Optional, List, TYPE_CHECKING, Union, Tuple
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Set
+from typing import Tuple
+from typing import Union
 
 from .chromadb_vector_store import ChromaDBVectorStore
 
@@ -42,21 +48,16 @@ class EmbeddingManager:
         self.vector_store: Optional[ChromaDBVectorStore] = None
 
         if self.enabled:
-            try:
-                # Default to tree's output directory + embeddings
-                if persist_directory is None:
-                    persist_directory = str(Path(tree.output_dir) / "chromadb_data")
+            # Default to tree's output directory + embeddings
+            if persist_directory is None:
+                persist_directory = str(Path(tree.output_dir) / "chromadb_data")
 
-                self.vector_store = ChromaDBVectorStore(
-                    collection_name=collection_name,
-                    persist_directory=persist_directory,
-                    use_embeddings=True
-                )
-                logger.info(f"EmbeddingManager initialized with ChromaDB at {persist_directory}")
-            except Exception as e:
-                logger.error(f"Failed to initialize ChromaDB: {e}")
-                self.enabled = False
-                self.vector_store = None
+            self.vector_store = ChromaDBVectorStore(
+                collection_name=collection_name,
+                persist_directory=persist_directory,
+                use_embeddings=True
+            )
+            logger.info(f"EmbeddingManager initialized with ChromaDB at {persist_directory}")
         else:
             self.vector_store = None
             logger.info("EmbeddingManager initialized but disabled")
@@ -71,19 +72,15 @@ class EmbeddingManager:
         if not self.enabled or not self.vector_store or not node_ids:
             return
 
-        try:
-            # Get nodes from tree (using internal access since we're a friend class)
-            nodes_to_update = {}
-            for node_id in node_ids:
-                if node_id in self.tree.tree:
-                    nodes_to_update[node_id] = self.tree.tree[node_id]
+        # Get nodes from tree (using internal access since we're a friend class)
+        nodes_to_update = {}
+        for node_id in node_ids:
+            if node_id in self.tree.tree:
+                nodes_to_update[node_id] = self.tree.tree[node_id]
 
-            if nodes_to_update:
-                self.vector_store.add_nodes(nodes_to_update)
-                logger.info(f"Updated embeddings for {len(nodes_to_update)} nodes: {list(nodes_to_update.keys())}")
-
-        except Exception as e:
-            logger.error(f"Failed to update embeddings for nodes {node_ids}: {e}")
+        if nodes_to_update:
+            self.vector_store.add_nodes(nodes_to_update)
+            logger.info(f"Updated embeddings for {len(nodes_to_update)} nodes: {list(nodes_to_update.keys())}")
 
     def delete_embeddings(self, node_ids: Set[int]) -> None:
         """
@@ -95,11 +92,8 @@ class EmbeddingManager:
         if not self.enabled or not self.vector_store or not node_ids:
             return
 
-        try:
-            self.vector_store.delete_nodes(list(node_ids))
-            logger.info(f"Deleted embeddings for nodes: {node_ids}")
-        except Exception as e:
-            logger.error(f"Failed to delete embeddings for nodes {node_ids}: {e}")
+        self.vector_store.delete_nodes(list(node_ids))
+        logger.info(f"Deleted embeddings for nodes: {node_ids}")
 
     def sync_all_embeddings(self) -> None:
         """
@@ -109,18 +103,14 @@ class EmbeddingManager:
         if not self.enabled or not self.vector_store:
             return
 
-        try:
-            # Get all nodes from tree
-            all_nodes = self.tree.tree.copy()
+        # Get all nodes from tree
+        all_nodes = self.tree.tree.copy()
 
-            if all_nodes:
-                self.vector_store.add_nodes(all_nodes)
-                logger.info(f"Synced all {len(all_nodes)} nodes to embeddings")
-            else:
-                logger.warning("No nodes to sync to embeddings")
-
-        except Exception as e:
-            logger.error(f"Failed to sync all embeddings: {e}")
+        if all_nodes:
+            self.vector_store.add_nodes(all_nodes)
+            logger.info(f"Synced all {len(all_nodes)} nodes to embeddings")
+        else:
+            logger.warning("No nodes to sync to embeddings")
 
     def search(
         self,
@@ -143,26 +133,21 @@ class EmbeddingManager:
             logger.warning("Embeddings not enabled, cannot perform search")
             return []
 
-        try:
-            results = self.vector_store.search(
-                query=query,
-                top_k=top_k,
-                filter_dict=filter_dict,
-                include_scores=False
-            )
-            # Ensure we return List[int] as expected by type annotation
-            # include_scores=False should always return List[int], but MyPy can't infer this
-            if isinstance(results, list):
-                if all(isinstance(x, int) for x in results):
-                    return results
-                elif all(isinstance(x, tuple) for x in results):
-                    # Extract just the ids from tuples (shouldn't happen with include_scores=False)
-                    return [x[0] for x in results if isinstance(x, tuple) and len(x) >= 1]
-            return []
-
-        except Exception as e:
-            logger.error(f"Search failed: {e}")
-            return []
+        results = self.vector_store.search(
+            query=query,
+            top_k=top_k,
+            filter_dict=filter_dict,
+            include_scores=False
+        )
+        # Ensure we return List[int] as expected by type annotation
+        # include_scores=False should always return List[int], but MyPy can't infer this
+        if isinstance(results, list):
+            if all(isinstance(x, int) for x in results):
+                return results
+            elif all(isinstance(x, tuple) for x in results):
+                # Extract just the ids from tuples (shouldn't happen with include_scores=False)
+                return [x[0] for x in results if isinstance(x, tuple) and len(x) >= 1]
+        return []
 
     def get_stats(self) -> Dict:
         """
@@ -174,24 +159,17 @@ class EmbeddingManager:
         if not self.enabled or not self.vector_store:
             return {"enabled": False, "count": 0}
 
-        try:
-            stats = self.vector_store.get_collection_stats()
-            stats["enabled"] = True
-            return stats
-        except Exception as e:
-            logger.error(f"Failed to get embedding stats: {e}")
-            return {"enabled": True, "error": str(e)}
+        stats = self.vector_store.get_collection_stats()
+        stats["enabled"] = True
+        return stats
 
     def clear_all_embeddings(self) -> None:
         """Clear all embeddings from the vector store."""
         if not self.enabled or not self.vector_store:
             return
 
-        try:
-            self.vector_store.clear_collection()
-            logger.info("Cleared all embeddings")
-        except Exception as e:
-            logger.error(f"Failed to clear embeddings: {e}")
+        self.vector_store.clear_collection()
+        logger.info("Cleared all embeddings")
 
     def enable(self) -> None:
         """Enable embeddings and initialize vector store if needed."""
@@ -199,18 +177,14 @@ class EmbeddingManager:
             self.enabled = True
             if not self.vector_store:
                 # Reinitialize vector store instead of calling __init__
-                try:
-                    from pathlib import Path
-                    persist_directory = str(Path(self.tree.output_dir) / "chromadb_data")
-                    self.vector_store = ChromaDBVectorStore(
-                        collection_name=self.collection_name,
-                        persist_directory=persist_directory,
-                        use_embeddings=True
-                    )
-                    logger.info(f"Re-initialized EmbeddingManager with ChromaDB at {persist_directory}")
-                except Exception as e:
-                    logger.error(f"Failed to re-initialize ChromaDB: {e}")
-                    self.enabled = False
+                from pathlib import Path
+                persist_directory = str(Path(self.tree.output_dir) / "chromadb_data")
+                self.vector_store = ChromaDBVectorStore(
+                    collection_name=self.collection_name,
+                    persist_directory=persist_directory,
+                    use_embeddings=True
+                )
+                logger.info(f"Re-initialized EmbeddingManager with ChromaDB at {persist_directory}")
 
     def disable(self) -> None:
         """Disable embeddings without destroying the vector store."""

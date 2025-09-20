@@ -6,13 +6,14 @@ The TSV export is supplementary and used for debugging/visualization purposes.
 DO NOT use this for production vector search - use ChromaDBVectorStore instead.
 """
 
+import logging
 import os
 import sys
-import numpy as np
 from pathlib import Path
 from typing import Dict
-import logging
+
 import google.generativeai as genai
+import numpy as np
 
 # Add backend to path for imports
 sys.path.append(str(Path(__file__).parent))

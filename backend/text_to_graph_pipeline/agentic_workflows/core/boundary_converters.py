@@ -5,9 +5,16 @@ This module implements the "Boundary Conversion" pattern to handle the impedance
 between LangGraph (which requires dicts) and our business logic (which uses Pydantic models).
 """
 
-from typing import List, Dict, Any, TypeVar, Type, Optional
-from pydantic import BaseModel, ValidationError
 import logging
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Type
+from typing import TypeVar
+
+from pydantic import BaseModel
+from pydantic import ValidationError
 
 T = TypeVar('T', bound=BaseModel)
 

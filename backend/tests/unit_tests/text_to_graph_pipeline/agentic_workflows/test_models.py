@@ -5,8 +5,9 @@ Unit tests for Pydantic schema models used in agentic workflows
 import pytest
 from pydantic import ValidationError
 
-from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    RelationshipAnalysis, RelationshipResponse, SegmentModel)
+from backend.text_to_graph_pipeline.agentic_workflows.models import RelationshipAnalysis
+from backend.text_to_graph_pipeline.agentic_workflows.models import RelationshipResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import SegmentModel
 
 
 class TestChunkModel:

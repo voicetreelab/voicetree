@@ -3,7 +3,9 @@ Unit tests for the VoiceTree state schema and validation
 """
 
 import pytest
-from backend.text_to_graph_pipeline.agentic_workflows.core.state import VoiceTreeState, validate_state
+
+from backend.text_to_graph_pipeline.agentic_workflows.core.state import VoiceTreeState
+from backend.text_to_graph_pipeline.agentic_workflows.core.state import validate_state
 
 
 class TestVoiceTreeState:

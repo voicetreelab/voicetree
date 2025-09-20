@@ -3,12 +3,16 @@ Test that graph creation builds and stores vectors successfully.
 Simple integration test to verify vector storage works end-to-end.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
+
+import pytest
+
+from backend.markdown_tree_manager.embeddings.chromadb_vector_store import (
+    ChromaDBVectorStore,
+)
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.markdown_tree_manager.embeddings.chromadb_vector_store import ChromaDBVectorStore
 
 
 class TestVectorStorageCreation:

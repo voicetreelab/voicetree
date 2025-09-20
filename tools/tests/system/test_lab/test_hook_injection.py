@@ -3,10 +3,11 @@
 Simple test to verify hook injection mechanism works
 """
 
-import time
 import threading
-from pathlib import Path
+import time
 from datetime import datetime
+from pathlib import Path
+
 
 def test_hook_injection():
     """Test the hook injection mechanism in isolation"""

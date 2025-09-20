@@ -7,7 +7,9 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Set, List, Dict
+from typing import Dict
+from typing import List
+from typing import Set
 
 
 def extract_all_markdown_links(content: str) -> List[str]:

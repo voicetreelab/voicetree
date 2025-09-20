@@ -8,15 +8,15 @@ import os
 import time
 import traceback
 from datetime import datetime
-from typing import Optional, Set
+from typing import Optional
+from typing import Set
 
 from backend import settings
-from backend.text_to_graph_pipeline.text_buffer_manager import \
-    TextBufferManager
-from backend.markdown_tree_manager.markdown_tree_ds import \
-    MarkdownTree
-from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import \
-    TreeToMarkdownConverter
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+    TreeToMarkdownConverter,
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
 
 from .apply_tree_actions import TreeActionApplier
 from .tree_action_decider_workflow import TreeActionDeciderWorkflow

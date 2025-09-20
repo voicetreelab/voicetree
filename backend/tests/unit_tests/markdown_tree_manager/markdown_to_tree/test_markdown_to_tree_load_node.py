@@ -3,9 +3,10 @@ Behavioral test for the markdown_to_tree.load_node function.
 Tests the input/output behavior of the load_node function with real markdown files.
 """
 
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+
 import pytest
 
 from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node

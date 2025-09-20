@@ -4,12 +4,15 @@ Type checking enforcement script for VoiceTree.
 Ensures no untyped dictionaries and enforces proper data structures.
 """
 
+import ast
+import re
 import subprocess
 import sys
-import re
 from pathlib import Path
-from typing import List, Tuple, Set
-import ast
+from typing import List
+from typing import Set
+from typing import Tuple
+
 
 class DictUsageChecker(ast.NodeVisitor):
     """AST visitor to detect dictionary usage patterns."""

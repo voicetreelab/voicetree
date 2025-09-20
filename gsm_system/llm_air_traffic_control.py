@@ -5,25 +5,26 @@ First identifies top relevant nodes using TF-IDF, then performs traversal
 while tracking seen nodes to avoid duplicate output.
 """
 
+import argparse
+import csv
+import json
 import os
 import sys
-import csv
-import argparse
 from pathlib import Path
-from typing import Set, List, Dict, Optional
-import json
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Set
 
 # Import the idf_traversal functions
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from idf_traversal import (
-    setup_nltk_stopwords,
-    preprocess_text,
-    read_markdown_file,
-    find_top_relevant_nodes,
-    traverse_graph,
-    format_traversed_content,
-    format_relevant_nodes
-)
+from idf_traversal import find_top_relevant_nodes
+from idf_traversal import format_relevant_nodes
+from idf_traversal import format_traversed_content
+from idf_traversal import preprocess_text
+from idf_traversal import read_markdown_file
+from idf_traversal import setup_nltk_stopwords
+from idf_traversal import traverse_graph
 
 
 class SeenNodesTracker:
