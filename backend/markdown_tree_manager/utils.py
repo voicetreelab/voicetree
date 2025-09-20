@@ -157,7 +157,7 @@ def insert_yaml_frontmatter(key_value_pairs: Dict[str, Any]) -> str:
     import yaml
     
     # Sanitize keys and values to handle special characters
-    sanitized_pairs = {}
+    sanitized_pairs = dict()
     for key, value in key_value_pairs.items():
         # Sanitize the key (remove problematic characters for YAML keys)
         clean_key = _sanitize_yaml_key(key)

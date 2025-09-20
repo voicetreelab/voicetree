@@ -19,7 +19,7 @@ class Node:
         self.content: str = content
         self.parent_id: int | None = parent_id
         self.children: List[int] = []
-        self.relationships: Dict[int, str] = {}
+        self.relationships: Dict[int, str] = dict()
         self.created_at: datetime = datetime.now()
         self.modified_at: datetime = datetime.now()
         self.title = name
@@ -41,7 +41,7 @@ class MarkdownTree:
                              If None, will create real or mock based on environment.
                              Pass False to explicitly disable.
         """
-        self.tree: Dict[int, Node] = {}
+        self.tree: Dict[int, Node] = dict()
         self.next_node_id: int = 1
         self.output_dir = output_dir or "markdownTreeVaultDefault"
         self._markdown_converter = None  # Will be set to TreeToMarkdownConverter when needed
