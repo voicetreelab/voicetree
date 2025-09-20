@@ -6,7 +6,7 @@ brace escaping in JSON examples, preventing the recurring KeyError issues.
 """
 
 import re
-from typing import Any
+from typing import Any, Optional, Dict
 from pathlib import Path
 
 
@@ -54,14 +54,14 @@ class PromptLoader:
     Loads and manages prompt templates for the VoiceTree system.
     """
     
-    def __init__(self, prompts_dir: str = None):
+    def __init__(self, prompts_dir: Optional[str] = None):
         if prompts_dir is None:
             # Default to the prompts directory relative to this file
             self.prompts_dir = Path(__file__).parent / "prompts"
         else:
             self.prompts_dir = Path(prompts_dir)
         
-        self._templates = {}
+        self._templates: Dict[str, PromptTemplate] = {}
     
     def load_template(self, template_name: str) -> PromptTemplate:
         """
