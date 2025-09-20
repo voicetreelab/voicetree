@@ -3,7 +3,7 @@ Embedding manager for automatic synchronization of embeddings with tree modifica
 """
 
 import logging
-from typing import Set, Dict, Optional, List, TYPE_CHECKING
+from typing import Set, Dict, Optional, List, TYPE_CHECKING, Union, Tuple
 from pathlib import Path
 
 from .chromadb_vector_store import ChromaDBVectorStore
@@ -39,6 +39,7 @@ class EmbeddingManager:
         self.tree = tree
         self.enabled = enabled
         self.collection_name = collection_name
+        self.vector_store: Optional[ChromaDBVectorStore] = None
 
         if self.enabled:
             try:
@@ -74,8 +75,8 @@ class EmbeddingManager:
             # Get nodes from tree (using internal access since we're a friend class)
             nodes_to_update = {}
             for node_id in node_ids:
-                if node_id in self.tree._tree:
-                    nodes_to_update[node_id] = self.tree._tree[node_id]
+                if node_id in self.tree.tree:
+                    nodes_to_update[node_id] = self.tree.tree[node_id]
 
             if nodes_to_update:
                 self.vector_store.add_nodes(nodes_to_update)
@@ -110,7 +111,7 @@ class EmbeddingManager:
 
         try:
             # Get all nodes from tree
-            all_nodes = self.tree._tree.copy()
+            all_nodes = self.tree.tree.copy()
 
             if all_nodes:
                 self.vector_store.add_nodes(all_nodes)
@@ -149,7 +150,15 @@ class EmbeddingManager:
                 filter_dict=filter_dict,
                 include_scores=False
             )
-            return results
+            # Ensure we return List[int] as expected by type annotation
+            # include_scores=False should always return List[int], but MyPy can't infer this
+            if isinstance(results, list):
+                if all(isinstance(x, int) for x in results):
+                    return results
+                elif all(isinstance(x, tuple) for x in results):
+                    # Extract just the ids from tuples (shouldn't happen with include_scores=False)
+                    return [x[0] for x in results if isinstance(x, tuple) and len(x) >= 1]
+            return []
 
         except Exception as e:
             logger.error(f"Search failed: {e}")
@@ -189,7 +198,19 @@ class EmbeddingManager:
         if not self.enabled:
             self.enabled = True
             if not self.vector_store:
-                self.__init__(self.tree, self.collection_name)
+                # Reinitialize vector store instead of calling __init__
+                try:
+                    from pathlib import Path
+                    persist_directory = str(Path(self.tree.output_dir) / "chromadb_data")
+                    self.vector_store = ChromaDBVectorStore(
+                        collection_name=self.collection_name,
+                        persist_directory=persist_directory,
+                        use_embeddings=True
+                    )
+                    logger.info(f"Re-initialized EmbeddingManager with ChromaDB at {persist_directory}")
+                except Exception as e:
+                    logger.error(f"Failed to re-initialize ChromaDB: {e}")
+                    self.enabled = False
 
     def disable(self) -> None:
         """Disable embeddings without destroying the vector store."""

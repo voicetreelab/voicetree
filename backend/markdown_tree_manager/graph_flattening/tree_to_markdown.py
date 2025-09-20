@@ -2,7 +2,7 @@
 import logging
 import os
 import traceback
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from backend.markdown_tree_manager.utils import insert_yaml_frontmatter, generate_filename_from_keywords
 
@@ -121,7 +121,7 @@ class TreeToMarkdownConverter:
         return None
 
 
-def format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None, include_full_content: bool = False) -> str:
+def format_nodes_for_prompt(nodes: List[Node], tree: Optional[Dict[int, Node]] = None, include_full_content: bool = False) -> str:
     """Format nodes for LLM prompt in a consistent, readable format
 
     Args:
@@ -161,6 +161,6 @@ def format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None, inc
     return "\n".join(formatted_nodes)
 
 
-def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) -> str:
+def _format_nodes_for_prompt(nodes: List[Node], tree: Optional[Dict[int, Node]] = None) -> str:
     """Format nodes for LLM prompt in a consistent, readable format (deprecated, use format_nodes_for_prompt)"""
     return format_nodes_for_prompt(nodes, tree, include_full_content=False)
