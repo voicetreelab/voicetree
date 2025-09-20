@@ -9,11 +9,11 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import \
     clear_debug_logs
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import \
     ChunkProcessor
-from backend.tree_manager.markdown_tree_ds import \
+from backend.markdown_tree_manager.markdown_tree_ds import \
     MarkdownTree
-from backend.tree_manager.graph_flattening.tree_to_markdown import \
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import \
     TreeToMarkdownConverter
-from backend.tree_manager.markdown_to_tree import \
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import \
     load_markdown_tree
 from backend.text_to_graph_pipeline.voice_to_text.voice_to_text import \
     VoiceToTextEngine
@@ -49,11 +49,11 @@ if os.path.exists(markdown_dir):
             print(f"Loading existing tree from {markdown_load_dir}")
             logger.info(f"Loading existing tree from {markdown_load_dir}")
             loaded_tree = load_markdown_tree(markdown_load_dir)
-            decision_tree.tree = loaded_tree
+            decision_tree.tree = loaded_tree.tree
             # Update next_node_id to be higher than any existing node ID
-            if loaded_tree:
-                decision_tree.next_node_id = max(loaded_tree.keys()) + 1
-            logger.info(f"Loaded {len(loaded_tree)} nodes from markdown")
+            if loaded_tree.tree:
+                decision_tree.next_node_id = max(loaded_tree.tree.keys()) + 1
+            logger.info(f"Loaded {len(loaded_tree.tree)} nodes from markdown")
         except Exception as e:
             logger.info(f"Failed to load tree from markdown: {e}")
             logger.info("Starting with empty tree")

@@ -133,11 +133,13 @@ backend/tests/integration_tests/connect_orphans_output/*
 backend/benchmarker/output/*
 backend/benchmarker/output*/*
 backend/text_to_graph_pipeline/agentic_workflows/core/debug_logs/*
-backend/tests/integration_tests/agentic_workflows/.obsidian/*
 /backend/tests/markdownTreeVaultDefault/*
-/backend/tests/animal_example/.obsidian/*
-#**/.obsidian/*
+# Obsidian files (ignore all, except markdownTreeVault)
+**/.obsidian/*
+!markdownTreeVault/.obsidian/
 markdownTreeVault/.obsidian/workspace.json
 tools/state/*
 /backend/tests/unit_tests/markdownTreeVaultDefault/*
-/backend/tests/qa_example/.obsidian/*
+/.obsidian/appearance.json
+/.obsidian/core-plugins.json
+/.obsidian/workspace.json

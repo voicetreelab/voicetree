@@ -7,11 +7,11 @@ and regenerate markdown files with cluster tags incrementally.
 import asyncio
 import os
 from typing import Dict
-from backend.tree_manager.markdown_to_tree import MarkdownToTreeConverter
-from backend.tree_manager.markdown_tree_ds import Node
-from backend.tree_manager.graph_search.tree_functions import _format_nodes_for_prompt
+from backend.markdown_tree_manager.markdown_to_tree import MarkdownToTreeConverter
+from backend.markdown_tree_manager.markdown_tree_ds import Node
+from backend.markdown_tree_manager.graph_search.tree_functions import _format_nodes_for_prompt
 from backend.text_to_graph_pipeline.agentic_workflows.agents.clustering_agent import ClusteringAgent
-from backend.tree_manager.graph_flattening.tree_to_markdown import TreeToMarkdownConverter
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import TreeToMarkdownConverter
 
 
 async def save_current_progress(tree: Dict[int, Node], output_dir: str, batch_num: int, total_batches: int):

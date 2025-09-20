@@ -4455,3 +4455,38 @@ be fine as well
 Alright, but anyway, I'm at sprinting now, so I'm gonna have to end this session, but it's been really good. Thanks, VoiceTree.
 Oh, you're so welcome, Manu.
 Thank you.
+All righty, okay, so today we want to get infinite LLM work.
+Mm-hmm.
+Witch.
+Let's start by looking.
+at whatinfinitellm
+Requires and where we.
+I think one of the first things we want to do is where we left off is make sure that we are actually storing vectors every time.
+We update the tree.
+Thank you.
+So just one little fix up I want to do before we start getting into things is I want to make the hide.
+um in uh juggle ui voice tree ui i want to make that
+Instead of just hiding the node, I want to
+delete the node.
+Oh, and while we're there editing UI...
+Um, one of the, um, one of the animation.
+I think maybe new node animation.
+um, never disappears. We want it to disappear off like
+Except maybe always keep the last node.
+that was created.
+Only, like, clear the animation.
+once another new node exists. So either when we get to the timeout
+of, no, no, whatever comes
+So if there's a new node,
+and it's above the timeout, then we can clear the animation.
+Okay, so we're just cleaning up our repo.
+Thank you.
+Okay, one other thing we need to do is we need to do this.
+of it the um we did some code right for tree update remind
+um but we need to make sure that we have a
+um logic the tree update
+In words, kidding.
+getting quite complicated we want to make sure we have like a tdd pep test
+Tests, they're coming.
+input.
+patients that have needs and needs to lose.

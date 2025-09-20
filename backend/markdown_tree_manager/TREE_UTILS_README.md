@@ -18,7 +18,7 @@ Formats nodes for LLM prompts in a consistent, readable format.
 
 ```python
 
-from backend.tree_manager.graph_flattening.tree_to_markdown import format_nodes_for_prompt
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import format_nodes_for_prompt
 
 formatted = format_nodes_for_prompt(nodes, tree, include_full_content=True)
 ```
@@ -39,7 +39,7 @@ Maps node titles to their IDs, with optional fuzzy matching for inexact matches.
 
 ```python
 
-from backend.tree_manager.utils import map_titles_to_node_ids
+from backend.markdown_tree_manager.utils import map_titles_to_node_ids
 
 node_ids = map_titles_to_node_ids(["Node Title 1", "Node Title 2"], nodes)
 ```
@@ -86,7 +86,7 @@ Creates a new node in the tree with proper ID assignment.
 
 ```python
 
-from backend.tree_manager.graph_flattening.tree_to_markdown import format_nodes_for_prompt
+from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import format_nodes_for_prompt
 
 # Get nodes to format
 nodes = list(tree.values())
@@ -102,7 +102,7 @@ formatted = format_nodes_for_prompt(nodes, tree, include_full_content=False)
 
 ```python
 
-from backend.tree_manager.utils import map_titles_to_node_ids
+from backend.markdown_tree_manager.utils import map_titles_to_node_ids
 
 # LLM returns node titles
 selected_titles = response.node_titles
