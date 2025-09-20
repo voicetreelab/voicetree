@@ -1,0 +1,33 @@
+{
+  "final_tree_size": 7,
+  "tree_structure": {
+    "1": {
+      "name": "Project Planning Steps",
+      "summary": "The first step in project planning is to define the project scope."
+    },
+    "2": {
+      "name": "VoiceTree Application Testing",
+      "summary": "This is a test of the VoiceTree application"
+    },
+    "3": {
+      "name": "Identify Key Stakeholders",
+      "summary": "The next step in project planning is to identify all key stakeholders."
+    },
+    "4": {
+      "name": "Project Planning",
+      "summary": "A new node for project planning is desired."
+    },
+    "5": {
+      "name": "Seeking Investor Advice and Networking",
+      "summary": "Reach out to investors, starting with Austin's dad, after polishing the POC and preparing a pitch deck."
+    },
+    "6": {
+      "name": "Polish POC",
+      "summary": "Refine the POC by improving UI, summarization quality, robustness, and ease of use."
+    },
+    "7": {
+      "name": "Prepare Pitch Deck and Presentation",
+      "summary": "Create a compelling pitch deck and presentation for investors."
+    }
+  }
+}
