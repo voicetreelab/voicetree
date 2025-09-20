@@ -229,7 +229,7 @@ def get_neighborhood(
     target_parents = extract_parent_links(target_node['content'])
     
     # Get immediate children of target  
-    target_children = find_child_references(target_file, markdown_dir, file_cache)
+    find_child_references(target_file, markdown_dir, file_cache)
     
     # For each parent, find its other children (siblings of target)
     for parent_file in target_parents:

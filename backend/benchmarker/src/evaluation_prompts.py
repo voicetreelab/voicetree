@@ -46,7 +46,7 @@ Then provide your detailed evaluation addressing each criterion.
 def build_evaluation_prompt(transcript_content, packaged_output, prompts_content=""):
     """Build the complete evaluation prompt."""
     prompt = (
-        f"I have a system which converts in real-time, spoken voice into a content tree (similar to a mind-map).\n"
+        "I have a system which converts in real-time, spoken voice into a content tree (similar to a mind-map).\n"
     )
     
     # if prompts_content:

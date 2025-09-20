@@ -4,7 +4,6 @@ Imports and assembles configurations from various modules
 """
 
 import os
-from backend.text_to_graph_pipeline.voice_to_text.voice_config import VoiceConfig
 
 # Environment variables
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")

@@ -1,11 +1,10 @@
 # treeToMarkdown.py
 import logging
 import os
-import re
 import traceback
-from typing import Dict, TYPE_CHECKING, List
+from typing import Dict, List
 
-from backend.markdown_tree_manager.utils import deduplicate_content, insert_yaml_frontmatter, generate_filename_from_keywords, slugify
+from backend.markdown_tree_manager.utils import insert_yaml_frontmatter, generate_filename_from_keywords
 
 # Import Node for both type checking and runtime use
 from backend.markdown_tree_manager.markdown_tree_ds import Node
@@ -88,12 +87,12 @@ class TreeToMarkdownConverter:
 
                 parent_id = self.get_parent_id(node_id)
                 if parent_id is not None:
-                    f.write(f"Parent:\n")
+                    f.write("Parent:\n")
                     parent_file_name = self.tree_data[parent_id].filename
                     relationship_to_parent = "child of"
                     try:
                         relationship_to_parent = self.tree_data[node_id].relationships[parent_id]
-                    except Exception as e:
+                    except Exception:
                         logging.error("Parent relationship not in tree_data")
                     relationship_to_parent = self.convert_to_snake_case(relationship_to_parent)
                     f.write(f"- {relationship_to_parent} [[{parent_file_name}]]\n")

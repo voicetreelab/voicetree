@@ -9,9 +9,8 @@ import sys
 import json
 import time
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import statistics
-from tqdm import tqdm
 from dotenv import load_dotenv
 import google.generativeai as genai
 from colorama import init, Fore, Style
@@ -29,7 +28,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
 from backend.context_retrieval.dependency_traversal import accumulate_content
 from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class GeminiClient:
@@ -258,7 +256,7 @@ class PerformanceComparatorV2:
     def evaluate_single_question(self, item: Dict, context: str) -> Dict:
         """Evaluate a single question using raw markdown content."""
         # Debug: Check what we're working with
-        print(f"\n   🔍 Building prompt...")
+        print("\n   🔍 Building prompt...")
         print(f"   Context passed in: {len(context)} chars")
         print(f"   Context preview: {context[:200]}...")
         
@@ -287,13 +285,13 @@ Format your response as follows: "The correct answer is (insert answer here)".""
             def decode(self, tokens, **kwargs):
                 return ' '.join(tokens) if isinstance(tokens, list) else tokens
         
-        tokenizer = DummyTokenizer()
+        DummyTokenizer()
         
         # Query LLM - no retry, fail fast
         question_preview = item.get('raw_content', '')[:100] if 'raw_content' in item else 'Unknown question'
         print(f"\n📝 Question: {question_preview}...")
         print(f"   Context size: {len(context)} chars")
-        print(f"\n🔍 PROMPT BEING SENT TO LLM (first 1000 chars):")
+        print("\n🔍 PROMPT BEING SENT TO LLM (first 1000 chars):")
         print("="*60)
         print(prompt[:1000])
         print("="*60)
@@ -339,7 +337,7 @@ Format your response as follows: "The correct answer is (insert answer here)".""
         
         print(f"\n{'='*60}")
         print(f"Running comparison: {num_runs} runs × {len(questions)} questions")
-        print(f"Using Gemini API with pred.py evaluation")
+        print("Using Gemini API with pred.py evaluation")
         print(f"{'='*60}\n")
         
         # Track accumulative accuracy
@@ -493,7 +491,7 @@ Format your response as follows: "The correct answer is (insert answer here)".""
                 report.append(f"Avg Retrieval Time: {avg_retrieval_time:.3f}s")
             
             # Per-question breakdown
-            report.append(f"\nPer-Question Accuracy:")
+            report.append("\nPer-Question Accuracy:")
             question_ids = set(r["question_id"] for r in method_results)
             for qid in sorted(question_ids):
                 q_results = [r for r in method_results if r["question_id"] == qid]

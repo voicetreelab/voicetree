@@ -5,12 +5,11 @@ Easy configuration: Modify the CONFIG class below to change models, temperature,
 """
 import logging
 import os
-import re
 from pathlib import Path
-from typing import Optional, Type, Dict
+from typing import Optional, Type
 from dataclasses import dataclass
 from dotenv import load_dotenv
-from google.genai.types import GenerateContentConfig, GenerateContentConfigDict, SafetySettingDict, HttpOptions, SafetySetting
+from google.genai.types import HttpOptions, SafetySetting
 from pydantic import BaseModel
 from google import genai
 import json
@@ -163,7 +162,7 @@ async def call_llm_structured(
     # Call the model with structured output
     # Pass Pydantic models directly as per Google's documentation
     if stage_type== "single_abstraction_optimizer":
-        print(f"Running local graph optimization stage with model: gemini-2.5-flash")
+        print("Running local graph optimization stage with model: gemini-2.5-flash")
 
     else:
         print(f"Running {stage_type} with model: {model_name}")

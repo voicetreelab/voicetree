@@ -6,7 +6,7 @@ brace escaping in JSON examples, preventing the recurring KeyError issues.
 """
 
 import re
-from typing import Dict, Any
+from typing import Any
 from pathlib import Path
 
 
@@ -114,7 +114,7 @@ def migrate_template_to_new_format(old_template: str) -> str:
     template_var_pattern = r'(?<!")(\{(\w+)\})(?!")'
     
     def replace_template_var(match):
-        full_match = match.group(1)  # {variable}
+        match.group(1)  # {variable}
         var_name = match.group(2)    # variable
         return f"{{{{{var_name}}}}}"  # {{variable}}
     
