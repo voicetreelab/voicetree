@@ -321,10 +321,13 @@ class ChromaDBVectorStore:
             Combined ranked list of node IDs
         """
         # Get vector search results
-        vector_results = self.search(query, top_k=top_k * 2, include_scores=True)
+        vector_results_raw = self.search(query, top_k=top_k * 2, include_scores=True)
 
-        if not vector_results:
+        # Type guard to ensure we have tuples
+        if not vector_results_raw or not isinstance(vector_results_raw[0], tuple):
             return keyword_results[:top_k]
+
+        vector_results: List[Tuple[int, float]] = vector_results_raw  # type: ignore
 
         # Combine scores
         combined_scores = {}
