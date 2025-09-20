@@ -119,25 +119,32 @@ async def test_complex_tree_creation():
     for node_id, node in decision_tree.tree.items():
         print(f"  - {node.title}: {node.summary}")
     
-    # Save results to file for further analysis
+    # Save results to file for further analysis (temporary)
     output_file = current_dir / "test_results.json"
-    with open(output_file, "w") as f:
-        json.dump({
-            "final_tree_size": len(decision_tree.tree),
-            "tree_structure": {
-                node_id: {
-                    "name": node.title,
-                    "summary": node.summary
+    try:
+        with open(output_file, "w") as f:
+            json.dump({
+                "final_tree_size": len(decision_tree.tree),
+                "tree_structure": {
+                    node_id: {
+                        "name": node.title,
+                        "summary": node.summary
+                    }
+                    for node_id, node in decision_tree.tree.items()
                 }
-                for node_id, node in decision_tree.tree.items()
-            }
-        }, f, indent=2)
-    
-    print(f"\n💾 Results saved to: {output_file}")
-    
-    # Assert that we got meaningful results
-    assert len(results) == 3, f"Expected 3 results, but got {len(results)}"
-    assert len(decision_tree.tree) > 1, f"Expected tree to grow beyond root node, but it has {len(decision_tree.tree)} nodes"
+            }, f, indent=2)
+
+        print(f"\n💾 Results saved to: {output_file}")
+
+        # Assert that we got meaningful results
+        assert len(results) == 3, f"Expected 3 results, but got {len(results)}"
+        assert len(decision_tree.tree) > 1, f"Expected tree to grow beyond root node, but it has {len(decision_tree.tree)} nodes"
+
+    finally:
+        # Clean up test output file
+        if output_file.exists():
+            output_file.unlink()
+            print(f"🧹 Cleaned up test file: {output_file}")
 
 @pytest.mark.asyncio
 @pytest.mark.skip(reason="Test flaky due to LLM JSON parsing errors")

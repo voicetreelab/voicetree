@@ -1,32 +1,40 @@
 {
-  "final_tree_size": 7,
+  "final_tree_size": 9,
   "tree_structure": {
     "1": {
-      "name": "Project Planning",
-      "summary": "Project planning involves sequential steps for successful execution."
+      "name": "Project Planning Node Creation Intent",
+      "summary": "Intent to create project planning node fulfilled, with new node and initial steps defined."
     },
     "2": {
       "name": "VoiceTree Application Testing",
       "summary": "This is a test of the VoiceTree application"
     },
     "3": {
-      "name": "Define Project Scope",
-      "summary": "The initial step in project planning, outlining project boundaries and deliverables."
+      "name": "Project Planning",
+      "summary": "Outlines foundational steps for effective project planning."
     },
     "4": {
-      "name": "Identify Key Stakeholders",
-      "summary": "Identifying individuals or groups affected by or influencing the project."
+      "name": "Define Project Scope",
+      "summary": "First step in project planning: define what the project will and will not include."
     },
     "5": {
-      "name": "Investor Outreach and Guidance",
-      "summary": "Reach out to investors, starting with Austin's dad, for guidance on next steps."
+      "name": "Identify Key Stakeholders",
+      "summary": "Next step in project planning: identify all individuals and groups affected by or influencing the project."
     },
     "6": {
-      "name": "Polish Proof of Concept (POC)",
-      "summary": "Refine the POC by improving UI, summarization quality, and application robustness."
+      "name": "Investor Outreach and Strategic Guidance",
+      "summary": "Reach out to investors for strategic guidance on next steps."
     },
     "7": {
-      "name": "Prepare Investor Pitch Deck",
+      "name": "Contact Austin's Dad",
+      "summary": "The first step for investor outreach is to contact Austin's dad."
+    },
+    "8": {
+      "name": "Polish Proof of Concept (POC)",
+      "summary": "Refine the user interface, improve summarization quality, and ensure application robustness for the POC."
+    },
+    "9": {
+      "name": "Prepare Investor Pitch Deck and Presentation",
       "summary": "Create a compelling pitch deck and presentation for investors."
     }
   }
