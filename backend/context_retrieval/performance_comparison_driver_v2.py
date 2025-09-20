@@ -9,7 +9,7 @@ import sys
 import json
 import time
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 import statistics
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -32,42 +32,8 @@ from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load
 
 class GeminiClient:
     """Wrapper to make Gemini API compatible with pred.py's OpenAI-style interface."""
-    
-    def __init__(self, api_key: str):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        
-    class ChatCompletions:
-        def __init__(self, model):
-            self.model = model
-            
-        def create(self, model=None, messages=None, temperature=0.5):
-            """Create a completion using Gemini."""
-            prompt = messages[0]["content"] if messages else ""
-            
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=temperature
-                )
-            )
-            
-            # Create OpenAI-style response
-            class Message:
-                def __init__(self, content):
-                    self.content = content
-                    
-            class Choice:
-                def __init__(self, message):
-                    self.message = message
-                    
-            class Completion:
-                def __init__(self, choices):
-                    self.choices = choices
-                    
-            return Completion([Choice(Message(response.text))])
-    
-    def __init__(self, api_key: str):
+
+    def __init__(self, api_key: str) -> None:
         genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel('gemini-2.5-flash-lite')
         self.chat = type('obj', (object,), {
@@ -176,7 +142,7 @@ class PerformanceComparatorV2:
         
         lines = content.strip().split('\n')
         question = ""
-        choices = {}
+        choices = dict()
         
         # Extract question - it's usually after "Question" header
         in_question = False
@@ -251,7 +217,7 @@ class PerformanceComparatorV2:
             if match:
                 return match.group(1)
             else:
-                return None
+                return ""
     
     def evaluate_single_question(self, item: Dict, context: str) -> Dict:
         """Evaluate a single question using raw markdown content."""
@@ -285,7 +251,7 @@ Format your response as follows: "The correct answer is (insert answer here)".""
             def decode(self, tokens, **kwargs):
                 return ' '.join(tokens) if isinstance(tokens, list) else tokens
         
-        DummyTokenizer()
+        tokenizer = DummyTokenizer()
         
         # Query LLM - no retry, fail fast
         question_preview = item.get('raw_content', '')[:100] if 'raw_content' in item else 'Unknown question'
@@ -322,10 +288,10 @@ Format your response as follows: "The correct answer is (insert answer here)".""
             'context_size': len(context)
         }
     
-    def run_comparison(self, num_runs: int = 10) -> Dict:
+    def run_comparison(self, num_runs: int = 10) -> Dict[str, Any]:
         """Run the comparison test with specified number of runs per question."""
         questions = self.load_test_questions()
-        results = {
+        results: Dict[str, Any] = {
             "pruned": [],
             "unpruned": [],
             "metadata": {

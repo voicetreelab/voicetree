@@ -6,7 +6,7 @@ Dependency traversal module for context retrieval.
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Union, Any
 
 # Import load_node from markdown_to_tree module
 from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node
@@ -161,12 +161,12 @@ def get_path_to_node(
     target_file: str,
     markdown_dir: Path,
     max_depth: int
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Union[str, int, List[str]]]]:
     """
     Traverse up from target to root, return path in root->target order.
     """
-    visited = set()
-    file_cache = {}
+    visited: Set[str] = set()
+    file_cache: Dict[str, str] = dict()
     
     # Get parents using bidirectional traversal (parents only)
     parent_results = traverse_bidirectional(
@@ -185,12 +185,12 @@ def get_children_recursive(
     parent_file: str,
     markdown_dir: Path,
     max_depth: int
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Union[str, int, List[str]]]]:
     """
     Recursively get all children up to max_depth.
     """
-    visited = set()
-    file_cache = {}
+    visited: Set[str] = set()
+    file_cache: Dict[str, str] = dict()
     
     # Get children using bidirectional traversal (children only)
     child_results = traverse_bidirectional(
@@ -211,14 +211,14 @@ def get_neighborhood(
     target_file: str,
     markdown_dir: Path,
     radius: int
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Union[str, int, List[str]]]]:
     """
     Get nodes within N hops of target (siblings, cousins, etc).
     Finds nodes that share common parents or children with the target.
     """
     neighbors = []
-    visited = set()
-    file_cache = {}
+    visited: Set[str] = set()
+    file_cache: Dict[str, str] = dict()
     
     # Load the target node
     target_node = load_node(target_file, markdown_dir)
@@ -247,8 +247,8 @@ def get_neighborhood(
                 if sibling != target_file and sibling not in visited:
                     visited.add(sibling)
                     sibling_node = load_node(sibling, markdown_dir)
-                    sibling_node['depth'] = 0  # Same level as target
-                    sibling_node['distance_from_target'] = 1  # One hop away
+                    sibling_node['depth'] = '0'  # Same level as target
+                    sibling_node['distance_from_target'] = '1'  # One hop away
                     neighbors.append(sibling_node)
     
     # For radius > 1, could extend to cousins, etc.
@@ -263,7 +263,7 @@ def traverse_to_node(
     target_file: str,
     markdown_dir: Path,
     options: TraversalOptions = TraversalOptions()
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Union[str, int, List[str]]]]:
     """
     Main traversal function for context retrieval.
     Traverses to a node with specified options and returns list of node dictionaries.
@@ -293,7 +293,7 @@ def traverse_to_node(
     
     # Add target node
     target_node = load_node(target_file, markdown_dir)
-    target_node['depth'] = 0
+    target_node['depth'] = '0'
     nodes.append(target_node)
     
     # Get children if requested
@@ -311,7 +311,7 @@ def traverse_to_node(
 
 
 def accumulate_content(
-    nodes: List[Dict[str, str]],
+    nodes: List[Dict[str, Union[str, int, List[str]]]],
     include_metadata: bool = True,
     separator: str = "\n\n" + "="*60 + "\n\n"
 ) -> str:
@@ -333,7 +333,7 @@ def accumulate_content(
     seen_node_ids = set()  # Track seen node IDs to avoid duplicates
     
     # Group nodes by their properties for organized output
-    nodes_by_type = {
+    nodes_by_type: Dict[str, List[Dict[str, Any]]] = {
         'targets': [],
         'parents': [],
         'children': [],
