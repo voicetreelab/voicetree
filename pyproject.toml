@@ -3,7 +3,6 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-disallow_any_dict = true
 disallow_any_generics = true
 check_untyped_defs = true
 no_implicit_optional = true
@@ -17,10 +16,10 @@ show_error_context = true
 show_column_numbers = true
 show_error_codes = true
 
-# NO OVERRIDES - Single solution principle
-# All code including tests must follow strict typing
+# NO EXCEPTIONS - All code must follow strict typing rules
+# No backwards compatibility - enforce single solution principle
 
-[tool.ruff]
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -34,8 +33,6 @@ select = [
 ignore = [
     "E501",  # line too long
     "B008",  # do not perform function calls in argument defaults
-    "ANN101", # missing type annotation for self
-    "ANN102", # missing type annotation for cls
 ]
 
 # NO PER-FILE IGNORES - Enforce typing everywhere

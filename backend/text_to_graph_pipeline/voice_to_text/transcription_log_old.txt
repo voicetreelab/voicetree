@@ -4638,3 +4638,31 @@ Oh, thank you. Okay, you're up?
 Thank you.
 Bye-bye.
 Bye-bye.
+okay cool so where are we up to right now
+Okay, cool. So where are we up to right now?
+I think we've done our commits right.
+I think we've done our commits right.
+We've gotten some nice UI change.
+We've got some nice UI changes.
+Um,
+Um...
+So I do want to check, like, the state of where we're at.
+So I do want to check like the state of where we're at.
+with
+With, um,
+Vector search.
+Vector search.
+But I don't actually know.
+But I don't actually know.
+exactly where we are at with that
+exactly where we are at with that
+um
+um
+So there's back end.
+So there's back end.
+Markdown Tree Manager Embeddings
+Markdown Tree Manager Embeddings
+Um...
+Um, yeah.
+What is it?
+Well, uh...
