@@ -11,7 +11,7 @@ and traverses those nodes with their relationships.
 import sys
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -20,7 +20,7 @@ from backend.context_retrieval.content_filtering import ContentLevel
 from backend.markdown_tree_manager.graph_search.vector_search import find_relevant_nodes_for_context
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
-def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None):
+def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     Traverse relevant nodes found via vector search based on query and tree.
 

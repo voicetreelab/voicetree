@@ -89,7 +89,7 @@ class ChromaDBVectorStore:
             else:
                 self.collection = self.client.get_collection(name=self.collection_name)
             logger.info(f"Using existing collection: {self.collection_name}")
-        except:
+        except Exception:
             # Create new collection if it doesn't exist
             if self.embedding_function:
                 self.collection = self.client.create_collection(

@@ -64,7 +64,8 @@ def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: 
         # Get content from cache or read file
         if relative_path not in file_cache:
             node_data = load_node(relative_path, markdown_dir)
-            file_cache[relative_path] = node_data['content']
+            content_val = node_data['content']
+            file_cache[relative_path] = content_val if isinstance(content_val, str) else str(content_val)
         content = file_cache[relative_path]
         
         # Check if this file has ANY link to our parent file
@@ -84,7 +85,7 @@ def traverse_bidirectional(
     depth: int = 0,
     max_depth: int = 10,
     direction: str = "both"
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Union[str, int, List[str]]]]:
     """
     Bidirectionally traverse the graph, following both parent and child links.
     Direction can be: 'both', 'parents', 'children'
@@ -98,12 +99,14 @@ def traverse_bidirectional(
     # Load node using markdown_to_tree module
     if start_file not in file_cache:
         node_data = load_node(start_file, markdown_dir)
-        file_cache[start_file] = node_data['content']
+        content_val = node_data['content']
+        file_cache[start_file] = content_val if isinstance(content_val, str) else str(content_val)
     else:
         # If we have cached content, still need full node data
         node_data = load_node(start_file, markdown_dir)
-        
-    content = node_data['content']
+
+    content_raw = node_data['content']
+    content = content_raw if isinstance(content_raw, str) else str(content_raw)
     
     if not content:
         return []
@@ -352,9 +355,9 @@ def accumulate_content(
         
         if node.get('is_search_target', False):
             nodes_by_type['targets'].append(node)
-        elif node.get('depth', 0) > 0:
+        elif int(node.get('depth', 0)) > 0:
             nodes_by_type['parents'].append(node)
-        elif node.get('depth', 0) < 0:
+        elif int(node.get('depth', 0)) < 0:
             nodes_by_type['children'].append(node)
         else:
             # Depth 0 but not target = neighbor or special case
@@ -372,9 +375,9 @@ def accumulate_content(
         
         # Sort by depth/relevance
         if group_name == 'parents':
-            group_nodes.sort(key=lambda x: x.get('depth', 0), reverse=True)
+            group_nodes.sort(key=lambda x: int(x.get('depth', 0)), reverse=True)
         elif group_name == 'children':
-            group_nodes.sort(key=lambda x: abs(x.get('depth', 0)))
+            group_nodes.sort(key=lambda x: abs(int(x.get('depth', 0))))
         
         for node in group_nodes:
             node_parts = []

@@ -6,14 +6,14 @@ combining file operations, link extraction, and metadata extraction.
 """
 
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Union
 
 from .file_operations import read_markdown_file
 from .link_extraction import extract_markdown_links
 from .metadata_extraction import extract_node_id, extract_title, extract_summary
 
 
-def load_node(filename: str, markdown_dir: Path) -> Dict[str, str]:
+def load_node(filename: str, markdown_dir: Path) -> Dict[str, Union[str, List[str]]]:
     """
     Load and parse a markdown node - shared by both pipelines.
     Combines all parsing functions into a single interface.
