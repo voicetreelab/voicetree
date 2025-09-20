@@ -4,13 +4,12 @@ Tests the agent's ability to group related GPT-SoVITS components and leave unrel
 """
 
 import pytest
-from typing import List
 from pathlib import Path
 
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
 from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import ConnectOrphansAgent
-from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction, BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
 
 
 @pytest.mark.asyncio
@@ -97,7 +96,7 @@ class TestConnectOrphansAgentBehavior:
             if node.parent_id is None
         ]
         
-        print(f"\n=== Testing GPT-SoVITS Node Grouping ===")
+        print("\n=== Testing GPT-SoVITS Node Grouping ===")
         print(f"Initial orphan nodes: {len(initial_orphans)}")
         print("Sample orphan titles:")
         for node in initial_orphans[:5]:
@@ -108,7 +107,6 @@ class TestConnectOrphansAgentBehavior:
         
         try:
             # Hook into the agent to capture LLM response
-            from unittest.mock import patch
             original_run = connect_orphans_agent.run
             
             async def run_with_capture(*args, **kwargs):
@@ -144,20 +142,20 @@ class TestConnectOrphansAgentBehavior:
                 )
         
         except Exception as e:
-            print(f"\n!!! EXCEPTION DURING AGENT EXECUTION !!!")
+            print("\n!!! EXCEPTION DURING AGENT EXECUTION !!!")
             print(f"Error: {e}")
             if llm_response:
-                print(f"\n=== LLM Response (for debugging) ===")
+                print("\n=== LLM Response (for debugging) ===")
                 print(f"Reasoning: {llm_response.reasoning if hasattr(llm_response, 'reasoning') else 'N/A'}")
                 print(f"Groupings: {llm_response.groupings if hasattr(llm_response, 'groupings') else 'N/A'}")
             raise
         
-        print(f"\n=== Agent Results ===")
+        print("\n=== Agent Results ===")
         print(f"Generated {len(actions)} actions")
         
         # If no actions generated, print LLM reasoning for debugging
         if len(actions) == 0 and llm_response:
-            print(f"\n=== LLM Response (No groupings created) ===")
+            print("\n=== LLM Response (No groupings created) ===")
             print(f"Reasoning: {llm_response.reasoning if hasattr(llm_response, 'reasoning') else 'N/A'}")
             print(f"Groupings: {llm_response.groupings if hasattr(llm_response, 'groupings') else 'N/A'}")
         
@@ -191,10 +189,10 @@ class TestConnectOrphansAgentBehavior:
                         f"Parent name should be descriptive: '{action.new_node_name}'"
                         
                 except AssertionError as e:
-                    print(f"\n!!! ASSERTION FAILED !!!")
+                    print("\n!!! ASSERTION FAILED !!!")
                     print(f"Failed assertion: {e}")
                     if llm_response:
-                        print(f"\n=== Full LLM Response (for debugging) ===")
+                        print("\n=== Full LLM Response (for debugging) ===")
                         print(f"Reasoning: {llm_response.reasoning}")
                         print(f"All groupings: {llm_response.groupings}")
                     raise
@@ -280,7 +278,7 @@ class TestConnectOrphansAgentBehavior:
         # Run the agent
         actions = await connect_orphans_agent.run(tree, min_group_size=2)
         
-        print(f"\n=== Diverse Topics Test ===")
+        print("\n=== Diverse Topics Test ===")
         print(f"Created {len(actions)} groupings from 6 diverse topics")
         
         if actions:
@@ -304,7 +302,7 @@ class TestConnectOrphansAgentBehavior:
         # Test root finding
         roots = connect_orphans_agent.find_disconnected_roots(qa_example_tree)
         
-        print(f"\n=== Internal Processing Test ===")
+        print("\n=== Internal Processing Test ===")
         print(f"Found {len(roots)} root nodes")
         
         # All roots should have required fields
@@ -335,7 +333,7 @@ class TestConnectOrphansAgentBehavior:
         # Get the roots that will be analyzed
         roots = connect_orphans_agent.find_disconnected_roots(qa_example_tree)[:20]
         
-        print(f"\n=== Meaningful Groupings Test ===")
+        print("\n=== Meaningful Groupings Test ===")
         print(f"Analyzing {len(roots)} root nodes:")
         for root in roots:
             print(f"  - {root.title}")
@@ -345,7 +343,7 @@ class TestConnectOrphansAgentBehavior:
         
         # Debug: Print what we're sending to the LLM
         roots_formatted = connect_orphans_agent._format_roots_for_prompt(roots)
-        print(f"\n=== ROOTS CONTEXT BEING SENT ===")
+        print("\n=== ROOTS CONTEXT BEING SENT ===")
         print(roots_formatted[:500] + "..." if len(roots_formatted) > 500 else roots_formatted)
         
         try:
@@ -371,10 +369,10 @@ class TestConnectOrphansAgentBehavior:
                 actions = connect_orphans_agent.create_connection_actions(llm_response, roots)
                 
         except Exception as e:
-            print(f"\n!!! ERROR IN TEST !!!")
+            print("\n!!! ERROR IN TEST !!!")
             print(f"Error: {e}")
             if llm_response:
-                print(f"\n=== LLM Response Debug ===")
+                print("\n=== LLM Response Debug ===")
                 print(f"Reasoning: {llm_response.reasoning}")
                 print(f"Groupings: {llm_response.groupings}")
             raise
@@ -383,10 +381,10 @@ class TestConnectOrphansAgentBehavior:
         
         # Always print LLM reasoning for insight
         if llm_response:
-            print(f"\n=== LLM Reasoning ===")
+            print("\n=== LLM Reasoning ===")
             print(llm_response.reasoning[:500] + "..." if len(llm_response.reasoning) > 500 else llm_response.reasoning)
             if len(actions) == 0:
-                print(f"\n=== Why no groupings? ===")
+                print("\n=== Why no groupings? ===")
                 print(f"LLM decided not to group. Full reasoning: {llm_response.reasoning}")
                 
                 # Output debug logs for better observability
@@ -396,7 +394,7 @@ class TestConnectOrphansAgentBehavior:
                 # Read and print LLM I/O log
                 io_log_path = os.path.join(debug_dir, "connect_orphans_llm_io.txt")
                 if os.path.exists(io_log_path):
-                    print(f"\n=== LLM INPUT/OUTPUT LOG ===")
+                    print("\n=== LLM INPUT/OUTPUT LOG ===")
                     with open(io_log_path, 'r') as f:
                         content = f.read()
                         print(content[:2000] + "..." if len(content) > 2000 else content)
@@ -404,7 +402,7 @@ class TestConnectOrphansAgentBehavior:
                 # Read and print debug log
                 debug_log_path = os.path.join(debug_dir, "connect_orphans_debug.txt")
                 if os.path.exists(debug_log_path):
-                    print(f"\n=== DEBUG LOG ===")
+                    print("\n=== DEBUG LOG ===")
                     with open(debug_log_path, 'r') as f:
                         content = f.read()
                         print(content[:1000] + "..." if len(content) > 1000 else content)
@@ -447,7 +445,7 @@ class TestConnectOrphansAgentBehavior:
                         "Parent node should have meaningful content"
                         
                 except AssertionError as e:
-                    print(f"\n!!! ASSERTION FAILED !!!")
+                    print("\n!!! ASSERTION FAILED !!!")
                     print(f"Failed: {e}")
                     if llm_response:
                         print(f"\nFull groupings from LLM: {llm_response.groupings}")
@@ -483,7 +481,7 @@ class TestConnectOrphansAgentBehavior:
         
         # Should handle gracefully
         try:
-            actions = await connect_orphans_agent.run(tree, min_group_size=2)
+            await connect_orphans_agent.run(tree, min_group_size=2)
             # Test passes if no exception is raised
             assert True, "Agent handled edge cases gracefully"
         except Exception as e:

@@ -60,7 +60,7 @@ class TestTfidfAmbiguousQueries:
         
         # Get all nodes to see ranking
         all_results = get_most_relevant_nodes(tree, limit=3, query=query)
-        node_ids_all = [node.id for node in all_results]
+        [node.id for node in all_results]
         
         # All nodes should be included
         assert len(all_results) == 3, "Should return all 3 nodes"

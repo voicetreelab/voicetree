@@ -10,8 +10,7 @@ import tempfile
 import shutil
 from backend.context_retrieval.dependency_traversal import (
     traverse_to_node,
-    TraversalOptions,
-    ContentLevel
+    TraversalOptions
 )
 
 

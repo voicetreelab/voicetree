@@ -11,22 +11,22 @@
     },
     "3": {
       "name": "Define Project Scope",
-      "summary": "The initial step in project planning, outlining project boundaries and deliverables."
+      "summary": "The initial step in project planning is to define the project scope."
     },
     "4": {
       "name": "Identify Key Stakeholders",
-      "summary": "Identifying individuals or groups affected by or influencing the project."
+      "summary": "The next step in project planning is to identify the key stakeholders."
     },
     "5": {
-      "name": "Investor Outreach and Guidance",
-      "summary": "Reach out to investors, starting with Austin's dad, for guidance on next steps."
+      "name": "Investor Outreach and Recommendations",
+      "summary": "Initiate investor outreach for recommendations, starting with Austin's dad, after polishing the POC and preparing the pitch deck."
     },
     "6": {
-      "name": "Polish Proof of Concept (POC)",
-      "summary": "Refine the POC by improving UI, summarization quality, and application robustness."
+      "name": "Polish POC",
+      "summary": "Refine the POC's user interface, summarization quality, and application robustness."
     },
     "7": {
-      "name": "Prepare Investor Pitch Deck",
+      "name": "Prepare Pitch Deck and Presentation",
       "summary": "Create a compelling pitch deck and presentation for investors."
     }
   }

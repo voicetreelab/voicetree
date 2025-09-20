@@ -45,7 +45,7 @@ class VoiceToTextEngine:
         self.recorder.dynamic_energy_ratio = self.config.dynamic_energy_ratio
 
         # This queue will hold complete audio phrases (as numpy arrays) ready for transcription.
-        self._ready_for_transcription_queue = Queue()
+        self._ready_for_transcription_queue: Queue[np.ndarray] = Queue()
 
         self._stop_listening_callback: Optional[Callable] = None
         self.source: Optional[sr.Microphone] = None

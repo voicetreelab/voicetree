@@ -1,7 +1,6 @@
 import os
 import tempfile
 import shutil
-from datetime import datetime
 import pytest
 
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
@@ -27,7 +26,7 @@ class TestMarkdownToTreeSync:
         tree = MarkdownTree(output_dir=temp_dir)
         
         # Create a test node
-        node_id = tree.create_new_node(
+        tree.create_new_node(
             name="Test Node",
             parent_node_id=None,
             content="Original content",
@@ -79,7 +78,6 @@ class TestMarkdownToTreeSync:
         node = decision_tree.tree[node_id]
         original_content = node.content
         original_summary = node.summary
-        original_modified = node.modified_at
         
         # Sync without any changes
         synchronizer = MarkdownToTreeSynchronizer(decision_tree)

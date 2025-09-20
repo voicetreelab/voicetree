@@ -5,7 +5,6 @@ Tests verify that orphan nodes (nodes with no parent) are grouped and merged
 before processing to handle long contexts better.
 """
 
-from typing import List
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -90,7 +89,7 @@ class TestOrphanTopicGrouping:
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
                 
-                result = await workflow.run("This is a new feature description", decision_tree)
+                await workflow.run("This is a new feature description", decision_tree)
         
         # Assert
         # Verify apply was called with the original single action
@@ -162,7 +161,7 @@ class TestOrphanTopicGrouping:
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
                 
-                result = await workflow.run("First part Second part Third part", decision_tree)
+                await workflow.run("First part Second part Third part", decision_tree)
         
         # Assert
         # Verify apply was called with merged action
@@ -259,7 +258,7 @@ class TestOrphanTopicGrouping:
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
                 
-                result = await workflow.run("Mixed content", decision_tree)
+                await workflow.run("Mixed content", decision_tree)
         
         # Assert
         mock_applier_instance.apply.assert_called()
@@ -366,7 +365,7 @@ class TestOrphanTopicGrouping:
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
                 
-                result = await workflow.run("Different orphan topics", decision_tree)
+                await workflow.run("Different orphan topics", decision_tree)
         
         # Assert
         mock_applier_instance.apply.assert_called()
@@ -458,7 +457,7 @@ class TestOrphanTopicGrouping:
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
                 
-                result = await workflow.run("No orphans", decision_tree)
+                await workflow.run("No orphans", decision_tree)
         
         # Assert
         mock_applier_instance.apply.assert_called()

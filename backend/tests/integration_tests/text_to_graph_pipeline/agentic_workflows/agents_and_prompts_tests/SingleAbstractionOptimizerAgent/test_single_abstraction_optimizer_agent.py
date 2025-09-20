@@ -10,7 +10,6 @@ These tests verify the agent correctly:
 """
 
 import pytest
-from typing import List
 
 from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction

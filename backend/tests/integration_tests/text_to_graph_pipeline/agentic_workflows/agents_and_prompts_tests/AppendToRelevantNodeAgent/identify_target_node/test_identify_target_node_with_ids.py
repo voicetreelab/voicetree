@@ -3,13 +3,10 @@ Integration test for improved identify_target_node prompt with node IDs
 Tests that the prompt correctly identifies target node IDs instead of names
 """
 
-import asyncio
 import json
 
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import \
-    call_llm_structured
 from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import \
     PromptLoader
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
@@ -35,7 +32,6 @@ class TestIdentifyTargetNodeWithIDs:
         from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown
         from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import CONFIG
         from google.genai.types import GenerateContentConfigDict
-        import json
         
         # Get client directly to handle array format
         client = _get_client()
@@ -106,12 +102,12 @@ class TestIdentifyTargetNodeWithIDs:
         
         # First segment about caching should go to Architecture (ID 1)
         assert result.target_nodes[0].target_node_id == 1
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
         assert "caching" in result.target_nodes[0].text
         
         # Second segment about DB should go to Database Design (ID 2)
         assert result.target_nodes[1].target_node_id == 2
-        assert result.target_nodes[1].is_orphan == False
+        assert not result.target_nodes[1].is_orphan
         assert "database" in result.target_nodes[1].text.lower()
     
     @pytest.mark.asyncio
@@ -143,12 +139,12 @@ class TestIdentifyTargetNodeWithIDs:
         
         # Both should create new nodes (ID = -1)
         assert result.target_nodes[0].target_node_id == -1
-        assert result.target_nodes[0].is_orphan == True
+        assert result.target_nodes[0].is_orphan
         assert result.target_nodes[0].orphan_topic_name is not None
         assert "auth" in result.target_nodes[0].orphan_topic_name.lower()
         
         assert result.target_nodes[1].target_node_id == -1
-        assert result.target_nodes[1].is_orphan == True
+        assert result.target_nodes[1].is_orphan
         assert result.target_nodes[1].orphan_topic_name is not None
         assert "notification" in result.target_nodes[1].orphan_topic_name.lower() or \
                "websocket" in result.target_nodes[1].orphan_topic_name.lower()
@@ -212,12 +208,12 @@ class TestIdentifyTargetNodeWithIDs:
         # NOT create an orphan "Explore Flutter for Prize Money"
         assert result.target_nodes[0].target_node_id == 1 or 0, \
             f"Flutter exploration should route to Voice Tree PoC (id=1), not create orphan. Got: {result.target_nodes[0]}"
-        assert result.target_nodes[0].is_orphan == False, \
+        assert not result.target_nodes[0].is_orphan, \
             "Flutter exploration is part of the voice tree project, not a separate topic"
 
         # Second segment about audio streaming should also route to Voice Tree PoC
         assert result.target_nodes[1].target_node_id == 1 or 0 or 2
-        assert result.target_nodes[1].is_orphan == False
+        assert not result.target_nodes[1].is_orphan
 
     # @pytest.mark.asyncio
     # async def test_external_motivations_dont_fragment_project(self, prompt_loader):
@@ -338,14 +334,14 @@ class TestIdentifyTargetNodeWithIDs:
         
         # First should go to Security Features
         assert result.target_nodes[0].target_node_id == 5
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
         
         # Second should create new node for distributed tracing
         assert result.target_nodes[1].target_node_id == -1 or 8
 
         # Third should go to Performance Optimization
         assert result.target_nodes[2].target_node_id == 8
-        assert result.target_nodes[2].is_orphan == False
+        assert not result.target_nodes[2].is_orphan
 
 
     @pytest.mark.asyncio
@@ -382,7 +378,7 @@ class TestIdentifyTargetNodeWithIDs:
         # even though the context is 'login'. This tests the LLM's ability to
         # discern primary intent. Routing to ID 10 would be a "reasonable failure".
         assert result.target_nodes[0].target_node_id == 11
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
     @pytest.mark.asyncio
     async def test_granularity_threshold_detail_vs_new_node(self, prompt_loader):
@@ -415,7 +411,7 @@ class TestIdentifyTargetNodeWithIDs:
         # The correct action is to append this detail to the existing UI design node.
         # Creating a new node "Dashboard Chart Color" would be over-fragmentation.
         assert result.target_nodes[0].target_node_id == 25
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
     @pytest.mark.asyncio
     async def test_context_dependent_routing(self, prompt_loader):
@@ -451,7 +447,7 @@ class TestIdentifyTargetNodeWithIDs:
         assert len(result.target_nodes) == 1
         # Without context, this is un-routable. With context, it clearly belongs to the Billing System.
         assert result.target_nodes[0].target_node_id == 31
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
     @pytest.mark.skip(reason="Test too brittle due to LLM response formatting issues")
     @pytest.mark.asyncio
@@ -529,31 +525,31 @@ class TestIdentifyTargetNodeWithIDs:
         #    Distractor: Database Schema (103)
         assert results_map["caching"] is not None
         assert results_map["caching"].target_node_id == 104
-        assert results_map["caching"].is_orphan == False
+        assert not results_map["caching"].is_orphan
 
         # 2. Dashboard segment -> Dashboard UI/UX Redesign (105)
         #    Distractor: Frontend State Management (106)
         assert results_map["dashboard"] is not None
         assert results_map["dashboard"].target_node_id == 105
-        assert results_map["dashboard"].is_orphan == False
+        assert not results_map["dashboard"].is_orphan
 
         # 3. Stripe segment -> Third-Party API Integrations (109)
         #    Distractor: Q4 Roadmap (101) because "payment flow for Q4" was mentioned
         assert results_map["stripe"] is not None
         assert results_map["stripe"].target_node_id == 109
-        assert results_map["stripe"].is_orphan == False
+        assert not results_map["stripe"].is_orphan
 
         # 4. Deployment segment -> CI/CD Pipeline Setup (107)
         #    Distractor: Cloud Infrastructure (AWS) (108)
         assert results_map["deployment"] is not None
         assert results_map["deployment"].target_node_id == 107
-        assert results_map["deployment"].is_orphan == False
+        assert not results_map["deployment"].is_orphan
 
         # 5. Auth segment -> API Authentication Layer (102)
         #    Distractor: None are very close, but a confused model might pick a high-level one.
         assert results_map["oauth2"] is not None
         assert results_map["oauth2"].target_node_id == 102
-        assert results_map["oauth2"].is_orphan == False
+        assert not results_map["oauth2"].is_orphan
 
 
     @pytest.mark.asyncio
@@ -666,9 +662,9 @@ class TestIdentifyTargetNodeWithIDs:
         # The primary function is introducing oneself. The content is just the *detail* of that introduction.
         # A failure would be creating two separate orphans for "Humanitarian Aid" and "Funding Decisions".
         assert result.target_nodes[0].target_node_id == 1
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
         assert result.target_nodes[1].target_node_id == 1
-        assert result.target_nodes[1].is_orphan == False
+        assert not result.target_nodes[1].is_orphan
 
 
     @pytest.mark.asyncio
@@ -701,7 +697,7 @@ class TestIdentifyTargetNodeWithIDs:
         # The correct behavior is to route the specific example to its general parent node.
         # A failure would be creating a new orphan topic like "Lazy Loading for Image Gallery".
         assert result.target_nodes[0].target_node_id == 5
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
 
     @pytest.mark.asyncio
@@ -733,7 +729,7 @@ class TestIdentifyTargetNodeWithIDs:
         # Compressing images and running an audit are clear sub-tasks of the launch.
         # Creating an orphan would violate the "sub-task" routing rule.
         assert result.target_nodes[0].target_node_id == 45
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
 
     @pytest.mark.asyncio
@@ -766,9 +762,9 @@ class TestIdentifyTargetNodeWithIDs:
         assert len(result.target_nodes) == 2
         # The first segment fits perfectly.
         assert result.target_nodes[0].target_node_id == 30
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
         # The second segment is explicitly a new topic and should be an orphan.
-        assert result.target_nodes[1].is_orphan == True
+        assert result.target_nodes[1].is_orphan
         assert result.target_nodes[1].orphan_topic_name is not None
         assert "offsite" in result.target_nodes[1].orphan_topic_name.lower()
 
@@ -803,12 +799,12 @@ class TestIdentifyTargetNodeWithIDs:
 
         assert len(result.target_nodes) == 2
         # First segment is a specific, new problem not covered by "Project Planning". It must be an orphan.
-        assert result.target_nodes[0].is_orphan == True
+        assert result.target_nodes[0].is_orphan
         assert result.target_nodes[0].orphan_topic_name is not None
         first_orphan_name = result.target_nodes[0].orphan_topic_name
 
         # Second segment directly continues the first. It must be routed to the *same* orphan topic.
-        assert result.target_nodes[1].is_orphan == True
+        assert result.target_nodes[1].is_orphan
         assert result.target_nodes[1].target_node_id == -1
         assert result.target_nodes[1].orphan_topic_name == first_orphan_name
 

@@ -46,7 +46,7 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration impor
 from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import \
     PromptLoader
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    SegmentationResponse, TargetNodeResponse)
+    SegmentationResponse)
 
 
 class TestIdentifyTargetNodeWithIDs:
@@ -123,11 +123,6 @@ E        +  where 2 = len([SegmentModel(reasoning='This segment begins to elabor
         existing_nodes = """
         [
             {"id": 40, "name": "Backend Refactor", "summary": "General plan for improving the backend codebase."}
-        ]
-        """
-        segments = """
-        [
-            {"text": "We need to set up a new CI/CD pipeline, and also we should probably write a formal policy for code reviews.", "is_routable": true}
         ]
         """
         prompt_text = prompt_loader.render_template(

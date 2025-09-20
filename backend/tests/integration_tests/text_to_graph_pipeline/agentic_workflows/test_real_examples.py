@@ -5,21 +5,17 @@ Test the VoiceTree LangGraph pipeline with real examples from the integration te
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
-
 import pytest
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
+    TreeActionDeciderWorkflow
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 # Add project root to path for imports
 current_dir = Path(__file__).parent
 project_root = current_dir.parent.parent.parent  # Go up to VoiceTree directory
 sys.path.insert(0, str(project_root))
-
-# Import the workflow directly
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
-    TreeActionDeciderWorkflow
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
 @pytest.mark.asyncio

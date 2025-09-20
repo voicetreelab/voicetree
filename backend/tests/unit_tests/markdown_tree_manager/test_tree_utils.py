@@ -101,7 +101,7 @@ class TestDeduplicateContent:
     def test_deduplicate_empty_content(self):
         """Test deduplication of empty content"""
         assert deduplicate_content("") == ""
-        assert deduplicate_content(None) == None
+        assert deduplicate_content(None) is None
         assert deduplicate_content("   ") == "   "
     
     def test_deduplicate_no_duplicates(self):

@@ -116,7 +116,7 @@ class Agent:
         graph = StateGraph(self.state_schema)
         
         # Create prompt loader
-        prompt_loader = PromptLoader(Path(__file__).parent.parent / "prompts")
+        prompt_loader = PromptLoader(str(Path(__file__).parent.parent / "prompts"))
         
         # Add each prompt as a node
         for prompt_name in self.prompts:
@@ -145,11 +145,11 @@ class Agent:
                         logging.info(f"No specific model set for prompt '{pname}', using default")
                     
                     if llm_client:
-                        response : BaseModel = llm_client.call(prompt,
+                        llm_response = llm_client.call(prompt,
                                                     output_schema=output_schema)
                     else:
                         # Use default integration with optional model name
-                        response : BaseModel = await call_llm_structured(
+                        llm_response = await call_llm_structured(
                             prompt,
                             pname, 
                             output_schema=output_schema,
@@ -158,24 +158,24 @@ class Agent:
                     
                     # Log outputs for debugging - keep response as typed object
                     debug_outputs = {
-                        "response": response,
+                        "response": llm_response,
                         "current_stage": pname + "_complete"
                     }
                     log_stage_input_output(pname, debug_inputs, debug_outputs)
-                        
+
                     # Update state with typed response object
                     # Map node name to state-friendly key to avoid LangGraph conflicts
                     state_key = self._get_state_key_for_node(pname)
                     new_state = {
                         **state,
-                        state_key: response,
+                        state_key: llm_response,
                         "current_stage": pname + "_complete"
                     }
-                    
+
                     # Apply post-processor if defined
                     post_processor = self.post_processors.get(pname)
                     if post_processor:
-                        new_state = post_processor(new_state, response)
+                        new_state = post_processor(new_state, llm_response)
                     
                     # logging.warning(f"Agent DEBUG: After {pname}, state keys={list(new_state.keys())}, response type={type(response)}")
                     return new_state
@@ -186,7 +186,7 @@ class Agent:
             # This helps handle transient errors from the LLM API (network issues, rate limits, etc.)
             # Default retry_on behavior handles common exceptions except ValueError, TypeError, etc.
             retry_policy = RetryPolicy(max_attempts=2)
-            graph.add_node(prompt_name, make_node_fn(prompt_name), retry=retry_policy)
+            graph.add_node(prompt_name, make_node_fn(prompt_name), retry_policy=retry_policy)
             
         # Add dataflows as edges
         for from_prompt, to_prompt, transform in self.dataflows:
