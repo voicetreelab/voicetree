@@ -63,7 +63,7 @@ class TestTfidfNaturalLanguage:
         query = "Our team is struggling with sprint planning and we need better ways to estimate story points and manage our backlog in an agile environment"
         
         # Get all nodes to see ranking
-        all_results = get_most_relevant_nodes(tree, limit=3, query=query)
+        get_most_relevant_nodes(tree, limit=3, query=query)
         
         # Get top choice
         result = get_most_relevant_nodes(tree, limit=1, query=query)
@@ -77,9 +77,9 @@ class TestTfidfNaturalLanguage:
         
         # Document the limitation
         print("\nTF-IDF Limitation Demonstrated:")
-        print(f"Query contains agile terms: 'sprint planning', 'story points', 'backlog', 'agile'")
+        print("Query contains agile terms: 'sprint planning', 'story points', 'backlog', 'agile'")
         print(f"But TF-IDF selected: {result[0].title}")
-        print(f"Reason: 'team' appears in both query and node title, giving it high TF-IDF score")
+        print("Reason: 'team' appears in both query and node title, giving it high TF-IDF score")
         
     def test_natural_language_with_strong_keywords(self):
         """

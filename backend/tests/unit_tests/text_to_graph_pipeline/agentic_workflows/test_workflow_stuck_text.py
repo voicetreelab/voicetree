@@ -8,7 +8,7 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
 from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import TextBufferManager
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
 
 
 class TestWorkflowStuckTextRemoval:

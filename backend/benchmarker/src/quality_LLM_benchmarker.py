@@ -10,12 +10,6 @@ import sys
 import os
 import shutil
 from dotenv import load_dotenv
-# Add project root to Python path to allow running with: python backend/benchmarker/...
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
-
-# Load environment variables from .env file
-load_dotenv()
-
 from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import clear_debug_logs
 from backend.logging_config import setup_logging
 from backend.benchmarker.src import (
@@ -23,6 +17,12 @@ from backend.benchmarker.src import (
     TranscriptProcessor
 )
 from backend.benchmarker.src.file_utils import setup_output_directory
+
+# Add project root to Python path to allow running with: python backend/benchmarker/...
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def copy_debug_logs(transcript_name=None):

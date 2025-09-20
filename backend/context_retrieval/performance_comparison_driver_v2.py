@@ -9,7 +9,7 @@ import sys
 import json
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 import statistics
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -249,7 +249,6 @@ Format your response as follows: "The correct answer is (insert answer here)".""
             def decode(self, tokens, **kwargs):
                 return ' '.join(tokens) if isinstance(tokens, list) else tokens
         
-        tokenizer = DummyTokenizer()
         
         # Query LLM - no retry, fail fast
         question_preview = item.get('raw_content', '')[:100] if 'raw_content' in item else 'Unknown question'

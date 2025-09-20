@@ -64,7 +64,7 @@ def run_tests():
             failed += 1
     
     print(f"\n{'='*60}")
-    print(f"📊 Test Summary:")
+    print("📊 Test Summary:")
     print(f"   ✅ Passed: {passed}")
     print(f"   ❌ Failed: {failed}")
     print(f"   📈 Total: {passed + failed}")

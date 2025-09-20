@@ -1,6 +1,4 @@
-import pytest
-import json
-from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown, parse_partial_json
+from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown
 
 
 class TestJsonParserEdgeCases:
@@ -30,7 +28,7 @@ class TestJsonParserEdgeCases:
         assert "original_new_summary" in result
         assert "should_create_nodes" in result
         assert "new_nodes" in result
-        assert result["should_create_nodes"] == False
+        assert not result["should_create_nodes"]
         assert result["new_nodes"] == []
         assert result["debug_notes"] is None
         
@@ -68,7 +66,7 @@ class TestJsonParserEdgeCases:
         assert "original_new_summary" in result
         assert "should_create_nodes" in result
         assert "new_nodes" in result
-        assert result["should_create_nodes"] == False
+        assert not result["should_create_nodes"]
         assert result["new_nodes"] == []
         assert result["debug_notes"] is None
         

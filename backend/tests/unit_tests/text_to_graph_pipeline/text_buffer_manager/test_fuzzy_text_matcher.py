@@ -2,7 +2,6 @@
 Unit tests for FuzzyTextMatcher
 """
 
-import pytest
 from backend.text_to_graph_pipeline.text_buffer_manager import FuzzyTextMatcher
 
 
@@ -82,7 +81,7 @@ class TestFuzzyTextMatcher:
         target = "Hello world."
         
         result, success = matcher.remove_matched_text(source, target)
-        assert success == True
+        assert success
         assert result == "How are you?"
     
     def test_remove_matched_text_from_middle(self):
@@ -93,7 +92,7 @@ class TestFuzzyTextMatcher:
         target = "Middle part."
         
         result, success = matcher.remove_matched_text(source, target)
-        assert success == True
+        assert success
         # Normalize whitespace for comparison
         assert " ".join(result.split()) == "Start text. End text."
     
@@ -118,5 +117,5 @@ class TestFuzzyTextMatcher:
         assert matcher.find_best_match("", "") is None
         
         result, success = matcher.remove_matched_text("", "test")
-        assert success == False
+        assert not success
         assert result == ""

@@ -6,16 +6,13 @@ They complement the unit tests by ensuring our mocks are realistic.
 """
 
 import pytest
-from typing import List
 from unittest.mock import patch
 import json
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import TreeActionDeciderWorkflow as TreeActionDecider
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, 
     CreateAction, 
-    UpdateAction,
-    BaseTreeAction
+    UpdateAction
 )
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
 
@@ -320,7 +317,7 @@ class TestTreeActionDeciderIntegration:
         This test helps ensure our unit test mocks are realistic
         """
         # Track what the pipeline does internally by checking tree state
-        initial_node_count = len(simple_tree.tree)
+        len(simple_tree.tree)
         
         # Add content that should append
         transcript_text = "Use connection pooling with 100 max connections."

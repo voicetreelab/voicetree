@@ -36,10 +36,10 @@ class TestVoiceTreeState:
         annotations = VoiceTreeState.__annotations__
         
         # Check specific field types
-        assert annotations['transcript_text'] == str
-        assert annotations['transcript_history'] == str
-        assert annotations['existing_nodes'] == str
-        assert annotations['current_stage'] == str
+        assert annotations['transcript_text'] is str
+        assert annotations['transcript_history'] is str
+        assert annotations['existing_nodes'] is str
+        assert annotations['current_stage'] is str
 
 
 class TestValidateState:
