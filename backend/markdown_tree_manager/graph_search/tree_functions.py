@@ -160,7 +160,7 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
 
 def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_count: int, already_selected: set) -> List[int]:
     """
-    Find semantically related nodes using TF-IDF scoring
+    Find semantically related nodes using vector embeddings or TF-IDF fallback
 
     Args:
         decision_tree: DecisionTree instance
@@ -171,12 +171,28 @@ def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_c
     Returns:
         List of node IDs ordered by relevance
     """
-    # TODO: Future optimization - use vector embeddings for semantic search
-    # This would involve:
-    # 1. Pre-computing embeddings for all node titles/summaries
-    # 2. Computing embedding for query at runtime (~300ms)
-    # 3. Finding nodes with highest cosine similarity
-    # See Google Gemini embedding API: gemini-embedding-001
+    # First try vector search if embeddings are available
+    if hasattr(decision_tree, 'search_similar_nodes'):
+        try:
+            # Use vector search for semantic similarity
+            vector_results = decision_tree.search_similar_nodes(query, top_k=remaining_slots_count * 2)
+
+            # Filter out already selected nodes and limit to remaining slots
+            # search_similar_nodes returns List[int] (node IDs), not node objects
+            filtered_results = []
+            for node_id in vector_results:
+                if node_id not in already_selected and len(filtered_results) < remaining_slots_count:
+                    filtered_results.append(node_id)
+
+            if filtered_results:
+                logging.info(f"Found {len(filtered_results)} semantically related nodes using vector search")
+                return filtered_results
+
+        except Exception as e:
+            logging.error(f"VECTOR SEARCH FAILURE - This should not happen normally: {e}")
+            # Consider raising in development/test environments
+
+    # Fallback to TF-IDF if vector search unavailable or failed
     #
     # TF-IDF Limitations (why we need embeddings):
     # 1. Natural language with common words in titles:

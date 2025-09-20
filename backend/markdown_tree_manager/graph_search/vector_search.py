@@ -174,9 +174,6 @@ def find_similar_by_embedding(
         return []
 
 
-# TSV loading functions removed - use ChromaDB for all vector storage
-
-
 def find_relevant_nodes_for_context(
     tree: Dict,
     query: str,
