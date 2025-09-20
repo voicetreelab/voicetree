@@ -24,7 +24,7 @@ select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
     "F",  # pyflakes
-    "I",  # isort
+    "I",  # isort (includes I251 - prevent multiple imports from same module)
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
@@ -34,5 +34,9 @@ ignore = [
     "E501",  # line too long
     "B008",  # do not perform function calls in argument defaults
 ]
+
+# Enforce single imports for better refactoring
+[tool.ruff.lint.isort]
+force-single-line = true  # Force imports to be on separate lines
 
 # NO PER-FILE IGNORES - Enforce typing everywhere
