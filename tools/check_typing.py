@@ -102,6 +102,12 @@ def run_mypy(target_dir: Path) -> Tuple[bool, str]:
 
 def main():
     """Main entry point for type checking."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='VoiceTree Type Checking Enforcement')
+    parser.add_argument('--exclude-tests', action='store_true', help='Exclude test files from checking')
+    args = parser.parse_args()
+
     project_root = Path('/Users/bobbobby/repos/VoiceTree')
     backend_dir = project_root / 'backend'
 
@@ -115,11 +121,12 @@ def main():
     dict_violations = []
     python_files = list(backend_dir.rglob('*.py'))
 
-    # NO EXCLUSIONS - Check ALL Python files (Single Solution Principle)
+    # Filter out system directories and optionally tests
     python_files = [
         f for f in python_files
         if '.venv' not in f.parts and
-           '__pycache__' not in f.parts
+           '__pycache__' not in f.parts and
+           (not args.exclude_tests or 'tests' not in f.parts)
     ]
 
     for filepath in python_files:

@@ -46,6 +46,7 @@ cat > "$CONFIG_DIR/config" << EOF
 VOICETREE_ROOT="$VOICETREE_ROOT"
 REPOS_DIR="$REPOS_DIR"
 OBSIDIAN_VAULT_PATH="$VAULT_PATH"
+VOICETREE_VAULT_PATH="$VOICETREE_ROOT/markdownTreeVault"
 EOF
 
 # Create the shell integration script

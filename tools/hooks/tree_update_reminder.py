@@ -130,14 +130,14 @@ def main():
         
         print("\n".join(messages))
         sys.exit(0)
-        
+
     elif hook_event == "Stop":
         # For Stop events, block if there are new relevant files
         if new_nodes:
             # Block stopping and tell me to review the new files
             print(json.dumps({
                 "decision": "block",
-                "reason": f"📌 NEW FILES DETECTED - Review these before stopping:\n" + 
+                "reason": f"📌 NEW FILES DETECTED - Review these before stopping:\n" +
                          "\n".join([f"  • {node}" for node in new_nodes[:5]]) +
                          "\n\nRead these files if they are not relevant to your work, then you can stop. Otherwise, please consider whether you need to change your approach given this information."
             }))
@@ -150,7 +150,7 @@ def main():
                 "reason": "Session complete."
             }))
         sys.exit(0)
-    
+
     # Default: no output
     sys.exit(0)
 

@@ -20,7 +20,7 @@ class EndToEndTestLab:
     def __init__(self, voicetree_root=None):
         # Simple relative path from test_lab folder if not provided
         if voicetree_root is None:
-            self.voicetree_root = Path("../..")
+            self.voicetree_root = Path("../../../..")
         else:
             self.voicetree_root = Path(voicetree_root)
         self.test_vault_root = None
@@ -109,14 +109,20 @@ Parent:
             'start_time': datetime.now(),
             'status': 'running'
         }
-        
-        # Set up environment variables for the VoiceTree agent system
+
+        # Set up environment variables for the VoiceTree agent system using absolute paths
         env = os.environ.copy()
-        # Since claude.sh will cd to repos dir, we need paths relative to repos
-        # test_vault_root is at VoiceTree/test_vault_XXX, so from repos it's VoiceTree/test_vault_XXX
-        vault_path_from_repos = Path('VoiceTree') / self.test_vault_root.name
-        env['OBSIDIAN_VAULT_PATH'] = str(vault_path_from_repos)
+
+        # Get absolute paths to key directories
+        current_file = Path(__file__).resolve()
+        voicetree_root = current_file.parent.parent.parent.parent.parent  # Go up to VoiceTree root
+        tools_dir = voicetree_root / "tools"
+
+        # Use absolute paths for vault and source note
+        env['OBSIDIAN_VAULT_PATH'] = str(self.test_vault_root.resolve())
         env['OBSIDIAN_SOURCE_NOTE'] = str(source_note_path.relative_to(self.test_vault_root))
+        env['VOICETREE_ROOT'] = str(voicetree_root)
+        env['TOOLS_DIR'] = str(tools_dir)
             
         # Set up hook injection if enabled
         injection_thread = None
@@ -136,23 +142,22 @@ Parent:
             injection_thread.daemon = True
             
         try:
-            # Use the actual VoiceTree agent system via claude.sh
-            # We need to run claude.sh from the tools directory so the relative paths work
-            cmd = ['bash', 'claude.sh']
-            
+            # Use the actual VoiceTree agent system via claude.sh with absolute path
+            claude_sh_path = tools_dir / "claude.sh"
+            cmd = ['bash', str(claude_sh_path)]
+
             print(f"Running agent via VoiceTree system: {cmd}")
             print(f"  OBSIDIAN_VAULT_PATH: {env['OBSIDIAN_VAULT_PATH']}")
             print(f"  OBSIDIAN_SOURCE_NOTE: {env['OBSIDIAN_SOURCE_NOTE']}")
-            
+
             # Start hook injection thread if configured
             if injection_thread:
                 injection_thread.start()
-                
+
             # Run with headless mode by adding --max-turns to limit execution
-            # We need to modify claude.sh or pass the flag through
             result = subprocess.run(
                 cmd,
-                cwd='..',  # Run from tools directory (parent of test_lab)
+                cwd=str(tools_dir),  # Run from tools directory using absolute path
                 env=env,
                 capture_output=True,
                 text=True,
@@ -289,12 +294,13 @@ Parent:
             
         # Calculate success before cleanup
         success = passed_validations >= total_validations * 0.7  # 70% pass rate
-        
-        # Cleanup only if successful (keep failed tests for debugging)
-        if success:
-            self.cleanup_test_environment()
-        else:
+
+        # Always cleanup test environment unless DEBUG_TESTS env var is set
+        debug_mode = os.environ.get('DEBUG_TESTS', 'false').lower() == 'true'
+        if debug_mode and not success:
             print(f"❗ Test vault preserved for debugging: {self.test_vault_root}")
+        else:
+            self.cleanup_test_environment()
         print(f"Overall Result: {'✅ PASS' if success else '❌ FAIL'}")
         
         return success
