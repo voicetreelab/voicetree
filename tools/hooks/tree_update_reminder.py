@@ -119,11 +119,10 @@ def main():
         # Simple plain text output for context injection
         messages = []
         messages.append(f"Reminder for you, agent: {agent_name}")
-        messages.append("Update existing nodes you have already written, or if it is worthy of a completely new progress file, add nodes concisely detailing your progress with `python VoiceTree/tools/add_new_node.py <parent_node_name> <new_node_name> <content> <relationship_to_parent>`")
-        
+
         if new_nodes:
             messages.append(f"\n📌 NEW FILES DETECTED - Read these if potentially relevant to your task:")
-            for node in new_nodes[:10]:  # Limit to 10 most recent
+            for node in new_nodes[:5]:  # Limit to 5 most recent
                 messages.append(f"  • {node}")
             # Now save the state after we've built the message
             save_seen_files(get_agent_state_file(agent_name), new_nodes)
