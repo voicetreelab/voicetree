@@ -44,11 +44,20 @@ class ChromaDBVectorStore:
         self.use_embeddings = use_embeddings
 
         # Set default persist directory if not provided
+        # Consolidate all ChromaDB storage to markdown tree vault location
         if persist_directory is None:
-            persist_directory = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                "chromadb_data"
-            )
+            # Try to find markdown tree vault directory
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            markdown_vault_path = os.path.join(project_root, "markdownTreeVault", "chromadb_data")
+
+            # Fall back to backend location if vault not found
+            if os.path.exists(os.path.join(project_root, "markdownTreeVault")):
+                persist_directory = markdown_vault_path
+            else:
+                persist_directory = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)),
+                    "chromadb_data"
+                )
 
         self.persist_directory = persist_directory
 
