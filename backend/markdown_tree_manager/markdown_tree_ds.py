@@ -456,7 +456,7 @@ class MarkdownTree:
             List of node IDs ordered by relevance
         """
         # Flush any pending updates before searching
-        # self.ensure_embeddings_flushed()
+        self.flush_embeddings()
 
         if self._embedding_manager:
             try:
