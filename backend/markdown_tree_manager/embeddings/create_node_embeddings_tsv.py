@@ -1,6 +1,9 @@
 """
-Script to create embeddings for all nodes in a markdown tree and save to TSV format
-for visualization in TensorFlow Projector.
+Script to export embeddings from ChromaDB to TSV format for visualization in TensorFlow Projector.
+
+NOTE: This script is for visualization only. Primary vector storage is handled by ChromaDB.
+The TSV export is supplementary and used for debugging/visualization purposes.
+DO NOT use this for production vector search - use ChromaDBVectorStore instead.
 """
 
 import os
