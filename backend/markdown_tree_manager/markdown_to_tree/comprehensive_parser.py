@@ -7,16 +7,16 @@ YAML frontmatter, tags, content, and relationships.
 
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple, Optional, Any, Union
 from datetime import datetime
 
 from .file_operations import read_markdown_file
 from .yaml_parser import extract_frontmatter, extract_tags
-from .metadata_extraction import extract_node_id, extract_title, extract_summary
+from .metadata_extraction import extract_node_id
 from .link_extraction import extract_markdown_links
 
 
-def parse_markdown_file_complete(filepath: Path) -> Dict:
+def parse_markdown_file_complete(filepath: Path) -> Optional[Dict[str, Any]]:
     """
     Completely parse a markdown file extracting all metadata and content.
     
@@ -43,15 +43,17 @@ def parse_markdown_file_complete(filepath: Path) -> Dict:
     
     # Extract node_id (try both methods)
     node_id_str = extract_node_id(content_after_tags)
+    node_id: Union[int, str]
     if node_id_str:
         try:
             node_id = int(node_id_str)
         except ValueError:
             node_id = node_id_str
     else:
-        node_id = metadata.get('node_id')
-        if node_id is None:
+        node_id_from_meta = metadata.get('node_id')
+        if node_id_from_meta is None:
             return None
+        node_id = node_id_from_meta
     
     # Get title from metadata (preserves full title with ID)
     title = metadata.get('title', 'Untitled')
@@ -153,7 +155,7 @@ def extract_parent_relationship(content: str) -> Optional[Dict]:
     return None
 
 
-def parse_relationships_from_links(content: str) -> Dict:
+def parse_relationships_from_links(content: str) -> Dict[str, Any]:
     """
     Parse all relationships from the Links section.
     
@@ -168,7 +170,7 @@ def parse_relationships_from_links(content: str) -> Dict:
         return {'parent': None, 'children': []}
     
     links_content = links_match.group(1)
-    result = {'parent': None, 'children': []}
+    result: Dict[str, Any] = {'parent': None, 'children': []}
     
     # Parse parent relationship
     parent_info = extract_parent_relationship(content)

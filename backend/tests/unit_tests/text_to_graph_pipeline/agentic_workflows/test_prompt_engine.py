@@ -6,12 +6,11 @@ import pytest
 import tempfile
 from pathlib import Path
 import sys
+from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptTemplate, PromptLoader, migrate_template_to_new_format
 
 # Add backend to path for imports
 backend_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(backend_path))
-
-from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptTemplate, PromptLoader, migrate_template_to_new_format
 
 
 class TestPromptTemplate:

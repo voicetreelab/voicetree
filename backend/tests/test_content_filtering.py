@@ -1,6 +1,5 @@
 """Behavioral test for content filtering module."""
 
-import pytest
 from backend.context_retrieval.content_filtering import (
     ContentLevel,
     apply_content_filter,

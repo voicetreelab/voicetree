@@ -3,7 +3,7 @@ Test embedding batching behavior in MarkdownTree.
 """
 
 import unittest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
@@ -51,8 +51,8 @@ class TestEmbeddingBatching(unittest.TestCase):
         tree._embedding_batch_size = 10  # High threshold
 
         # Create just 2 nodes (below threshold)
-        node1 = tree.create_new_node("Node 1", None, "Content 1", "Summary 1")
-        node2 = tree.create_new_node("Node 2", None, "Content 2", "Summary 2")
+        tree.create_new_node("Node 1", None, "Content 1", "Summary 1")
+        tree.create_new_node("Node 2", None, "Content 2", "Summary 2")
         mock_manager.vector_store.add_nodes.assert_not_called()
 
         # Flush should force update
@@ -75,7 +75,7 @@ class TestEmbeddingBatching(unittest.TestCase):
         tree._embedding_batch_size = 10
 
         # Create a node (won't trigger update)
-        node1 = tree.create_new_node("Node 1", None, "Content 1", "Summary 1")
+        tree.create_new_node("Node 1", None, "Content 1", "Summary 1")
         mock_manager.vector_store.add_nodes.assert_not_called()
 
         # Search should flush pending updates first
@@ -102,7 +102,7 @@ class TestEmbeddingBatching(unittest.TestCase):
         tree.update_node(node1, "Updated content", "Updated summary", update_embeddings=False)
 
         # Create another node - this should only have 1 pending update
-        node2 = tree.create_new_node("Node 2", None, "Content 2", "Summary 2")
+        tree.create_new_node("Node 2", None, "Content 2", "Summary 2")
 
         # Should trigger batch with 2 nodes (node1 from create, node2 from create)
         # but NOT the update

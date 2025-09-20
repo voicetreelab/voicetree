@@ -2,7 +2,6 @@
 Tests for potential logical bugs in TextBufferManager
 """
 
-import pytest
 
 from backend.text_to_graph_pipeline.text_buffer_manager.buffer_manager import \
     TextBufferManager
@@ -81,7 +80,7 @@ class TestTextBufferManagerLogicalBugs:
         buffer_manager.addText("The cat sat on the mat.")
         
         # Try to flush with a typo - fuzzy match will find it
-        remaining = buffer_manager.flushCompletelyProcessedText("The cat sit on the mat.")
+        remaining = buffer_manager.flushCompletelyProcessedText("The cat sit on the mat.")  # noqa: F841
         
         # BUG: We asked to remove "sit" but it removed "sat" - silent data change!
         # The caller has no way to know that different text was removed

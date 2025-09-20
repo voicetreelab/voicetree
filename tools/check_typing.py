@@ -129,6 +129,15 @@ def main():
            (not args.exclude_tests or 'tests' not in f.parts)
     ]
 
+    if args.exclude_tests:
+        python_files = [
+            f for f in python_files
+            if '/tests/' not in str(f) and not f.name.startswith('test_')
+        ]
+        print(f"Excluding test files. Checking {len(python_files)} non-test files.")
+    else:
+        print(f"Checking all {len(python_files)} Python files.")
+
     for filepath in python_files:
         violations = check_file_for_dicts(filepath)
         dict_violations.extend(violations)

@@ -49,7 +49,7 @@ class TestNodeLimitBehavior:
         
         # Create 50 nodes to simulate a large tree
         for i in range(50):
-            node_id = tree.create_new_node(
+            tree.create_new_node(
                 name=f"Node {i}",
                 parent_node_id=None if i == 0 else (i // 5),  # Create some hierarchy
                 content=f"This is content for node {i} with some substantial text to make it realistic. " * 10,

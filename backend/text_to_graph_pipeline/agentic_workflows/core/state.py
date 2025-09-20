@@ -4,7 +4,7 @@ State schema for VoiceTree LangGraph workflow with validation
 
 from typing import List, Dict, Any, Optional
 from typing_extensions import TypedDict
-from ..models import SegmentModel, TargetNodeIdentification, ChildNodeSpec, SegmentationResponse, TargetNodeResponse, OptimizationResponse, TagResponse, ThemeResponse
+from ..models import SegmentationResponse, TargetNodeResponse, OptimizationResponse, TagResponse, ThemeResponse
 
 
 class AppendToRelevantNodeAgentState(TypedDict):

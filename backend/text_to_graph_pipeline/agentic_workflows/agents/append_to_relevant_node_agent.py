@@ -166,7 +166,7 @@ class AppendToRelevantNodeAgent(Agent):
                 actions.append(CreateAction(
                     action="CREATE",
                     parent_node_id=None,  # Always orphan nodes
-                    new_node_name=segment.orphan_topic_name,
+                    new_node_name=segment.orphan_topic_name or "Untitled",
                     content=segment.text,
                     summary="",
                     relationship=""

@@ -6,7 +6,7 @@ variations that occur when LLMs process text (e.g., punctuation changes,
 whitespace differences, minor word modifications).
 """
 
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 import logging
 from rapidfuzz import fuzz
 from rapidfuzz.fuzz import partial_ratio_alignment
@@ -83,10 +83,13 @@ class FuzzyTextMatcher:
         # Use RapidFuzz's partial_ratio_alignment for fuzzy substring matching
         # This finds the best matching substring in source_text
         alignment = partial_ratio_alignment(target_text, source_text)
+        if alignment is None:
+            return None
+
         score = alignment.score
-        
+
         logging.debug(f"Partial ratio alignment: score={score}, start={alignment.dest_start}, end={alignment.dest_end}")
-        
+
         if score >= self.similarity_threshold:
             # Get the aligned substring positions
             start = alignment.dest_start
@@ -154,7 +157,7 @@ class FuzzyTextMatcher:
         for start_idx in range(len(source_words)):
             if source_words[start_idx] == target_words[0]:
                 # Found potential start, try to match as many words as possible
-                matched_ranges = []
+                matched_ranges: List[Tuple[int, int]] = []
                 source_idx = start_idx
                 target_idx = 0
                 
@@ -215,10 +218,10 @@ class FuzzyTextMatcher:
                         logging.debug(f"Matched text: '{matched_text}'")
                         
                         # Calculate similarity score based on matched words
-                        score = (target_idx / len(target_words)) * 100
+                        score = float(target_idx / len(target_words)) * 100.0
                         
                         if score > best_score:
-                            best_score = score
+                            best_score = int(score)
                             best_match = (char_start, char_end, score)
         
         if best_match and best_score >= self.similarity_threshold:

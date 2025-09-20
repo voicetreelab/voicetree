@@ -3,13 +3,10 @@ Integration test for improved identify_target_node prompt with node IDs
 Tests that the prompt correctly identifies target node IDs instead of names
 """
 
-import asyncio
 import json
 
 import pytest
 
-from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import \
-    call_llm_structured
 from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import \
     PromptLoader
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
@@ -35,7 +32,6 @@ class TestIdentifyTargetNodeWithIDs:
         from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import parse_json_markdown
         from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import CONFIG
         from google.genai.types import GenerateContentConfigDict
-        import json
         
         # Get client directly to handle array format
         client = _get_client()
@@ -106,12 +102,12 @@ class TestIdentifyTargetNodeWithIDs:
         
         # First segment about caching should go to Architecture (ID 1)
         assert result.target_nodes[0].target_node_id == 1
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
         assert "caching" in result.target_nodes[0].text
         
         # Second segment about DB should go to Database Design (ID 2)
         assert result.target_nodes[1].target_node_id == 2
-        assert result.target_nodes[1].is_orphan == False
+        assert not result.target_nodes[1].is_orphan
         assert "database" in result.target_nodes[1].text.lower()
 
 # ----------------------------------------------------------------------------------
@@ -156,7 +152,7 @@ class TestIdentifyTargetNodeWithIDs:
         # keyword-based model will likely fail and pick this.
         # An advanced model will understand the true task is documentation.
         assert result.target_nodes[0].target_node_id == 403
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
 
     @pytest.mark.asyncio
@@ -192,7 +188,7 @@ class TestIdentifyTargetNodeWithIDs:
         # The distractor is 'Database Optimization' (ID 501).
         # The correct target is 'Frontend State Management' (ID 502).
         assert result.target_nodes[0].target_node_id == 502
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
 
     @pytest.mark.asyncio
@@ -228,7 +224,7 @@ class TestIdentifyTargetNodeWithIDs:
         # It has to infer that "fixing" the problem of "getting logged out"
         # relates to session duration, which is part of the Auth Layer.
         assert result.target_nodes[0].target_node_id == 601
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
 
     @pytest.mark.asyncio
@@ -266,7 +262,7 @@ class TestIdentifyTargetNodeWithIDs:
         # The distractor is the most recent topic in history: 'Mobile App UI' (ID 702).
         # The model should correctly route back to 'Dashboard UI/UX Redesign' (ID 701).
         assert result.target_nodes[0].target_node_id == 701
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
 
     @pytest.mark.asyncio
@@ -302,7 +298,7 @@ class TestIdentifyTargetNodeWithIDs:
         # and "pave a superhighway" -> "make it very fast".
         # This has nothing to do with onboarding. The correct node is performance.
         assert result.target_nodes[0].target_node_id == 802
-        assert result.target_nodes[0].is_orphan == False
+        assert not result.target_nodes[0].is_orphan
 
 
     @pytest.mark.asyncio

@@ -132,7 +132,7 @@ class TestIntegration:
             # Check for duplicate node names
             node_names = [node.title for node_id, node in tree.items()]
             # Debug: print all nodes
-            print(f"\n📋 All nodes in tree:")
+            print("\n📋 All nodes in tree:")
             for node_id, node in tree.items():
                 print(f"  - ID {node_id}: '{node.title}' (parent: {node.parent_id})")
             unique_names = set(node_names)
@@ -271,7 +271,7 @@ class TestIntegration:
             await self.processor.finalize()
             final_tree_size = len(self.decision_tree.tree)
             
-            print(f"📊 Buffer processing summary:")
+            print("📊 Buffer processing summary:")
             print(f"   - Initial tree size: {initial_tree_size}")
             print(f"   - Final tree size: {final_tree_size}")
             print(f"   - Buffer processes detected: {buffer_process_count}")
@@ -292,7 +292,7 @@ class TestIntegration:
         assert nodes_created >= 2, f"Should have created at least 2 nodes from multi-buffer processing, but only created {nodes_created}"
         
         # Verify tree structure integrity
-        print(f"🔍 Verifying tree structure integrity...")
+        print("🔍 Verifying tree structure integrity...")
         for node_id, node in final_tree.items():
             if node.parent_id is not None:
                 assert node.parent_id in final_tree, f"Parent {node.parent_id} of node {node_id} should exist in tree"

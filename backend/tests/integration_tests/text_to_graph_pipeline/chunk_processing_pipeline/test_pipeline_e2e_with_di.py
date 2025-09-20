@@ -24,11 +24,9 @@ import asyncio
 import glob
 import os
 import random
-import re
 import shutil
 import string
 from datetime import datetime
-from typing import Dict, List, Any, Optional
 import pytest
 
 from backend.text_to_graph_pipeline.chunk_processing_pipeline import ChunkProcessor
@@ -379,7 +377,7 @@ class TestPipelineE2EWithDI:
         all_content = " ".join(all_node_content) + " " + all_markdown_content
         all_content_lower = all_content.lower()
         
-        print(f"\nDebug info:")
+        print("\nDebug info:")
         print(f"First input text: {all_input_text[0][:100]}...")
         print(f"Nodes created: {len(mock_workflow.created_nodes)}")
         print(f"Total node content chars: {sum(len(c) for c in all_node_content)}")
@@ -403,7 +401,7 @@ class TestPipelineE2EWithDI:
         
         word_ratio = words_found / len(all_input_words) if all_input_words else 0
         
-        print(f"\nWord preservation:")
+        print("\nWord preservation:")
         print(f"Total input words: {len(all_input_words)}")
         print(f"Words found in output: {words_found}")
         print(f"Word preservation ratio: {word_ratio:.1%}")

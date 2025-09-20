@@ -211,11 +211,17 @@ def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_c
     # Create TF-IDF matrix
     try:
         # Get domain-aware stopwords (NLTK + domain-specific)
-        domain_stopwords = stopwords.words('english')
+        domain_stopwords = set(stopwords.words('english'))
 
+        # Add domain-specific stopwords for mathematical word problems
+        mathematical_stopwords = {
+            'average', 'number', 'adult', 'children', 'newborn', 'per', 'total',
+            'equals', 'sum', 'calculation', 'count', 'population', 'quantity'
+        }
+        domain_stopwords.update(mathematical_stopwords)
 
         vectorizer = TfidfVectorizer(
-            stop_words=domain_stopwords,  # Use domain-aware stopwords
+            stop_words=list(domain_stopwords),  # Use domain-aware stopwords
             min_df=1,
             ngram_range=(1, 2)  # Include bigrams for better phrase matching
         )

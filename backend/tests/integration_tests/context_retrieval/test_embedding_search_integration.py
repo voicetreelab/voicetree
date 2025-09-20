@@ -13,8 +13,7 @@ from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
 from backend.markdown_tree_manager.graph_search.vector_search import (
     get_node_embeddings,
     find_similar_by_embedding,
-    find_relevant_nodes_for_context,
-    USE_EMBEDDINGS
+    find_relevant_nodes_for_context
 )
 
 

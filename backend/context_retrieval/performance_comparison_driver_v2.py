@@ -9,12 +9,14 @@ import sys
 import json
 import time
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Any
 import statistics
-from tqdm import tqdm
 from dotenv import load_dotenv
 import google.generativeai as genai
 from colorama import init, Fore, Style
+from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
+from backend.context_retrieval.dependency_traversal import accumulate_content
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
 
 # Initialize colorama for cross-platform colored output
 init(autoreset=True)
@@ -25,51 +27,11 @@ load_dotenv()
 # Add paths for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-# Import our context retrieval functions
-from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
-from backend.context_retrieval.dependency_traversal import accumulate_content
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
-
 
 class GeminiClient:
     """Wrapper to make Gemini API compatible with pred.py's OpenAI-style interface."""
-    
-    def __init__(self, api_key: str):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        
-    class ChatCompletions:
-        def __init__(self, model):
-            self.model = model
-            
-        def create(self, model=None, messages=None, temperature=0.5):
-            """Create a completion using Gemini."""
-            prompt = messages[0]["content"] if messages else ""
-            
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=temperature
-                )
-            )
-            
-            # Create OpenAI-style response
-            class Message:
-                def __init__(self, content):
-                    self.content = content
-                    
-            class Choice:
-                def __init__(self, message):
-                    self.message = message
-                    
-            class Completion:
-                def __init__(self, choices):
-                    self.choices = choices
-                    
-            return Completion([Choice(Message(response.text))])
-    
-    def __init__(self, api_key: str):
+
+    def __init__(self, api_key: str) -> None:
         genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel('gemini-2.5-flash-lite')
         self.chat = type('obj', (object,), {
@@ -178,7 +140,7 @@ class PerformanceComparatorV2:
         
         lines = content.strip().split('\n')
         question = ""
-        choices = {}
+        choices = dict()
         
         # Extract question - it's usually after "Question" header
         in_question = False
@@ -253,12 +215,12 @@ class PerformanceComparatorV2:
             if match:
                 return match.group(1)
             else:
-                return None
+                return ""
     
     def evaluate_single_question(self, item: Dict, context: str) -> Dict:
         """Evaluate a single question using raw markdown content."""
         # Debug: Check what we're working with
-        print(f"\n   🔍 Building prompt...")
+        print("\n   🔍 Building prompt...")
         print(f"   Context passed in: {len(context)} chars")
         print(f"   Context preview: {context[:200]}...")
         
@@ -287,13 +249,12 @@ Format your response as follows: "The correct answer is (insert answer here)".""
             def decode(self, tokens, **kwargs):
                 return ' '.join(tokens) if isinstance(tokens, list) else tokens
         
-        tokenizer = DummyTokenizer()
         
         # Query LLM - no retry, fail fast
         question_preview = item.get('raw_content', '')[:100] if 'raw_content' in item else 'Unknown question'
         print(f"\n📝 Question: {question_preview}...")
         print(f"   Context size: {len(context)} chars")
-        print(f"\n🔍 PROMPT BEING SENT TO LLM (first 1000 chars):")
+        print("\n🔍 PROMPT BEING SENT TO LLM (first 1000 chars):")
         print("="*60)
         print(prompt[:1000])
         print("="*60)
@@ -324,10 +285,10 @@ Format your response as follows: "The correct answer is (insert answer here)".""
             'context_size': len(context)
         }
     
-    def run_comparison(self, num_runs: int = 10) -> Dict:
+    def run_comparison(self, num_runs: int = 10) -> Dict[str, Any]:
         """Run the comparison test with specified number of runs per question."""
         questions = self.load_test_questions()
-        results = {
+        results: Dict[str, Any] = {
             "pruned": [],
             "unpruned": [],
             "metadata": {
@@ -339,7 +300,7 @@ Format your response as follows: "The correct answer is (insert answer here)".""
         
         print(f"\n{'='*60}")
         print(f"Running comparison: {num_runs} runs × {len(questions)} questions")
-        print(f"Using Gemini API with pred.py evaluation")
+        print("Using Gemini API with pred.py evaluation")
         print(f"{'='*60}\n")
         
         # Track accumulative accuracy
@@ -493,7 +454,7 @@ Format your response as follows: "The correct answer is (insert answer here)".""
                 report.append(f"Avg Retrieval Time: {avg_retrieval_time:.3f}s")
             
             # Per-question breakdown
-            report.append(f"\nPer-Question Accuracy:")
+            report.append("\nPer-Question Accuracy:")
             question_ids = set(r["question_id"] for r in method_results)
             for qid in sorted(question_ids):
                 q_results = [r for r in method_results if r["question_id"] == qid]

@@ -80,7 +80,7 @@ class TreeActionDeciderWorkflow:
         # Track previous buffer remainder to detect stuck text
         self._prev_buffer_remainder: str = ""  # What was left in buffer after last processing
 
-        self.content_stuck_in_buffer = {}
+        self.content_stuck_in_buffer: Dict[str, Any] = {}
         
         # Track when to run orphan connection (every 10-20 nodes)
         self._last_orphan_check_node_count: int = 0
@@ -129,7 +129,7 @@ class TreeActionDeciderWorkflow:
         tree_action_applier = TreeActionApplier(decision_tree)
         
         # Store optimization actions for test compatibility
-        self.optimization_actions_for_tests = []
+        self.optimization_actions_for_tests: List[BaseTreeAction] = []
         
         # Process the chunk
         await self.process_text_chunk(

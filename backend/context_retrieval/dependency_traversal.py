@@ -6,7 +6,7 @@ Dependency traversal module for context retrieval.
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Union, Any
 
 # Import load_node from markdown_to_tree module
 from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node
@@ -64,7 +64,8 @@ def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: 
         # Get content from cache or read file
         if relative_path not in file_cache:
             node_data = load_node(relative_path, markdown_dir)
-            file_cache[relative_path] = node_data['content']
+            content_val = node_data['content']
+            file_cache[relative_path] = content_val if isinstance(content_val, str) else str(content_val)
         content = file_cache[relative_path]
         
         # Check if this file has ANY link to our parent file
@@ -84,7 +85,7 @@ def traverse_bidirectional(
     depth: int = 0,
     max_depth: int = 10,
     direction: str = "both"
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
     Bidirectionally traverse the graph, following both parent and child links.
     Direction can be: 'both', 'parents', 'children'
@@ -98,12 +99,14 @@ def traverse_bidirectional(
     # Load node using markdown_to_tree module
     if start_file not in file_cache:
         node_data = load_node(start_file, markdown_dir)
-        file_cache[start_file] = node_data['content']
+        content_val = node_data['content']
+        file_cache[start_file] = content_val if isinstance(content_val, str) else str(content_val)
     else:
         # If we have cached content, still need full node data
         node_data = load_node(start_file, markdown_dir)
-        
-    content = node_data['content']
+
+    content_raw = node_data['content']
+    content = content_raw if isinstance(content_raw, str) else str(content_raw)
     
     if not content:
         return []
@@ -161,12 +164,12 @@ def get_path_to_node(
     target_file: str,
     markdown_dir: Path,
     max_depth: int
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
     Traverse up from target to root, return path in root->target order.
     """
-    visited = set()
-    file_cache = {}
+    visited: Set[str] = set()
+    file_cache: Dict[str, str] = dict()
     
     # Get parents using bidirectional traversal (parents only)
     parent_results = traverse_bidirectional(
@@ -185,12 +188,12 @@ def get_children_recursive(
     parent_file: str,
     markdown_dir: Path,
     max_depth: int
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
     Recursively get all children up to max_depth.
     """
-    visited = set()
-    file_cache = {}
+    visited: Set[str] = set()
+    file_cache: Dict[str, str] = dict()
     
     # Get children using bidirectional traversal (children only)
     child_results = traverse_bidirectional(
@@ -211,14 +214,14 @@ def get_neighborhood(
     target_file: str,
     markdown_dir: Path,
     radius: int
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
     Get nodes within N hops of target (siblings, cousins, etc).
     Finds nodes that share common parents or children with the target.
     """
     neighbors = []
-    visited = set()
-    file_cache = {}
+    visited: Set[str] = set()
+    file_cache: Dict[str, str] = dict()
     
     # Load the target node
     target_node = load_node(target_file, markdown_dir)
@@ -226,10 +229,12 @@ def get_neighborhood(
         return []
     
     # Get immediate parents of target
-    target_parents = extract_parent_links(target_node['content'])
+    content_val = target_node['content']
+    content_str = content_val if isinstance(content_val, str) else str(content_val)
+    target_parents = extract_parent_links(content_str)
     
-    # Get immediate children of target  
-    target_children = find_child_references(target_file, markdown_dir, file_cache)
+    # Get immediate children of target (not currently used in this function)
+    # target_children = find_child_references(target_file, markdown_dir, file_cache)
     
     # For each parent, find its other children (siblings of target)
     for parent_file in target_parents:
@@ -246,7 +251,8 @@ def get_neighborhood(
             for sibling in siblings:
                 if sibling != target_file and sibling not in visited:
                     visited.add(sibling)
-                    sibling_node = load_node(sibling, markdown_dir)
+                    sibling_node_data = load_node(sibling, markdown_dir)
+                    sibling_node: Dict[str, Any] = dict(sibling_node_data)  # Make a copy to avoid modifying original
                     sibling_node['depth'] = 0  # Same level as target
                     sibling_node['distance_from_target'] = 1  # One hop away
                     neighbors.append(sibling_node)
@@ -263,7 +269,7 @@ def traverse_to_node(
     target_file: str,
     markdown_dir: Path,
     options: TraversalOptions = TraversalOptions()
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
     Main traversal function for context retrieval.
     Traverses to a node with specified options and returns list of node dictionaries.
@@ -292,7 +298,8 @@ def traverse_to_node(
         nodes.extend(parent_path)
     
     # Add target node
-    target_node = load_node(target_file, markdown_dir)
+    target_node_data = load_node(target_file, markdown_dir)
+    target_node: Dict[str, Any] = dict(target_node_data)  # Make a copy to avoid modifying original
     target_node['depth'] = 0
     nodes.append(target_node)
     
@@ -311,7 +318,7 @@ def traverse_to_node(
 
 
 def accumulate_content(
-    nodes: List[Dict[str, str]],
+    nodes: List[Dict[str, Union[str, int, List[str]]]],
     include_metadata: bool = True,
     separator: str = "\n\n" + "="*60 + "\n\n"
 ) -> str:
@@ -333,7 +340,7 @@ def accumulate_content(
     seen_node_ids = set()  # Track seen node IDs to avoid duplicates
     
     # Group nodes by their properties for organized output
-    nodes_by_type = {
+    nodes_by_type: Dict[str, List[Dict[str, Any]]] = {
         'targets': [],
         'parents': [],
         'children': [],
@@ -344,7 +351,8 @@ def accumulate_content(
         # Skip if we've already seen this node - use filename as unique identifier
         # Remove .md extension if present for consistent comparison
         filename = node.get('filename', '')
-        unique_id = filename.replace('.md', '') if filename else node.get('node_id', '')
+        filename_str = str(filename) if filename else ''
+        unique_id = filename_str.replace('.md', '') if filename_str else str(node.get('node_id', ''))
         
         if unique_id in seen_node_ids:
             continue
@@ -352,13 +360,23 @@ def accumulate_content(
         
         if node.get('is_search_target', False):
             nodes_by_type['targets'].append(node)
-        elif node.get('depth', 0) > 0:
-            nodes_by_type['parents'].append(node)
-        elif node.get('depth', 0) < 0:
-            nodes_by_type['children'].append(node)
         else:
-            # Depth 0 but not target = neighbor or special case
-            if not node.get('is_search_target', False):
+            depth_val = node.get('depth', 0)
+            if isinstance(depth_val, (int, str)):
+                try:
+                    depth_int = int(depth_val) if depth_val else 0
+                    if depth_int > 0:
+                        nodes_by_type['parents'].append(node)
+                    elif depth_int < 0:
+                        nodes_by_type['children'].append(node)
+                    else:
+                        # Depth 0 but not target = neighbor or special case
+                        nodes_by_type['neighbors'].append(node)
+                except (ValueError, TypeError):
+                    # If conversion fails, treat as neighbor
+                    nodes_by_type['neighbors'].append(node)
+            else:
+                # Non-int/str depth values are treated as neighbors
                 nodes_by_type['neighbors'].append(node)
     
     # Process each group
@@ -372,9 +390,21 @@ def accumulate_content(
         
         # Sort by depth/relevance
         if group_name == 'parents':
-            group_nodes.sort(key=lambda x: x.get('depth', 0), reverse=True)
+            def parent_sort_key(x: Dict[str, Any]) -> int:
+                depth_val = x.get('depth', 0)
+                try:
+                    return int(depth_val) if isinstance(depth_val, (int, str)) and depth_val else 0
+                except (ValueError, TypeError):
+                    return 0
+            group_nodes.sort(key=parent_sort_key, reverse=True)
         elif group_name == 'children':
-            group_nodes.sort(key=lambda x: abs(x.get('depth', 0)))
+            def child_sort_key(x: Dict[str, Any]) -> int:
+                depth_val = x.get('depth', 0)
+                try:
+                    return abs(int(depth_val)) if isinstance(depth_val, (int, str)) and depth_val else 0
+                except (ValueError, TypeError):
+                    return 0
+            group_nodes.sort(key=child_sort_key)
         
         for node in group_nodes:
             node_parts = []
@@ -390,7 +420,8 @@ def accumulate_content(
                 # if filename:
                 #     node_parts.append(f"File: {filename}")
                 if group_name in ['parents', 'children']:
-                    node_parts.append(f"Distance from target: {abs(depth)}")
+                    depth_int = int(depth) if isinstance(depth, (str, int)) else 0
+                    node_parts.append(f"Distance from target: {abs(depth_int)}")
                 node_parts.append("")
             
             # Add summary if available
@@ -400,7 +431,8 @@ def accumulate_content(
                 node_parts.append("")
             
             # Add content if available
-            content = node.get('content', '')
+            content_raw = node.get('content', '')
+            content = str(content_raw) if content_raw else ''
 
             # todo should have relationiships at the top (connectioin to tree: <rel>)
             # todo this will be easiiest by storing relationship

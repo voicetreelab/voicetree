@@ -55,12 +55,12 @@ async def process_tree(tree_path: str, output_path: str = None):
     # are not related, but we hvae to be careful here, since other new pairs
     # may still be relevant.
     
-    logger.info(f"Initial tree statistics:")
+    logger.info("Initial tree statistics:")
     logger.info(f"  Total nodes: {len(tree.tree)}")
     logger.info(f"  Orphan nodes: {len(initial_orphans)}")
     
     if len(initial_orphans) > 1:
-        logger.info(f"\nOrphan nodes found:")
+        logger.info("\nOrphan nodes found:")
         for node_id, title in initial_orphans[:10]:  # Show first 10
             logger.info(f"    {node_id}: {title}")
         if len(initial_orphans) > 10:
@@ -138,7 +138,7 @@ async def process_tree(tree_path: str, output_path: str = None):
         if node.parent_id is None
     ]
     
-    logger.info(f"\n" + "="*60)
+    logger.info("\n" + "="*60)
     logger.info("Final tree statistics:")
     logger.info(f"  Total nodes: {len(tree.tree)}")
     logger.info(f"  Orphan nodes: {len(final_orphans)}")
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     print("VoiceTree Orphan Connection Tool")
     print("="*60)
     print("\nUsage: python apply_orphan_connection.py [tree_path] [output_path]")
-    print(f"Default tree_path: backend/benchmarker/output_backups/user_guide_qa_audio_processing")
+    print("Default tree_path: backend/benchmarker/output_backups/user_guide_qa_audio_processing")
     print("\n" + "="*60 + "\n")
     
     asyncio.run(main())
