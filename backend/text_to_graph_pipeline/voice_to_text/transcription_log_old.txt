@@ -4490,3 +4490,151 @@ getting quite complicated we want to make sure we have like a tdd pep test
 Tests, they're coming.
 input.
 patients that have needs and needs to lose.
+Thank you.
+Okay, let's get this to it.
+Okay, we do want to check as well.
+VoiceTree UI in a new...
+Now to see.
+Actually, what has...
+Mm-hmm.
+You can get this for
+Adding a...
+So one person says that they've added a timeout for new node.
+We overridden for last note.
+I think it was the last nerd.
+Okay, so with the logic of a no timeout for the last node,
+What happens
+when...
+I'm just suspicious that the logic is going to work because then...
+there's a new node and then when that is no longer the new node,
+the old new
+is going to have no timeout and so it's going to have no timeout.
+And so...
+If is last node
+Yes, I feel like we need a way to.
+When there's a new node,
+Set the previous node to start having a timeout.
+Makes sense. So, new node.
+When it's a new node you set the...
+previous node to now have start the timeout. That makes sense?
+Thank you, Ria.
+Cool. And the other thing I want to do is...
+I don't know.
+We also send hooks.
+on
+Um,
+Do we send a hook when we start?
+Thank you.
+Thank you.
+Oh, yeah. Thank you.
+Thank you.
+Thank you.
+Okay, one thing we want to fix is in dot Clyde slash settings dot Jason
+okay one thing we want to fix is in dot cloud slash settings dot json
+in the VoiceTree repository.
+in the VoiceTree repository.
+It has stop
+it has spot put
+and User Prompt Submit Hook.
+and User Prompt Submit Hook.
+but it looks like user prompt submit hook is no longer the correct way.
+but it looks like user prompt submit hook is no longer the correct way.
+not the correct word, it's not, I don't think it's not allowed.
+Not the correct word, it's not, I don't think it's not allowed.
+So we want user prompt.
+So we want user prompt.
+When you look at the Claude Hooks.
+When you look at the Claude Hooks...
+Documentation.
+Documentation.
+Um,
+Um...
+I'll copy in the documentation.
+I'll copy in the documentation.
+You get it.
+You're good.
+Thank you.
+Thank you.
+Okay, so now we really need to figure out if...
+Okay, so now we really need to figure out if...
+Thank you.
+All right.
+OK, so the first we want to make sure overall.
+okay yeah so the first we want to make sure overall
+We create vectors for each node in Markdown Tree Vault. As we're doing online tree creation,
+we create vectors for each node in markdown tree vault. As we're doing online tree creation, we've
+next to the graph pipeline.
+It's the graph pipeline.
+Um
+um
+That is going to mean...
+That is going to mean...
+that
+that we first need to clarify where we're going to store the vectors. I do like the idea.
+We first need to clarify where we're gonna store the vectors. I do like the idea.
+of storing them in markdown tree vault itself in a chroma db underscore data
+of storing them in Markdown Tree Vault itself in a chroma db underscore data.
+older, which is already the case.
+older, which is already the case.
+Looks like we're already doing that
+Looks like we're already doing that.
+um so yeah we should store them in the same place as the markdown
+are stored.
+So yeah, we should store them in the same place as the Mark Dunn.
+So...
+are stored.
+So...
+yeah let's first because there's a duplication right now there's they're starting to walk down tree vault and they're also
+back down.
+yeah let's first because there's a duplication right now there's they're starting to walk down tree vault and they're also sorting back down
+Markdown.
+Um
+Um.
+Markdown.
+Um...
+uh where was it mark down a tree and then
+uh, where was it? Marked down a tree and
+Oh, no, Markdown Tree Manager.
+Oh, no. Markdown Tree Manager.
+and then chroma db underscore data so let's
+not have that duplication.
+and then chroma db underscore data so let's
+not have that duplicate.
+And the next thing we want to do is we want to look.
+We want to look at...
+And the next thing we want to do is we want to look.
+We want to look at
+the embeddingarchitecture.md
+Um,
+The EmbeddingArchitecture.md
+Um...
+And
+And
+get an agent to
+get an agent to
+understand
+understand
+what our goal is with the vector embedding. So to create a vector per
+what our goal is with the vector embedding so to create a vector or
+markdown nodes so we can use that for similarity search.
+markdown node so we can use that for similarity search.
+and relevancy scores and things like that but we want to make sure like that embedding architecture like how what's what's still needed what have we done so I wanted to do sort of a bit of like a research on that
+and relevancy scores and things like that um but we want to make sure like that embedding architecture like how what's what's still needed what have we done so i wanted to do sort of a bit of like a research on that
+Bye.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Okay, I think we know.
+Okay, I think we know.
+So we're just going to do a commit of our work now.
+So we're just going to do a commit of our work now.
+It looks pretty good.
+It looks pretty good.
+We'll be right back.
+Thank you.
+Oh, thank you. Okay, you're up?
+Oh, thank you. Okay, you're up?
+Thank you.
+Bye-bye.
+Bye-bye.

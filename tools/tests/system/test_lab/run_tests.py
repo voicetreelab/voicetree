@@ -2,6 +2,8 @@
 """
 Test Lab Runner - Entry point for end-to-end agent testing
 Loads test scenarios and runs them through the testing framework.
+
+YOU MUST RUN THESE WITH ATLEAST A 5 MIN TIMEOUT"
 """
 
 import json

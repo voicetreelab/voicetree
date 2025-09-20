@@ -14,7 +14,7 @@ class ClaudeHeadlessWrapper:
     def __init__(self, voicetree_root=None):
         # Simple relative path from test_lab folder if not provided
         if voicetree_root is None:
-            self.voicetree_root = Path("../..")
+            self.voicetree_root = Path("../../../..")
         else:
             self.voicetree_root = Path(voicetree_root)
         self.common_setup_script = self.voicetree_root / "tools/common_agent_setup.sh"
