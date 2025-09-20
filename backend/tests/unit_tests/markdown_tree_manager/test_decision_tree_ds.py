@@ -1,9 +1,7 @@
 import unittest
-from datetime import datetime, timedelta
 import time
-from typing import List, Dict
 
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class TestDecisionTree(unittest.TestCase):
@@ -78,7 +76,7 @@ class TestDecisionTree(unittest.TestCase):
         c_id = dt.create_new_node("C", a_id, "Content C", "Summary C")
         d_id = dt.create_new_node("D", b_id, "Content D", "Summary D")
         e_id = dt.create_new_node("E", b_id, "Content E", "Summary E")
-        f_id = dt.create_new_node("F", c_id, "Content F", "Summary F")
+        dt.create_new_node("F", c_id, "Content F", "Summary F")
         
         # Test neighbors of B (should include parent A and children D and E)
         # Note: Sibling functionality is currently commented out in the implementation

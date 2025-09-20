@@ -1,11 +1,10 @@
 # treeToMarkdown.py
 import logging
 import os
-import re
 import traceback
-from typing import Dict, TYPE_CHECKING, List
+from typing import Dict, List, Optional
 
-from backend.markdown_tree_manager.utils import deduplicate_content, insert_yaml_frontmatter, generate_filename_from_keywords, slugify
+from backend.markdown_tree_manager.utils import insert_yaml_frontmatter, generate_filename_from_keywords
 
 # Import Node for both type checking and runtime use
 from backend.markdown_tree_manager.markdown_tree_ds import Node
@@ -88,12 +87,12 @@ class TreeToMarkdownConverter:
 
                 parent_id = self.get_parent_id(node_id)
                 if parent_id is not None:
-                    f.write(f"Parent:\n")
+                    f.write("Parent:\n")
                     parent_file_name = self.tree_data[parent_id].filename
                     relationship_to_parent = "child of"
                     try:
                         relationship_to_parent = self.tree_data[node_id].relationships[parent_id]
-                    except Exception as e:
+                    except Exception:
                         logging.error("Parent relationship not in tree_data")
                     relationship_to_parent = self.convert_to_snake_case(relationship_to_parent)
                     f.write(f"- {relationship_to_parent} [[{parent_file_name}]]\n")
@@ -122,7 +121,7 @@ class TreeToMarkdownConverter:
         return None
 
 
-def format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None, include_full_content: bool = False) -> str:
+def format_nodes_for_prompt(nodes: List[Node], tree: Optional[Dict[int, Node]] = None, include_full_content: bool = False) -> str:
     """Format nodes for LLM prompt in a consistent, readable format
 
     Args:
@@ -162,6 +161,6 @@ def format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None, inc
     return "\n".join(formatted_nodes)
 
 
-def _format_nodes_for_prompt(nodes: List[Node], tree: Dict[int, Node] = None) -> str:
+def _format_nodes_for_prompt(nodes: List[Node], tree: Optional[Dict[int, Node]] = None) -> str:
     """Format nodes for LLM prompt in a consistent, readable format (deprecated, use format_nodes_for_prompt)"""
     return format_nodes_for_prompt(nodes, tree, include_full_content=False)

@@ -15,9 +15,10 @@ from dotenv import load_dotenv
 try:
     from backend.markdown_tree_manager.embeddings.chromadb_vector_store import ChromaDBVectorStore
     CHROMADB_AVAILABLE = True
+    ChromaDBVectorStoreType = ChromaDBVectorStore
 except ImportError:
     CHROMADB_AVAILABLE = False
-    ChromaDBVectorStore = None
+    ChromaDBVectorStoreType = None  # type: ignore
     logging.info("ChromaDB not available, falling back to in-memory search")
 
 # Load environment variables from .env file
@@ -205,7 +206,8 @@ def find_relevant_nodes_for_context(
         store = ChromaDBVectorStore(persist_directory=persist_directory)
         store.add_nodes(tree)
         results = store.search(query, top_k=top_k, include_scores=False)
-        return results if isinstance(results, list) else []
+        # include_scores=False should return List[int]
+        return results if isinstance(results, list) and all(isinstance(x, int) for x in results) else []
 
     # ChromaDB not available - generate embeddings in memory only
     logging.warning("ChromaDB not available, using in-memory search")
@@ -249,7 +251,7 @@ def hybrid_search(
         use_chromadb = USE_CHROMADB
 
     if use_chromadb and CHROMADB_AVAILABLE and hasattr(ChromaDBVectorStore, 'hybrid_search'):
-        store = ChromaDBVectorStore()
+        store = ChromaDBVectorStoreType()
         return store.hybrid_search(query, tfidf_results, top_k=len(tfidf_results), alpha=alpha)
 
     # Fallback to manual combination

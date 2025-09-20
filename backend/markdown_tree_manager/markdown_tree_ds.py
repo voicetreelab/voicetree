@@ -13,13 +13,13 @@ def extract_title_from_md(node_content):
     return title
 
 class Node:
-    def __init__(self, name : str, node_id: int, content: str, summary: str = "", parent_id: int = None):
+    def __init__(self, name : str, node_id: int, content: str, summary: str = "", parent_id: Optional[int] = None):
         self.transcript_history = ""
         self.id: int = node_id
         self.content: str = content
         self.parent_id: int | None = parent_id
         self.children: List[int] = []
-        self.relationships: Dict[int, str] = {}
+        self.relationships: Dict[int, str] = dict()
         self.created_at: datetime = datetime.now()
         self.modified_at: datetime = datetime.now()
         self.title = name
@@ -41,7 +41,7 @@ class MarkdownTree:
                              If None, will create real or mock based on environment.
                              Pass False to explicitly disable.
         """
-        self.tree: Dict[int, Node] = {}
+        self.tree: Dict[int, Node] = dict()
         self.next_node_id: int = 1
         self.output_dir = output_dir or "markdownTreeVaultDefault"
         self._markdown_converter = None  # Will be set to TreeToMarkdownConverter when needed
@@ -409,12 +409,12 @@ class MarkdownTree:
         # Get parent
         if node.parent_id is not None and node.parent_id in self.tree:
             parent_node = self.tree[node.parent_id]
-            neighbors.append({
-                "id": node.parent_id,
-                "name": parent_node.title,
-                "summary": parent_node.summary,
-                "relationship": node.relationships[node.parent_id] # todo, specify in text relationship from CHILD to PARENT
-            })
+            neighbors.append(dict(
+                id=node.parent_id,
+                name=parent_node.title,
+                summary=parent_node.summary,
+                relationship=node.relationships[node.parent_id] # todo, specify in text relationship from CHILD to PARENT
+            ))
             
             # TODO: Sibling functionality commented out - unsure whether we want to return siblings yet
             # # Get siblings (other children of the same parent)
@@ -434,13 +434,13 @@ class MarkdownTree:
                 break
             if child_id in self.tree:
                 child_node = self.tree[child_id]
-                neighbors.append({
-                    "id": child_id,
-                    "name": child_node.title,
-                    "summary": child_node.summary,
-                    "relationship": child_node.relationships[node_id]
+                neighbors.append(dict(
+                    id=child_id,
+                    name=child_node.title,
+                    summary=child_node.summary,
+                    relationship=child_node.relationships[node_id]
                     # todo, specify in text relationship from PARENT to CHILD
-                })
+                ))
         
         return neighbors
 
@@ -456,7 +456,7 @@ class MarkdownTree:
             List of node IDs ordered by relevance
         """
         # Flush any pending updates before searching
-        # self.ensure_embeddings_flushed()
+        self.flush_embeddings()
 
         if self._embedding_manager:
             try:

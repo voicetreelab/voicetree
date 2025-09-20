@@ -4,7 +4,7 @@ Unit tests for embedding-based search functionality
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 import os
 
 from backend.markdown_tree_manager.graph_search.vector_search import (
@@ -64,7 +64,7 @@ class TestEmbeddingGeneration:
         }
         
         with patch.dict(os.environ, {'VOICETREE_USE_EMBEDDINGS': 'true', 'GEMINI_API_KEY': 'test'}):
-            embeddings = get_node_embeddings(nodes)
+            get_node_embeddings(nodes)
         
         # Check the text passed to embed_content includes weighted repetitions
         call_args = mock_genai.embed_content.call_args

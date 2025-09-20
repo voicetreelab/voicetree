@@ -10,10 +10,9 @@ These tests verify the agent correctly:
 """
 
 import pytest
-from typing import List
 
 from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import SingleAbstractionOptimizerAgent
-from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction, BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction, CreateAction
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
@@ -328,7 +327,7 @@ This reduced our average response time from 800ms to 200ms.""",
                 # Verify the original node properly handles CI and references CD appropriately
                 assert len(update_actions) == 1
                 parent_content = update_actions[0].new_content.lower()
-                parent_summary = update_actions[0].new_summary.lower()
+                update_actions[0].new_summary.lower()
                 assert "continuous integration" in parent_content or "jenkins" in parent_content
                 
                 # The parent may mention deployment requirements for context, which is appropriate
@@ -532,7 +531,7 @@ This reduced our average response time from 800ms to 200ms.""",
             # Parent should be updated to reflect investigation outcome
             assert len(update_actions) == 1
             parent_summary = update_actions[0].new_summary.lower()
-            parent_content = update_actions[0].new_content.lower()
+            update_actions[0].new_content.lower()
             # Parent should either mention the solution directly or reference that root cause was identified
             assert ("code-splitting" in parent_summary or "lazy-load" in parent_summary or 
                    "root cause" in parent_summary or "payload" in parent_summary), \
@@ -542,7 +541,7 @@ This reduced our average response time from 800ms to 200ms.""",
             assert len(update_actions) == 1, "Investigation should be updated with findings."
             
             updated_content = update_actions[0].new_content.lower()
-            updated_summary = update_actions[0].new_summary.lower()
+            update_actions[0].new_summary.lower()
             
             # The investigation should now reflect the chosen solution
             assert "code-splitting" in updated_content or "lazy-load" in updated_content, \
@@ -554,7 +553,7 @@ This reduced our average response time from 800ms to 200ms.""",
                     "Should reject the spinner approach or show it was considered and rejected."
         else:
             # Multi-node approach - investigation broken into Problem, Root Cause, Solution
-            assert len(create_actions) >= 1, f"If splitting, should create at least one meaningful node."
+            assert len(create_actions) >= 1, "If splitting, should create at least one meaningful node."
             assert len(update_actions) == 1, "Investigation parent should be updated."
             
             # Verify the nodes represent meaningful parts of the investigation

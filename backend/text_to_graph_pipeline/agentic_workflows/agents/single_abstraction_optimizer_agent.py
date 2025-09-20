@@ -2,13 +2,13 @@
 SingleAbstractionOptimizerAgent - Optimizes individual nodes for cognitive clarity
 """
 import logging
-from typing import List, Union, Dict, Any, Optional
+from typing import List
 from langgraph.graph import END
 
 from ..core.agent import Agent
 from ..core.state import SingleAbstractionOptimizerAgentState
 from ..models import UpdateAction, CreateAction, BaseTreeAction, OptimizationResponse
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
+from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
 class SingleAbstractionOptimizerAgent(Agent):
@@ -64,8 +64,6 @@ class SingleAbstractionOptimizerAgent(Agent):
     
     def _convert_to_typed_actions(self, result: dict, node_id: int) -> List[BaseTreeAction]:
         """Convert response structure to properly typed actions"""
-        from ..core.boundary_converters import dicts_to_models, dict_to_model
-        from ..models import ChildNodeSpec
         
         # === ENTRY BOUNDARY: Get typed optimization response ===
         # The optimization response is now stored as a typed object

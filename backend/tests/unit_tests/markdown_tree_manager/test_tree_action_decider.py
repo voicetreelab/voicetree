@@ -9,14 +9,13 @@ Tests focus on high-level behavior:
 4. Orphan node merging
 """
 
-from typing import List, Set
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 # Import models first (these should exist)
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, AppendAgentResult, BaseTreeAction, CreateAction,
+    AppendAction, AppendAgentResult, CreateAction,
     SegmentModel, UpdateAction)
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow import \
     TreeActionDeciderWorkflow

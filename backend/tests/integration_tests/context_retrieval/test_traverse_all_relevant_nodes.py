@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.context_retrieval.traverse_all_relevant_nodes import traverse_all_relevant_nodes
 from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class TestTraverseAllRelevantNodes:
@@ -73,9 +72,9 @@ class TestTraverseAllRelevantNodes:
     def test_traverse_output_content_length(self, setup_test_data, capsys):
         """Test that the output contains at least 500 words."""
         query = "How do I process audio with low clarity?"
-        
+
         # Run the traversal
-        results = traverse_all_relevant_nodes(
+        results = traverse_all_relevant_nodes(  # noqa: F841
             query=query,
             tree=setup_test_data['tree'],
             markdown_dir=setup_test_data['markdown_dir'],
@@ -100,9 +99,9 @@ class TestTraverseAllRelevantNodes:
     def test_traverse_node_count_in_output(self, setup_test_data, capsys):
         """Test that at least 10 nodes are mentioned in the traversal output."""
         query = "What are the steps for audio processing?"
-        
+
         # Run the traversal
-        results = traverse_all_relevant_nodes(
+        results = traverse_all_relevant_nodes(  # noqa: F841
             query=query,
             tree=setup_test_data['tree'],
             markdown_dir=setup_test_data['markdown_dir'],

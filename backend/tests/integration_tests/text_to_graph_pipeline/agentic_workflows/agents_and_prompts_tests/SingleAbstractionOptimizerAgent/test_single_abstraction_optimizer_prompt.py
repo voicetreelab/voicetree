@@ -4,10 +4,9 @@ Tests the optimization decisions for node abstraction levels
 """
 
 import pytest
-import asyncio
 from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm_structured
 from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptLoader
-from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse, UpdateAction, CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse
 
 
 class TestSingleAbstractionOptimizerPrompt:
@@ -77,7 +76,7 @@ class TestSingleAbstractionOptimizerPrompt:
             assert concepts_covered >= 2, "Should cover at least 2 concepts if splitting"
         else:
             # If not splitting, should update the original
-            assert result.update_original == True
+            assert result.update_original
             assert result.original_new_content is not None
             assert result.original_new_summary is not None
 

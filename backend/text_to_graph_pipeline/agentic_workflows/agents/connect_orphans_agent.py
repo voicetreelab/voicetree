@@ -141,7 +141,7 @@ class ConnectOrphansAgent(Agent):
             content_parts = [root.summary]
             
             if include_full_content and root.children:
-                content_parts.append(f"\n\n**Children of this orphan (for context - DO NOT include these in groupings):**")
+                content_parts.append("\n\n**Children of this orphan (for context - DO NOT include these in groupings):**")
                 for i, child in enumerate(root.children[:5], 1):
                     child_summary = child.get('summary', '')[:100]
                     content_parts.append(f"  {i}. {child['title']}: {child_summary}")

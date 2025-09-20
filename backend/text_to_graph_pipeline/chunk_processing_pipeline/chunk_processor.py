@@ -73,7 +73,7 @@ class ChunkProcessor:
         # Initialize workflow
         self.workflow = workflow or TreeActionDeciderWorkflow(decision_tree=decision_tree)
         
-        logging.info(f"ChunkProcessor initialized with adaptive buffering and agentic workflow")
+        logging.info("ChunkProcessor initialized with adaptive buffering and agentic workflow")
     
     @property
     def text_buffer_size_threshold(self) -> int:
@@ -99,7 +99,7 @@ class ChunkProcessor:
             # Markdown writing now happens automatically in DecisionTree methods
             # No need to manually call converter.convert_node anymore
 
-            elapsed_time = time.time() - start_time
+            time.time() - start_time
             # logging.info(f"Processing transcribed text took: {elapsed_time:.4f} seconds")
 
         except Exception as e:

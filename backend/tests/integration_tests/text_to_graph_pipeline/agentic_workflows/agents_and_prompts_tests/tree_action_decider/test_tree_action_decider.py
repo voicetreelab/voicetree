@@ -18,9 +18,13 @@ reasons, but TreeActionDecider is an orchestrator, not an agent.
 """
 
 import pytest
-from typing import List, Union
 from unittest.mock import patch
 import json
+from backend.text_to_graph_pipeline.agentic_workflows.models import (
+    CreateAction,
+    UpdateAction
+)
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
 
 # This import will fail until the new orchestrator is implemented
 # It should NOT inherit from Agent - it's a simple orchestrator
@@ -31,17 +35,9 @@ except ImportError:
     class TreeActionDecider:
         async def run(self, transcript_text: str, decision_tree, transcript_history: str = ""):
             raise NotImplementedError("TreeActionDecider orchestrator not implemented yet")
-    
+
 # Create alias for backward compatibility with test names
 TreeActionDeciderAgent = TreeActionDecider
-
-from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    AppendAction, 
-    CreateAction, 
-    UpdateAction,
-    BaseTreeAction
-)
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
 
 
 class TestTreeActionDeciderAgent:

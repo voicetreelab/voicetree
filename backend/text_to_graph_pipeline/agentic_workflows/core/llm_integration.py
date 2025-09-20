@@ -5,12 +5,11 @@ Easy configuration: Modify the CONFIG class below to change models, temperature,
 """
 import logging
 import os
-import re
 from pathlib import Path
-from typing import Optional, Type, Dict
+from typing import Optional, Type
 from dataclasses import dataclass
 from dotenv import load_dotenv
-from google.genai.types import GenerateContentConfig, GenerateContentConfigDict, SafetySettingDict, HttpOptions, SafetySetting
+from google.genai.types import HttpOptions, SafetySetting
 from pydantic import BaseModel
 from google import genai
 import json
@@ -128,10 +127,10 @@ def _get_client() -> genai.Client:
 # ==================== PUBLIC API ====================
 
 async def call_llm_structured(
-    prompt: str, 
-    stage_type: str, 
+    prompt: str,
+    stage_type: str,
     output_schema: Type[BaseModel],
-    model_name: str = None
+    model_name: Optional[str] = None
 ) -> BaseModel:
     """
     Call the LLM with structured output using Pydantic schemas
@@ -163,7 +162,7 @@ async def call_llm_structured(
     # Call the model with structured output
     # Pass Pydantic models directly as per Google's documentation
     if stage_type== "single_abstraction_optimizer":
-        print(f"Running local graph optimization stage with model: gemini-2.5-flash")
+        print("Running local graph optimization stage with model: gemini-2.5-flash")
 
     else:
         print(f"Running {stage_type} with model: {model_name}")
@@ -190,13 +189,23 @@ async def call_llm_structured(
         # Try to parse JSON from response text using robust parser
         try:
             # Use parse_json_markdown which handles markdown blocks, partial JSON, etc.
-            parsed_data = parse_json_markdown(response.text)
-            return output_schema.model_validate(parsed_data)
+            if response.text is not None:
+                parsed_data = parse_json_markdown(response.text)
+                return output_schema.model_validate(parsed_data)
+            else:
+                raise RuntimeError(
+                    f"LLM returned empty response for stage '{stage_type}'"
+                )
         except (json.JSONDecodeError, ValueError) as e:
             raise RuntimeError(
                 f"LLM returned invalid JSON for stage '{stage_type}'. "
                 f"Parse error: {e}. "
-                f"Raw response: {response.text[:500]}..."
+                f"Raw response: {response.text[:500] if response.text else 'None'}..."
             )
 
-    return response.parsed
+    parsed_result = response.parsed
+    if isinstance(parsed_result, BaseModel):
+        return parsed_result
+    else:
+        # If it's not a BaseModel, validate it through the schema
+        return output_schema.model_validate(parsed_result)

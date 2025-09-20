@@ -1,7 +1,7 @@
 """Content filtering module for coarse-to-fine context pruning."""
 
 from enum import Enum
-from typing import List, Dict, Any, Optional, Callable, Set
+from typing import List, Dict, Any, Optional, Callable
 
 
 class ContentLevel(Enum):
@@ -104,7 +104,7 @@ def get_neighborhood(
             if load_node_func:
                 node = load_node_func(current)
             else:
-                node = {'filename': current}
+                node = dict(filename=current)
             
             node['distance_from_target'] = distance
             neighbors.append(node)

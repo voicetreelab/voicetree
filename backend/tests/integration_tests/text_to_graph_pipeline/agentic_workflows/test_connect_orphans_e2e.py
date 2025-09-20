@@ -66,7 +66,7 @@ class TestConnectOrphansE2E:
         all_node_ids = list(tree.tree.keys())
         converter.convert_nodes(output_dir=str(output_dir), nodes_to_update=all_node_ids)
         
-        print(f"\n=== Markdown Output ===")
+        print("\n=== Markdown Output ===")
         print(f"Tree written to: {output_dir}")
         print(f"Files created: {len(all_node_ids)} markdown files")
         
@@ -83,7 +83,7 @@ class TestConnectOrphansE2E:
             (node_id, node.title) for node_id, node in tree.tree.items()
             if node.parent_id is None
         ]
-        print(f"\n=== Initial State ===")
+        print("\n=== Initial State ===")
         print(f"Total nodes: {len(tree.tree)}")
         print(f"Orphan nodes: {len(initial_orphans)}")
         print("\nOrphan titles:")
@@ -94,14 +94,14 @@ class TestConnectOrphansE2E:
         agent = ConnectOrphansAgent()
         actions, parent_child_mapping = await agent.run(tree, max_roots_to_process=20)
         
-        print(f"\n=== Connect Orphans Agent Results ===")
+        print("\n=== Connect Orphans Agent Results ===")
         print(f"Created {len(actions)} actions")
         
         # Apply the actions if we want to see the actual tree structure
         if actions:
             # Filter to only CreateActions (parent nodes)
             create_actions = [a for a in actions if a.action == "CREATE"]
-            print(f"\nNew parent nodes to be created:")
+            print("\nNew parent nodes to be created:")
             for action in create_actions:
                 print(f"  - {action.new_node_name}")
                 print(f"    Summary: {action.summary}")
@@ -133,7 +133,7 @@ class TestConnectOrphansE2E:
             
             modified_nodes = new_node_ids
             
-            print(f"\n=== After Applying Actions ===")
+            print("\n=== After Applying Actions ===")
             print(f"Modified/created {len(modified_nodes)} nodes")
             
             # Count final orphans
@@ -176,7 +176,7 @@ class TestConnectOrphansE2E:
                             connected_count += 1
             
             assert connected_count > 0, f"Should have connected at least some orphans, but connected {connected_count}"
-            print(f"\n=== Test Verification ===")
+            print("\n=== Test Verification ===")
             print(f"Successfully connected {connected_count} orphan nodes to new parent nodes")
 
     @pytest.mark.asyncio
@@ -202,14 +202,14 @@ class TestConnectOrphansE2E:
         # The text itself doesn't matter, we just want to trigger the orphan connection
         dummy_text = "This is a test to trigger the orphan connection phase for GPT-SoVITS nodes."
         
-        modified_nodes = await workflow.process_text_chunk(
+        await workflow.process_text_chunk(
             text_chunk=dummy_text,
             transcript_history_context="",
             tree_action_applier=tree_action_applier,
             buffer_manager=buffer_manager
         )
         
-        print(f"\n=== Workflow Orphan Connection Test ===")
+        print("\n=== Workflow Orphan Connection Test ===")
         print(f"Initial nodes: {initial_node_count}")
         print(f"Final nodes: {len(tree.tree)}")
         print(f"New nodes created: {len(tree.tree) - initial_node_count}")
@@ -224,7 +224,7 @@ class TestConnectOrphansE2E:
                     new_parent_nodes.append((node, children))
         
         if new_parent_nodes:
-            print(f"\n=== New Parent Nodes from Workflow ===")
+            print("\n=== New Parent Nodes from Workflow ===")
             for parent, children in new_parent_nodes:
                 print(f"\nParent: {parent.title}")
                 print(f"  Children ({len(children)}):")
@@ -247,7 +247,7 @@ class TestConnectOrphansE2E:
         }
         initial_orphan_count = len(initial_orphans)
         
-        print(f"\n=== Testing Actual Parent Connection ===")
+        print("\n=== Testing Actual Parent Connection ===")
         print(f"Initial orphans: {initial_orphan_count}")
         
         # Create an enhanced version of ConnectOrphansAgent that actually connects

@@ -1,6 +1,6 @@
 import logging
-import time
 from queue import Queue, Empty
+from typing import Optional, Callable
 
 import numpy as np
 import speech_recognition as sr
@@ -25,7 +25,7 @@ class VoiceToTextEngine:
     2. Queue: Acts as a simple, thread-safe buffer for these complete phrases.
     3. faster-whisper: Transcribes one complete phrase at a time for maximum accuracy.
     """
-    def __init__(self, config: VoiceConfig = None):
+    def __init__(self, config: Optional[VoiceConfig] = None) -> None:
         self.config = config or VoiceConfig()
 
         print(f"Loading Whisper model '{self.config.model_size}'...")
@@ -45,12 +45,12 @@ class VoiceToTextEngine:
         self.recorder.dynamic_energy_ratio = self.config.dynamic_energy_ratio
 
         # This queue will hold complete audio phrases (as numpy arrays) ready for transcription.
-        self._ready_for_transcription_queue = Queue()
+        self._ready_for_transcription_queue: Queue[np.ndarray] = Queue()
 
-        self._stop_listening_callback = None
-        self.source = None
+        self._stop_listening_callback: Optional[Callable] = None
+        self.source: Optional[sr.Microphone] = None
 
-    def _audio_data_callback(self, recognizer, audio_data: sr.AudioData):
+    def _audio_data_callback(self, recognizer: sr.Recognizer, audio_data: sr.AudioData) -> None:
         """
         Callback from the listener thread.
         It receives a complete phrase and puts it on the queue.
@@ -60,7 +60,7 @@ class VoiceToTextEngine:
         audio_np = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
         self._ready_for_transcription_queue.put(audio_np)
 
-    def start_listening(self):
+    def start_listening(self) -> None:
         """Starts the background audio capture and VAD."""
         if self._stop_listening_callback is not None:
             logging.warning("Audio capture is already running.")
@@ -82,7 +82,7 @@ class VoiceToTextEngine:
         print("Ready to listen")
         logging.info("Listening in the background...")
 
-    def stop(self):
+    def stop(self) -> None:
         """Stops the background audio capture."""
         if self._stop_listening_callback:
             self._stop_listening_callback(wait_for_stop=False)
@@ -90,7 +90,7 @@ class VoiceToTextEngine:
             self.source = None
             logging.info("Background audio capture stopped.")
 
-    def get_ready_audio_chunk(self):
+    def get_ready_audio_chunk(self) -> Optional[np.ndarray]:
         """
         Non-blocking method to get a VAD-detected audio chunk if available.
         This is the intended way to interact with the engine from your main loop.
@@ -100,7 +100,7 @@ class VoiceToTextEngine:
         except Empty:
             return None
 
-    def transcribe_chunk(self, audio_np):
+    def transcribe_chunk(self, audio_np: np.ndarray) -> str:
         """
         Synchronous method to transcribe a single, complete audio chunk.
         """

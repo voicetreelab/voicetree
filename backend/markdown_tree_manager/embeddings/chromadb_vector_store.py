@@ -5,8 +5,7 @@ Uses ChromaDB with Google Gemini embeddings for efficient vector search.
 
 import os
 import logging
-from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Optional, Any, Union
 import chromadb
 from chromadb.config import Settings
 import chromadb.utils.embedding_functions as embedding_functions
@@ -99,7 +98,7 @@ class ChromaDBVectorStore:
             else:
                 self.collection = self.client.get_collection(name=self.collection_name)
             logger.info(f"Using existing collection: {self.collection_name}")
-        except:
+        except Exception:
             # Create new collection if it doesn't exist
             if self.embedding_function:
                 self.collection = self.client.create_collection(
@@ -184,7 +183,7 @@ class ChromaDBVectorStore:
         top_k: int = 10,
         filter_dict: Optional[Dict] = None,
         include_scores: bool = True
-    ) -> List[Tuple[int, float]]:
+    ) -> Union[List[Tuple[int, float]], List[int]]:
         """
         Search for similar nodes using vector similarity.
 
@@ -214,22 +213,28 @@ class ChromaDBVectorStore:
                 return []
 
             # Extract node IDs and scores
-            node_results = []
-            for id_str, distance in zip(results['ids'][0], results['distances'][0]):
-                # Extract node_id from the ID string (format: "node_123")
-                node_id = int(id_str.replace('node_', ''))
+            if include_scores:
+                node_results_with_scores: List[Tuple[int, float]] = []
+                for id_str, distance in zip(results['ids'][0], results['distances'][0]):
+                    # Extract node_id from the ID string (format: "node_123")
+                    node_id = int(id_str.replace('node_', ''))
 
-                # Convert distance to similarity score (1 - normalized_distance)
-                # ChromaDB returns L2 distance for cosine space, so we convert
-                similarity = 1.0 - (distance / 2.0)  # Normalize to [0, 1]
+                    # Convert distance to similarity score (1 - normalized_distance)
+                    # ChromaDB returns L2 distance for cosine space, so we convert
+                    similarity = 1.0 - (distance / 2.0)  # Normalize to [0, 1]
+                    node_results_with_scores.append((node_id, similarity))
 
-                if include_scores:
-                    node_results.append((node_id, similarity))
-                else:
-                    node_results.append(node_id)
+                logger.info(f"Found {len(node_results_with_scores)} similar nodes for query: '{query[:50]}...'")
+                return node_results_with_scores
+            else:
+                node_results_ids: List[int] = []
+                for id_str, distance in zip(results['ids'][0], results['distances'][0]):
+                    # Extract node_id from the ID string (format: "node_123")
+                    node_id = int(id_str.replace('node_', ''))
+                    node_results_ids.append(node_id)
 
-            logger.info(f"Found {len(node_results)} similar nodes for query: '{query[:50]}...'")
-            return node_results
+                logger.info(f"Found {len(node_results_ids)} similar nodes for query: '{query[:50]}...'")
+                return node_results_ids
 
         except Exception as e:
             logger.error(f"Search failed: {e}")
@@ -325,10 +330,13 @@ class ChromaDBVectorStore:
             Combined ranked list of node IDs
         """
         # Get vector search results
-        vector_results = self.search(query, top_k=top_k * 2, include_scores=True)
+        vector_results_raw = self.search(query, top_k=top_k * 2, include_scores=True)
 
-        if not vector_results:
+        # Type guard to ensure we have tuples
+        if not vector_results_raw or not isinstance(vector_results_raw[0], tuple):
             return keyword_results[:top_k]
+
+        vector_results: List[Tuple[int, float]] = vector_results_raw  # type: ignore
 
         # Combine scores
         combined_scores = {}
@@ -383,4 +391,9 @@ def find_relevant_nodes_with_chroma(
 
     # Search and return results
     results = store.search(query, top_k=top_k, include_scores=False)
-    return results
+    # Type guard to ensure we return List[int] when include_scores=False
+    if isinstance(results, list) and (not results or isinstance(results[0], int)):
+        return results  # type: ignore
+    else:
+        # Fallback if something went wrong
+        return [r[0] if isinstance(r, tuple) else r for r in results]

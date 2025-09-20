@@ -6,8 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from backend.text_to_graph_pipeline.agentic_workflows.models import (
-    RelationshipAnalysis, RelationshipResponse, SegmentationResponse,
-    SegmentModel)
+    RelationshipAnalysis, RelationshipResponse, SegmentModel)
 
 
 class TestChunkModel:
