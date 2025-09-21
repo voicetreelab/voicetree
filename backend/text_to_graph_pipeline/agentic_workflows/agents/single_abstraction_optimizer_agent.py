@@ -8,12 +8,12 @@ from langgraph.graph import END
 
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 
-from ..core.agent import Agent
-from ..core.state import SingleAbstractionOptimizerAgentState
-from ..models import BaseTreeAction
-from ..models import CreateAction
-from ..models import OptimizationResponse
-from ..models import UpdateAction
+from backend.text_to_graph_pipeline.agentic_workflows.core.agent import Agent
+from backend.text_to_graph_pipeline.agentic_workflows.core.state import SingleAbstractionOptimizerAgentState
+from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
 
 
 class SingleAbstractionOptimizerAgent(Agent):

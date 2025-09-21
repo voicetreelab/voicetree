@@ -275,17 +275,19 @@ def get_neighborhood(
 def traverse_to_node(
     target_file: str,
     markdown_dir: Path,
-    options: TraversalOptions = TraversalOptions()
+    options: TraversalOptions = TraversalOptions(),
+    is_target: bool = False
 ) -> List[Dict[str, Any]]:
     """
     Main traversal function for context retrieval.
     Traverses to a node with specified options and returns list of node dictionaries.
-    
+
     Args:
         target_file: The target markdown file to traverse to
         markdown_dir: Path to the markdown directory
         options: TraversalOptions controlling the traversal
-        
+        is_target: Whether this node is a target from vector search (only targets get neighborhoods)
+
     Returns:
         List of node dictionaries with structure:
         {
@@ -294,32 +296,39 @@ def traverse_to_node(
             'content': str,
             'depth': int,
             'node_id': str,
-            'summary': str
+            'summary': str,
+            'is_target': bool (optional),
+            'neighbor_of_target': bool (optional)
         }
     """
     nodes = []
-    
+
     # Get path from root to target (parents)
     if options.include_parents:
         parent_path = get_path_to_node(target_file, markdown_dir, options.max_depth)
         nodes.extend(parent_path)
-    
+
     # Add target node
     target_node_data = load_node(target_file, markdown_dir)
     target_node: Dict[str, Any] = dict(target_node_data)  # Make a copy to avoid modifying original
     target_node['depth'] = 0
+    if is_target:
+        target_node['is_target'] = True
     nodes.append(target_node)
-    
+
     # Get children if requested
     if options.include_children:
         children = get_children_recursive(target_file, markdown_dir, options.max_depth)
         nodes.extend(children)
-    
-    # Get neighborhood if requested
-    if options.include_neighborhood:
+
+    # Get neighborhood ONLY if requested AND this is a target node
+    if options.include_neighborhood and is_target:
         neighbors = get_neighborhood(target_file, markdown_dir, options.neighborhood_radius)
+        # Mark all neighbors as neighbors of target
+        for neighbor in neighbors:
+            neighbor['neighbor_of_target'] = True
         nodes.extend(neighbors)
-    
+
     # Apply content filtering based on distance
     return apply_content_filter(nodes, options.content_level)
 

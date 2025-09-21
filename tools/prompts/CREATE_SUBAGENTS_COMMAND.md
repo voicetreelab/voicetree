@@ -35,9 +35,9 @@ Break down complex tasks into focused subtasks that can be handled independently
 
 ### 2. **Context Optimization**
 Give each subagent only the context they need:
-- ❌ Don't dump entire conversation history
-- ✅ Do provide specific task files, contracts, and relevant background
-- ✅ Do explain where their work fits in the larger system
+-  Don't dump entire conversation history
+-  Do provide specific task files, contracts, and relevant background
+-  Do explain where their work fits in the larger system
 
 ### 3. **Parallel When Possible**
 Identify independent tasks that can run simultaneously:

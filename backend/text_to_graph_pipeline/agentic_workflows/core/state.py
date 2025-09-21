@@ -9,11 +9,11 @@ from typing import Optional
 
 from typing_extensions import TypedDict
 
-from ..models import OptimizationResponse
-from ..models import SegmentationResponse
-from ..models import TagResponse
-from ..models import TargetNodeResponse
-from ..models import ThemeResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import OptimizationResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import SegmentationResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import TagResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import ThemeResponse
 
 
 class AppendToRelevantNodeAgentState(TypedDict):

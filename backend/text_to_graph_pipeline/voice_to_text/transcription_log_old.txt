@@ -4745,3 +4745,59 @@ Oh, I don't know exactly what that's going to look like.
 I don't know.
 I don't know.
 oh
+Thank you.
+Alrighty, okay cool, so we're working
+Okay, cool. So we're working on VoiceTree.
+Alrighty, okay, cool. So we're working on VoiceTree.
+Alrighty. Okay, cool. So we're working on VoiceTree.
+and we've made some good improvements, we've set up some tech debt, and right now we wanna build infinite LLM.
+And with Infinite LLM.
+um what do we need to do so we have
+or if you look in voice tree back end markdown tree manager
+There's embeddings and graph search.
+Entry function
+get most relevant nodes.
+We could be using our get semantically related node.
+And we want to make an integration test to make sure that that's working.
+So that we want to like do.
+Ah.
+Well, we kind of know that it is work.
+Um...
+Yeah, I guess.
+so
+At most relevant knows what tests we have
+S-node selection
+it's actually not going to be super easy to make
+I guess, yeah, maybe the easiest way to build this is
+Dooo
+We could update InfiniteLM.sh
+And what do we need infinitelm.sh?
+Oh, so we need to build the...
+retrieval.
+Um
+Oh yeah, I think the problem is that context retrieval is currently a bit too complicated.
+I don't know.
+So context retrieval, retrieve context.py.
+Yeah, let's design the architecture first.
+Thank you.
+And the other annoying thing is that I am realized.
+That...
+I don't know.
+The new node animation doesn't actually end, which is something we've been going to fix.
+Well
+Good.
+Oh my god, what is happening?
+All right, so we want to build infinite LLM now.
+We've talked a bit about the architecture.md.
+retrieval um and i'll be useful to read
+Uh...
+We want now to...
+on sub-agent to get that done.
+And I know that we have some...
+Let's go.
+Claude here, not Claude
+Okay, so...
+Thank you.
+Thank you.
+Thank you.
+Thank you.

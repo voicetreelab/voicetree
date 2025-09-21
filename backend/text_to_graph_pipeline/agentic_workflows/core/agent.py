@@ -119,8 +119,8 @@ class Agent:
         """
         from pathlib import Path
 
-        from .llm_integration import call_llm_structured
-        from .prompt_engine import PromptLoader
+        from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import call_llm_structured
+        from backend.text_to_graph_pipeline.agentic_workflows.core.prompt_engine import PromptLoader
         
         # Create the graph
         graph = StateGraph(self.state_schema)
@@ -133,7 +133,7 @@ class Agent:
             
             def make_node_fn(pname: str):  # Closure to capture prompt_name
                 async def node_fn(state: Dict[str, Any]) -> Dict[str, Any]:
-                    from .debug_logger import log_stage_input_output
+                    from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import log_stage_input_output
                     
                     # Log inputs
                     debug_inputs = dict(state)
@@ -207,7 +207,7 @@ class Agent:
                 def make_transformer(t: Callable, from_p: str, to_p: str):
                     async def transformer_node(state: Dict[str, Any]) -> Dict[str, Any]:
                         # Debug logging for transformer
-                        from .debug_logger import log_stage_input_output
+                        from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import log_stage_input_output
                         transformer_name_local = f"{from_p}_to_{to_p}_transform"
                         
                         logging.warning(f"Transformer DEBUG {transformer_name_local}: Input state keys={list(state.keys())}")

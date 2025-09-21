@@ -176,6 +176,9 @@ def load_markdown_tree(markdown_dir: str) -> MarkdownTree:
     if tree_dict:
         markdown_tree.next_node_id = max(tree_dict.keys()) + 1
 
+    # Clean up stale embeddings in ChromaDB
+    # _cleanup_stale_embeddings(markdown_tree)  # TODO: Function needs to be implemented
+
     return markdown_tree
 
 

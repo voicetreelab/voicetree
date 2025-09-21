@@ -9,8 +9,8 @@ from typing import Set
 from typing import Tuple
 
 # Import these after Node class is defined to avoid circular import issues
-from .utils import extract_summary
-from .utils import generate_filename_from_keywords
+from backend.markdown_tree_manager.utils import extract_summary
+from backend.markdown_tree_manager.utils import generate_filename_from_keywords
 
 
 def extract_title_from_md(node_content):

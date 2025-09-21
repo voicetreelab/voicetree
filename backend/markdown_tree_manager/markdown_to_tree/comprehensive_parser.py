@@ -14,11 +14,11 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from .file_operations import read_markdown_file
-from .link_extraction import extract_markdown_links
-from .metadata_extraction import extract_node_id
-from .yaml_parser import extract_frontmatter
-from .yaml_parser import extract_tags
+from backend.markdown_tree_manager.markdown_to_tree.file_operations import read_markdown_file
+from backend.markdown_tree_manager.markdown_to_tree.link_extraction import extract_markdown_links
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_node_id
+from backend.markdown_tree_manager.markdown_to_tree.yaml_parser import extract_frontmatter
+from backend.markdown_tree_manager.markdown_to_tree.yaml_parser import extract_tags
 
 
 def parse_markdown_file_complete(filepath: Path) -> Optional[Dict[str, Any]]:

@@ -24,21 +24,21 @@ from backend.markdown_tree_manager.graph_search.tree_functions import (
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 
-from ...settings import MAX_NODES_FOR_LLM_CONTEXT
-from ..agentic_workflows.agents.append_to_relevant_node_agent import (
+from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
+from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import (
     AppendToRelevantNodeAgent,
 )
-from ..agentic_workflows.agents.connect_orphans_agent import ConnectOrphansAgent
-from ..agentic_workflows.agents.single_abstraction_optimizer_agent import (
+from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import ConnectOrphansAgent
+from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import (
     SingleAbstractionOptimizerAgent,
 )
-from ..agentic_workflows.models import AppendAction
-from ..agentic_workflows.models import AppendAgentResult
-from ..agentic_workflows.models import BaseTreeAction
-from ..agentic_workflows.models import CreateAction
-from ..agentic_workflows.models import UpdateAction
-from ..text_buffer_manager import TextBufferManager
-from .apply_tree_actions import TreeActionApplier
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAgentResult
+from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 
 
 @dataclass
@@ -137,7 +137,7 @@ class TreeActionDeciderWorkflow:
         self.decision_tree = decision_tree
         
         # Create temporary instances for the wrapper
-        from ..text_buffer_manager import TextBufferManager
+        from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
         buffer_manager = TextBufferManager()
         tree_action_applier = TreeActionApplier(decision_tree)
         

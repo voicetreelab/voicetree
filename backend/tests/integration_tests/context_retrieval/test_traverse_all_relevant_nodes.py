@@ -3,6 +3,7 @@ Integration test for traverse_all_relevant_nodes module.
 Tests the integration script with specific inputs and verifies behavioral output.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -25,8 +26,12 @@ class TestTraverseAllRelevantNodes:
     @pytest.fixture
     def setup_test_data(self):
         """Setup test data paths and load tree."""
-        markdown_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output/user_guide_qa_audio_processing_connected_final")
-        embeddings_path = Path("/Users/bobbobby/repos/VoiceTree/backend/embeddings_output")
+        voicetree_root = os.getenv('VOICETREE_ROOT')
+        if not voicetree_root:
+            raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+
+        markdown_dir = Path(voicetree_root) / "backend/benchmarker/output/user_guide_qa_audio_processing_connected_final"
+        embeddings_path = Path(voicetree_root) / "backend/embeddings_output"
         
         # Load the tree as MarkdownTree object
         tree = load_markdown_tree(str(markdown_dir))
