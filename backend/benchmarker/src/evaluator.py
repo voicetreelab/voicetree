@@ -10,13 +10,13 @@ from google.generativeai import GenerativeModel
 import tools.PackageProjectForLLM
 from backend import settings
 
-from .config import EVALUATION_MODEL
-from .config import LATEST_QUALITY_LOG_FILE
-from .config import OUTPUT_DIR
-from .config import QUALITY_LOG_FILE
-from .evaluation_prompts import build_evaluation_prompt
-from .file_utils import get_git_info
-from .file_utils import save_run_context
+from backend.benchmarker.src.config import EVALUATION_MODEL
+from backend.benchmarker.src.config import LATEST_QUALITY_LOG_FILE
+from backend.benchmarker.src.config import OUTPUT_DIR
+from backend.benchmarker.src.config import QUALITY_LOG_FILE
+from backend.benchmarker.src.evaluation_prompts import build_evaluation_prompt
+from backend.benchmarker.src.file_utils import get_git_info
+from backend.benchmarker.src.file_utils import save_run_context
 
 
 class QualityEvaluator:

@@ -5,6 +5,7 @@ Tests the full pipeline including the Phase 3 orphan connection that runs every 
 
 import asyncio
 import logging
+import os
 from pathlib import Path
 
 import pytest
@@ -37,29 +38,28 @@ class TestConnectOrphansE2E:
 
     def load_qa_example_tree(self) -> MarkdownTree:
         """Load the qa_example tree which has many GPT-SoVITS orphan nodes"""
-        tree_path = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/qa_example")
-        
+        voicetree_root = os.getenv('VOICETREE_ROOT')
+        if not voicetree_root:
+            raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+        tree_path = Path(voicetree_root) / "backend/tests/qa_example"
+
         if not tree_path.exists():
             pytest.skip(f"Test tree not found at {tree_path}")
-        
-        # Load the existing tree from markdown files (returns dict)
-        tree_dict = load_markdown_tree(str(tree_path))
-        
-        # Convert to DecisionTree object
-        tree = MarkdownTree()
-        tree.tree = tree_dict
-        
-        # Set next_node_id to max existing + 1
-        if tree_dict:
-            tree.next_node_id = max(tree_dict.keys()) + 1
-        else:
-            tree.next_node_id = 1
-            
+
+        # Load the existing tree from markdown files (returns MarkdownTree object)
+        tree = load_markdown_tree(str(tree_path))
+
+        # The load_markdown_tree function already sets the next_node_id properly
+        # No need to set it manually
+
         return tree
 
     def write_tree_to_markdown_output(self, tree: MarkdownTree, test_name: str) -> str:
         """Write the tree to markdown files in the test output directory"""
-        output_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/integration_tests/connect_orphans_output") / test_name
+        voicetree_root = os.getenv('VOICETREE_ROOT')
+        if not voicetree_root:
+            raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+        output_dir = Path(voicetree_root) / "backend/tests/integration_tests/connect_orphans_output" / test_name
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Clear existing files

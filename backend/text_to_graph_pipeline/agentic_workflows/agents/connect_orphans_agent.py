@@ -26,10 +26,10 @@ from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 from backend.markdown_tree_manager.utils import map_titles_to_node_ids
 
-from ..core.agent import Agent
-from ..core.state import ConnectOrphansAgentState
-from ..models import BaseTreeAction
-from ..models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.core.agent import Agent
+from backend.text_to_graph_pipeline.agentic_workflows.core.state import ConnectOrphansAgentState
+from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
 
 
 @dataclass

@@ -15,13 +15,13 @@ from typing import Union
 
 from langgraph.graph import END
 
-from ..core.agent import Agent
-from ..core.state import AppendToRelevantNodeAgentState
-from ..models import AppendAction
-from ..models import AppendAgentResult
-from ..models import CreateAction
-from ..models import SegmentationResponse
-from ..models import TargetNodeResponse
+from backend.text_to_graph_pipeline.agentic_workflows.core.agent import Agent
+from backend.text_to_graph_pipeline.agentic_workflows.core.state import AppendToRelevantNodeAgentState
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAgentResult
+from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
+from backend.text_to_graph_pipeline.agentic_workflows.models import SegmentationResponse
+from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeResponse
 
 
 class AppendToRelevantNodeAgent(Agent):

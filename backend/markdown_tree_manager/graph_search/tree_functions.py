@@ -154,7 +154,11 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
     # Return Node objects (copies) in consistent order
     result = []
     for node_id in sorted(selected):
-        result.append(deepcopy(decision_tree.tree[node_id]))
+        # Only add nodes that actually exist in the tree
+        if node_id in decision_tree.tree:
+            result.append(deepcopy(decision_tree.tree[node_id]))
+        else:
+            logging.warning(f"Node ID {node_id} not found in decision tree, skipping")
 
     print(f"[DEBUG] Returning {len(result)} nodes from selection logic")
     return result
@@ -271,7 +275,16 @@ def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_c
 
     # Sort by combined score and return top results
     sorted_results = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
-    result_node_ids = [node_id for node_id, score in sorted_results[:remaining_slots_count]]
+
+    # Filter to only include node IDs that exist in the tree
+    result_node_ids = []
+    for node_id, score in sorted_results:
+        if node_id in decision_tree.tree:
+            result_node_ids.append(node_id)
+            if len(result_node_ids) >= remaining_slots_count:
+                break
+        else:
+            logging.warning(f"Node ID {node_id} from search results not found in tree, skipping")
 
     if result_node_ids:
         logging.info(f"Hybrid search returned {len(result_node_ids)} nodes (vector_weight={VECTOR_WEIGHT}, tfidf_weight={TFIDF_WEIGHT})")

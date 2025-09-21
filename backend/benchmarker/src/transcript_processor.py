@@ -13,9 +13,9 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor im
     ChunkProcessor,
 )
 
-from .config import OUTPUT_DIR
-from .file_utils import clear_workflow_log
-from .file_utils import setup_output_directory
+from backend.benchmarker.src.config import OUTPUT_DIR
+from backend.benchmarker.src.file_utils import clear_workflow_log
+from backend.benchmarker.src.file_utils import setup_output_directory
 
 
 class TranscriptProcessor:

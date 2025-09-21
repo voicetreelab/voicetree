@@ -3,6 +3,7 @@ Behavioral integration test for ConnectOrphansAgent using qa_example data
 Tests the agent's ability to group related GPT-SoVITS components and leave unrelated ones alone
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,10 @@ class TestConnectOrphansAgentBehavior:
     @pytest.fixture
     def qa_example_tree(self) -> MarkdownTree:
         """Load the qa_example tree with GPT-SoVITS orphan nodes"""
-        tree_path = Path("/Users/bobbobby/repos/VoiceTree/backend/tests/qa_example")
+        voicetree_root = os.getenv('VOICETREE_ROOT')
+        if not voicetree_root:
+            raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+        tree_path = Path(voicetree_root) / "backend/tests/qa_example"
         
         if not tree_path.exists():
             # Fallback to creating a sample tree if qa_example not available
@@ -394,8 +398,10 @@ class TestConnectOrphansAgentBehavior:
                 print(f"LLM decided not to group. Full reasoning: {llm_response.reasoning}")
                 
                 # Output debug logs for better observability
-                import os
-                debug_dir = "/Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/agentic_workflows/debug_logs"
+                voicetree_root = os.getenv('VOICETREE_ROOT')
+                if not voicetree_root:
+                    raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+                debug_dir = os.path.join(voicetree_root, "backend/text_to_graph_pipeline/agentic_workflows/debug_logs")
                 
                 # Read and print LLM I/O log
                 io_log_path = os.path.join(debug_dir, "connect_orphans_llm_io.txt")

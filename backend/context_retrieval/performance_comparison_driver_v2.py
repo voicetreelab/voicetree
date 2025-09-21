@@ -79,13 +79,18 @@ class PerformanceComparatorV2:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY must be set in .env file")
             
-        # Setup paths
-        self.markdown_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output/user_guide_qa_audio_processing_connected_final")
-        self.embeddings_path = Path("/Users/bobbobby/repos/VoiceTree/backend/embeddings_output")
-        self.full_context_path = Path("/Users/bobbobby/repos/VoiceTree/backend/context_retrieval/full_context.txt")
-        
+        # Setup paths using environment variable
+        voicetree_root = os.getenv('VOICETREE_ROOT')
+        if not voicetree_root:
+            raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+
+        project_root = Path(voicetree_root)
+        self.markdown_dir = project_root / "backend/benchmarker/output/user_guide_qa_audio_processing_connected_final"
+        self.embeddings_path = project_root / "backend/embeddings_output"
+        self.full_context_path = project_root / "backend/context_retrieval/full_context.txt"
+
         # Load template from pred.py's location
-        template_path = Path("/Users/bobbobby/repos/VoiceTree/long_context_benchmarks/LongBench/prompts/0shot.txt")
+        template_path = project_root / "long_context_benchmarks/LongBench/prompts/0shot.txt"
         with open(template_path, 'r') as f:
             self.template = f.read()
         
@@ -120,7 +125,10 @@ class PerformanceComparatorV2:
     
     def load_test_questions(self) -> List[Dict]:
         """Load the 4 QA test questions - just use raw markdown."""
-        questions_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/context_retrieval/QA_test_questions")
+        voicetree_root = os.getenv('VOICETREE_ROOT')
+        if not voicetree_root:
+            raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+        questions_dir = Path(voicetree_root) / "backend/context_retrieval/QA_test_questions"
         questions = []
         
         # Correct answers based on the documentation

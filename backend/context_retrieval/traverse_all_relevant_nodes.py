@@ -9,6 +9,7 @@ and traverses those nodes with their relationships.
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -89,24 +90,27 @@ def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Op
     
     # Collect all traversed nodes with their content
     all_traversed_nodes = []
-    
+
     for node_file, similarity in relevant_nodes:
         # Get full content and immediate connections
+        # Use max_depth=5 as specified in requirements
         options = TraversalOptions(
             include_parents=True,
             include_children=True,
-            max_depth=7,  # Deeper traversal to see full dependency chains
+            max_depth=5,  # Distance constraint as specified
             include_neighborhood=True,
+            neighborhood_radius=3,  # As specified in requirements
             content_level=ContentLevel.FULL_CONTENT
         )
-        
-        nodes = traverse_to_node(node_file, markdown_dir, options)
-        
+
+        # Pass is_target=True so this node gets neighborhood expansion
+        nodes = traverse_to_node(node_file, markdown_dir, options, is_target=True)
+
         # Add metadata about which file was the search target
         for node in nodes:
             node['is_search_target'] = (node.get('filename') == node_file)
             node['search_similarity'] = similarity
-        
+
         all_traversed_nodes.extend(nodes)
     
     print(f"Search complete. Found and traversed {len(all_traversed_nodes)} total nodes.")
@@ -137,10 +141,14 @@ def main():
     """
 
     # Load tree from markdown directory
-    markdown_dir = Path("/Users/bobbobby/repos/VoiceTree/backend/benchmarker/output/user_guide_qa_audio_processing_connected_final")
+    voicetree_root = os.getenv('VOICETREE_ROOT')
+    if not voicetree_root:
+        raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+
+    markdown_dir = Path(voicetree_root) / "backend/benchmarker/output/user_guide_qa_audio_processing_connected_final"
 
     # Path to pre-generated embeddings
-    embeddings_path = Path("/Users/bobbobby/repos/VoiceTree/backend/embeddings_output")
+    embeddings_path = Path(voicetree_root) / "backend/embeddings_output"
 
     print(f"Loading tree from: {markdown_dir}")
     print(f"Using embeddings from: {embeddings_path}")

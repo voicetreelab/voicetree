@@ -10,11 +10,11 @@ from typing import Dict
 from typing import List
 from typing import Union
 
-from .file_operations import read_markdown_file
-from .link_extraction import extract_markdown_links
-from .metadata_extraction import extract_node_id
-from .metadata_extraction import extract_summary
-from .metadata_extraction import extract_title
+from backend.markdown_tree_manager.markdown_to_tree.file_operations import read_markdown_file
+from backend.markdown_tree_manager.markdown_to_tree.link_extraction import extract_markdown_links
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_node_id
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_summary
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_title
 
 
 def load_node(filename: str, markdown_dir: Path) -> Dict[str, Union[str, List[str]]]:

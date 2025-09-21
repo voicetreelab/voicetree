@@ -111,7 +111,10 @@ def main():
     parser.add_argument('--exclude-tests', action='store_true', help='Exclude test files from checking')
     args = parser.parse_args()
 
-    project_root = Path('/Users/bobbobby/repos/VoiceTree')
+    voicetree_root = os.getenv('VOICETREE_ROOT')
+    if not voicetree_root:
+        raise ValueError("VOICETREE_ROOT environment variable not set. Run setup.sh first.")
+    project_root = Path(voicetree_root)
     backend_dir = project_root / 'backend'
 
     print("=" * 60)

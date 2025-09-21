@@ -29,6 +29,7 @@ select = [
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
     "ANN", # flake8-annotations - enforces type hints
+    "TID252", # ban relative imports
 ]
 ignore = [
     "E501",  # line too long

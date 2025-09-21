@@ -6,10 +6,10 @@ import shutil
 import subprocess
 from datetime import datetime
 
-from .config import BACKUP_DIR_BASE
-from .config import LATEST_RUN_CONTEXT_FILE
-from .config import OUTPUT_DIR
-from .config import WORKFLOW_IO_LOG
+from backend.benchmarker.src.config import BACKUP_DIR_BASE
+from backend.benchmarker.src.config import LATEST_RUN_CONTEXT_FILE
+from backend.benchmarker.src.config import OUTPUT_DIR
+from backend.benchmarker.src.config import WORKFLOW_IO_LOG
 
 
 def setup_output_directory(output_dir=None, transcript_identifier=None):

@@ -10,8 +10,8 @@ import logging
 import os
 from typing import Set
 
-from .markdown_to_tree.markdown_to_tree import MarkdownToTreeConverter
-from .markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import MarkdownToTreeConverter
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class MarkdownToTreeSynchronizer:

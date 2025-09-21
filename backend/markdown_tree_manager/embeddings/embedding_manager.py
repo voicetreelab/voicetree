@@ -12,10 +12,10 @@ from typing import Set
 from typing import Tuple
 from typing import Union
 
-from .chromadb_vector_store import ChromaDBVectorStore
+from backend.markdown_tree_manager.embeddings.chromadb_vector_store import ChromaDBVectorStore
 
 if TYPE_CHECKING:
-    from ..markdown_tree_ds import MarkdownTree
+    from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 logger = logging.getLogger(__name__)
 
