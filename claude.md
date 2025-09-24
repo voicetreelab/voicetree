@@ -1,6 +1,6 @@
 ## Project Overview
 
-VoiceTree is a system which does online text streams to "abstraction graphs" conversion. An abstraction graph (or concept graph) is a collection of markdown notes, connected to each other via markdown links. Each note represents an abstraction/concept present in the text.
+VoiceTree is a system which does online text stream to "abstraction graphs" conversion. An abstraction graph (or concept graph) is a collection of markdown notes, connected to each other via markdown links. Each note represents an abstraction/concept present in the text.
 
 Key files:
 
@@ -11,36 +11,35 @@ Key files:
 
 ## Essential Commands
 
-# Install dependencies 
-uv sync
-
 # Run unit tests
 uv run pytest backend/tests/unit_tests
 
-# Run integration tests
+# Run integration & system tests
 uv run pytest backend/tests/integration_tests/
 
 # Run benchmarker for quality testing
 uv run python backend/benchmarker/src/quality_LLM_benchmarker.py
 
-General Tips:
+Rules:
 
 use ripgrep for finding files, it is much faster than grep:
-
-
-
-For detailed architecture information, see the "Current Architecture" section in README-dev.md.
+<rg example>
+rg --files -g "*agent*"
+</rg example>
 
 ## Development Philosophy
 
-### Key Rules
+### VERY IMPORTANT Key Rules
 1. **Single Solution Principle**: Never have more than 1 solution for the same problem. Instead, evolve the system incrementally towards the desired state. Never have fallbacks. Do not keep legacy or deprecated code in the codebase.
 2. **Minimize Complexity**: When adding features, reduce complexity by re-architecting, introducing abstractions that hide complexity and separating concerns.
 3. **Quality Testing**: Add high quality unit tests for any non-trivial changes. These will undergo mutation testing. However, keep the tests general enough that minor changes (non functional) don't break the unit tests. Make sure all added tests are providing real value, and not just overhead and complexity.
 4. **Fail Fast**: No complex error handling during development
 
-WHEN PLANNING A TASK THAT INVOLVES WRITING CODE:
-  First review the existing code, think about the best way to structure this, such that it is simple, clean, follows best practices, and keeps our 
+That means NO FALLBACKS, NO COMPLEX ERROR HANDLING. After proposing any solution, take a step back, and actively say to yourself that you will now think about whether there is a less complex alternative.
+
+when planning a task that involves writing code:
+  First research review the existing code. Think about the best way to structure the solution, such that it is simple, clean, follows best practices, and keeps our 
   architecture clean. Then propose the changes you will make, but ONLY at a high level, methods and inputs and their outputs. we will worry about 
   specific code later.
 
+Please ask for clarifications if anything is unclear.

@@ -68,6 +68,8 @@ def retrieve_context(markdown_dir: str, query: str) -> str:
             return ""
     except Exception as e:
         print(f"Error during search: {e}", file=sys.stderr)
+        import traceback
+        print(f"[DEBUG] Traceback: {traceback.format_exc()}", file=sys.stderr)
         sys.exit(1)
 
     # Convert Node objects to filenames

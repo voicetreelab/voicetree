@@ -1,9 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m pytest backend/tests/integration_tests/test_connect_orphans_e2e.py::TestConnectOrphansE2E::test_connect_orphans_with_qa_example -xvs)"
+      "Bash(python -m pytest backend/tests/integration_tests/test_connect_orphans_e2e.py::TestConnectOrphansE2E::test_connect_orphans_with_qa_example -xvs)",
+      "Bash(uv run pytest:*)",
+      "Bash(tree:*)",
+      "Bash(uv run:*)",
+      "Bash(python -m pytest cross_tests/ -v --tb=short)",
+      "Bash(brew install:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "zen"
+  ]
 }

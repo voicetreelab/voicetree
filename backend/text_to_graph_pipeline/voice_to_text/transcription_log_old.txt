@@ -5609,3 +5609,121 @@ So what is that going to look like in the back end? Let's look at our back end.
 So what is that gonna look like in the back end? Let's look at our back end.
 And...
 And...
+So today we're working on...
+All right, so today we're working on...
+And we have our main ta.
+And we have our main ta.
+which is
+which is...
+um to make a proof concept standalone website for a voice tree instead of the current um crappy obsidian ui um so we want to make um there's two steps for that one is building the python server for a back end which will expose a
+to make a proof concept standalone website for a voice tree instead of the current crappy obsidian UI so we want to make there's two steps for that one is building the Python server for a backend which will expose a
+Um,
+Um,
+Send text.
+send text.
+API endpoint, so the Python server will allow someone.
+uh, API, um, end point. So the Python server will allow someone.
+um from the website um and that will then add
+um, from the website. Um, and that will then add.
+essentially to our buffers we have in the back end.
+essentially to our buffers we have in the back end.
+Um...
+Hello?
+Hello?
+Oh, wow.
+All right, so what am I working on today? I'm working on making a proof of concept standalone web app
+All right, so what am I working on today? I'm working on making a proof of concept standalone web app
+um so we want to make a python server two so there's two components doing this making a python server and making a tiny simple website for speech to text and then calling the python server so the python server will allow text input that will be put into the voice tree buffers
+So we want to make a Python server, so there's two components to doing this, making a Python server and making a tiny simple website for speech to text and then calling the Python server. So the Python server will allow text input that will be put into the Voice Tree buffers.
+So that's currently what we do in.
+back end actually in the just in the project main.py we have the transcription loop there and then we
+put onto the text queue, and we run process new text and update markdown.
+So that's currently what we do in back-end, actually just in the project main.py, we have the transcription loop there, and then we put onto the text queue, and we run process new text and update markdown.
+um and so instead we want to have a server um where when
+um and so instead we want to have a server um where when
+call the
+text endpoint, it can add text.
+text endpoint.
+to that
+It can add text.
+to that
+text queue that's currently in main.py, and we wanna remove the transcription from main.py, and instead we want to use...
+text queue that's currently in main.py, and we wanna remove the transcription from main.py, and instead, we want to use,
+We want to use Sonyox.
+We want to use Soniox.
+So SoniOx have a really good speech attack.
+and we want to use that instead.
+Cool, so
+Let's think about what we want to do next.
+Um...
+So two components we need to do when you build the website
+And.
+Build make the main dot pie now
+Reveal a server.
+Um, and so we'll probably want to spawn, um, a.
+Sub agent for doing that and an orchestrator
+Um.
+so
+Let's make a node for doing all this work and spawning the agent.
+Um...
+Okay, so...
+So I'm saying rework your service
+most simple approach can we instead just repurpose main dot py and use the same text underscore q variable
+So just rip out the voice-to-text and instead use the website for voice-to-text.
+But then I'm thinking, actually, let's keep main.py so we can still use.
+Be a Python
+Okay, cool. And then for Frank's simple website design.
+I'm thinking we can just use Sonia.
+Okay, cool.
+Okay, cool. So while agents are working on those two tasks,
+Let's think about what else we can do.
+Um, so we could work on...
+We could work on infinite LLM, but that is going to be...
+A little bit tricky.
+Tricky, icky, icky, icky.
+Um...
+Let's see
+Yeah, let's work on infinite LLM
+um because it's broken a bit right
+So let's go like that.
+Um, cool.
+4 5 7 8 9 10
+Yes, we don't want to send to voice tree button
+And we...
+So, overall...
+Yeah.
+You look better.
+Banner, Banner, Banner.
+You
+No, no, no, no, no, no, no.
+She was like, she's aware of what he said.
+Yeah.
+Ha ha ha ha
+Good luck.
+Maybe it was the last thing ever.
+the uh
+Yeah, I think it's created for your part.
+It was just like.
+One, two, three, nine.
+ZFW.
+Um, yeah, she ran your chickens.
+It's fine.
+If that's the case.
+Yeah, nice to see you.
+But I think she wanted to love him, guys.
+Yeah
+Thank you very much.
+I see you up. I gotta go to my football.
+Thank you.
+And the dick is in the cheese and the cheese is in the...
+All the duckers and the trees and the...
+Bleh.
+Versus.
+Okay, so I'm noticing that there's a bit of a lag right now.
+possibly from the buffer processing i mean it still seems
+Color the letters up.
+You
+Hmm.
+So we front-end with Sony arcs which honestly looks fucking awesome I'm excited to see how much money we spent as well
+It's pretty interesting that you can also just like...
+consoles without
