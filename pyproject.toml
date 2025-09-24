@@ -68,6 +68,12 @@ dev = [
     "coverage[toml]>=7.0",
 ]
 
+[dependency-groups]
+dev = [
+    "nest-asyncio>=1.6.0",
+    "pytest-asyncio>=1.2.0",
+]
+
 [tool.setuptools]
 packages = ["backend", "tools"]
 

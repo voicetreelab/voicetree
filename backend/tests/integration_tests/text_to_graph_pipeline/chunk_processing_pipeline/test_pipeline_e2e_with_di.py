@@ -26,7 +26,7 @@ import os
 import random
 import shutil
 import string
-from datetime import datetime
+import tempfile
 
 import pytest
 
@@ -180,17 +180,15 @@ class TestPipelineE2EWithDI:
 
     def setup_method(self, method):
         """Set up test environment"""
-        self.test_id = f"test_{method.__name__}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        self.output_dir = os.path.join("markdownTreeVault", self.test_id)
-
-        # Ensure clean state
-        if os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
+        # Create a temporary directory for test output
+        self.temp_dir = tempfile.mkdtemp(prefix=f"test_{method.__name__}_")
+        self.output_dir = self.temp_dir
 
     def teardown_method(self, method):
         """Clean up test environment"""
-        if os.path.exists(self.output_dir):
-            shutil.rmtree(self.output_dir)
+        # Clean up the temporary directory
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
 
     @pytest.mark.asyncio
     async def test_pipeline_with_mock_agent(self):
@@ -421,21 +419,23 @@ class TestPipelineE2EWithDI:
 @pytest.mark.asyncio
 async def test_empty_text_handling():
     """Test handling of empty text input"""
-    decision_tree = MarkdownTree()
-    mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
+    # Use temporary directory for test output
+    with tempfile.TemporaryDirectory(prefix="test_empty_") as temp_dir:
+        decision_tree = MarkdownTree()
+        mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
 
-    chunk_processor = ChunkProcessor(
-        decision_tree=decision_tree,
-        output_dir="test_empty",
-        workflow=mock_workflow
-    )
+        chunk_processor = ChunkProcessor(
+            decision_tree=decision_tree,
+            output_dir=temp_dir,
+            workflow=mock_workflow
+        )
 
-    # Process empty text
-    await chunk_processor.process_new_text_and_update_markdown("")
+        # Process empty text
+        await chunk_processor.process_new_text_and_update_markdown("")
 
-    # Agent might not be called for empty text
-    # This is expected behavior - buffer manager filters it out
-    assert True  # Just verify no exceptions
+        # Agent might not be called for empty text
+        # This is expected behavior - buffer manager filters it out
+        assert True  # Just verify no exceptions
 
 
 if __name__ == "__main__":
