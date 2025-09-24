@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+:root {
+  --soniox: oklch(0.6194 0.2076 256.95);
+}
+
+@theme inline {
+  --color-soniox: var(--soniox);
+}
