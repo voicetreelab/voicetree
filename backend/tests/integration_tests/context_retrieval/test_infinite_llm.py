@@ -8,7 +8,6 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
@@ -16,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from backend.context_retrieval.retrieve_context import retrieve_context
 
 
-def create_test_markdown_tree(test_dir: Path) -> Dict[str, str]:
+def create_test_markdown_tree(test_dir: Path) -> dict[str, str]:
     """Create a test markdown tree structure."""
     files = {
         "1_Root_Project.md": """---

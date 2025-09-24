@@ -2,7 +2,7 @@
 Pydantic models for VoiceTree agentic workflow structured output
 """
 
-from typing import List
+from typing import Any
 from typing import Literal
 from typing import Optional
 from typing import Union
@@ -28,7 +28,7 @@ class SegmentationResponse(BaseModel):
     """Response model for segmentation stage"""
     reasoning: str = Field(description="An analysis of the meaning of the input text, its core idea. Analysis of potential boundaries for segmentation of the transcript as a whole")
 
-    segments: List[SegmentModel] = Field(description="List of segments (which together commpletely represent the original chunk")
+    segments: list[SegmentModel] = Field(description="List of segments (which together commpletely represent the original chunk")
     debug_notes: Optional[str] = Field(default=None, description="Optional: Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
 
@@ -43,7 +43,7 @@ class RelationshipAnalysis(BaseModel):
 
 class RelationshipResponse(BaseModel):
     """Response model for relationship analysis stage"""
-    analyzed_chunks: List[RelationshipAnalysis] = Field(description="Analysis results for each chunk")
+    analyzed_chunks: list[RelationshipAnalysis] = Field(description="Analysis results for each chunk")
 
 
 
@@ -96,20 +96,20 @@ class ChildNodeSpec(BaseModel):
 class OptimizationResponse(BaseModel):
     """Response model for single abstraction optimization - no union types"""
     reasoning: str = Field(description="COMPREHENSIVE reasoning notes for ALL stages.")
-    
+
     # Boolean flag to indicate intent to create nodes
     should_create_nodes: bool = Field(description="Set to true if you want to create new child nodes, false otherwise")
-    
+
     # New child nodes to create (only when should_create_nodes is true)
-    new_nodes: List[ChildNodeSpec] = Field(description="List of new nodes to create (required when should_create_nodes=true, ignored when false)")
+    new_nodes: list[ChildNodeSpec] = Field(description="List of new nodes to create (required when should_create_nodes=true, ignored when false)")
 
     # Original node update (if needed)
     original_new_content: Optional[str] = Field(description="Updated content for the original node.")
     original_new_summary: Optional[str] = Field(default=None, description="Updated summary for the original node.")
-    
+
     debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instruction which created difficulties in completing the task")
-    
-    def model_post_init(self, __context):
+
+    def model_post_init(self, __context: Any) -> None:
         """Validate consistency between should_create_nodes flag and new_nodes list"""
         if self.should_create_nodes and not self.new_nodes:
             raise ValueError("new_nodes cannot be empty when should_create_nodes is True")
@@ -125,8 +125,8 @@ class TargetNodeIdentification(BaseModel):
     orphan_topic_name: Optional[str] = Field(default=None, description="Specific name the orphan should have (required if is_orphan=True)")
     relationship_to_target: str=Field(description="The fill-in-the-blank relationship type of segment, to either the target node, or orphan name")
 
-    
-    def model_post_init(self, __context):
+
+    def model_post_init(self, __context: Any) -> None:
         """Validate that new nodes have names and existing nodes have valid IDs"""
         if self.is_orphan:
             if not self.orphan_topic_name:
@@ -138,7 +138,7 @@ class TargetNodeIdentification(BaseModel):
 
 class TargetNodeResponse(BaseModel):
     """Response model for identify target node stage"""
-    target_nodes: List[TargetNodeIdentification] = Field(description="Target node for each segment")
+    target_nodes: list[TargetNodeIdentification] = Field(description="Target node for each segment")
     global_reasoning: str = Field(description="Your notes for understanding the complete text section")
     debug_notes: Optional[str] = Field(default=None, description="Your observations about any confusing aspects of the prompt, contradictions you faced, unclear instructions, or any difficulties in completing the task")
 
@@ -147,8 +147,8 @@ class TargetNodeResponse(BaseModel):
 
 class AppendAgentResult(BaseModel):
     """Result from AppendToRelevantNodeAgent containing actions and segment info"""
-    actions: List[Union[AppendAction, CreateAction]] = Field(description="List of actions to apply")
-    segments: List[SegmentModel] = Field(description="List of segments with completeness info")
+    actions: list[Union[AppendAction, CreateAction]] = Field(description="List of actions to apply")
+    segments: list[SegmentModel] = Field(description="List of segments with completeness info")
 
 
 class ClusterAssignment(BaseModel):
@@ -159,27 +159,27 @@ class ClusterAssignment(BaseModel):
 class TagAssignment(BaseModel):
     """Assignment of multiple tags to a node"""
     node_id: int = Field(description="ID of the node being assigned")
-    tags: List[str] = Field(description="List of tags assigned to this node (empty list if no tags)")
+    tags: list[str] = Field(description="List of tags assigned to this node (empty list if no tags)")
     # don't add reasoning
 
 class ClusteringResponse(BaseModel):
     """Response model for clustering analysis"""
-    clusters: List[ClusterAssignment] = Field(description="List of cluster assignments for each node")
+    clusters: list[ClusterAssignment] = Field(description="List of cluster assignments for each node")
 
 
 class TagResponse(BaseModel):
     """Response model for multi-tag analysis"""
-    tags: List[TagAssignment] = Field(description="List of tag assignments for each node")
+    tags: list[TagAssignment] = Field(description="List of tag assignments for each node")
 
 
 class Theme(BaseModel):
     """A single theme identified from the nodes."""
     theme_name: str = Field(description="A short, descriptive name for the theme.")
     theme_description: str = Field(description="A brief description of the theme.")
-    node_names: List[str] = Field(description="A list of node titles/names belonging to this theme. Use the exact node titles as shown.")
+    node_names: list[str] = Field(description="A list of node titles/names belonging to this theme. Use the exact node titles as shown.")
     confidence: float = Field(description="Confidence score for the theme identification.", ge=0.0, le=1.0)
 
 
 class ThemeResponse(BaseModel):
     """Response model for theme identification analysis"""
-    themes: List[Theme] = Field(description="List of identified themes.")
+    themes: list[Theme] = Field(description="List of identified themes.")

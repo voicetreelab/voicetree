@@ -3,7 +3,7 @@ Integration tests for SingleAbstractionOptimizerAgent
 
 These tests verify the agent correctly:
 1. Analyzes nodes and decides if optimization is needed
-2. Splits cluttered nodes into multiple focused nodes  
+2. Splits cluttered nodes into multiple focused nodes
 3. Keeps cohesive nodes unchanged
 4. Updates poorly summarized nodes
 5. Properly extracts LLM responses from workflow state
@@ -22,12 +22,12 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
 
 class TestSingleAbstractionOptimizerAgent:
     """Test the SingleAbstractionOptimizerAgent with real LLM calls"""
-    
+
     @pytest.fixture
     def agent(self):
         """Create agent instance"""
         return SingleAbstractionOptimizerAgent()
-    
+
     @pytest.fixture
     def cluttered_node(self):
         """Create a node that should be split"""
@@ -41,7 +41,7 @@ For the frontend, we'll use React with TypeScript for type safety.
 The API authentication will use JWT tokens with refresh token rotation.""",
             summary="Project setup including structure, database, frontend, and auth"
         )
-    
+
     @pytest.fixture
     def cohesive_node(self):
         """Create a well-structured cohesive node"""
@@ -58,7 +58,7 @@ The API authentication will use JWT tokens with refresh token rotation.""",
 6. When access token expires, client uses refresh token to get new access token""",
             summary="Complete authentication flow implementation details"
         )
-    
+
     @pytest.fixture
     def poor_summary_node(self):
         """Create a node that has a poor summary"""
@@ -74,7 +74,7 @@ The API authentication will use JWT tokens with refresh token rotation.""",
 This reduced our average response time from 800ms to 200ms.""",
             summary="Some caching stuff"  # Poor summary
         )
-    
+
     @pytest.fixture
     def node_with_raw_appended_text(self):
         """Create a node with structured content and raw appended text that needs synthesis"""
@@ -85,13 +85,13 @@ This reduced our average response time from 800ms to 200ms.""",
 Current metrics collection includes query time, connection count, and disk usage.
 Alerting configured for response times over 500ms.
 
-...okay so I was looking at the monitoring dashboard and there's a huge CPU spike happening during peak hours. 
-It looks like our read queries are causing performance degradation. We might need to set up read replicas 
+...okay so I was looking at the monitoring dashboard and there's a huge CPU spike happening during peak hours.
+It looks like our read queries are causing performance degradation. We might need to set up read replicas
 to isolate the load from the main database. This could help distribute the read traffic and improve overall performance.""",
             summary="Database monitoring setup with metrics and alerting"
         )
-    
-    @pytest.fixture  
+
+    @pytest.fixture
     def node_tempting_to_oversplit(self):
         """Create a cohesive checklist that should NOT be split"""
         return Node(
@@ -110,17 +110,17 @@ to isolate the load from the main database. This could help distribute the read 
 10. Test all services are running""",
             summary="Comprehensive server setup checklist with security and monitoring"
         )
-    
+
     @pytest.fixture
     def node_with_interwoven_concepts(self):
         """Create a node with multiple distinct concepts that should be split"""
         return Node(
-            name="CI/CD Pipeline Implementation", 
+            name="CI/CD Pipeline Implementation",
             node_id=1,
-            content="""We need to implement continuous integration using Jenkins. The CI pipeline should run automated tests, 
-perform code quality checks with SonarQube, and build Docker images for our microservices. Jenkins will be configured 
-with GitHub webhooks to trigger builds on every push to main branch. The deployment process needs to handle rolling 
-updates to our Kubernetes cluster, with automatic rollback if health checks fail. We should implement blue-green 
+            content="""We need to implement continuous integration using Jenkins. The CI pipeline should run automated tests,
+perform code quality checks with SonarQube, and build Docker images for our microservices. Jenkins will be configured
+with GitHub webhooks to trigger builds on every push to main branch. The deployment process needs to handle rolling
+updates to our Kubernetes cluster, with automatic rollback if health checks fail. We should implement blue-green
 deployment strategy for zero-downtime releases.""",
             summary="CI/CD pipeline with Jenkins, testing, and Kubernetes deployment"
         )
@@ -131,35 +131,35 @@ deployment strategy for zero-downtime releases.""",
         # Run agent on the cluttered node
         neighbors_context = "No neighbor nodes available"
         actions = await agent.run(node=cluttered_node, neighbours_context=neighbors_context)
-        
+
         # Verify we got actions back
         assert isinstance(actions, list)
         assert len(actions) > 0, "Agent should return optimization actions for cluttered node"
-        
+
         # Check action types
         update_actions = [a for a in actions if isinstance(a, UpdateAction)]
         create_actions = [a for a in actions if isinstance(a, CreateAction)]
-        
+
         # LLM might decide to either:
         # 1. Split into multiple nodes (ideal for cluttered content)
         # 2. Just update the original (acceptable decision)
-        
+
         if len(create_actions) >= 2:
             # If splitting, verify child nodes cover different aspects
             node_names = [a.new_node_name.lower() for a in create_actions]
             content_areas = [a.content.lower() for a in create_actions]
-            
+
             # Should have nodes covering different concepts
             concepts_covered = sum([
-                any("database" in name or "postgres" in content 
+                any("database" in name or "postgres" in content
                     for name, content in zip(node_names, content_areas)),
-                any("frontend" in name or "react" in content 
+                any("frontend" in name or "react" in content
                     for name, content in zip(node_names, content_areas)),
-                any("auth" in name or "jwt" in content 
+                any("auth" in name or "jwt" in content
                     for name, content in zip(node_names, content_areas))
             ])
             assert concepts_covered >= 2, "Child nodes should cover at least 2 different concepts"
-            
+
             # All create actions should have parent_node_id = cluttered_node.id
             assert all(a.parent_node_id == cluttered_node.id for a in create_actions)
         else:
@@ -167,63 +167,63 @@ deployment strategy for zero-downtime releases.""",
             assert len(update_actions) >= 1, "Should update the original if not splitting"
             if len(update_actions) > 0:
                 assert update_actions[0].node_id == cluttered_node.id
-    
+
     @pytest.mark.asyncio
     async def test_keep_cohesive_node(self, agent, cohesive_node):
         """Test Case 2: Agent optimizes authentication node appropriately"""
         # Run agent on the cohesive node
         neighbors_context = "No neighbor nodes available"
         actions = await agent.run(node=cohesive_node, neighbours_context=neighbors_context)
-        
+
         # The LLM may or may not optimize a cohesive node - both are valid behaviors
         assert isinstance(actions, list)
-        
+
         if len(actions) > 0:
             # If the LLM chooses to optimize, it should have UPDATE action for original node
             update_actions = [a for a in actions if isinstance(a, UpdateAction)]
             if update_actions:
                 assert update_actions[0].node_id == cohesive_node.id
-            
+
             # May also create child nodes if distinct abstractions are identified
             create_actions = [a for a in actions if isinstance(a, CreateAction)]
             if create_actions:
                 # All create actions should be children of the original node
                 assert all(a.parent_node_id == cohesive_node.id for a in create_actions)
-    
+
     @pytest.mark.asyncio
     async def test_update_poor_summary(self, agent, poor_summary_node):
         """Test Case 3: Agent should update a node with poor summary"""
         # Run agent on node with poor summary
         neighbors_context = "No neighbor nodes available"
         actions = await agent.run(node=poor_summary_node, neighbours_context=neighbors_context)
-        
+
         # Should have at least one action
         assert len(actions) >= 1
-        
+
         # Get all update actions for the original node
         update_actions = [a for a in actions if isinstance(a, UpdateAction) and a.node_id == poor_summary_node.id]
-        
+
         # The LLM might decide to either:
         # 1. Just update the summary (UPDATE only)
         # 2. Split the content AND update the parent (UPDATE + CREATE actions)
         # Both are valid approaches for a node with poor summary
-        
+
         if len(update_actions) > 0:
             # If updating, should improve the summary
             new_summary = update_actions[0].new_summary.lower()
             assert "caching" in new_summary or "performance" in new_summary, "Summary should mention caching or performance"
-            
+
             # Summary should be more descriptive than original
             assert len(update_actions[0].new_summary) > len("Some caching stuff")
-        
+
         # If the LLM decided to split, that's also valid
         create_actions = [a for a in actions if isinstance(a, CreateAction)]
         if len(create_actions) > 0:
             # Should have meaningful child nodes about caching
             child_contents = [a.content.lower() for a in create_actions]
-            assert any("redis" in c or "cdn" in c or "database" in c or "api" in c 
+            assert any("redis" in c or "cdn" in c or "database" in c or "api" in c
                       for c in child_contents), "Child nodes should cover caching strategies"
-    
+
     @pytest.mark.asyncio
     async def test_agent_with_neighbors(self, agent):
         """Test Case 4: Agent considers neighbor context"""
@@ -234,7 +234,7 @@ deployment strategy for zero-downtime releases.""",
             content="Overall system design decisions",
             summary="High-level architecture"
         )
-        
+
         # Node to optimize with parent context
         node = Node(
             name="Database Design",
@@ -245,36 +245,36 @@ Plus configure backup strategies and replication.""",
             summary="Database stuff",
             parent_id=1
         )
-        
+
         # Create neighbors context string
         neighbors_context = f"Parent: {parent.title} - {parent.summary}"
-        
+
         # Run agent
         actions = await agent.run(node=node, neighbours_context=neighbors_context)
-        
+
         # Should get actions considering the parent context
         assert isinstance(actions, list)
         assert len(actions) > 0
-    
+
     @pytest.mark.asyncio
     async def test_state_extraction_works(self, agent, cluttered_node):
         """Test Case 5: Verify state extraction from workflow works correctly"""
         # This is the key test for the current issue
         # Run agent and check internal state handling
-        
+
         neighbors_context = "No neighbor nodes available"
         actions = await agent.run(node=cluttered_node, neighbours_context=neighbors_context)
-        
+
         # Basic checks that extraction worked
         assert actions is not None
         assert isinstance(actions, list)
         assert all(isinstance(a, BaseTreeAction) for a in actions)
-        
+
         # Verify the actions have proper structure
         for action in actions:
             assert hasattr(action, 'action')
             assert action.action in ["UPDATE", "CREATE"]
-            
+
             if isinstance(action, UpdateAction):
                 assert hasattr(action, 'node_id')
                 assert hasattr(action, 'new_content')
@@ -306,7 +306,7 @@ Plus configure backup strategies and replication.""",
         # Verify the new nodes capture meaningful concepts
         child_names = [a.new_node_name.lower() for a in create_actions]
         child_content = [a.content.lower() for a in create_actions]
-        
+
         # The agent should extract at least the solution/task
         assert any("replica" in name or "replica" in content for name, content in zip(child_names, child_content)), \
             "Should capture the proposed read replica solution."
@@ -332,7 +332,7 @@ Plus configure backup strategies and replication.""",
 
         # The new prompt may correctly determine that a cohesive checklist doesn't need optimization
         # This is valid behavior - the agent should only act when optimization is beneficial
-        
+
         # If the agent takes no action, that's acceptable for a well-structured checklist
         if len(actions) == 0:
             # No action needed - the checklist is already optimally structured
@@ -343,9 +343,9 @@ Plus configure backup strategies and replication.""",
                 # Check that created nodes represent actual checklist steps
                 node_names = [a.new_node_name.lower() for a in create_actions]
                 # Should contain server setup related terms
-                assert any("ssh" in name or "firewall" in name or "docker" in name or "security" in name 
+                assert any("ssh" in name or "firewall" in name or "docker" in name or "security" in name
                           for name in node_names), "Child nodes should represent server setup steps"
-                
+
             # Should update the original to be a parent/overview
             if len(update_actions) > 0:
                 assert len(update_actions) == 1, "Should update the original node if modifying."
@@ -371,9 +371,9 @@ Plus configure backup strategies and replication.""",
         if len(create_actions) > 0:
             child_contents = [a.content.lower() for a in create_actions]
             child_names = [a.new_node_name.lower() for a in create_actions]
-            
+
             # Should split out at least some CI/CD related concepts
-            assert any("deployment" in content or "jenkins" in content or "ci" in content or "cd" in content 
+            assert any("deployment" in content or "jenkins" in content or "ci" in content or "cd" in content
                       for content in child_contents + child_names), \
                 "Child nodes should contain CI/CD related concepts"
 

@@ -50,4 +50,4 @@
 #         result = await app.ainvoke(initial_state)
 #
 #         # Extract theme identification response
-#         return result["theme_identification_response"]
+#         return result.get("theme_identification_response")

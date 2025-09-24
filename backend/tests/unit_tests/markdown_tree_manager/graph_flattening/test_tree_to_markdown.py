@@ -82,7 +82,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertTrue(os.path.exists(file_path))
 
         # Check content of the updated file
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
             # Check YAML frontmatter
             self.assertIn("---\n", content)
@@ -136,7 +136,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertEqual(generate_filename_from_keywords("Voice Tree Project\n\nVoice Tree Project"), "Voice_Tree_Project_Voice_Tree_Project.md")
         self.assertEqual(generate_filename_from_keywords("Line1\nLine2"), "Line1_Line2.md")
         self.assertEqual(generate_filename_from_keywords("Line1\r\nLine2"), "Line1_Line2.md")
-        
+
         # Test special characters that should be replaced
         self.assertEqual(generate_filename_from_keywords("File/Path"), "File_Path.md")
         self.assertEqual(generate_filename_from_keywords("File\\Path"), "File_Path.md")
@@ -146,18 +146,18 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertEqual(generate_filename_from_keywords("File<Name>"), "File_Name.md")
         self.assertEqual(generate_filename_from_keywords("File|Name"), "File_Name.md")
         self.assertEqual(generate_filename_from_keywords('File"Name"'), "File_Name.md")
-        
+
         # Test allowed characters (should remain)
         self.assertEqual(generate_filename_from_keywords("File-Name"), "File-Name.md")
         self.assertEqual(generate_filename_from_keywords("File_Name"), "File_Name.md")
         self.assertEqual(generate_filename_from_keywords("File123"), "File123.md")
         self.assertEqual(generate_filename_from_keywords("ABC-123_test"), "ABC-123_test.md")
-        
+
         # Test multiple consecutive special characters
         self.assertEqual(generate_filename_from_keywords("File***Name"), "File_Name.md")
         self.assertEqual(generate_filename_from_keywords("File   Name"), "File_Name.md")
         self.assertEqual(generate_filename_from_keywords("File///Name"), "File_Name.md")
-        
+
         # Test edge cases
         self.assertEqual(generate_filename_from_keywords("!!!"), "untitled.md")
         self.assertEqual(generate_filename_from_keywords("   "), "untitled.md")
@@ -176,9 +176,9 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         # Test that YAML frontmatter is written correctly
         nodes_to_update = {0}
         self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
-        
+
         file_path = os.path.join(self.output_dir, self.tree_data[0].filename)
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
             # Check YAML frontmatter format
             self.assertTrue(content.startswith("---\n"))
@@ -193,42 +193,42 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         # Test that relationships are converted to snake_case
         nodes_to_update = {1, 2, 3}
         self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
-        
+
         # Check child node 2 with "related to" relationship
         file_path = os.path.join(self.output_dir, self.tree_data[2].filename)
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
             self.assertIn("- related_to [[", content)  # Check snake_case conversion
-            
+
         # Check grandchild with "example of" relationship
         file_path = os.path.join(self.output_dir, self.tree_data[3].filename)
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
             self.assertIn("- example_of [[", content)  # Check snake_case conversion
 
 
     def test_insert_yaml_frontmatter(self):
         import yaml
-        
+
         # Test simple key-value pairs - parse and verify content instead of exact string match
         result = insert_yaml_frontmatter({"title": "Test Title", "author": "Test Author"})
         self.assertTrue(result.startswith("---\n"))
         self.assertTrue(result.endswith("---\n"))
-        
+
         # Parse the YAML content to verify it's correct
         yaml_content = result.strip().split('\n')[1:-1]
         yaml_str = '\n'.join(yaml_content)
         parsed = yaml.safe_load(yaml_str)
         self.assertEqual(parsed["title"], "Test Title")
         self.assertEqual(parsed["author"], "Test Author")
-        
+
         # Test with list values
         result = insert_yaml_frontmatter({"tags": ["tag1", "tag2", "tag3"]})
         yaml_content = result.strip().split('\n')[1:-1]
         yaml_str = '\n'.join(yaml_content)
         parsed = yaml.safe_load(yaml_str)
         self.assertEqual(parsed["tags"], ["tag1", "tag2", "tag3"])
-        
+
         # Test with nested dict
         result = insert_yaml_frontmatter({"metadata": {"version": "1.0", "type": "node"}})
         yaml_content = result.strip().split('\n')[1:-1]
@@ -236,7 +236,7 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         parsed = yaml.safe_load(yaml_str)
         self.assertEqual(parsed["metadata"]["version"], "1.0")
         self.assertEqual(parsed["metadata"]["type"], "node")
-        
+
         # Test with boolean and None values
         result = insert_yaml_frontmatter({"published": True, "draft": False, "notes": None})
         yaml_content = result.strip().split('\n')[1:-1]
@@ -245,21 +245,21 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         self.assertEqual(parsed["published"], True)
         self.assertEqual(parsed["draft"], False)
         self.assertIsNone(parsed["notes"])
-        
+
         # Test special characters that would break YAML
         result = insert_yaml_frontmatter({"title": "How to: Setup Docker"})
         yaml_content = result.strip().split('\n')[1:-1]
         yaml_str = '\n'.join(yaml_content)
         parsed = yaml.safe_load(yaml_str)
         self.assertEqual(parsed["title"], "How to: Setup Docker")
-        
+
         # Test multiline strings
         result = insert_yaml_frontmatter({"content": "Line 1\nLine 2\nLine 3"})
         yaml_content = result.strip().split('\n')[1:-1]
         yaml_str = '\n'.join(yaml_content)
         parsed = yaml.safe_load(yaml_str)
         self.assertEqual(parsed["content"], "Line 1\nLine 2\nLine 3")
-        
+
         # Test empty dict
         result = insert_yaml_frontmatter({})
         self.assertEqual(result, "")
@@ -269,54 +269,54 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
         # Test node with multiple tags
         multi_tagged_node = Node(node_id=97, name="Multi Tagged Node", content="test content", summary="Test summary")
         multi_tagged_node.tags = ["newborn_children", "adult_owl", "south_zoo", "average"]
-        
+
         # Test node with single tag
-        single_tagged_node = Node(node_id=96, name="Single Tagged Node", content="test content", summary="Test summary") 
+        single_tagged_node = Node(node_id=96, name="Single Tagged Node", content="test content", summary="Test summary")
         single_tagged_node.tags = ["domestic_pets"]
-        
+
         # Test node with empty tags
         empty_tagged_node = Node(node_id=95, name="Empty Tagged Node", content="test content", summary="Test summary")
         empty_tagged_node.tags = []
-        
+
         # Test node with special characters in tags
         special_tagged_node = Node(node_id=94, name="Special Tagged Node", content="test content", summary="Test summary")
         special_tagged_node.tags = ["animal-behavior", "zoo_animals", "math123"]
-        
+
         tree_data = {97: multi_tagged_node, 96: single_tagged_node, 95: empty_tagged_node, 94: special_tagged_node}
         converter = TreeToMarkdownConverter(tree_data)
-        
+
         # Convert all nodes
         converter.convert_nodes(output_dir=self.output_dir, nodes_to_update={97, 96, 95, 94})
-        
+
         # Test multi-tagged node has hashtags as first line
         multi_file_path = os.path.join(self.output_dir, multi_tagged_node.filename)
-        with open(multi_file_path, "r") as f:
+        with open(multi_file_path) as f:
             content = f.read()
             lines = content.split('\n')
             self.assertEqual(lines[0], "#newborn_children #adult_owl #south_zoo #average")
             self.assertEqual(lines[1], "---")
             self.assertIn("title: Multi Tagged Node", content)
-        
+
         # Test single-tagged node
         single_file_path = os.path.join(self.output_dir, single_tagged_node.filename)
-        with open(single_file_path, "r") as f:
+        with open(single_file_path) as f:
             content = f.read()
             lines = content.split('\n')
             self.assertEqual(lines[0], "#domestic_pets")
             self.assertEqual(lines[1], "---")
             self.assertIn("title: Single Tagged Node", content)
-        
+
         # Test empty tags behaves like no tags
         empty_file_path = os.path.join(self.output_dir, empty_tagged_node.filename)
-        with open(empty_file_path, "r") as f:
+        with open(empty_file_path) as f:
             content = f.read()
             lines = content.split('\n')
             self.assertEqual(lines[0], "---")  # Should start with YAML frontmatter, no hashtags
             self.assertIn("title: Empty Tagged Node", content)
-            
+
         # Test special characters in tags
         special_file_path = os.path.join(self.output_dir, special_tagged_node.filename)
-        with open(special_file_path, "r") as f:
+        with open(special_file_path) as f:
             content = f.read()
             lines = content.split('\n')
             self.assertEqual(lines[0], "#animal-behavior #zoo_animals #math123")

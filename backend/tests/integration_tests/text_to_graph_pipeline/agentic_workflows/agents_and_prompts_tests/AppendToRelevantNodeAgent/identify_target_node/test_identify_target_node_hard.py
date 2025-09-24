@@ -18,8 +18,8 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeRe
 
 class TestIdentifyTargetNodeWithIDs:
     """Test the improved identify_target_node prompt that returns node IDs"""
-    
-    @pytest.fixture 
+
+    @pytest.fixture
     def prompt_loader(self):
         """Get prompt loader instance"""
         from pathlib import Path
@@ -42,29 +42,29 @@ class TestIdentifyTargetNodeWithIDs:
         from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
             _get_client,
         )
-        
+
         # Get client directly to handle array format
         client = _get_client()
         model_name = "gemini-2.5-flash-lite"
-        
+
         # Configure for array output
         config: GenerateContentConfigDict = {
             'response_mime_type': 'application/json',
             'temperature': CONFIG.TEMPERATURE
         }
-        
+
         response = client.models.generate_content(
             model=model_name,
             contents=prompt_text,
             config=config
         )
-        
+
         # Parse the response
         try:
             parsed_data = parse_json_markdown(response.text)
         except Exception:
             parsed_data = json.loads(response.text)
-        
+
         # Convert array format to TargetNodeResponse format
         if isinstance(parsed_data, list):
             # Convert array of TargetNodeIdentification to TargetNodeResponse format
@@ -88,14 +88,14 @@ class TestIdentifyTargetNodeWithIDs:
             {"id": 2, "name": "Database Design", "summary": "Schema and data model decisions"}
         ]
         """
-        
+
         segments = """
         [
             {"text": "We need to add caching to improve voice tree performance", "is_routable": true},
             {"text": "The database indexes need optimization for faster queries", "is_routable": true}
         ]
         """
-        
+
         # Load and run prompt
         prompt_text = prompt_loader.render_template(
             "identify_target_node",
@@ -106,15 +106,15 @@ class TestIdentifyTargetNodeWithIDs:
         )
 
         result = await self.call_LLM(prompt_text)
-        
+
         # Assertions
         assert len(result.target_nodes) == 2
-        
+
         # First segment about caching should go to Architecture (ID 1)
         assert result.target_nodes[0].target_node_id == 1
         assert not result.target_nodes[0].is_orphan
         assert "caching" in result.target_nodes[0].text
-        
+
         # Second segment about DB should go to Database Design (ID 2)
         assert result.target_nodes[1].target_node_id == 2
         assert not result.target_nodes[1].is_orphan
@@ -463,7 +463,7 @@ class TestIdentifyTargetNodeWithIDs:
         existing_nodes = """
             [
                 {"id": 1301, "name": "Payment System (Stripe Integration)", "summary": "All work related to our integration with the Stripe API for handling payments."},
-                
+
                 {"id": 1302, "name": "Quality Assurance & E2E Testing", "summary": "General processes and tasks for writing automated tests and ensuring software quality."
                  Relationship: "to ensure best practices for (Payment System (Stripe Integration)" }
             ]

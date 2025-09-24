@@ -9,14 +9,14 @@ This agent:
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Union
 
 from langgraph.graph import END
 
 from backend.text_to_graph_pipeline.agentic_workflows.core.agent import Agent
-from backend.text_to_graph_pipeline.agentic_workflows.core.state import AppendToRelevantNodeAgentState
+from backend.text_to_graph_pipeline.agentic_workflows.core.state import (
+    AppendToRelevantNodeAgentState,
+)
 from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAction
 from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAgentResult
 from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
@@ -26,12 +26,12 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeRe
 
 class AppendToRelevantNodeAgent(Agent):
     """Agent that determines where to place new content in the tree"""
-    
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__("AppendToRelevantNodeAgent", AppendToRelevantNodeAgentState)
         self._setup_workflow()
-    
-    def _setup_workflow(self):
+
+    def _setup_workflow(self) -> None:
         """Configure the two-prompt workflow"""
         # Step 1: Segment the text into atomic ideas
         self.add_prompt_node(
@@ -40,17 +40,17 @@ class AppendToRelevantNodeAgent(Agent):
             post_processor=self._segmentation_post_processor,
             model_name="gemini-2.5-flash-lite"
         )
-        
+
         # Step 2: Identify target nodes for each segment
         self.add_prompt_node(
             "identify_target_node",
             TargetNodeResponse,
             model_name="gemini-2.5-flash"
         )
-        
+
         # Use conditional edge to decide whether to identify target nodes
         self.add_conditional_dataflow(
-            "segmentation", 
+            "segmentation",
             self._route_after_segmentation,
             {
                 "identify_target_node": "identify_target_node",
@@ -58,55 +58,55 @@ class AppendToRelevantNodeAgent(Agent):
             }
         )
         self.add_dataflow("identify_target_node", END)
-    
-    def _segmentation_post_processor(self, state: Dict[str, Any], response: SegmentationResponse) -> Dict[str, Any]:
+
+    def _segmentation_post_processor(self, state: dict[str, Any], response: SegmentationResponse) -> dict[str, Any]:
         """
         Post-processor for segmentation that populates the segments field with routable segments
-        
+
         Args:
             state: Current state
             response: The SegmentationResponse from the LLM
-            
+
         Returns:
             Updated state with segments field populated
         """
         import json
-        
+
         # Extract routable segments
         routable_segments = [seg for seg in response.segments if seg.is_routable]
-        
+
         # Prepare segments for target identification - only pass text field
         segments_for_target = [{"text": seg.edited_text} for seg in routable_segments]
-        
+
         logging.info(f"Segmentation post-processor: {len(segments_for_target)} routable segments out of {len(response.segments)} total")
-        
+
         # Update state with segments field
         state["segments"] = json.dumps(segments_for_target)
         return state
-    
-    
-    def _route_after_segmentation(self, state: Dict[str, Any]) -> str:
+
+
+    def _route_after_segmentation(self, state: dict[str, Any]) -> str:
         """
         Routing function to decide whether to proceed to target identification
-        
+
         Returns:
             "identify_target_node" if there are routable segments
             "end" if no segments need routing
         """
         import json
-        
+
         # Check the segments field populated by post-processor
         segments_json = state.get("segments", "[]")
         segments = json.loads(segments_json)
-        
+
         if segments:
             logging.info(f"Found {len(segments)} routable segments, proceeding to target identification")
             return "identify_target_node"
         else:
             logging.warning("No routable segments found, skipping target identification")
             return "end"
-    
-    
+
+
     async def run(
         self,
         transcript_text: str,
@@ -115,12 +115,12 @@ class AppendToRelevantNodeAgent(Agent):
     ) -> AppendAgentResult:
         """
         Process text and return placement actions with segment information
-        
+
         Args:
             transcript_text: Raw voice transcript to process
             existing_nodes_formatted: List of relevant nodes to consider for placement
             transcript_history: Optional context from previous transcripts
-            
+
         Returns:
             AppendAgentResult containing actions and segment information
         """
@@ -139,20 +139,20 @@ class AppendToRelevantNodeAgent(Agent):
         # todo: pass in a shortened existing_nodes to the segement prompt
         # one which only includes the recently modfied nodes
         #
-        
+
         # Run the workflow
         app = self.compile()
         result = await app.ainvoke(initial_state)
-        
+
         # Get segments from segmentation stage (now stored as typed object)
-        segmentation_data: SegmentationResponse = result.get("segmentation_response")
+        segmentation_data = result.get("segmentation_response")
         all_segments_data = segmentation_data.segments if segmentation_data else []
-        
+
         # Get target node identifications (now stored as typed object)
-        target_nodes_data: TargetNodeResponse = result.get("identify_target_node_response")
+        target_nodes_data = result.get("identify_target_node_response")
 
         # Convert to actions - much simpler approach
-        actions: List[Union[AppendAction, CreateAction]] = []
+        actions: list[Union[AppendAction, CreateAction]] = []
         if not target_nodes_data or not target_nodes_data.target_nodes:
             logging.warning("NO target NODES")
             return AppendAgentResult(actions=[], segments=[])
@@ -178,19 +178,19 @@ class AppendToRelevantNodeAgent(Agent):
                     summary="",
                     relationship=""
                 ))
-        
+
         # Log action names
         create_names = [action.new_node_name for action in actions if isinstance(action, CreateAction)]
         append_names = [action.target_node_name for action in actions if isinstance(action, AppendAction)]
-        
+
         logging.info(f"Create actions for nodes: {create_names}")
         logging.info(f"Append actions for nodes: {append_names}")
-        
+
         # Return segments directly (they're already SegmentModel objects)
         all_segments = all_segments_data
-        
+
         return AppendAgentResult(
             actions=actions,
             segments=all_segments,
         )
-    
+

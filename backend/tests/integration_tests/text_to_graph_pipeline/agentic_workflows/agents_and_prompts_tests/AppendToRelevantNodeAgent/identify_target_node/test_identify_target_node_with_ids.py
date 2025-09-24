@@ -18,8 +18,8 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import TargetNodeRe
 
 class TestIdentifyTargetNodeWithIDs:
     """Test the improved identify_target_node prompt that returns node IDs"""
-    
-    @pytest.fixture 
+
+    @pytest.fixture
     def prompt_loader(self):
         """Get prompt loader instance"""
         from pathlib import Path
@@ -42,29 +42,29 @@ class TestIdentifyTargetNodeWithIDs:
         from backend.text_to_graph_pipeline.agentic_workflows.core.llm_integration import (
             _get_client,
         )
-        
+
         # Get client directly to handle array format
         client = _get_client()
         model_name = "gemini-2.5-flash-lite"
-        
+
         # Configure for array output
         config: GenerateContentConfigDict = {
             'response_mime_type': 'application/json',
             'temperature': CONFIG.TEMPERATURE
         }
-        
+
         response = client.models.generate_content(
             model=model_name,
             contents=prompt_text,
             config=config
         )
-        
+
         # Parse the response
         try:
             parsed_data = parse_json_markdown(response.text)
         except Exception:
             parsed_data = json.loads(response.text)
-        
+
         # Convert array format to TargetNodeResponse format
         if isinstance(parsed_data, list):
             # Convert array of TargetNodeIdentification to TargetNodeResponse format
@@ -88,14 +88,14 @@ class TestIdentifyTargetNodeWithIDs:
             {"id": 2, "name": "Database Design", "summary": "Schema and data model decisions"}
         ]
         """
-        
+
         segments = """
         [
             {"text": "We need to add caching to improve voice tree performance", "is_routable": true},
             {"text": "The database indexes need optimization for faster queries", "is_routable": true}
         ]
         """
-        
+
         # Load and run prompt
         prompt_text = prompt_loader.render_template(
             "identify_target_node",
@@ -106,33 +106,33 @@ class TestIdentifyTargetNodeWithIDs:
         )
 
         result = await self.call_LLM(prompt_text)
-        
+
         # Assertions
         assert len(result.target_nodes) == 2
-        
+
         # First segment about caching should go to Architecture (ID 1)
         assert result.target_nodes[0].target_node_id == 1
         assert not result.target_nodes[0].is_orphan
         assert "caching" in result.target_nodes[0].text
-        
+
         # Second segment about DB should go to Database Design (ID 2)
         assert result.target_nodes[1].target_node_id == 2
         assert not result.target_nodes[1].is_orphan
         assert "database" in result.target_nodes[1].text.lower()
-    
+
     @pytest.mark.asyncio
     async def test_new_node_creation_with_special_id(self, prompt_loader):
         """Test identifying segments that need new nodes using special ID"""
-        # Test data  
+        # Test data
         existing_nodes = """No existing nodes"""
-        
+
         segments = """
         [
             {"text": "We should add user authentication with JWT tokens", "is_routable": true},
             {"text": "Need to implement real-time notifications using WebSockets", "is_routable": true}
         ]
         """
-        
+
         # Load and run prompt
         prompt_text = prompt_loader.render_template(
             "identify_target_node",
@@ -141,18 +141,18 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_history="",  # Empty history for this test
             transcript_text="We should add user authentication with JWT tokens. Need to implement real-time notifications using WebSockets."
         )
-        
+
         result = await self.call_LLM(prompt_text)
-        
+
         # Assertions
         assert len(result.target_nodes) == 2
-        
+
         # Both should create new nodes (ID = -1)
         assert result.target_nodes[0].target_node_id == -1
         assert result.target_nodes[0].is_orphan
         assert result.target_nodes[0].orphan_topic_name is not None
         assert "auth" in result.target_nodes[0].orphan_topic_name.lower()
-        
+
         assert result.target_nodes[1].target_node_id == -1
         assert result.target_nodes[1].is_orphan
         assert result.target_nodes[1].orphan_topic_name is not None
@@ -320,7 +320,7 @@ class TestIdentifyTargetNodeWithIDs:
             {"id": 8, "name": "Performance Optimization", "summary": "Caching, indexing, and optimization strategies"}
         ]
         """
-        
+
         segments = """
         [
             {"text": "Add role-based access control to the existing auth system", "is_routable": true},
@@ -328,7 +328,7 @@ class TestIdentifyTargetNodeWithIDs:
             {"text": "Database query caching should use Redis for better performance", "is_routable": true}
         ]
         """
-        
+
         # Load and run prompt
         prompt_text = prompt_loader.render_template(
             "identify_target_node",
@@ -337,15 +337,15 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_history="",  # Empty history for this test
             transcript_text="Add role-based access control to the existing auth system. Implement distributed tracing for debugging microservices. Database query caching should use Redis for better performance."
         )
-        
+
         result = await self.call_LLM(prompt_text)
-        
+
         assert len(result.target_nodes) == 3
-        
+
         # First should go to Security Features
         assert result.target_nodes[0].target_node_id == 5
         assert not result.target_nodes[0].is_orphan
-        
+
         # Second should create new node for distributed tracing
         assert result.target_nodes[1].target_node_id == -1 or 8
 
@@ -443,7 +443,7 @@ class TestIdentifyTargetNodeWithIDs:
         """
         # The history makes it clear that "that" refers to the billing system.
         transcript_history = "We've decided the old billing system isn't scalable. We need a new one."
-        
+
         prompt_text = prompt_loader.render_template(
             "identify_target_node",
             existing_nodes=existing_nodes,
@@ -499,7 +499,7 @@ class TestIdentifyTargetNodeWithIDs:
         And a new infrastructure topic: let's start spec-ing out the automated deployment script for the staging environment on AWS.
         Finally, a quick question came up about security. Should we use OAuth2 for the main API login?
         """
-        
+
         segments = """
         [
             {"text": "First, regarding the database issue, let's add a Redis layer for caching the most frequent user queries.", "is_routable": true},
@@ -517,7 +517,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_history=transcript_history,
             transcript_text=current_utterance
         )
-        
+
         result = await self.call_LLM(prompt_text)
 
         assert len(result.target_nodes) == 5, "Expected to identify 5 distinct target nodes from the segments."
@@ -610,7 +610,7 @@ class TestIdentifyTargetNodeWithIDs:
             transcript_history=transcript_history,
             transcript_text=current_utterance
         )
-        
+
         result = await self.call_LLM(prompt_text)
 
         """

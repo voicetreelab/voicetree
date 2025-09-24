@@ -4,10 +4,12 @@ Behavioral test for selective neighborhood inclusion.
 Tests that neighborhoods are only added for target nodes, not for all nodes.
 """
 
+import shutil
 import tempfile
 from pathlib import Path
-import shutil
-from backend.context_retrieval.dependency_traversal import TraversalOptions, traverse_to_node
+
+from backend.context_retrieval.dependency_traversal import TraversalOptions
+from backend.context_retrieval.dependency_traversal import traverse_to_node
 
 
 def create_test_tree(temp_dir: Path):
@@ -141,7 +143,7 @@ def test_selective_neighborhood():
 
         # Check that no nodes are marked as neighbors
         for node in nodes_not_target:
-            assert node.get('neighbor_of_target') != True, f"No nodes should be marked as neighbor_of_target when is_target=False"
+            assert node.get('neighbor_of_target') != True, "No nodes should be marked as neighbor_of_target when is_target=False"
 
         print("✅ Test 2 passed: No neighborhoods included for non-target node")
 

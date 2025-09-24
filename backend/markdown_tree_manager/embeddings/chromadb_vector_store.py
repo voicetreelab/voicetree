@@ -6,16 +6,16 @@ Uses ChromaDB with Google Gemini embeddings for efficient vector search.
 import logging
 import os
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
+from typing import cast
 
 import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 from chromadb.config import Settings
 from dotenv import load_dotenv
+
+from backend.types import ChromaGetResult, ChromaQueryResult, VectorDocument
 
 # Load environment variables
 load_dotenv()
@@ -36,7 +36,7 @@ class ChromaDBVectorStore:
         collection_name: str = "voicetree_nodes",
         persist_directory: Optional[str] = None,
         use_embeddings: bool = True
-    ):
+    ) -> None:
         """
         Initialize ChromaDB vector store.
 
@@ -92,7 +92,7 @@ class ChromaDBVectorStore:
         # Get or create collection
         self._initialize_collection()
 
-    def _initialize_collection(self):
+    def _initialize_collection(self) -> None:
         """Initialize or get the ChromaDB collection."""
         try:
             # Try to get existing collection
@@ -119,7 +119,7 @@ class ChromaDBVectorStore:
                 )
             logger.info(f"Created new collection: {self.collection_name}")
 
-    def add_nodes(self, nodes: Dict[int, Any]) -> None:
+    def add_nodes(self, nodes: dict[int, Any]) -> None:
         """
         Add or update nodes in the vector store.
 
@@ -187,9 +187,9 @@ class ChromaDBVectorStore:
         self,
         query: str,
         top_k: int = 10,
-        filter_dict: Optional[Dict] = None,
+        filter_dict: Optional[dict[str, Any]] = None,
         include_scores: bool = True
-    ) -> Union[List[Tuple[int, float]], List[int]]:
+    ) -> Union[list[tuple[int, float]], list[int]]:
         """
         Search for similar nodes using vector similarity.
 
@@ -215,13 +215,14 @@ class ChromaDBVectorStore:
                 include=['metadatas', 'distances']
             )
 
-            if not results['ids'] or not results['ids'][0]:
+            results_typed = cast(ChromaQueryResult, results)
+            if not results_typed['ids'] or not results_typed['ids'][0]:
                 return []
 
             # Extract node IDs and scores
             if include_scores:
-                node_results_with_scores: List[Tuple[int, float]] = []
-                for id_str, distance in zip(results['ids'][0], results['distances'][0]):
+                node_results_with_scores: list[tuple[int, float]] = []
+                for id_str, distance in zip(results_typed['ids'][0], results_typed['distances'][0]):
                     # Extract node_id from the ID string (format: "node_123")
                     node_id = int(id_str.replace('node_', ''))
 
@@ -233,8 +234,8 @@ class ChromaDBVectorStore:
                 logger.info(f"Found {len(node_results_with_scores)} similar nodes for query: '{query[:50]}...'")
                 return node_results_with_scores
             else:
-                node_results_ids: List[int] = []
-                for id_str, distance in zip(results['ids'][0], results['distances'][0]):
+                node_results_ids: list[int] = []
+                for id_str, _distance in zip(results_typed['ids'][0], results_typed['distances'][0]):
                     # Extract node_id from the ID string (format: "node_123")
                     node_id = int(id_str.replace('node_', ''))
                     node_results_ids.append(node_id)
@@ -246,7 +247,7 @@ class ChromaDBVectorStore:
             logger.error(f"Search failed: {e}")
             return []
 
-    def get_node_by_id(self, node_id: int) -> Optional[Dict]:
+    def get_node_by_id(self, node_id: int) -> Optional[VectorDocument]:
         """
         Retrieve a specific node's metadata by ID.
 
@@ -262,18 +263,20 @@ class ChromaDBVectorStore:
                 include=['metadatas', 'documents']
             )
 
-            if result['ids']:
-                return {
-                    'metadata': result['metadatas'][0],
-                    'document': result['documents'][0] if result['documents'] else None
+            result_typed = cast(ChromaGetResult, result)
+            if result_typed['ids']:
+                vector_doc: VectorDocument = {
+                    'metadata': result_typed['metadatas'][0],
+                    'document': result_typed['documents'][0] if result_typed['documents'] else None
                 }
+                return vector_doc
             return None
 
         except Exception as e:
             logger.error(f"Failed to get node {node_id}: {e}")
             return None
 
-    def delete_nodes(self, node_ids: List[int]) -> None:
+    def delete_nodes(self, node_ids: list[int]) -> None:
         """
         Delete nodes from the vector store.
 
@@ -297,7 +300,7 @@ class ChromaDBVectorStore:
         except Exception as e:
             logger.error(f"Failed to clear collection: {e}")
 
-    def get_collection_stats(self) -> Dict:
+    def get_collection_stats(self) -> dict[str, Any]:
         """
         Get statistics about the collection.
 
@@ -319,10 +322,10 @@ class ChromaDBVectorStore:
     def hybrid_search(
         self,
         query: str,
-        keyword_results: List[int],
+        keyword_results: list[int],
         top_k: int = 10,
         alpha: float = 0.5
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Combine vector search with keyword search results.
 
@@ -342,7 +345,7 @@ class ChromaDBVectorStore:
         if not vector_results_raw or not isinstance(vector_results_raw[0], tuple):
             return keyword_results[:top_k]
 
-        vector_results: List[Tuple[int, float]] = vector_results_raw  # type: ignore
+        vector_results: list[tuple[int, float]] = vector_results_raw  # type: ignore
 
         # Combine scores
         combined_scores = {}
@@ -366,12 +369,12 @@ class ChromaDBVectorStore:
 
 # Convenience function for backward compatibility
 def find_relevant_nodes_with_chroma(
-    tree: Dict,
+    tree: dict[int, Any],
     query: str,
     top_k: int = 10,
     collection_name: str = "voicetree_nodes",
     persist_directory: Optional[str] = None
-) -> List[int]:
+) -> list[int]:
     """
     Find the most relevant nodes using ChromaDB.
     This function provides backward compatibility with the existing API.

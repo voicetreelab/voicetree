@@ -5,14 +5,14 @@ Embedding manager for automatic synchronization of embeddings with tree modifica
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Dict
+from typing import Any
 from typing import List
 from typing import Optional
 from typing import Set
-from typing import Tuple
-from typing import Union
 
-from backend.markdown_tree_manager.embeddings.chromadb_vector_store import ChromaDBVectorStore
+from backend.markdown_tree_manager.embeddings.chromadb_vector_store import (
+    ChromaDBVectorStore,
+)
 
 if TYPE_CHECKING:
     from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
@@ -116,7 +116,7 @@ class EmbeddingManager:
         self,
         query: str,
         top_k: int = 10,
-        filter_dict: Optional[Dict] = None
+        filter_dict: Optional[dict[str, Any]] = None
     ) -> List[int]:
         """
         Search for similar nodes using vector similarity.
@@ -149,7 +149,7 @@ class EmbeddingManager:
                 return [x[0] for x in results if isinstance(x, tuple) and len(x) >= 1]
         return []
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get statistics about the embeddings.
 

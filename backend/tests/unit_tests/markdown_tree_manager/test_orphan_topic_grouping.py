@@ -24,7 +24,7 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
 
 class TestOrphanTopicGrouping:
     """Tests for grouping orphan nodes"""
-    
+
     @pytest.fixture
     def decision_tree(self):
         """Create a basic decision tree for testing"""
@@ -39,7 +39,7 @@ class TestOrphanTopicGrouping:
         tree.tree[1] = node
         tree.next_node_id = 2
         return tree
-    
+
     @pytest.fixture
     def workflow(self, decision_tree):
         """Create workflow instance with mocked agents"""
@@ -47,7 +47,7 @@ class TestOrphanTopicGrouping:
         workflow.append_agent = AsyncMock()
         workflow.optimizer_agent = AsyncMock()
         return workflow
-    
+
     @pytest.mark.asyncio
     async def test_single_orphan_no_merging(self, workflow, decision_tree):
         """Test that a single orphan node is created without merging"""
@@ -60,7 +60,7 @@ class TestOrphanTopicGrouping:
             summary="New feature summary",
             relationship=""
         )
-        
+
         workflow.append_agent.run.return_value = AppendAgentResult(
             actions=[create_action],
             segments=[SegmentModel(
@@ -70,15 +70,15 @@ class TestOrphanTopicGrouping:
                 is_routable=True
             )]
         )
-        
+
         workflow.optimizer_agent.run.return_value = []
-        
+
         # Act
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier:
             mock_applier_instance = Mock()
             mock_applier_instance.apply.return_value = {2}  # New node ID
             mock_applier.return_value = mock_applier_instance
-            
+
             # Mock the node that would be created
             new_node = Node(
                 name="New Feature",
@@ -88,21 +88,21 @@ class TestOrphanTopicGrouping:
                 parent_id=None
             )
             decision_tree.tree[2] = new_node
-            
+
             with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TextBufferManager') as mock_buffer:
                 mock_buffer_instance = Mock()
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
-                
+
                 await workflow.run("This is a new feature description", decision_tree)
-        
+
         # Assert
         # Verify apply was called with the original single action
         mock_applier_instance.apply.assert_called()
         applied_actions = mock_applier_instance.apply.call_args[0][0]
         assert len(applied_actions) == 1
         assert applied_actions[0].new_node_name == "New Feature"
-    
+
     @pytest.mark.asyncio
     async def test_multiple_orphans_same_name_merged(self, workflow, decision_tree):
         """Test that multiple orphan nodes with the SAME NAME are merged into one"""
@@ -133,7 +133,7 @@ class TestOrphanTopicGrouping:
                 relationship=""
             )
         ]
-        
+
         workflow.append_agent.run.return_value = AppendAgentResult(
             actions=create_actions,
             segments=[
@@ -142,15 +142,15 @@ class TestOrphanTopicGrouping:
                 SegmentModel(reasoning="Part 3", edited_text="Third part", raw_text="Third part", is_routable=True)
             ]
         )
-        
+
         workflow.optimizer_agent.run.return_value = []
-        
+
         # Act
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier:
             mock_applier_instance = Mock()
             mock_applier_instance.apply.return_value = {2}  # New merged node ID
             mock_applier.return_value = mock_applier_instance
-            
+
             # Mock the node that would be created
             merged_node = Node(
                 name="Feature Implementation",
@@ -160,20 +160,20 @@ class TestOrphanTopicGrouping:
                 parent_id=None
             )
             decision_tree.tree[2] = merged_node
-            
+
             with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TextBufferManager') as mock_buffer:
                 mock_buffer_instance = Mock()
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
-                
+
                 await workflow.run("First part Second part Third part", decision_tree)
-        
+
         # Assert
         # Verify apply was called with merged action
         mock_applier_instance.apply.assert_called()
         applied_actions = mock_applier_instance.apply.call_args[0][0]
         assert len(applied_actions) == 1
-        
+
         # Check merged content
         merged_action = applied_actions[0]
         assert isinstance(merged_action, CreateAction)
@@ -182,7 +182,7 @@ class TestOrphanTopicGrouping:
         assert "Second part of the feature" in merged_action.content
         assert "Third part of the feature" in merged_action.content
         assert merged_action.parent_node_id is None  # Still an orphan
-    
+
     @pytest.mark.asyncio
     async def test_mixed_actions_same_name_orphans_merged(self, workflow, decision_tree):
         """Test that non-orphan actions are preserved while orphans with same name are merged"""
@@ -219,7 +219,7 @@ class TestOrphanTopicGrouping:
                 relationship=""
             )
         ]
-        
+
         workflow.append_agent.run.return_value = AppendAgentResult(
             actions=actions,
             segments=[
@@ -229,15 +229,15 @@ class TestOrphanTopicGrouping:
                 SegmentModel(reasoning="O2", edited_text="O2", raw_text="O2", is_routable=True)
             ]
         )
-        
+
         workflow.optimizer_agent.run.return_value = []
-        
+
         # Act
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier:
             mock_applier_instance = Mock()
             mock_applier_instance.apply.return_value = {1, 2, 3}
             mock_applier.return_value = mock_applier_instance
-            
+
             # Mock the nodes that would be created
             # Node 1 already exists (Root)
             child_node = Node(
@@ -257,31 +257,31 @@ class TestOrphanTopicGrouping:
             )
             decision_tree.tree[2] = child_node
             decision_tree.tree[3] = merged_orphan_node
-            
+
             with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TextBufferManager') as mock_buffer:
                 mock_buffer_instance = Mock()
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
-                
+
                 await workflow.run("Mixed content", decision_tree)
-        
+
         # Assert
         mock_applier_instance.apply.assert_called()
         applied_actions = mock_applier_instance.apply.call_args[0][0]
         assert len(applied_actions) == 3  # Append + Non-orphan Create + Merged orphan
-        
+
         # Check action types
         append_actions = [a for a in applied_actions if isinstance(a, AppendAction)]
         create_actions = [a for a in applied_actions if isinstance(a, CreateAction)]
-        
+
         assert len(append_actions) == 1
         assert len(create_actions) == 2
-        
+
         # Verify non-orphan create is preserved
         non_orphan_creates = [a for a in create_actions if a.parent_node_id is not None]
         assert len(non_orphan_creates) == 1
         assert non_orphan_creates[0].new_node_name == "Child of Root"
-        
+
         # Verify orphans are merged
         orphan_creates = [a for a in create_actions if a.parent_node_id is None]
         assert len(orphan_creates) == 1
@@ -290,7 +290,7 @@ class TestOrphanTopicGrouping:
         assert "First orphan" in merged_orphan.content
         assert "Second orphan" in merged_orphan.content
         assert merged_orphan.parent_node_id is None  # Still an orphan
-    
+
     @pytest.mark.asyncio
     async def test_different_name_orphans_not_merged(self, workflow, decision_tree):
         """Test that orphan nodes with DIFFERENT names are NOT merged"""
@@ -321,7 +321,7 @@ class TestOrphanTopicGrouping:
                 relationship=""
             )
         ]
-        
+
         workflow.append_agent.run.return_value = AppendAgentResult(
             actions=create_actions,
             segments=[
@@ -330,15 +330,15 @@ class TestOrphanTopicGrouping:
                 SegmentModel(reasoning="Topic C", edited_text="C", raw_text="C", is_routable=True)
             ]
         )
-        
+
         workflow.optimizer_agent.run.return_value = []
-        
+
         # Act
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier:
             mock_applier_instance = Mock()
             mock_applier_instance.apply.return_value = {2, 3, 4}  # Three separate nodes
             mock_applier.return_value = mock_applier_instance
-            
+
             # Mock the nodes that would be created (all separate)
             node_a = Node(
                 name="Topic A",
@@ -364,33 +364,33 @@ class TestOrphanTopicGrouping:
             decision_tree.tree[2] = node_a
             decision_tree.tree[3] = node_b
             decision_tree.tree[4] = node_c
-            
+
             with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TextBufferManager') as mock_buffer:
                 mock_buffer_instance = Mock()
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
-                
+
                 await workflow.run("Different orphan topics", decision_tree)
-        
+
         # Assert
         mock_applier_instance.apply.assert_called()
         applied_actions = mock_applier_instance.apply.call_args[0][0]
         assert len(applied_actions) == 3  # All three orphans preserved as separate actions
-        
+
         # Verify all actions are CreateActions with different names
         create_actions = [a for a in applied_actions if isinstance(a, CreateAction)]
         assert len(create_actions) == 3
-        
+
         names = [action.new_node_name for action in create_actions]
         assert "Topic A" in names
         assert "Topic B" in names
         assert "Topic C" in names
-        
+
         # Verify all are still orphans
         for action in create_actions:
             assert action.parent_node_id is None
-    
-    @pytest.mark.asyncio 
+
+    @pytest.mark.asyncio
     async def test_no_orphans_no_merging(self, workflow, decision_tree):
         """Test that when there are no orphans, no merging happens"""
         # Arrange
@@ -418,7 +418,7 @@ class TestOrphanTopicGrouping:
                 relationship="child of"
             )
         ]
-        
+
         workflow.append_agent.run.return_value = AppendAgentResult(
             actions=actions,
             segments=[
@@ -427,15 +427,15 @@ class TestOrphanTopicGrouping:
                 SegmentModel(reasoning="C2", edited_text="C2", raw_text="C2", is_routable=True)
             ]
         )
-        
+
         workflow.optimizer_agent.run.return_value = []
-        
+
         # Act
         with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TreeActionApplier') as mock_applier:
             mock_applier_instance = Mock()
             mock_applier_instance.apply.return_value = {1, 2, 3}
             mock_applier.return_value = mock_applier_instance
-            
+
             # Mock the nodes that would be created
             # Node 1 already exists (Root)
             child1_node = Node(
@@ -456,14 +456,14 @@ class TestOrphanTopicGrouping:
             child2_node.relationships[1] = "child of"
             decision_tree.tree[2] = child1_node
             decision_tree.tree[3] = child2_node
-            
+
             with patch('backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decider_workflow.TextBufferManager') as mock_buffer:
                 mock_buffer_instance = Mock()
                 mock_buffer_instance.getBuffer.return_value = ""
                 mock_buffer.return_value = mock_buffer_instance
-                
+
                 await workflow.run("No orphans", decision_tree)
-        
+
         # Assert
         mock_applier_instance.apply.assert_called()
         applied_actions = mock_applier_instance.apply.call_args[0][0]

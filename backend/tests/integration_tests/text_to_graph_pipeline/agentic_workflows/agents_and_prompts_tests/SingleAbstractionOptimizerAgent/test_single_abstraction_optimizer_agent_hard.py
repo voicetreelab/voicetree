@@ -3,7 +3,7 @@ Integration tests for SingleAbstractionOptimizerAgent
 
 These tests verify the agent correctly:
 1. Analyzes nodes and decides if optimization is needed
-2. Splits cluttered nodes into multiple focused nodes  
+2. Splits cluttered nodes into multiple focused nodes
 3. Keeps cohesive nodes unchanged
 4. Updates poorly summarized nodes
 5. Properly extracts LLM responses from workflow state
@@ -21,7 +21,7 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
 
 class TestSingleAbstractionOptimizerAgent:
     """Test the SingleAbstractionOptimizerAgent with real LLM calls"""
-    
+
     @pytest.fixture
     def agent(self):
         """Create agent instance"""
@@ -108,7 +108,7 @@ class TestSingleAbstractionOptimizerAgent:
         assert first_node.target_node_name in ["Improve API Response Time", "Plan Database Migration", "Legacy Database Schema"], \
             "Node should target the original node or a related node in the dependency chain"
 
-    
+
     @pytest.fixture
     def cluttered_node(self):
         """Create a node that should be split"""
@@ -122,7 +122,7 @@ For the frontend, we'll use React with TypeScript for type safety.
 The API authentication will use JWT tokens with refresh token rotation.""",
             summary="Project setup including structure, database, frontend, and auth"
         )
-    
+
     @pytest.fixture
     def cohesive_node(self):
         """Create a well-structured cohesive node"""
@@ -139,7 +139,7 @@ The API authentication will use JWT tokens with refresh token rotation.""",
 6. When access token expires, client uses refresh token to get new access token""",
             summary="Complete authentication flow implementation details"
         )
-    
+
     @pytest.fixture
     def poor_summary_node(self):
         """Create a node that has a poor summary"""
@@ -219,7 +219,7 @@ This reduced our average response time from 800ms to 200ms.""",
 
         # Updated: The agent should either split OR absorb and update meaningfully
         assert(len(update_actions)==1)
-        
+
         # The agent may now choose to absorb complex investigations into the parent
         if len(create_actions) == 0:
             # Absorption approach - verify the update is meaningful
@@ -233,11 +233,11 @@ This reduced our average response time from 800ms to 200ms.""",
             # Verify the new nodes capture meaningful concepts (only if split approach)
             child_names = [a.new_node_name.lower() for a in create_actions]
             child_content = [a.content.lower() for a in create_actions]
-            
+
             # The agent should extract meaningful actionable concepts
             # Look for performance/database solutions or monitoring tasks
             performance_keywords = ["replica", "read", "database", "performance", "monitoring", "cpu", "load"]
-            assert any(keyword in name or keyword in content for keyword in performance_keywords 
+            assert any(keyword in name or keyword in content for keyword in performance_keywords
                       for name, content in zip(child_names, child_content)), \
                 "Should capture performance-related solutions or monitoring tasks."
 
@@ -257,9 +257,9 @@ This reduced our average response time from 800ms to 200ms.""",
 
         # Updated test: The agent may now break down checklists into actionable tasks
         # This can be beneficial for task management and completion tracking
-        
+
         update_actions = [a for a in actions if isinstance(a, UpdateAction)]
-        
+
         if len(create_actions) == 0:
             # Cohesion approach - checklist stays together
             if len(actions) > 0:
@@ -267,11 +267,11 @@ This reduced our average response time from 800ms to 200ms.""",
         else:
             # Task breakdown approach - checklist items become separate tasks
             assert len(update_actions) == 1, "Original node should be updated to become a parent container."
-            
+
             # Verify the tasks are meaningful UI adjustments
             task_names = [a.new_node_name.lower() for a in create_actions]
             task_content = [a.content.lower() for a in create_actions]
-            
+
             # Should contain UI-related keywords
             ui_keywords = ["button", "font", "color", "shadow", "margin", "title", "px", "#333"]
             combined_text = " ".join(task_names + task_content)
@@ -312,7 +312,7 @@ This reduced our average response time from 800ms to 200ms.""",
         print(f"create actions: {create_actions}")
         # Updated test: The agent may now decide that CI/CD pipeline status is cohesive
         # and doesn't need splitting, especially if deployment is handled elsewhere
-        
+
         if len(create_actions) == 0:
             # No split - agent determined content is cohesive
             assert len(update_actions) == 1, "Should at least update the content."
@@ -332,7 +332,7 @@ This reduced our average response time from 800ms to 200ms.""",
                 parent_content = update_actions[0].new_content.lower()
                 update_actions[0].new_summary.lower()
                 assert "continuous integration" in parent_content or "jenkins" in parent_content
-                
+
                 # The parent may mention deployment requirements for context, which is appropriate
                 # What matters is that detailed deployment implementation is in the child node
                 child_content = create_actions[0].content.lower()
@@ -391,13 +391,13 @@ This reduced our average response time from 800ms to 200ms.""",
         print(f"create actions: {create_actions}")
         # Updated test: The agent now breaks down implementation plans into actionable tasks
         # This is acceptable behavior as it makes the work more structured and actionable
-        
+
         # The agent should either absorb the plan OR break it into actionable tasks
         if len(create_actions) == 0:
             # Absorption approach - plan stays with decision
             assert len(update_actions) == 1, \
                 "If not splitting, the original node must be updated to integrate the new content."
-            
+
             updated_node = update_actions[0]
             new_content = updated_node.new_content.lower()
             new_summary = updated_node.new_summary.lower()
@@ -413,11 +413,11 @@ This reduced our average response time from 800ms to 200ms.""",
             # Task breakdown approach - plan split into actionable items
             assert len(create_actions) >= 1, "Should create actionable implementation tasks."
             assert len(update_actions) == 1, "Original node should be updated to reflect the decision."
-            
+
             # Verify the tasks are meaningful implementation steps
             task_names = [a.new_node_name.lower() for a in create_actions]
             task_content = [a.content.lower() for a in create_actions]
-            
+
             # Should contain Redis-related implementation tasks
             redis_keywords = ["redis", "provision", "wrapper", "getusersession", "ttl", "cache"]
             assert any(keyword in " ".join(task_names + task_content) for keyword in redis_keywords), \
@@ -489,11 +489,11 @@ This reduced our average response time from 800ms to 200ms.""",
             # Model chose to split - verify it's splitting implementation details, not arbitrary content
             assert len(create_actions) <= 2, "Should not over-split the content."
             assert len(update_actions) == 1, "Should always update the original node."
-            
+
             # Check all created nodes for implementation details and rationale
-            all_create_content = " ".join([node.content.lower() + " " + node.new_node_name.lower() + " " + node.summary.lower() 
+            all_create_content = " ".join([node.content.lower() + " " + node.new_node_name.lower() + " " + node.summary.lower()
                                          for node in create_actions])
-            
+
             assert "http-only" in all_create_content or "cookie" in all_create_content, \
                 "Split nodes should include the specific implementation detail."
             assert "xss" in all_create_content or "security" in all_create_content, \
@@ -520,7 +520,7 @@ This reduced our average response time from 800ms to 200ms.""",
         print(f"update actions: {update_actions}")
         print(f"create actions: {create_actions}")
         # Updated test: The agent may either create a task node OR absorb the solution
-        
+
         if len(create_actions) == 1:
             # Task creation approach - solution becomes separate node
             new_node_content = create_actions[0].content.lower()
@@ -530,22 +530,22 @@ This reduced our average response time from 800ms to 200ms.""",
             if "spinner" in new_node_content:
                 assert "unlike" in new_node_content or "not" in new_node_content, \
                     "Spinner mentions should only provide contrasting context, not promote the rejected solution."
-            
+
             # Parent should be updated to reflect investigation outcome
             assert len(update_actions) == 1
             parent_summary = update_actions[0].new_summary.lower()
             update_actions[0].new_content.lower()
             # Parent should either mention the solution directly or reference that root cause was identified
-            assert ("code-splitting" in parent_summary or "lazy-load" in parent_summary or 
+            assert ("code-splitting" in parent_summary or "lazy-load" in parent_summary or
                    "root cause" in parent_summary or "payload" in parent_summary), \
                 "The parent summary should reflect investigation progress or outcome."
         elif len(create_actions) == 0:
             # Absorption approach - solution absorbed into investigation summary
             assert len(update_actions) == 1, "Investigation should be updated with findings."
-            
+
             updated_content = update_actions[0].new_content.lower()
             update_actions[0].new_summary.lower()
-            
+
             # The investigation should now reflect the chosen solution
             assert "code-splitting" in updated_content or "lazy-load" in updated_content, \
                 "Investigation should document the chosen solution."
@@ -558,12 +558,12 @@ This reduced our average response time from 800ms to 200ms.""",
             # Multi-node approach - investigation broken into Problem, Root Cause, Solution
             assert len(create_actions) >= 1, "If splitting, should create at least one meaningful node."
             assert len(update_actions) == 1, "Investigation parent should be updated."
-            
+
             # Verify the nodes represent meaningful parts of the investigation
             task_names = [a.new_node_name.lower() for a in create_actions]
             task_content = [a.content.lower() for a in create_actions]
             combined_text = " ".join(task_names + task_content)
-            
+
             # Should contain investigation-related concepts
             assert "code-splitting" in combined_text or "lazy-load" in combined_text, \
                 "Should include the chosen solution."

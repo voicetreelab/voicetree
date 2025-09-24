@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 from datetime import datetime
+from typing import Optional
 
 from backend.benchmarker.src.config import BACKUP_DIR_BASE
 from backend.benchmarker.src.config import LATEST_RUN_CONTEXT_FILE
@@ -12,16 +13,16 @@ from backend.benchmarker.src.config import OUTPUT_DIR
 from backend.benchmarker.src.config import WORKFLOW_IO_LOG
 
 
-def setup_output_directory(output_dir=None, transcript_identifier=None):
+def setup_output_directory(output_dir: Optional[str] = None, transcript_identifier: Optional[str] = None) -> None:
     """Handles backing up previous results and setting up a clean output directory.
-    
+
     Args:
         output_dir: The output directory to setup. If None, uses OUTPUT_DIR from config.
         transcript_identifier: If provided, backs up only this specific transcript's output
     """
     if output_dir is None:
         output_dir = OUTPUT_DIR
-        
+
     # For transcript-specific subdirectories
     if output_dir != OUTPUT_DIR and transcript_identifier:
         # This is a transcript-specific subdirectory
@@ -29,16 +30,16 @@ def setup_output_directory(output_dir=None, transcript_identifier=None):
             # Create a timestamped backup for this specific transcript
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_dir = os.path.join(BACKUP_DIR_BASE, f"{transcript_identifier}_backup_{timestamp}")
-            
+
             # Ensure the base backup directory exists
             os.makedirs(BACKUP_DIR_BASE, exist_ok=True)
-            
+
             print(f"Backing up existing output from {output_dir} to {backup_dir}")
             shutil.copytree(output_dir, backup_dir)
-            
+
             # Clear the transcript's output directory
             shutil.rmtree(output_dir)
-        
+
         # Create the directory fresh
         os.makedirs(output_dir, exist_ok=True)
     elif output_dir == OUTPUT_DIR and not transcript_identifier:
@@ -52,14 +53,14 @@ def setup_output_directory(output_dir=None, transcript_identifier=None):
         os.makedirs(output_dir, exist_ok=True)
 
 
-def get_git_info():
+def get_git_info() -> tuple[str, str]:
     """Get the most recent Git commit information."""
     commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8').strip()
     commit_message = subprocess.check_output(['git', 'log', '-1', '--pretty=%B']).decode('utf-8').strip()
     return commit_hash, commit_message
 
 
-def save_run_context(transcript_file, commit_hash, commit_message):
+def save_run_context(transcript_file: str, commit_hash: str, commit_message: str) -> None:
     """Save the context of this run for future reference."""
     run_context = {
         "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -74,7 +75,7 @@ def save_run_context(transcript_file, commit_hash, commit_message):
         json.dump(run_context, f, indent=4)
 
 
-def clear_workflow_log():
+def clear_workflow_log() -> None:
     """Reset the workflow I/O log for a clean run."""
     if os.path.exists(WORKFLOW_IO_LOG):
         os.remove(WORKFLOW_IO_LOG)

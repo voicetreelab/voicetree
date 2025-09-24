@@ -6,26 +6,34 @@ combining file operations, link extraction, and metadata extraction.
 """
 
 from pathlib import Path
-from typing import Dict
-from typing import List
 from typing import Union
 
-from backend.markdown_tree_manager.markdown_to_tree.file_operations import read_markdown_file
-from backend.markdown_tree_manager.markdown_to_tree.link_extraction import extract_markdown_links
-from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_node_id
-from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_summary
-from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_title
+from backend.markdown_tree_manager.markdown_to_tree.file_operations import (
+    read_markdown_file,
+)
+from backend.markdown_tree_manager.markdown_to_tree.link_extraction import (
+    extract_markdown_links,
+)
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import (
+    extract_node_id,
+)
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import (
+    extract_summary,
+)
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import (
+    extract_title,
+)
 
 
-def load_node(filename: str, markdown_dir: Path) -> Dict[str, Union[str, List[str]]]:
+def load_node(filename: str, markdown_dir: Path) -> dict[str, Union[str, list[str]]]:
     """
     Load and parse a markdown node - shared by both pipelines.
     Combines all parsing functions into a single interface.
-    
+
     Args:
         filename: The markdown filename (e.g., '20_Dependency_Traversal.md')
         markdown_dir: Path to the directory containing markdown files
-        
+
     Returns:
         Dictionary with node data:
         {
@@ -39,7 +47,7 @@ def load_node(filename: str, markdown_dir: Path) -> Dict[str, Union[str, List[st
     """
     filepath = markdown_dir / filename
     content = read_markdown_file(filepath)
-    
+
     if not content:
         return {
             'filename': filename,
@@ -49,13 +57,13 @@ def load_node(filename: str, markdown_dir: Path) -> Dict[str, Union[str, List[st
             'content': '',
             'links': []
         }
-    
+
     # Extract metadata from frontmatter and content
     node_id = extract_node_id(content)
     title = extract_title(content)
     summary = extract_summary(content)
     links = extract_markdown_links(content)
-    
+
     return {
         'filename': filename,
         'node_id': node_id,

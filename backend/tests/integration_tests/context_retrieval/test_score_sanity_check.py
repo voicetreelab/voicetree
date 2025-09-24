@@ -4,13 +4,16 @@ Loads real test documents and examines score ranges, ordering, and consistency.
 """
 
 import os
+
 import pytest
-from pathlib import Path
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
+
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    _get_semantically_related_nodes,
+)
 from backend.markdown_tree_manager.graph_search.tree_functions import (
     search_similar_nodes_tfidf,
-    _get_semantically_related_nodes
 )
+from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
 class TestScoreSanityCheck:
@@ -22,7 +25,6 @@ class TestScoreSanityCheck:
         # Ensure we're using real embeddings for this test
         os.environ['VOICETREE_TEST_MODE'] = 'false'
         tree = MarkdownTree()
-        test_data_dir = Path(__file__).parent / "test_embedding_search_data"
 
         # Load test documents
         test_docs = [
@@ -89,7 +91,6 @@ class TestScoreSanityCheck:
 
             # ML-related topics should appear high in both
             ml_related = ["Machine Learning Basics", "Deep Learning Architectures", "Natural Language Processing"]
-            non_tech = ["Cooking Italian Cuisine", "Gardening Tips"]
 
             # At least one ML topic should be in top 3 for both methods
             assert any(title in ml_related for title in tfidf_nodes[:3]) or not tfidf_results

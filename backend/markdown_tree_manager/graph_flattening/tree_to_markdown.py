@@ -2,9 +2,7 @@
 import logging
 import os
 import traceback
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Optional, Any
 
 # Import Node for both type checking and runtime use
 from backend.markdown_tree_manager.markdown_tree_ds import Node
@@ -13,11 +11,11 @@ from backend.markdown_tree_manager.utils import insert_yaml_frontmatter
 
 
 class TreeToMarkdownConverter:
-    def __init__(self, tree_data: Dict[int, 'Node']):
+    def __init__(self, tree_data: dict[int, 'Node']):
         # self.mContextualTreeManager = contextual_tree_manager
         self.tree_data = tree_data
 
-    def convert_nodes(self, output_dir="markdownTreeVaultDefault", nodes_to_update=None):
+    def convert_nodes(self, output_dir: str = "markdownTreeVaultDefault", nodes_to_update: Optional[set[int]] = None) -> None:
         """Converts the specified nodes to Markdown files."""
 
         os.makedirs(output_dir, exist_ok=True)
@@ -28,7 +26,7 @@ class TreeToMarkdownConverter:
             for node_id in nodes_to_update:
                 self.convert_node(node_id, output_dir)
 
-    def convert_node(self, node_id, output_dir):
+    def convert_node(self, node_id: int, output_dir: str) -> None:
         try:
             node_data = self.tree_data[node_id]
             if node_data.filename:
@@ -45,7 +43,7 @@ class TreeToMarkdownConverter:
                 if node_data.tags:
                     hashtags = ' '.join(f"#{tag}" for tag in node_data.tags)
                     f.write(f"{hashtags}\n")
-                
+
                 # Write YAML frontmatter
                 frontmatter = insert_yaml_frontmatter({
                     "title": f"{node_data.title} ({node_id})",
@@ -103,7 +101,7 @@ class TreeToMarkdownConverter:
                 f.flush()
                 os.fsync(f.fileno())
 
-        except (FileNotFoundError, IOError, OSError) as e:
+        except (FileNotFoundError, OSError) as e:
             logging.error(
                 f"Error writing Markdown file for node {node_id}: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}")
         except Exception as e:
@@ -111,11 +109,11 @@ class TreeToMarkdownConverter:
                 f"Unexpected error writing Markdown file for node {node_id}: {e} - Type: {type(e)} - Traceback: {traceback.format_exc()}")
 
     @staticmethod
-    def convert_to_snake_case(to_convert: str):
+    def convert_to_snake_case(to_convert: str) -> str:
         return to_convert.replace(" ", "_")
 
 
-    def get_parent_id(self, node_id):
+    def get_parent_id(self, node_id: int) -> Optional[int]:
         """Returns the parent ID of the given node, or None if it's the root."""
         for parent_id, node_data in self.tree_data.items():
             if node_id in node_data.children:
@@ -123,7 +121,7 @@ class TreeToMarkdownConverter:
         return None
 
 
-def format_nodes_for_prompt(nodes: List[Node], tree: Optional[Dict[int, Node]] = None, include_full_content: bool = False) -> str:
+def format_nodes_for_prompt(nodes: list[Node], tree: Optional[dict[int, Node]] = None, include_full_content: bool = False) -> str:
     """Format nodes for LLM prompt in a consistent, readable format
 
     Args:
@@ -163,6 +161,6 @@ def format_nodes_for_prompt(nodes: List[Node], tree: Optional[Dict[int, Node]] =
     return "\n".join(formatted_nodes)
 
 
-def _format_nodes_for_prompt(nodes: List[Node], tree: Optional[Dict[int, Node]] = None) -> str:
+def _format_nodes_for_prompt(nodes: list[Node], tree: Optional[dict[int, Node]] = None) -> str:
     """Format nodes for LLM prompt in a consistent, readable format (deprecated, use format_nodes_for_prompt)"""
     return format_nodes_for_prompt(nodes, tree, include_full_content=False)

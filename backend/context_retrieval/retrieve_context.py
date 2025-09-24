@@ -16,15 +16,20 @@ Implements the pipeline specified in arch.md:
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any, List, Set
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-from backend.markdown_tree_manager.graph_search.tree_functions import get_most_relevant_nodes
-from backend.context_retrieval.dependency_traversal import TraversalOptions, traverse_to_node, ContentLevel
-from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.context_retrieval.dependency_traversal import ContentLevel
+from backend.types import NodeList
+from backend.context_retrieval.dependency_traversal import TraversalOptions
+from backend.context_retrieval.dependency_traversal import traverse_to_node
+from backend.markdown_tree_manager.graph_search.tree_functions import (
+    get_most_relevant_nodes,
+)
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import (
+    load_markdown_tree,
+)
 
 
 def retrieve_context(markdown_dir: str, query: str) -> str:
@@ -74,7 +79,7 @@ def retrieve_context(markdown_dir: str, query: str) -> str:
 
     for node in relevant_nodes:
         filename = None
-        node_id_str = str(node.id if hasattr(node, 'id') else node.node_id)
+        node_id_str = str(node.id if hasattr(node, 'id') else getattr(node, 'node_id', 'unknown'))
 
         # Look for file that starts with node_id
         for md_file in md_files:
@@ -92,13 +97,13 @@ def retrieve_context(markdown_dir: str, query: str) -> str:
             relevant_filenames.append(filename)
 
     if not relevant_filenames:
-        print(f"Could not map any nodes to filenames", file=sys.stderr)
+        print("Could not map any nodes to filenames", file=sys.stderr)
         return ""
 
     # Step 3: Traverse from roots to targets with constraints
     # Collect all nodes including root-to-target paths
     all_traversed_nodes = []
-    seen_files: Set[str] = set()
+    seen_files: set[str] = set()
 
     for target_file in relevant_filenames:
         # Set up traversal options as per arch.md specification
@@ -116,10 +121,11 @@ def retrieve_context(markdown_dir: str, query: str) -> str:
             nodes = traverse_to_node(target_file, markdown_path, options, is_target=True)
 
             # Mark target nodes and avoid duplicates
+            is_search_target_key = 'is_search_target'
             for node in nodes:
                 file_id = node.get('filename', '')
                 if file_id not in seen_files:
-                    node['is_search_target'] = (file_id == target_file)
+                    node[is_search_target_key] = (file_id == target_file)
                     all_traversed_nodes.append(node)
                     seen_files.add(file_id)
         except Exception as e:
@@ -129,7 +135,9 @@ def retrieve_context(markdown_dir: str, query: str) -> str:
     # Step 4: Linearize using tree_flattening.py
     if all_traversed_nodes:
         try:
-            from backend.markdown_tree_manager.graph_flattening.tree_flattening import flatten_tree
+            from backend.markdown_tree_manager.graph_flattening.tree_flattening import (
+                flatten_tree,
+            )
             linearized_content = flatten_tree(all_traversed_nodes)
             return linearized_content
         except Exception as e:

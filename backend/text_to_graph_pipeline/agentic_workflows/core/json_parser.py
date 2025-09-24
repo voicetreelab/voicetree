@@ -26,8 +26,7 @@ def _custom_parser(multiline_string: str) -> str:
     replaces those characters with their escaped counterparts.
     (newlines in JSON must be double-escaped: `\\n`).
     """
-    if isinstance(multiline_string, (bytes, bytearray)):
-        multiline_string = multiline_string.decode()
+    # multiline_string is already str type, no need to decode
 
     return re.sub(
         r'("action_input"\:\s*")(.*?)(")',
@@ -127,7 +126,7 @@ _json_markdown_re = re.compile(r"```(json)?(.*)", re.DOTALL)
 
 def parse_json_markdown(
         json_string: str, *, parser: Callable[[str], Any] = parse_partial_json
-) -> dict:
+) -> dict[str, Any]:
     """Parse a JSON string from a Markdown string.
 
     Args:
@@ -154,7 +153,7 @@ _json_strip_chars = " \n\r\t`"
 
 def _parse_json(
         json_str: str, *, parser: Callable[[str], Any] = parse_partial_json
-) -> dict:
+) -> dict[str, Any]:
     # Strip whitespace,newlines,backtick from the start and end
     json_str = json_str.strip(_json_strip_chars)
 
@@ -162,4 +161,5 @@ def _parse_json(
     json_str = _custom_parser(json_str)
 
     # Parse the JSON string into a Python dictionary
-    return parser(json_str)
+    parsed_result = parser(json_str)
+    return parsed_result if isinstance(parsed_result, dict) else {}
