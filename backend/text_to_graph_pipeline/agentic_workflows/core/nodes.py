@@ -5,24 +5,23 @@ These are no longer used by the new Agent-based implementation
 
 import logging
 from typing import Any
-from typing import Dict
 
 logger = logging.getLogger(__name__)
 
 # This file is deprecated but kept for backward compatibility
 # The actual node logic is now handled inside the Agent class
 
-def segmentation_node(state: Dict[str, Any]) -> Dict[str, Any]:
+def segmentation_node(state: dict[str, Any]) -> dict[str, Any]:
     """Legacy segmentation node - DO NOT USE"""
     logger.warning("Using deprecated segmentation_node - please use Agent-based approach")
     return state
 
-def relationship_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
+def relationship_analysis_node(state: dict[str, Any]) -> dict[str, Any]:
     """Legacy relationship analysis node - DO NOT USE"""
     logger.warning("Using deprecated relationship_analysis_node - please use Agent-based approach")
     return state
 
-def integration_decision_node(state: Dict[str, Any]) -> Dict[str, Any]:
+def integration_decision_node(state: dict[str, Any]) -> dict[str, Any]:
     """Legacy integration decision node - DO NOT USE"""
     logger.warning("Using deprecated integration_decision_node - please use Agent-based approach")
     return state

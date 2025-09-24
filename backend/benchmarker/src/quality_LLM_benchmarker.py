@@ -9,6 +9,9 @@ MAKE SURE TO RUN FROM PROJECT ROOT
 import os
 import shutil
 import sys
+from typing import Any
+from typing import Optional
+from typing import TypedDict
 
 from dotenv import load_dotenv
 
@@ -20,6 +23,16 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import (
     clear_debug_logs,
 )
 
+
+class TranscriptInfo(TypedDict, total=False):
+    """Type definition for transcript configuration dictionaries."""
+    file: str
+    name: str
+    max_words: Optional[int]
+    processing_mode: str
+    currently_active: bool
+    description: str
+
 # Add project root to Python path to allow running with: python backend/benchmarker/...
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
@@ -27,36 +40,36 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 load_dotenv()
 
 
-def copy_debug_logs(transcript_name=None):
+def copy_debug_logs(transcript_name: Optional[str] = None) -> None:
     """Copy debug logs from agentic workflows to benchmarker output directory.
-    
+
     Args:
         transcript_name: If provided, copies to a transcript-specific subdirectory
     """
     source_dir = "backend/text_to_graph_pipeline/agentic_workflows/debug_logs"
-    
+
     if transcript_name:
         dest_dir = f"backend/benchmarker/output/{transcript_name}/debug_logs"
     else:
         dest_dir = "backend/benchmarker/output/debug_logs"
-    
+
     if os.path.exists(source_dir):
         # Ensure destination directory exists
         os.makedirs(dest_dir, exist_ok=True)
-        
+
         # Copy all files from source to destination
         for filename in os.listdir(source_dir):
             source_file = os.path.join(source_dir, filename)
             dest_file = os.path.join(dest_dir, filename)
             if os.path.isfile(source_file):
                 shutil.copy2(source_file, dest_file)
-        
+
         print(f"\nDebug logs copied to: {dest_dir}")
     else:
         print(f"\nWarning: Debug logs directory not found at {source_dir}")
 
 
-def _generate_transcript_identifier(transcript_info):
+def _generate_transcript_identifier(transcript_info: TranscriptInfo) -> str:
     """Generate a safe identifier for a transcript to use as a folder name."""
     # Use the base filename without path and extension
     base_name = os.path.splitext(os.path.basename(transcript_info['file']))[0]
@@ -65,18 +78,18 @@ def _generate_transcript_identifier(transcript_info):
     return safe_name
 
 
-async def process_single_transcript(transcript_info):
+async def process_single_transcript(transcript_info: TranscriptInfo) -> tuple[str, bool, Optional[str]]:
     """Process a single transcript with its own output directory.
-    
+
     Args:
         transcript_info: Dictionary containing transcript configuration
-        
+
     Returns:
         tuple: (transcript_name, success_bool, error_message)
     """
     transcript_name = transcript_info['name']
     transcript_identifier = _generate_transcript_identifier(transcript_info)
-    
+
     try:
         # print(f"\n{'='*60}")
         # print(f"Starting: {transcript_name}, limited to {transcript_info.get('max_words', 'all')} words")
@@ -96,12 +109,12 @@ async def process_single_transcript(transcript_info):
 
         # Create a processor instance for this transcript
         processor = TranscriptProcessor()
-        
+
         # Read and limit content
-        with open(transcript_info['file'], 'r') as f:
+        with open(transcript_info['file']) as f:
             content = f.read()
         content = processor._limit_content_by_words(content, transcript_info.get('max_words'))
-        
+
         # Process the transcript with transcript-specific output directory
         processing_mode = transcript_info.get('processing_mode', 'word')
         await processor.process_content(
@@ -110,7 +123,7 @@ async def process_single_transcript(transcript_info):
             processing_mode,
             transcript_identifier  # Pass identifier for output subdirectory
         )
-        
+
         # # Evaluate quality with transcript-specific output directory
         # print(f"\nEvaluating quality for: {transcript_name}")
         # evaluator = QualityEvaluator()
@@ -122,22 +135,22 @@ async def process_single_transcript(transcript_info):
 
         # Copy debug logs to transcript-specific directory
         copy_debug_logs(transcript_identifier)
-        
+
         print(f"\n✓ Completed: {transcript_name}")
         print(f"  - Output: backend/benchmarker/output/{transcript_identifier}/")
         print(f"  - Quality logs: backend/benchmarker/quality_logs/quality_log_{transcript_identifier}.txt")
         return (transcript_name, True, None)
-        
+
     except Exception as e:
         error_msg = f"Error processing {transcript_name}: {str(e)}"
         print(f"\n✗ Failed: {error_msg}")
         return (transcript_name, False, error_msg)
 
 
-async def run_quality_benchmark(test_transcripts=None):
+async def run_quality_benchmark(test_transcripts: Optional[list[TranscriptInfo]] = None) -> None:
     """
     Run quality benchmarking on specified transcripts in parallel.
-    
+
     Args:
         test_transcripts: List of transcript configurations, each containing:
             - file: Path to transcript file
@@ -151,39 +164,39 @@ async def run_quality_benchmark(test_transcripts=None):
 
     # Set up logging
     setup_logging()
-    
+
     # Setup main output directory (just ensure it exists, no backup)
     setup_output_directory()
-    
+
     # Clear debug logs once at the start
     clear_debug_logs()
-    
+
     # print(f"\nStarting parallel processing of {len(test_transcripts)} transcript(s)...\n")
-    
+
     # Process all transcripts in parallel
     results = await asyncio.gather(
         *[process_single_transcript(transcript_info) for transcript_info in test_transcripts],
         return_exceptions=False
     )
-    
+
     # Print summary
     print(f"\n{'='*60}")
     print("SUMMARY")
     print(f"{'='*60}")
-    
+
     successful = sum(1 for _, success, _ in results if success)
     failed = len(results) - successful
-    
+
     print(f"\nTotal transcripts: {len(results)}")
     print(f"Successful: {successful}")
     print(f"Failed: {failed}")
-    
+
     if failed > 0:
         print("\nFailed transcripts:")
         for name, success, error in results:
             if not success:
                 print(f"  - {name}: {error}")
-    
+
     print("\nResults saved to:")
     print("  - Individual outputs: backend/benchmarker/output/<transcript_identifier>/")
     print("  - Main quality log: backend/benchmarker/quality_logs/quality_log.txt")
@@ -191,7 +204,7 @@ async def run_quality_benchmark(test_transcripts=None):
     print("  - Latest detailed logs: backend/benchmarker/quality_logs/latest_quality_log_<transcript_identifier>.txt")
 
 
-async def main():
+async def main() -> None:
     """Main entry point for quality benchmarking."""
     # You can customize test transcripts here or use defaults
     await run_quality_benchmark()

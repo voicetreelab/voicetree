@@ -5,7 +5,7 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import (
 
 class TestJsonParserEdgeCases:
     """Test cases for edge cases in JSON parsing that have caused production issues"""
-    
+
     def test_parse_llm_response_with_special_quotes(self):
         """Test parsing LLM response that caused 'Expecting ',' delimiter' error"""
         # This is the actual LLM response that caused the error
@@ -19,11 +19,11 @@ class TestJsonParserEdgeCases:
   "debug_notes": null
 }
 ```'''
-        
+
         # This should parse successfully but currently fails with:
         # json.decoder.JSONDecodeError: Expecting ',' delimiter: line 2 column 983 (char 984)
         result = parse_json_markdown(llm_response)
-        
+
         # Verify the parsed result has expected structure
         assert "reasoning" in result
         assert "original_new_content" in result
@@ -33,7 +33,7 @@ class TestJsonParserEdgeCases:
         assert not result["should_create_nodes"]
         assert result["new_nodes"] == []
         assert result["debug_notes"] is None
-        
+
     def test_parse_json_with_smart_quotes(self):
         """Test parsing JSON containing smart quotes (curly apostrophes)"""
         # Test with Unicode smart quotes that might come from LLMs
@@ -43,11 +43,11 @@ class TestJsonParserEdgeCases:
   "description": "The algorithm's value"
 }
 ```'''
-        
+
         result = parse_json_markdown(json_with_smart_quotes)
         assert result["text"] == "Manu Mason's software"
         assert result["description"] == "The algorithm's value"
-        
+
     def test_parse_json_with_strict_mode(self):
         """Test that might fail with strict=True JSON parsing"""
         llm_response = '''```json
@@ -60,7 +60,7 @@ class TestJsonParserEdgeCases:
   "debug_notes": null
 }
 ```'''
-        
+
         # Test that parse_json_markdown now handles this correctly
         result = parse_json_markdown(llm_response)
         assert "reasoning" in result
@@ -71,7 +71,7 @@ class TestJsonParserEdgeCases:
         assert not result["should_create_nodes"]
         assert result["new_nodes"] == []
         assert result["debug_notes"] is None
-        
+
     def test_parse_json_with_escaped_quotes_in_nested_strings(self):
         """Test parsing JSON with escaped quotes inside already quoted strings"""
         complex_json = '''```json
@@ -79,6 +79,6 @@ class TestJsonParserEdgeCases:
   "content": "The mention of \\"two breakthrough use cases\\" built on the platform"
 }
 ```'''
-        
+
         result = parse_json_markdown(complex_json)
         assert result["content"] == 'The mention of "two breakthrough use cases" built on the platform'

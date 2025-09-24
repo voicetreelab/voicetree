@@ -9,11 +9,12 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-from typing import Type
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from google.genai.types import HarmBlockThreshold
+from google.genai.types import HarmCategory
 from google.genai.types import HttpOptions
 from google.genai.types import SafetySetting
 from pydantic import BaseModel
@@ -34,23 +35,23 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.json_parser import (
 @dataclass
 class CONFIG:
     """Central configuration for LLM integration"""
-    
+
     # Model selection
     DEFAULT_MODEL = "gemini-2.5-flash"
-    
+
     # Generation parameters
     TEMPERATURE = 0.5
-    
+
     # Safety settings - BLOCK_NONE for all categories
     @staticmethod
-    def get_safety_settings():
+    def get_safety_settings() -> list[SafetySetting]:
         return [
-            SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
-            SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
-            SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
-            SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
         ]
-    
+
     # Environment settings
     ENV_SEARCH_PATHS = [
         Path.cwd() / '.env',
@@ -58,7 +59,7 @@ class CONFIG:
         Path.cwd().parent.parent / '.env',
         Path.home() / 'repos' / 'VoiceTree' / '.env'
     ]
-    
+
     # Debug settings
     PRINT_API_SUCCESS = False  # Set to True to see success messages
     PRINT_ENV_LOADING = True   # Set to False to hide environment loading messages
@@ -79,7 +80,7 @@ def _load_environment() -> None:
 def _get_api_key() -> Optional[str]:
     """Get the Google API key from environment or settings"""
     api_key = os.environ.get("GOOGLE_API_KEY")
-    
+
     # Try to get from settings module as fallback
     if not api_key:
         try:
@@ -89,7 +90,7 @@ def _get_api_key() -> Optional[str]:
                 print("✅ Found API key in settings.py")
         except ImportError:
             pass
-    
+
     return api_key
 
 
@@ -133,21 +134,21 @@ def _get_client() -> genai.Client:
 async def call_llm_structured(
     prompt: str,
     stage_type: str,
-    output_schema: Type[BaseModel],
+    output_schema: type[BaseModel],
     model_name: Optional[str] = None
 ) -> BaseModel:
     """
     Call the LLM with structured output using Pydantic schemas
-    
+
     Args:
         prompt: The prompt to send to the LLM
         stage_type: The workflow stage type (used for logging/debugging)
         output_schema: The Pydantic model class for structured output
         model_name: The model to use (default: CONFIG.DEFAULT_MODEL)
-        
+
     Returns:
         Pydantic model instance with structured response
-        
+
     Raises:
         RuntimeError: If Gemini API is not available or configured
         ValueError: If API key is missing
@@ -155,10 +156,10 @@ async def call_llm_structured(
     # Use defaults from config
     if model_name is None:
         model_name = CONFIG.DEFAULT_MODEL
-    
+
     # Get client
     client = _get_client()
-    
+
     # Build the full prompt with system prompt
     # full_prompt = f"{prompt}"
     full_prompt = prompt # no sys prompt for now
@@ -205,7 +206,7 @@ async def call_llm_structured(
                 f"LLM returned invalid JSON for stage '{stage_type}'. "
                 f"Parse error: {e}. "
                 f"Raw response: {response.text[:500] if response.text else 'None'}..."
-            )
+            ) from e
 
     parsed_result = response.parsed
     if isinstance(parsed_result, BaseModel):

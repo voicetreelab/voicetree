@@ -5,6 +5,7 @@ from typing import Callable
 from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 import speech_recognition as sr
 from faster_whisper import WhisperModel
 
@@ -47,9 +48,9 @@ class VoiceToTextEngine:
         self.recorder.dynamic_energy_ratio = self.config.dynamic_energy_ratio
 
         # This queue will hold complete audio phrases (as numpy arrays) ready for transcription.
-        self._ready_for_transcription_queue: Queue[np.ndarray] = Queue()
+        self._ready_for_transcription_queue: Queue[NDArray[np.float32]] = Queue()
 
-        self._stop_listening_callback: Optional[Callable] = None
+        self._stop_listening_callback: Optional[Callable[[], None]] = None
         self.source: Optional[sr.Microphone] = None
 
     def _audio_data_callback(self, recognizer: sr.Recognizer, audio_data: sr.AudioData) -> None:
@@ -92,7 +93,7 @@ class VoiceToTextEngine:
             self.source = None
             logging.info("Background audio capture stopped.")
 
-    def get_ready_audio_chunk(self) -> Optional[np.ndarray]:
+    def get_ready_audio_chunk(self) -> Optional[NDArray[np.float32]]:
         """
         Non-blocking method to get a VAD-detected audio chunk if available.
         This is the intended way to interact with the engine from your main loop.
@@ -102,7 +103,7 @@ class VoiceToTextEngine:
         except Empty:
             return None
 
-    def transcribe_chunk(self, audio_np: np.ndarray) -> str:
+    def transcribe_chunk(self, audio_np: NDArray[np.float32]) -> str:
         """
         Synchronous method to transcribe a single, complete audio chunk.
         """
@@ -117,7 +118,7 @@ class VoiceToTextEngine:
                 word_timestamps=self.config.word_timestamps,
                 condition_on_previous_text=self.config.condition_on_previous_text,
                 vad_filter=self.config.use_vad_filter,
-                vad_parameters=dict(min_silence_duration_ms=self.config.MIN_SILENCE_DURATION_MS)
+                vad_parameters={"min_silence_duration_ms": self.config.MIN_SILENCE_DURATION_MS}
             )
 
             full_text = "".join(segment.text for segment in segments).strip()

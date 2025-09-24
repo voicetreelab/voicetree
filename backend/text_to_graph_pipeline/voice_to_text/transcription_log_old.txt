@@ -4801,3 +4801,811 @@ Thank you.
 Thank you.
 Thank you.
 Thank you.
+and it's listening to what we're saying and it's transcribing but if you could also just be able to type and say this and then press enter that would like it would probably not be long said
+um but then that because one thing I'm worried on your laptop is it
+powerful enough to run the.
+voice to text voice text yeah um but if you just let it do um
+Multimodal AI input method.
+Yeah, and then your laptop will be able to handle it.
+It would be really awesome.
+text files straight into the
+Well, you can. Like, as in, if you have any file, you can just drag it into this folder. Oh, yeah, yeah, yeah. Wait.
+Cool, but I get what you mean like it would be nice as well to be able like
+um so all right over to you
+Hello VoiceTree!
+Uh...
+So the plan for this session
+will be to try and understand how we can get text input inside the terminal prompts in voice.
+All right
+Cool. Okay.
+do i want to ask it how how the code
+Oh, should I just give it a shot?
+how the code currently works yeah because that's why i was probably gonna ask it for us yeah that would be a good idea yeah um and then like dig into how we can
+into the existing thing yeah yeah like i think it'd be it would be made sense for you to start with getting a high level overview of what yeah how the system works yeah i mean with the goal of
+yeah sounds good and so to do that you could like you know click and launch agent
+Oh, okay cool
+like click and yeah and then and then move to close
+And now you go to press command and hover over it.
+A little bit random.
+and then press enter
+Very much like
+Okay. And then...
+So you can now just
+you can like so you can cancel it's just gonna be trying to figure it so you can you can now just like if you press ask and it cancels what it's doing and then you can say like in here and so you've already pressed ask but now you can just like tell it what tell it what to do yeah okay cool yeah
+but it might the idea is is that a lot of the context will already be in the in the tree yeah um so it might have already gotten it prior to the yeah yeah
+I mean you can also like reference a node you can read one if you right okay sure so you don't need like you don't need to repeat everything you just said yeah makes sense
+So I'm just clicking around
+hmm
+Okay.
+All right.
+Cool, all right, that's just running in the background
+Oh
+That's so cool
+All right.
+oh
+So if I speak and it makes new nodes, will it change the requirements that the other AI will
+but you have to re you probably have to re-prompt Claude right? so what we'll do is when you're when you're speaking and you talk about a new concept
+it forms a new node yeah once the agent finishes what it's doing yeah it gets alerted of other nodes that have been created while it was working yeah and so if you if you were talking about like oh wait actually
+You should.
+Yeah.
+you know you can kind of like guide it in a way yeah um without having to repeat it yeah i think that's cool because um other agents as well yeah it can be then also made aware of what other
+Yeah, okay, that's really cool
+Thank you.
+Do you mind if you need data?
+It's infinite, it's fine.
+It looks like not like a guitar.
+Care about I think some like the
+A few gigs.
+But that's
+Now it's still it's still implementing
+Hmm.
+Can I just run and get published? Yeah, yeah.
+nice
+Which laptop is yours?
+But yeah, which laptop is it?
+M1. M1, okay cool.
+Very nice.
+yeah yeah my dad's got an m4
+Thank you.
+Thank you.
+You know what this would be really cool with?
+The new meta AI.
+Did you see it?
+Yeah, that's good for orchestration as well.
+If you have a task, it separates it out to a different node.
+Okay, I feel like yeah
+Yeah. Yeah.
+That was really cool, yeah.
+because also the meta ai was strong
+um probably because it uses a single agent
+So say
+so what do you mean so I think it works similarly to
+So it's like, there's a single agent that you.
+inputting stuff into, and you have to be like, Hey, like.
+Like, it'll be like, hey, blah, blah, blah, blah, blah.
+Tell me where I am in
+But it fails sometimes.
+Maybe because of the context.
+like it struggles at complex
+I don't sleep what foundation
+Probably one of the Facebook.
+Yeah, on device, isn't it? Yeah.
+Do you have any cutting engines?
+Uh, unfortunately not.
+Just letting you know I might have introduced a bug in the last minute. Oh, that's okay.
+Not a boggle, I just think.
+Okay.
+Are you pushing to your master? Yeah.
+Hey, this has been running for a while. I don't know if it's... Yeah, like it says implanting input mode selector in NWI, which I think has done. Oh, so it interpreted that it's just going to do the work for you. Yeah. Is that what you intended? Yeah.
+So I think like.
+The thing is...
+Is that like this
+Like, getting it just to one-shot it is probably-
+like as in i my it might work maybe but my prediction is actually it'll be very interesting to see if
+to actually do it my prediction would be that you would have needed to like sort of give a bit more direction
+this is a way of doing it this is sort of the idea yeah so like explore ways of doing it with it first yeah a little bit back and forth
+And then...
+yeah but maybe maybe it can do yeah like you can ask it like what do you think is a good way of doing yeah do you have to and then you what reprompt
+Is that how it works? Like you take the node, hover over it.
+Yeah, like for implementation implementation. Yeah, like it depends like sometimes I would um, sometimes I would get just This guy to do it. Yeah, but if it's it can be broken down into like more subtasks I would like then get him to break it in subtasks and like spawn the agents myself. Yeah Cool. All right, uh, try to cancel this
+It's already made changes.
+I think maybe at this point, just let it see what it cooks up. Yeah. Because it might actually just...
+Like I might just...
+um yeah oh sorry um like the cool thing is like what you could do now is like while it's working on
+go do something else go do something else yep yep um come back and see how it's going yeah yeah
+Um, like if you wanted to like maybe get another agent to just explain to you parts of the code base or something. Yeah. Yeah. Probably give you like notification.
+ask something like that um yeah there's a way to make it like make a give you like a ringtone like a bing i haven't said it
+Because it is like that you get visually notified because it like making you note and
+Cool, alright.
+I guess we'll see you guys.
+Thank you.
+It is, um, really taking a...
+for this specific step because it was pretty fun
+maybe it's just but like maybe it's a cloud code bug
+In which case you could like, you can press ESC. Yeah.
+Oh, maybe you had already. There you interrupted it.
+So yeah, you can just...
+So this is the...
+yeah so like usually what i do as well is like i don't um
+Like I don't actually like open the files like um oh, okay. Oh do you just hop?
+just hover yeah sorry so it's a little bit like it's a bit janky right now but if you just hover then you can just like read it and you can just read it oh makes sense okay yeah
+Okay.
+uh okay so instead of doing that i'd be like
+Okay, I can try and do that from the start.
+like i want to do x like here are my requirements like what do you think is the best way
+and then I can use an agent.
+covered that for me, make more notes.
+pick like i'll be like present me with a
+Yeah. And they can use those nodes to actually do the generation.
+Yeah, I think you kind of need to get to a state of like having a rough idea of how you would do it yourself. Yeah. So that then you have some idea of what the agent.
+and then you can guide them yeah um because if you like have no idea how you do it yourself and you don't know if it's doing it the right way and then it ends up with like slot yeah yeah
+yeah cool all right um in that case should i just get rid of what we what changes it did make and give it another shot yeah yeah
+okay cool I think it's just this one
+Yeah, it looks like it. Seeking to take a pervert.
+That's just everything that's been transferred.
+So for this, or how do I unversion?
+Oh, I wonder if I can just get it to remove all the changes it did make.
+you could but you closed the agency oh right
+like it's yeah an a yeah okay but it only it only made one five
+Mm-mm.
+Okay
+Keep clicking on it.
+All right.
+Like you feel you should be though
+the other way around like click to see it on the screen and like command click to see it in a new
+Should be like similar to shift clip. Yeah, yeah. I think that's good. Um...
+yeah yeah yeah feel free to like keep notes of like what you think would be good ui design yeah sure because like things like that it's just like that was just the default incident so i just went with it but for sure like definitely
+Yeah the other thing about that laptop
+Cool.
+Hmm.
+So as part of the solution to allow.
+input into this model.
+Um, I would like to explore multiple.
+of approaching this problem with the given code base
+What do you think would be a good...
+way of implementing text input and what would be
+intuitive for users.
+All right.
+Thank you.
+Could I wipe this and start over? Yeah, sure. Sure.
+Uh, what was the method?
+So right now it's just a good clean-up script. Okay. So you have to...
+Okay.
+Um,
+This is going to be an exploration.
+of how we can add text input to VoiceTree.
+um
+As part of this explanation, I want to go through...
+To clarify the request.
+of what actually having text input in VoiceTree looks like.
+what user interaction with the text input for Voice3 looks like.
+And I want to go through multiple ways of.
+implementing this in the existing code base.
+Can I use your check and drink?
+Thank you.
+Lord, we pray.
+Wait, sorry, how do I, um...
+Once I have this, like, I have like a node which is exploring the implementation methods, let's say like...
+You can just press command W as well to close if you want.
+cool so like if i want to like open a chord terminal
+and if i click that it opens like this yeah and how do i get this command hover
+Yeah, okay, and then for some reason it didn't auto open clod. Yeah, but you can just write dot slash clod dot sh Okay
+So, uh, we'll, oh, sorry.
+um maybe is it possible that
+Maybe it was like...
+I think what might have happened is that you might have gone this and then Terminal. I think I might have followed.
+Um,
+Anyway, nuts.
+This is still really cool
+Thank you.
+I mean, Tronaut's running Cloud, 4.1. Yeah. We can run into Cloud Fusano, which will just be a lot. Not faster. Okay, yeah. We'll see how fast this is.
+Thank you. Thank you. Thank you.
+And then you write slash model. Slash model. Okay, cool.
+Bye.
+Beryl, I'm walking around.
+What does it do?
+Cool. All right, let's have a look
+at the output
+Okay.
+Thank you.
+Okay, now given the user...
+and the multiple input implementation approaches, combine these two nodes.
+We understand which pattern makes sense.
+for an MVP.
+Which is what this currently is.
+Thank you.
+as as a
+Final draft.
+I would actually like the text input to be in a separate terminal alongside the voice transcription.
+is used for
+The existing voice stream model.
+Can you record this as a decision?
+So that I can use Claude to code this.
+It picked up someone.
+At some point. Yeah, it was like, hi, Beryl, I'm walking around.
+That's pretty funny.
+All right.
+Um, it's giving me a couple of...
+thing like errors it's saying like failed to batch update embeddings i don't know if that's because i'd stopped talking for a while so it stopped sending
+but it's not creating the notes.
+Oh, whoa. Hold on. Hold on.
+Okay, now it's running the model.
+Yeah, I hate it, now it's back. Um, yeah, so I'm not completely sure. That's okay.
+Okay, cool. Now it's making that node that I was expecting.
+Hmm.
+It says it's creating the node, but...
+I really see it
+Oh, there we go.
+Thank you very much.
+I have actually used chatGBT like voice to text
+This is obviously much better, but like I noticed recently.
+That like when I really want to talk about something, I'll just like turn on the...
+Like I turn on the microphone on my phone keyboard and just like stream of consciousness into GBT and get it to summarize. So It's quite a nice way of doing it. Yeah. I'm also, what I want to do.
+The transcript, the voice attacks model, it currently runs on device, I want to make it just use an off-device model, because I'm going one step closer to being able to give people... Yeah, yeah. And like, maybe, um, maybe OpenAI or Google's model. I'm looking into them right now. Oh, sweet, yeah. Off-device just meaning, um...
+Yeah, they got on the phone on the cloud. Yeah
+Potentially faster.
+Yeah, it would be fun.
+So.
+Hello, hi
+I'm good. I'll come over in about an hour.
+No, I'll leave in the bell.
+All right, perfect
+Love you lot. See you soon. Bye.
+Oh, whoa.
+That is not.
+Don't really know what's happening here, but it's just a fun little...
+Good, should I think?
+Oh, oh, um...
+What is happening here is that, oh my god, it's glitching so hard right now.
+In some of the tests, like if you look at the, it's probably doing like, yeah, here, test, test, hundred, random sentence of invariance. It's running on the tests.
+I don't know why it's running into...
+Um, I did get a, I did get a call.
+thing running so maybe it's tried to run all of
+Yeah.
+Um...
+They can just like decide randomly to run to.
+unified architecture also yeah mermaid broke that's okay
+Yeah, could process
+Let me see.
+it's how it's to modify
+text input without disrupting yet.
+Cool that is what I asked it to do nice. So now I can go have a look at the
+Junigunsa is getting a little bit...
+Yeah, sure. Don't add.
+Oh
+Nice.
+How was the teacher?
+Four, six, six.
+All right.
+Good call.
+Let's take a look.
+Then what they
+I think your tree's going rogue.
+it's done it's done so i i looked away
+Oh, my God.
+I think it's running tests, but I don't know how or what. Yeah.
+It is strange you can just
+Oh my god.
+Where is it?
+So it must be nerd somewhere in here.
+Oh, my God, it's going right.
+Yeah.
+Let's see, like, uh...
+That's the ransomware.
+Nice to meet you.
+It might be one of the terminals.
+but
+We just could cancel the python one
+Yeah
+Okay, so given this tree.
+the approach that this model went with.
+Was to
+Take To create its own end point
+in which you can implement.
+The
+um
+So create, sorry, to create its own endpoint.
+and server and front-end so that you can enter text into the ongoing model.
+I want it instead to operate similarly to how the voice entry is. By the way, you'd have to modify the UI.
+So you'd have to modify the UI to get like a secondary terminal on the side like you click for a Proof of concept you could just have be able to type in here Alright, and then when you hit enter it just receives the text. Oh, okay
+Because it's just a terminal app. So my worry of that is.
+If you transcribe, like the transcription is going to.
+entering so that if you type it won't pause
+until after you're done typing.
+Like, as you type, if you type a long prompt, like, yeah.
+But are you often...
+Uh, no, but it is.
+conversation right so if i'm having conversation with you
+and then i want to like type people talking then suddenly that's
+So for that, my thoughts was instead of doing this, you just have a secondary.
+Like a secondary time where you can type where it's not interrupted by the transcription.
+So, like, it gets to, like, the architecture of VoiceTree.
+it kind of would still work in one terminal because part of the algorithm is like segmenting the different
+Parts of the text that are in the buffer.
+so it would realize that it was like speaker one interruption speaker one speaker one yeah um but
+If you made two terminals, you'd still have the same problem.
+yeah of like if there's unprocessed speech in the buffer and then
+Again, let's see if like two separate pipelines
+yeah essentially it would be an
+pipeline where you you type into it instead of being a continuous buffer because i feel like with text you form a full thought before you enter it to the
+that instead of having it as a continuous stream where it would just be segmenting the text randomly as you mean you have as like a second window essentially and in that second window
+like just type at your own pace and hit enter
+to enter and it would enter that chunk into the latest box
+as text, like as segmented into like a text input field with the prompt.
+Yes, that's a reasonable way to do it
+I guess then the question is, though, like, um...
+We get into UI territory.
+Yes. Yeah. So you need access to the, you need like, you would need, um,
+Whatever you're talking about.
+have.
+So you need this thermal to have.
+the VoiceTree UI folder so you can go in and understand how the terminal is lost.
+um make the change such that the voice tree ui will spoil
+can just enter in text.
+Yeah.
+um
+Yeah, I mean.
+It's like to spawn in terminal you can just make like a shell phone and it'll just appear here
+Right, so you just make a second.
+second shell file, which then just...
+whatever when you press enter
+runs the pipeline yeah it would definitely be doable or even a different way that you can think about it is like how do you reorder uh this one
+Yeah, it gets messy. Nice.
+so a a different way that you could approach it is that like
+When you look at the input, you can like hover over it.
+um hover over the shelf
+um where is voice tree voice tree is like this this by the way like i reckon this gets like
+context of how it's in the market for you down.
+But like you know how you're spawning voice
+sorry um like terminal called gemini you just have a fourth win fourth like another one which is chat
+Hmm.
+and within that chat you'd like
+so like so like instead of saying terminal
+the voice tree node specifically like ideally actually like when you have a ur
+you would probably not like this would be to enable them by default right
+like it would yeah like so the thing is is that um this is just for being able to quickly prototype things yeah like this is this is super like meta like yeah to have it yeah in the tree itself but for the actual ui um it probably wouldn't be like that probably just like a floating
+Yeah. Some sort of standard user interface. Yeah. So like for, for voice tree, essentially rather than seeing.
+things because these you don't really care about with this yeah yeah instead of that you would have like listen and or type yeah you'd have a little yeah little ui
+pause yeah you can start um pause your recording or continue recording and then you type into it as well exactly you just have like a mic button
+yeah click the mic button and then if you want to tie it
+yeah click the text button and you can chat yeah definitely yeah that's what I'm envisioning
+exactly like a normal how the exact like how i guess if you go like chatty with you and either
+Exactly how you'd have it here.
+type into the rolling context.
+transcription only happens when you
+Yeah, I mean, I think it would be nice to have...
+Transcription.
+Like, on by default, the option is to pause it, as opposed to the default is paused and the option is to pause it.
+Yeah.
+I don't know originally this was like voice first yeah second but it might be a stretch for people to use it
+I think I voiced by default.
+I would, I would argue that pausing is.
+because so not argue i would agree with you that
+good because there were moments
+I feel like I don't operate on a very like
+Like super
+um single train of thought like i'm very much like on and off so i'll have a series of thoughts
+stop and then like i would want to pause to like think about stuff for a little bit maybe type a little bit and then play it again
+um like to to me to be honest like the the way i've the most value
+with this so far is just when we chat and it records
+that's been so useful.
+Otherwise I struggle to like think
+through the whole statement and then
+time to get that information back into the tree hmm
+Yeah, I guess it's a bit of like a
+There's like a way of using it, but also like I guess requires some
+You can't just.
+Like, yeah, because the way of using it is almost like you frame it as a conversation.
+with someone of like what you're trying to do. Yeah, exactly. And that's the ideal way of like, you're not expecting anything to happen in real time, but then you check back a minute later.
+all the context and if you want to get an agent to do
+yeah it's like yeah in my mind it's less like um real time
+Yeah, it's more infinite.
+Amen.
+But yeah, cosplay will be good.
+Yeah, yeah. And then...
+Yeah, pause play
+It's like instant response
+Because you're right like if as the tree gets bigger and bigger
+who speak, wait a little bit, and then kind of look in the graph and be like, I wonder where this node is.
+click it and be like now i can run
+straight away.
+God, it's hard to make it intuitive.
+Yeah.
+i think with um it could it's possible though with the ui like if you have the auto collapse yeah if you have like when you start speaking it it sort of automatically moves to the node that you're talking about yeah so you don't have to always be navigating yourself yeah yeah um oh yeah 100 that would be things like that yeah i think it could be coming to enough also like if you have this window that's like at the top yeah is you can see in real time what is what you've been saying yeah being transcribed to text 100 so you like you're aware that something's going
+You can even do something like
+in the same way that other models
+like like say like siri right or gemini you can just be like um
+Like whatever, like voice tree, show me the nerd.
+and it can like isolate out that and then like drag you to
+yeah yeah be like a search
+Actually, I do wonder how much I should.
+You could have like yeah, you could just say it like right now. There's nothing happens when you
+yeah but it isn't an interesting idea like for when you say something for it to be able to do tool calls yeah just like an llm you say something and it can use the tool of like go to node oh yeah yeah yeah kind of like yeah go to node and then you can be like um run called on this yeah
+Um, so that's another layer.
+hands on the graph.
+Yeah, there'll be another layer to build.
+Which which could be pretty cool Yeah
+Potentially also, oh shit.
+Yeah, I need to fix the node position.
+broken right now that's okay um it doesn't yeah the node placement live isn't actually good it used to be better than i
+I just couldn't be bothered to fix it.
+That's why I've like sort of wanted
+Yeah, make the UI more robust.
+Cool, but, um...
+I got a little bit stuck on installing it on the computer.
+and you didn't have the right Python version.
+Yeah, it's really odd. Sorry about that.
+get it working yeah um but i think i could set up the it could work with you especially if i move to like cloud speech or text oh so it doesn't need to run on your laptop yeah um then it could um then it could work on your laptop luckily yeah and if you also have the text input yeah
+I think this is a hard book.
+a wi-fi constraint yeah
+Which it would be, Andy.
+Yeah, cool.
+Hmm.
+Yeah, I probably have, um, 30-ish minutes before I need to start packing to go to my parents. Um, any ideas?
+for it to do.
+Wait, can you run multiple?
+what do you mean oh no i guess you wouldn't really need to because it would just be making the same thing in both yeah yeah okay um no you yeah yeah one idea that's cool is like
+like if you're like in different areas of the world and you both have the same tree yeah you can still build it's still building it out yeah yeah
+Yeah, that's if cool
+Just thinking like
+Do you want a glass of water? Oh, yes, please.
+Oh, how was your, um, your meetings?
+Slash the event that you went to
+meetings they're still coming up okay okay
+some of them is 30 volts
+Yeah, right
+Mm-hmm.
+Okay, we can also try the infant elephant.
+oh yeah sure if you want on everything you've spoken
+talking about should theoretically be working
+finding it is annoying
+And it's here, infinite one.
+It's infinite alarm and then you guys, maybe you have a question or something, I don't know.
+Oh, wait, sorry, what does this do?
+so like you can ask any question about what's all the content that is here oh fuck yeah all right like what should we work on next for example
+Uh, we work on...
+I should just also that's right on.
+And there's some bug right now where it takes...
+Way too long.
+couldn't find any relevant
+oh so yes anything's broken it's annoying that's okay um
+Maybe if actually.
+yeah a little bit more specific i think it might just be
+Yeah, I think it is. Yeah.
+I just built it yesterday.
+oh yeah okay that's also a weird bug where it just disappears the terminal it's quite buggy which so it'd be nice to like move to a proper ui because this was really just like a very quick way to like get it working
+sort of started building on top of it yeah and now i need to like kind of clear all that tech debt and create an actual ui yeah yeah uh you know it's really interesting
+like if in this the chat is kind of ephemeral
+as in like you don't need that constant really long window where you're scrolling up and down it's like that constant long window is the graph or you have like a floating bar
+to type or talk into yeah yeah that's true
+Yeah, and it could just output like a node.
+Looks so neat.
+yeah pretty much that'd be cool yeah i think a lot of this like the actual like independent individual use case is very like
+Reliant. Very heavily reliant.
+Yes, definitely.
+I think I haven't really focused on the AI, I suppose. Yeah, it was always like on the back end stuff. Yeah. I don't really, not very much good of an UI engineer.
+Um...
+So I think now it's time to just sort of double down on your eye. Yeah. Yeah.
+Sure, what's your near time?
+Distribution.
+Okay, getting it into people's hands.
+Yeah, with the UI, and I think the infinite LLM thing is sketched out right now.
+No, you don't work.
+Nah, it's true.
+So it's hard work for the distribution, like to just somehow bake it in. Thank you. And...
+May still try to beat one Complex French one. Yeah. But, I think...
+Sorry, let me get into
+Yeah.
+Yeah, um...
+I think like part of it is that you just have to make the actual window.
+fast right so that it can do the
+The window. Oh, wait.
+What do you think about this?
+Yeah, you're right. It is too different.
+I think your...
+getting it getting an actual productized version of this than beating
+at the moment, which I think is fair.
+Yeah.
+Well, I don't know, like.
+I think because the advice I was getting is that like
+You know, beating the benchmark doesn't make a business.
+That's true. Like, you should use the benchmark.
+to advertise
+yeah and it's like marketing basically marketing yeah like once you have a product that people can use then you say you'd be
+yeah and then people are like oh shit there's a reason i should use this
+but if you do the benchmark first it's like it's just like the order which you do it in i still really want to beat the benchmark but i think it makes more sense to have something working first
+that people can use and then you beat the benchmark.
+yeah yeah no i think the difference though is
+where the longer term
+like are you building the product or are you building the platform for for ai integrators who want a long long context window yeah or slash like
+agent orchestration yeah i think the long-term vision is that you we're building that platform
+um and that's where a lot of the long-term value
+is that platform locks all these different capabilities yeah for you know yeah but to have like a
+yeah this way this way is the way to go to build out the just to get something that people use just to get users get some users
+couple like a hundred users you can get funding yes pretty easily i think yep um
+so I think yeah get get the users yeah and then you get funding from that and then you build towards this platform but through the product through the product yeah yeah yeah I agree with that approach it sounds like a good approach
+so then then now our first steps should be
+building a proper web interface slash UI and building a, um,
+Sorry, building a proper web interface.
+and this and like in conjunction with that so in parallel with that building the back end that does calls to
+um calls to a cloud uh model instead of
+That would take a look.
+That was okay. Easy. Yeah. I just swap out the Whisper model.
+for carbon no I mean I mean a model for like animals
+like a calling
+or Gemini, et cetera.
+in the club. You mean for the agents? Yeah, for the agents. Yeah.
+Having agents in the cloud is really hard because you need to spin up like a virtual dev environment
+Oh, no, I don't mean having...
+I just meant having agents
+Like the agent running.
+on voice tree that's spawning the
+Next morning, an optimizer.
+like just creating the graph creating graph yeah that's all in cloud that's all in cloud okay yeah yeah already oh that's already cloud already yeah oh okay then it should be fun yeah then it's just really about putting
+but so it would be cool to like so you have the website yeah and you have like the little floating window it would be cool to like from here launch some sort of like chat or agent yeah and that just runs in the browser yeah but if you try launch like these ones it's like it says just go download the app
+Oh, you got to download it and then.
+And then when you run the app.
+put your own Claude K or whatever in it, we'll do it. Yeah, yeah.
+Well, because all this does is...
+Like all it should be doing theoretically is just
+running the Claude, like, Claude just opens a terminal, and Claude is just a terminal. Yeah, yeah, yeah.
+Um.
+I'll tell you the way you can be.
+the con like near near field context
+would be interesting whoa that's what it does that's yeah
+Like you run this and it injects the context into clone. Okay. Yeah
+Including, is that including everything?
+In every mocktab file? No, only what's relevant.
+So if I pause it now.
+if you read through this it says like
+you can't see the end of it but it's just only like relevant
+Cool, it's interesting. Awesome. Yeah, okay, then it's just about building this
+doing the front to be honest
+or building the electron app essentially yeah or whatever is the new
+standard.
+cross path on maps yeah
+yeah and hopefully all the codes should be mostly
+Yeah, yeah, I think so.
+Yeah, cool, shit, alright, um...
+Yeah, my near term goal is getting.
+So I can only run this from...
+Yeah, that'd be good. How soon do you think of it?
+uh hopefully this this one next week because
+i have to go i'm going i'm like leaving the country for a month from like for india i'm awake in india in three
+um we might actually have a i don't know if you're you're probably quite busy
+Maybe we might have an extra switch.
+If you want to come to Japan for two weeks.
+It'd be tempting. Yeah, yeah. I'll tell you which...
+I think it's the second to like the 16th of when? Of November.
+yeah maybe send over a little bit of detail yeah we'll do think about it it could be cool yeah um
+Yeah, I got put in touch with one investor, VC, and I'm going to email them and say, like,
+yeah i'd love to meet um and that we're i'm releasing to my waitlist
+in the next two months so if we meet in like late november that would be
+that's we'll have some numbers yeah yeah about some traction yeah um and that gives me like a deadline which i think will be good
+Yeah, cool. It makes sense
+Hmm.
+Yeah, so what are you gonna?
+week or so.
+um in the next week um i think i'll get the infinite lm thing like somewhat robust somewhat robust okay um and i think there's a little bit of stability problems maybe in the core algorithm i don't know um so just like like that's just annoying
+cool um so just try get it a bit more stable yep um and then i'll
+probably start working on them.
+creating a new front end yeah sure yeah yeah um i'm glad to help out
+the front end part if you want yeah some planning
+a little bit of sketching for like the ride
+or ways to build
+yeah sweet yeah um tuesday wednesday thursday friday you for any of those days let me check
+uh definitely not friday
+Not Tuesday.
+it's the it's pretty busy week actually tomorrow i'm actually free
+Um, after work tomorrow.
+I need to figure it out. My mom's getting a surgery.
+Oh, shoot. So, I don't know how long she'll be in the hospital for. Is she okay? Yeah, it's fine.
+Nothing too crazy. We're wishing our good health. I'm free the weekend. Okay, we'll do weekend. And maybe tomorrow. Yeah. After work. Yeah. Possibly. Yeah.
+for some action items.
+Yeah, I think it would be great once we can get it actually running.
+Yeah, then I'm going to actually work.
+yeah um yeah
+All right, I'm gonna bring my dad in
+Get a fucking laptop. Yeah.
+yeah but sweet okay sounds good good plan done um i'm glad you got to experience it a bit today yeah it is really cool
+I do believe, like, the user-
+is definitely UI limited.
+Right now, yeah.
+yeah i think yeah ui can definitely make it a lot better and then one problem is
+that is a bit harder is it like the performance like we can make the speech to text a lot faster but like the core algorithm maybe takes like six seconds or something yeah and speeding that up can maybe shave off a couple seconds maybe but like i think
+You know, multiple LLM calls involved.
+pretty hard to get it like real time feeling which would be awesome like if
+can immediately start appearing yep um but i think that is quite hard how so
+Well because like I have like three LLM prompts
+and they need to be like sort of consecutive and they each take like a second and a half
+Okay.
+i don't know even the models need to get much faster or
+Like, I don't think there's a way to...
+Parallelize it, don't you? No.
+Interesting. Mm-hmm.
+So why was it like sometimes...
+I would speak for like a while, but then like the node would only show up quite a bit later.
+Um,
+It can be various things.
+Um.
+He maybe didn't know like it
+yeah hard to know without without having been there sometimes like if you
+like if you're talking for a long time without pausing sometimes it can accumulate and like not flush until you stop talking oh okay
+kind of like semi-intentionally like
+but like it shouldn't do that too much like that could maybe be like 15 seconds worth of lag yeah it's like
+If you're talking about any...
+even a moderate pause, because we took them quite fast.
+Right. Um, so if your text first, will that be much quicker?
+well then there's you just hit enter and immediately starts the pipeline takes yeah like you said more put five seconds like six seconds six seconds one point five
+1.5 each so like yo 1.5 to 3 depending on how
+the content is yeah um you just have a good thinking
+because sometimes that's exactly what the models have.
+like a little thing that's like essentially blinking in and out being like for the ui yeah when pipeline finishes it's like no it's spawned yeah yeah some indication of that it is processing
+it's yeah yeah because yeah and you can kind of see
+When it's listening to you, every time it spawns that new pipeline, you do get that user feedback being like,
+It's like listening, listening.
+and like it's still listening but then
+like a status of
+I didn't get any more tags.
+adding some like thinking about some new nodes
+otherwise otherwise under the hood like because that information exists
+Yeah, it's just the pipeline.
+emit a log from the pipeline. Yeah. Alert.
+Yeah, I think things like that would be important.
+Definitely. Yeah.
+yeah that sounds sick this is like really
+Just the way it currently works as well. I wonder what it's picked up from us talking about this.
+Whoa.
+hmm I wonder if we can get it by default to like be in this view
+Yeah.
+because but yeah otherwise it's not getting real really like probably more
+Yeah
+So we're like, yeah, part of it would be like auto-collapse.
+Autoclapsing, yeah, so you have less noise.
+screen. You can zoom in a second.
+think about
+100%, 100%.
+Yeah, so now it's turned into more.
+future products ideas. Hmm.
+Yeah. So like, like if we're scrolling around the ground.
+concepts on the graph we probably don't want
+If that makes sense.
+yeah it's be nice like just pause it pause it yeah have a look at what it's generated like navigate to a place of
+talk and then be like, Hey, okay, now we can be talking about this.
+Yeah, I feel like you can't take it.
+Um,
+Infinite LM...
+Algorithm stability.
+And then on this side, business.
+Benchmarks Unlocketing
+Jeez, it has gotten a little bit.
+Oh, okay, that's looking a lot nicer.
+I think it was, I think it was like still adding those nodes.
+Yeah, it's still adding things.
+Is that because it's running on?
+Would it be faster once it's on? Oh, wait, you said it's already...
+the speech detect
+Okay, the speech to text is on.
+It's like it's still adding things because for some reason it's still running somewhere
+like the process is still running. Yeah. Yeah. Some. Yeah.
+like i understand still adding things i mean like it's adding things like a while after we talk about them right yeah like always like 10 to 15 seconds
+Okay yeah that makes sense.
+Okay, proper word
+Electron.
+What was this?
+Oh, sorry.
+Thank you.
+Which tab was it? I should have clicked command W.
+But Inflate LLM
+Oh, yeah.
+Yeah, that's one also thing that is a consideration is that speech text isn't perfect.
+yeah like if you don't clear if you don't say something if you don't pronounce it well yeah um or if it's like a complicated weird niche word
+Yeah, interesting
+I feel like intuition is
+like intuitive
+Intuition is like the hardest thing to vote for.
+Like making you intuitive
+compared to like a traditional
+them obviously the rolling
+Probably a much harder problem, but...
+Making it intuitive is interestingly hard.
+Yeah, yeah, for sure.
+Cool
+All right, yeah, I have some broad idea.
+But for for those to the lights. Yeah
+maybe what we can do is just like separate out into like what oh sorry uh what specific
+Um...
+things we want to do in the next week.
+So...
+Let me move back.
+Um...
+Same.
+Hello, testing one, two.
+Oh my god, there's so much to it.
+Tell Ilan our adventure so far. That's all then.
+I'm sure I'm going to agree with it.
+I'm glad to be looking at that candlelight stuff.
+We're going to go with knowing nothing except...
+Sounds good
+I'm going to give you a little orc.
+I'm going to grip faces now.
+Thank you.
+Thank you.
+You're 10-9.
+Ah, what did you say?
+Ten sleep masks
+Really? Yeah, I dug them all up.
+So which of the two has done better?
+I think Taiwan sounds slightly more.
+We're stepping more off the beaten path.
+We'll see you next time.
+Here's another one.
+two
+three
+four
+Five, here's six.
+Sleeping masks.
+Choose the one you want.
+and
+I put everything away
+little bowl of soup there, so you have to decide what you want to do with that.
+Okay.
+Put it around.
+Taiwan may be more vegan.
+Which is the easiest to get to? I think they're both just one flight.
+The mask is now missing, the one I just bought.
+Two more of your masks.
+I have a few.
+I'll see you next time.
+All right, I'm working on Voice Tree.
+All right, I'm working on VoiceTree.
+to
+Dude.
+What is it? Make POC standalone web app.
+What is it? Make POC standalone web app.
+Um, and so to do that.
+Um, and so to do that.
+Uh...
+Um...
+We want to make a Python server for VoiceTree that allows input, which would be text.
+We want to make a Python server for VoiceTree that allows input, which would be text.
+And then we're going to create a very simple web.
+that uses a speech to text provider, which we have found already.
+Then we're going to create a very simple website that uses a speech to text provider, which we have found already.
+Um...
+Um...
+And it is called Sonyox.
+and it is called Sonyox.
+So knee yawks.
+So knee yorks.
+Um...
+Um...
+And we want to make the website with modern best practice.
+And we want to make the website with modern best practice.
+for building websites. So maybe that's React.
+for building websites so maybe that's react or something whatever the state of the art currently
+whatever the state-of-the-art currently is.
+building web apps. But the...
+building web apps. But the.
+The back end will be, I mean, sorry, the front end website will mostly be.
+The back end will be, I mean, sorry, the front end website will mostly be.
+on cyto scape.js for our graph visualization. But we don't need that yet. The first thing we want is just like a...
+on cytoscape.js for our graph visualization.
+integration with
+but we don't need that yet. The first thing we want is just like a...
+Sonyux, which actually already has, um...
+integration with
+a github example so we could just steal that and then we want it to call our back
+Sonyux, which actually already has,
+back-end api um and the back-end api
+a GitHub example so we could just steal that and then we want it to call our back end API. And the back end API
+will just allow for...
+will just allow for
+Um,
+Um...
+to be inputted into the buffer.
+to be inputted into the buffer.
+So what is that going to look like in the back end? Let's look at our back end.
+So what is that gonna look like in the back end? Let's look at our back end.
+And...
+And...

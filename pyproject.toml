@@ -15,9 +15,59 @@ pretty = true
 show_error_context = true
 show_column_numbers = true
 show_error_codes = true
+# Enable TypedDict checking
+enable_error_code = ["typeddict-item", "typeddict-unknown-key"]
+# Require TypedDict for dict with known structure
+disallow_any_unimported = true
 
 # NO EXCEPTIONS - All code must follow strict typing rules
 # No backwards compatibility - enforce single solution principle
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voicetree"
+version = "0.1.0"
+description = "Voice to structured graph system"
+requires-python = ">=3.13"
+dependencies = [
+    "setuptools",
+    "python-dotenv",
+    "pyaudio",
+    "SpeechRecognition",
+    "torch~=2.7.1",
+    "numpy==1.26.4",
+    "openai-whisper @ git+https://github.com/openai/whisper.git",
+    "faster-whisper",
+    "google~=3.0.0",
+    "nltk~=3.8.1",
+    "rake-nltk",
+    "google-generativeai",
+    "google-genai>=1.20.0",
+    "openai",
+    "rapidfuzz>=3.0.0",
+    "langgraph>=0.1.0",
+    "langchain-core>=0.1.0",
+    "typing-extensions>=4.0.0",
+    "sentence-transformers==2.7.0",
+    "chromadb>=1.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio",
+    "pytest-cov>=4.0.0",
+    "coverage[toml]>=7.0",
+]
+
+[tool.setuptools]
+packages = ["backend", "tools"]
 
 [tool.ruff.lint]
 select = [

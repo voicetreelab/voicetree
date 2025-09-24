@@ -5,11 +5,10 @@ e.g. get summareis
 """
 import logging
 from copy import deepcopy
-from typing import List
-from typing import Tuple
+from typing import Any
+from typing import Optional
 
 import nltk
-import numpy as np
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -24,22 +23,22 @@ except LookupError:
     _STOPWORDS = set(stopwords.words('english'))
 
 
-def _tokenize_query(query: str) -> set:
+def _tokenize_query(query: str) -> set[str]:
     """
     Simple keyword extraction from query using NLTK stopwords
-    
+
     Args:
         query: Search query string
-        
+
     Returns:
         Set of lowercase keywords
     """
     if not query:
         return set()
-    
+
     # Simple tokenization: lowercase and split on whitespace
     words = query.lower().split()
-    
+
     # Clean and filter tokens using NLTK stopwords
     tokens = set()
     for word in words:
@@ -47,57 +46,57 @@ def _tokenize_query(query: str) -> set:
         cleaned = word.strip('.,!?;:"\'-()[]{}')
         if cleaned and cleaned not in _STOPWORDS and len(cleaned) > 1:
             tokens.add(cleaned)
-    
+
     return tokens
 
 
-def _calculate_keyword_relevance(node: Node, query_tokens: set) -> float:
+def _calculate_keyword_relevance(node: Node, query_tokens: set[str]) -> float:
     """
     Calculate relevance score between node and query tokens
-    
+
     Args:
         node: Node to score
         query_tokens: Set of query keywords
-        
+
     Returns:
         Relevance score (higher is more relevant)
     """
     if not query_tokens:
         return 0.0
-    
+
     score = 0.0
-    
+
     # Tokenize node title and summary
     title_tokens = _tokenize_query(node.title)
     summary_tokens = _tokenize_query(node.summary)
-    
+
     # Score matches
     for token in query_tokens:
         if token in title_tokens:
             score += 3.0  # Title matches are most important
         if token in summary_tokens:
             score += 1.0  # Summary matches are secondary
-    
+
     # Normalize by query length to prevent bias
     return score / len(query_tokens) if query_tokens else 0.0
 
 
-def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> List:
+def get_most_relevant_nodes(decision_tree: Any, limit: int, query: Optional[str] = None) -> list[Node]:
     """
     Select most relevant nodes when tree exceeds limit
-    
+
     Strategy:
     1. Include root nodes (up to 25% of limit)
-    2. Include recently modified nodes (up to 50% of limit)  
+    2. Include recently modified nodes (up to 50% of limit)
     3. Fill remaining slots with:
        - If query provided: nodes matching query keywords
        - Otherwise: nodes sorted by branching factor
-    
+
     Args:
         decision_tree: DecisionTree instance
         limit: Maximum number of nodes to return
         query: Optional search query for keyword-based relevance
-        
+
     Returns:
         List of Node objects (copies to ensure read-only)
     """
@@ -107,7 +106,7 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
     # If tree has fewer nodes than limit, return all
     if len(decision_tree.tree) <= limit:
         return [deepcopy(node) for node in decision_tree.tree.values()]
-    
+
     # # Collect root nodes
     # root_nodes = []
     # for node_id, node in decision_tree.tree.items():
@@ -122,30 +121,33 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
     )
     #
     # Build selected set
-    selected = set()
-    
+    selected: set[Any] = set()
+
     # # Include root nodes (up to 12.5% of limit)
     # root_limit = min(len(root_nodes), limit // 8)
     # for i in range(root_limit):
     #     selected.add(root_nodes[i])
-    
+
     # Fill up to 3/8 slots with recent nodes
-    for node_id, node in all_nodes_by_recency:
+    for node_id, _node in all_nodes_by_recency:
         if len(selected) >= (3*limit) // 8:
             break
         selected.add(node_id)
-    
+
     # Fill remaining slots based on query
     remaining_slots = limit - len(selected)
     if remaining_slots > 0:
-            nodes_related_to_query = _get_semantically_related_nodes(decision_tree, query, remaining_slots, selected)
-            
+            if query:
+                nodes_related_to_query = _get_semantically_related_nodes(decision_tree, query, remaining_slots, selected)
+            else:
+                nodes_related_to_query = []
+
             # Add the semantically related nodes to selected set
             for node_id in nodes_related_to_query:
                 selected.add(node_id)
                 if len(selected) >= limit:
                     break
-            
+
             # Get node names for logging
             if nodes_related_to_query:
                 node_names = [decision_tree.tree[node_id].title for node_id in nodes_related_to_query if node_id in decision_tree.tree]
@@ -164,7 +166,7 @@ def get_most_relevant_nodes(decision_tree, limit: int, query: str = None) -> Lis
     return result
 
 
-def search_similar_nodes_tfidf(decision_tree, query: str, top_k: int = 10, already_selected: set = None) -> List[Tuple[int, float]]:
+def search_similar_nodes_tfidf(decision_tree: Any, query: str, top_k: int = 10, already_selected: Optional[set[Any]] = None) -> list[tuple[int, float]]:
     """
     Search for similar nodes using TF-IDF with scores.
 
@@ -228,7 +230,7 @@ def search_similar_nodes_tfidf(decision_tree, query: str, top_k: int = 10, alrea
         return []
 
 
-def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_count: int, already_selected: set) -> List[int]:
+def _get_semantically_related_nodes(decision_tree: Any, query: str, remaining_slots_count: int, already_selected: set[Any]) -> list[int]:
     """
     Find semantically related nodes using combined TF-IDF and vector search
 
@@ -278,7 +280,7 @@ def _get_semantically_related_nodes(decision_tree, query: str, remaining_slots_c
 
     # Filter to only include node IDs that exist in the tree
     result_node_ids = []
-    for node_id, score in sorted_results:
+    for node_id, _score in sorted_results:
         if node_id in decision_tree.tree:
             result_node_ids.append(node_id)
             if len(result_node_ids) >= remaining_slots_count:

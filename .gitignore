@@ -137,6 +137,7 @@ backend/text_to_graph_pipeline/agentic_workflows/core/debug_logs/*
 # Obsidian files (ignore all, except markdownTreeVault)
 **/.obsidian/*
 !markdownTreeVault/.obsidian/
+!markdownTreeVault/.obsidian/plugins/
 markdownTreeVault/.obsidian/workspace.json
 tools/state/*
 /backend/tests/unit_tests/markdownTreeVaultDefault/*

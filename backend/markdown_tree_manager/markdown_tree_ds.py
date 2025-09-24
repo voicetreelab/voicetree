@@ -2,18 +2,15 @@ import difflib
 import logging
 import re
 from datetime import datetime
-from typing import Dict
-from typing import List
+from typing import Any
 from typing import Optional
-from typing import Set
-from typing import Tuple
 
 # Import these after Node class is defined to avoid circular import issues
 from backend.markdown_tree_manager.utils import extract_summary
 from backend.markdown_tree_manager.utils import generate_filename_from_keywords
 
 
-def extract_title_from_md(node_content):
+def extract_title_from_md(node_content: str) -> str:
     title_match = re.search(r'#+(.*)', node_content, re.MULTILINE)
     title = title_match.group(1).strip() if title_match else "Untitled"
     title = title.lower()
@@ -25,20 +22,21 @@ class Node:
         self.id: int = node_id
         self.content: str = content
         self.parent_id: int | None = parent_id
-        self.children: List[int] = []
-        self.relationships: Dict[int, str] = dict()
+        self.children: list[int] = []
+        self.relationships: dict[int, str] = {}
         self.created_at: datetime = datetime.now()
         self.modified_at: datetime = datetime.now()
         self.title = name
         self.filename: str = str(node_id) + "_" + generate_filename_from_keywords(self.title)
         self.summary: str = summary
         self.num_appends: int = 0
-        self.tags: List[str] = []  # Support for multiple tags per node
+        self.tags: list[str] = []  # Support for multiple tags per node
+        self.color: Optional[str] = None  # Support for color attribute
 
 
 
 class MarkdownTree:
-    def __init__(self, output_dir: Optional[str] = None, embedding_manager=None):
+    def __init__(self, output_dir: Optional[str] = None, embedding_manager: Any = None) -> None:
         """
         Initialize MarkdownTree.
 
@@ -48,11 +46,11 @@ class MarkdownTree:
                              If None, will create real or mock based on environment.
                              Pass False to explicitly disable.
         """
-        self.tree: Dict[int, Node] = dict()
+        self.tree: dict[int, Node] = {}
         self.next_node_id: int = 1
         self.output_dir = output_dir or "markdownTreeVaultDefault"
         self._markdown_converter = None  # Will be set to TreeToMarkdownConverter when needed
-        self._pending_embedding_updates: Set[int] = set()  # Batch embedding updates
+        self._pending_embedding_updates: set[int] = set()  # Batch embedding updates
         self._embedding_batch_size = 6  # Update embeddings when we have this many pending
 
         # Dependency injection for embedding manager
@@ -65,9 +63,9 @@ class MarkdownTree:
         else:
             # Create default based on environment
             self._embedding_manager = self._create_default_embedding_manager()
-    
+
     @property
-    def markdown_converter(self):
+    def markdown_converter(self) -> Any:
         """Lazy initialization of markdown converter"""
         if self._markdown_converter is None:
             # Import here to avoid circular dependency
@@ -77,7 +75,7 @@ class MarkdownTree:
             self._markdown_converter = TreeToMarkdownConverter(self.tree)
         return self._markdown_converter
 
-    def _create_default_embedding_manager(self):
+    def _create_default_embedding_manager(self) -> Any:
         """Create default embedding manager based on environment"""
         import os
         if os.getenv('VOICETREE_TEST_MODE', '').lower() == 'true':
@@ -96,25 +94,25 @@ class MarkdownTree:
                 logging.error(f"Failed to initialize embeddings: {e}")
                 return self._create_mock_embedding_manager()  # Fallback to mock
 
-    def _create_mock_embedding_manager(self):
+    def _create_mock_embedding_manager(self) -> Any:
         """Create a mock embedding manager for tests"""
         class MockEmbeddingManager:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.enabled = True
                 self.vector_store = self
 
-            def search(self, query, top_k):
+            def search(self, query: str, top_k: int) -> list[int]:
                 return []
 
-            def update_embeddings(self, node_ids):
+            def update_embeddings(self, node_ids: list[int]) -> None:
                 pass  # No-op
 
-            def add_nodes(self, nodes):
+            def add_nodes(self, nodes: dict[int, 'Node']) -> None:
                 pass  # No-op
 
         return MockEmbeddingManager()
 
-    def _update_embeddings(self, node_ids: List[int], force: bool = False) -> None:
+    def _update_embeddings(self, node_ids: list[int], force: bool = False) -> None:
         """Queue embedding updates and batch process when threshold is reached.
 
         Args:
@@ -161,8 +159,8 @@ class MarkdownTree:
         # note, we shouldn't force flush, instead
         # functions that rely on embeddings should include the unupdated by default
         # or force flush i guess
-    
-    def _write_markdown_for_nodes(self, node_ids: List[int]) -> None:
+
+    def _write_markdown_for_nodes(self, node_ids: list[int]) -> None:
         """Write markdown files for the specified nodes"""
         if node_ids:
             try:
@@ -192,17 +190,17 @@ class MarkdownTree:
         if parent_node_id is not None:
             new_node.relationships[parent_node_id] = relationship_to_parent
             # TODO: Consider adding inverse relationship storage in parent node for easier lookups
-        
+
         # Only increment after we successfully create the node
         self.tree[new_node_id] = new_node
         if parent_node_id is not None:
             self.tree[parent_node_id].children.append(new_node_id)
 
         self.tree[new_node_id].summary = summary if summary else extract_summary(content)
-        
+
         # Increment AFTER successful creation
         self.next_node_id += 1
-        
+
         # Write markdown for the new node and its parent (if exists)
         nodes_to_update = [new_node_id]
         if parent_node_id is not None:
@@ -213,7 +211,7 @@ class MarkdownTree:
         self._update_embeddings(nodes_to_update)
 
         return new_node_id
-    
+
     def update_node(self, node_id: int, content: str, summary: str, update_embeddings: bool = True) -> None:
         """
         Replaces a node's content and summary completely.
@@ -241,22 +239,22 @@ class MarkdownTree:
         # Update embeddings only if requested (not for sync operations)
         if update_embeddings:
             self._update_embeddings([node_id])
-    
+
     def append_node_content(self, node_id: int, new_content: str, transcript: str = "") -> None:
         """
         Appends content to an existing node and automatically writes markdown.
-        
+
         Args:
             node_id: The ID of the node to append to
             new_content: The content to append
             transcript: Optional transcript history
-            
+
         Raises:
             KeyError: If the node_id doesn't exist in the tree
         """
         if node_id not in self.tree:
             raise KeyError(f"Node {node_id} not found in tree")
-            
+
         node = self.tree[node_id]
         node.content += "\n" + new_content
         node.transcript_history += transcript + "... "
@@ -272,37 +270,37 @@ class MarkdownTree:
     def get_node_id_from_name(self, name: str, similarity_threshold: float = 0.8) -> Optional[int]:
         """
         Find a node by its name using fuzzy matching.
-        
+
         Args:
             name: The name to search for
             similarity_threshold: Minimum similarity score (0.0 to 1.0)
-            
+
         Returns:
             Node ID if found, None otherwise
         """
         if not name or not self.tree:
             return None
-            
+
         # First try exact match (case-insensitive)
         for node_id, node in self.tree.items():
             if node.title.lower() == name.lower():
                 return node_id
-        
+
         # If no exact match, try fuzzy matching
         node_names = []
         node_ids = []
         for node_id, node in self.tree.items():
             node_names.append(node.title.lower())
             node_ids.append(node_id)
-        
+
         # Find closest match
         closest_matches = difflib.get_close_matches(
-            name.lower(), 
-            node_names, 
-            n=1, 
+            name.lower(),
+            node_names,
+            n=1,
             cutoff=similarity_threshold
         )
-        
+
         if closest_matches:
             # Find the ID of the matching node
             matched_name = closest_matches[0]
@@ -310,28 +308,28 @@ class MarkdownTree:
                 if node_name == matched_name:
                     logging.info(f"Found fuzzy match: '{name}' matched to '{self.tree[node_ids[i]].title}' (ID: {node_ids[i]})")
                     return node_ids[i]
-                    
+
         return None
-    
+
     def _find_similar_child(self, name: str, parent_node_id: int | None, similarity_threshold: float = 0.8) -> Optional[int]:
         """
         Check if a similar node already exists as a child of the given parent.
-        
+
         Args:
             name: The name to check for similarity
             parent_node_id: The parent node ID to check children of
             similarity_threshold: Minimum similarity score (0.0 to 1.0)
-            
+
         Returns:
             Node ID of similar child if found, None otherwise
         """
         if parent_node_id is None or parent_node_id not in self.tree:
             return None
-            
+
         parent_node = self.tree[parent_node_id]
         if not parent_node.children:
             return None
-            
+
         # Get names of all children
         child_names = []
         child_ids = []
@@ -339,36 +337,36 @@ class MarkdownTree:
             if child_id in self.tree:
                 child_names.append(self.tree[child_id].title.lower())
                 child_ids.append(child_id)
-        
+
         # Find closest match among children
         closest_matches = difflib.get_close_matches(
-            name.lower(), 
-            child_names, 
-            n=1, 
+            name.lower(),
+            child_names,
+            n=1,
             cutoff=similarity_threshold
         )
-        
+
         if closest_matches:
             # Find the ID of the matching child
             matched_name = closest_matches[0]
             for i, child_name in enumerate(child_names):
                 if child_name == matched_name:
                     return child_ids[i]
-                    
+
         return None
 
-    def get_recent_nodes(self, num_nodes=10):
+    def get_recent_nodes(self, num_nodes: int = 10) -> list[int]:
         """Returns a list of IDs of the most recently modified nodes."""
         sorted_nodes = sorted(self.tree.keys(), key=lambda k: self.tree[k].modified_at, reverse=True)
         return sorted_nodes[:num_nodes]
-    
-    def get_nodes_by_branching_factor(self, limit: Optional[int] = None) -> List[int]:
+
+    def get_nodes_by_branching_factor(self, limit: Optional[int] = None) -> list[int]:
         """
         Get node IDs sorted by number of children (descending)
-        
+
         Args:
             limit: Optional limit on number of nodes to return
-            
+
         Returns:
             List of node IDs ordered by child count (descending)
         """
@@ -377,20 +375,20 @@ class MarkdownTree:
         for node_id, node in self.tree.items():
             child_count = len(node.children)
             nodes_with_child_count.append((node_id, child_count))
-        
+
         # Sort by child count (descending)
         nodes_with_child_count.sort(key=lambda x: x[1], reverse=True)
-        
+
         # Extract just the node IDs
         result = [node_id for node_id, _ in nodes_with_child_count]
-        
+
         # Apply limit if specified
         if limit is not None:
             result = result[:limit]
-        
+
         return result
 
-    def get_parent_id(self, node_id):
+    def get_parent_id(self, node_id: int) -> Optional[int]:
         """Returns the parent ID of the given node, or None if it's the root."""
         # assumes tree invariant
         for parent_id, node in self.tree.items():
@@ -399,13 +397,13 @@ class MarkdownTree:
         return None
 
 
-    def get_neighbors(self, node_id: int, max_neighbours:int =30) -> List[Dict]:
+    def get_neighbors(self, node_id: int, max_neighbours:int =30) -> list[dict[str, Any]]:
         """
         Returns immediate neighbors (parent, siblings, children) with summaries.
-        
+
         Args:
             node_id: The ID of the node to get neighbors for
-            
+
         Returns:
             List of dictionaries with structure:
             {"id": int, "name": str, "summary": str, "relationship": str}
@@ -413,20 +411,20 @@ class MarkdownTree:
         """
         if node_id not in self.tree:
             raise KeyError(f"Node {node_id} not found in tree")
-            
+
         neighbors = []
         node = self.tree[node_id]
-        
+
         # Get parent
         if node.parent_id is not None and node.parent_id in self.tree:
             parent_node = self.tree[node.parent_id]
-            neighbors.append(dict(
-                id=node.parent_id,
-                name=parent_node.title,
-                summary=parent_node.summary,
-                relationship=node.relationships[node.parent_id] # todo, specify in text relationship from CHILD to PARENT
-            ))
-            
+            neighbors.append({
+                "id": node.parent_id,
+                "name": parent_node.title,
+                "summary": parent_node.summary,
+                "relationship": node.relationships[node.parent_id] # todo, specify in text relationship from CHILD to PARENT
+            })
+
             # TODO: Sibling functionality commented out - unsure whether we want to return siblings yet
             # # Get siblings (other children of the same parent)
             # for sibling_id in parent_node.children:
@@ -438,24 +436,24 @@ class MarkdownTree:
             #             "summary": sibling_node.summary,
             #             "relationship": "sibling"
             #         })
-        
+
         # Get children
         for child_id in node.children:
             if len(neighbors) >= max_neighbours:
                 break
             if child_id in self.tree:
                 child_node = self.tree[child_id]
-                neighbors.append(dict(
-                    id=child_id,
-                    name=child_node.title,
-                    summary=child_node.summary,
-                    relationship=child_node.relationships[node_id]
+                neighbors.append({
+                    "id": child_id,
+                    "name": child_node.title,
+                    "summary": child_node.summary,
+                    "relationship": child_node.relationships[node_id]
                     # todo, specify in text relationship from PARENT to CHILD
-                ))
-        
+                })
+
         return neighbors
 
-    def search_similar_nodes(self, query: str, top_k: int = 10) -> List[int]:
+    def search_similar_nodes(self, query: str, top_k: int = 10) -> list[int]:
         """
         Search for similar nodes using embeddings.
 
@@ -476,7 +474,7 @@ class MarkdownTree:
                 logging.error(f"Search failed: {e}")
         return []
 
-    def search_similar_nodes_vector(self, query: str, top_k: int = 10) -> List[Tuple[int, float]]:
+    def search_similar_nodes_vector(self, query: str, top_k: int = 10) -> list[tuple[int, float]]:
         """
         Search for similar nodes using vector embeddings with scores.
 

@@ -1,36 +1,32 @@
 ## Project Overview
 
-VoiceTree is a system which converts text streams to "abstraction graphs". An abstraction graph is a collection of markdown notes, connected to each other via markdown links. Each note represents an abstraction/concept present in the text.
-
-Text stream means we build the tree progressively, chunk by chunk. This allows for the following use case:
-
-VoiceTree live, (aka Voice *to* Tree) is a Python backend system that converts voice input into structured graphs using an LLM agentic pipeline. The system transcribes audio, processes it through agentic workflows, and outputs interconnected markdown files representing ideas as a visual tree.
+VoiceTree is a system which does online text streams to "abstraction graphs" conversion. An abstraction graph (or concept graph) is a collection of markdown notes, connected to each other via markdown links. Each note represents an abstraction/concept present in the text.
 
 Key files:
 
-- Driver for taking a full chunk of text, getting the resulting tree node actions (create, append, update), and executing them. /Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/chunk_processing_pipeline/tree_action_decider_workflow.py
+- Driver for taking a full chunk of text, getting the resulting tree node actions (create, append, update), and executing them: backend/text_to_graph_pipeline/chunk_processing_pipeline/tree_action_decider_workflow.py
 - Agents: backend/text_to_graph_pipeline/agentic_workflows/agents
-- Prompts for agents: backend/text_to_graph_pipeline/agentic_workflows/prompts
-- Tree data structure and functions: backend/text_to_graph_pipeline/tree_manager
-- other core modules for text to graph pipeline: /Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline
-
-Use serena symbol tools to find the exactly relevant method for your task.
+  - Prompts for agents: backend/text_to_graph_pipeline/agentic_workflows/prompts
+- Tree data structure and functions: backend/markdown_tree_manager
 
 ## Essential Commands
 
+# Install dependencies 
+uv sync
+
 # Run unit tests
-pytest backend/tests/unit_tests
+uv run pytest backend/tests/unit_tests
 
 # Run integration tests
-pytest backend/tests/integration_tests/
+uv run pytest backend/tests/integration_tests/
 
 # Run benchmarker for quality testing
-python backend/benchmarker/src/quality_LLM_benchmarker.py
-
+uv run python backend/benchmarker/src/quality_LLM_benchmarker.py
 
 General Tips:
 
 use ripgrep for finding files, it is much faster than grep:
+
 
 
 For detailed architecture information, see the "Current Architecture" section in README-dev.md.

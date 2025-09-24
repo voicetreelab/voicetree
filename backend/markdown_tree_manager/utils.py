@@ -1,32 +1,30 @@
 import re
 from typing import Any
-from typing import Dict
-from typing import List
 
 # Node import moved inside functions to avoid circular imports
 
 
-def extract_summary(node_content):
+def extract_summary(node_content: str) -> str:
     """
     Extract summary from node content with improved fallback logic
     """
     if not node_content or not node_content.strip():
         return "Empty content"
-    
+
     # Try to find text in between **text**
     summary_re = re.search(r'\*\*(.+?)\*\*', node_content, re.DOTALL)
     if summary_re:
         summary = summary_re.group(1).strip()
         if summary and len(summary) > 3:  # Ensure it's meaningful
             return summary
-    
+
     # Try to find markdown headers (##+ title)
     header_re = re.search(r'^#+\s*(.+)', node_content, re.MULTILINE)
     if header_re:
         summary = header_re.group(1).strip()
         if summary and len(summary) > 3:
             return summary
-    
+
     # Try to find the first meaningful sentence
     lines = node_content.strip().split('\n')
     for line in lines:
@@ -41,17 +39,17 @@ def extract_summary(node_content):
                 return line
             else:
                 return line[:60].strip() + "..."
-    
+
     # Final fallback - use first non-empty line
     for line in lines:
         line = line.strip()
         if line and not line.startswith('#') and not line.startswith('-'):
             return line[:50].strip() + ("..." if len(line) > 50 else "")
-    
+
     return "Content summary unavailable"
 
 
-def deduplicate_content(content):
+def deduplicate_content(content: str) -> str:
     """
     Remove duplicate sentences and clean up content
 
@@ -90,7 +88,7 @@ def deduplicate_content(content):
     return result
 
 
-def extract_complete_sentences(text_chunk) -> str:
+def extract_complete_sentences(text_chunk: str) -> str:
     """
     Extracts complete sentences from the text buffer, leaving any incomplete
     sentence in the buffer.
@@ -113,11 +111,11 @@ def extract_complete_sentences(text_chunk) -> str:
                 if matches:
                     return ''.join(matches).strip()
         return ""
-    
+
     # For regular case, find all complete sentences
     # This regex captures text ending with . ! or ? (but not ...)
     matches = re.findall(r'[^.!?]*[.!?](?![.])', text_chunk)
-    
+
     if matches:
         return ''.join(matches).strip()
     else:
@@ -132,44 +130,44 @@ def extract_complete_sentences(text_chunk) -> str:
 
 # return text_to_process
 
-def remove_first_word(sentence):
+def remove_first_word(sentence: str) -> str:
     if sentence:
         sentence = sentence.split(' ', 1)[1]
     return sentence
 
 
-def insert_yaml_frontmatter(key_value_pairs: Dict[str, Any]) -> str:
+def insert_yaml_frontmatter(key_value_pairs: dict[str, Any]) -> str:
     """
     Generate YAML frontmatter from a dictionary of key-value pairs.
     Properly handles special characters by using YAML serialization.
-    
+
     Args:
         key_value_pairs: Dictionary containing the frontmatter keys and values
-        
+
     Returns:
         Formatted YAML frontmatter string with opening and closing delimiters
-        
+
     Example:
         >>> insert_yaml_frontmatter({"title": "My Node", "tags": ["important", "todo"]})
         '---\\ntitle: My Node\\ntags:\\n  - important\\n  - todo\\n---\\n'
     """
     if not key_value_pairs:
         return ""
-    
+
     import yaml
-    
+
     # Sanitize keys and values to handle special characters
-    sanitized_pairs = dict()
+    sanitized_pairs = {}
     for key, value in key_value_pairs.items():
         # Sanitize the key (remove problematic characters for YAML keys)
         clean_key = _sanitize_yaml_key(key)
-        
+
         # Keep the value as-is, YAML serialization will handle special characters
         sanitized_pairs[clean_key] = value
-    
+
     # Use YAML dump to properly serialize the data
     yaml_content = yaml.dump(sanitized_pairs, default_flow_style=False, allow_unicode=True)
-    
+
     # Format as frontmatter with delimiters
     return f"---\n{yaml_content}---\n"
 
@@ -177,34 +175,34 @@ def insert_yaml_frontmatter(key_value_pairs: Dict[str, Any]) -> str:
 def _sanitize_yaml_key(key: str) -> str:
     """
     Sanitize YAML keys by removing or replacing problematic characters.
-    
+
     Args:
         key: The original key string
-        
+
     Returns:
         Sanitized key safe for YAML
     """
     # Remove or replace characters that can break YAML keys
     # Keep alphanumeric, underscore, hyphen
     import re
-    
+
     # Replace problematic characters with underscores
     sanitized = re.sub(r'[^\w\-]', '_', key)
-    
+
     # Remove consecutive underscores
     sanitized = re.sub(r'_+', '_', sanitized)
-    
+
     # Remove leading/trailing underscores
     sanitized = sanitized.strip('_')
-    
+
     # If empty after sanitization, provide a default
     if not sanitized:
         sanitized = 'key'
-    
+
     return sanitized
 
 
-def get_node_summaries(decision_tree, max_nodes) -> str:
+def get_node_summaries(decision_tree: Any, max_nodes: int) -> str:
     """
     Get node summaries from decision tree
 
@@ -225,7 +223,7 @@ def get_node_summaries(decision_tree, max_nodes) -> str:
     return "\n".join(node_summaries) if node_summaries else "No existing nodes yet"
 
 
-def map_titles_to_node_ids(titles: List[str], nodes: List, fuzzy_match: bool = True) -> List[int]:
+def map_titles_to_node_ids(titles: list[str], nodes: list[Any], fuzzy_match: bool = True) -> list[int]:
     """Map node titles to their IDs, with optional fuzzy matching
 
     Args:
@@ -257,7 +255,7 @@ def map_titles_to_node_ids(titles: List[str], nodes: List, fuzzy_match: bool = T
     return node_ids
 
 
-def generate_filename_from_keywords(node_title, max_keywords=3):
+def generate_filename_from_keywords(node_title: str, max_keywords: int = 3) -> str:
     """Generate a filename from node title by cleaning and formatting it.
 
     Args:
@@ -290,7 +288,7 @@ def generate_filename_from_keywords(node_title, max_keywords=3):
     return file_name + ".md"
 
 
-def slugify(text):
+def slugify(text: str) -> str:
     """Converts text to a valid filename."""
     import re
     text = text.lower()

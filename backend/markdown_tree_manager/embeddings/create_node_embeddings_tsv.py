@@ -10,62 +10,71 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Any
+from typing import cast
 
 import google.generativeai as genai
 import numpy as np
+from numpy.typing import NDArray
 
 # Add backend to path for imports
 sys.path.append(str(Path(__file__).parent))
 
-from markdown_to_tree.node_loader import load_node
+# Handle import paths for node_loader
+try:
+    from markdown_to_tree.node_loader import load_node
+except ImportError:
+    from backend.markdown_tree_manager.markdown_to_tree.node_loader import load_node
+
+from backend.types import GeminiEmbeddingResult, NodeData
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def load_all_nodes(markdown_dir: Path) -> Dict:
+def load_all_nodes(markdown_dir: Path) -> dict[Any, Any]:
     """
     Load all markdown nodes from a directory.
-    
+
     Args:
         markdown_dir: Path to directory containing markdown files
-        
+
     Returns:
         Dictionary of node_id -> node data
     """
     nodes = {}
     md_files = list(markdown_dir.glob("*.md"))
-    
+
     logger.info(f"Found {len(md_files)} markdown files in {markdown_dir}")
-    
+
     for filepath in md_files:
         try:
             node_data = load_node(filepath.name, markdown_dir)
-            if node_data and node_data['node_id']:
+            node_data_typed = cast(NodeData, node_data)
+            if node_data and node_data_typed['node_id']:
                 # Create a simple node object with required attributes
                 class SimpleNode:
-                    def __init__(self, data):
+                    def __init__(self, data: NodeData) -> None:
                         self.title = data['title']
                         self.summary = data['summary']
                         self.content = data['content']
                         self.filename = data['filename']
                         self.node_id = data['node_id']
-                
-                nodes[node_data['node_id']] = SimpleNode(node_data)
+
+                nodes[node_data_typed['node_id']] = SimpleNode(node_data_typed)
         except Exception as e:
             logger.error(f"Failed to load {filepath.name}: {e}")
-    
+
     logger.info(f"Successfully loaded {len(nodes)} nodes")
     return nodes
 
-def generate_embeddings(nodes: Dict) -> Dict[str, np.ndarray]:
+def generate_embeddings(nodes: dict[Any, Any]) -> dict[str, NDArray[Any]]:
     """
     Generate embeddings for all nodes using Gemini API.
-    
+
     Args:
         nodes: Dictionary of node_id -> node objects
-        
+
     Returns:
         Dictionary of node_id -> embedding vector
     """
@@ -74,9 +83,9 @@ def generate_embeddings(nodes: Dict) -> Dict[str, np.ndarray]:
     if not api_key:
         raise ValueError("GEMINI_API_KEY environment variable not set")
     genai.configure(api_key=api_key)
-    
+
     embeddings = {}
-    
+
     for node_id, node in nodes.items():
         try:
             # Combine title, summary, and content snippet for embedding
@@ -87,9 +96,9 @@ def generate_embeddings(nodes: Dict) -> Dict[str, np.ndarray]:
                 text_parts.extend([node.summary] * 2)  # Weight summary 2x
             if node.content:
                 text_parts.append(node.content[:500])  # First 500 chars of content
-            
+
             combined_text = " ".join(text_parts)
-            
+
             if combined_text.strip():
                 # Generate embedding using Gemini
                 result = genai.embed_content(
@@ -98,34 +107,35 @@ def generate_embeddings(nodes: Dict) -> Dict[str, np.ndarray]:
                     task_type="retrieval_document",
                     title=f"Node {node_id}"
                 )
-                embeddings[node_id] = np.array(result['embedding'])
+                result_typed = cast(GeminiEmbeddingResult, result)
+                embeddings[node_id] = np.array(result_typed['embedding'])
                 logger.info(f"Generated embedding for node {node_id}")
         except Exception as e:
             logger.error(f"Failed to generate embedding for node {node_id}: {e}")
-    
+
     logger.info(f"Generated {len(embeddings)} embeddings")
     return embeddings
 
-def save_to_tsv(embeddings: Dict[str, np.ndarray], nodes: Dict, output_dir: Path):
+def save_to_tsv(embeddings: dict[str, NDArray[Any]], nodes: dict[Any, Any], output_dir: Path) -> None:
     """
     Save embeddings to TSV format for TensorFlow Projector.
     Creates two files:
     - vectors.tsv: The embedding vectors (tab-separated values)
     - metadata.tsv: Labels and metadata for each vector
-    
+
     Args:
         embeddings: Dictionary of node_id -> embedding vector
         nodes: Dictionary of node_id -> node objects
         output_dir: Directory to save TSV files
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     vectors_file = output_dir / "vectors.tsv"
     metadata_file = output_dir / "metadata.tsv"
-    
+
     # Sort node IDs for consistent ordering
     sorted_node_ids = sorted(embeddings.keys())
-    
+
     # Write vectors file
     with open(vectors_file, 'w') as f:
         for node_id in sorted_node_ids:
@@ -133,14 +143,14 @@ def save_to_tsv(embeddings: Dict[str, np.ndarray], nodes: Dict, output_dir: Path
             # Write each dimension separated by tabs
             vector_str = '\t'.join(str(val) for val in vector)
             f.write(vector_str + '\n')
-    
+
     logger.info(f"Saved vectors to {vectors_file}")
-    
+
     # Write metadata file
     with open(metadata_file, 'w') as f:
         # Write header
         f.write("node_id\ttitle\tsummary_snippet\tfilename\n")
-        
+
         for node_id in sorted_node_ids:
             node = nodes.get(node_id)
             if node:
@@ -148,11 +158,11 @@ def save_to_tsv(embeddings: Dict[str, np.ndarray], nodes: Dict, output_dir: Path
                 title = (node.title or "").replace('\t', ' ').replace('\n', ' ')[:100]
                 summary = (node.summary or "").replace('\t', ' ').replace('\n', ' ')[:200]
                 filename = node.filename
-                
+
                 f.write(f"{node_id}\t{title}\t{summary}\t{filename}\n")
-    
+
     logger.info(f"Saved metadata to {metadata_file}")
-    
+
     # Also create a simple labels file with just titles
     labels_file = output_dir / "labels.tsv"
     with open(labels_file, 'w') as f:
@@ -161,38 +171,38 @@ def save_to_tsv(embeddings: Dict[str, np.ndarray], nodes: Dict, output_dir: Path
             if node:
                 title = (node.title or f"Node {node_id}").replace('\t', ' ').replace('\n', ' ')[:100]
                 f.write(f"{title}\n")
-    
+
     logger.info(f"Saved labels to {labels_file}")
 
-def main():
+def main() -> None:
     # Set up paths
     markdown_dir = Path("backend/benchmarker/output/user_guide_qa_audio_processing_connected_final")
     output_dir = Path("backend/embeddings_output")
-    
+
     if not markdown_dir.exists():
         logger.error(f"Markdown directory not found: {markdown_dir}")
         sys.exit(1)
-    
+
     # Load all nodes
     logger.info("Loading nodes from markdown files...")
     nodes = load_all_nodes(markdown_dir)
-    
+
     if not nodes:
         logger.error("No nodes loaded")
         sys.exit(1)
-    
+
     # Generate embeddings
     logger.info("Generating embeddings...")
     embeddings = generate_embeddings(nodes)
-    
+
     if not embeddings:
         logger.error("No embeddings generated")
         sys.exit(1)
-    
+
     # Save to TSV format
     logger.info("Saving embeddings to TSV format...")
     save_to_tsv(embeddings, nodes, output_dir)
-    
+
     print(f"\n✅ Successfully created embeddings for {len(embeddings)} nodes")
     print(f"📁 Output files saved to: {output_dir.absolute()}")
     print("\nTo visualize in TensorFlow Projector:")

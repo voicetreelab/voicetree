@@ -4,12 +4,10 @@ Behavioral test for retrieve_context.py end-to-end flow.
 Tests the complete pipeline from markdown loading to context output.
 """
 
-import os
+import subprocess
 import sys
 import tempfile
-import shutil
 from pathlib import Path
-import subprocess
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))

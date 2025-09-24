@@ -13,12 +13,12 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
-from typing import Dict
 from typing import Optional
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.context_retrieval.content_filtering import ContentLevel
+from backend.types import NodeList
 from backend.context_retrieval.dependency_traversal import TraversalOptions
 from backend.context_retrieval.dependency_traversal import accumulate_content
 from backend.context_retrieval.dependency_traversal import traverse_to_node
@@ -28,7 +28,7 @@ from backend.markdown_tree_manager.graph_search.vector_search import (
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
-def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None) -> Dict[str, Any]:
+def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None) -> NodeList:
     """
     Traverse relevant nodes found via vector search based on query and tree.
 
@@ -78,16 +78,16 @@ def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Op
                 if markdown_dir is None and hasattr(node, 'filepath'):
                     node_path = Path(node.filepath)
                     markdown_dir = node_path.parent
-    
+
     if not relevant_nodes:
         print("⚠️ No relevant nodes found via vector search")
         return {}
-    
+
     # Ensure we have a markdown directory
     if markdown_dir is None:
         print("⚠️ Could not determine markdown directory from tree")
         return {}
-    
+
     # Collect all traversed nodes with their content
     all_traversed_nodes = []
 
@@ -112,9 +112,9 @@ def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Op
             node['search_similarity'] = similarity
 
         all_traversed_nodes.extend(nodes)
-    
+
     print(f"Search complete. Found and traversed {len(all_traversed_nodes)} total nodes.")
-    
+
     return all_traversed_nodes
 
 def main():
@@ -159,7 +159,6 @@ def main():
         print(f"Successfully loaded {len(markdown_tree.tree)} nodes from markdown files")
 
         # Map node IDs to actual filenames by checking the markdown directory
-        import os
         md_files = {f: f for f in os.listdir(markdown_dir) if f.endswith('.md')}
 
         # Also ensure each node has its filename attribute
@@ -185,18 +184,18 @@ def main():
         # Now passing the MarkdownTree object instead of dictionary
         # Use top_k=15 to ensure we get nodes like 113 which has child 116
         results = traverse_all_relevant_nodes(query, markdown_tree, markdown_dir, top_k=15, embeddings_path=embeddings_path)
-        
+
         print(f"\nTraversal complete. Found content for {len(results)} nodes.")
-        
+
         # Convert the results to text using accumulate_content
         if results:
             print("\n" + "="*80)
             print("ACCUMULATED CONTEXT")
             print("="*80 + "\n")
-            
+
             accumulated_text = accumulate_content(results, include_metadata=True)
             print(accumulated_text)
-            
+
             # Optionally save to file
             output_file = Path("context_output.txt")
             with open(output_file, 'w') as f:
@@ -205,11 +204,11 @@ def main():
                 f.write("="*80 + "\n\n")
                 f.write(accumulated_text)
             print(f"\n\nContext also saved to: {output_file}")
-        
+
     except Exception as e:
         print(f"Error loading tree or performing traversal: {e}")
         import traceback
         traceback.print_exc()
-    
+
 if __name__ == "__main__":
     main()

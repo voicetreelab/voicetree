@@ -70,6 +70,6 @@
 #         # Write theme colors back to markdown files if requested
 #         if write_colors:
 #             node_color_assignments = write_theme_colors_to_markdown(result, input_forest_path)
-#             result["color_assignments"] = node_color_assignments
+#             result.update({"color_assignments": node_color_assignments})
 #
 #         return result

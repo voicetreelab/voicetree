@@ -45,7 +45,7 @@ TreeActionDeciderAgent = TreeActionDecider
 
 class TestTreeActionDeciderAgent:
     """Integration tests for the complete two-step pipeline orchestrator"""
-    
+
     @pytest.fixture(autouse=True)
     def patch_llm_integration(self):
         """Patch LLM integration to handle array format from updated prompt"""
@@ -73,26 +73,26 @@ class TestTreeActionDeciderAgent:
                         from backend.text_to_graph_pipeline.agentic_workflows.models import (
                             TargetNodeResponse,
                         )
-                        
+
                         client = _get_client()
                         model_name = model_name or CONFIG.DEFAULT_MODEL
-                        
+
                         config: GenerateContentConfigDict = {
                             'response_mime_type': 'application/json',
                             'temperature': CONFIG.TEMPERATURE
                         }
-                        
+
                         response = client.models.generate_content(
                             model=model_name,
                             contents=prompt,
                             config=config
                         )
-                        
+
                         try:
                             parsed_data = parse_json_markdown(response.text)
                         except Exception:
                             parsed_data = json.loads(response.text)
-                        
+
                         # Convert array format to TargetNodeResponse format
                         if isinstance(parsed_data, list):
                             target_nodes = [TargetNodeIdentification.model_validate(item) for item in parsed_data]
@@ -106,19 +106,19 @@ class TestTreeActionDeciderAgent:
                     else:
                         raise e
             return wrapper
-        
+
         from backend.text_to_graph_pipeline.agentic_workflows.core import (
             llm_integration,
         )
         original_call = llm_integration.call_llm_structured
         with patch.object(llm_integration, 'call_llm_structured', format_conversion_wrapper(original_call)):
             yield
-    
+
     @pytest.fixture
     def agent(self):
         """Create TreeActionDeciderAgent instance"""
         return TreeActionDeciderAgent()
-    
+
     @pytest.fixture
     def simple_tree(self):
         """Create a simple tree with one node about database design"""
@@ -131,12 +131,12 @@ class TestTreeActionDeciderAgent:
         )
         tree.tree[1] = node
         return tree
-    
+
     @pytest.fixture
     def multi_node_tree(self):
         """Create a tree with multiple nodes for testing"""
         tree = MarkdownTree()
-        
+
         # Root node about architecture
         arch_node = Node(
             name="System Architecture",
@@ -145,7 +145,7 @@ class TestTreeActionDeciderAgent:
             summary="Overall system design patterns"
         )
         tree.tree[1] = arch_node
-        
+
         # Child node about API design
         api_node = Node(
             name="API Design",
@@ -157,7 +157,7 @@ class TestTreeActionDeciderAgent:
         api_node.relationships[1] = "is an implementation detail of"
         tree.tree[2] = api_node
         arch_node.children.append(2)
-        
+
         # Sibling node about database
         db_node = Node(
             name="Database Layer",
@@ -169,14 +169,14 @@ class TestTreeActionDeciderAgent:
         db_node.relationships[1] = "is a component of"
         tree.tree[3] = db_node
         arch_node.children.append(3)
-        
+
         return tree
-    
+
     @pytest.mark.asyncio
     async def test_full_pipeline_flow(self, agent, multi_node_tree):
         """
         Test Case 1: Complete two-step pipeline with multiple segments
-        
+
         This test verifies:
         - Text gets segmented and placed correctly (some APPEND, some CREATE)
         - Modified nodes are optimized if needed
@@ -184,28 +184,28 @@ class TestTreeActionDeciderAgent:
         """
         # Input text with multiple ideas - some relate to existing nodes, some are new
         transcript_text = """
-        For the database layer, we need to add proper indexing on the users table 
+        For the database layer, we need to add proper indexing on the users table
         for performance optimization. Also, let's implement connection pooling.
-        
+
         We should also set up a new monitoring system using Prometheus and Grafana
         to track our system metrics and create alerts for downtime.
         """
-        
+
         # Run the full pipeline
         result = await agent.run(
             transcript_text=transcript_text,
             decision_tree=multi_node_tree,
             transcript_history=""
         )
-        
+
         # Verify we get optimization actions back
         assert isinstance(result, list)
         assert all(isinstance(action, (UpdateAction, CreateAction)) for action in result)
-        
+
         # We expect at least some actions since we're adding content
         # The exact number depends on LLM decisions, but there should be some
         assert len(result) > 0, "Pipeline should produce some optimization actions"
-        
+
         # Check that actions have valid structure
         for action in result:
             if isinstance(action, UpdateAction):
@@ -217,29 +217,29 @@ class TestTreeActionDeciderAgent:
                 assert hasattr(action, 'new_node_name')
                 assert hasattr(action, 'content')
                 assert hasattr(action, 'summary')
-    
+
     @pytest.mark.asyncio
     async def test_no_optimization_needed(self, agent):
         """
         Test Case 2: Simple content handles optimization appropriately
-        
+
         This test verifies:
         - Simple, well-structured content is processed correctly
         - May trigger optimization if the improved prompt identifies enhancements
         """
         # Start with empty tree
         tree = MarkdownTree()
-        
+
         # Simple, atomic content
         transcript_text = "Let's create a simple todo list application."
-        
+
         # Run the pipeline
         result = await agent.run(
             transcript_text=transcript_text,
             decision_tree=tree,
             transcript_history=""
         )
-        
+
         # Should handle the content appropriately - may optimize if beneficial
         assert isinstance(result, list)
         # If optimization occurs, it should be valid actions (UPDATE, CREATE, or APPEND)
@@ -258,12 +258,12 @@ class TestTreeActionDeciderAgent:
             for action in result:
                 if isinstance(action, UpdateAction):
                     assert action.node_id > 0
-    
+
     @pytest.mark.asyncio
     async def test_append_triggers_optimization(self, agent, simple_tree):
         """
         Test Case 3: Appending content that makes node too complex
-        
+
         This test verifies:
         - Appending substantial content triggers optimization
         - Node gets split or reorganized when it becomes overloaded
@@ -274,26 +274,26 @@ class TestTreeActionDeciderAgent:
         product catalog schema, order processing tables, and also set up
         the analytics data warehouse with proper ETL pipelines.
         """
-        
+
         result = await agent.run(
             transcript_text=transcript_text,
             decision_tree=simple_tree,
             transcript_history=""
         )
-        
+
         # This complex addition should trigger optimization
         assert isinstance(result, list)
         assert len(result) > 0, "Complex append should trigger optimization"
-        
+
         # Check for either UPDATE or CREATE actions from optimization
         action_types = [type(action).__name__ for action in result]
         assert any(t in ['UpdateAction', 'CreateAction'] for t in action_types)
-    
-    @pytest.mark.asyncio 
+
+    @pytest.mark.asyncio
     async def test_mixed_content_handling(self, agent, multi_node_tree):
         """
         Test Case 4: Mixed content with clear append and create targets
-        
+
         This test verifies:
         - Some content appends to existing nodes
         - Some content creates new nodes
@@ -301,20 +301,20 @@ class TestTreeActionDeciderAgent:
         """
         transcript_text = """
         Update our API design to use GraphQL instead of REST for better flexibility.
-        
+
         We also need to set up continuous integration using GitHub Actions
         with automated testing and deployment pipelines.
         """
-        
+
         result = await agent.run(
             transcript_text=transcript_text,
             decision_tree=multi_node_tree,
             transcript_history=""
         )
-        
+
         # Should have some actions from optimization
         assert isinstance(result, list)
-        
+
         # Verify action structure
         for action in result:
             assert isinstance(action, (UpdateAction, CreateAction))

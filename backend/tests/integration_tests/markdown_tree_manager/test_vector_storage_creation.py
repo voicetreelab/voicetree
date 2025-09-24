@@ -9,9 +9,6 @@ from pathlib import Path
 
 import pytest
 
-from backend.markdown_tree_manager.embeddings.chromadb_vector_store import (
-    ChromaDBVectorStore,
-)
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
@@ -28,14 +25,14 @@ class TestVectorStorageCreation:
             assert tree._embedding_manager is not None
 
             # Create test nodes
-            node1 = tree.create_new_node(
+            tree.create_new_node(
                 "Test Node 1",
                 None,
                 "Test content for node 1",
                 "Test summary 1"
             )
 
-            node2 = tree.create_new_node(
+            tree.create_new_node(
                 "Test Node 2",
                 None,
                 "Test content for node 2",
@@ -78,14 +75,14 @@ class TestVectorStorageCreation:
                     "Programming language overview"
                 )
 
-                node2 = tree.create_new_node(
+                tree.create_new_node(
                     "Machine Learning",
                     None,
                     "Machine learning algorithms enable computers to learn from data",
                     "ML introduction"
                 )
 
-                node3 = tree.create_new_node(
+                tree.create_new_node(
                     "Cooking Recipes",
                     None,
                     "Collection of delicious recipes for home cooking",
@@ -123,11 +120,9 @@ class TestVectorStorageCreation:
 
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
-                chromadb_path = Path(temp_dir) / "test_chromadb_data"
-
                 # First session: create tree and add nodes
                 tree1 = MarkdownTree(output_dir=temp_dir)
-                node1 = tree1.create_new_node(
+                tree1.create_new_node(
                     "Data Science",
                     None,
                     "Data science combines statistics, programming, and domain expertise",
@@ -168,7 +163,7 @@ class TestVectorStorageCreation:
             tree = MarkdownTree(output_dir=str(vault_dir))
 
             # Create a node
-            node = tree.create_new_node(
+            tree.create_new_node(
                 "Test Node",
                 None,
                 "Test content for vector storage verification",

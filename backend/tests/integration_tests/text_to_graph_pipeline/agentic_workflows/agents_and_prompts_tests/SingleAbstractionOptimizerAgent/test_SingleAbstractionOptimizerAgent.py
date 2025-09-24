@@ -3,19 +3,19 @@ Test some example inputs & outputs,
 
 e.g. TEST CASE 1: a cluttered node
 
-a current 
-  bloated node = (A,B,C,D), where the actual 
+a current
+  bloated node = (A,B,C,D), where the actual
   true optimal structure is A->B, A-> C, B->D
 
   (b is a child of a, c is a child of a, d is a
    child of b)
 
-  we want to keep A, and have the following 
+  we want to keep A, and have the following
   create actions: create(target=A, newNode(B)),
-   create(target=A, newNode(C)), 
+   create(target=A, newNode(C)),
   create(target=B, newNode(D)).
 
-  
+
 TEST CASE 2: a node which should ideally stay as a single node
 cohesive node (A1,A2,A3)
 
@@ -56,5 +56,5 @@ class TestSingleAbstractionOptimizerAgent:
     # Behavior: A node is cohesive, but its name/summary is poor or its content is disorganized.
     # Setup:
     # - Input Node: {id: 10, name: "Stuff", content:...
-    
-    pass  # Test outline only - actual tests to be implemented 
+
+    pass  # Test outline only - actual tests to be implemented

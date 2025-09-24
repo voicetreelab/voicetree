@@ -66,8 +66,9 @@
 #         result = await app.ainvoke(initial_state)
 #
 #         # Extract clustering response
-#         if result and result.get("clustering_response"):
-#             return result["clustering_response"]
+#         clustering_response = result.get("clustering_response") if result else None
+#         if clustering_response:
+#             return clustering_response
 #
 #         # Fallback empty response
 #         return TagResponse(tags=[])

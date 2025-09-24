@@ -8,10 +8,7 @@ import logging
 from dataclasses import dataclass
 from itertools import groupby
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Set
 
 from termcolor import colored
 
@@ -23,12 +20,13 @@ from backend.markdown_tree_manager.graph_search.tree_functions import (
 )
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
-
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
 from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import (
     AppendToRelevantNodeAgent,
 )
-from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import ConnectOrphansAgent
+from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
+    ConnectOrphansAgent,
+)
 from backend.text_to_graph_pipeline.agentic_workflows.agents.single_abstraction_optimizer_agent import (
     SingleAbstractionOptimizerAgent,
 )
@@ -37,18 +35,20 @@ from backend.text_to_graph_pipeline.agentic_workflows.models import AppendAgentR
 from backend.text_to_graph_pipeline.agentic_workflows.models import BaseTreeAction
 from backend.text_to_graph_pipeline.agentic_workflows.models import CreateAction
 from backend.text_to_graph_pipeline.agentic_workflows.models import UpdateAction
+from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import (
+    TreeActionApplier,
+)
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
-from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions import TreeActionApplier
 
 
 @dataclass
 class WorkflowResult:
     """Result from workflow execution"""
     success: bool
-    new_nodes: List[str]
-    tree_actions: List[BaseTreeAction]
+    new_nodes: list[str]
+    tree_actions: list[BaseTreeAction]
     error_message: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 async def log_tree_actions(append_or_create_actions):
@@ -76,11 +76,11 @@ class TreeActionDeciderWorkflow:
     Orchestrates the two-step tree update pipeline with workflow result handling.
     NOT an agent - pure deterministic coordination with result wrapping.
     """
-    
+
     def __init__(self, decision_tree: Optional[MarkdownTree] = None) -> None:
         """
         Initialize the workflow
-        
+
         Args:
             decision_tree: Optional decision tree instance (can be set later)
         """
@@ -88,62 +88,62 @@ class TreeActionDeciderWorkflow:
         self.append_agent: AppendToRelevantNodeAgent = AppendToRelevantNodeAgent()
         self.optimizer_agent: SingleAbstractionOptimizerAgent = SingleAbstractionOptimizerAgent()
         self.connect_orphans_agent: ConnectOrphansAgent = ConnectOrphansAgent()
-        self.nodes_to_update: Set[int] = set()
-        
+        self.nodes_to_update: set[int] = set()
+
         # Track previous buffer remainder to detect stuck text
         self._prev_buffer_remainder: str = ""  # What was left in buffer after last processing
 
-        self.content_stuck_in_buffer: Dict[str, Any] = {}
-        
+        self.content_stuck_in_buffer: dict[str, Any] = {}
+
         # Track when to run orphan connection (every 10-20 nodes)
         self._last_orphan_check_node_count: int = 0
         self._orphan_check_interval: int = 15  # Check every 15 nodes
-    
-    def get_workflow_statistics(self) -> Dict[str, Any]:
+
+    def get_workflow_statistics(self) -> dict[str, Any]:
         """Get statistics about the workflow state"""
         if not self.decision_tree:
             return {"error": "No decision tree set"}
-        
+
         return {
             "total_nodes": len(self.decision_tree.tree),
             "message": "Workflow is stateless - showing tree statistics"
         }
-    
+
     def clear_workflow_state(self) -> None:
         """Clear the workflow state"""
         # Clear stuck text tracking
         self._prev_buffer_remainder = ""
-    
+
     async def run(
-        self, 
-        transcript_text: str, 
+        self,
+        transcript_text: str,
         decision_tree: MarkdownTree,
         transcript_history: str = ""
-    ) -> List[BaseTreeAction]:
+    ) -> list[BaseTreeAction]:
         # TODO WE SHOULD REMOVE THIS, WE SHOULD NEVER HAVE BACKWARDS COMPATABILITY
         """
         Wrapper method for backwards compatibility with tests.
         Runs the workflow and returns all optimization actions.
-        
+
         Args:
             transcript_text: The text to process
             decision_tree: The decision tree to update
             transcript_history: Historical context
-            
+
         Returns:
             List of optimization actions that were applied
         """
         # Set the decision tree
         self.decision_tree = decision_tree
-        
+
         # Create temporary instances for the wrapper
         from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
         buffer_manager = TextBufferManager()
         tree_action_applier = TreeActionApplier(decision_tree)
-        
+
         # Store optimization actions for test compatibility
-        self.optimization_actions_for_tests: List[BaseTreeAction] = []
-        
+        self.optimization_actions_for_tests: list[BaseTreeAction] = []
+
         # Process the chunk
         await self.process_text_chunk(
             text_chunk=transcript_text,
@@ -156,40 +156,42 @@ class TreeActionDeciderWorkflow:
         return self.optimization_actions_for_tests
 
     async def process_text_chunk(
-        self, 
-        text_chunk: str, 
+        self,
+        text_chunk: str,
         transcript_history_context: str,
         tree_action_applier: TreeActionApplier,
         buffer_manager: TextBufferManager
-    ) -> Set[int]:
+    ) -> set[int]:
         """
         Processes a text chunk through a single, deep, stateful workflow.
         This method directly applies actions in a two-phase process to the instance's
         decision tree, enabling a "Progressive Refinement" user experience.
-        
+
         Args:
             text_chunk: The chunk of text to process.
             transcript_history_context: Historical context.
             tree_action_applier: The TreeActionApplier instance to use for applying actions.
             buffer_manager: The TextBufferManager instance for buffer operations.
-            
+
         Returns:
             Set of node IDs that were updated
         """
         logging.info(f"Buffer full, Starting stateful workflow for text chunk ( {(text_chunk)}, of length {len(text_chunk)})")
-        print(f"Buffer full, sending to agentic workflow, text: {text_chunk}\n") 
-        
+        print(f"Buffer full, sending to agentic workflow, text: {text_chunk}\n")
+
         self.nodes_to_update.clear()
-        
+
         # Track merged orphan actions
-        self.merged_orphan_actions: List[CreateAction] = []
+        self.merged_orphan_actions: list[CreateAction] = []
 
         # ======================================================================
         # PHASE 1: PLACEMENT (APPEND/CREATE)
         # ======================================================================
         logging.info("Running Phase 1: Placement Agent...")
-        
+
         # Get the most relevant nodes for the agent to consider
+        if self.decision_tree is None:
+            raise ValueError("Decision tree is not initialized")
         relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT, query=text_chunk)
         relevant_nodes_formatted = _format_nodes_for_prompt(relevant_nodes, self.decision_tree.tree)
         # The append_agent now returns both actions and segment information
@@ -200,8 +202,8 @@ class TreeActionDeciderWorkflow:
         )
         logging.info(f"append_agent_results, {len(append_agent_result.actions)} "
                      f"actions: {append_agent_result}")
-        
-        append_or_create_actions: List[AppendAction | CreateAction] = append_agent_result.actions
+
+        append_or_create_actions: list[AppendAction | CreateAction] = append_agent_result.actions
 
         # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
@@ -218,7 +220,7 @@ class TreeActionDeciderWorkflow:
         # ONLY FOR THE NODES THAT HAVE THE SAME TOPIC NAME
         # so that they can be seperated by optimizer.
         # Process actions based on orphan merge logic
-        actions_to_apply: List[BaseTreeAction] = append_or_create_actions
+        actions_to_apply: list[BaseTreeAction] = append_or_create_actions
 
         # todo, we should move this logic into append_agent
         actions_to_apply = await self.group_orphans_by_name(actions_to_apply, append_or_create_actions)
@@ -228,13 +230,13 @@ class TreeActionDeciderWorkflow:
 
         # --- SYNC MARKDOWN BEFORE APPLYING ACTIONS ---
         # Identify which nodes will be modified by Phase 1 actions
-        nodes_to_sync_before_phase1: Set[int] = set()
+        nodes_to_sync_before_phase1: set[int] = set()
         for action in actions_to_apply:
             if isinstance(action, (AppendAction, UpdateAction)):
                 # These actions modify existing nodes
                 node_id = action.target_node_id if isinstance(action, AppendAction) else action.node_id
                 nodes_to_sync_before_phase1.add(node_id)
-        
+
         # Sync markdown content back to tree BEFORE applying Phase 1 actions
         # This ensures manual edits to markdown files are preserved
         if nodes_to_sync_before_phase1:
@@ -244,18 +246,18 @@ class TreeActionDeciderWorkflow:
         # --- First Side Effect: Apply Placement ---
         modified_or_new_nodes = tree_action_applier.apply(actions_to_apply)
         logging.info(f"Phase 1 Complete. Nodes affected: {modified_or_new_nodes}")
-        
+
         # Separate newly created nodes from modified nodes
-        newly_created_nodes: Set[int] = set()
-        modified_nodes: Set[int] = set()
-        merged_orphan_node_ids: Set[int] = set()
-        
+        newly_created_nodes: set[int] = set()
+        modified_nodes: set[int] = set()
+        merged_orphan_node_ids: set[int] = set()
+
         for action in actions_to_apply:
             if isinstance(action, CreateAction):
                 # The created node ID will be in modified_or_new_nodes
                 # We need to find it by matching the node name
                 for node_id in modified_or_new_nodes:
-                    if node_id in self.decision_tree.tree and self.decision_tree.tree[node_id].title == action.new_node_name:
+                    if self.decision_tree is not None and node_id in self.decision_tree.tree and self.decision_tree.tree[node_id].title == action.new_node_name:
                         newly_created_nodes.add(node_id)
                         # Check if this was a merged orphan
                         if action in self.merged_orphan_actions:
@@ -265,25 +267,27 @@ class TreeActionDeciderWorkflow:
                 # AppendAction modifies existing nodes
                 if action.target_node_id in modified_or_new_nodes:
                     modified_nodes.add(action.target_node_id)
-        
+
         logging.info(f"Phase 1 Complete. Newly created nodes: {newly_created_nodes}, Modified nodes: {modified_nodes}, Merged orphan nodes: {merged_orphan_node_ids}")
 
         # ======================================================================
         # PHASE 2: OPTIMIZATION
         # ======================================================================
         logging.info("Running Phase 2: Optimization Agent...")
-        
+
         # Combine modified nodes and merged orphan nodes for optimization
         nodes_to_optimize = modified_nodes.union(merged_orphan_node_ids)
         logging.info(f"Optimizing {len(modified_nodes)} modified nodes and {len(merged_orphan_node_ids)} merged orphan nodes")
 
         # Run optimizer on both modified nodes and merged orphan nodes
-        all_optimization_modified_nodes: Set[int] = set()
+        all_optimization_modified_nodes: set[int] = set()
         for node_id in nodes_to_optimize:
             node_type = "merged orphan" if node_id in merged_orphan_node_ids else "modified"
             logging.info(f"Optimizing {node_type} node {node_id}...")
 
             # Get neighbors, remove 'id' key, and format as a string for the agent
+            if self.decision_tree is None:
+                raise ValueError("Decision tree is not initialized")
             neighbours_context = self.decision_tree.get_neighbors(node_id, max_neighbours=30)
             formatted_neighbours_context = str([
                 {key: value for key, value in neighbour.items() if key != 'id'}
@@ -291,14 +295,14 @@ class TreeActionDeciderWorkflow:
             ]) #todo, ugly. This is just to remove IDs.
 
             # The optimizer runs on the tree which has ALREADY been mutated by Phase 1.
-            optimization_actions: List[BaseTreeAction] = await self.optimizer_agent.run(
+            optimization_actions: list[BaseTreeAction] = await self.optimizer_agent.run(
                 node=self.decision_tree.tree[node_id],
                 neighbours_context=formatted_neighbours_context
             )
-            
+
             if optimization_actions:
                 logging.info(f"Optimizer generated {len(optimization_actions)} actions for node {node_id}. Applying them now.")
-                
+
                 # Log each optimization action
                 for opt_action in optimization_actions:
                     if isinstance(opt_action, UpdateAction):
@@ -307,33 +311,33 @@ class TreeActionDeciderWorkflow:
                         #     update_log += f"with new content: {opt_action.new_content[0:10]}...{opt_action.new_content[-10:]} "
                         print(update_log)
                         logging.info(update_log)
-                    
+
                     elif isinstance(opt_action, CreateAction):
                         create_log = f"OPTIMIZER: CREATING child node:'{opt_action.new_node_name}' under parent:{opt_action.parent_node_id} "
                         # if len(opt_action.content) > 10:
                         #     create_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
                         print(colored(create_log, 'green'))
                         logging.info(create_log)
-                    
+
                     elif isinstance(opt_action, AppendAction):
                         append_log = f"OPTIMIZER: APPENDING to node:{opt_action.target_node_id} "
                         # if len(opt_action.content) > 10:
                         #     append_log += f"with content: {opt_action.content[0:10]}...{opt_action.content[-10:]} "
                         print(colored(append_log, 'cyan'))
                         logging.info(append_log)
-                    
+
                     else:
                         logging.warning(f"Unknown optimization action type: {type(opt_action)}")
-                
+
                 # --- Second Side Effect: Apply Optimization ---
                 # Apply these actions immediately.
-                optimization_modified_nodes: Set[int] = tree_action_applier.apply(optimization_actions)
+                optimization_modified_nodes: set[int] = tree_action_applier.apply(optimization_actions)
                 all_optimization_modified_nodes.update(optimization_modified_nodes)
-                
+
                 # Collect optimization actions for test compatibility
                 if hasattr(self, 'optimization_actions_for_tests'):
                     self.optimization_actions_for_tests.extend(optimization_actions)
-                
+
             else:
                 logging.info(f"Optimizer had no changes for node {node_id}.")
 
@@ -345,6 +349,8 @@ class TreeActionDeciderWorkflow:
         # ======================================================================
         # PHASE 3: CONNECT ORPHANS (Every N nodes)
         # ======================================================================
+        if self.decision_tree is None:
+            raise ValueError("Decision tree is not initialized")
         current_node_count = len(self.decision_tree.tree)
         nodes_added_since_last_check = current_node_count - self._last_orphan_check_node_count
 
@@ -375,12 +381,12 @@ class TreeActionDeciderWorkflow:
             except Exception as e:
                 logging.error(f"Error in Connect Orphans phase: {e}")
                 # Don't fail the whole workflow, just log the error
-        
+
         # Return the set of all affected nodes (new + modified + optimization-modified)
         return modified_or_new_nodes.union(all_optimization_modified_nodes)
 
     async def group_orphans_by_name(self, actions_to_apply, append_or_create_actions):
-        orphan_creates: List[CreateAction] = [
+        orphan_creates: list[CreateAction] = [
             action for action in append_or_create_actions
             if isinstance(action, CreateAction) and not action.parent_node_id
         ]
@@ -396,13 +402,13 @@ class TreeActionDeciderWorkflow:
             orphan_groups = groupby(sorted_orphans, key=lambda x: x.new_node_name)
 
             # Get non-orphan actions
-            non_orphan_actions: List[BaseTreeAction] = [
+            non_orphan_actions: list[BaseTreeAction] = [
                 action for action in append_or_create_actions
                 if not (isinstance(action, CreateAction) and action.parent_node_id is None)
             ]
 
             # Process each group
-            merged_orphans: List[CreateAction] = []
+            merged_orphans: list[CreateAction] = []
             for name, orphans_iter in orphan_groups:
                 orphans = list(orphans_iter)  # Convert iterator to list
 

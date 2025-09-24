@@ -10,13 +10,13 @@ from pathlib import Path
 
 def run_tests():
     """Run all agentic workflow tests"""
-    
+
     print("🚀 Running VoiceTree Agentic Workflow Tests")
     print("=" * 60)
-    
+
     # Change to project root
     project_root = Path(__file__).parent.parent.parent
-    
+
     test_commands = [
         {
             "name": "Unit Tests - Prompt Engine",
@@ -34,16 +34,16 @@ def run_tests():
             "description": "Tests for previously identified issues"
         }
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for test_config in test_commands:
         print(f"\n{'='*60}")
         print(f"🧪 {test_config['name']}")
         print(f"📝 {test_config['description']}")
         print(f"{'='*60}")
-        
+
         try:
             result = subprocess.run(
                 test_config["cmd"],
@@ -51,24 +51,24 @@ def run_tests():
                 capture_output=False,
                 check=False
             )
-            
+
             if result.returncode == 0:
                 print(f"✅ {test_config['name']} - PASSED")
                 passed += 1
             else:
                 print(f"❌ {test_config['name']} - FAILED (exit code: {result.returncode})")
                 failed += 1
-                
+
         except Exception as e:
             print(f"❌ {test_config['name']} - ERROR: {e}")
             failed += 1
-    
+
     print(f"\n{'='*60}")
     print("📊 Test Summary:")
     print(f"   ✅ Passed: {passed}")
     print(f"   ❌ Failed: {failed}")
     print(f"   📈 Total: {passed + failed}")
-    
+
     if failed == 0:
         print("\n🎉 All agentic workflow tests passed!")
         return 0
@@ -79,4 +79,4 @@ def run_tests():
 
 if __name__ == "__main__":
     exit_code = run_tests()
-    sys.exit(exit_code) 
+    sys.exit(exit_code)

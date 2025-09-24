@@ -1,5 +1,7 @@
 """Configuration settings for quality benchmarking."""
 
+from typing import Any
+
 # Directory Settings
 OUTPUT_DIR = "backend/benchmarker/output"
 BACKUP_DIR_BASE = "backend/benchmarker/output_backups"
@@ -15,92 +17,92 @@ EVALUATION_MODEL = 'models/gemini-2.5-pro'
 
 #todo, allow transcriipts to be run in parallel, with output subfolders for transcript name
 # Test Transcripts
-DEFAULT_TEST_TRANSCRIPTS = [
-    dict(
-        file="backend/benchmarker/input/visionary_demo.txt",
-        name="VT yt visionary demo",
-        max_words=63 * 10 + 1,
-        processing_mode="line",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        # currently_active=True
-    ),
+DEFAULT_TEST_TRANSCRIPTS: list[dict[str, Any]] = [
+    {
+        "file": "backend/benchmarker/input/visionary_demo.txt",
+        "name": "VT yt visionary demo",
+        "max_words": 63 * 10 + 1,
+        "processing_mode": "line",  # Options: "word" (30 words per chunk) or "line" (line by line)
+        # "currently_active": True
+    },
 
-    dict(
-        file="backend/benchmarker/input/yc_demo.txt",
-        name="VT yt demo",
-        max_words=63 * 10 + 1,
-        processing_mode="line",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        # currently_active=True
-    ),
-    dict(
-        file="backend/benchmarker/input/voiceTree_clustering.txt",
-        name="VT Clustering",
-        max_words=63 * 10 + 1,
-        processing_mode="line",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        # currently_active=True
-    ),
-    dict(
-        file="backend/benchmarker/input/og_vt_transcript.txt",
-        name="VT Original Transcript",
-        max_words=63*10 + 1,
-        processing_mode="word",  # Options: "word" (30 words per chunk) or "line" (line by line)
-        currently_active=True
-    ),
-    dict(
-        file="backend/benchmarker/input/owl_transcript.txt",
-        name="GSM Owl Problem",
-        max_words=None,
-        processing_mode="line",  # Process line by line for structured data
-    ),
-    dict(
-        file="backend/benchmarker/input/8k.txt",
-        name="GSM Owl Problem",
-        max_words=None,
-        processing_mode="line",  # Process line by line for structured data
-    ),
-    dict(
-        file="backend/benchmarker/input/igsm_op19_ip20_force_True_7_problem_question.txt",
-        name="GSM hard hard hard",
-        max_words=None,
-        processing_mode="line",  # Process line by line for structured data
-        currently_active=False
-    ),
-    dict(
-        file="backend/benchmarker/input/igsm_op17_ip20_force_True_0_problem_question.txt",
-        name="GSM 16k hard",
-        max_words=None,
-        processing_mode="line",  # Process line by line for structured data
-        # currently_active=True
-    ),
-    dict(
-        file="backend/benchmarker/input/nolima_twohop_spain.txt",
-        name="NoLiMa Two-Hop Spain Question (Short)",
-        max_words=None,
-        processing_mode="line",  # Process as complete context with embedded needle
-        currently_active=False,
-        description="NoLiMa benchmark: Find 'Megan saw Garden of Earthly Delights' and infer Spain via Prado Museum"
-    ),
-    dict(
-        file="backend/benchmarker/input/nolima_8k_spain.txt",
-        name="NoLiMa 8K Context Spain Question",
-        max_words=None,
-        processing_mode="line",  # Process full 8K context with embedded needle
-        currently_active=False,
-        description="NoLiMa 8K benchmark: Find 'Calvin saw Garden of Earthly Delights' at 50% depth and infer Spain"
-    ),
-    dict(
-        file="backend/benchmarker/input/nolima_16k_vegan.txt",
-        name="NoLiMa 16K Context Vegan Question",
-        max_words=None,
-        processing_mode="line",  # Process full 16K context with embedded needle
-        # currently_active=True,
-        description="NoLiMa 16K commonsense: Find 'Katie is vegan' at 50% depth and infer cannot eat omelette"
-    ),
-    dict(
-        file="backend/benchmarker/input/user_guide_qa_audio_processing.txt",
-        name="LongBench v2 User Guide QA - Audio Processing",
-        max_words=None,
-        processing_mode="line",  # Process as complete user guide
-        # currently_active=True,
-        description="LongBench v2 User Guide QA: Audio processing manual (8.6K words) - requires understanding workflow after audio cutting with low clarity"
-    )
+    {
+        "file": "backend/benchmarker/input/yc_demo.txt",
+        "name": "VT yt demo",
+        "max_words": 63 * 10 + 1,
+        "processing_mode": "line",  # Options: "word" (30 words per chunk) or "line" (line by line)
+        # "currently_active": True
+    },
+    {
+        "file": "backend/benchmarker/input/voiceTree_clustering.txt",
+        "name": "VT Clustering",
+        "max_words": 63 * 10 + 1,
+        "processing_mode": "line",  # Options: "word" (30 words per chunk) or "line" (line by line)
+        # "currently_active": True
+    },
+    {
+        "file": "backend/benchmarker/input/og_vt_transcript.txt",
+        "name": "VT Original Transcript",
+        "max_words": 63*10 + 1,
+        "processing_mode": "word",  # Options: "word" (30 words per chunk) or "line" (line by line)
+        "currently_active": True
+    },
+    {
+        "file": "backend/benchmarker/input/owl_transcript.txt",
+        "name": "GSM Owl Problem",
+        "max_words": None,
+        "processing_mode": "line",  # Process line by line for structured data
+    },
+    {
+        "file": "backend/benchmarker/input/8k.txt",
+        "name": "GSM Owl Problem",
+        "max_words": None,
+        "processing_mode": "line",  # Process line by line for structured data
+    },
+    {
+        "file": "backend/benchmarker/input/igsm_op19_ip20_force_True_7_problem_question.txt",
+        "name": "GSM hard hard hard",
+        "max_words": None,
+        "processing_mode": "line",  # Process line by line for structured data
+        "currently_active": False
+    },
+    {
+        "file": "backend/benchmarker/input/igsm_op17_ip20_force_True_0_problem_question.txt",
+        "name": "GSM 16k hard",
+        "max_words": None,
+        "processing_mode": "line",  # Process line by line for structured data
+        # "currently_active": True
+    },
+    {
+        "file": "backend/benchmarker/input/nolima_twohop_spain.txt",
+        "name": "NoLiMa Two-Hop Spain Question (Short)",
+        "max_words": None,
+        "processing_mode": "line",  # Process as complete context with embedded needle
+        "currently_active": False,
+        "description": "NoLiMa benchmark: Find 'Megan saw Garden of Earthly Delights' and infer Spain via Prado Museum"
+    },
+    {
+        "file": "backend/benchmarker/input/nolima_8k_spain.txt",
+        "name": "NoLiMa 8K Context Spain Question",
+        "max_words": None,
+        "processing_mode": "line",  # Process full 8K context with embedded needle
+        "currently_active": False,
+        "description": "NoLiMa 8K benchmark: Find 'Calvin saw Garden of Earthly Delights' at 50% depth and infer Spain"
+    },
+    {
+        "file": "backend/benchmarker/input/nolima_16k_vegan.txt",
+        "name": "NoLiMa 16K Context Vegan Question",
+        "max_words": None,
+        "processing_mode": "line",  # Process full 16K context with embedded needle
+        # "currently_active": True,
+        "description": "NoLiMa 16K commonsense: Find 'Katie is vegan' at 50% depth and infer cannot eat omelette"
+    },
+    {
+        "file": "backend/benchmarker/input/user_guide_qa_audio_processing.txt",
+        "name": "LongBench v2 User Guide QA - Audio Processing",
+        "max_words": None,
+        "processing_mode": "line",  # Process as complete user guide
+        # "currently_active": True,
+        "description": "LongBench v2 User Guide QA: Audio processing manual (8.6K words) - requires understanding workflow after audio cutting with low clarity"
+    }
 ]

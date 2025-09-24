@@ -9,25 +9,39 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from typing import Dict
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
-from backend.markdown_tree_manager.markdown_to_tree.file_operations import read_markdown_file
-from backend.markdown_tree_manager.markdown_to_tree.link_extraction import extract_markdown_links
-from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import extract_node_id
-from backend.markdown_tree_manager.markdown_to_tree.yaml_parser import extract_frontmatter
+from backend.types import (
+    ParsedNode,
+    ParsedNodeKeys,
+    ParsedRelationships,
+    ParentRelationship,
+    RelationshipKeys,
+)
+
+from backend.markdown_tree_manager.markdown_to_tree.file_operations import (
+    read_markdown_file,
+)
+from backend.markdown_tree_manager.markdown_to_tree.link_extraction import (
+    extract_markdown_links,
+)
+from backend.markdown_tree_manager.markdown_to_tree.metadata_extraction import (
+    extract_node_id,
+)
+from backend.markdown_tree_manager.markdown_to_tree.yaml_parser import (
+    extract_frontmatter,
+)
 from backend.markdown_tree_manager.markdown_to_tree.yaml_parser import extract_tags
 
 
-def parse_markdown_file_complete(filepath: Path) -> Optional[Dict[str, Any]]:
+def parse_markdown_file_complete(filepath: Path) -> Optional[ParsedNode]:
     """
     Completely parse a markdown file extracting all metadata and content.
-    
+
     Args:
         filepath: Path to the markdown file
-        
+
     Returns:
         Dictionary with all parsed data including:
         - node_id, title, summary, content
@@ -37,15 +51,15 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[Dict[str, Any]]:
     content = read_markdown_file(filepath)
     if not content:
         return None
-    
+
     # Extract tags if present on first line
     tags, content_after_tags = extract_tags(content)
-    
+
     # Extract YAML frontmatter
     metadata, content_after_frontmatter = extract_frontmatter(content_after_tags)
     if not metadata:
         return None
-    
+
     # Extract node_id (try both methods)
     node_id_str = extract_node_id(content_after_tags)
     node_id: Union[int, str]
@@ -59,51 +73,51 @@ def parse_markdown_file_complete(filepath: Path) -> Optional[Dict[str, Any]]:
         if node_id_from_meta is None:
             return None
         node_id = node_id_from_meta
-    
+
     # Get title from metadata (preserves full title with ID)
     title = metadata.get('title', 'Untitled')
-    
+
     # Extract summary and parse content
     summary, main_content = extract_summary_and_main_content(content_after_frontmatter)
-    
+
     # Extract datetime fields
     created_at = metadata.get('created_at', datetime.now().isoformat())
     modified_at = metadata.get('modified_at', datetime.now().isoformat())
-    
+
     # Convert ISO strings to datetime if needed
     if isinstance(created_at, str):
         created_at = datetime.fromisoformat(created_at)
     if isinstance(modified_at, str):
         modified_at = datetime.fromisoformat(modified_at)
-    
+
     # Extract links
     links = extract_markdown_links(content)
-    
+
     # Parse parent relationship from Links section
     parent_info = extract_parent_relationship(content)
-    
+
     return {
-        'node_id': node_id,
-        'title': title,
-        'summary': summary,
-        'content': main_content,
-        'tags': tags,
-        'created_at': created_at,
-        'modified_at': modified_at,
-        'color': metadata.get('color'),
-        'links': links,
-        'parent_info': parent_info,
-        'filename': filepath.name
+        ParsedNodeKeys.NODE_ID: node_id,
+        ParsedNodeKeys.TITLE: title,
+        ParsedNodeKeys.SUMMARY: summary,
+        ParsedNodeKeys.CONTENT: main_content,
+        ParsedNodeKeys.TAGS: tags,
+        ParsedNodeKeys.CREATED_AT: created_at,
+        ParsedNodeKeys.MODIFIED_AT: modified_at,
+        ParsedNodeKeys.COLOR: metadata.get('color'),
+        ParsedNodeKeys.LINKS: links,
+        ParsedNodeKeys.PARENT_INFO: parent_info,
+        ParsedNodeKeys.FILENAME: filepath.name
     }
 
 
-def extract_summary_and_main_content(markdown_content: str) -> Tuple[str, str]:
+def extract_summary_and_main_content(markdown_content: str) -> tuple[str, str]:
     """
     Extract summary and main content from markdown after frontmatter.
-    
+
     Args:
         markdown_content: Markdown content after frontmatter
-        
+
     Returns:
         Tuple of (summary, main_content)
     """
@@ -111,7 +125,7 @@ def extract_summary_and_main_content(markdown_content: str) -> Tuple[str, str]:
     summary = ""
     content_lines = []
     found_summary = False
-    
+
     for line in lines:
         # Check if line is a summary (starts with ###)
         if line.strip().startswith('###') and not found_summary:
@@ -124,64 +138,64 @@ def extract_summary_and_main_content(markdown_content: str) -> Tuple[str, str]:
             break
         else:
             content_lines.append(line)
-    
+
     # Join content lines
     content = '\n'.join(content_lines).strip()
-    
+
     return summary, content
 
 
-def extract_parent_relationship(content: str) -> Optional[Dict]:
+def extract_parent_relationship(content: str) -> Optional[ParentRelationship]:
     """
     Extract parent relationship from the Links section.
-    
+
     Args:
         content: Full markdown content
-        
+
     Returns:
         Dictionary with parent_filename and relationship_type, or None
     """
     links_match = re.search(r'_Links:_\s*\n(.*?)(?:\n\n|$)', content, re.DOTALL)
     if not links_match:
         return None
-    
+
     links_content = links_match.group(1)
-    
+
     # Parse parent relationship
     parent_match = re.search(r'Parent:\s*\n.*?-\s*(.+?)\s*\[\[(.*?)\]\]', links_content)
     if parent_match:
         relationship_type = parent_match.group(1).strip()
         parent_filename = parent_match.group(2).strip()
         return {
-            'parent_filename': parent_filename,
-            'relationship_type': relationship_type.replace('_', ' ')
+            RelationshipKeys.PARENT_FILENAME: parent_filename,
+            RelationshipKeys.RELATIONSHIP_TYPE: relationship_type.replace('_', ' ')
         }
-    
+
     return None
 
 
-def parse_relationships_from_links(content: str) -> Dict[str, Any]:
+def parse_relationships_from_links(content: str) -> ParsedRelationships:
     """
     Parse all relationships from the Links section.
-    
+
     Args:
         content: Full markdown content
-        
+
     Returns:
         Dictionary with parent and children relationships
     """
     links_match = re.search(r'_Links:_\s*\n(.*?)(?:\n\n|$)', content, re.DOTALL)
     if not links_match:
-        return {'parent': None, 'children': []}
-    
+        return {RelationshipKeys.PARENT: None, RelationshipKeys.CHILDREN: []}
+
     links_content = links_match.group(1)
-    result: Dict[str, Any] = {'parent': None, 'children': []}
-    
+    result: ParsedRelationships = {RelationshipKeys.PARENT: None, RelationshipKeys.CHILDREN: []}
+
     # Parse parent relationship
     parent_info = extract_parent_relationship(content)
     if parent_info:
-        result['parent'] = parent_info
-    
+        result[RelationshipKeys.PARENT] = parent_info
+
     # Parse children relationships (if any exist in older files)
     children_section = re.search(r'Children:\s*\n(.*?)(?:Parent:|$)', links_content, re.DOTALL)
     if children_section:
@@ -191,9 +205,9 @@ def parse_relationships_from_links(content: str) -> Dict[str, Any]:
             if child_match:
                 child_filename = child_match.group(1).strip()
                 relationship_type = child_match.group(2).strip()
-                result['children'].append({
-                    'child_filename': child_filename,
-                    'relationship_type': relationship_type.replace('_', ' ')
+                result[RelationshipKeys.CHILDREN].append({
+                    RelationshipKeys.CHILD_FILENAME: child_filename,
+                    RelationshipKeys.RELATIONSHIP_TYPE: relationship_type.replace('_', ' ')
                 })
-    
+
     return result
