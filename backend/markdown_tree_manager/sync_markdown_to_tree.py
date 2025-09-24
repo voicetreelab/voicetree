@@ -98,10 +98,49 @@ class MarkdownToTreeSynchronizer:
 
         return synced_count
 
+    def detect_and_remove_deleted_nodes(self) -> int:
+        """
+        Remove nodes whose markdown files no longer exist
+
+        Returns:
+            Number of nodes removed
+        """
+        removed_count = 0
+
+        # Create a copy of the items to avoid modifying dict during iteration
+        for node_id, node in list(self.decision_tree.tree.items()):
+            markdown_path = os.path.join(self.decision_tree.output_dir, node.filename)
+            if not os.path.exists(markdown_path):
+                logging.info(f"Removing orphaned node {node_id}: {node.title}")
+                if self.decision_tree.remove_node(node_id):
+                    removed_count += 1
+
+        return removed_count
+
+    def sync_nodes_before_update_with_cleanup(self, node_ids: set[int]) -> tuple[int, int]:
+        """
+        Sync nodes from markdown and remove deleted nodes
+
+        Args:
+            node_ids: Set of node IDs to sync
+
+        Returns:
+            Tuple of (synced_count, removed_count)
+        """
+        # First sync existing nodes
+        synced_count = self.sync_nodes_before_update(node_ids)
+
+        # Then remove deleted nodes
+        removed_count = self.detect_and_remove_deleted_nodes()
+        if removed_count > 0:
+            logging.info(f"Removed {removed_count} deleted nodes")
+
+        return synced_count, removed_count
+
 
 def sync_nodes_from_markdown(decision_tree: MarkdownTree, node_ids: set[int]) -> int:
     """
-    Convenience function to sync nodes from markdown files
+    Convenience function to sync nodes from markdown files and remove deleted nodes
 
     Args:
         decision_tree: The DecisionTree instance
@@ -111,4 +150,11 @@ def sync_nodes_from_markdown(decision_tree: MarkdownTree, node_ids: set[int]) ->
         Number of successfully synced nodes
     """
     synchronizer = MarkdownToTreeSynchronizer(decision_tree)
-    return synchronizer.sync_nodes_before_update(node_ids)
+    synced_count = synchronizer.sync_nodes_before_update(node_ids)
+
+    # Also remove nodes whose markdown files have been deleted
+    removed_count = synchronizer.detect_and_remove_deleted_nodes()
+    if removed_count > 0:
+        logging.info(f"Removed {removed_count} nodes with deleted markdown files")
+
+    return synced_count

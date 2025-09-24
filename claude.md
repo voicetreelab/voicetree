@@ -43,3 +43,5 @@ when planning a task that involves writing code:
   specific code later.
 
 Please ask for clarifications if anything is unclear.
+
+Use TDD. First write a test (or check existing test) and ensure it fails. Have a outline for the overall behaviour you are trying to test, just inputs and outputs for whatever method / class / module / system you are working on. Only then start developing the code. 

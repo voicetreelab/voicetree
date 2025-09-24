@@ -502,3 +502,58 @@ class MarkdownTree:
                 logging.error(f"Vector search failed: {e}")
         return []
 
+    def remove_node(self, node_id: int) -> bool:
+        """
+        Remove node from tree and delete its markdown file.
+
+        Args:
+            node_id: The ID of the node to remove
+
+        Returns:
+            True if node was successfully removed, False if node didn't exist
+        """
+        if node_id not in self.tree:
+            logging.warning(f"Cannot remove node {node_id}: not found in tree")
+            return False
+
+        node = self.tree[node_id]
+
+        # Delete markdown file if it exists
+        import os
+        markdown_path = os.path.join(self.output_dir, node.filename)
+        if os.path.exists(markdown_path):
+            try:
+                os.unlink(markdown_path)
+                logging.info(f"Deleted markdown file: {markdown_path}")
+            except OSError as e:
+                logging.error(f"Failed to delete markdown file {markdown_path}: {e}")
+
+        # Remove from parent's children list
+        if node.parent_id is not None and node.parent_id in self.tree:
+            parent_node = self.tree[node.parent_id]
+            if node_id in parent_node.children:
+                parent_node.children.remove(node_id)
+                # Update parent's markdown
+                self._write_markdown_for_nodes([node.parent_id])
+
+        # Update children to remove this node as parent
+        for child_id in node.children:
+            if child_id in self.tree:
+                child_node = self.tree[child_id]
+                child_node.parent_id = None
+                # Update child's markdown
+                self._write_markdown_for_nodes([child_id])
+
+        # Remove embeddings
+        if self._embedding_manager:
+            try:
+                self._embedding_manager.delete_embeddings({node_id})
+            except Exception as e:
+                logging.error(f"Failed to delete embeddings for node {node_id}: {e}")
+
+        # Remove from tree
+        del self.tree[node_id]
+        logging.info(f"Removed node {node_id}: {node.title}")
+
+        return True
+
