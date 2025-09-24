@@ -18,9 +18,9 @@ class TestGraphDependencyTraversal(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test environment."""
-        # Simple relative paths from tools folder
-        cls.test_vault_dir = Path("../markdownTreeVaultDefault/2025-08-03")
-        cls.script_path = Path("./graph_dependency_traversal_and_accumulate_graph_content.py")
+        # Paths relative to project root (where pytest runs from)
+        cls.test_vault_dir = Path("markdownTreeVaultDefault/2025-08-03")
+        cls.script_path = Path("tools/graph_dependency_traversal_and_accumulate_graph_content.py")
         
         # Verify test environment
         if not cls.test_vault_dir.exists():

@@ -10,9 +10,11 @@ from pathlib import Path
 
 import pytest
 
-# Add tools to path for testing hook functions
+# Add tools and hooks to path for testing hook functions
 TOOLS_DIR = Path(__file__).parent.parent
-sys.path.insert(0, str(TOOLS_DIR / "hooks"))
+HOOKS_DIR = TOOLS_DIR / "hooks"
+sys.path.insert(0, str(TOOLS_DIR))
+sys.path.insert(0, str(HOOKS_DIR))
 
 from tree_update_reminder import get_new_nodes
 from tree_update_reminder import mark_file_as_seen_by_agent
