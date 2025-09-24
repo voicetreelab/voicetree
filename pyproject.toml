@@ -56,6 +56,8 @@ dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.23.0",
     "pydantic>=2.0.0",
+    "pytest>=8.4.2",
+    "requests>=2.32.5",
 ]
 
 [project.optional-dependencies]

@@ -16,6 +16,7 @@ class TreeToMarkdownConverter:
         self.tree_data = tree_data
 
     def convert_nodes(self, output_dir: str = "markdownTreeVaultDefault", nodes_to_update: Optional[set[int]] = None) -> None:
+        print(f"DEBUG: TreeToMarkdownConverter.convert_nodes called with output_dir='{output_dir}'")
         """Converts the specified nodes to Markdown files."""
 
         os.makedirs(output_dir, exist_ok=True)

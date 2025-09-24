@@ -24,8 +24,8 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
 )
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
 
-# Output directory configuration
-output_dir_base = "markdownTreeVault" # todo, move this to config file
+# Output directory configuration - can be overridden via environment or constructor
+output_dir_base = os.environ.get("VOICETREE_MARKDOWN_DIR", "markdownTreeVault")
 date_str = datetime.now().strftime("%Y-%m-%d")
 output_dir_default = os.path.join(output_dir_base, date_str)
 
