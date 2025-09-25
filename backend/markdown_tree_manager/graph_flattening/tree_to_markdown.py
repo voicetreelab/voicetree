@@ -46,8 +46,14 @@ class TreeToMarkdownConverter:
                     f.write(f"{hashtags}\n")
 
                 # Write YAML frontmatter
+                # Check if node_id is already in the title to avoid duplicate appending
+                if f"({node_id})" not in node_data.title:
+                    title_with_id = f"{node_data.title} ({node_id})"
+                else:
+                    title_with_id = node_data.title
+
                 frontmatter = insert_yaml_frontmatter({
-                    "title": f"{node_data.title} ({node_id})",
+                    "title": title_with_id,
                     "node_id": node_id,
                 })
                 f.write(frontmatter)
