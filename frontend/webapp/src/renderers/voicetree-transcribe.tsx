@@ -33,6 +33,19 @@ export default function VoiceTreeTranscribe() {
   const allTokens = [...finalTokens, ...nonFinalTokens];
   const autoScrollRef = useAutoScroll(allTokens);
 
+  // DEBUG: Log tokens to see what's happening
+  useEffect(() => {
+    console.log('=== VoiceTreeTranscribe Debug ===');
+    console.log('State:', state);
+    console.log('Final tokens count:', finalTokens.length);
+    console.log('Non-final tokens count:', nonFinalTokens.length);
+    console.log('All tokens:', allTokens);
+    if (allTokens.length > 0) {
+      console.log('Token details:', allTokens.map(t => ({ text: t.text, is_final: t.is_final })));
+    }
+    console.log('===============================');
+  }, [state, finalTokens, nonFinalTokens]);
+
   // Extract text from tokens for sending to server
   const getTranscriptText = (tokens: Token[]): string => {
     return tokens
@@ -89,6 +102,18 @@ export default function VoiceTreeTranscribe() {
       setTextInput("");
     }
   };
+
+  // Check microphone permissions on mount
+  useEffect(() => {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        console.log('✅ Microphone permission granted');
+        stream.getTracks().forEach(track => track.stop()); // Stop the stream
+      })
+      .catch(err => {
+        console.error('❌ Microphone permission denied:', err);
+      });
+  }, []);
 
   // Handle Enter key press
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
