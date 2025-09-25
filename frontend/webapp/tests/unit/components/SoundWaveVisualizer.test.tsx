@@ -39,13 +39,13 @@ describe("SoundWaveVisualizer", () => {
       expect(canvas).toBeInTheDocument();
     });
 
-    it("hides canvas when inactive", async () => {
+    it("shows canvas even when inactive", async () => {
       const { container } = await act(async () => {
         return render(<SoundWaveVisualizer isActive={false} />);
       });
       const canvas = container.querySelector("canvas");
       expect(canvas).toBeInTheDocument();
-      expect(canvas).toHaveStyle({ display: "none" });
+      expect(canvas).toHaveStyle({ display: "block" });
     });
 
     it("applies custom className", async () => {

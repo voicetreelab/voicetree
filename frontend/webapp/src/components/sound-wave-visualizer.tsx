@@ -283,7 +283,7 @@ export default function SoundWaveVisualizer({
       style={{
         width: '100%',
         height: '100%',
-        display: isActive ? 'block' : 'none',
+        display: 'block',
       }}
     />
   );

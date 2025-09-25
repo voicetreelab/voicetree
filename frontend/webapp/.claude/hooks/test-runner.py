@@ -13,7 +13,7 @@ def run_tests():
     """Run npm tests and capture output."""
     try:
         result = subprocess.run(
-            ["npm", "test", "--", "--run"],
+            ["npm", "test"],
             cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
             capture_output=True,
             text=True,

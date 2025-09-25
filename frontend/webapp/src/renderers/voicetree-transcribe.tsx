@@ -7,12 +7,14 @@ import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";
 import useAutoScroll from "@/hooks/useAutoScroll";
+import { type Token } from "@soniox/speech-to-text-web";
 
 export default function VoiceTreeTranscribe() {
   const [bufferLength, setBufferLength] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [allFinalTokens, setAllFinalTokens] = useState<Token[]>([]);
   const lastSentText = useRef<string>("");
 
   const {
@@ -26,7 +28,24 @@ export default function VoiceTreeTranscribe() {
     apiKey: getAPIKey,
   });
 
-  const allTokens = [...finalTokens, ...nonFinalTokens];
+  // Track how many voice tokens we've seen to append new ones only
+  const voiceTokenCountRef = useRef(0);
+
+  // Append new voice final tokens to our combined list
+  useEffect(() => {
+    if (finalTokens.length > voiceTokenCountRef.current) {
+      const newTokens = finalTokens.slice(voiceTokenCountRef.current);
+      setAllFinalTokens(prev => [...prev, ...newTokens]);
+      voiceTokenCountRef.current = finalTokens.length;
+    } else if (finalTokens.length === 0) {
+      // Reset when transcription restarts
+      voiceTokenCountRef.current = 0;
+      setAllFinalTokens([]);
+    }
+  }, [finalTokens]);
+
+  // Combine all tokens for display
+  const allTokens = [...allFinalTokens, ...nonFinalTokens];
   const autoScrollRef = useAutoScroll(allTokens);
 
   // Show error popup when Soniox fails
@@ -97,6 +116,30 @@ export default function VoiceTreeTranscribe() {
   const handleTextSubmit = () => {
     if (textInput.trim()) {
       sendToVoiceTree(textInput);
+
+      // Create tokens from the manual text input
+      const tokensToAdd: Token[] = [];
+
+      // Add a newline token if there are existing tokens
+      if (allFinalTokens.length > 0) {
+        tokensToAdd.push({
+          text: "\n",
+          is_final: true,
+          speaker: undefined,
+          language: undefined,
+        });
+      }
+
+      // Add the actual text token
+      tokensToAdd.push({
+        text: textInput,
+        is_final: true,
+        speaker: undefined,
+        language: undefined,
+      });
+
+      // Append to final tokens
+      setAllFinalTokens(prev => [...prev, ...tokensToAdd]);
       setTextInput("");
     }
   };
@@ -123,9 +166,20 @@ export default function VoiceTreeTranscribe() {
 
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background relative">
+      {/* Background Wave Visualizer - Always visible */}
+      <div className="absolute inset-0 pointer-events-none z-10 opacity-20">
+        <SoundWaveVisualizer
+          isActive={true}
+          fallbackAnimation={true}
+          barCount={40}
+          barColor="rgb(59, 130, 246)"
+          className="w-full h-full"
+        />
+      </div>
+
       {/* Header with Status Bar */}
-      <div className="border-b bg-background/95 backdrop-blur-sm">
+      <div className="border-b bg-background/95 backdrop-blur-sm relative z-20">
         {/* Status Bar */}
         <div className="flex items-center justify-between px-4 py-2 text-xs bg-muted/30">
           <div className="flex items-center gap-4">
@@ -154,7 +208,7 @@ export default function VoiceTreeTranscribe() {
       {/* Transcription Display - Always visible */}
       <div
         ref={autoScrollRef}
-        className="flex-1 overflow-y-auto p-4 border rounded-lg bg-white mb-4"
+        className="h-1/4 overflow-y-auto p-4 border rounded-lg bg-white/95 backdrop-blur-sm mb-4 relative z-20"
       >
         <Renderer
           tokens={allTokens}
@@ -163,7 +217,7 @@ export default function VoiceTreeTranscribe() {
       </div>
 
       {/* Input Section - at bottom */}
-      <div className="border-t bg-background/95 backdrop-blur-sm p-4">
+      <div className="border-t bg-background/95 backdrop-blur-sm p-4 relative z-20">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-2">
             {/* Mic Button */}
@@ -179,39 +233,25 @@ export default function VoiceTreeTranscribe() {
               {state === 'Running' ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </button>
 
-            {/* Text Input or Sound Visualizer */}
-            {state === 'Running' || state === 'RequestingMedia' || state === 'OpeningWebSocket' ? (
-              <div className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                <SoundWaveVisualizer
-                  isActive={true}
-                  fallbackAnimation={true}
-                  barCount={30}
-                  barColor="rgb(59, 130, 246)"
-                  className="w-full h-8"
-                />
-              </div>
-            ) : (
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Or type text here and press Enter..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={isProcessing}
-              />
-            )}
+            {/* Text Input */}
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={state === 'Running' ? "Type text while recording..." : "Or type text here and press Enter..."}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isProcessing}
+            />
 
-            {/* Send Button - only show when not recording */}
-            {state !== 'Running' && (
-              <button
-                onClick={handleTextSubmit}
-                disabled={isProcessing || !textInput.trim()}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Send
-              </button>
-            )}
+            {/* Send Button - always visible */}
+            <button
+              onClick={handleTextSubmit}
+              disabled={isProcessing || !textInput.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Send
+            </button>
           </div>
 
           {/* Error Messages */}
