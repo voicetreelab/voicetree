@@ -58,21 +58,44 @@ export class MarkdownParser {
     const contentStartIndex = frontmatterEnd >= 0 ? frontmatterEnd + 1 : 0;
     const bodyContent = lines.slice(contentStartIndex).join('\n');
 
-    // Extract ALL wikilinks from the content
+    // Extract links with relationship types
     const links: ParsedLink[] = [];
-    const linkMatches = bodyContent.matchAll(/\[\[([^\]]+)\]\]/g);
 
-    for (const match of linkMatches) {
-      const targetFile = match[1];
-      // Extract node ID from filename (assumes format like "2_Parent_Node.md")
-      const nodeIdMatch = targetFile.match(/^(\d+)_/);
-      const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : targetFile;
+    // Look for Links section
+    const linksSectionMatch = bodyContent.match(/_Links:_([\s\S]*?)(?:\n\n|$)/);
+    if (linksSectionMatch) {
+      const linksContent = linksSectionMatch[1];
 
-      links.push({
-        type: 'link',  // Generic link type since we're not parsing relationship types
-        targetFile: targetFile,
-        targetNodeId: targetNodeId
-      });
+      // Match patterns like "- relationship_type [[filename.md]]"
+      const linkMatches = linksContent.matchAll(/- ([^\[]+)\[\[([^\]]+)\]\]/g);
+
+      for (const match of linkMatches) {
+        const relationshipType = match[1].trim();
+        const targetFile = match[2];
+        // Extract node ID from filename
+        const nodeIdMatch = targetFile.match(/^(\d+)_/);
+        const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : targetFile;
+
+        links.push({
+          type: relationshipType,  // Actual relationship type from markdown
+          targetFile: targetFile,
+          targetNodeId: targetNodeId
+        });
+      }
+    } else {
+      // Fallback: extract simple wikilinks without relationship types
+      const simpleLinkMatches = bodyContent.matchAll(/\[\[([^\]]+)\]\]/g);
+      for (const match of simpleLinkMatches) {
+        const targetFile = match[1];
+        const nodeIdMatch = targetFile.match(/^(\d+)_/);
+        const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : targetFile;
+
+        links.push({
+          type: 'link',
+          targetFile: targetFile,
+          targetNodeId: targetNodeId
+        });
+      }
     }
 
     return {

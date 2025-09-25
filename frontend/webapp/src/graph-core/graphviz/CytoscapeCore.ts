@@ -1,6 +1,6 @@
 import cytoscape, { type Core, type NodeCollection, type EdgeCollection } from 'cytoscape';
-import { type NodeDefinition, type EdgeDefinition } from './types';
-import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from './constants';
+import { type NodeDefinition, type EdgeDefinition } from '../types';
+import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '../constants';
 
 export class CytoscapeCore {
   private viz: Core;
