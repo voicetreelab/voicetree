@@ -146,3 +146,6 @@ tools/state/*
 /.obsidian/workspace.json
 /frontend/webapp/node_modules/**/*
 /backend/embeddings_output/**/*
+/backend/tests/qa_example/**/*
+/frontend/soniox_examples/**/*
+/backend/text_to_graph_pipeline/voice_to_text/transcription_log_old.txt
