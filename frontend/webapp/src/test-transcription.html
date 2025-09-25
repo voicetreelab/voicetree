@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Transcription</title>
+</head>
+<body>
+    <h1>Simple Transcription Test</h1>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <div id="status">Ready</div>
+    <div id="transcript" style="border: 1px solid black; padding: 10px; margin-top: 20px; min-height: 100px;">
+        Transcript will appear here...
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                // Use native Web Speech API instead of Soniox
+                const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+
+                recognition.onresult = (event) => {
+                    let transcript = '';
+                    for (let i = 0; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            transcript += ' [FINAL] ';
+                        }
+                    }
+                    document.getElementById('transcript').innerText = transcript;
+                    console.log('Transcript:', transcript);
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    document.getElementById('status').innerText = 'Error: ' + event.error;
+                };
+
+                recognition.onstart = () => {
+                    document.getElementById('status').innerText = 'Listening...';
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                };
+
+                recognition.onend = () => {
+                    document.getElementById('status').innerText = 'Stopped';
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                };
+
+                recognition.start();
+
+                document.getElementById('stopBtn').onclick = () => {
+                    recognition.stop();
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                document.getElementById('status').innerText = 'Error: ' + err.message;
+            }
+        });
+    </script>
+</body>
+</html>

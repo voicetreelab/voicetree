@@ -13,6 +13,18 @@ vi.mock('@/utils/get-api-key', () => ({
   default: () => 'test-api-key'
 }));
 
+// Mock navigator.mediaDevices.getUserMedia
+Object.defineProperty(navigator, 'mediaDevices', {
+  writable: true,
+  value: {
+    getUserMedia: vi.fn().mockResolvedValue({
+      getTracks: () => [{
+        stop: vi.fn()
+      }]
+    })
+  }
+});
+
 describe('VoiceTreeTranscribe', () => {
   beforeEach(() => {
     vi.clearAllMocks();

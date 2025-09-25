@@ -15,15 +15,6 @@ export default function Renderer({ tokens, placeholder }: RendererProps) {
   let lastSpeaker: string | undefined;
   let lastLanguage: string | undefined;
 
-  // DEBUG: Log what Renderer receives
-  console.log('=== Renderer Debug ===');
-  console.log('Tokens received:', tokens.length);
-  console.log('Placeholder:', placeholder);
-  if (tokens.length > 0) {
-    console.log('First few tokens:', tokens.slice(0, 3).map(t => ({ text: t.text, is_final: t.is_final })));
-  }
-  console.log('====================');
-
   return (
     <>
       {tokens.length === 0 ? (
