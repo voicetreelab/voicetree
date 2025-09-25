@@ -4,19 +4,17 @@ import cola from 'cytoscape-cola';
 import { MarkdownParser, type ParsedNode } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
 import { type NodeDefinition, type EdgeDefinition } from './types';
+import { LayoutManager, SeedParkRelaxStrategy } from './graphviz/layout';
+
+// Import all markdown files from the tests directory
+const markdownModules = import.meta.glob('../../tests/example_small/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true
+});
 
 // Register cola extension with cytoscape
 cytoscape.use(cola);
-
-// Files to load from the example_small directory
-const TEST_FILES = [
-  '/Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/1_VoiceTree_Website_Development_and_Node_Display_Bug.md',
-  '/Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/2_VoiceTree_Node_ID_Duplication_Bug.md',
-  '/Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/3_Speaker_s_Immediate_Action_Testing.md',
-  '/Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/4_Test_Outcome_No_Output.md',
-  '/Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/5_Immediate_Test_Observation_No_Output.md',
-  '/Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/6_Personal_Logistics_and_Requests.md'
-];
 
 async function initializeGraph() {
   console.log('Initializing graph test...');
@@ -29,17 +27,13 @@ async function initializeGraph() {
     }
 
     // Load and parse markdown files
-    console.log('Loading markdown files...');
+    console.log('Loading markdown files from directory...');
     const fileMap = new Map<string, string>();
 
-    for (const filePath of TEST_FILES) {
-      try {
-        const fileName = filePath.split('/').pop() || '';
-        const content = await loadFileViaDevServer(fileName);
-        fileMap.set(fileName, content);
-      } catch (error) {
-        console.warn(`Failed to load ${filePath}:`, error);
-      }
+    // Process all imported markdown files
+    for (const [path, content] of Object.entries(markdownModules)) {
+      const fileName = path.split('/').pop() || '';
+      fileMap.set(fileName, content as string);
     }
 
     if (fileMap.size === 0) {
@@ -155,30 +149,36 @@ async function initializeGraph() {
       node.position({ x, y });
     });
 
-    // Apply Cola layout
-    console.log('Running Cola layout...');
-    const layout = cy.layout({
-      name: 'cola',
-      animate: true,
-      refresh: 1,
-      maxSimulationTime: 4000,
-      ungrabifyWhileSimulating: false,
-      fit: true,
-      padding: 30,
-      nodeDimensionsIncludeLabels: true,
-      randomize: false,
-      avoidOverlap: true,
-      convergenceThreshold: 0.01,
-      nodeSpacing: function(node: any) { return 50; },
-      edgeLength: function(edge: any) { return 100; }
-    } as any);
+    // Initialize LayoutManager with SeedParkRelaxStrategy
+    const layoutManager = new LayoutManager(new SeedParkRelaxStrategy());
 
-    layout.run();
+    // Store linkedNodeIds on nodes for the layout algorithm
+    nodeElements.forEach(nodeEl => {
+      const linkedIds: string[] = [];
+      edgeElements.forEach(edgeEl => {
+        if (edgeEl.data.source === nodeEl.data.id) {
+          linkedIds.push(edgeEl.data.target);
+        } else if (edgeEl.data.target === nodeEl.data.id) {
+          linkedIds.push(edgeEl.data.source);
+        }
+      });
+      nodeEl.data.linkedNodeIds = linkedIds;
+    });
 
-    // Expose to window for debugging
+    // Apply the layout using BFS from root
+    console.log('Applying incremental layout...');
+    layoutManager.positionGraphBFS(cy);
+
+    // Fit to viewport
+    cy.fit(50);
+
+    // Expose to window for debugging and testing
     (window as any).cy = cy;
     (window as any).cytoscapeCore = cytoscapeCore;
     (window as any).parsedNodes = parsedNodes;
+    (window as any).layoutManager = layoutManager;
+    (window as any).LayoutManager = LayoutManager;
+    (window as any).SeedParkRelaxStrategy = SeedParkRelaxStrategy;
 
     console.log('Graph initialization complete!');
     console.log('Available in window: cy, cytoscapeCore, parsedNodes');
@@ -231,23 +231,6 @@ async function initializeGraph() {
     }
   }
 }
-
-// Alternative approach: Load files from relative paths via vite dev server
-async function loadFileViaDevServer(fileName: string): Promise<string> {
-  try {
-    // Try to load from public directory or served assets
-    const response = await fetch(`/example_small/${fileName}`);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    return await response.text();
-  } catch (error) {
-    console.warn(`Failed to load ${fileName} via dev server, trying direct file access...`);
-    throw error;
-  }
-}
-
-// Initialize function - attempts to load files and render graph
 
 // Initialize when DOM is loaded
 if (document.readyState === 'loading') {

@@ -1,4 +1,5 @@
 import { MarkdownParser, type GraphData } from './MarkdownParser';
+import { FileLoader } from './FileLoader';
 
 export class ExampleLoader {
   /**
@@ -99,13 +100,38 @@ _Links:_
   }
 
   /**
-   * Alternative method to load files from actual file system (for Node.js environments)
-   * This would be used in a Node.js context or with appropriate file system access
+   * Load files from user's computer using file picker
+   * Cross-browser compatible approach
    */
-  static async loadFromFileSystem(directoryPath: string): Promise<GraphData> {
-    // This would require fs module and would be used in Node.js environment
-    // For now, just return the example data
-    console.warn('File system loading not implemented for browser environment');
-    return this.loadExampleSmall();
+  static async loadFromUserFiles(): Promise<GraphData | null> {
+    return FileLoader.pickMultipleFiles();
+  }
+
+  /**
+   * Load a single file from user's computer using file picker
+   */
+  static async loadSingleFile(): Promise<GraphData | null> {
+    return FileLoader.pickSingleFile();
+  }
+
+  /**
+   * Load directory from user's computer using directory picker
+   */
+  static async loadFromDirectory(): Promise<GraphData | null> {
+    return FileLoader.pickDirectory();
+  }
+
+  /**
+   * Create a drag & drop zone for file loading
+   */
+  static createFileDropZone(onFilesLoaded: (graphData: GraphData) => void): HTMLDivElement {
+    return FileLoader.createDropZone(onFilesLoaded);
+  }
+
+  /**
+   * Setup paste handler for file loading (Ctrl+V)
+   */
+  static setupFilePasteHandler(onFilesLoaded: (graphData: GraphData) => void): void {
+    FileLoader.setupPasteHandler(onFilesLoaded);
   }
 }

@@ -151,7 +151,10 @@ window.MediaStream = class MediaStream {
 } as any;
 
 // Mock getUserMedia to reject with permission denied (simulating no microphone access)
-navigator.mediaDevices = {
-  getUserMedia: () => Promise.reject(new Error('Permission denied')),
-  enumerateDevices: () => Promise.resolve([]),
-} as any;
+Object.defineProperty(navigator, "mediaDevices", {
+  writable: true,
+  value: {
+    getUserMedia: () => Promise.reject(new Error('Permission denied')),
+    enumerateDevices: () => Promise.resolve([]),
+  },
+});
