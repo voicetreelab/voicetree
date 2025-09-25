@@ -8,25 +8,24 @@
       "Bash(rm:*)",
       "Bash(./tools/test_color_flow.sh:*)",
       "Bash(python tools/add_new_node.py:*)",
-      "Bash(python*/tools/add_new_node.py:*)"
+      "Bash(python*/tools/add_new_node.py:*)",
+      "Bash(claude mcp:*)"
     ]
   },
   "enabledMcpjsonServers": [
     "zen"
   ],
-
-"hooks" : {
-  "Stop": [
-    {
-      "description": "Run tests and check created nodes",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/test-runner.py",
-          "timeout": 90
-        }
-      ]
-    }
-  ]
-}
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/test-runner.py",
+            "timeout": 90
+          }
+        ]
+      }
+    ]
+  }
 }

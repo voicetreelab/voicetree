@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import { type Token } from "@soniox/speech-to-text-web";
-import TopBar from "./top-bar";
 import SpeedDialMenu from "./speed-dial-menu";
 
 interface HistoryEntry {
@@ -176,20 +175,6 @@ export default function VoiceTreeLayout() {
         </svg>
       </button>
 
-      {/* Top Bar */}
-      <TopBar
-        state={state}
-        currentTranscript={currentTranscript}
-        bufferLength={bufferLength}
-        isProcessing={isProcessing}
-        connectionError={connectionError}
-        error={error}
-        history={history}
-        onStartTranscription={startTranscription}
-        onStopTranscription={stopTranscription}
-        onSendText={(text) => sendToVoiceTree(text, 'text')}
-        onClearHistory={clearHistory}
-      />
 
       {/* Main Canvas Area (for future cytoscape.js) */}
       <div className="pt-28 h-full">

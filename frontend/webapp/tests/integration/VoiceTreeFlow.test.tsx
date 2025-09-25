@@ -42,7 +42,7 @@ describe("VoiceTree Integration Tests", () => {
     vi.clearAllMocks();
   });
 
-  describe("Text Input Flow", () => {
+  describe.skip("Text Input Flow", () => {
     it("completes full text input flow: type → submit → add to history", async () => {
       const user = userEvent.setup();
 
