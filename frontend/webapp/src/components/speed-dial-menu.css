@@ -11,6 +11,12 @@
   align-items: flex-end;
   gap: 0.5rem;
   padding: 0.5rem;
+  transition: gap 0.3s ease;
+}
+
+/* Increase gap on hover to spread items */
+.speed-dial-container:hover {
+  gap: 1rem;
 }
 
 /* Individual menu items */
@@ -82,25 +88,13 @@
   z-index: 10;
 }
 
-/* Equal spacing between items - each moves by index * spacing */
-.speed-dial-container:hover .speed-dial-item-0 {
-  transform: translateX(-8px) translateY(-30px) scale(var(--scale, 1));
-}
-
-.speed-dial-container:hover .speed-dial-item-1 {
-  transform: translateX(-12px) translateY(-15px) scale(var(--scale, 1));
-}
-
-.speed-dial-container:hover .speed-dial-item-2 {
-  transform: translateX(-15px) translateY(0px) scale(var(--scale, 1));
-}
-
-.speed-dial-container:hover .speed-dial-item-3 {
-  transform: translateX(-12px) translateY(15px) scale(var(--scale, 1));
-}
-
+/* Scale items based on hover state - no individual positioning */
+.speed-dial-container:hover .speed-dial-item-0,
+.speed-dial-container:hover .speed-dial-item-1,
+.speed-dial-container:hover .speed-dial-item-2,
+.speed-dial-container:hover .speed-dial-item-3,
 .speed-dial-container:hover .speed-dial-item-4 {
-  transform: translateX(-8px) translateY(30px) scale(var(--scale, 1));
+  transform: scale(var(--scale, 1));
 }
 
 /* Stagger the animation delay */
