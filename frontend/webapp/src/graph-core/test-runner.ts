@@ -1,8 +1,8 @@
 import cytoscape from 'cytoscape';
 // @ts-ignore
 import cola from 'cytoscape-cola';
-import { MarkdownParser, type ParsedNode } from './data/MarkdownParser';
-import { CytoscapeCore } from './CytoscapeCore';
+import { MarkdownParser, type ParsedNode } from './data/load_markdown/MarkdownParser';
+import { CytoscapeCore } from './graphviz/CytoscapeCore';
 import { type NodeDefinition, type EdgeDefinition } from './types';
 
 // Register cola extension with cytoscape

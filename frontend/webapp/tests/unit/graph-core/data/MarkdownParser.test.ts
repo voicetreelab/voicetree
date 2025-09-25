@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MarkdownParser } from '../../../../src/graph-core/data/MarkdownParser';
+import { MarkdownParser } from '../../../../src/graph-core/data/load_markdown/MarkdownParser';
 
 describe('MarkdownParser', () => {
   it('should parse markdown files and extract wikilinks', async () => {
