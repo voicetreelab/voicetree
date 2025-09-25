@@ -18,7 +18,7 @@ export default function Renderer({ tokens, placeholder }: RendererProps) {
   return (
     <>
       {tokens.length === 0 ? (
-        <div className="text-gray-500 text-center flex items-center justify-center h-full">
+        <div className="text-gray-500 text-center flex items-center justify-center h-1/4">
           {placeholder}
         </div>
       ) : (
