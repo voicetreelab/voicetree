@@ -14,4 +14,4 @@ create a markdown document with concise results. Put it in meta/reports
 
 TASK 2
 
-read [[meta/prompts/fix_test_failures.md]] once you have finished task 1.
+read [[meta/workflows/fix_test_failures.md]] once you have finished task 1.

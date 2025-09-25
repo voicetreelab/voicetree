@@ -198,11 +198,20 @@ class TestEmbeddingSearchIntegration:
 
     def test_fallback_without_api_key(self, loaded_tree):
         """Test that system falls back gracefully without API key"""
-        with patch.dict(os.environ, {'VOICETREE_USE_EMBEDDINGS': 'true', 'GEMINI_API_KEY': ''}):
-            embeddings = get_node_embeddings(loaded_tree.tree)
+        # Reset Gemini configuration state
+        import backend.markdown_tree_manager.graph_search.vector_search as vs
+        original_configured = vs._gemini_configured
+        vs._gemini_configured = False
 
-            # Should return empty dict when API key is missing
-            assert embeddings == {}
+        try:
+            with patch.dict(os.environ, {'VOICETREE_USE_EMBEDDINGS': 'true', 'GEMINI_API_KEY': '', 'GOOGLE_API_KEY': ''}, clear=False):
+                embeddings = get_node_embeddings(loaded_tree.tree)
+
+                # Should return empty dict when API key is missing
+                assert embeddings == {}
+        finally:
+            # Restore original state
+            vs._gemini_configured = original_configured
 
     @pytest.mark.skipif(not os.getenv("GEMINI_API_KEY"), reason="GEMINI_API_KEY not set")
     def test_exact_match_gets_highest_score(self, loaded_tree):

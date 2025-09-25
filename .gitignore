@@ -145,3 +145,4 @@ tools/state/*
 /.obsidian/core-plugins.json
 /.obsidian/workspace.json
 /frontend/webapp/node_modules/**/*
+/backend/embeddings_output/**/*
