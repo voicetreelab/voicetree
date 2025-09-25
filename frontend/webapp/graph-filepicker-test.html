@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Graph Module File Picker Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .controls h2 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #007acc;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #005a9e;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .info {
+      background: #e8f4fd;
+      padding: 10px;
+      border-radius: 4px;
+      border-left: 4px solid #007acc;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .status {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .status.success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+
+    .status.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+
+    .status.info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+
+    #graph-container {
+      width: 100%;
+      height: 600px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+    }
+
+    .drop-zone {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 15px;
+    }
+
+    .drop-zone:hover {
+      border-color: #007acc;
+      background-color: #f0f8ff;
+    }
+
+    .drop-zone.dragover {
+      border-color: #007acc;
+      background-color: #f0f8ff;
+    }
+
+    /* File input styling */
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-input-label {
+      display: inline-block;
+      background: #6c757d;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .file-input-label:hover {
+      background: #5a6268;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <h2>File Picker Test for VoiceTree Graph</h2>
+
+    <div class="info">
+      This page demonstrates file picker functionality for loading markdown files into the graph.
+      In E2E tests, we can simulate file selection without opening native dialogs.
+    </div>
+
+    <div class="button-group">
+      <button id="btn-single-file">Pick Single File</button>
+      <button id="btn-multiple-files">Pick Multiple Files</button>
+      <button id="btn-directory">Pick Directory</button>
+      <button id="btn-example-data">Load Example Data</button>
+      <button id="btn-clear">Clear Graph</button>
+    </div>
+
+    <div class="drop-zone" id="drop-zone">
+      Drop markdown files here or click to browse
+    </div>
+
+    <!-- Hidden file input for programmatic testing -->
+    <input type="file" id="test-file-input" accept=".md" multiple>
+    <label for="test-file-input" class="file-input-label">
+      Test File Input (for automation)
+    </label>
+
+    <div id="status" class="status info">
+      Ready to load files. Try the buttons above or drop files onto the drop zone.
+    </div>
+  </div>
+
+  <div id="graph-container"></div>
+
+  <script type="module" src="/src/graph-core/file-picker-test-runner.ts"></script>
+</body>
+</html>

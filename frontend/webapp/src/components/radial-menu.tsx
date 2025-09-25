@@ -5,9 +5,7 @@ import {
   Trash2,
   Moon,
   Sun,
-  Info,
-  Menu,
-  X
+  Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

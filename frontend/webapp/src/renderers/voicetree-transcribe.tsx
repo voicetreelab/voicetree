@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Send } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatusDisplay from "../components/status-display";
 import SoundWaveVisualizer from "../components/sound-wave-visualizer";
@@ -64,7 +64,7 @@ export default function VoiceTreeTranscribe() {
   }, [error]);
 
   // Extract text from tokens for sending to server
-  const getTranscriptText = (tokens: any[]): string => {
+  const getTranscriptText = (tokens: Token[]): string => {
     return tokens
       .filter(token => token.text !== "<end>")
       .map(token => token.text)
@@ -127,6 +127,7 @@ export default function VoiceTreeTranscribe() {
           is_final: true,
           speaker: undefined,
           language: undefined,
+          confidence: 1.0,
         });
       }
 
@@ -136,6 +137,7 @@ export default function VoiceTreeTranscribe() {
         is_final: true,
         speaker: undefined,
         language: undefined,
+        confidence: 1.0,
       });
 
       // Append to final tokens

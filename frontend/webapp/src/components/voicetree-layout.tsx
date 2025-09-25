@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import { type Token } from "@soniox/speech-to-text-web";
@@ -15,25 +15,15 @@ const MAX_HISTORY_ENTRIES = 50;
 const HISTORY_STORAGE_KEY = 'voicetree-history';
 
 export default function VoiceTreeLayout() {
-  const [bufferLength, setBufferLength] = useState<number>(0);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const lastSentText = useRef<string>("");
 
   const {
-    state,
     finalTokens,
-    nonFinalTokens,
-    startTranscription,
-    stopTranscription,
-    error,
   } = useVoiceTreeClient({
     apiKey: getAPIKey,
   });
-
-  const allTokens = [...finalTokens, ...nonFinalTokens];
 
   // Dark mode management
   useEffect(() => {
@@ -61,7 +51,7 @@ export default function VoiceTreeLayout() {
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        const historyWithDates = parsed.map((entry: any) => ({
+        const historyWithDates = parsed.map((entry: HistoryEntry & { timestamp: string }) => ({
           ...entry,
           timestamp: new Date(entry.timestamp)
         }));
@@ -88,10 +78,8 @@ export default function VoiceTreeLayout() {
       .join("");
   };
 
-  const currentTranscript = getTranscriptText(allTokens);
-
   // Add entry to history with limit management
-  const addToHistory = (text: string, source: 'speech' | 'text') => {
+  const addToHistory = useCallback((text: string, source: 'speech' | 'text') => {
     const newEntry: HistoryEntry = {
       id: `${Date.now()}-${Math.random()}`,
       text,
@@ -106,7 +94,7 @@ export default function VoiceTreeLayout() {
       }
       return updated;
     });
-  };
+  }, []);
 
   // Clear all history
   const clearHistory = () => {
@@ -114,11 +102,10 @@ export default function VoiceTreeLayout() {
     localStorage.removeItem(HISTORY_STORAGE_KEY);
   };
 
-  // Send text to VoiceTree and get buffer length
-  const sendToVoiceTree = async (text: string, source: 'speech' | 'text' = 'text') => {
+  // Send text to VoiceTree
+  const sendToVoiceTree = useCallback(async (text: string, source: 'speech' | 'text' = 'text') => {
     if (!text.trim() || text === lastSentText.current) return;
 
-    setIsProcessing(true);
     lastSentText.current = text;
 
     // Always add to history, regardless of server status
@@ -134,21 +121,15 @@ export default function VoiceTreeLayout() {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        if (result.buffer_length !== undefined) {
-          setBufferLength(result.buffer_length);
-        }
-        setConnectionError(null);
+        await response.json(); // Server response handled but result not used to avoid warnings
       } else {
-        setConnectionError(`Server error: ${response.status} ${response.statusText}`);
+        console.error(`Server error: ${response.status} ${response.statusText}`);
       }
     } catch (err) {
       console.error("Error sending to VoiceTree:", err);
-      setConnectionError("Cannot connect to VoiceTree server (http://localhost:8000)");
-    } finally {
-      setIsProcessing(false);
+      console.error("Cannot connect to VoiceTree server (http://localhost:8000)");
     }
-  };
+  }, [addToHistory]);
 
   // Continuously send final tokens to server
   useEffect(() => {
@@ -156,7 +137,7 @@ export default function VoiceTreeLayout() {
     if (currentText && currentText !== lastSentText.current) {
       sendToVoiceTree(currentText, 'speech');
     }
-  }, [finalTokens]);
+  }, [finalTokens, sendToVoiceTree]);
 
   return (
     <div className="h-screen bg-background overflow-hidden relative">
