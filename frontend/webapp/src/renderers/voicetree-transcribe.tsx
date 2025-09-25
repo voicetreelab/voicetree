@@ -1,16 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import StatusDisplay from "../components/status-display";
 import RecordButton from "../components/record-button";
-import useSonioxClient from "@/hooks/useSonioxClient";
+import SoundWaveVisualizer from "../components/sound-wave-visualizer";
+import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";
 import useAutoScroll from "@/hooks/useAutoScroll";
 import { type Token } from "@soniox/speech-to-text-web";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Send, AlertCircle } from "lucide-react";
 
 export default function VoiceTreeTranscribe() {
   const [bufferLength, setBufferLength] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [textInput, setTextInput] = useState("");
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const lastSentText = useRef<string>("");
 
   const {
@@ -20,7 +26,7 @@ export default function VoiceTreeTranscribe() {
     startTranscription,
     stopTranscription,
     error,
-  } = useSonioxClient({
+  } = useVoiceTreeClient({
     apiKey: getAPIKey,
   });
 
@@ -56,9 +62,13 @@ export default function VoiceTreeTranscribe() {
         if (result.buffer_length !== undefined) {
           setBufferLength(result.buffer_length);
         }
+        setConnectionError(null);
+      } else {
+        setConnectionError(`Server error: ${response.status} ${response.statusText}`);
       }
     } catch (err) {
       console.error("Error sending to VoiceTree:", err);
+      setConnectionError("Cannot connect to VoiceTree server (http://localhost:8000)");
     } finally {
       setIsProcessing(false);
     }
@@ -82,7 +92,8 @@ export default function VoiceTreeTranscribe() {
 
   // Handle Enter key press
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       handleTextSubmit();
     }
   };
@@ -100,6 +111,7 @@ export default function VoiceTreeTranscribe() {
         </div>
       </div>
 
+      {/* Transcription Display - Always visible, no toggle */}
       <div
         ref={autoScrollRef}
         className="h-[400px] overflow-y-auto p-4 border rounded-lg bg-white mb-4"
@@ -116,7 +128,7 @@ export default function VoiceTreeTranscribe() {
         </div>
       )}
 
-      <div className="text-center">
+      <div className="text-center mb-4">
         <RecordButton
           state={state}
           stopTranscription={stopTranscription}
@@ -129,22 +141,38 @@ export default function VoiceTreeTranscribe() {
 
       <div className="mt-6 pt-6 border-t border-gray-200">
         <div className="flex gap-2">
-          <input
-            type="text"
-            value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Or type text here and press Enter..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={isProcessing}
-          />
-          <button
-            onClick={handleTextSubmit}
-            disabled={isProcessing || !textInput.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Send
-          </button>
+          <div className="flex-1 relative">
+            {state === 'Running' ? (
+              <div className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                <SoundWaveVisualizer
+                  isActive={state === 'Running'}
+                  fallbackAnimation={true}
+                  barCount={30}
+                  barColor="rgb(59, 130, 246)"
+                  className="w-full h-8"
+                />
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Or type text here and press Enter..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isProcessing}
+              />
+            )}
+          </div>
+          {state !== 'Running' && (
+            <button
+              onClick={handleTextSubmit}
+              disabled={isProcessing || !textInput.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Send
+            </button>
+          )}
         </div>
       </div>
     </div>

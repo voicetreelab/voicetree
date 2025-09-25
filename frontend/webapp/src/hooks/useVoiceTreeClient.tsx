@@ -7,7 +7,7 @@ import {
   type TranslationConfig,
 } from "@soniox/speech-to-text-web";
 
-interface UseSonioxClientOptions {
+interface UseVoiceTreeClientOptions {
   apiKey: string | (() => Promise<string>);
   translationConfig?: TranslationConfig;
   onStarted?: () => void;
@@ -20,13 +20,13 @@ type TranscriptionError = {
   errorCode: number | undefined;
 };
 
-// useTranscribe hook wraps Soniox speech-to-text-web SDK.
-export default function useSonioxClient({
+// useTranscribe hook wraps VoiceTree speech-to-text functionality using Soniox SDK.
+export default function useVoiceTreeClient({
   apiKey,
   translationConfig,
   onStarted,
   onFinished,
-}: UseSonioxClientOptions) {
+}: UseVoiceTreeClientOptions) {
   const sonioxClient = useRef<SonioxClient | null>(null);
 
   if (sonioxClient.current == null) {
