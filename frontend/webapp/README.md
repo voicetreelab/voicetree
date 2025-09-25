@@ -30,7 +30,7 @@ This example requires the Soniox Temporary API Key Server to be running. See the
 2. **Open another terminal & install dependencies:**
 
    ```bash
-   cd ../react
+   cd frontend/webapp
    npm install
    ```
 
@@ -92,10 +92,31 @@ If you want to test quickly without setting up the server, you can use your API 
 
 ## Code Structure
 
-- `src/App.tsx` - Main application component with transcription logic
-- `src/index.css` - Tailwind CSS imports
-- `useSonioxClient()` - Custom hook managing the Soniox transcription instance
-- `src/renderers/` - Different transcription rendering modes (transcribe, translate, etc.)
+```
+src/
+├── App.tsx                 # Main application component with tab navigation
+├── main.tsx               # Application entry point
+├── index.css              # Tailwind CSS configuration
+├── components/
+│   ├── tab-view.tsx       # Tab navigation component
+│   ├── record-button.tsx  # Recording control button
+│   ├── speaker-label.tsx  # Speaker identification label
+│   └── status-display.tsx # Recording status indicator
+├── hooks/
+│   ├── useSonioxClient.tsx  # Soniox SDK integration hook
+│   └── useAutoScroll.tsx    # Auto-scroll functionality
+├── renderers/
+│   ├── voicetree-transcribe.tsx  # VoiceTree integration mode
+│   ├── transcribe.tsx            # Standard transcription mode
+│   ├── translate-to.tsx          # Translation from-to mode
+│   ├── translate-between.tsx     # Bidirectional translation mode
+│   └── renderer.tsx              # Base rendering component
+├── config/
+│   └── languages.ts       # Language configuration
+└── utils/
+    ├── get-api-key.ts     # API key management
+    └── speaker-colors.ts  # Speaker color assignment
+```
 
 ## API Documentation
 
