@@ -33,25 +33,27 @@ export default function VoiceTreeTranscribe() {
   const allTokens = [...finalTokens, ...nonFinalTokens];
   const autoScrollRef = useAutoScroll(allTokens);
 
-  // DEBUG: Log tokens to see what's happening
+  // Show error popup when Soniox fails
   useEffect(() => {
-    console.log('=== VoiceTreeTranscribe Debug ===');
-    console.log('State:', state);
-    console.log('Final tokens count:', finalTokens.length);
-    console.log('Non-final tokens count:', nonFinalTokens.length);
-    console.log('All tokens:', allTokens);
-    if (allTokens.length > 0) {
-      console.log('Token details:', allTokens.map(t => ({ text: t.text, is_final: t.is_final })));
+    if (error) {
+      // Show a more user-friendly error message
+      const errorMessage = error.message.includes('apiKey')
+        ? 'Invalid or missing Soniox API key. Please check your configuration.'
+        : error.message.includes('network')
+        ? 'Cannot connect to Soniox service. Please check your internet connection.'
+        : `Soniox error: ${error.message}`;
+
+      alert(errorMessage);
+      console.error('Soniox Error:', error);
     }
-    console.log('===============================');
-  }, [state, finalTokens, nonFinalTokens]);
+  }, [error]);
 
   // Extract text from tokens for sending to server
-  const getTranscriptText = (tokens: Token[]): string => {
+  const getTranscriptText = (tokens: any[]): string => {
     return tokens
       .filter(token => token.text !== "<end>")
       .map(token => token.text)
-      .join("");
+      .join(" ");
   };
 
   // Send text to VoiceTree and get buffer length
@@ -148,9 +150,16 @@ export default function VoiceTreeTranscribe() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-          <div className="text-red-700 text-sm">Error: {error.message}</div>
-        </div>
+        <Alert className="mb-4" variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            {error.message.includes('apiKey')
+              ? 'Invalid or missing Soniox API key. Please check your .env file.'
+              : error.message.includes('network') || error.message.includes('Failed to fetch')
+              ? 'Cannot connect to Soniox service. Please check your internet connection and API key.'
+              : `Soniox error: ${error.message}`}
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="text-center mb-4">
