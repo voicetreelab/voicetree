@@ -1,4 +1,4 @@
-// Get Soniox API key from environment variable
+// Get API key for speech recognition service
 export default async function getAPIKey() {
   // Check if running in development with Vite
   if (import.meta.env?.VITE_SONIOX_API_KEY) {
@@ -6,9 +6,9 @@ export default async function getAPIKey() {
   }
 
   // Fallback to prompt user for API key
-  const apiKey = prompt("Please enter your Soniox API key:");
+  const apiKey = prompt("Please enter your VoiceTree API key:");
   if (!apiKey) {
-    throw new Error("Soniox API key is required for speech recognition");
+    throw new Error("API key is required for speech recognition");
   }
   return apiKey;
 }

@@ -1,6 +1,6 @@
-# Soniox Speech-to-Text React Example
+# VoiceTree Web Application
 
-A minimal React example demonstrating real-time speech-to-text using the Soniox Speech-to-Text Web library.
+A real-time speech-to-text application that converts voice input into structured graphs using VoiceTree's agentic pipeline.
 
 ## Features
 
@@ -12,7 +12,7 @@ A minimal React example demonstrating real-time speech-to-text using the Soniox 
 
 ## Prerequisites
 
-This example requires the Soniox Temporary API Key Server to be running. See the [server README](../server/README.md) for setup instructions.
+This application connects to the VoiceTree backend server for processing voice input into structured graphs.
 
 ## Getting Started
 
@@ -25,7 +25,7 @@ This example requires the Soniox Temporary API Key Server to be running. See the
    ./start.sh
    ```
 
-   Make sure to set your `SONIOX_API_KEY` environment variable as described in the server README.
+   Make sure to set your `VITE_VOICETREE_API_KEY` environment variable for the speech recognition API.
 
 2. **Open another terminal & install dependencies:**
 
@@ -54,9 +54,9 @@ If you want to test quickly without setting up the server, you can use your API 
    npm install
    ```
 
-2. **Update useSonioxClient hook apiKey argument:**
+2. **Update useVoiceTreeClient hook apiKey argument:**
 
-   When using `useSonioxClient` hook pass your API key directly:
+   When using `useVoiceTreeClient` hook pass your API key directly:
 
    ```typescript
    const {
@@ -66,8 +66,8 @@ If you want to test quickly without setting up the server, you can use your API 
      startTranscription,
      stopTranscription,
      error,
-   } = useSonioxClient({
-     apiKey: "YOUR_SONIOX_API_KEY_HERE",
+   } = useVoiceTreeClient({
+     apiKey: "YOUR_VOICETREE_API_KEY_HERE",
    });
    ```
 
@@ -87,8 +87,42 @@ If you want to test quickly without setting up the server, you can use your API 
 
 - **Final tokens** (black text): Confirmed transcription results that won't change
 - **Non-final tokens** (gray text): Tentative results that may be updated as more audio is processed
-- The app uses the Soniox SDK `SonioxClient` class to handle real-time audio capture and transcription
+- The app uses the VoiceTree client to handle real-time audio capture and transcription
 - **Security**: Instead of exposing your main API key to the client, the app fetches temporary API keys from a secure server
+
+## Testing
+
+The application includes comprehensive unit and integration tests using Vitest and React Testing Library.
+
+### Quick Test Commands
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm test -- --watch
+
+# Run tests with coverage report
+npm test:coverage
+
+# Run tests with UI interface
+npm test:ui
+
+# Run specific test file
+npm test RecordButton
+
+# Run tests matching a pattern
+npm test -- --grep "text input"
+```
+
+### Test Coverage
+
+The test suite covers:
+- **Components**: RecordButton, SoundWaveVisualizer, VoiceTreeLayout
+- **User Flows**: Text input submission, speech-to-text, history management
+- **Error Handling**: Server offline scenarios, API failures
+- **State Management**: Processing states, dark mode, localStorage persistence
 
 ## Code Structure
 
@@ -101,9 +135,10 @@ src/
 │   ├── tab-view.tsx       # Tab navigation component
 │   ├── record-button.tsx  # Recording control button
 │   ├── speaker-label.tsx  # Speaker identification label
-│   └── status-display.tsx # Recording status indicator
+│   ├── status-display.tsx # Recording status indicator
+│   └── __tests__/         # Component unit tests
 ├── hooks/
-│   ├── useSonioxClient.tsx  # Soniox SDK integration hook
+│   ├── useVoiceTreeClient.tsx  # VoiceTree client integration hook
 │   └── useAutoScroll.tsx    # Auto-scroll functionality
 ├── renderers/
 │   ├── voicetree-transcribe.tsx  # VoiceTree integration mode
@@ -111,6 +146,10 @@ src/
 │   ├── translate-to.tsx          # Translation from-to mode
 │   ├── translate-between.tsx     # Bidirectional translation mode
 │   └── renderer.tsx              # Base rendering component
+├── __tests__/
+│   └── integration/       # Integration tests
+├── test/
+│   └── setup.ts          # Test configuration and mocks
 ├── config/
 │   └── languages.ts       # Language configuration
 └── utils/
@@ -120,10 +159,7 @@ src/
 
 ## API Documentation
 
-For more details about the Soniox Speech-to-Text Web library, visit:
-
-- [NPM Package](https://www.npmjs.com/package/@soniox/speech-to-text-web)
-- [Soniox Documentation](https://soniox.com/docs)
+For more details about VoiceTree, visit the project documentation.
 
 ## License
 

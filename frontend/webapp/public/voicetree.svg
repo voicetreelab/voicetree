@@ -1,0 +1,21 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tree trunk -->
+  <rect x="85" y="120" width="30" height="60" fill="#8B4513" />
+
+  <!-- Tree leaves/crown (circular canopy) -->
+  <circle cx="100" cy="80" r="50" fill="#228B22" />
+
+  <!-- Additional foliage details -->
+  <circle cx="75" cy="70" r="25" fill="#2E8B57" opacity="0.8" />
+  <circle cx="125" cy="70" r="25" fill="#2E8B57" opacity="0.8" />
+  <circle cx="100" cy="55" r="30" fill="#3CB371" opacity="0.7" />
+
+  <!-- Voice/sound waves emanating from tree -->
+  <path d="M 140 80 Q 150 75, 160 80 T 180 80" stroke="#4CAF50" stroke-width="2" fill="none" opacity="0.6" />
+  <path d="M 140 85 Q 150 80, 160 85 T 180 85" stroke="#4CAF50" stroke-width="2" fill="none" opacity="0.5" />
+  <path d="M 140 90 Q 150 85, 160 90 T 180 90" stroke="#4CAF50" stroke-width="2" fill="none" opacity="0.4" />
+
+  <path d="M 60 80 Q 50 75, 40 80 T 20 80" stroke="#4CAF50" stroke-width="2" fill="none" opacity="0.6" />
+  <path d="M 60 85 Q 50 80, 40 85 T 20 85" stroke="#4CAF50" stroke-width="2" fill="none" opacity="0.5" />
+  <path d="M 60 90 Q 50 85, 40 90 T 20 90" stroke="#4CAF50" stroke-width="2" fill="none" opacity="0.4" />
+</svg>

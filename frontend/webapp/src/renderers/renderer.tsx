@@ -56,7 +56,7 @@ export default function Renderer({ tokens, placeholder }: RendererProps) {
                 )}
                 {/* Display final and non-final tokens with different colors */}
                 <span
-                  className={token.is_final ? "text-gray-900" : "text-gray-500"}
+                  className={token.is_final ? "text-black font-medium" : "text-gray-600"}
                 >
                   {token.text}
                 </span>
