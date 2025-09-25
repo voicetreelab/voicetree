@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import SpeedDialMenu from '../speed-dial-menu';
+import SpeedDialMenu from '@/components/speed-dial-menu';
 
 describe('SpeedDialMenu', () => {
   const mockProps = {

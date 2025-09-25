@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import VoiceTreeTranscribe from '../voicetree-transcribe';
+import VoiceTreeTranscribe from '@/renderers/voicetree-transcribe';
 import useVoiceTreeClient from '@/hooks/useVoiceTreeClient';
 import { vi } from 'vitest';
 
@@ -11,6 +11,11 @@ vi.mock('@/hooks/useAutoScroll', () => ({
 }));
 vi.mock('@/utils/get-api-key', () => ({
   default: () => 'test-api-key'
+}));
+
+// Mock SoundWaveVisualizer to avoid animation issues in tests
+vi.mock('@/components/sound-wave-visualizer', () => ({
+  default: () => null
 }));
 
 // Mock navigator.mediaDevices.getUserMedia
@@ -44,15 +49,18 @@ describe('VoiceTreeTranscribe', () => {
       error: null
     });
 
-    render(<VoiceTreeTranscribe />);
+    act(() => {
+      render(<VoiceTreeTranscribe />);
+    });
 
-    // Should show the non-final tokens in the transcription area
-    // Note: ' world' has a leading space, so we check for 'world' with textContent
-    const transcriptionArea = screen.getByText('Hello').parentElement;
-    expect(transcriptionArea?.textContent).toContain('Hello world');
+    // Should show the non-final tokens in the Renderer component
+    // Tokens are displayed in the transcription area
+    const transcriptionText = screen.getByText('Hello');
+    expect(transcriptionText).toBeInTheDocument();
 
-    // Should NOT show "No history yet..." when we have tokens
-    expect(screen.queryByText('No history yet...')).not.toBeInTheDocument();
+    // The text "world" might be in a separate element, so check parent
+    const parent = transcriptionText.parentElement;
+    expect(parent?.textContent).toContain('Hello world');
   });
 
   it('should display both final and non-final tokens', () => {
@@ -72,11 +80,18 @@ describe('VoiceTreeTranscribe', () => {
       error: null
     });
 
-    render(<VoiceTreeTranscribe />);
+    act(() => {
+      render(<VoiceTreeTranscribe />);
+    });
 
-    // Check that all text is present in the transcription area
-    const transcriptionArea = screen.getByText('This is').parentElement;
-    expect(transcriptionArea?.textContent).toContain('This is final and this is not');
+    // All tokens (final + non-final) are shown in the Renderer component
+    // Check that the text content includes all the tokens
+    const transcriptionText = screen.getByText('This is');
+    expect(transcriptionText).toBeInTheDocument();
+
+    // Check the full text is present
+    const parent = transcriptionText.parentElement;
+    expect(parent?.textContent).toContain('This is final and this is not');
   });
 
   it('should show placeholder when no tokens', () => {
@@ -90,9 +105,15 @@ describe('VoiceTreeTranscribe', () => {
       error: null
     });
 
-    render(<VoiceTreeTranscribe />);
+    act(() => {
+      render(<VoiceTreeTranscribe />);
+    });
 
-    // Should show the placeholder text
+    // Should show the placeholder text in the Renderer component
     expect(screen.getByText('Click start to begin transcribing for VoiceTree')).toBeInTheDocument();
+
+    // Input should have the appropriate placeholder
+    const input = screen.getByPlaceholderText('Or type text here and press Enter...');
+    expect(input).toBeInTheDocument();
   });
 });

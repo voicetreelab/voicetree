@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import RecordButton from "../record-button";
+import RecordButton from "@/components/record-button";
 
 describe("RecordButton", () => {
   const mockStartTranscription = vi.fn();

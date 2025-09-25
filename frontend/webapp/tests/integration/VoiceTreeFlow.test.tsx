@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import VoiceTreeLayout from "../../components/voicetree-layout";
+import VoiceTreeLayout from "@/components/voicetree-layout";
 
 // Constants from VoiceTreeLayout
 const MAX_HISTORY_ENTRIES = 50;
@@ -30,7 +30,9 @@ vi.mock("@/utils/get-api-key", () => ({
 describe("VoiceTree Integration Tests", () => {
   beforeEach(() => {
     // Clear localStorage
-    localStorage.clear();
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.clear();
+    }
 
     // Reset fetch mock
     (global.fetch as any).mockReset();
