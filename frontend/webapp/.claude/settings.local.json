@@ -24,7 +24,8 @@
       "mcp__playwright__browser_take_screenshot",
       "mcp__playwright__browser_snapshot",
       "Bash(npx playwright test:*)",
-      "mcp__playwright__browser_evaluate"
+      "mcp__playwright__browser_evaluate",
+      "Read(//Users/bobbobby/repos/VoiceTree/backend/markdown_tree_manager/markdown_to_tree/**)"
     ]
   },
   "enabledMcpjsonServers": [
