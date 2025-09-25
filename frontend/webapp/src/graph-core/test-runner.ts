@@ -57,6 +57,11 @@ async function initializeGraph() {
 
     console.log('Parsed nodes:', parsedNodes);
 
+    // Debug: Log links for each node
+    parsedNodes.forEach(node => {
+      console.log(`Node ${node.id} (${node.filename}) has ${node.links.length} links:`, node.links);
+    });
+
     // Convert parsed nodes to cytoscape elements
     const nodeElements: NodeDefinition[] = [];
     const edgeElements: EdgeDefinition[] = [];
@@ -73,15 +78,20 @@ async function initializeGraph() {
 
       // Add edges for each link
       node.links.forEach((link, index) => {
-        if (link.targetNodeId) {
-          edgeElements.push({
-            data: {
-              id: `${node.id}-${link.targetNodeId}-${index}`,
-              source: node.id,
-              target: link.targetNodeId,
-              label: link.type
-            }
-          });
+        // Use targetFile as the target since that's what contains the actual filename
+        if (link.targetFile) {
+          // Find the corresponding node ID by matching the targetFile
+          const targetNode = parsedNodes.find(n => n.filename === link.targetFile);
+          if (targetNode) {
+            edgeElements.push({
+              data: {
+                id: `${node.id}-${targetNode.id}-${index}`,
+                source: node.id,
+                target: targetNode.id,
+                label: link.type
+              }
+            });
+          }
         }
       });
     });

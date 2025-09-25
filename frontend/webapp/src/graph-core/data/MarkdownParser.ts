@@ -58,28 +58,21 @@ export class MarkdownParser {
     const contentStartIndex = frontmatterEnd >= 0 ? frontmatterEnd + 1 : 0;
     const bodyContent = lines.slice(contentStartIndex).join('\n');
 
-    // Extract links from the Links section
+    // Extract ALL wikilinks from the content
     const links: ParsedLink[] = [];
-    const linksSectionMatch = bodyContent.match(/_Links:_([\s\S]*?)$/m);
+    const linkMatches = bodyContent.matchAll(/\[\[([^\]]+)\]\]/g);
 
-    if (linksSectionMatch) {
-      const linksContent = linksSectionMatch[1];
-      // Match patterns like "- is_child_of [[2_Parent_Node.md]]"
-      const linkMatches = linksContent.matchAll(/- (\w+(?:_\w+)*) \[\[([^\]]+)\]\]/g);
+    for (const match of linkMatches) {
+      const targetFile = match[1];
+      // Extract node ID from filename (assumes format like "2_Parent_Node.md")
+      const nodeIdMatch = targetFile.match(/^(\d+)_/);
+      const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : targetFile;
 
-      for (const match of linkMatches) {
-        const linkType = match[1];
-        const targetFile = match[2];
-        // Extract node ID from filename (assumes format like "2_Parent_Node.md")
-        const nodeIdMatch = targetFile.match(/^(\d+)_/);
-        const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : '';
-
-        links.push({
-          type: linkType,
-          targetFile: targetFile,
-          targetNodeId: targetNodeId
-        });
-      }
+      links.push({
+        type: 'link',  // Generic link type since we're not parsing relationship types
+        targetFile: targetFile,
+        targetNodeId: targetNodeId
+      });
     }
 
     return {
