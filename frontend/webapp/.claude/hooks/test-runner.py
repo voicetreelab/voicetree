@@ -7,6 +7,36 @@ import json
 import subprocess
 import sys
 import re
+import os
+
+
+def has_source_code_changes():
+    """Check if there are any source code changes that would require testing."""
+    try:
+        # Check for unstaged changes in source files
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "--", "*.js", "*.jsx", "*.ts", "*.tsx", "*.json", "*.html", "*.css"],
+            cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
+            capture_output=True,
+            text=True
+        )
+        unstaged_changes = result.stdout.strip()
+
+        # Check for staged changes in source files
+        result = subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "--", "*.js", "*.jsx", "*.ts", "*.tsx", "*.json", "*.html", "*.css"],
+            cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
+            capture_output=True,
+            text=True
+        )
+        staged_changes = result.stdout.strip()
+
+        # Return True if any source code changes exist
+        return bool(unstaged_changes or staged_changes)
+    except Exception as e:
+        # If we can't determine changes, run tests to be safe
+        print(f"Warning: Could not check for changes ({e}), running tests anyway")
+        return True
 
 
 def run_tests():
@@ -63,6 +93,11 @@ def parse_test_output(stdout, stderr):
 
 
 def main():
+    # Check if there are source code changes that require testing
+    if not has_source_code_changes():
+        print("ℹ️ No source code changes detected, skipping tests")
+        sys.exit(0)
+
     # Run the tests
     exit_code, stdout, stderr = run_tests()
 

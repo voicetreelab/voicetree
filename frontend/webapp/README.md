@@ -40,7 +40,7 @@ This application connects to the VoiceTree backend server for processing voice i
    npm run dev
    ```
 
-4. **Open your browser** and navigate to the local development URL (usually `http://localhost:5173`)
+4. **Open your browser** and navigate to the local development URL (usually `http://localhost:3000`)
 
 5. **Grant microphone permissions** when prompted and click "Start Recording" to begin transcription
 
@@ -77,7 +77,7 @@ If you want to test quickly without setting up the server, you can use your API 
    npm run dev
    ```
 
-4. **Open your browser** and navigate to the local development URL (usually `http://localhost:5173`)
+4. **Open your browser** and navigate to the local development URL (usually `http://localhost:3000`)
 
 5. **Grant microphone permissions** when prompted and click "Start Recording" to begin transcription
 
