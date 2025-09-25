@@ -30,22 +30,23 @@ test.describe('Incremental Layout - Online Node Positioning', () => {
         const nodeId = `node-${index}`;
         let parentId = null;
 
-        // Create branching structure: each node connects to 1-3 previous nodes
+        // Create tree structure: each node has exactly ONE parent
         const linkedNodes = [];
         if (index > 0) {
-          // Primary parent (always connect to previous node for chain)
-          parentId = `node-${index - 1}`;
+          // For interesting tree structure with branching
+          if (index > 5 && Math.random() > 0.6) {
+            // 40% chance to branch from an earlier node (creating new branches)
+            // This creates a more spread-out tree
+            parentId = `node-${Math.floor(Math.random() * index)}`;
+          } else if (index > 10 && Math.random() > 0.8) {
+            // 20% chance for deeper nodes to connect to much earlier nodes
+            // This creates some long branches
+            parentId = `node-${Math.floor(Math.random() * Math.min(5, index))}`;
+          } else {
+            // 40-60% continue the current branch
+            parentId = `node-${index - 1}`;
+          }
           linkedNodes.push(parentId);
-
-          // Additional connections for more complex graph
-          if (index > 5 && Math.random() > 0.7) {
-            const secondParent = Math.floor(Math.random() * (index - 1));
-            linkedNodes.push(`node-${secondParent}`);
-          }
-          if (index > 10 && Math.random() > 0.85) {
-            const thirdParent = Math.floor(Math.random() * (index - 1));
-            linkedNodes.push(`node-${thirdParent}`);
-          }
         }
 
         // Add node
