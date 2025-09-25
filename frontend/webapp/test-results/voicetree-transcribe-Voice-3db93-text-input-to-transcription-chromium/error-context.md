@@ -1,0 +1,74 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "Original (VoiceTreeLayout with Sidebar)" [level=2] [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - heading "VoiceTree" [level=2] [ref=e10]
+          - button [ref=e11]:
+            - img [ref=e12]
+        - navigation [ref=e14]:
+          - link "🌳 VoiceTree" [ref=e15] [cursor=pointer]:
+            - /url: "#voicetree"
+            - generic [ref=e16] [cursor=pointer]: 🌳
+            - generic [ref=e17] [cursor=pointer]: VoiceTree
+          - link "🎤 Transcribe" [ref=e18] [cursor=pointer]:
+            - /url: "#transcribe"
+            - generic [ref=e19] [cursor=pointer]: 🎤
+            - generic [ref=e20] [cursor=pointer]: Transcribe
+          - link "🌐 Translate" [ref=e21] [cursor=pointer]:
+            - /url: "#translate"
+            - generic [ref=e22] [cursor=pointer]: 🌐
+            - generic [ref=e23] [cursor=pointer]: Translate
+          - link "⚙️ Settings" [ref=e24] [cursor=pointer]:
+            - /url: "#settings"
+            - generic [ref=e25] [cursor=pointer]: ⚙️
+            - generic [ref=e26] [cursor=pointer]: Settings
+        - generic [ref=e29]: VoiceTree © 2024
+      - generic [ref=e31]:
+        - button "Toggle menu" [ref=e32]:
+          - img [ref=e33]
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e41]: Init
+            - button "History ▼" [ref=e43]
+          - generic [ref=e45]: No history yet...
+          - generic [ref=e46]:
+            - button [ref=e47]:
+              - img [ref=e48]
+            - textbox "Type or speak your message..." [ref=e52]
+            - button "Send" [disabled] [ref=e53]:
+              - img [ref=e54]
+        - generic [ref=e59]:
+          - img [ref=e60]
+          - paragraph [ref=e70]: Graph visualization will appear here
+          - paragraph [ref=e71]: Powered by Cytoscape.js
+        - generic [ref=e72]:
+          - button "Dark Mode" [ref=e73] [cursor=pointer]:
+            - img [ref=e74] [cursor=pointer]
+            - generic: Dark Mode
+          - button "Settings" [ref=e76] [cursor=pointer]:
+            - img [ref=e77] [cursor=pointer]
+            - generic: Settings
+          - button "Export" [ref=e80] [cursor=pointer]:
+            - img [ref=e81] [cursor=pointer]
+            - generic: Export
+          - button "Clear History" [ref=e84] [cursor=pointer]:
+            - img [ref=e85] [cursor=pointer]
+            - generic: Clear History
+          - button "About" [ref=e88] [cursor=pointer]:
+            - img [ref=e89] [cursor=pointer]
+            - generic: About
+  - generic [ref=e91]:
+    - heading "VoiceTreeTranscribe Component" [level=2] [ref=e92]
+    - generic [ref=e93]:
+      - generic [ref=e99]: RequestingMedia
+      - generic [ref=e101]: Click start to begin transcribing for VoiceTree
+      - generic [ref=e104]:
+        - button [active] [ref=e105]:
+          - img [ref=e106]
+        - button "Send" [disabled] [ref=e111]
+```

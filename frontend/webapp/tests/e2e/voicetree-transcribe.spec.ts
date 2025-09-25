@@ -1,52 +1,70 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('VoiceTree Transcribe', () => {
-  test('should start recording and add text input to history', async ({ page }) => {
+  test('should start recording and add text input to transcription', async ({ page }) => {
     // Navigate to the application
     await page.goto('/');
 
     // Wait for the page to load
     await page.waitForLoadState('networkidle');
 
-    // Find and click the start recording button
-    // The button text changes based on state, look for button containing "Start"
-    const startButton = page.locator('button').filter({ hasText: /Start/i });
-    await expect(startButton).toBeVisible();
-    await startButton.click();
+    // Find the mic button by its class pattern
+    const micButton = page.locator('button.p-3.rounded-lg').first();
+    await expect(micButton).toBeVisible();
 
-    // Wait for the recording state to be active
-    // The input should be hidden and sound wave visualizer should be shown
-    await expect(page.locator('.flex-1.relative div.bg-gray-50')).toBeVisible();
+    // Check initial state - should have Mic icon (not recording)
+    const initialClass = await micButton.getAttribute('class');
+    expect(initialClass).toContain('bg-primary');
 
-    // Click stop button to stop recording
-    const stopButton = page.locator('button').filter({ hasText: /Stop/i });
-    await expect(stopButton).toBeVisible();
-    await stopButton.click();
+    // Click to start recording
+    await micButton.click();
+
+    // Wait for recording state
+    await page.waitForTimeout(500);
+
+    // Button should now show stop state (red background)
+    const recordingClass = await micButton.getAttribute('class');
+    expect(recordingClass).toContain('bg-destructive');
+
+    // Sound wave visualizer should be visible
+    const soundWave = page.locator('.flex-1.px-4.py-2.border.border-gray-300.rounded-lg.bg-gray-50');
+    await expect(soundWave).toBeVisible();
+
+    // Click to stop recording
+    await micButton.click();
 
     // Wait for the input field to be visible again
     const textInput = page.locator('input[placeholder="Or type text here and press Enter..."]');
     await expect(textInput).toBeVisible();
+    await expect(textInput).toBeEnabled();
+  });
 
-    // Type text into the input field
+  test('should submit text via input field', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    const textInput = page.locator('input[placeholder="Or type text here and press Enter..."]');
+    await expect(textInput).toBeVisible();
+
+    // Mock the backend to respond immediately
+    await page.route('http://localhost:8000/send-text', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ buffer_length: 100 })
+      });
+    });
+
+    // Type and submit text
     const testText = 'Test message from Playwright';
     await textInput.fill(testText);
 
-    // Press Enter to submit
-    await textInput.press('Enter');
+    // Click Send button
+    const sendButton = page.locator('button:has-text("Send")');
+    await sendButton.click();
 
     // Verify the text was sent (input should be cleared)
     await expect(textInput).toHaveValue('');
-
-    // Verify the text appears in the history/transcript area
-    const historyArea = page.locator('div.h-\\[400px\\].overflow-y-auto.p-4.border.rounded-lg.bg-white.mb-4');
-
-    // Wait for the processing to complete and text to appear
-    // Note: The actual appearance in history depends on the backend response
-    // For now, we just verify the structure exists
-    await expect(historyArea).toBeVisible();
-
-    // Alternative: If the backend adds the text to the transcript, check for it
-    // await expect(historyArea).toContainText(testText, { timeout: 10000 });
   });
 
   test('should disable input while processing', async ({ page }) => {
@@ -58,7 +76,7 @@ test.describe('VoiceTree Transcribe', () => {
 
     // Mock the backend to simulate slow processing
     await page.route('http://localhost:8000/send-text', async route => {
-      await page.waitForTimeout(2000); // Simulate slow response
+      await page.waitForTimeout(1000); // Shorter delay
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -74,7 +92,7 @@ test.describe('VoiceTree Transcribe', () => {
     await expect(textInput).toBeDisabled();
 
     // Wait for processing to complete
-    await expect(textInput).toBeEnabled({ timeout: 5000 });
+    await expect(textInput).toBeEnabled({ timeout: 3000 });
   });
 
   test('should show error when backend is unavailable', async ({ page }) => {
@@ -90,7 +108,11 @@ test.describe('VoiceTree Transcribe', () => {
     await textInput.fill('Test error handling');
     await textInput.press('Enter');
 
-    // Should handle the error gracefully
-    await expect(textInput).toBeEnabled({ timeout: 5000 });
+    // Should handle the error gracefully - input re-enables after error
+    await expect(textInput).toBeEnabled({ timeout: 3000 });
+
+    // Check for error message
+    const errorMessage = page.locator('text=/Server Offline/i');
+    await expect(errorMessage).toBeVisible({ timeout: 3000 });
   });
 });

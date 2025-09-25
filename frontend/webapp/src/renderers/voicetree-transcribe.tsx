@@ -1,16 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import { Mic, MicOff, Send } from "lucide-react";
+import { cn } from "@/lib/utils";
 import StatusDisplay from "../components/status-display";
-import RecordButton from "../components/record-button";
 import SoundWaveVisualizer from "../components/sound-wave-visualizer";
 import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";
 import useAutoScroll from "@/hooks/useAutoScroll";
-import { type Token } from "@soniox/speech-to-text-web";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Send, AlertCircle } from "lucide-react";
 
 export default function VoiceTreeTranscribe() {
   const [bufferLength, setBufferLength] = useState<number>(0);
@@ -53,7 +49,7 @@ export default function VoiceTreeTranscribe() {
     return tokens
       .filter(token => token.text !== "<end>")
       .map(token => token.text)
-      .join(" ");
+      .join("");
   };
 
   // Send text to VoiceTree and get buffer length
@@ -125,23 +121,40 @@ export default function VoiceTreeTranscribe() {
     }
   };
 
+
   return (
-    <div className="bg-[#f2f2f2] rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">VoiceTree Live Transcribe</h2>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600">
-            Buffer: <span className="font-mono font-semibold text-blue-600">{bufferLength}</span> chars
-            {isProcessing && <span className="ml-2 text-orange-500">⚡ Processing...</span>}
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header with Status Bar */}
+      <div className="border-b bg-background/95 backdrop-blur-sm">
+        {/* Status Bar */}
+        <div className="flex items-center justify-between px-4 py-2 text-xs bg-muted/30">
+          <div className="flex items-center gap-4">
+            <StatusDisplay state={state} />
+            {bufferLength > 0 && (
+              <span className="text-muted-foreground">
+                Buffer: <span className="font-mono font-semibold text-primary">{bufferLength}</span>
+              </span>
+            )}
+            {isProcessing && (
+              <span className="text-amber-600 flex items-center gap-1">
+                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+                Processing
+              </span>
+            )}
+            {connectionError && (
+              <span className="text-destructive text-xs">⚠️ Server Offline</span>
+            )}
           </div>
-          <StatusDisplay state={state} />
         </div>
       </div>
 
-      {/* Transcription Display - Always visible, no toggle */}
+      {/* Transcription Display - Always visible */}
       <div
         ref={autoScrollRef}
-        className="h-[400px] overflow-y-auto p-4 border rounded-lg bg-white mb-4"
+        className="flex-1 overflow-y-auto p-4 border rounded-lg bg-white mb-4"
       >
         <Renderer
           tokens={allTokens}
@@ -149,35 +162,26 @@ export default function VoiceTreeTranscribe() {
         />
       </div>
 
-      {error && (
-        <Alert className="mb-4" variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="font-medium">
-            {error.message.includes('apiKey')
-              ? 'Invalid or missing Soniox API key. Please check your .env file.'
-              : error.message.includes('network') || error.message.includes('Failed to fetch')
-              ? 'Cannot connect to Soniox service. Please check your internet connection and API key.'
-              : `Soniox error: ${error.message}`}
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Input Section - at bottom */}
+      <div className="border-t bg-background/95 backdrop-blur-sm p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-2">
+            {/* Mic Button */}
+            <button
+              onClick={state === 'Running' ? stopTranscription : startTranscription}
+              className={cn(
+                "p-3 rounded-lg transition-all",
+                state === 'Running'
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              {state === 'Running' ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </button>
 
-      <div className="text-center mb-4">
-        <RecordButton
-          state={state}
-          stopTranscription={stopTranscription}
-          startTranscription={startTranscription}
-        />
-        <div className="mt-2 text-xs text-gray-500">
-          Speech is automatically sent to VoiceTree as you speak
-        </div>
-      </div>
-
-      <div className="mt-6 pt-6 border-t border-gray-200">
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            {(state === 'Running' || state === 'RequestingMedia' || state === 'OpeningWebSocket') ? (
-              <div className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+            {/* Text Input or Sound Visualizer */}
+            {state === 'Running' || state === 'RequestingMedia' || state === 'OpeningWebSocket' ? (
+              <div className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
                 <SoundWaveVisualizer
                   isActive={true}
                   fallbackAnimation={true}
@@ -193,19 +197,37 @@ export default function VoiceTreeTranscribe() {
                 onChange={(e) => setTextInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Or type text here and press Enter..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 disabled={isProcessing}
               />
             )}
+
+            {/* Send Button - only show when not recording */}
+            {state !== 'Running' && (
+              <button
+                onClick={handleTextSubmit}
+                disabled={isProcessing || !textInput.trim()}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Send
+              </button>
+            )}
           </div>
-          {state !== 'Running' && (
-            <button
-              onClick={handleTextSubmit}
-              disabled={isProcessing || !textInput.trim()}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Send
-            </button>
+
+          {/* Error Messages */}
+          {(error || connectionError) && (
+            <div className="mt-3">
+              {connectionError && (
+                <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-3 py-2">
+                  {connectionError} - Transcription continues offline
+                </div>
+              )}
+              {error && (
+                <div className="text-xs text-destructive bg-destructive/10 rounded px-3 py-2 mt-2">
+                  {error.message}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

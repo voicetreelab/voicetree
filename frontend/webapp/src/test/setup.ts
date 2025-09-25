@@ -59,15 +59,21 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: (key: string) => null,
-  setItem: (key: string, value: string) => {},
-  removeItem: (key: string) => {},
-  clear: () => {},
-  length: 0,
-  key: (index: number) => null,
-};
+// Mock localStorage with functional implementation
+const localStorageMock = (() => {
+  let store: { [key: string]: string } = {};
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => { store[key] = value; },
+    removeItem: (key: string) => { delete store[key]; },
+    clear: () => { store = {}; },
+    get length() { return Object.keys(store).length; },
+    key: (index: number) => {
+      const keys = Object.keys(store);
+      return keys[index] || null;
+    },
+  };
+})();
 Object.defineProperty(window, "localStorage", {
   value: localStorageMock,
   writable: true,

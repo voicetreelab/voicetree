@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, waitFor, act } from "@testing-library/react";
-import SoundWaveVisualizer from "../sound-wave-visualizer";
+import SoundWaveVisualizer from "@/components/sound-wave-visualizer";
 
 describe("SoundWaveVisualizer", () => {
   let mockRequestAnimationFrame: any;
