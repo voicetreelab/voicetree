@@ -9,7 +9,22 @@
       "Bash(./tools/test_color_flow.sh:*)",
       "Bash(python tools/add_new_node.py:*)",
       "Bash(python*/tools/add_new_node.py:*)",
-      "Bash(claude mcp:*)"
+      "Bash(claude mcp:*)",
+      "Read(//Users/bobbobby/repos/VoiceTree/frontend/juggl/src/viz/**)",
+      "Read(//Users/bobbobby/repos/VoiceTree/frontend/juggl/**)",
+      "Read(//Users/bobbobby/repos/VoiceTree/frontend/tests/example_small/**)",
+      "Bash(npm install:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm test:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_snapshot",
+      "Bash(npx playwright test:*)",
+      "mcp__playwright__browser_evaluate"
     ]
   },
   "enabledMcpjsonServers": [
