@@ -80,9 +80,22 @@ def find_child_references(parent_filename: str, markdown_dir: Path, file_cache: 
         content = file_cache[relative_path]
 
         # Check if this file has ANY link to our parent file
-        # Match [[filename.md]] or [[filename]] patterns
-        pattern = rf'\[\[{re.escape(parent_name)}(?:\.md)?\]\]'
-        if re.search(pattern, content):
+        # Match [[filename.md]] or [[filename]] or [[dir/filename.md]] patterns
+        escaped_parent_name = re.escape(parent_name)
+        patterns = [
+            # Basic patterns: [[filename]] or [[filename.md]]
+            rf'\[\[{escaped_parent_name}(?:\.md)?\]\]',
+            # Directory patterns: [[dir/filename]] or [[dir/filename.md]]
+            rf'\[\[[^/\]]+/{escaped_parent_name}(?:\.md)?\]\]'
+        ]
+
+        found_link = False
+        for pattern in patterns:
+            if re.search(pattern, content):
+                found_link = True
+                break
+
+        if found_link:
             children.append(relative_path)
 
     return children

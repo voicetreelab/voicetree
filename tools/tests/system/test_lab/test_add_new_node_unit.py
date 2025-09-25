@@ -124,7 +124,7 @@ Validates that node creation works in test environment""",
         success_rate = passed_validations / total_validations
         print(f"\nOverall: {passed_validations}/{total_validations} ({success_rate:.1%})")
         
-        return success_rate >= 0.8  # 80% pass threshold
+        assert success_rate >= 0.8, f"Test failed with success rate {success_rate:.1%} (required: 80%)"
 
 if __name__ == "__main__":
     success = test_add_new_node_functionality()

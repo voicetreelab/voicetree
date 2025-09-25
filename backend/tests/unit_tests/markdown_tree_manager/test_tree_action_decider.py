@@ -13,6 +13,9 @@ from unittest.mock import AsyncMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import os
+import tempfile
+
 import pytest
 
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
@@ -79,9 +82,18 @@ class TestTreeActionDeciderWorkflow:
         return applier
 
     @pytest.fixture
-    def simple_tree(self):
-        """Create a simple tree for testing"""
-        tree = MarkdownTree()
+    def temp_dir(self):
+        """Create a temporary directory for test markdown files"""
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
+        # Clean up
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @pytest.fixture
+    def simple_tree(self, temp_dir):
+        """Create a simple tree for testing with markdown files"""
+        tree = MarkdownTree(output_dir=temp_dir)
         # Add multiple nodes for testing
         for node_id in [1, 2, 3, 5, 99, 100, 101]:
             node = Node(
@@ -91,6 +103,12 @@ class TestTreeActionDeciderWorkflow:
                 summary=f"Test summary {node_id}"
             )
             tree.tree[node_id] = node
+
+            # Create corresponding markdown files
+            markdown_path = os.path.join(temp_dir, node.filename)
+            with open(markdown_path, 'w') as f:
+                f.write(f"# {node.title}\n\n{node.content}\n")
+
         return tree
 
     @pytest.fixture

@@ -209,7 +209,6 @@ Links to [[very_deep.md]]
         print("✅ Test 4 passed: Max depth constraint properly enforced")
 
         print("\n✅ All tests passed! Selective neighborhood inclusion working correctly.")
-        return True
 
     finally:
         # Clean up temp directory
@@ -217,6 +216,4 @@ Links to [[very_deep.md]]
 
 
 if __name__ == "__main__":
-    success = test_selective_neighborhood()
-    if not success:
-        exit(1)
+    test_selective_neighborhood()

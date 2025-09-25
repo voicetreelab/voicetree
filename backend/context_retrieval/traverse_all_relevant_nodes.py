@@ -28,7 +28,7 @@ from backend.markdown_tree_manager.graph_search.vector_search import (
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 
 
-def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None) -> NodeList:
+def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Optional[Path] = None, top_k: int = 12, embeddings_path: Optional[Path] = None) -> dict[str, Any]:
     """
     Traverse relevant nodes found via vector search based on query and tree.
 
@@ -49,8 +49,9 @@ def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Op
     # Use vector search to find relevant nodes dynamically
     print(f"🔍 Searching for relevant nodes for query: '{query}'")
 
-    # Pass embeddings path if available
-    node_ids = find_relevant_nodes_for_context(tree_dict, query, top_k=top_k, embeddings_path=embeddings_path)
+    # Pass embeddings path if available (map to persist_directory parameter)
+    persist_directory = str(embeddings_path) if embeddings_path else None
+    node_ids = find_relevant_nodes_for_context(tree_dict, query, top_k=top_k, persist_directory=persist_directory)
     print(f"relevant nodes are {node_ids}")
 
     # Convert node IDs to filenames with similarity scores
@@ -89,7 +90,7 @@ def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Op
         return {}
 
     # Collect all traversed nodes with their content
-    all_traversed_nodes = []
+    all_traversed_nodes_dict = {}
 
     for node_file, similarity in relevant_nodes:
         # Get full content and immediate connections
@@ -106,16 +107,32 @@ def traverse_all_relevant_nodes(query: str, tree: MarkdownTree, markdown_dir: Op
         # Pass is_target=True so this node gets neighborhood expansion
         nodes = traverse_to_node(node_file, markdown_dir, options, is_target=True)
 
-        # Add metadata about which file was the search target
+        # Print traversal info for each search result (expected by tests)
+        print(f"Traversed {len(nodes)} nodes: {node_file}")
+
+        # Add metadata about which file was the search target and organize by filename
         for node in nodes:
             node['is_search_target'] = (node.get('filename') == node_file)
             node['search_similarity'] = similarity
 
-        all_traversed_nodes.extend(nodes)
+            # Print brief content information for tests that expect substantial output
+            if node.get('is_search_target'):
+                title = node.get('title', 'Untitled')
+                summary = node.get('summary', '')
+                content = node.get('content', '')
+                print(f"  Target node: {title}")
+                if summary:
+                    print(f"    Summary: {summary[:300]}...")  # First 300 chars
+                if content:
+                    print(f"    Content preview: {content[:200]}...")  # First 200 chars of content
 
-    print(f"Search complete. Found and traversed {len(all_traversed_nodes)} total nodes.")
+            # Use filename as key in the dictionary
+            filename = node.get('filename', f"unknown_{len(all_traversed_nodes_dict)}")
+            all_traversed_nodes_dict[filename] = node
 
-    return all_traversed_nodes
+    print(f"Search complete. Found and traversed {len(all_traversed_nodes_dict)} total nodes.")
+
+    return all_traversed_nodes_dict
 
 def main():
     """

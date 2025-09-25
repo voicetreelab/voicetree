@@ -160,7 +160,7 @@ Parent:
         status = "✅" if passed else "❌"
         print(f"{status} {test_name}")
     
-    return success_rate >= 0.8
+    assert success_rate >= 0.8, f"Test failed with success rate {success_rate:.1%} (required: 80%)"
 
 if __name__ == "__main__":
     success = test_test_lab_components()

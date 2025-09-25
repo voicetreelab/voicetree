@@ -193,15 +193,18 @@ def main():
         
         print(f"Using new context_retrieval module for traversal...")
         nodes = traverse_to_node(start_file, markdown_path, options)
-        
-        if nodes:
-            all_traversed_info.append((start_file, nodes))
+
+        # Filter out empty nodes (from nonexistent files)
+        valid_nodes = [node for node in nodes if (node.get('content') or '').strip()]
+
+        if valid_nodes:
+            all_traversed_info.append((start_file, valid_nodes))
             # Track filenames for exclusion in TF-IDF search
-            for node in nodes:
+            for node in valid_nodes:
                 if 'filename' in node:
                     all_traversed_filenames.add(node['filename'])
-        
-        print(f"  Found {len(nodes)} nodes in traversal")
+
+        print(f"  Found {len(valid_nodes)} nodes in traversal")
 
     # --- Step 2: Find relevant nodes based on ALL traversed content ---
     print("\n--- Performing inverse document search ---")

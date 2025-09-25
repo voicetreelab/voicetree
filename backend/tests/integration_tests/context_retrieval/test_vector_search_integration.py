@@ -23,6 +23,9 @@ class TestVectorSearchIntegration:
         mock_manager = Mock()
         mock_manager.enabled = True
         mock_manager.search = Mock()
+        # Mock the vector_store with its search method
+        mock_vector_store = Mock()
+        mock_manager.vector_store = mock_vector_store
 
         tree = MarkdownTree(embedding_manager=mock_manager)
 
@@ -54,18 +57,23 @@ class TestVectorSearchIntegration:
         """Test that vector search finds semantically related nodes TF-IDF might miss"""
         tree, mock_manager, nodes = mock_tree_with_vector_search
 
-        # Mock vector search to return semantically related nodes
+        # Mock vector search to return semantically related nodes with scores
         # AI query should return ML and Data Science nodes (semantically related)
-        mock_manager.search.return_value = [nodes[0], nodes[1], nodes[3]]  # ML, AI, Data Science
+        # Format: [(node_id, score), ...]
+        mock_manager.vector_store.search.return_value = [
+            (nodes[0], 0.9),  # ML
+            (nodes[1], 0.8),  # AI
+            (nodes[3], 0.7)   # Data Science
+        ]
 
         # Query that should benefit from semantic understanding
         query = "artificial intelligence and neural networks"
 
-        # Get results using current pipeline
-        results = get_most_relevant_nodes(tree, limit=10, query=query)
+        # Get results using current pipeline (use limit=3 to force semantic search)
+        results = get_most_relevant_nodes(tree, limit=3, query=query)
 
         # Vector search should have been called
-        mock_manager.search.assert_called()
+        mock_manager.vector_store.search.assert_called()
 
         # Results should prioritize semantically related nodes
         result_titles = [node.title for node in results]
@@ -80,15 +88,15 @@ class TestVectorSearchIntegration:
         tree, mock_manager, nodes = mock_tree_with_vector_search
 
         # Mock vector search failure
-        mock_manager.search.side_effect = Exception("Vector search failed")
+        mock_manager.vector_store.search.side_effect = Exception("Vector search failed")
 
         query = "machine learning"
 
-        # Should still return results using TF-IDF fallback
-        results = get_most_relevant_nodes(tree, limit=10, query=query)
+        # Should still return results using TF-IDF fallback (use limit=3 to force semantic search)
+        results = get_most_relevant_nodes(tree, limit=3, query=query)
 
         # Should have attempted vector search first
-        mock_manager.search.assert_called()
+        mock_manager.vector_store.search.assert_called()
 
         # Should still get some results from TF-IDF fallback
         assert len(results) > 0
@@ -96,7 +104,7 @@ class TestVectorSearchIntegration:
     def test_embedding_flush_before_search(self, mock_tree_with_vector_search):
         """Test that pending embeddings are flushed before search"""
         tree, mock_manager, nodes = mock_tree_with_vector_search
-        mock_manager.search.return_value = []
+        mock_manager.vector_store.search.return_value = []
 
         # Add pending embedding updates
         tree._pending_embedding_updates = {nodes[0], nodes[1]}
@@ -106,17 +114,20 @@ class TestVectorSearchIntegration:
 
         # Should have flushed embeddings before search
         assert len(tree._pending_embedding_updates) == 0
-        mock_manager.search.assert_called()
+        mock_manager.vector_store.search.assert_called()
 
     def test_hybrid_search_combines_tfidf_and_vector(self, mock_tree_with_vector_search):
         """Test that hybrid search combines both TF-IDF and vector results"""
         tree, mock_manager, nodes = mock_tree_with_vector_search
 
-        # Mock vector search to return different nodes than TF-IDF would find
-        mock_manager.search.return_value = [nodes[1], nodes[3]]  # AI, Data Science
+        # Mock vector search to return different nodes than TF-IDF would find with scores
+        mock_manager.vector_store.search.return_value = [
+            (nodes[1], 0.8),  # AI
+            (nodes[3], 0.7)   # Data Science
+        ]
 
         query = "machine learning fundamentals"
-        results = get_most_relevant_nodes(tree, limit=10, query=query)
+        results = get_most_relevant_nodes(tree, limit=3, query=query)
 
         # Should include both vector search results and TF-IDF keyword matches
         result_ids = [node.id for node in results]
