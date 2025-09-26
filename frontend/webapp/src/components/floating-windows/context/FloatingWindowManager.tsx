@@ -13,7 +13,7 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren> = ({ chi
     return Math.max(...windowsArray.map(w => w.zIndex)) + 1;
   }, []);
 
-  const openWindow = useCallback((config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string }) => {
+  const openWindow = useCallback((config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string; onSave?: (newContent: string) => Promise<void> }) => {
     setWindows(prev => {
       // Prevent opening multiple windows for the same node
       if (prev.some(w => w.nodeId === config.nodeId)) {

@@ -5,7 +5,7 @@ import type { FloatingWindow } from '@/components/floating-windows/types';
 
 export interface FloatingWindowManagerContextType {
   windows: FloatingWindow[];
-  openWindow: (config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string }) => void;
+  openWindow: (config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string; onSave?: (newContent: string) => Promise<void> }) => void;
   closeWindow: (id: string) => void;
   updateWindowContent: (id: string, newContent: string) => void;
   updateWindowPosition: (id: string, newPosition: { x: number; y: number }) => void;

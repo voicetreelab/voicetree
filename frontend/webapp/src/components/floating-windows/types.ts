@@ -18,4 +18,5 @@ export interface FloatingWindow {
     height: number;
   };
   zIndex: number;
+  onSave?: (newContent: string) => Promise<void>;
 }

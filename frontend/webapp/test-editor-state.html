@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Editor State Management</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .test-result {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .pass {
+      background: #2d4a2d;
+      border: 1px solid #4a8c4a;
+    }
+    .fail {
+      background: #4a2d2d;
+      border: 1px solid #8c4a4a;
+    }
+    button {
+      padding: 10px;
+      margin: 5px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Editor State Management Test</h1>
+  <button onclick="runTests()">Run Tests</button>
+  <div id="results"></div>
+  <iframe id="app-frame" src="/" style="width: 100%; height: 400px; border: 1px solid #333; margin-top: 20px;"></iframe>
+
+  <script>
+    function addResult(name, passed, details = '') {
+      const results = document.getElementById('results');
+      const div = document.createElement('div');
+      div.className = `test-result ${passed ? 'pass' : 'fail'}`;
+      div.innerHTML = `<strong>${passed ? '✓' : '✗'} ${name}</strong><br>${details}`;
+      results.appendChild(div);
+    }
+
+    async function waitFor(condition, timeout = 5000) {
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        if (await condition()) {
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error('Timeout waiting for condition');
+    }
+
+    async function runTests() {
+      const results = document.getElementById('results');
+      results.innerHTML = '';
+
+      const iframe = document.getElementById('app-frame');
+      const appWindow = iframe.contentWindow;
+
+      try {
+        // Wait for the app to load
+        await waitFor(() => appWindow.voiceTreeEditorState);
+        addResult('App Loaded', true, 'VoiceTree editor state is available');
+
+        // Test initial state
+        const editorState = appWindow.voiceTreeEditorState;
+        const initialCount = editorState.getOpenEditorCount();
+        addResult('Initial State', initialCount === 0, `Initial editor count: ${initialCount}`);
+
+        // Simulate adding some files to create nodes
+        if (appWindow.electronAPI && appWindow.electronAPI.triggerFileAdded) {
+          // Add some test files
+          appWindow.electronAPI.triggerFileAdded({
+            path: 'test1.md',
+            content: '# Node A\n\nContent for node A'
+          });
+          appWindow.electronAPI.triggerFileAdded({
+            path: 'test2.md',
+            content: '# Node B\n\nContent for node B [[Node A]]'
+          });
+          appWindow.electronAPI.triggerFileAdded({
+            path: 'test3.md',
+            content: '# Node C\n\nContent for node C [[Node B]]'
+          });
+
+          // Wait for cytoscape to update
+          await waitFor(() => {
+            const cy = appWindow.cytoscapeInstance;
+            return cy && cy.nodes().length >= 3;
+          });
+
+          const cy = appWindow.cytoscapeInstance;
+          const nodeCount = cy.nodes().length;
+          addResult('Nodes Created', nodeCount >= 3, `Created ${nodeCount} nodes`);
+
+          // Now test clicking on nodes to open editors
+          const nodeA = cy.getElementById('test1');
+          const nodeB = cy.getElementById('test2');
+          const nodeC = cy.getElementById('test3');
+
+          if (nodeA.length > 0) {
+            nodeA.trigger('tap');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const count1 = editorState.getOpenEditorCount();
+            addResult('First Editor Opened', count1 === 1, `Editor count after clicking first node: ${count1}`);
+
+            nodeB.trigger('tap');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const count2 = editorState.getOpenEditorCount();
+            addResult('Second Editor Opened', count2 === 2, `Editor count after clicking second node: ${count2}`);
+
+            // Test clicking same node doesn't open duplicate
+            nodeA.trigger('tap');
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const count3 = editorState.getOpenEditorCount();
+            addResult('No Duplicate Editors', count3 === 2, `Editor count after clicking first node again: ${count3}`);
+
+            // Get all editor info
+            const allEditors = editorState.getAllOpenEditors();
+            addResult('Editor Info Available', allEditors.length === 2, `Editor details: ${JSON.stringify(allEditors.map(e => ({nodeId: e.nodeId, filePath: e.filePath})))}`);
+
+          } else {
+            addResult('Node Finding', false, 'Could not find test nodes in cytoscape');
+          }
+
+        } else {
+          addResult('ElectronAPI Mock', false, 'ElectronAPI not available for testing');
+        }
+
+      } catch (error) {
+        addResult('Test Execution', false, `Error: ${error.message}`);
+      }
+    }
+  </script>
+</body>
+</html>

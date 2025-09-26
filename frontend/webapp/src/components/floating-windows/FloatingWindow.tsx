@@ -14,10 +14,18 @@ export const FloatingWindow: React.FC<FloatingWindowType> = (props) => {
   const { closeWindow, bringToFront, updateWindowPosition } = useFloatingWindows();
   const nodeRef = useRef(null);
 
+  const handleSave = async (newContent: string) => {
+    if (props.onSave) {
+      await props.onSave(newContent);
+    } else {
+      throw new Error('Save functionality not available');
+    }
+  };
+
   const renderContent = () => {
     switch (type) {
       case 'MarkdownEditor':
-        return <MarkdownEditor windowId={id} nodeId={props.nodeId} initialContent={props.content} />;
+        return <MarkdownEditor windowId={id} content={props.content} onSave={handleSave} />;
       case 'Terminal':
         return <Terminal />;
       default:
