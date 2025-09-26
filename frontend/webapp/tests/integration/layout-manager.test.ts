@@ -11,7 +11,16 @@ describe('LayoutManager Integration Tests', () => {
     // Create a headless Cytoscape instance for testing
     cy = cytoscape({
       headless: true,
-      styleEnabled: false
+      styleEnabled: true, // Enable styles so we can set node dimensions
+      style: [
+        {
+          selector: 'node',
+          style: {
+            'width': 40,
+            'height': 40
+          }
+        }
+      ]
     });
     layoutManager = new LayoutManager();
   });
@@ -97,14 +106,20 @@ describe('LayoutManager Integration Tests', () => {
     for (let i = 0; i < nodes.length; i++) {
       const n1 = nodes[i];
       const p1 = n1.position();
-      const bb1 = n1.boundingBox({ includeLabels: false });
-      const r1 = Math.max(bb1.w, bb1.h) / 2;
+      // Use fixed node size since headless mode doesn't render properly
+      const nodeSize = 40; // Same as the style we set
+      const r1 = nodeSize / 2;
+
+      // Debug first node's bounding box
+      if (i === 0) {
+        const bb1 = n1.boundingBox({ includeLabels: false });
+        console.log(`Node ${n1.id()} bounding box:`, bb1, 'using fixed radius:', r1);
+      }
 
       for (let j = i + 1; j < nodes.length; j++) {
         const n2 = nodes[j];
         const p2 = n2.position();
-        const bb2 = n2.boundingBox({ includeLabels: false });
-        const r2 = Math.max(bb2.w, bb2.h) / 2;
+        const r2 = nodeSize / 2; // Same fixed size for all nodes
 
         const distance = Math.hypot(p1.x - p2.x, p1.y - p2.y);
         const touchDistance = r1 + r2;

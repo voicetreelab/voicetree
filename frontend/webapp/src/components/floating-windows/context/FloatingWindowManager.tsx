@@ -1,23 +1,11 @@
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { PropsWithChildren } from 'react';
 import type { FloatingWindow } from '../types';
-
-// Define the shape of the context value
-interface FloatingWindowManagerContextType {
-  windows: FloatingWindow[];
-  openWindow: (config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string }) => void;
-  closeWindow: (id: string) => void;
-  updateWindowContent: (id: string, newContent: string) => void;
-  updateWindowPosition: (id: string, newPosition: { x: number; y: number }) => void;
-  bringToFront: (id: string) => void;
-}
-
-// Create the context
-const FloatingWindowContext = createContext<FloatingWindowManagerContextType | null>(null);
+import { FloatingWindowContext, type FloatingWindowManagerContextType } from './FloatingWindowContext';
 
 // Create the provider component
-export const FloatingWindowManagerProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
+export const FloatingWindowManagerProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [windows, setWindows] = useState<FloatingWindow[]>([]);
 
   const getHighestZIndex = useCallback((windowsArray: FloatingWindow[]) => {
@@ -71,7 +59,7 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren<{}>> = ({
     });
   }, [getHighestZIndex]);
 
-  const value = {
+  const value: FloatingWindowManagerContextType = {
     windows,
     openWindow,
     closeWindow,
@@ -87,11 +75,3 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren<{}>> = ({
   );
 };
 
-// Create the custom hook for easy context access
-export const useFloatingWindows = (): FloatingWindowManagerContextType => {
-  const context = useContext(FloatingWindowContext);
-  if (!context) {
-    throw new Error('useFloatingWindows must be used within a FloatingWindowManagerProvider');
-  }
-  return context;
-};

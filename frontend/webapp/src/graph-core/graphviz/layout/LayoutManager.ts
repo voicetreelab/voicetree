@@ -1,4 +1,4 @@
-import type { Core } from 'cytoscape';
+import type { Core, NodeSingular, EdgeSingular } from 'cytoscape';
 import type {
   PositioningStrategy,
   PositioningContext,
@@ -101,7 +101,7 @@ export class LayoutManager {
     };
   }
 
-  private getNodeSize(node: any): { width: number; height: number } {
+  private getNodeSize(node: NodeSingular): { width: number; height: number } {
     const bb = node.boundingBox({ includeLabels: false });
     return {
       width: bb.w || 40,
@@ -109,7 +109,7 @@ export class LayoutManager {
     };
   }
 
-  private getLinkedNodeIds(cy: Core, node: any): string[] {
+  private getLinkedNodeIds(cy: Core, node: NodeSingular): string[] {
     // First check if node has linkedNodeIds data
     const dataLinks = node.data('linkedNodeIds');
     if (dataLinks && Array.isArray(dataLinks)) {
@@ -120,7 +120,7 @@ export class LayoutManager {
     const linkedIds: string[] = [];
     const edges = node.connectedEdges();
 
-    edges.forEach((edge: any) => {
+    edges.forEach((edge: EdgeSingular) => {
       const source = edge.source();
       const target = edge.target();
 
@@ -173,7 +173,7 @@ export class LayoutManager {
 
       // Get connected nodes
       const connected = current.neighborhood('node');
-      connected.forEach((neighbor: any) => {
+      connected.forEach((neighbor: NodeSingular) => {
         const neighborId = neighbor.id();
 
         if (!positioned.has(neighborId)) {
@@ -194,7 +194,7 @@ export class LayoutManager {
     });
   }
 
-  private findBestRoot(cy: Core): any {
+  private findBestRoot(cy: Core): NodeSingular {
     // Find node with most connections
     let bestNode = null;
     let maxDegree = -1;

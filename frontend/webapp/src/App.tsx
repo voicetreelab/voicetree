@@ -25,10 +25,6 @@ function App() {
     isElectron
   } = useGraphManager();
 
-  // Show both components so we can compare them
-  // TODO: Set to true for development, false for E2E tests
-  const showBoth = false;
-
   // File Watching Control Panel Component
   const FileWatchingPanel = () => (
     <div className="border rounded-lg p-4 bg-white shadow-sm">
@@ -118,49 +114,39 @@ function App() {
     </div>
   );
 
-  if (showBoth) {
-    return (
-      <div className="min-h-screen bg-background">
-        <FloatingWindowManagerProvider>
-          <div className="grid grid-cols-1 gap-4 p-4">
-              {/* File Watching Panel - New Feature */}
-              <div>
-                  <h2 className="text-lg font-bold mb-2">Live Graph From Files</h2>
-                  <FileWatchingPanel />
-              </div>
-
-              {/* File Watcher Demo - For comparison */}
-              <div>
-                  <h2 className="text-lg font-bold mb-2">File Watcher Demo</h2>
-                  <FileWatcherDemo />
-              </div>
-
-              {/* Above - VoiceTreeTranscribe */}
-              <div>
-                  <h2 className="text-lg font-bold mb-2">VoiceTreeTranscribe Component</h2>
-                  <VoiceTreeTranscribe />
-              </div>
-
-            {/* Left side - Original with Sidebar */}
-            <div className="border-r pr-4">
-              <Sidebar>
-                <VoiceTreeLayout graphData={graphData} fileData={markdownFiles.current} />
-              </Sidebar>
-            </div>
-          </div>
-        </FloatingWindowManagerProvider>
-      </div>
-    );
-  }
-
-  // Original code - Enhanced with file watching
+  // Always render the full app UI - no conditional rendering
   console.log('App: Rendering with graphData:', graphData ? { nodes: graphData.nodes.length, edges: graphData.edges.length } : null);
   return (
-    <FloatingWindowManagerProvider>
-      <Sidebar>
-        <VoiceTreeLayout graphData={graphData} fileData={markdownFiles.current} />
-      </Sidebar>
-    </FloatingWindowManagerProvider>
+    <div className="min-h-screen bg-background">
+      <FloatingWindowManagerProvider>
+        <div className="grid grid-cols-1 gap-4 p-4">
+          {/* File Watching Panel - New Feature */}
+          <div>
+            <h2 className="text-lg font-bold mb-2">Live Graph From Files</h2>
+            <FileWatchingPanel />
+          </div>
+
+          {/* File Watcher Demo - For comparison */}
+          <div>
+            <h2 className="text-lg font-bold mb-2">File Watcher Demo</h2>
+            <FileWatcherDemo />
+          </div>
+
+          {/* Voice Transcribe Component */}
+          <div>
+            <h2 className="text-lg font-bold mb-2">VoiceTreeTranscribe Component</h2>
+            <VoiceTreeTranscribe />
+          </div>
+
+          {/* Main Graph Visualization with Sidebar */}
+          <div className="border-r pr-4">
+            <Sidebar>
+              <VoiceTreeLayout graphData={graphData} fileData={markdownFiles.current} />
+            </Sidebar>
+          </div>
+        </div>
+      </FloatingWindowManagerProvider>
+    </div>
   );
 }
 

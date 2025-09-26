@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import { MermaidRenderer } from './MermaidRenderer';
-import { useFloatingWindows } from '../context/FloatingWindowManager';
+import { useFloatingWindows } from '../hooks/useFloatingWindows';
 import debounce from 'lodash.debounce';
 
 interface MarkdownEditorProps {
@@ -28,8 +28,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, nodeId
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const { updateWindowContent } = useFloatingWindows();
 
-  const debouncedUpdate = useCallback(
-    debounce((id: string, content: string) => {
+  const debouncedUpdate = useMemo(
+    () => debounce((id: string, content: string) => {
       updateWindowContent(id, content);
     }, 300),
     [updateWindowContent]

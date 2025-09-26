@@ -6,7 +6,7 @@ export class CytoscapeCore {
   private viz: Core;
   private container: HTMLElement;
 
-  constructor(container: HTMLElement, elements: any[] = []) {
+  constructor(container: HTMLElement, elements: (NodeDefinition | EdgeDefinition)[] = []) {
     this.container = container;
 
     // Initialize cytoscape with minimal configuration

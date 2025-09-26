@@ -3,8 +3,8 @@ import { render, waitFor, act } from "@testing-library/react";
 import SoundWaveVisualizer from "@/components/sound-wave-visualizer";
 
 describe("SoundWaveVisualizer", () => {
-  let mockRequestAnimationFrame: any;
-  let mockCancelAnimationFrame: any;
+  let mockRequestAnimationFrame: vi.Mock<[callback: FrameRequestCallback], number>;
+  let mockCancelAnimationFrame: vi.Mock<[handle: number], void>;
   let rafCallbacks: Array<() => void> = [];
 
   beforeEach(() => {
@@ -181,7 +181,7 @@ describe("SoundWaveVisualizer", () => {
 
       window.AudioContext = class MockAudioContext extends originalAudioContext {
         close = mockClose;
-      } as any;
+      } as typeof AudioContext;
 
       const { unmount } = render(
         <SoundWaveVisualizer isActive={true} audioStream={mockStream} />

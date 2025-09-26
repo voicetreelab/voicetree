@@ -19,7 +19,6 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ children }) =>
     if (preRef.current && children) {
       // Mermaid API expects the raw text content, not the DOM element content.
       // It will find the element by the ID it generates and render into it.
-      const id = `mermaid-graph-${Math.random().toString(36).substring(2, 9)}`;
       preRef.current.innerHTML = children;
       preRef.current.removeAttribute('data-processed');
       mermaid.run({ nodes: [preRef.current] });

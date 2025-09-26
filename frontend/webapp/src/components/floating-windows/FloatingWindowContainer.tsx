@@ -1,5 +1,5 @@
 import React from 'react';
-import { useFloatingWindows } from './context/FloatingWindowManager';
+import { useFloatingWindows } from './hooks/useFloatingWindows';
 import { FloatingWindow } from './FloatingWindow';
 
 /**

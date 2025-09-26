@@ -3,6 +3,17 @@ import '@testing-library/jest-dom';
 import VoiceTreeTranscribe from '@/renderers/voicetree-transcribe';
 import useVoiceTreeClient from '@/hooks/useVoiceTreeClient';
 import { vi } from 'vitest';
+import type { RecorderState, Token, ErrorStatus } from '@soniox/speech-to-text-web';
+
+// Types for the mock return value
+interface MockUseVoiceTreeClientReturn {
+  state: RecorderState;
+  finalTokens: Token[];
+  nonFinalTokens: Token[];
+  startTranscription: vi.Mock;
+  stopTranscription: vi.Mock;
+  error: { status: ErrorStatus; message: string; errorCode: number | undefined } | null;
+}
 
 // Mock the hooks and dependencies
 vi.mock('@/hooks/useVoiceTreeClient');
@@ -37,7 +48,7 @@ describe('VoiceTreeTranscribe', () => {
 
   it('should display non-final tokens while recording', () => {
     // Mock the hook to return non-final tokens (simulating active recording)
-    (useVoiceTreeClient as any).mockReturnValue({
+    (useVoiceTreeClient as vi.MockedFunction<typeof useVoiceTreeClient>).mockReturnValue({
       state: 'Running',
       finalTokens: [],
       nonFinalTokens: [
@@ -65,7 +76,7 @@ describe('VoiceTreeTranscribe', () => {
 
   it('should display both final and non-final tokens', () => {
     // Mock the hook to return both final and non-final tokens
-    (useVoiceTreeClient as any).mockReturnValue({
+    (useVoiceTreeClient as vi.MockedFunction<typeof useVoiceTreeClient>).mockReturnValue({
       state: 'Running',
       finalTokens: [
         { text: 'This is', is_final: true },
@@ -96,7 +107,7 @@ describe('VoiceTreeTranscribe', () => {
 
   it('should show placeholder when no tokens', () => {
     // Mock the hook to return no tokens
-    (useVoiceTreeClient as any).mockReturnValue({
+    (useVoiceTreeClient as vi.MockedFunction<typeof useVoiceTreeClient>).mockReturnValue({
       state: 'Idle',
       finalTokens: [],
       nonFinalTokens: [],

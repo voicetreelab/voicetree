@@ -8,11 +8,11 @@ import {
 import { MarkdownEditor } from './components/floating-windows/editors/MarkdownEditor';
 
 // Mock the electronAPI for the browser-based test
-(window as any).electronAPI = {
+(window as typeof window & { electronAPI?: { saveFileContent: (filePath: string, content: string) => Promise<void> } }).electronAPI = {
   saveFileContent: (filePath: string, content: string) => {
     console.log('Mock saveFileContent called with:', { filePath, content });
     // Store the payload in a global variable for the test to access
-    (window as any)._test_savedPayload = { filePath, content };
+    (window as typeof window & { _test_savedPayload?: { filePath: string; content: string } })._test_savedPayload = { filePath, content };
     return Promise.resolve();
   },
 };

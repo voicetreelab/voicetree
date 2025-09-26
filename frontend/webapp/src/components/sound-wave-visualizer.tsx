@@ -70,7 +70,7 @@ export default function SoundWaveVisualizer({
 
     try {
       // Create audio context
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = new (window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
 
       // Create analyser node
       analyserRef.current = audioContextRef.current.createAnalyser();

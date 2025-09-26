@@ -1,4 +1,36 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+import type { Core as CytoscapeCore } from 'cytoscape';
+
+// Test helper types
+interface MockStatus {
+  hasElectronAPI: boolean;
+  hasMockElectronAPI: boolean;
+  hasCytoscapeInstance: boolean;
+}
+
+interface GraphState {
+  nodes: number;
+  edges: number;
+}
+
+interface EdgeData {
+  source: string;
+  target: string;
+}
+
+interface PerformanceMetrics {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+}
+
+interface ExtendedWindow extends Window {
+  electronAPI?: any;
+  mockElectronAPI?: {
+    listeners: any;
+  };
+  cytoscapeInstance?: CytoscapeCore;
+  cytoscapeInstances?: CytoscapeCore[];
+}
 
 /**
  * Behavioral test for the file-to-graph pipeline
@@ -23,11 +55,12 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
     await page.waitForLoadState('networkidle');
 
     // Check if mock is initialized
-    const mockStatus = await page.evaluate(() => {
+    const mockStatus = await page.evaluate((): MockStatus => {
+      const win = window as ExtendedWindow;
       return {
-        hasElectronAPI: !!(window as any).electronAPI,
-        hasMockElectronAPI: !!(window as any).mockElectronAPI,
-        hasCytoscapeInstance: !!(window as any).cytoscapeInstance
+        hasElectronAPI: !!win.electronAPI,
+        hasMockElectronAPI: !!win.mockElectronAPI,
+        hasCytoscapeInstance: !!win.cytoscapeInstance
       };
     });
     console.log('Mock status:', mockStatus);
@@ -39,8 +72,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
     await expect(page.locator('text=Graph visualization will appear here')).toBeVisible();
 
     // Verify no nodes or edges are rendered in the canvas
-    const nodeCount = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+    const nodeCount = await page.evaluate((): number => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? cy.nodes().length : 0;
     });
     expect(nodeCount).toBe(0);
@@ -61,7 +94,7 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
       // Check if mock received the event
       setTimeout(() => {
-        const mock = (window as any).mockElectronAPI;
+        const mock = (window as ExtendedWindow).mockElectronAPI;
         if (mock) {
           console.log('Test: Mock API listeners:', mock.listeners);
         }
@@ -73,8 +106,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
     // Wait for node to appear in graph
     await expect.poll(async () => {
-      return page.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+      return page.evaluate((): number => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         return cy ? cy.nodes().length : 0;
       });
     }, {
@@ -83,8 +116,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
     }).toBe(1);
 
     // Verify the node has the correct label
-    const firstNodeLabel = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+    const firstNodeLabel = await page.evaluate((): string | null => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy || cy.nodes().length === 0) return null;
       return cy.nodes()[0].data('label');
     });
@@ -105,8 +138,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
     // Wait for second node and edge to appear
     await expect.poll(async () => {
-      return page.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+      return page.evaluate((): GraphState => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return { nodes: 0, edges: 0 };
         return {
           nodes: cy.nodes().length,
@@ -119,8 +152,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
     }).toEqual({ nodes: 2, edges: 1 });
 
     // Verify edge connects the correct nodes
-    const edgeData = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+    const edgeData = await page.evaluate((): EdgeData | null => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy || cy.edges().length === 0) return null;
       const edge = cy.edges()[0];
       return {
@@ -148,8 +181,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
     // Wait for modification to be processed (structure should remain the same)
     await expect.poll(async () => {
-      return page.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+      return page.evaluate((): GraphState => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return { nodes: 0, edges: 0 };
         return {
           nodes: cy.nodes().length,
@@ -175,8 +208,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
     // Wait for node and edges to be removed after file deletion
     await expect.poll(async () => {
-      return page.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+      return page.evaluate((): GraphState => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return { nodes: 0, edges: 0 };
         return {
           nodes: cy.nodes().length,
@@ -192,7 +225,7 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
     console.log('=== STEP 6: Checking performance metrics ===');
 
     // Verify no memory leaks or excessive re-renders
-    const performanceMetrics = await page.evaluate(() => {
+    const performanceMetrics = await page.evaluate((): PerformanceMetrics | null => {
       if (!performance.memory) return null;
       return {
         usedJSHeapSize: performance.memory.usedJSHeapSize,
@@ -233,14 +266,14 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
     // Wait for all rapid file operations to complete
     await expect.poll(async () => {
-      return page.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+      return page.evaluate((): { nodes: number; edges: number; isValid: boolean } | null => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return null;
 
         return {
           nodes: cy.nodes().length,
           edges: cy.edges().length,
-          isValid: cy.nodes().every((n: any) => n.data('id') && n.data('label'))
+          isValid: cy.nodes().every((n) => n.data('id') && n.data('label'))
         };
       });
     }, {
@@ -253,8 +286,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
     });
 
     // Verify minimum edge count separately
-    const finalState = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+    const finalState = await page.evaluate((): number => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? cy.edges().length : 0;
     });
     expect(finalState).toBeGreaterThanOrEqual(4);
@@ -280,8 +313,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
     // Wait for initial graph state to be established
     await expect.poll(async () => {
-      return page.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+      return page.evaluate((): GraphState | null => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         return cy ? { nodes: cy.nodes().length, edges: cy.edges().length } : null;
       });
     }, {
@@ -289,8 +322,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
       timeout: 5000
     }).toEqual({ nodes: 2, edges: 1 });
 
-    const initialStateValue = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+    const initialStateValue = await page.evaluate((): GraphState | null => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? { nodes: cy.nodes().length, edges: cy.edges().length } : null;
     });
 
@@ -307,8 +340,8 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
 
     // Verify state is maintained after visibility changes
     await expect.poll(async () => {
-      return page.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+      return page.evaluate((): GraphState | null => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         return cy ? { nodes: cy.nodes().length, edges: cy.edges().length } : null;
       });
     }, {

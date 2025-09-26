@@ -1,7 +1,7 @@
 import React from 'react';
 import Draggable from 'react-draggable';
 import type { FloatingWindow as FloatingWindowType } from './types';
-import { useFloatingWindows } from './context/FloatingWindowManager';
+import { useFloatingWindows } from './hooks/useFloatingWindows';
 import { MarkdownEditor } from './editors/MarkdownEditor';
 import { Terminal } from './editors/Terminal';
 
