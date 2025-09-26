@@ -6,3 +6,7 @@
 //
 // Called by:
 // - Potentially any UI component that needs a floating window.
+
+export { FloatingWindow } from './FloatingWindow';
+export { FloatingWindowContainer } from './FloatingWindowContainer';
+export { FloatingWindowManagerProvider, useFloatingWindows } from './context/FloatingWindowManager';

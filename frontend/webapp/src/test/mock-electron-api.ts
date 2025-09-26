@@ -112,6 +112,7 @@ export class MockElectronAPI implements ElectronAPI {
     console.log('MockElectronAPI: Setting up test event listeners on window');
     // Listen for custom events dispatched by tests
     window.addEventListener('file-added', (event: CustomEvent) => {
+      console.log('MockElectronAPI: Received file-added CustomEvent from window:', event.detail);
       this.emit('file-added', {
         path: event.detail.path,
         fullPath: `/mock/test/directory/${event.detail.path}`,

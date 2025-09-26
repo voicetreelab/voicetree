@@ -1,0 +1,39 @@
+Please modify the file `src/renderers/floating-editor-test-renderer.tsx`.
+
+The goal is to rebuild the test harness for the floating editor E2E test.
+
+Here's what you need to do:
+
+1.  You need to change the file to render the full component tree required for the floating editor test.
+2.  Import `React`, `useEffect` from `react`.
+3.  Import `ReactDOM` from `react-dom/client`.
+4.  Import `FloatingWindowManagerProvider`, `useFloatingWindows` from `src/components/floating-windows/context/FloatingWindowManager.tsx`.
+5.  Import `FloatingWindowContainer` from `src/components/floating-windows/FloatingWindowContainer.tsx`.
+6.  Import `MarkdownEditor` from `src/components/floating-windows/editors/MarkdownEditor.tsx`.
+7.  Create a mock for the `electronAPI.saveFileContent` function. Before the `ReactDOM.createRoot`, add the following mock implementation:
+    ```javascript
+    // Mock the electron API for saving files
+    (window as any).electronAPI = {
+      saveFileContent: async (filePath: string, content: string) => {
+        console.log('Mock saveFileContent called with:', { filePath, content });
+        // Store the payload in a global variable for the test to access
+        (window as any)._test_savedPayload = { filePath, content };
+        return new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+      }
+    };
+    ```
+8.  Create a new `TestApp` component that:
+    *   Uses the `useFloatingWindows` hook to get the `openWindow` function.
+    *   Uses a `useEffect` hook to call `openWindow` once on component mount.
+    *   The `openWindow` call should have a `nodeId` of 'test-node-1', a `title` of 'test/file.md', a `position` of { x: 100, y: 100 }, `content` of '# Hello World', and a `component` which is the `MarkdownEditor`.
+9.  The final rendered output in `ReactDOM.createRoot` should look like this:
+    ```jsx
+    <React.StrictMode>
+      <FloatingWindowManagerProvider>
+        <h1 style={{ display: 'none' }}>Editor Test Harness</h1>
+        <TestApp />
+        <FloatingWindowContainer />
+      </FloatingWindowManagerProvider>
+    </React.StrictMode>
+    ```
+    The hidden `h1` tag with "Editor Test Harness" is to satisfy the first assertion in the E2E test.

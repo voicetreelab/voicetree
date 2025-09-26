@@ -11,9 +11,26 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
   test('should progressively build and update graph based on file operations', async ({ page }) => {
+    // Capture console messages
+    page.on('console', msg => {
+      if (msg.text().includes('Mock') || msg.text().includes('useGraphManager') || msg.text().includes('Test:')) {
+        console.log('Browser console:', msg.text());
+      }
+    });
+
     // Navigate to the application
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+
+    // Check if mock is initialized
+    const mockStatus = await page.evaluate(() => {
+      return {
+        hasElectronAPI: !!(window as any).electronAPI,
+        hasMockElectronAPI: !!(window as any).mockElectronAPI,
+        hasCytoscapeInstance: !!(window as any).cytoscapeInstance
+      };
+    });
+    console.log('Mock status:', mockStatus);
 
     // STEP 1: Verify empty state - no graph should be displayed
     console.log('=== STEP 1: Verifying empty state ===');
@@ -39,8 +56,20 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
           content: '# Introduction\n\nThis is the introduction to our concept system.'
         }
       });
+      console.log('Test: Dispatching file-added event:', event.detail);
       window.dispatchEvent(event);
+
+      // Check if mock received the event
+      setTimeout(() => {
+        const mock = (window as any).mockElectronAPI;
+        if (mock) {
+          console.log('Test: Mock API listeners:', mock.listeners);
+        }
+      }, 100);
     });
+
+    // Wait a bit for the graph to initialize and update
+    await page.waitForTimeout(1000);
 
     // Wait for node to appear in graph
     await expect.poll(async () => {

@@ -121,7 +121,6 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
   const lastSentText = useRef<string>("");
   const cytoscapeRef = useRef<CytoscapeCore | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isGraphInitialized, setIsGraphInitialized] = useState(false);
   const { openWindow } = useFloatingWindows();
 
   const {
@@ -238,7 +237,7 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
 
   // Initialize Cytoscape when container is ready
   useEffect(() => {
-    if (!containerRef.current || isGraphInitialized) return;
+    if (!containerRef.current || cytoscapeRef.current) return;
 
     try {
       // Create Cytoscape instance
@@ -246,18 +245,23 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
 
       // Expose Cytoscape instance for testing
       const core = cytoscapeRef.current.getCore();
-      if (typeof window !== 'undefined' && (import.meta.env.DEV || process.env.NODE_ENV === 'development')) {
+      if (typeof window !== 'undefined') {
+        console.log('VoiceTreeLayout: Initial cytoscapeInstance set on window');
         (window as any).cytoscapeInstance = core;
       }
 
       // Apply stylesheet
       core.style(getCytoscapeStylesheet());
 
+      // Store ref to access current fileData in event handler
+      (core as any)._fileDataRef = fileData;
+
       // Add event listener for tapping on a node
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
-        if (fileData) {
-          const content = fileData.get(nodeId);
+        const currentFileData = (core as any)._fileDataRef;
+        if (currentFileData) {
+          const content = currentFileData.get(nodeId);
           if (typeof content !== 'undefined') {
             openWindow({
               nodeId: nodeId,
@@ -271,23 +275,35 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         }
       });
 
-      setIsGraphInitialized(true);
     } catch (error) {
       console.error('Failed to initialize Cytoscape:', error);
     }
 
     // Cleanup function
     return () => {
+      console.log('VoiceTreeLayout: Cleanup running, destroying Cytoscape');
       if (cytoscapeRef.current) {
         cytoscapeRef.current.destroy();
         cytoscapeRef.current = null;
-        setIsGraphInitialized(false);
       }
     };
-  }, [isGraphInitialized, fileData, openWindow]);
+  }, [openWindow]);
+
+  // Update fileData reference when it changes
+  useEffect(() => {
+    if (cytoscapeRef.current) {
+      const core = cytoscapeRef.current.getCore();
+      (core as any)._fileDataRef = fileData;
+    }
+  }, [fileData]);
 
   // Update graph when graphData changes
   useEffect(() => {
+    console.log('VoiceTreeLayout: graphData effect triggered', {
+      hasCytoscapeRef: !!cytoscapeRef.current,
+      hasGraphData: !!graphData,
+      nodeCount: graphData?.nodes.length || 0
+    });
     if (!cytoscapeRef.current || !graphData || graphData.nodes.length === 0) {
       return;
     }
@@ -300,7 +316,9 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
 
       // Transform and add new elements
       const elements = transformGraphDataToCytoscape(graphData);
+      console.log('VoiceTreeLayout: Adding elements to Cytoscape:', elements);
       core.add(elements);
+      console.log('VoiceTreeLayout: After add, nodes count:', core.nodes().length);
 
       // Apply layout to new nodes using cola layout
       const layout = core.layout({
@@ -320,8 +338,10 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         cytoscapeRef.current?.fitView();
 
         // Update window reference for tests
-        if (typeof window !== 'undefined' && (import.meta.env.DEV || process.env.NODE_ENV === 'development')) {
-          (window as any).cytoscapeInstance = cytoscapeRef.current?.getCore();
+        if (typeof window !== 'undefined') {
+          const updatedCore = cytoscapeRef.current?.getCore();
+          console.log('VoiceTreeLayout: Updating cytoscapeInstance on window, nodes:', updatedCore?.nodes().length);
+          (window as any).cytoscapeInstance = updatedCore;
         }
       }, 500);
 
