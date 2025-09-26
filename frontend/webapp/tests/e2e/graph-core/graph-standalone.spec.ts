@@ -49,7 +49,7 @@ test('standalone graph module renders markdown nodes', async ({ page }) => {
   expect(boundingBox.height).toBeGreaterThan(100);
 
   // Take screenshot for visual confirmation
-  await page.screenshot({ path: 'tests/screenshots/graph-standalone.png', fullPage: true });
+  // await page.screenshot({ path: 'tests/screenshots/graph-standalone.png', fullPage: true });
 
   console.log(`✓ Graph rendered with ${nodeCount} nodes and ${edgeData.count} edges`);
   console.log(`✓ Relationship labels found: ${edgeData.labels.join(', ')}`);

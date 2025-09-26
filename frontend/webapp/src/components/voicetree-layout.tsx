@@ -7,9 +7,9 @@ import { type GraphData } from "@/graph-core/data";
 import { CytoscapeCore, type NodeDefinition, type EdgeDefinition } from "@/graph-core";
 import { DEFAULT_NODE_COLOR, DEFAULT_EDGE_COLOR, HOVER_COLOR } from "@/graph-core/constants";
 import cytoscape from 'cytoscape';
-import { useFloatingWindows } from '@/components/floating-windows/context/FloatingWindowManager';
+import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
-// @ts-ignore - cytoscape-cola doesn't have proper TypeScript definitions
+// @ts-expect-error - cytoscape-cola doesn't have proper TypeScript definitions
 import cola from 'cytoscape-cola';
 
 // Register cola extension with cytoscape
@@ -77,7 +77,7 @@ function getCytoscapeStylesheet() {
         'width': 60,
         'height': 60,
         'overlay-opacity': 0
-      } as any
+      } as cytoscape.Css.Node
     },
     {
       selector: 'edge',
@@ -88,7 +88,7 @@ function getCytoscapeStylesheet() {
         'target-arrow-shape': 'triangle',
         'curve-style': 'bezier',
         'opacity': 0.8
-      } as any
+      } as cytoscape.Css.Edge
     },
     {
       selector: 'node.hover',
@@ -96,13 +96,13 @@ function getCytoscapeStylesheet() {
         'background-color': HOVER_COLOR,
         'transition-property': 'background-color',
         'transition-duration': '0.2s'
-      } as any
+      } as cytoscape.Css.Node
     },
     {
       selector: 'node.unhover',
       style: {
         'opacity': 0.3
-      } as any
+      } as cytoscape.Css.Node
     },
     {
       selector: 'edge.connected-hover',
@@ -110,9 +110,9 @@ function getCytoscapeStylesheet() {
         'line-color': HOVER_COLOR,
         'target-arrow-color': HOVER_COLOR,
         'opacity': 1.0
-      } as any
+      } as cytoscape.Css.Edge
     }
-  ] as any;
+  ] as cytoscape.Stylesheet[];
 }
 
 export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayoutProps) {
@@ -247,19 +247,19 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
       const core = cytoscapeRef.current.getCore();
       if (typeof window !== 'undefined') {
         console.log('VoiceTreeLayout: Initial cytoscapeInstance set on window');
-        (window as any).cytoscapeInstance = core;
+        (window as typeof window & { cytoscapeInstance?: cytoscape.Core }).cytoscapeInstance = core;
       }
 
       // Apply stylesheet
       core.style(getCytoscapeStylesheet());
 
       // Store ref to access current fileData in event handler
-      (core as any)._fileDataRef = fileData;
+      (core as cytoscape.Core & { _fileDataRef?: Map<string, string> | null })._fileDataRef = fileData;
 
       // Add event listener for tapping on a node
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
-        const currentFileData = (core as any)._fileDataRef;
+        const currentFileData = (core as cytoscape.Core & { _fileDataRef?: Map<string, string> | null })._fileDataRef;
         if (currentFileData) {
           const content = currentFileData.get(nodeId);
           if (typeof content !== 'undefined') {
@@ -293,7 +293,7 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
   useEffect(() => {
     if (cytoscapeRef.current) {
       const core = cytoscapeRef.current.getCore();
-      (core as any)._fileDataRef = fileData;
+      (core as cytoscape.Core & { _fileDataRef?: Map<string, string> | null })._fileDataRef = fileData;
     }
   }, [fileData]);
 
@@ -330,7 +330,7 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         nodeSpacing: 100,
         edgeLengthVal: 150,
         convergenceThreshold: 0.01
-      } as any);
+      } as cytoscape.LayoutOptions);
       layout.run();
 
       // Fit the view after a brief delay to allow layout to settle
@@ -341,7 +341,7 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         if (typeof window !== 'undefined') {
           const updatedCore = cytoscapeRef.current?.getCore();
           console.log('VoiceTreeLayout: Updating cytoscapeInstance on window, nodes:', updatedCore?.nodes().length);
-          (window as any).cytoscapeInstance = updatedCore;
+          (window as typeof window & { cytoscapeInstance?: cytoscape.Core }).cytoscapeInstance = updatedCore;
         }
       }, 500);
 

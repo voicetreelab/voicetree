@@ -87,7 +87,7 @@ describe('useGraphManager (FileObserver version)', () => {
     const { createFileObserver } = await import('../../../src/lib/file-observer');
     const mockObserver = createFileObserver();
     const startError = new Error('Failed to start');
-    (mockObserver.start as any).mockRejectedValueOnce(startError);
+    (mockObserver.start as vi.Mock).mockRejectedValueOnce(startError);
 
     const { result } = renderHook(() => useGraphManager());
 

@@ -14,7 +14,7 @@ export default function useWebSpeechTranscription() {
   const [nonFinalTokens, setNonFinalTokens] = useState<TranscriptionToken[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const startTranscription = useCallback(() => {
     console.log('Starting Web Speech API transcription...');
@@ -24,7 +24,7 @@ export default function useWebSpeechTranscription() {
     setState('Starting');
 
     try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognition = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition || (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
         throw new Error('Web Speech API is not supported in this browser');
@@ -40,7 +40,7 @@ export default function useWebSpeechTranscription() {
         setState('Running');
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         console.log('Speech result received');
         const newFinalTokens: TranscriptionToken[] = [];
         const newNonFinalTokens: TranscriptionToken[] = [];
@@ -73,7 +73,7 @@ export default function useWebSpeechTranscription() {
         }
       };
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
         setError(new Error(`Speech recognition error: ${event.error}`));
         setState('Stopped');

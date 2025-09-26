@@ -4,12 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Alert, AlertDescription } from './ui/alert';
 
 // Import types from global electron types
-import type { WatchStatus } from '../types/electron';
+import type { WatchStatus, FileEvent, ErrorEvent } from '../types/electron';
 
 
 export const FileWatcherDemo: React.FC = () => {
   const [watchStatus, setWatchStatus] = useState<WatchStatus>({ isWatching: false });
-  const [events, setEvents] = useState<Array<{ type: string; data: any; timestamp: Date }>>([]);
+  const [events, setEvents] = useState<Array<{ type: string; data: FileEvent | ErrorEvent | { directory?: string; message?: string } | Record<string, never>; timestamp: Date }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -32,7 +32,7 @@ export const FileWatcherDemo: React.FC = () => {
     checkStatus();
 
     // Set up event listeners
-    const addEvent = (type: string, data: any) => {
+    const addEvent = (type: string, data: FileEvent | ErrorEvent | { directory?: string; message?: string } | Record<string, never>) => {
       setEvents(prev => [
         { type, data, timestamp: new Date() },
         ...prev.slice(0, 49) // Keep only last 50 events
@@ -88,7 +88,7 @@ export const FileWatcherDemo: React.FC = () => {
         setError(result.error || 'Failed to start watching');
         setIsLoading(false);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to start file watching');
       setIsLoading(false);
     }
@@ -107,7 +107,7 @@ export const FileWatcherDemo: React.FC = () => {
       } else {
         setError(result.error || 'Failed to stop watching');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to stop file watching');
     } finally {
       setIsLoading(false);

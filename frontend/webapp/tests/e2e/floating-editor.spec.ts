@@ -36,7 +36,9 @@ test.describe('Floating Markdown Editor Standalone Test', () => {
 
     // Poll for the global variable that our mock save function sets
     await expect.poll(async () => {
-      return page.evaluate(() => (window as any)._test_savedPayload);
+      return page.evaluate((): { filePath: string; content: string } | undefined => {
+        return (window as Window & { _test_savedPayload?: { filePath: string; content: string } })._test_savedPayload;
+      });
     }, { message: 'Waiting for save payload to be set on window' }).toMatchObject({
       filePath: 'test/file.md',
       content: '# New Content From Test'

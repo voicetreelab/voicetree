@@ -28,14 +28,14 @@ export interface NodeDefinition {
   data: {
     id: string;
     label?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   position?: {
     x: number;
     y: number;
   };
   style?: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -45,9 +45,9 @@ export interface EdgeDefinition {
     source: string;
     target: string;
     label?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   style?: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }

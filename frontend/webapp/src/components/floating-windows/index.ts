@@ -9,4 +9,5 @@
 
 export { FloatingWindow } from './FloatingWindow';
 export { FloatingWindowContainer } from './FloatingWindowContainer';
-export { FloatingWindowManagerProvider, useFloatingWindows } from './context/FloatingWindowManager';
+export { FloatingWindowManagerProvider } from './context/FloatingWindowManager';
+export { useFloatingWindows } from './hooks/useFloatingWindows';

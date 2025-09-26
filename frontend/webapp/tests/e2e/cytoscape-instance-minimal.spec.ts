@@ -1,9 +1,20 @@
 import { test, expect } from '@playwright/test';
+import type { Core as CytoscapeCore } from 'cytoscape';
 
 /**
  * Minimal test to isolate the Cytoscape instance access issue
  * Tests the bare minimum: Can we access Cytoscape instance and query its nodes?
  */
+
+interface ExtendedWindow extends Window {
+  cytoscapeInstance?: CytoscapeCore;
+}
+
+interface CytoscapeState {
+  hasCytoscapeInstance: boolean;
+  cytoscapeType: string;
+  hasNodesMethod: boolean;
+}
 test.describe('Minimal Cytoscape Instance Access', () => {
   test('should expose cytoscape instance and reflect graph data', async ({ page }) => {
     // Capture all console messages
@@ -17,11 +28,12 @@ test.describe('Minimal Cytoscape Instance Access', () => {
     await page.waitForLoadState('networkidle');
 
     // Step 1: Verify initial state - cytoscapeInstance should exist
-    const initialState = await page.evaluate(() => {
+    const initialState = await page.evaluate((): CytoscapeState => {
+      const win = window as ExtendedWindow;
       return {
-        hasCytoscapeInstance: !!(window as any).cytoscapeInstance,
-        cytoscapeType: typeof (window as any).cytoscapeInstance,
-        hasNodesMethod: !!(window as any).cytoscapeInstance?.nodes,
+        hasCytoscapeInstance: !!win.cytoscapeInstance,
+        cytoscapeType: typeof win.cytoscapeInstance,
+        hasNodesMethod: !!win.cytoscapeInstance?.nodes,
       };
     });
 
@@ -61,8 +73,8 @@ test.describe('Minimal Cytoscape Instance Access', () => {
     console.log('UI shows:', uiNodeCount);
 
     // Step 4: Try to get nodes from cytoscapeInstance
-    const cytoscapeState = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+    const cytoscapeState = await page.evaluate((): { hasNodes?: boolean; hasElements?: boolean; hasDollar?: boolean; nodesCount?: number; elementsCount?: number; dollarCount?: number; error?: string } => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) return { error: 'no cytoscapeInstance' };
 
       try {
@@ -80,7 +92,7 @@ test.describe('Minimal Cytoscape Instance Access', () => {
           dollarCount: dollarMethod ? dollarMethod.length : -1,
         };
       } catch (e) {
-        return { error: e.toString() };
+        return { error: e instanceof Error ? e.toString() : 'Unknown error' };
       }
     });
 
@@ -113,8 +125,8 @@ test.describe('Minimal Cytoscape Instance Access', () => {
     await page.waitForTimeout(1000);
 
     // Check what's actually in cytoscapeInstance
-    const debugInfo = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+    const debugInfo = await page.evaluate((): { ownProps?: string[]; protoProps?: string[]; isFunction?: Record<string, string>; error?: string } => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) return { error: 'no instance' };
 
       // Get all properties and methods
@@ -126,10 +138,10 @@ test.describe('Minimal Cytoscape Instance Access', () => {
         ownProps: props.slice(0, 10), // First 10 to avoid too much output
         protoProps: protoProps.slice(0, 10),
         isFunction: {
-          nodes: typeof cy.nodes,
-          elements: typeof cy.elements,
-          add: typeof cy.add,
-          getCore: typeof cy.getCore,
+          nodes: typeof (cy as any).nodes,
+          elements: typeof (cy as any).elements,
+          add: typeof (cy as any).add,
+          getCore: typeof (cy as any).getCore,
         }
       };
     });
@@ -137,13 +149,13 @@ test.describe('Minimal Cytoscape Instance Access', () => {
     console.log('CytoscapeInstance debug info:', debugInfo);
 
     // Try to access the actual cytoscape core
-    const coreAccess = await page.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
-      if (!cy) return { error: 'no instance' };
+    const coreAccess = await page.evaluate((): { hasCore: boolean; coreHasNodes?: boolean; coreNodesCount?: number; error?: string } => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return { error: 'no instance', hasCore: false };
 
       // Maybe it's wrapped in something?
-      if (cy.getCore && typeof cy.getCore === 'function') {
-        const core = cy.getCore();
+      if ((cy as any).getCore && typeof (cy as any).getCore === 'function') {
+        const core = (cy as any).getCore();
         return {
           hasCore: true,
           coreHasNodes: typeof core?.nodes === 'function',

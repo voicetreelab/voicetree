@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "build:test": "vite build",
     "lint": "eslint .",
+    "check": "eslint . && tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest && playwright test",
     "test:ui": "vitest --ui",

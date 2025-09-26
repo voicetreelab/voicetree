@@ -15,7 +15,7 @@ interface UseGraphManagerReturn {
   error: string | null;
 
   // File events
-  fileEvents: Array<{ type: string; data: any; timestamp: Date }>;
+  fileEvents: Array<{ type: string; data: FileEvent | ErrorEvent | { directory?: string; message?: string } | Record<string, never>; timestamp: Date }>;
 
   // Actions
   startWatching: () => Promise<void>;
@@ -35,7 +35,7 @@ export function useGraphManager(): UseGraphManagerReturn {
   const [watchStatus, setWatchStatus] = useState<WatchStatus>({ isWatching: false });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fileEvents, setFileEvents] = useState<Array<{ type: string; data: any; timestamp: Date }>>([]);
+  const [fileEvents, setFileEvents] = useState<Array<{ type: string; data: FileEvent | ErrorEvent | { directory?: string; message?: string } | Record<string, never>; timestamp: Date }>>([]);
 
   // Refs for managing file data
   const markdownFiles = useRef<Map<string, string>>(new Map());
@@ -61,7 +61,7 @@ export function useGraphManager(): UseGraphManagerReturn {
   }, []);
 
   // Add file event to history
-  const addFileEvent = useCallback((type: string, data: any) => {
+  const addFileEvent = useCallback((type: string, data: FileEvent | ErrorEvent | { directory?: string; message?: string } | Record<string, never>) => {
     setFileEvents(prev => [
       { type, data, timestamp: new Date() },
       ...prev.slice(0, 49) // Keep only last 50 events
