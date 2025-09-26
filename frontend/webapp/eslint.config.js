@@ -19,5 +19,14 @@ export default tseslint.config([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Ban relative parent directory imports
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['../*', '../**'],
+          message: 'Use absolute imports from project root instead of relative parent paths. Use @/* for src imports.'
+        }]
+      }]
+    },
   },
 ])

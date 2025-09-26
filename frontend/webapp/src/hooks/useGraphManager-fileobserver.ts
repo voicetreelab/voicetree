@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MarkdownParser, type GraphData, type ParsedNode } from '../graph-core/data';
+import { MarkdownParser, type GraphData, type ParsedNode } from '@/graph-core/data';
 import {
   createFileObserver,
   type FileObserverApi,
   type FileObserverConfig,
   type VFile
-} from '../lib/file-observer';
+} from '@/lib/file-observer';
 
 /**
  * Interface for the useGraphManager hook return value

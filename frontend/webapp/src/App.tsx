@@ -13,8 +13,6 @@ import "./test/setup-browser-tests";
 function App() {
   // Use the graph manager hook for file watching
   const {
-    graphData,
-    markdownFiles, // Correctly get the ref from the hook
     isWatching,
     isLoading,
     watchDirectory,
@@ -57,14 +55,7 @@ function App() {
           </div>
         )}
 
-        {graphData && (
-          <div className="mt-1">
-            <span className="font-medium">Nodes:</span>
-            <span className="text-xs text-gray-600 ml-1">
-              {graphData.nodes.length} | Edges: {graphData.edges.length}
-            </span>
-          </div>
-        )}
+        {/* Graph data display removed - not available from useGraphManager */}
       </div>
 
       {/* Control Buttons */}
@@ -115,7 +106,6 @@ function App() {
   );
 
   // Always render the full app UI - no conditional rendering
-  console.log('App: Rendering with graphData:', graphData ? { nodes: graphData.nodes.length, edges: graphData.edges.length } : null);
   return (
     <div className="min-h-screen bg-background">
       <FloatingWindowManagerProvider>
@@ -141,7 +131,15 @@ function App() {
           {/* Main Graph Visualization with Sidebar */}
           <div className="border-r pr-4">
             <Sidebar>
-              <VoiceTreeLayout graphData={graphData} fileData={markdownFiles.current} />
+              <VoiceTreeLayout
+                isWatching={isWatching}
+                isLoading={isLoading}
+                watchDirectory={watchDirectory}
+                error={error}
+                startWatching={startWatching}
+                stopWatching={stopWatching}
+                clearError={clearError}
+              />
             </Sidebar>
           </div>
         </div>

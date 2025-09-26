@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useGraphManager } from '../../../src/hooks/useGraphManager.tsx';
+import { useGraphManager } from '@/hooks/useGraphManager';
 
 // Mock Electron API
 const mockElectronAPI = {
@@ -44,13 +44,13 @@ describe('useGraphManager (Electron version)', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    expect(result.current.graphData).toBe(null);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
     expect(result.current.isWatching).toBe(false);
     expect(result.current.isElectron).toBe(true);
     expect(typeof result.current.startWatching).toBe('function');
     expect(typeof result.current.stopWatching).toBe('function');
+    expect(result.current.fileEvents).toEqual([]);
   });
 
   it('should clear graph data when stopping watching', async () => {
@@ -70,7 +70,6 @@ describe('useGraphManager (Electron version)', () => {
     });
 
     expect(result.current.isWatching).toBe(false);
-    expect(result.current.graphData).toBe(null);
     expect(mockElectronAPI.stopFileWatching).toHaveBeenCalled();
   });
 
@@ -83,10 +82,7 @@ describe('useGraphManager (Electron version)', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    // Simulate adding some files first (this would normally happen via Electron events)
-    // For this test, we'll just verify that the handler clears the graph data
-
-    expect(result.current.graphData).toBe(null);
+    // Initial state
     expect(result.current.isWatching).toBe(false);
 
     // The handleWatchingStopped callback should be registered
@@ -101,7 +97,6 @@ describe('useGraphManager (Electron version)', () => {
     });
 
     expect(result.current.isWatching).toBe(false);
-    expect(result.current.graphData).toBe(null);
   });
 
   it('should handle stopWatching errors gracefully', async () => {

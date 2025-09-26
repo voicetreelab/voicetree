@@ -3,8 +3,7 @@ import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import { type Token } from "@soniox/speech-to-text-web";
 import SpeedDialMenu from "./speed-dial-menu";
-import { type GraphData } from "@/graph-core/data";
-import { CytoscapeCore, type NodeDefinition, type EdgeDefinition } from "@/graph-core";
+import { CytoscapeCore } from "@/graph-core";
 import { DEFAULT_NODE_COLOR, DEFAULT_EDGE_COLOR, HOVER_COLOR } from "@/graph-core/constants";
 import cytoscape from 'cytoscape';
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
@@ -26,37 +25,27 @@ const MAX_HISTORY_ENTRIES = 50;
 const HISTORY_STORAGE_KEY = 'voicetree-history';
 
 interface VoiceTreeLayoutProps {
-  graphData?: GraphData | null;
-  fileData?: Map<string, string> | null;
+  // File watching controls from parent
+  isWatching?: boolean;
+  isLoading?: boolean;
+  watchDirectory?: string;
+  error?: string | null;
+  startWatching?: () => Promise<void>;
+  stopWatching?: () => Promise<void>;
+  clearError?: () => void;
 }
 
-// Transform GraphData to Cytoscape format
-function transformGraphDataToCytoscape(graphData: GraphData): (NodeDefinition | EdgeDefinition)[] {
-  const elements: (NodeDefinition | EdgeDefinition)[] = [];
-
-  // Transform nodes
-  graphData.nodes.forEach(node => {
-    elements.push({
-      data: {
-        id: node.data.id,
-        label: node.data.label || node.data.id,
-        linkedNodeIds: node.data.linkedNodeIds || []
-      }
-    });
-  });
-
-  // Transform edges
-  graphData.edges.forEach(edge => {
-    elements.push({
-      data: {
-        id: edge.data.id,
-        source: edge.data.source,
-        target: edge.data.target
-      }
-    });
-  });
-
-  return elements;
+// Normalize a filename to a consistent ID
+// 'concepts/introduction.md' -> 'introduction'
+function normalizeFileId(filename: string): string {
+  // Remove .md extension
+  let id = filename.replace(/\.md$/i, '');
+  // Take just the filename without path
+  const lastSlash = id.lastIndexOf('/');
+  if (lastSlash >= 0) {
+    id = id.substring(lastSlash + 1);
+  }
+  return id;
 }
 
 // Get Cytoscape stylesheet
@@ -115,19 +104,29 @@ function getCytoscapeStylesheet() {
   ] as cytoscape.Stylesheet[];
 }
 
-export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayoutProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const lastSentText = useRef<string>("");
   const cytoscapeRef = useRef<CytoscapeCore | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const markdownFiles = useRef<Map<string, string>>(new Map());
+  const [nodeCount, setNodeCount] = useState(0);
+  const [edgeCount, setEdgeCount] = useState(0);
   const { openWindow } = useFloatingWindows();
+  const openWindowRef = useRef(openWindow);
 
   const {
     finalTokens,
   } = useVoiceTreeClient({
     apiKey: getAPIKey,
   });
+
+  // Update ref when openWindow changes
+  useEffect(() => {
+    openWindowRef.current = openWindow;
+  }, [openWindow]);
 
   // Dark mode management
   useEffect(() => {
@@ -235,8 +234,124 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
     }
   }, [addToHistory]);
 
-  // Lazy initialize Cytoscape
-  const initCytoscape = useCallback(() => {
+  // File event handlers
+  const handleFileAdded = useCallback((data: { path: string; content?: string }) => {
+    if (!data.path.endsWith('.md') || !data.content) return;
+
+    const cy = cytoscapeRef.current?.getCore();
+    if (!cy) return;
+
+    // Store file content
+    markdownFiles.current.set(data.path, data.content);
+
+    // Add node if it doesn't exist
+    const nodeId = normalizeFileId(data.path);
+    if (!cy.getElementById(nodeId).length) {
+      cy.add({
+        data: {
+          id: nodeId,
+          label: nodeId.replace(/_/g, ' ')
+        }
+      });
+    }
+
+    // Parse and add edges
+    const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
+    for (const match of linkMatches) {
+      const targetId = normalizeFileId(match[1]);
+      const edgeId = `${nodeId}->${targetId}`;
+
+      // Add edge if it doesn't exist
+      if (!cy.getElementById(edgeId).length) {
+        cy.add({
+          data: {
+            id: edgeId,
+            source: nodeId,
+            target: targetId
+          }
+        });
+      }
+    }
+
+    // Update counts
+    setNodeCount(cy.nodes().length);
+    setEdgeCount(cy.edges().length);
+
+    // Run layout
+    cy.layout({ name: 'cola', animate: true }).run();
+
+    // Update window reference for tests
+    if (typeof window !== 'undefined') {
+      (window as any).cytoscapeInstance = cy;
+    }
+  }, []);
+
+  const handleFileChanged = useCallback((data: { path: string; content?: string }) => {
+    if (!data.path.endsWith('.md') || !data.content) return;
+
+    const cy = cytoscapeRef.current?.getCore();
+    if (!cy) return;
+
+    // Update stored content
+    markdownFiles.current.set(data.path, data.content);
+
+    const nodeId = normalizeFileId(data.path);
+
+    // Remove old edges from this node
+    cy.edges(`[source = "${nodeId}"]`).remove();
+
+    // Parse and add new edges
+    const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
+    for (const match of linkMatches) {
+      const targetId = normalizeFileId(match[1]);
+      const edgeId = `${nodeId}->${targetId}`;
+
+      cy.add({
+        data: {
+          id: edgeId,
+          source: nodeId,
+          target: targetId
+        }
+      });
+    }
+
+    // Update counts
+    setNodeCount(cy.nodes().length);
+    setEdgeCount(cy.edges().length);
+
+    // Run layout
+    cy.layout({ name: 'cola', animate: true }).run();
+  }, []);
+
+  const handleFileDeleted = useCallback((data: { path: string }) => {
+    if (!data.path.endsWith('.md')) return;
+
+    const cy = cytoscapeRef.current?.getCore();
+    if (!cy) return;
+
+    // Remove from stored files
+    markdownFiles.current.delete(data.path);
+
+    // Remove node and its edges
+    const nodeId = normalizeFileId(data.path);
+    cy.getElementById(nodeId).remove();
+
+    // Update counts
+    setNodeCount(cy.nodes().length);
+    setEdgeCount(cy.edges().length);
+
+    // Run layout
+    if (cy.nodes().length > 0) {
+      cy.layout({ name: 'cola', animate: true }).run();
+    }
+  }, []);
+
+  // Initialize Cytoscape on mount
+  useEffect(() => {
+    console.log('VoiceTreeLayout: Init effect running', {
+      hasContainer: !!containerRef.current,
+      hasCytoscapeRef: !!cytoscapeRef.current
+    });
     if (!containerRef.current || cytoscapeRef.current) return;
 
     try {
@@ -247,42 +362,40 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
       const core = cytoscapeRef.current.getCore();
       if (typeof window !== 'undefined') {
         console.log('VoiceTreeLayout: Initial cytoscapeInstance set on window');
-        (window as typeof window & { cytoscapeInstance?: cytoscape.Core }).cytoscapeInstance = core;
+        (window as any).cytoscapeInstance = core;
       }
 
       // Apply stylesheet
       core.style(getCytoscapeStylesheet());
 
-      // Store ref to access current fileData in event handler
-      (core as cytoscape.Core & { _fileDataRef?: Map<string, string> | null })._fileDataRef = fileData;
-
       // Add event listener for tapping on a node
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
-        const currentFileData = (core as cytoscape.Core & { _fileDataRef?: Map<string, string> | null })._fileDataRef;
-        if (currentFileData) {
-          const content = currentFileData.get(nodeId);
-          if (typeof content !== 'undefined') {
-            openWindow({
-              nodeId: nodeId,
-              title: nodeId, // Use file path as title
-              type: 'MarkdownEditor',
-              content: content,
-              position: { x: event.renderedPosition.x - 50, y: event.renderedPosition.y - 50 },
-              size: { width: 700, height: 500 },
-            });
+        // Look up by full path that matches the nodeId
+        let content: string | undefined;
+        for (const [path, fileContent] of markdownFiles.current) {
+          if (normalizeFileId(path) === nodeId) {
+            content = fileContent;
+            break;
           }
+        }
+        if (typeof content !== 'undefined') {
+          // Get the node's rendered position
+          const nodePosition = event.target.renderedPosition();
+          openWindowRef.current({
+            nodeId: nodeId,
+            title: nodeId, // Use file path as title
+            type: 'MarkdownEditor',
+            content: content,
+            position: { x: nodePosition.x - 50, y: nodePosition.y - 50 },
+            size: { width: 700, height: 500 },
+          });
         }
       });
 
     } catch (error) {
       console.error('Failed to initialize Cytoscape:', error);
     }
-  }, [openWindow, fileData]);
-
-  // Call init on mount and cleanup on unmount
-  useEffect(() => {
-    initCytoscape();
 
     // Cleanup function
     return () => {
@@ -292,74 +405,38 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         cytoscapeRef.current = null;
       }
     };
-  }, [initCytoscape]);
+  }, []); // Empty deps - initialize once
 
-  // Update fileData reference when it changes
+  // Set up file event listeners
   useEffect(() => {
-    if (cytoscapeRef.current) {
-      const core = cytoscapeRef.current.getCore();
-      (core as cytoscape.Core & { _fileDataRef?: Map<string, string> | null })._fileDataRef = fileData;
-    }
-  }, [fileData]);
+    if (!window.electronAPI) return;
 
-  // Update graph when graphData changes
-  useEffect(() => {
-    console.log('VoiceTreeLayout: graphData effect triggered', {
-      hasCytoscapeRef: !!cytoscapeRef.current,
-      hasGraphData: !!graphData,
-      nodeCount: graphData?.nodes.length || 0
-    });
+    // Set up event listeners
+    console.log('VoiceTreeLayout: Setting up file event listeners');
+    window.electronAPI.onFileAdded(handleFileAdded);
+    window.electronAPI.onFileChanged(handleFileChanged);
+    window.electronAPI.onFileDeleted(handleFileDeleted);
 
-    // Initialize Cytoscape if needed
-    if (!cytoscapeRef.current && containerRef.current) {
-      initCytoscape();
-    }
+    // Handle watching stopped - clear everything
+    const handleWatchingStopped = () => {
+      markdownFiles.current.clear();
+      const cy = cytoscapeRef.current?.getCore();
+      if (cy) {
+        cy.elements().remove();
+        setNodeCount(0);
+        setEdgeCount(0);
+      }
+    };
+    window.electronAPI.onFileWatchingStopped(handleWatchingStopped);
 
-    if (!cytoscapeRef.current || !graphData || graphData.nodes.length === 0) {
-      return;
-    }
-
-    try {
-      const core = cytoscapeRef.current.getCore();
-
-      // Clear existing elements
-      core.elements().remove();
-
-      // Transform and add new elements
-      const elements = transformGraphDataToCytoscape(graphData);
-      console.log('VoiceTreeLayout: Adding elements to Cytoscape:', elements);
-      core.add(elements);
-      console.log('VoiceTreeLayout: After add, nodes count:', core.nodes().length);
-
-      // Apply layout to new nodes using cola layout
-      const layout = core.layout({
-        name: 'cola',
-        animate: true,
-        animationDuration: 1000,
-        fit: true,
-        padding: 50,
-        nodeSpacing: 100,
-        edgeLengthVal: 150,
-        convergenceThreshold: 0.01
-      } as cytoscape.LayoutOptions);
-      layout.run();
-
-      // Fit the view after a brief delay to allow layout to settle
-      setTimeout(() => {
-        cytoscapeRef.current?.fitView();
-
-        // Update window reference for tests
-        if (typeof window !== 'undefined') {
-          const updatedCore = cytoscapeRef.current?.getCore();
-          console.log('VoiceTreeLayout: Updating cytoscapeInstance on window, nodes:', updatedCore?.nodes().length);
-          (window as typeof window & { cytoscapeInstance?: cytoscape.Core }).cytoscapeInstance = updatedCore;
-        }
-      }, 500);
-
-    } catch (error) {
-      console.error('Failed to update graph:', error);
-    }
-  }, [graphData, initCytoscape]);
+    return () => {
+      // Cleanup listeners
+      window.electronAPI!.removeAllListeners('file-added');
+      window.electronAPI!.removeAllListeners('file-changed');
+      window.electronAPI!.removeAllListeners('file-deleted');
+      window.electronAPI!.removeAllListeners('file-watching-stopped');
+    };
+  }, [handleFileAdded, handleFileChanged, handleFileDeleted]);
 
   // Handle window resize
   useEffect(() => {
@@ -408,13 +485,13 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
           ref={containerRef}
           className="h-full w-full"
           style={{
-            opacity: graphData && graphData.nodes.length > 0 ? 1 : 0,
+            opacity: cytoscapeRef.current ? 1 : 0.3,
             transition: 'opacity 0.3s ease-in-out'
           }}
         />
 
         {/* Empty state overlay */}
-        {(!graphData || graphData.nodes.length === 0) && (
+        {(nodeCount === 0) && (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none">
             <div className="text-center">
               <svg
@@ -444,9 +521,9 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         )}
 
         {/* Graph info overlay (bottom right) */}
-        {graphData && graphData.nodes.length > 0 && (
+        {nodeCount > 0 && (
           <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-muted-foreground pointer-events-none">
-            {graphData.nodes.length} nodes • {graphData.edges.length} edges
+            {nodeCount} nodes • {edgeCount} edges
           </div>
         )}
       </div>

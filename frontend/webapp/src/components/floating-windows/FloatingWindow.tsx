@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import Draggable from 'react-draggable';
 import type { FloatingWindow as FloatingWindowType } from './types';
 import { useFloatingWindows } from './hooks/useFloatingWindows';
@@ -12,6 +12,7 @@ import { Terminal } from './editors/Terminal';
 export const FloatingWindow: React.FC<FloatingWindowType> = (props) => {
   const { id, title, type, position, size, zIndex } = props;
   const { closeWindow, bringToFront, updateWindowPosition } = useFloatingWindows();
+  const nodeRef = useRef(null);
 
   const renderContent = () => {
     switch (type) {
@@ -26,6 +27,7 @@ export const FloatingWindow: React.FC<FloatingWindowType> = (props) => {
 
   return (
     <Draggable
+      nodeRef={nodeRef}
       handle=".window-title-bar"
       defaultPosition={position}
       onStop={(_, data) => {
@@ -33,6 +35,7 @@ export const FloatingWindow: React.FC<FloatingWindowType> = (props) => {
       }}
     >
       <div
+        ref={nodeRef}
         className="floating-window"
         onMouseDown={() => bringToFront(id)}
         style={{

@@ -1,13 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { MarkdownParser, type GraphData } from '@/graph-core/data';
+import { useState, useEffect, useCallback } from 'react';
 import type { WatchStatus, FileEvent, ErrorEvent } from '@/types/electron';
 
 
 interface UseGraphManagerReturn {
-  // Graph data
-  graphData: GraphData | null;
-  markdownFiles: React.MutableRefObject<Map<string, string>>;
-
   // File watching state
   isWatching: boolean;
   isLoading: boolean;
@@ -28,37 +23,15 @@ interface UseGraphManagerReturn {
 }
 
 export function useGraphManager(): UseGraphManagerReturn {
-  // State for graph data
-  const [graphData, setGraphData] = useState<GraphData | null>(null);
-
   // State for file watching
   const [watchStatus, setWatchStatus] = useState<WatchStatus>({ isWatching: false });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileEvents, setFileEvents] = useState<Array<{ type: string; data: FileEvent | ErrorEvent | { directory?: string; message?: string } | Record<string, never>; timestamp: Date }>>([]);
 
-  // Refs for managing file data
-  const markdownFiles = useRef<Map<string, string>>(new Map());
-
   // Check if we're running in Electron
   const isElectron = window.electronAPI !== undefined;
 
-  // Update graph data when markdown files change
-  const updateGraphData = useCallback(async () => {
-    console.log('useGraphManager: updateGraphData called, files count:', markdownFiles.current.size);
-    if (markdownFiles.current.size > 0) {
-      try {
-        const newGraphData = await MarkdownParser.parseDirectory(markdownFiles.current);
-        console.log('useGraphManager: Parsed graph data:', { nodes: newGraphData.nodes.length, edges: newGraphData.edges.length });
-        setGraphData(newGraphData);
-      } catch (err) {
-        console.error('Failed to parse markdown files:', err);
-        setError('Failed to parse markdown files');
-      }
-    } else {
-      setGraphData(null);
-    }
-  }, []);
 
   // Add file event to history
   const addFileEvent = useCallback((type: string, data: FileEvent | ErrorEvent | { directory?: string; message?: string } | Record<string, never>) => {
@@ -68,36 +41,21 @@ export function useGraphManager(): UseGraphManagerReturn {
     ]);
   }, []);
 
-  // Handle file addition
+  // Handle file events - just track them, don't process
   const handleFileAdded = useCallback((data: FileEvent) => {
-    console.log('useGraphManager: handleFileAdded called with:', data);
-    if (data.path.endsWith('.md') && data.content) {
-      console.log('useGraphManager: Processing markdown file, adding to map');
-      markdownFiles.current.set(data.path, data.content);
-      updateGraphData();
-    } else {
-      console.log('useGraphManager: File ignored (not .md or no content)');
-    }
+    console.log('useGraphManager: File added:', data.path);
     addFileEvent('File Added', data);
-  }, [updateGraphData, addFileEvent]);
+  }, [addFileEvent]);
 
-  // Handle file changes
   const handleFileChanged = useCallback((data: FileEvent) => {
-    if (data.path.endsWith('.md') && data.content) {
-      markdownFiles.current.set(data.path, data.content);
-      updateGraphData();
-    }
+    console.log('useGraphManager: File changed:', data.path);
     addFileEvent('File Changed', data);
-  }, [updateGraphData, addFileEvent]);
+  }, [addFileEvent]);
 
-  // Handle file deletion
   const handleFileDeleted = useCallback((data: FileEvent) => {
-    if (data.path.endsWith('.md')) {
-      markdownFiles.current.delete(data.path);
-      updateGraphData();
-    }
+    console.log('useGraphManager: File deleted:', data.path);
     addFileEvent('File Deleted', data);
-  }, [updateGraphData, addFileEvent]);
+  }, [addFileEvent]);
 
   // Handle initial scan complete
   const handleInitialScanComplete = useCallback((data: { directory: string }) => {
@@ -117,9 +75,6 @@ export function useGraphManager(): UseGraphManagerReturn {
     setWatchStatus({ isWatching: false });
     addFileEvent('Watching Stopped', {});
     setIsLoading(false);
-    // Clear the markdown files when watching stops
-    markdownFiles.current.clear();
-    setGraphData(null);
   }, [addFileEvent]);
 
   // Set up event listeners
@@ -198,9 +153,6 @@ export function useGraphManager(): UseGraphManagerReturn {
       const result = await window.electronAPI!.stopFileWatching();
       if (result.success) {
         setWatchStatus({ isWatching: false });
-        // Clear files and graph data when stopping
-        markdownFiles.current.clear();
-        setGraphData(null);
       } else {
         setError(result.error || 'Failed to stop watching');
       }
@@ -222,10 +174,6 @@ export function useGraphManager(): UseGraphManagerReturn {
   }, []);
 
   return {
-    // Graph data
-    graphData,
-    markdownFiles,
-
     // File watching state
     isWatching: watchStatus.isWatching,
     isLoading,

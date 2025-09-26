@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import type { PropsWithChildren } from 'react';
-import type { FloatingWindow } from '../types';
+import type { FloatingWindow } from '@/components/floating-windows/types';
 import { FloatingWindowContext, type FloatingWindowManagerContextType } from './FloatingWindowContext';
 
 // Create the provider component

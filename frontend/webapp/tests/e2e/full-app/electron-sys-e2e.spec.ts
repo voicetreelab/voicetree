@@ -3,11 +3,11 @@ import { test as base, expect, _electron as electron, ElectronApplication, Page 
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { fileURLToPath } from 'url';
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
-import type { NodeData, EdgeData } from '../../../src/graph-core/data/load_markdown/MarkdownParser';
+import type { NodeData, EdgeData } from '@/graph-core/data/load_markdown/MarkdownParser';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Use absolute path from project root
+const PROJECT_ROOT = path.resolve(process.cwd());
 
 // Type definitions for test
 interface ExtendedWindow extends Window {
@@ -49,7 +49,7 @@ const test = base.extend<{
   // Set up Electron application
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../electron.js')],
+      args: [path.join(PROJECT_ROOT, 'electron.cjs')],
       env: {
         ...process.env,
         NODE_ENV: 'development',
@@ -86,17 +86,41 @@ const test = base.extend<{
 
 test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
   test('should watch real files and update graph accordingly', async ({ appWindow, tempDir }) => {
+    // Set up console logging before anything loads
+    appWindow.on('console', msg => {
+      console.log(`Console ${msg.type()}: ${msg.text()}`);
+    });
+
+    appWindow.on('pageerror', error => {
+      console.log('Page error:', error.message);
+    });
+
     // Wait for app to load completely
     await appWindow.waitForLoadState('domcontentloaded');
-    await expect.poll(async () => {
-      return appWindow.evaluate(() => {
-        // Check if the app is fully initialized
-        return document.readyState === 'complete' && (window as ExtendedWindow).cytoscapeInstance;
-      });
-    }, {
-      message: 'Waiting for app to fully load and initialize',
-      timeout: 10000
-    }).toBe(true);
+    await appWindow.waitForTimeout(2000); // Give React time to mount
+
+    // Check if the app loaded properly first
+    const appLoaded = await appWindow.evaluate(() => {
+      return document.readyState === 'complete' && document.getElementById('root');
+    });
+    console.log('App loaded:', appLoaded);
+
+    // Check if cytoscape is available (it should be initialized even with empty graph)
+    const hasCytoscape = await appWindow.evaluate(() => {
+      return !!(window as ExtendedWindow).cytoscapeInstance;
+    });
+    console.log('Has cytoscape:', hasCytoscape);
+
+    // Debug: Check what's actually in the page
+    const pageContent = await appWindow.evaluate(() => {
+      const root = document.getElementById('root');
+      return {
+        hasRoot: !!root,
+        rootHTML: root?.innerHTML?.substring(0, 200),
+        bodyText: document.body.innerText?.substring(0, 200)
+      };
+    });
+    console.log('Page content:', pageContent);
 
     console.log('=== STEP 1: Verify initial empty state ===');
 

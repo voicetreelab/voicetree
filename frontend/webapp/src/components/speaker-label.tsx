@@ -1,4 +1,4 @@
-import { getSpeakerColor } from "../utils/speaker-colors";
+import { getSpeakerColor } from "@/utils/speaker-colors";
 
 interface SpeakerLabelProps {
   speakerNumber: string | number;

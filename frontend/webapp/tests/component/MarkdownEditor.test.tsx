@@ -2,8 +2,8 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { MarkdownEditor } from '../../src/components/floating-windows/editors/MarkdownEditor';
-import { FloatingWindowManagerProvider } from '../../src/components/floating-windows/context/FloatingWindowManager';
+import { MarkdownEditor } from '@/components/floating-windows/editors/MarkdownEditor';
+import { FloatingWindowManagerProvider } from '@/components/floating-windows/context/FloatingWindowManager';
 
 // Mock the electron API
 const mockSaveFileContent = vi.fn();

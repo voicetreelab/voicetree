@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import StatusDisplay from "../components/status-display";
-import SoundWaveVisualizer from "../components/sound-wave-visualizer";
+import StatusDisplay from "@/components/status-display";
+import SoundWaveVisualizer from "@/components/sound-wave-visualizer";
 import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";

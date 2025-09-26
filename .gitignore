@@ -151,3 +151,5 @@ tools/state/*
 /backend/text_to_graph_pipeline/voice_to_text/transcription_log_old.txt
 /frontend/webapp/playwright-report/**/*
 /frontend/webapp/test-results/**/*
+/frontend/webapp/playwright-report-electron/**/*
+/frontend/.playwright-mcp/**/*

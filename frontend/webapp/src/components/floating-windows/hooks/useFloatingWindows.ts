@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { FloatingWindowContext, type FloatingWindowManagerContextType } from '../context/FloatingWindowContext';
+import { FloatingWindowContext, type FloatingWindowManagerContextType } from '@/components/floating-windows/context/FloatingWindowContext';
 
 // Create the custom hook for easy context access
 export const useFloatingWindows = (): FloatingWindowManagerContextType => {

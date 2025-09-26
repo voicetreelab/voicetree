@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
-import { LayoutManager } from '../../src/graph-core/graphviz/layout/LayoutManager';
+import { LayoutManager } from '@/graph-core/graphviz/layout/LayoutManager';
 
 describe('LayoutManager Integration Tests', () => {
   let cy: Core;
