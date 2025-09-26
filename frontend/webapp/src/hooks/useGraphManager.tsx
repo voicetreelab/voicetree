@@ -214,6 +214,7 @@ export function useGraphManager(): UseGraphManagerReturn {
   return {
     // Graph data
     graphData,
+    markdownFiles,
 
     // File watching state
     isWatching: watchStatus.isWatching,

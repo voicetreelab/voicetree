@@ -40,5 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Remove event listeners (cleanup)
   removeAllListeners: (channel) => {
     ipcRenderer.removeAllListeners(channel);
-  }
+  },
+
+  // File content management
+  saveFileContent: (filePath, content) => ipcRenderer.invoke('save-file-content', filePath, content),
 });
