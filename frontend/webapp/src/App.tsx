@@ -26,7 +26,8 @@ function App() {
   } = useGraphManager();
 
   // Show both components so we can compare them
-  const showBoth = true;
+  // TODO: Set to true for development, false for E2E tests
+  const showBoth = false;
 
   // File Watching Control Panel Component
   const FileWatchingPanel = () => (
@@ -153,6 +154,7 @@ function App() {
   }
 
   // Original code - Enhanced with file watching
+  console.log('App: Rendering with graphData:', graphData ? { nodes: graphData.nodes.length, edges: graphData.edges.length } : null);
   return (
     <FloatingWindowManagerProvider>
       <Sidebar>

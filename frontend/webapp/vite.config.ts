@@ -18,6 +18,14 @@ export default defineConfig(async () => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    build: {
+      rollupOptions: {
+        input: {
+          main: path.resolve(__dirname, "index.html"),
+          floatingEditorE2E: path.resolve(__dirname, "floating-editor-e2e-test.html"),
+        },
+      },
+    },
     test: {
       globals: true,
       environment: "jsdom",

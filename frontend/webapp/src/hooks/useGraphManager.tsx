@@ -6,6 +6,7 @@ import type { ElectronAPI, WatchStatus, FileEvent, ErrorEvent } from '@/types/el
 interface UseGraphManagerReturn {
   // Graph data
   graphData: GraphData | null;
+  markdownFiles: React.MutableRefObject<Map<string, string>>;
 
   // File watching state
   isWatching: boolean;
@@ -44,9 +45,11 @@ export function useGraphManager(): UseGraphManagerReturn {
 
   // Update graph data when markdown files change
   const updateGraphData = useCallback(async () => {
+    console.log('useGraphManager: updateGraphData called, files count:', markdownFiles.current.size);
     if (markdownFiles.current.size > 0) {
       try {
         const newGraphData = await MarkdownParser.parseDirectory(markdownFiles.current);
+        console.log('useGraphManager: Parsed graph data:', { nodes: newGraphData.nodes.length, edges: newGraphData.edges.length });
         setGraphData(newGraphData);
       } catch (err) {
         console.error('Failed to parse markdown files:', err);

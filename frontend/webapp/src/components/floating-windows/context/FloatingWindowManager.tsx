@@ -20,28 +20,33 @@ const FloatingWindowContext = createContext<FloatingWindowManagerContextType | n
 export const FloatingWindowManagerProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
   const [windows, setWindows] = useState<FloatingWindow[]>([]);
 
-  const getHighestZIndex = useCallback(() => {
-    if (windows.length === 0) return 100; // Start at a base z-index
-    return Math.max(...windows.map(w => w.zIndex)) + 1;
-  }, [windows]);
+  const getHighestZIndex = useCallback((windowsArray: FloatingWindow[]) => {
+    if (windowsArray.length === 0) return 100; // Start at a base z-index
+    return Math.max(...windowsArray.map(w => w.zIndex)) + 1;
+  }, []);
 
   const openWindow = useCallback((config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string }) => {
-    // Prevent opening multiple windows for the same node
-    if (windows.some(w => w.nodeId === config.nodeId)) {
-        // Optional: Bring existing window to front instead
-        const existing = windows.find(w => w.nodeId === config.nodeId);
-        if (existing) bringToFront(existing.id);
-        return;
-    }
+    setWindows(prev => {
+      // Prevent opening multiple windows for the same node
+      if (prev.some(w => w.nodeId === config.nodeId)) {
+        // Bring existing window to front instead
+        const existing = prev.find(w => w.nodeId === config.nodeId);
+        if (existing) {
+          const highestZIndex = getHighestZIndex(prev);
+          return prev.map(w => (w.id === existing.id ? { ...w, zIndex: highestZIndex } : w));
+        }
+        return prev;
+      }
 
-    const newWindow: FloatingWindow = {
-      ...config,
-      id: `window_${Date.now().toString()}`,
-      content: config.content || '',
-      zIndex: getHighestZIndex(),
-    };
-    setWindows(prev => [...prev, newWindow]);
-  }, [windows, getHighestZIndex]);
+      const newWindow: FloatingWindow = {
+        ...config,
+        id: `window_${Date.now().toString()}`,
+        content: config.content || '',
+        zIndex: getHighestZIndex(prev),
+      };
+      return [...prev, newWindow];
+    });
+  }, [getHighestZIndex]);
 
   const closeWindow = useCallback((id: string) => {
     setWindows(prev => prev.filter(w => w.id !== id));
@@ -60,10 +65,10 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren<{}>> = ({
   }, []);
 
   const bringToFront = useCallback((id: string) => {
-    const highestZIndex = getHighestZIndex();
-    setWindows(prev =>
-      prev.map(w => (w.id === id ? { ...w, zIndex: highestZIndex } : w))
-    );
+    setWindows(prev => {
+      const highestZIndex = getHighestZIndex(prev);
+      return prev.map(w => (w.id === id ? { ...w, zIndex: highestZIndex } : w));
+    });
   }, [getHighestZIndex]);
 
   const value = {
