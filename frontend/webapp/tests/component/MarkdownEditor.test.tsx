@@ -5,8 +5,8 @@ import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { MarkdownEditor } from '@/components/floating-windows/editors/MarkdownEditor';
 import { FloatingWindowManagerProvider } from '@/components/floating-windows/context/FloatingWindowManager';
 
-// Mock the electron API
-const mockSaveFileContent = vi.fn();
+// Mock functions
+const mockOnSave = vi.fn();
 const mockCloseWindow = vi.fn();
 
 // Create a test wrapper that provides the context
@@ -19,14 +19,9 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 beforeEach(() => {
-  mockSaveFileContent.mockClear();
+  mockOnSave.mockClear();
   mockCloseWindow.mockClear();
-  mockSaveFileContent.mockResolvedValue({ success: true });
-
-  // Setup electron API mock
-  (window as Window & { electronAPI?: { saveFileContent: vi.Mock } }).electronAPI = {
-    saveFileContent: mockSaveFileContent
-  };
+  mockOnSave.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -48,10 +43,18 @@ vi.mock('../../src/components/floating-windows/hooks/useFloatingWindows', () => 
 
 describe('MarkdownEditor Component', () => {
   const defaultProps = {
-    initialContent: '# Initial Content',
-    nodeId: 'test/document.md',
+    content: '# Initial Content',
+    onSave: mockOnSave,
     windowId: 'test-window-1'
   };
+
+  test('should receive and display initial content', () => {
+    // Test for Phase 1.1 requirement: "Editor receives initial content"
+    render(<MarkdownEditor {...defaultProps} content="Hello World" />, { wrapper: TestWrapper });
+
+    const editor = screen.getByRole('textbox');
+    expect(editor).toHaveValue('Hello World');
+  });
 
   test('should allow user to edit and save content', async () => {
     const user = userEvent.setup();
@@ -71,8 +74,7 @@ describe('MarkdownEditor Component', () => {
 
     // Verify save was called with correct content
     await waitFor(() => {
-      expect(mockSaveFileContent).toHaveBeenCalledWith(
-        'test/document.md',
+      expect(mockOnSave).toHaveBeenCalledWith(
         '# Updated Content\n\nThis is my new text.'
       );
     });
@@ -95,8 +97,7 @@ describe('MarkdownEditor Component', () => {
     await user.click(saveButton);
 
     // Component saves even without changes (no dirty state checking)
-    expect(mockSaveFileContent).toHaveBeenCalledWith(
-      'test/document.md',
+    expect(mockOnSave).toHaveBeenCalledWith(
       '# Initial Content'
     );
 
@@ -112,10 +113,10 @@ describe('MarkdownEditor Component', () => {
 
     // Make save take some time to resolve
     let resolveSave: () => void;
-    const savePromise = new Promise<{ success: boolean }>((resolve) => {
-      resolveSave = () => resolve({ success: true });
+    const savePromise = new Promise<void>((resolve) => {
+      resolveSave = () => resolve();
     });
-    mockSaveFileContent.mockReturnValue(savePromise);
+    mockOnSave.mockReturnValue(savePromise);
 
     render(<MarkdownEditor {...defaultProps} />, { wrapper: TestWrapper });
 
@@ -145,8 +146,8 @@ describe('MarkdownEditor Component', () => {
     const user = userEvent.setup();
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    // Make save fail by returning success: false
-    mockSaveFileContent.mockResolvedValue({ success: false, error: 'Failed to save' });
+    // Make save fail by rejecting the promise
+    mockOnSave.mockRejectedValue(new Error('Failed to save'));
 
     render(<MarkdownEditor {...defaultProps} />, { wrapper: TestWrapper });
 
@@ -168,8 +169,8 @@ describe('MarkdownEditor Component', () => {
 
     // Should log error
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Failed to save file:',
-      'Failed to save'
+      'Error saving content:',
+      expect.any(Error)
     );
 
     // Should NOT close window on error

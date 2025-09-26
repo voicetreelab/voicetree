@@ -16,6 +16,9 @@ import MDEditor from '@uiw/react-md-editor';
 const urlParams = new URLSearchParams(window.location.search);
 const mode = urlParams.get('mode') || 'standalone';
 
+// Add test logging
+(window as typeof window & { _test_logs: string[] })._test_logs = [];
+
 const StandaloneEditor = () => {
   const [showEditor, setShowEditor] = useState(false);
   const [content, setContent] = useState('# Hello World');
@@ -252,8 +255,199 @@ const CytoscapeEditor = () => {
   );
 };
 
+// Simulate file watcher integration
+const FileWatcherEditor = () => {
+  const [openEditors, setOpenEditors] = useState<Map<string, {
+    windowId: string;
+    nodeId: string;
+    filePath: string;
+    content: string;
+    position: { x: number; y: number };
+    size: { width: number; height: number };
+  }>>(new Map());
+
+  const [windowCounter, setWindowCounter] = useState(0);
+
+  // Mock file content map
+  const fileContentMap = useRef<Map<string, string>>(new Map([
+    ['test/test.md', '# Old Content'],
+    ['test/other.md', '# Other Content']
+  ]));
+
+  // Function to update window content (simulates updateWindowContent from FloatingWindowManager)
+  const updateWindowContent = (nodeId: string, newContent: string) => {
+    setOpenEditors(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(nodeId);
+      if (existing) {
+        const testLogs = (window as any)._test_logs;
+        testLogs.push(`VoiceTreeLayout: Updating editor content for node ${nodeId} due to external file change`);
+
+        newMap.set(nodeId, {
+          ...existing,
+          content: newContent
+        });
+      }
+      return newMap;
+    });
+  };
+
+  // Mock normalizeFileId function
+  const normalizeFileId = (filename: string): string => {
+    let id = filename.replace(/\.md$/i, '');
+    const lastSlash = id.lastIndexOf('/');
+    if (lastSlash >= 0) {
+      id = id.substring(lastSlash + 1);
+    }
+    return id;
+  };
+
+  // Handle file change simulation
+  const handleFileChanged = useRef((data: { path: string; content: string }) => {
+    if (!data.path.endsWith('.md') || !data.content) return;
+
+    // Update stored content (simulate markdownFiles.current.set)
+    fileContentMap.current.set(data.path, data.content);
+
+    const nodeId = normalizeFileId(data.path);
+
+    // Update any open editors for this file (simulates the new logic we added)
+    setOpenEditors(currentEditors => {
+      const editorInfo = currentEditors.get(nodeId);
+      if (editorInfo) {
+        updateWindowContent(nodeId, data.content);
+      }
+      return currentEditors;
+    });
+  });
+
+  // Set up event listener for file change simulation
+  useEffect(() => {
+    const handleSimulateFileChange = (event: CustomEvent) => {
+      handleFileChanged.current(event.detail);
+    };
+
+    window.addEventListener('simulateFileChange', handleSimulateFileChange as EventListener);
+
+    return () => {
+      window.removeEventListener('simulateFileChange', handleSimulateFileChange as EventListener);
+    };
+  }, []);
+
+  const openEditor = (nodeId: string, filePath: string) => {
+    if (openEditors.has(nodeId)) {
+      return; // Already open
+    }
+
+    const content = fileContentMap.current.get(filePath) || '# No content';
+    const windowId = `window_${nodeId}_${windowCounter}`;
+    setWindowCounter(prev => prev + 1);
+
+    setOpenEditors(prev => {
+      const newMap = new Map(prev);
+      newMap.set(nodeId, {
+        windowId,
+        nodeId,
+        filePath,
+        content,
+        position: { x: 100 + newMap.size * 50, y: 100 + newMap.size * 50 },
+        size: { width: 400, height: 300 }
+      });
+      return newMap;
+    });
+  };
+
+  const closeEditor = (nodeId: string) => {
+    setOpenEditors(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(nodeId);
+      return newMap;
+    });
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h1>File Watcher Editor Test</h1>
+
+      <button onClick={() => openEditor('test', 'test/test.md')}>
+        Open Editor for Test Node
+      </button>
+
+      <button onClick={() => openEditor('other', 'test/other.md')} style={{ marginLeft: '10px' }}>
+        Open Editor for Other Node
+      </button>
+
+      {Array.from(openEditors.values()).map((editor) => (
+        <div
+          key={editor.windowId}
+          className="floating-window"
+          style={{
+            position: 'absolute',
+            top: editor.position.y,
+            left: editor.position.x,
+            width: editor.size.width,
+            height: editor.size.height,
+            border: '1px solid #ccc',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            background: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex: 100,
+          }}
+        >
+          <div
+            className="window-title-bar"
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#f0f0f0',
+              borderBottom: '1px solid #ccc',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>{editor.filePath}</span>
+            <button
+              onClick={() => closeEditor(editor.nodeId)}
+              aria-label="Close"
+              style={{ all: 'unset', cursor: 'pointer', fontSize: '16px' }}
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ flex: 1, padding: '10px', overflow: 'auto' }}>
+            <MDEditor
+              value={editor.content}
+              onChange={(val) => {
+                const newContent = val || '';
+                setOpenEditors(prev => {
+                  const newMap = new Map(prev);
+                  const existing = newMap.get(editor.nodeId);
+                  if (existing) {
+                    newMap.set(editor.nodeId, {
+                      ...existing,
+                      content: newContent
+                    });
+                  }
+                  return newMap;
+                });
+              }}
+              height={200}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const App = () => {
-  return mode === 'cytoscape' ? <CytoscapeEditor /> : <StandaloneEditor />;
+  return mode === 'file-watcher' ? <FileWatcherEditor /> :
+         mode === 'cytoscape' ? <CytoscapeEditor /> :
+         <StandaloneEditor />;
 };
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

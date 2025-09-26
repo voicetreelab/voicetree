@@ -1,12 +1,36 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useFloatingWindows } from './hooks/useFloatingWindows';
 import { FloatingWindow } from './FloatingWindow';
+
+interface FloatingWindowContainerProps {
+  onPositionUpdateCallback?: (callback: (positionUpdates: Map<string, { x: number; y: number }>) => void) => void;
+}
 
 /**
  * Renders all active floating windows. It acts as the container layer for all floating elements.
  */
-export const FloatingWindowContainer: React.FC = () => {
-  const { windows } = useFloatingWindows();
+export const FloatingWindowContainer: React.FC<FloatingWindowContainerProps> = ({
+  onPositionUpdateCallback
+}) => {
+  const { windows, updateWindowPosition } = useFloatingWindows();
+
+  // Create the position update handler
+  const handlePositionUpdates = useCallback((positionUpdates: Map<string, { x: number; y: number }>) => {
+    for (const [nodeId, newPosition] of positionUpdates) {
+      // Find the window for this node and update its position
+      const window = windows.find(w => w.nodeId === nodeId);
+      if (window) {
+        updateWindowPosition(window.id, newPosition);
+      }
+    }
+  }, [windows, updateWindowPosition]);
+
+  // Register the position update callback with the parent
+  useEffect(() => {
+    if (onPositionUpdateCallback) {
+      onPositionUpdateCallback(handlePositionUpdates);
+    }
+  }, [onPositionUpdateCallback, handlePositionUpdates]);
 
   return (
     <div

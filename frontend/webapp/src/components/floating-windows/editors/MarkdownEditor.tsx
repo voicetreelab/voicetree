@@ -6,8 +6,8 @@ import debounce from 'lodash.debounce';
 
 interface MarkdownEditorProps {
   windowId: string;
-  nodeId: string; // This is the file path
-  initialContent: string;
+  content: string;
+  onSave: (newContent: string) => void;
 }
 
 type SaveStatus = 'idle' | 'saving' | 'success' | 'error';
@@ -23,8 +23,8 @@ const components = {
   },
 };
 
-export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, nodeId, initialContent }) => {
-  const [value, setValue] = useState(initialContent);
+export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, content, onSave }) => {
+  const [value, setValue] = useState(content);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const { updateWindowContent } = useFloatingWindows();
 
@@ -43,23 +43,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, nodeId
   };
 
   const handleSave = async () => {
-    if (window.electronAPI?.saveFileContent) {
-      setSaveStatus('saving');
-      try {
-        const result = await window.electronAPI.saveFileContent(nodeId, value);
-        if (result.success) {
-          setSaveStatus('success');
-        } else {
-          setSaveStatus('error');
-          console.error('Failed to save file:', result.error);
-        }
-      } catch (error) {
-        setSaveStatus('error');
-        console.error('Error calling saveFileContent:', error);
-      }
-      // Reset status after a delay
-      setTimeout(() => setSaveStatus('idle'), 2000);
+    setSaveStatus('saving');
+    try {
+      await onSave(value);
+      setSaveStatus('success');
+    } catch (error) {
+      setSaveStatus('error');
+      console.error('Error saving content:', error);
     }
+    // Reset status after a delay
+    setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
   const getSaveButtonText = () => {
@@ -76,7 +69,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, nodeId
       <div style={{ padding: '4px 8px', background: '#f7f7f7', borderBottom: '1px solid #e1e1e1', display: 'flex', justifyContent: 'flex-end' }}>
         <button
           onClick={handleSave}
-          disabled={saveStatus === 'saving' || !window.electronAPI?.saveFileContent}
+          disabled={saveStatus === 'saving'}
           style={{
             padding: '4px 8px',
             fontSize: '12px',
