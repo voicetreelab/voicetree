@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('standalone graph module renders markdown nodes', async ({ page }) => {
   // Navigate to standalone test page
-  await page.goto('http://localhost:3001/graph-test.html');
+  await page.goto('/graph-test.html');
 
   // Wait for canvas to appear
   await page.waitForSelector('#graph-container canvas', { timeout: 5000 });

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('diagnose overlap issues in complex graphs', async ({ page }) => {
-  await page.goto('http://localhost:3001/graph-test.html');
+  await page.goto('/graph-test.html');
   await page.waitForSelector('#graph-container canvas', { timeout: 5000 });
 
   // Clear existing graph
