@@ -176,6 +176,7 @@ useEffect(() => {
  *
  * Here's a pattern for integrating useGraphManager with existing graph components:
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGraphManagerIntegration() {
   const graphManager = useGraphManager();
 
@@ -202,7 +203,7 @@ export function useGraphManagerIntegration() {
         graphManager.stop().catch(console.error);
       }
     };
-  }, []);
+  }, [graphManager]);
 
   return graphManager;
 }

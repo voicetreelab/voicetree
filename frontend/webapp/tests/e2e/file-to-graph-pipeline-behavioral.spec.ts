@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
 
 // Test helper types
@@ -24,9 +24,9 @@ interface PerformanceMetrics {
 }
 
 interface ExtendedWindow extends Window {
-  electronAPI?: any;
+  electronAPI?: unknown;
   mockElectronAPI?: {
-    listeners: any;
+    listeners: unknown;
   };
   cytoscapeInstance?: CytoscapeCore;
   cytoscapeInstances?: CytoscapeCore[];

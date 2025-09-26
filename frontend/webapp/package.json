@@ -2,6 +2,7 @@
   "name": "voicetree-webapp",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "main": "electron.js",
   "scripts": {
     "dev": "vite",

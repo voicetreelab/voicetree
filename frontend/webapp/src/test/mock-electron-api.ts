@@ -5,7 +5,7 @@ import type { ElectronAPI, FileEvent, ErrorEvent, WatchStatus } from '@/types/el
  * This mock allows tests to simulate file events without needing Electron
  */
 export class MockElectronAPI implements ElectronAPI {
-  private listeners: Map<string, Array<(data: any) => void>> = new Map();
+  private listeners: Map<string, Array<(data: unknown) => void>> = new Map();
   private watchStatus: WatchStatus = { isWatching: false };
   private watchDirectory?: string;
 
@@ -87,7 +87,7 @@ export class MockElectronAPI implements ElectronAPI {
   }
 
   // Helper methods for testing
-  private addListener(event: string, callback: (data: any) => void): void {
+  private addListener(event: string, callback: (data: unknown) => void): void {
     console.log(`MockElectronAPI: Adding listener for event '${event}'`);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
@@ -96,7 +96,7 @@ export class MockElectronAPI implements ElectronAPI {
     console.log(`MockElectronAPI: Total listeners for '${event}': ${this.listeners.get(event)!.length}`);
   }
 
-  private emit(event: string, data: any): void {
+  private emit(event: string, data: unknown): void {
     console.log(`MockElectronAPI: Emitting event '${event}' with data:`, data);
     const callbacks = this.listeners.get(event);
     if (callbacks) {

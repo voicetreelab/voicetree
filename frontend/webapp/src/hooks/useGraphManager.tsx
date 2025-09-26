@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MarkdownParser, type GraphData } from '@/graph-core/data';
-import type { ElectronAPI, WatchStatus, FileEvent, ErrorEvent } from '@/types/electron';
+import type { WatchStatus, FileEvent, ErrorEvent } from '@/types/electron';
 
 
 interface UseGraphManagerReturn {
@@ -181,7 +181,7 @@ export function useGraphManager(): UseGraphManagerReturn {
         setError(result.error || 'Failed to start watching');
         setIsLoading(false);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to start file watching');
       setIsLoading(false);
     }
@@ -204,7 +204,7 @@ export function useGraphManager(): UseGraphManagerReturn {
       } else {
         setError(result.error || 'Failed to stop watching');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to stop file watching');
     } finally {
       setIsLoading(false);

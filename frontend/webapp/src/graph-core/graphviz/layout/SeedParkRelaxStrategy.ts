@@ -206,7 +206,7 @@ export class SeedParkRelaxStrategy implements PositioningStrategy {
     context: PositioningContext,
     currentPositions: Map<string, Position>
   ): Position {
-    let currentPos = { ...pos };
+    const currentPos = { ...pos };
     const nodeRadius = Math.max(node.size.width, node.size.height) / 2 + 20;
     const localRadius = this.config.localRadiusMult * nodeRadius * 2;
 

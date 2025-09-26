@@ -1,5 +1,5 @@
 import cytoscape from 'cytoscape';
-// @ts-ignore
+// @ts-expect-error - cytoscape-cola does not have proper TypeScript definitions
 import cola from 'cytoscape-cola';
 import { MarkdownParser, type ParsedNode } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
@@ -173,12 +173,12 @@ async function initializeGraph() {
     cy.fit(50);
 
     // Expose to window for debugging and testing
-    (window as any).cy = cy;
-    (window as any).cytoscapeCore = cytoscapeCore;
-    (window as any).parsedNodes = parsedNodes;
-    (window as any).layoutManager = layoutManager;
-    (window as any).LayoutManager = LayoutManager;
-    (window as any).SeedParkRelaxStrategy = SeedParkRelaxStrategy;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).cy = cy;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).cytoscapeCore = cytoscapeCore;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).parsedNodes = parsedNodes;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).layoutManager = layoutManager;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).LayoutManager = LayoutManager;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).SeedParkRelaxStrategy = SeedParkRelaxStrategy;
 
     console.log('Graph initialization complete!');
     console.log('Available in window: cy, cytoscapeCore, parsedNodes');

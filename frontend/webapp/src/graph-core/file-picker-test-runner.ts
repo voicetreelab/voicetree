@@ -1,8 +1,7 @@
 import cytoscape from 'cytoscape';
-// @ts-ignore
+// @ts-expect-error - cytoscape-cola does not have proper TypeScript definitions
 import cola from 'cytoscape-cola';
 import { ExampleLoader } from './data/load_markdown/ExampleLoader';
-import { FileLoader } from './data/load_markdown/FileLoader';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
 import { type NodeDefinition, type EdgeDefinition, type GraphData } from './types';
 import { LayoutManager, SeedParkRelaxStrategy } from './graphviz/layout';
@@ -34,8 +33,8 @@ function clearGraph() {
     cytoscapeCore = null;
   }
   // Also clear window reference
-  (window as any).cy = null;
-  (window as any).cytoscapeCore = null;
+  (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown }).cy = null;
+  (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown }).cytoscapeCore = null;
   updateStatus('Graph cleared');
 }
 
@@ -133,9 +132,9 @@ function renderGraph(graphData: GraphData) {
     cy.fit(50);
 
     // Expose to window for testing
-    (window as any).cy = cy;
-    (window as any).cytoscapeCore = cytoscapeCore;
-    (window as any).layoutManager = layoutManager;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; layoutManager?: unknown }).cy = cy;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; layoutManager?: unknown }).cytoscapeCore = cytoscapeCore;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; layoutManager?: unknown }).layoutManager = layoutManager;
 
     // Add event listeners
     cy.on('tap', 'node', function(evt) {
@@ -311,13 +310,13 @@ async function initializeFilePickers() {
   });
 
   // Expose functions for testing
-  (window as any).loadTestData = () => {
+  (window as typeof window & { loadTestData?: () => void }).loadTestData = () => {
     const testData = loadTestData();
     renderGraph(testData);
     updateStatus('Test data loaded for automation', 'success');
   };
 
-  (window as any).simulateFileLoad = (files: File[]) => {
+  (window as typeof window & { simulateFileLoad?: (files: File[]) => void }).simulateFileLoad = (files: File[]) => {
     // This function can be used by automation to simulate file loading
     updateStatus(`Simulating load of ${files.length} files...`, 'info');
     const testData = loadTestData();

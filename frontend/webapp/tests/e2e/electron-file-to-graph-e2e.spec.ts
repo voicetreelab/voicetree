@@ -1,7 +1,40 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
+
+// Type definitions for test
+interface ExtendedWindow extends Window {
+  cytoscapeInstance?: CytoscapeCore;
+  electronAPI?: {
+    startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+    getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+  };
+}
+
+interface NodeData {
+  id: string;
+  label: string;
+}
+
+interface EdgeData {
+  id: string;
+  source: string;
+  target: string;
+}
+
+// This interface is used in test files
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface GraphState {
+  nodeCount: number;
+  edgeCount: number;
+  nodeData: NodeData[];
+  edgeData: EdgeData[];
+  allNodesValid: boolean;
+}
 
 /**
  * TRUE END-TO-END TEST for the file-to-graph pipeline
@@ -21,7 +54,7 @@ const test = base.extend<{
   tempDir: string;
 }>({
   // Set up Electron application
-  electronApp: async ({}, use) => {
+  electronApp: async (fixtures, use) => {
     const electronApp = await electron.launch({
       args: [path.join(__dirname, '../../electron.js')],
       env: {
@@ -42,7 +75,7 @@ const test = base.extend<{
   },
 
   // Create temporary directory for test files
-  tempDir: async ({}, use) => {
+  tempDir: async (fixtures, use) => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-test-'));
     console.log(`Created temp directory: ${dir}`);
 
@@ -65,7 +98,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         // Check if the app is fully initialized
-        return document.readyState === 'complete' && (window as any).cytoscapeInstance;
+        return document.readyState === 'complete' && (window as ExtendedWindow).cytoscapeInstance;
       });
     }, {
       message: 'Waiting for app to fully load and initialize',
@@ -79,7 +112,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Verify Cytoscape is initialized but empty
     const initialNodeCount = await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? cy.nodes().length : 0;
     });
     expect(initialNodeCount).toBe(0);
@@ -90,16 +123,16 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // This simulates clicking "Open Folder" and selecting our temp dir
     await appWindow.evaluate((dir) => {
       // Directly call the Electron API to start watching
-      if ((window as any).electronAPI) {
-        return (window as any).electronAPI.startFileWatching(dir);
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
       }
     }, tempDir);
 
     // Wait for file watching to start
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        if ((window as any).electronAPI) {
-          return (window as any).electronAPI.getWatchStatus();
+        if ((window as ExtendedWindow).electronAPI) {
+          return (window as ExtendedWindow).electronAPI.getWatchStatus();
         }
         return null;
       });
@@ -120,7 +153,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // Wait for chokidar to detect the file and graph to update
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         return cy ? cy.nodes().length : 0;
       });
     }, {
@@ -130,7 +163,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Verify the node has correct label
     const firstNodeData = await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy || cy.nodes().length === 0) return null;
       return {
         id: cy.nodes()[0].data('id'),
@@ -152,12 +185,12 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // Wait for second file to be detected and graph to update
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return null;
         return {
           nodes: cy.nodes().length,
           edges: cy.edges().length,
-          edgeData: cy.edges().map((e: any) => ({
+          edgeData: cy.edges().map((e: EdgeSingular) => ({
             source: e.source().data('label'),
             target: e.target().data('label')
           }))
@@ -186,7 +219,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // Wait for file modification to be processed
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return null;
         return {
           nodes: cy.nodes().length,
@@ -203,7 +236,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Verify edge count separately (could be 2 if bidirectional)
     const graphStateAfterModify = await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? cy.edges().length : 0;
     });
     expect(graphStateAfterModify).toBeGreaterThanOrEqual(1);
@@ -216,7 +249,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // Wait for file deletion to be processed
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return null;
         return {
           nodes: cy.nodes().length,
@@ -246,12 +279,12 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // Wait for nested files to be detected and processed
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return null;
         return {
           nodes: cy.nodes().length,
           edges: cy.edges().length,
-          nodeLabels: cy.nodes().map((n: any) => n.data('label'))
+          nodeLabels: cy.nodes().map((n: NodeSingular) => n.data('label'))
         };
       });
     }, {
@@ -265,7 +298,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Verify minimum counts
     const finalGraphState = await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? { nodes: cy.nodes().length, edges: cy.edges().length } : null;
     });
     expect(finalGraphState.nodes).toBeGreaterThanOrEqual(3); // introduction + core + utils
@@ -275,17 +308,17 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Stop file watching
     await appWindow.evaluate(() => {
-      if ((window as any).electronAPI) {
-        return (window as any).electronAPI.stopFileWatching();
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.stopFileWatching();
       }
     });
 
     // Wait for watching to stop and graph to be cleared
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        if ((window as any).electronAPI) {
-          const watchStatus = (window as any).electronAPI.getWatchStatus();
-          const cy = (window as any).cytoscapeInstance;
+        if ((window as ExtendedWindow).electronAPI) {
+          const watchStatus = (window as ExtendedWindow).electronAPI.getWatchStatus();
+          const cy = (window as ExtendedWindow).cytoscapeInstance;
           return {
             isWatching: watchStatus?.isWatching || false,
             nodeCount: cy ? cy.nodes().length : 0
@@ -309,7 +342,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         // Check if the app is fully initialized for rapid test
-        return document.readyState === 'complete' && (window as any).cytoscapeInstance;
+        return document.readyState === 'complete' && (window as ExtendedWindow).cytoscapeInstance;
       });
     }, {
       message: 'Waiting for app to fully load for rapid changes test',
@@ -318,16 +351,16 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Start watching
     await appWindow.evaluate((dir) => {
-      if ((window as any).electronAPI) {
-        return (window as any).electronAPI.startFileWatching(dir);
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
       }
     }, tempDir);
 
     // Wait for file watching to start
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        if ((window as any).electronAPI) {
-          const status = (window as any).electronAPI.getWatchStatus();
+        if ((window as ExtendedWindow).electronAPI) {
+          const status = (window as ExtendedWindow).electronAPI.getWatchStatus();
           return status?.isWatching || false;
         }
         return false;
@@ -357,16 +390,16 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // Wait for all files to be processed and verify graph integrity
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return null;
 
         const nodes = cy.nodes();
         const edges = cy.edges();
 
         // Check for graph consistency
-        const orphanedEdges = edges.filter((edge: any) => {
-          const sourceExists = nodes.some((n: any) => n.id() === edge.source().id());
-          const targetExists = nodes.some((n: any) => n.id() === edge.target().id());
+        const orphanedEdges = edges.filter((edge: EdgeSingular) => {
+          const sourceExists = nodes.some((n: NodeSingular) => n.id() === edge.source().id());
+          const targetExists = nodes.some((n: NodeSingular) => n.id() === edge.target().id());
           return !sourceExists || !targetExists;
         });
 
@@ -374,7 +407,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
           nodeCount: nodes.length,
           edgeCount: edges.length,
           orphanedEdges: orphanedEdges.length,
-          allNodesValid: nodes.every((n: any) => n.data('id') && n.data('label'))
+          allNodesValid: nodes.every((n: NodeSingular) => n.data('id') && n.data('label'))
         };
       });
     }, {
@@ -389,7 +422,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Verify minimum edge count
     const graphState = await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? cy.edges().length : 0;
     });
     expect(graphState).toBeGreaterThanOrEqual(5);
@@ -401,7 +434,7 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     // Wait for file deletions to be processed
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return null;
         return {
           nodeCount: cy.nodes().length,
