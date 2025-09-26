@@ -67,9 +67,13 @@ export function useGraphManager(): UseGraphManagerReturn {
 
   // Handle file addition
   const handleFileAdded = useCallback((data: FileEvent) => {
+    console.log('useGraphManager: handleFileAdded called with:', data);
     if (data.path.endsWith('.md') && data.content) {
+      console.log('useGraphManager: Processing markdown file, adding to map');
       markdownFiles.current.set(data.path, data.content);
       updateGraphData();
+    } else {
+      console.log('useGraphManager: File ignored (not .md or no content)');
     }
     addFileEvent('File Added', data);
   }, [updateGraphData, addFileEvent]);
@@ -132,6 +136,8 @@ export function useGraphManager(): UseGraphManagerReturn {
     checkStatus();
 
     // Set up event listeners
+    console.log('useGraphManager: Setting up event listeners on window.electronAPI');
+    console.log('useGraphManager: electronAPI available:', !!window.electronAPI);
     window.electronAPI!.onFileAdded(handleFileAdded);
     window.electronAPI!.onFileChanged(handleFileChanged);
     window.electronAPI!.onFileDeleted(handleFileDeleted);
@@ -141,6 +147,7 @@ export function useGraphManager(): UseGraphManagerReturn {
     window.electronAPI!.onFileWatchError(handleError);
     window.electronAPI!.onFileWatchInfo((data) => addFileEvent('Info', data));
     window.electronAPI!.onFileWatchingStopped(handleWatchingStopped);
+    console.log('useGraphManager: All event listeners registered');
 
     return () => {
       // Cleanup listeners

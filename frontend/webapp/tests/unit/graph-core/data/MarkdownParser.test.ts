@@ -11,24 +11,24 @@ describe('MarkdownParser', () => {
 
     const result = await MarkdownParser.parseDirectory(testFiles);
 
-    // Check nodes
+    // Check nodes - IDs should be normalized (no .md extension)
     expect(result.nodes).toHaveLength(3);
-    expect(result.nodes.map(n => n.data.id)).toContain('file1.md');
-    expect(result.nodes.map(n => n.data.id)).toContain('file2.md');
-    expect(result.nodes.map(n => n.data.id)).toContain('file3.md');
+    expect(result.nodes.map(n => n.data.id)).toContain('file1');
+    expect(result.nodes.map(n => n.data.id)).toContain('file2');
+    expect(result.nodes.map(n => n.data.id)).toContain('file3');
 
     // Check labels are cleaned up
-    const file1Node = result.nodes.find(n => n.data.id === 'file1.md');
+    const file1Node = result.nodes.find(n => n.data.id === 'file1');
     expect(file1Node?.data.label).toBe('file1');
 
-    // Check linked node IDs
-    expect(file1Node?.data.linkedNodeIds).toEqual(['file2.md', 'file3.md']);
+    // Check linked node IDs - should be normalized
+    expect(file1Node?.data.linkedNodeIds).toEqual(['file2', 'file3']);
 
-    // Check edges
+    // Check edges - should use normalized IDs
     expect(result.edges).toHaveLength(3);
-    expect(result.edges.map(e => e.data.id)).toContain('file1.md->file2.md');
-    expect(result.edges.map(e => e.data.id)).toContain('file1.md->file3.md');
-    expect(result.edges.map(e => e.data.id)).toContain('file2.md->file1.md');
+    expect(result.edges.map(e => e.data.id)).toContain('file1->file2');
+    expect(result.edges.map(e => e.data.id)).toContain('file1->file3');
+    expect(result.edges.map(e => e.data.id)).toContain('file2->file1');
   });
 
   it('should handle files with underscores in names', async () => {
@@ -51,5 +51,35 @@ describe('MarkdownParser', () => {
     expect(result.nodes).toHaveLength(1);
     expect(result.edges).toHaveLength(0);
     expect(result.nodes[0].data.linkedNodeIds).toEqual([]);
+  });
+
+  it('should normalize file paths and handle mixed link formats', async () => {
+    const testFiles = new Map([
+      ['concepts/introduction.md', 'This links to [[overview]] and [[details.md]].'],
+      ['overview.md', 'This links back to [[introduction]].'],
+      ['folder/details.md', 'This is a detail file.']
+    ]);
+
+    const result = await MarkdownParser.parseDirectory(testFiles);
+
+    // Check that all IDs are normalized (no paths, no extensions)
+    expect(result.nodes).toHaveLength(3);
+    const nodeIds = result.nodes.map(n => n.data.id);
+    expect(nodeIds).toContain('introduction');
+    expect(nodeIds).toContain('overview');
+    expect(nodeIds).toContain('details');
+
+    // Check that links work correctly with normalized IDs
+    const introNode = result.nodes.find(n => n.data.id === 'introduction');
+    expect(introNode?.data.linkedNodeIds).toEqual(['overview', 'details']);
+
+    const overviewNode = result.nodes.find(n => n.data.id === 'overview');
+    expect(overviewNode?.data.linkedNodeIds).toEqual(['introduction']);
+
+    // Check edges use normalized IDs
+    expect(result.edges).toHaveLength(3);
+    expect(result.edges.map(e => e.data.id)).toContain('introduction->overview');
+    expect(result.edges.map(e => e.data.id)).toContain('introduction->details');
+    expect(result.edges.map(e => e.data.id)).toContain('overview->introduction');
   });
 });

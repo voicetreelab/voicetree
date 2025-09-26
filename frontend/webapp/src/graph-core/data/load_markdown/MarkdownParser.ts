@@ -31,6 +31,22 @@ export interface ParsedNode {
 
 export class MarkdownParser {
   /**
+   * Normalize a filename to a consistent ID
+   * 'concepts/introduction.md' -> 'introduction'
+   * 'introduction.md' -> 'introduction'
+   */
+  private static normalizeFileId(filename: string): string {
+    // Remove .md extension
+    let id = filename.replace(/\.md$/i, '');
+    // Take just the filename without path
+    const lastSlash = id.lastIndexOf('/');
+    if (lastSlash >= 0) {
+      id = id.substring(lastSlash + 1);
+    }
+    return id;
+  }
+
+  /**
    * Parse a single markdown file with frontmatter and extract structured data
    */
   static parseMarkdownFile(content: string, filename: string): ParsedNode {
@@ -116,28 +132,29 @@ export class MarkdownParser {
 
     // For each file in the map
     for (const [filename, content] of files) {
-      // Create node
+      const nodeId = this.normalizeFileId(filename);
       const linkedNodeIds: string[] = [];
 
       // Extract wikilinks: [[filename.md]]
       const linkMatches = content.matchAll(/\[\[([^\]]+)\]\]/g);
       for (const match of linkMatches) {
         const targetFile = match[1];
-        linkedNodeIds.push(targetFile);
+        const normalizedTargetId = this.normalizeFileId(targetFile);
+        linkedNodeIds.push(normalizedTargetId);
 
         edges.push({
           data: {
-            id: `${filename}->${targetFile}`,
-            source: filename,
-            target: targetFile
+            id: `${nodeId}->${normalizedTargetId}`,
+            source: nodeId,
+            target: normalizedTargetId
           }
         });
       }
 
       nodes.push({
         data: {
-          id: filename,
-          label: filename.replace('.md', '').replace(/_/g, ' '),
+          id: nodeId,
+          label: nodeId.replace(/_/g, ' '),
           linkedNodeIds
         }
       });

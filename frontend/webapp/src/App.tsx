@@ -14,6 +14,7 @@ function App() {
   // Use the graph manager hook for file watching
   const {
     graphData,
+    markdownFiles, // Correctly get the ref from the hook
     isWatching,
     isLoading,
     watchDirectory,
@@ -101,7 +102,7 @@ function App() {
       {error && (
         <Alert variant="destructive" className="mb-3">
           <AlertDescription className="flex justify-between items-center">
-            <span>{typeof error === 'string' ? error : error.message}</span>
+            <span>{error}</span>
             <Button
               onClick={clearError}
               size="sm"

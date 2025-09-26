@@ -9,6 +9,7 @@ export default defineConfig(async () => {
 
   return {
     plugins: [react(), tailwindcss()],
+    base: "./", // Use relative paths for assets (needed for Electron)
     server: {
       port: 3000,
     },
