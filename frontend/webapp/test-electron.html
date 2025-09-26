@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Watcher Test</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 5px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .events { border: 1px solid #ddd; padding: 10px; margin: 10px 0; height: 300px; overflow-y: auto; background: #f8f8f8; }
+        .event { padding: 5px; margin: 2px 0; background: white; border-left: 3px solid #007acc; }
+        .status { padding: 10px; background: #f0f0f0; margin: 10px 0; }
+        .error { background: #ffebee; color: #c62828; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>File Watcher Test</h1>
+
+        <div class="status" id="status">
+            Status: Not watching
+        </div>
+
+        <div>
+            <button id="startBtn">Start Watching</button>
+            <button id="stopBtn" disabled>Stop Watching</button>
+            <button id="clearBtn">Clear Events</button>
+        </div>
+
+        <div class="events" id="events">
+            <p><em>Click "Start Watching" to begin monitoring markdown files...</em></p>
+        </div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const eventsEl = document.getElementById('events');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        let isWatching = false;
+
+        function addEvent(type, data) {
+            const eventEl = document.createElement('div');
+            eventEl.className = 'event';
+            eventEl.innerHTML = `
+                <strong>${type}</strong> - ${new Date().toLocaleTimeString()}
+                <br>
+                ${data.path ? `Path: <code>${data.path}</code><br>` : ''}
+                ${data.message ? `Message: ${data.message}<br>` : ''}
+                ${data.size ? `Size: ${(data.size / 1024).toFixed(2)} KB<br>` : ''}
+            `;
+            eventsEl.insertBefore(eventEl, eventsEl.firstChild);
+        }
+
+        function updateStatus(watching, directory) {
+            isWatching = watching;
+            statusEl.innerHTML = watching
+                ? `Status: Watching${directory ? ` - <code>${directory}</code>` : ''}`
+                : 'Status: Not watching';
+            startBtn.disabled = watching;
+            stopBtn.disabled = !watching;
+        }
+
+        function showError(message) {
+            statusEl.className = 'status error';
+            statusEl.innerHTML = `Error: ${message}`;
+            setTimeout(() => {
+                statusEl.className = 'status';
+                updateStatus(isWatching);
+            }, 3000);
+        }
+
+        // Check if running in Electron
+        if (window.electronAPI) {
+            // Set up event listeners
+            window.electronAPI.onFileAdded((data) => addEvent('File Added', data));
+            window.electronAPI.onFileChanged((data) => addEvent('File Changed', data));
+            window.electronAPI.onFileDeleted((data) => addEvent('File Deleted', data));
+            window.electronAPI.onInitialScanComplete((data) => addEvent('Scan Complete', data));
+            window.electronAPI.onFileWatchError((data) => addEvent('Error', data));
+            window.electronAPI.onFileWatchingStopped(() => {
+                updateStatus(false);
+                addEvent('Watching Stopped', {});
+            });
+
+            // Button handlers
+            startBtn.onclick = async () => {
+                try {
+                    const result = await window.electronAPI.startFileWatching();
+                    if (result.success) {
+                        updateStatus(true, result.directory);
+                        addEvent('Started Watching', { message: `Directory: ${result.directory}` });
+                    } else {
+                        showError(result.error || 'Failed to start watching');
+                    }
+                } catch (error) {
+                    showError(error.message);
+                }
+            };
+
+            stopBtn.onclick = async () => {
+                try {
+                    const result = await window.electronAPI.stopFileWatching();
+                    if (result.success) {
+                        updateStatus(false);
+                    } else {
+                        showError(result.error || 'Failed to stop watching');
+                    }
+                } catch (error) {
+                    showError(error.message);
+                }
+            };
+
+            clearBtn.onclick = () => {
+                eventsEl.innerHTML = '<p><em>Events cleared</em></p>';
+            };
+
+            // Get initial status
+            window.electronAPI.getWatchStatus().then(status => {
+                updateStatus(status.isWatching, status.directory);
+            });
+
+        } else {
+            eventsEl.innerHTML = '<p style="color: red;"><strong>Error:</strong> electronAPI not available. This page must be run in Electron.</p>';
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
+        }
+    </script>
+</body>
+</html>

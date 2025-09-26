@@ -1,11 +1,11 @@
+/// <reference types="../../../src/types/electron.d.ts" />
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'fs';
 import { join } from 'path';
 
 test.describe('Graph File Picker Integration', () => {
   test('should render file picker UI correctly', async ({ page }) => {
     // Navigate to file picker test page
-    await page.goto('http://localhost:3001/graph-filepicker-test.html');
+    await page.goto('/graph-filepicker-test.html');
 
     // Wait for page to load
     await page.waitForSelector('.controls', { timeout: 15000 });
@@ -27,7 +27,7 @@ test.describe('Graph File Picker Integration', () => {
   });
 
   test('should load example data and render graph', async ({ page }) => {
-    await page.goto('http://localhost:3001/graph-filepicker-test.html');
+    await page.goto('/graph-filepicker-test.html');
     await page.waitForSelector('.controls');
 
     // Click example data button
@@ -54,7 +54,7 @@ test.describe('Graph File Picker Integration', () => {
   });
 
   test('should simulate file upload using setInputFiles', async ({ page }) => {
-    await page.goto('http://localhost:3001/graph-filepicker-test.html');
+    await page.goto('/graph-filepicker-test.html');
     await page.waitForSelector('.controls');
 
     // Get paths to test markdown files
@@ -85,13 +85,13 @@ test.describe('Graph File Picker Integration', () => {
   });
 
   test('should handle file loading via JavaScript API', async ({ page }) => {
-    await page.goto('http://localhost:3001/graph-filepicker-test.html');
+    await page.goto('/graph-filepicker-test.html');
     await page.waitForSelector('.controls');
 
     // Use the exposed test function to simulate file loading
     await page.evaluate(() => {
       // This calls the loadTestData function exposed by file-picker-test-runner.ts
-      (window as any).loadTestData();
+      window.loadTestData();
     });
 
     // Wait for graph to render
@@ -115,7 +115,7 @@ test.describe('Graph File Picker Integration', () => {
   });
 
   test('should clear graph when clear button is clicked', async ({ page }) => {
-    await page.goto('http://localhost:3001/graph-filepicker-test.html');
+    await page.goto('/graph-filepicker-test.html');
     await page.waitForSelector('.controls');
 
     // First load some data
@@ -136,7 +136,7 @@ test.describe('Graph File Picker Integration', () => {
 
     // Verify graph was cleared
     nodeCount = await page.evaluate(() => {
-      return (window as any).cy ? (window as any).cy.nodes().length : 0;
+      return window.cy ? window.cy.nodes().length : 0;
     });
     expect(nodeCount).toBe(0);
 
@@ -146,7 +146,7 @@ test.describe('Graph File Picker Integration', () => {
   });
 
   test('should show appropriate status messages for different actions', async ({ page }) => {
-    await page.goto('http://localhost:3001/graph-filepicker-test.html');
+    await page.goto('/graph-filepicker-test.html');
     await page.waitForSelector('.controls');
 
     const status = page.locator('#status');
@@ -163,22 +163,22 @@ test.describe('Graph File Picker Integration', () => {
   });
 
   test('should expose correct API for automation testing', async ({ page }) => {
-    await page.goto('http://localhost:3001/graph-filepicker-test.html');
+    await page.goto('/graph-filepicker-test.html');
     await page.waitForSelector('.controls');
 
     // Load test data first
-    await page.evaluate(() => (window as any).loadTestData());
+    await page.evaluate(() => window.loadTestData());
     await page.waitForSelector('#graph-container canvas');
 
     // Verify exposed functions and objects
     const apiCheck = await page.evaluate(() => {
       return {
-        hasCy: typeof (window as any).cy !== 'undefined',
-        hasCytoscapeCore: typeof (window as any).cytoscapeCore !== 'undefined',
-        hasLayoutManager: typeof (window as any).layoutManager !== 'undefined',
-        hasLoadTestData: typeof (window as any).loadTestData === 'function',
-        hasSimulateFileLoad: typeof (window as any).simulateFileLoad === 'function',
-        cyNodeCount: (window as any).cy ? (window as any).cy.nodes().length : 0
+        hasCy: typeof window.cy !== 'undefined',
+        hasCytoscapeCore: typeof window.cytoscapeCore !== 'undefined',
+        hasLayoutManager: typeof window.layoutManager !== 'undefined',
+        hasLoadTestData: typeof window.loadTestData === 'function',
+        hasSimulateFileLoad: typeof window.simulateFileLoad === 'function',
+        cyNodeCount: window.cy ? window.cy.nodes().length : 0
       };
     });
 

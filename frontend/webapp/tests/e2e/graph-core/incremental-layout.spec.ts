@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Incremental Layout - Online Node Positioning', () => {
   test('should position 100 nodes incrementally without overlaps', async ({ page }) => {
     // Navigate to test page
-    await page.goto('http://localhost:3001/graph-test.html');
+    await page.goto('/graph-test.html');
     await page.waitForSelector('#graph-container canvas', { timeout: 5000 });
 
     // Clear existing graph and set up for incremental test
@@ -240,7 +240,7 @@ test.describe('Incremental Layout - Online Node Positioning', () => {
   });
 
   test('should handle rapid sequential additions without layout degradation', async ({ page }) => {
-    await page.goto('http://localhost:3001/graph-test.html');
+    await page.goto('/graph-test.html');
     await page.waitForSelector('#graph-container canvas', { timeout: 5000 });
 
     // Clear and prepare
