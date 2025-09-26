@@ -19,13 +19,13 @@ if (typeof window !== 'undefined' &&
 
   // Create and attach the mock API immediately
   const mockAPI = new MockElectronAPI();
-  (window as any).electronAPI = mockAPI;
+  (window as typeof window & { electronAPI?: unknown }).electronAPI = mockAPI;
 
   // Make the mock API available for direct test manipulation
-  (window as any).mockElectronAPI = mockAPI;
+  (window as typeof window & { mockElectronAPI?: unknown }).mockElectronAPI = mockAPI;
 
   // Set up a global reference for Cytoscape instance (will be set by VoiceTreeLayout)
-  (window as any).cytoscapeInstance = null;
+  (window as typeof window & { cytoscapeInstance?: unknown }).cytoscapeInstance = null;
 
   console.log('setup-browser-tests.ts: Mock Electron API successfully attached to window');
   console.log('setup-browser-tests.ts: window.electronAPI available:', !!window.electronAPI);
@@ -40,9 +40,9 @@ if (typeof window !== 'undefined' &&
 
 // Export for use in test files
 export function getMockElectronAPI(): MockElectronAPI | null {
-  return (window as any).mockElectronAPI || null;
+  return (window as typeof window & { mockElectronAPI?: MockElectronAPI }).mockElectronAPI || null;
 }
 
-export function getCytoscapeInstance(): any {
-  return (window as any).cytoscapeInstance || null;
+export function getCytoscapeInstance(): unknown {
+  return (window as typeof window & { cytoscapeInstance?: unknown }).cytoscapeInstance || null;
 }

@@ -112,7 +112,7 @@ HTMLCanvasElement.prototype.getContext = (() => {
     fillStyle: "",
     globalAlpha: 1,
   };
-}) as any;
+}) as unknown as CanvasRenderingContext2D;
 
 // Mock Web Audio API
 window.AudioContext = class AudioContext {
@@ -139,7 +139,7 @@ window.AudioContext = class AudioContext {
   close() {
     return Promise.resolve();
   }
-} as any;
+} as unknown as typeof AudioContext;
 
 // Mock MediaStream
 window.MediaStream = class MediaStream {
@@ -148,7 +148,7 @@ window.MediaStream = class MediaStream {
       stop: () => {},
     }];
   }
-} as any;
+} as unknown as typeof MediaStream;
 
 // Mock getUserMedia to reject with permission denied (simulating no microphone access)
 Object.defineProperty(navigator, "mediaDevices", {
@@ -157,4 +157,14 @@ Object.defineProperty(navigator, "mediaDevices", {
     getUserMedia: () => Promise.reject(new Error('Permission denied')),
     enumerateDevices: () => Promise.resolve([]),
   },
+});
+
+// Mock navigator.clipboard for user-event tests
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+    readText: vi.fn().mockResolvedValue(''),
+  },
+  writable: true,
+  configurable: true
 });

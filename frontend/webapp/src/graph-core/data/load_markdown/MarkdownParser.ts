@@ -52,7 +52,7 @@ export class MarkdownParser {
   static parseMarkdownFile(content: string, filename: string): ParsedNode {
     const lines = content.split('\n');
     let frontmatterEnd = -1;
-    let frontmatter: Record<string, string> = {};
+    const frontmatter: Record<string, string> = {};
 
     // Parse frontmatter if present
     if (lines[0]?.trim() === '---') {
@@ -83,7 +83,7 @@ export class MarkdownParser {
       const linksContent = linksSectionMatch[1];
 
       // Match patterns like "- relationship_type [[filename.md]]"
-      const linkMatches = linksContent.matchAll(/- ([^\[]+)\[\[([^\]]+)\]\]/g);
+      const linkMatches = linksContent.matchAll(/- ([^[]+)\[\[([^\]]+)\]\]/g);
 
       for (const match of linkMatches) {
         const relationshipType = match[1].trim();

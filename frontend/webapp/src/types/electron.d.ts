@@ -27,6 +27,9 @@ export interface ElectronAPI {
   // Directory selection
   openDirectoryDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>;
 
+  // File operations
+  saveFileContent: (filePath: string, content: string) => Promise<void>;
+
   // File watching methods
   startFileWatching: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
   stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
@@ -41,13 +44,13 @@ export interface ElectronAPI {
   onInitialScanComplete: (callback: (data: { directory: string }) => void) => void;
   onFileWatchError: (callback: (data: ErrorEvent) => void) => void;
   onFileWatchInfo: (callback: (data: { type: string; message: string }) => void) => void;
-  onFileWatchingStopped: (callback: (data?: any) => void) => void;
+  onFileWatchingStopped: (callback: (data?: unknown) => void) => void;
   removeAllListeners: (channel: string) => void;
 
   // General IPC communication methods
-  invoke(channel: string, ...args: any[]): Promise<any>;
-  on(channel: string, listener: (...args: any[]) => void): void;
-  off(channel: string, listener: (...args: any[]) => void): void;
+  invoke(channel: string, ...args: unknown[]): Promise<unknown>;
+  on(channel: string, listener: (...args: unknown[]) => void): void;
+  off(channel: string, listener: (...args: unknown[]) => void): void;
 }
 
 // Extend the Window interface to include all global properties

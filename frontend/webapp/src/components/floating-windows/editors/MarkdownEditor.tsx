@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import { MermaidRenderer } from './MermaidRenderer';
 import { useFloatingWindows } from '../hooks/useFloatingWindows';

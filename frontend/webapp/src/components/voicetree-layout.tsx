@@ -287,7 +287,7 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         cytoscapeRef.current = null;
       }
     };
-  }, [openWindow]);
+  }, [openWindow, fileData]);
 
   // Update fileData reference when it changes
   useEffect(() => {

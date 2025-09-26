@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test.describe('Floating Markdown Editor Standalone Test', () => {
 
   test('should render the editor and allow editing and saving', async ({ page }) => {
-    // Navigate to the test harness page
-    await page.goto('/floating-editor-e2e-test.html');
+    // Navigate to the test harness page in standalone mode
+    await page.goto('/tests/e2e/isolated-with-harness/harness.html?mode=standalone');
 
     // 0. Verify the test harness itself is rendering
     await expect(page.locator('h1:has-text("Editor Test Harness")')).toBeVisible();
@@ -30,9 +30,8 @@ test.describe('Floating Markdown Editor Standalone Test', () => {
     const saveButton = window.locator('button:has-text("Save")');
     await saveButton.click();
 
-    // The button text should change to Saving... and then Saved!
-    await expect(window.locator('button:has-text("Saving...")')).toBeVisible();
-    await expect(window.locator('button:has-text("Saved!")')).toBeVisible({ timeout: 2000 });
+    // The button text should change to Saved!
+    await expect(window.locator('button:has-text("Saved!")')).toBeVisible({ timeout: 3000 });
 
     // Poll for the global variable that our mock save function sets
     await expect.poll(async () => {

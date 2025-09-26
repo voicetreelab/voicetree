@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 import type { RecorderState, Token, ErrorStatus } from '@soniox/speech-to-text-web';
 
 // Types for the mock return value
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface MockUseVoiceTreeClientReturn {
   state: RecorderState;
   finalTokens: Token[];

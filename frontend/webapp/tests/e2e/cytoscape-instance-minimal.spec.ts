@@ -138,10 +138,10 @@ test.describe('Minimal Cytoscape Instance Access', () => {
         ownProps: props.slice(0, 10), // First 10 to avoid too much output
         protoProps: protoProps.slice(0, 10),
         isFunction: {
-          nodes: typeof (cy as any).nodes,
-          elements: typeof (cy as any).elements,
-          add: typeof (cy as any).add,
-          getCore: typeof (cy as any).getCore,
+          nodes: typeof cy.nodes,
+          elements: typeof cy.elements,
+          add: typeof cy.add,
+          getCore: typeof (cy as unknown as { getCore?: () => unknown }).getCore,
         }
       };
     });
@@ -154,8 +154,9 @@ test.describe('Minimal Cytoscape Instance Access', () => {
       if (!cy) return { error: 'no instance', hasCore: false };
 
       // Maybe it's wrapped in something?
-      if ((cy as any).getCore && typeof (cy as any).getCore === 'function') {
-        const core = (cy as any).getCore();
+      const cyWithGetCore = cy as unknown as { getCore?: () => CytoscapeCore };
+      if (cyWithGetCore.getCore && typeof cyWithGetCore.getCore === 'function') {
+        const core = cyWithGetCore.getCore();
         return {
           hasCore: true,
           coreHasNodes: typeof core?.nodes === 'function',
