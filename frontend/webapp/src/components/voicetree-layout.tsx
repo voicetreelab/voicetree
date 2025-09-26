@@ -7,6 +7,8 @@ import { type GraphData } from "@/graph-core/data";
 import { CytoscapeCore, type NodeDefinition, type EdgeDefinition } from "@/graph-core";
 import { DEFAULT_NODE_COLOR, DEFAULT_EDGE_COLOR, HOVER_COLOR } from "@/graph-core/constants";
 import cytoscape from 'cytoscape';
+import { useFloatingWindows } from '@/components/floating-windows/context/FloatingWindowManager';
+import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
 // @ts-ignore - cytoscape-cola doesn't have proper TypeScript definitions
 import cola from 'cytoscape-cola';
 
@@ -25,6 +27,7 @@ const HISTORY_STORAGE_KEY = 'voicetree-history';
 
 interface VoiceTreeLayoutProps {
   graphData?: GraphData | null;
+  fileData?: Map<string, string> | null;
 }
 
 // Transform GraphData to Cytoscape format
@@ -112,13 +115,14 @@ function getCytoscapeStylesheet() {
   ] as any;
 }
 
-export default function VoiceTreeLayout({ graphData }: VoiceTreeLayoutProps) {
+export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayoutProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const lastSentText = useRef<string>("");
   const cytoscapeRef = useRef<CytoscapeCore | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isGraphInitialized, setIsGraphInitialized] = useState(false);
+  const { openWindow } = useFloatingWindows();
 
   const {
     finalTokens,
@@ -240,12 +244,32 @@ export default function VoiceTreeLayout({ graphData }: VoiceTreeLayoutProps) {
       // Create Cytoscape instance
       cytoscapeRef.current = new CytoscapeCore(containerRef.current);
 
-      // Apply stylesheet
+      // Expose Cytoscape instance for testing
       const core = cytoscapeRef.current.getCore();
+      if (typeof window !== 'undefined' && (import.meta.env.DEV || process.env.NODE_ENV === 'development')) {
+        (window as any).cytoscapeInstance = core;
+      }
+
+      // Apply stylesheet
       core.style(getCytoscapeStylesheet());
 
-      // Set up default layout options (will be applied when data is added)
-      // We don't run layout here since there's no data yet
+      // Add event listener for tapping on a node
+      core.on('tap', 'node', (event) => {
+        const nodeId = event.target.id();
+        if (fileData) {
+          const content = fileData.get(nodeId);
+          if (typeof content !== 'undefined') {
+            openWindow({
+              nodeId: nodeId,
+              title: nodeId, // Use file path as title
+              type: 'MarkdownEditor',
+              content: content,
+              position: { x: event.renderedPosition.x - 50, y: event.renderedPosition.y - 50 },
+              size: { width: 700, height: 500 },
+            });
+          }
+        }
+      });
 
       setIsGraphInitialized(true);
     } catch (error) {
@@ -260,7 +284,7 @@ export default function VoiceTreeLayout({ graphData }: VoiceTreeLayoutProps) {
         setIsGraphInitialized(false);
       }
     };
-  }, [isGraphInitialized]);
+  }, [isGraphInitialized, fileData, openWindow]);
 
   // Update graph when graphData changes
   useEffect(() => {
@@ -294,6 +318,11 @@ export default function VoiceTreeLayout({ graphData }: VoiceTreeLayoutProps) {
       // Fit the view after a brief delay to allow layout to settle
       setTimeout(() => {
         cytoscapeRef.current?.fitView();
+
+        // Update window reference for tests
+        if (typeof window !== 'undefined' && (import.meta.env.DEV || process.env.NODE_ENV === 'development')) {
+          (window as any).cytoscapeInstance = cytoscapeRef.current?.getCore();
+        }
       }, 500);
 
     } catch (error) {
@@ -390,6 +419,9 @@ export default function VoiceTreeLayout({ graphData }: VoiceTreeLayoutProps) {
           </div>
         )}
       </div>
+
+      {/* Floating Window Container - Renders on top of everything */}
+      <FloatingWindowContainer />
 
       {/* Speed Dial Menu */}
       <SpeedDialMenu

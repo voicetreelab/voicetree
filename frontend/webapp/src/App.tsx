@@ -5,6 +5,10 @@ import FileWatcherDemo from "./components/file-watcher-demo";
 import { useGraphManager } from "./hooks/useGraphManager";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
+import { FloatingWindowManagerProvider } from "./components/floating-windows/context/FloatingWindowManager";
+
+// Import mock setup synchronously
+import "./test/setup-browser-tests";
 
 function App() {
   // Use the graph manager hook for file watching
@@ -97,7 +101,7 @@ function App() {
       {error && (
         <Alert variant="destructive" className="mb-3">
           <AlertDescription className="flex justify-between items-center">
-            <span>{error.message}</span>
+            <span>{typeof error === 'string' ? error : error.message}</span>
             <Button
               onClick={clearError}
               size="sm"
@@ -115,41 +119,45 @@ function App() {
   if (showBoth) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="grid grid-cols-1 gap-4 p-4">
-            {/* File Watching Panel - New Feature */}
-            <div>
-                <h2 className="text-lg font-bold mb-2">Live Graph From Files</h2>
-                <FileWatchingPanel />
-            </div>
+        <FloatingWindowManagerProvider>
+          <div className="grid grid-cols-1 gap-4 p-4">
+              {/* File Watching Panel - New Feature */}
+              <div>
+                  <h2 className="text-lg font-bold mb-2">Live Graph From Files</h2>
+                  <FileWatchingPanel />
+              </div>
 
-            {/* File Watcher Demo - For comparison */}
-            <div>
-                <h2 className="text-lg font-bold mb-2">File Watcher Demo</h2>
-                <FileWatcherDemo />
-            </div>
+              {/* File Watcher Demo - For comparison */}
+              <div>
+                  <h2 className="text-lg font-bold mb-2">File Watcher Demo</h2>
+                  <FileWatcherDemo />
+              </div>
 
-            {/* Above - VoiceTreeTranscribe */}
-            <div>
-                <h2 className="text-lg font-bold mb-2">VoiceTreeTranscribe Component</h2>
-                <VoiceTreeTranscribe />
-            </div>
+              {/* Above - VoiceTreeTranscribe */}
+              <div>
+                  <h2 className="text-lg font-bold mb-2">VoiceTreeTranscribe Component</h2>
+                  <VoiceTreeTranscribe />
+              </div>
 
-          {/* Left side - Original with Sidebar */}
-          <div className="border-r pr-4">
-            <Sidebar>
-              <VoiceTreeLayout graphData={graphData} />
-            </Sidebar>
+            {/* Left side - Original with Sidebar */}
+            <div className="border-r pr-4">
+              <Sidebar>
+                <VoiceTreeLayout graphData={graphData} fileData={markdownFiles.current} />
+              </Sidebar>
+            </div>
           </div>
-        </div>
+        </FloatingWindowManagerProvider>
       </div>
     );
   }
 
   // Original code - Enhanced with file watching
   return (
-    <Sidebar>
-      <VoiceTreeLayout graphData={graphData} />
-    </Sidebar>
+    <FloatingWindowManagerProvider>
+      <Sidebar>
+        <VoiceTreeLayout graphData={graphData} fileData={markdownFiles.current} />
+      </Sidebar>
+    </FloatingWindowManagerProvider>
   );
 }
 

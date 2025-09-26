@@ -257,12 +257,15 @@ function createWindow() {
   fileWatchManager.setMainWindow(mainWindow);
 
   // Load the app
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.HEADLESS_TEST === '1') {
+    // For Playwright tests, always load built files
+    mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+  } else if (process.env.NODE_ENV === 'development') {
     // For testing, load our simple test HTML file
     if (process.env.TEST_FILE_WATCHER) {
       mainWindow.loadFile(path.join(__dirname, 'test-electron.html'));
     } else {
-      mainWindow.loadURL('http://localhost:5173');
+      mainWindow.loadURL('http://localhost:3000');
     }
     mainWindow.webContents.openDevTools();
   } else {
@@ -319,6 +322,18 @@ ipcMain.handle('get-watch-status', () => {
     isWatching: fileWatchManager.isWatching(),
     directory: fileWatchManager.getWatchedDirectory()
   };
+});
+
+ipcMain.handle('save-file-content', async (event, filePath, content) => {
+  try {
+    // The watcher gets the absolute path, so we expect one here.
+    // No need to join with watchedDirectory.
+    await fs.writeFile(filePath, content, 'utf-8');
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to save file ${filePath}:`, error);
+    return { success: false, error: error.message };
+  }
 });
 
 // App event handlers
