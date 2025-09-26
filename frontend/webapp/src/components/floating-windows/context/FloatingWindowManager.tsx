@@ -1,11 +1,12 @@
 
-import React, { createContext, useContext, useState, useCallback, PropsWithChildren } from 'react';
-import { FloatingWindowState, FloatingWindowType } from '../types';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import type { PropsWithChildren } from 'react';
+import type { FloatingWindow } from '../types';
 
 // Define the shape of the context value
 interface FloatingWindowManagerContextType {
-  windows: FloatingWindowState[];
-  openWindow: (config: Omit<FloatingWindowState, 'id' | 'zIndex' | 'content'> & { content?: string }) => void;
+  windows: FloatingWindow[];
+  openWindow: (config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string }) => void;
   closeWindow: (id: string) => void;
   updateWindowContent: (id: string, newContent: string) => void;
   updateWindowPosition: (id: string, newPosition: { x: number; y: number }) => void;
@@ -17,14 +18,14 @@ const FloatingWindowContext = createContext<FloatingWindowManagerContextType | n
 
 // Create the provider component
 export const FloatingWindowManagerProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
-  const [windows, setWindows] = useState<FloatingWindowState[]>([]);
+  const [windows, setWindows] = useState<FloatingWindow[]>([]);
 
   const getHighestZIndex = useCallback(() => {
     if (windows.length === 0) return 100; // Start at a base z-index
     return Math.max(...windows.map(w => w.zIndex)) + 1;
   }, [windows]);
 
-  const openWindow = useCallback((config: Omit<FloatingWindowState, 'id' | 'zIndex' | 'content'> & { content?: string }) => {
+  const openWindow = useCallback((config: Omit<FloatingWindow, 'id' | 'zIndex' | 'content'> & { content?: string }) => {
     // Prevent opening multiple windows for the same node
     if (windows.some(w => w.nodeId === config.nodeId)) {
         // Optional: Bring existing window to front instead
@@ -33,7 +34,7 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren<{}>> = ({
         return;
     }
 
-    const newWindow: FloatingWindowState = {
+    const newWindow: FloatingWindow = {
       ...config,
       id: `window_${Date.now().toString()}`,
       content: config.content || '',

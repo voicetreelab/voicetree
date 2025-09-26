@@ -1,6 +1,6 @@
 import React from 'react';
 import Draggable from 'react-draggable';
-import { FloatingWindowState } from './types';
+import type { FloatingWindow as FloatingWindowType } from './types';
 import { useFloatingWindows } from './context/FloatingWindowManager';
 import { MarkdownEditor } from './editors/MarkdownEditor';
 import { Terminal } from './editors/Terminal';
@@ -9,7 +9,7 @@ import { Terminal } from './editors/Terminal';
  * Renders a single, generic, draggable window frame.
  * It handles its own position, stacking order, and renders the specific content (editor/terminal).
  */
-export const FloatingWindow: React.FC<FloatingWindowState> = (props) => {
+export const FloatingWindow: React.FC<FloatingWindowType> = (props) => {
   const { id, title, type, position, size, zIndex } = props;
   const { closeWindow, bringToFront, updateWindowPosition } = useFloatingWindows();
 
