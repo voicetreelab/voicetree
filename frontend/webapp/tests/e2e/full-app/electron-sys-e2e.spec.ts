@@ -3,7 +3,11 @@ import { test as base, expect, _electron as electron, ElectronApplication, Page 
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import { fileURLToPath } from 'url';
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
+import type { NodeData, EdgeData } from '../../../src/graph-core/data/load_markdown/MarkdownParser';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Type definitions for test
 interface ExtendedWindow extends Window {
@@ -13,17 +17,6 @@ interface ExtendedWindow extends Window {
     stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
     getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
   };
-}
-
-interface NodeData {
-  id: string;
-  label: string;
-}
-
-interface EdgeData {
-  id: string;
-  source: string;
-  target: string;
 }
 
 // This interface is used in test files
@@ -54,7 +47,7 @@ const test = base.extend<{
   tempDir: string;
 }>({
   // Set up Electron application
-  electronApp: async (fixtures, use) => {
+  electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
       args: [path.join(__dirname, '../../electron.js')],
       env: {
@@ -75,7 +68,7 @@ const test = base.extend<{
   },
 
   // Create temporary directory for test files
-  tempDir: async (fixtures, use) => {
+  tempDir: async ({}, use) => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-test-'));
     console.log(`Created temp directory: ${dir}`);
 

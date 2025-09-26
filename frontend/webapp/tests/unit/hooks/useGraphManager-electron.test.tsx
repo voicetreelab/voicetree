@@ -35,8 +35,14 @@ describe('useGraphManager (Electron version)', () => {
     mockElectronAPI.stopFileWatching.mockResolvedValue({ success: true });
   });
 
-  it('should initialize with default state', () => {
+  it('should initialize with default state', async () => {
     const { result } = renderHook(() => useGraphManager());
+
+    // Wait for the async initialization in useEffect to complete
+    await act(async () => {
+      // Give time for the checkStatus async call to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     expect(result.current.graphData).toBe(null);
     expect(result.current.isLoading).toBe(false);
@@ -68,8 +74,14 @@ describe('useGraphManager (Electron version)', () => {
     expect(mockElectronAPI.stopFileWatching).toHaveBeenCalled();
   });
 
-  it('should clear graph data when watching stops via handleWatchingStopped', () => {
+  it('should clear graph data when watching stops via handleWatchingStopped', async () => {
     const { result } = renderHook(() => useGraphManager());
+
+    // Wait for the async initialization in useEffect to complete
+    await act(async () => {
+      // Give time for the checkStatus async call to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     // Simulate adding some files first (this would normally happen via Electron events)
     // For this test, we'll just verify that the handler clears the graph data
