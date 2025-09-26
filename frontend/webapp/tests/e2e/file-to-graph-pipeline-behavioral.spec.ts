@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
+import type { EdgeData } from '../../src/graph-core/data/load_markdown/MarkdownParser';
 
 // Test helper types
 interface MockStatus {
@@ -11,11 +12,6 @@ interface MockStatus {
 interface GraphState {
   nodes: number;
   edges: number;
-}
-
-interface EdgeData {
-  source: string;
-  target: string;
 }
 
 interface PerformanceMetrics {

@@ -22,7 +22,6 @@ export default defineConfig(async () => {
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, "index.html"),
-          floatingEditorE2E: path.resolve(__dirname, "floating-editor-e2e-test.html"),
         },
       },
     },

@@ -235,8 +235,8 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
     }
   }, [addToHistory]);
 
-  // Initialize Cytoscape when container is ready
-  useEffect(() => {
+  // Lazy initialize Cytoscape
+  const initCytoscape = useCallback(() => {
     if (!containerRef.current || cytoscapeRef.current) return;
 
     try {
@@ -278,6 +278,11 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
     } catch (error) {
       console.error('Failed to initialize Cytoscape:', error);
     }
+  }, [openWindow, fileData]);
+
+  // Call init on mount and cleanup on unmount
+  useEffect(() => {
+    initCytoscape();
 
     // Cleanup function
     return () => {
@@ -287,7 +292,7 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
         cytoscapeRef.current = null;
       }
     };
-  }, [openWindow, fileData]);
+  }, [initCytoscape]);
 
   // Update fileData reference when it changes
   useEffect(() => {
@@ -304,6 +309,12 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
       hasGraphData: !!graphData,
       nodeCount: graphData?.nodes.length || 0
     });
+
+    // Initialize Cytoscape if needed
+    if (!cytoscapeRef.current && containerRef.current) {
+      initCytoscape();
+    }
+
     if (!cytoscapeRef.current || !graphData || graphData.nodes.length === 0) {
       return;
     }
@@ -348,7 +359,7 @@ export default function VoiceTreeLayout({ graphData, fileData }: VoiceTreeLayout
     } catch (error) {
       console.error('Failed to update graph:', error);
     }
-  }, [graphData]);
+  }, [graphData, initCytoscape]);
 
   // Handle window resize
   useEffect(() => {
