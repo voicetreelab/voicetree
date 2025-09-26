@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import { MermaidRenderer } from './MermaidRenderer';
-import { useFloatingWindows } from '../hooks/useFloatingWindows';
+import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import debounce from 'lodash.debounce';
 
 interface MarkdownEditorProps {

@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { useGraphManager } from './useGraphManager';
-import type { FileObserverConfig } from '../lib/file-observer';
+import type { FileObserverConfig } from '@/lib/file-observer';
 
 export function GraphManagerExample() {
   const { graphData, isLoading, error, start, stop, isWatching } = useGraphManager();

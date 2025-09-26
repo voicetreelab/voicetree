@@ -9,6 +9,11 @@ import sys
 import re
 import os
 import time
+from pathlib import Path
+
+
+# Define project root as absolute path
+PROJECT_ROOT = Path("/Users/bobbobby/repos/VoiceTree/frontend/webapp").resolve()
 
 
 def has_source_code_changes():
@@ -17,7 +22,7 @@ def has_source_code_changes():
         # Check for unstaged changes in source files
         result = subprocess.run(
             ["git", "diff", "--name-only", "--", "*.js", "*.jsx", "*.ts", "*.tsx", "*.json", "*.html", "*.css"],
-            cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
+            cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True
         )
@@ -26,7 +31,7 @@ def has_source_code_changes():
         # Check for staged changes in source files
         result = subprocess.run(
             ["git", "diff", "--cached", "--name-only", "--", "*.js", "*.jsx", "*.ts", "*.tsx", "*.json", "*.html", "*.css"],
-            cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
+            cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True
         )
@@ -46,7 +51,7 @@ def run_unit_tests():
     try:
         result = subprocess.run(
             ["npx", "vitest", "run"],
-            cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
+            cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
             timeout=90
@@ -68,7 +73,7 @@ def run_e2e_test():
         # First build the app for electron tests
         build_result = subprocess.run(
             ["npm", "run", "build:test"],
-            cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
+            cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
             timeout=30
@@ -81,7 +86,7 @@ def run_e2e_test():
         # Run the specific e2e test
         result = subprocess.run(
             ["npx", "playwright", "test", "tests/e2e/full-app/electron-sys-e2e.spec.ts", "--config=playwright-electron.config.ts"],
-            cwd="/Users/bobbobby/repos/VoiceTree/frontend/webapp",
+            cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
             timeout=120,  # Increased timeout for e2e test

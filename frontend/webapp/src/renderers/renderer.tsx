@@ -1,6 +1,6 @@
 import { type Token } from "@soniox/speech-to-text-web";
 import { getLanguage } from "@/config/languages";
-import SpeakerLabel from "../components/speaker-label";
+import SpeakerLabel from "@/components/speaker-label";
 import React from "react";
 
 interface RendererProps {

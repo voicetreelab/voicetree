@@ -1,7 +1,7 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { CytoscapeCore as VoiceTreeCytoscapeCore } from '../graph-core/graphviz/CytoscapeCore';
-import type { LayoutManager } from '../graph-core/graphviz/layout';
+import type { CytoscapeCore as VoiceTreeCytoscapeCore } from '@/graph-core/graphviz/CytoscapeCore';
+import type { LayoutManager } from '@/graph-core/graphviz/layout';
 
 export interface FileEvent {
   path: string;

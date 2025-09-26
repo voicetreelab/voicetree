@@ -27,6 +27,13 @@ test.describe('Minimal Cytoscape Instance Access', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
+    // Wait a moment for Cytoscape initialization
+    await page.waitForTimeout(500);
+
+    // Check console logs for initialization messages
+    const initLogs = consoleLogs.filter(log => log.includes('VoiceTreeLayout'));
+    console.log('VoiceTreeLayout logs:', initLogs);
+
     // Step 1: Verify initial state - cytoscapeInstance should exist
     const initialState = await page.evaluate((): CytoscapeState => {
       const win = window as ExtendedWindow;

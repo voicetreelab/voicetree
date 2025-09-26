@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useGraphManager } from '../../../src/hooks/useGraphManager-fileobserver';
+import { useGraphManager } from '@/hooks/useGraphManager-fileobserver';
 
 // Mock the file observer module
 vi.mock('../../../src/lib/file-observer', () => {

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Alert, AlertDescription } from './ui/alert';
 
 // Import types from global electron types
-import type { WatchStatus, FileEvent, ErrorEvent } from '../types/electron';
+import type { WatchStatus, FileEvent, ErrorEvent } from '@/types/electron';
 
 
 export const FileWatcherDemo: React.FC = () => {
