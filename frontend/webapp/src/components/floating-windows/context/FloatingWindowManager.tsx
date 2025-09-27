@@ -52,6 +52,12 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren> = ({ chi
     );
   }, []);
 
+  const updateWindowGraphOffset = useCallback((id: string, graphOffset: { x: number; y: number }) => {
+    setWindows(prev =>
+      prev.map(w => (w.id === id ? { ...w, graphOffset } : w))
+    );
+  }, []);
+
   const bringToFront = useCallback((id: string) => {
     setWindows(prev => {
       const highestZIndex = getHighestZIndex(prev);
@@ -65,6 +71,7 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren> = ({ chi
     closeWindow,
     updateWindowContent,
     updateWindowPosition,
+    updateWindowGraphOffset,
     bringToFront,
   };
 
