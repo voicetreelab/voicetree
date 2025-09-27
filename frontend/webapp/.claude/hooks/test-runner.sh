@@ -45,7 +45,6 @@ if ! npm run build:test >/dev/null 2>&1; then
     all_passed=false
 else
     # Run the e2e test
-    export HEADLESS_TEST=1
     if npx playwright test tests/e2e/full-app/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts --headed=false >/dev/null 2>&1; then
         echo "✅ E2E test passed"
     else

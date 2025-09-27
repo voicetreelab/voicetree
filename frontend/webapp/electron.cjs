@@ -80,11 +80,13 @@ class FileWatchManager {
 
     // File added
     this.watcher.on('add', async (filePath) => {
+      console.log(`File detected: ${filePath} in directory: ${this.watchedDirectory}`);
       try {
         const fullPath = path.join(this.watchedDirectory, filePath);
         const content = await this.readFileWithRetry(fullPath);
         const stats = await fs.stat(fullPath);
 
+        console.log(`Sending file-added event for: ${filePath}`);
         this.sendToRenderer('file-added', {
           path: filePath,
           fullPath: fullPath,
@@ -245,7 +247,7 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    show: process.env.HEADLESS_TEST !== '1', // Hide window in headless test mode
+    show: false, // Don't show initially, we'll control it below
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -258,7 +260,7 @@ function createWindow() {
   fileWatchManager.setMainWindow(mainWindow);
 
   // Load the app
-  if (process.env.HEADLESS_TEST === '1') {
+  if (process.env.MINIMIZE_TEST === '1') {
     // For Playwright tests, always load built files
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   } else if (process.env.NODE_ENV === 'development') {
@@ -272,6 +274,18 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
+
+  // Control window visibility after content is ready
+  mainWindow.once('ready-to-show', () => {
+    if (process.env.MINIMIZE_TEST === '1') {
+      // For tests: show window but minimize it immediately
+      mainWindow.show();
+      mainWindow.minimize();
+    } else {
+      // Normal operation: just show the window
+      mainWindow.show();
+    }
+  });
 }
 
 // IPC handlers
@@ -319,10 +333,12 @@ ipcMain.handle('stop-file-watching', async () => {
 });
 
 ipcMain.handle('get-watch-status', () => {
-  return {
+  const status = {
     isWatching: fileWatchManager.isWatching(),
     directory: fileWatchManager.getWatchedDirectory()
   };
+  console.log('Watch status requested:', status, 'watcher exists:', !!fileWatchManager.watcher);
+  return status;
 });
 
 ipcMain.handle('save-file-content', async (event, filePath, content) => {
