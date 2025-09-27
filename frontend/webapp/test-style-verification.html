@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style Verification</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: #ccc;
+        }
+        #cy {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #444;
+            background: #2a2a2a;
+        }
+        #controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cytoscape Style Verification</h1>
+    <div id="status">Loading...</div>
+    <div id="controls">
+        <button onclick="addTestNodes()">Add Test Nodes</button>
+        <button onclick="testHover()">Test Hover</button>
+        <button onclick="testPinAnimation()">Test Pin Animation</button>
+        <button onclick="testNewNodeAnimation()">Test New Node Animation</button>
+        <button onclick="clearGraph()">Clear</button>
+    </div>
+    <div id="cy"></div>
+
+    <script type="module">
+        import { CytoscapeCore } from '/src/graph-core/graphviz/CytoscapeCore.ts';
+        import '/src/graph-core/styles/graph.css';
+
+        window.cytoscapeCore = null;
+        window.status = document.getElementById('status');
+
+        function updateStatus(msg) {
+            window.status.textContent = msg;
+            console.log(msg);
+        }
+
+        try {
+            const container = document.getElementById('cy');
+            window.cytoscapeCore = new CytoscapeCore(container);
+
+            updateStatus('CytoscapeCore initialized successfully!');
+
+            // Add initial test nodes
+            window.addTestNodes();
+        } catch (error) {
+            updateStatus('Error initializing: ' + error.message);
+            console.error(error);
+        }
+
+        window.addTestNodes = function() {
+            try {
+                const elements = [
+                    // Nodes with different degrees
+                    { data: { id: 'small', label: 'Small (degree: 2)', degree: 2 } },
+                    { data: { id: 'medium', label: 'Medium (degree: 15)', degree: 15 } },
+                    { data: { id: 'large', label: 'Large (degree: 40)', degree: 40 } },
+
+                    // Node with custom styling
+                    { data: { id: 'custom', label: 'Custom Red', color: '#ff6b6b', shape: 'rectangle' } },
+
+                    // Dangling node
+                    { data: { id: 'dangling', label: 'Dangling Node' }, classes: 'dangling' },
+
+                    // Edges
+                    { data: { id: 'e1', source: 'small', target: 'medium', edgeCount: 1 } },
+                    { data: { id: 'e2', source: 'medium', target: 'large', edgeCount: 3 } },
+                    { data: { id: 'e3', source: 'large', target: 'small', edgeCount: 5 } },
+                ];
+
+                window.cytoscapeCore.addElements(elements);
+
+                // Layout
+                const cy = window.cytoscapeCore.getCore();
+                cy.layout({
+                    name: 'circle',
+                    padding: 50
+                }).run();
+
+                cy.fit();
+
+                updateStatus('Added test nodes with different sizes and styles');
+            } catch (error) {
+                updateStatus('Error adding nodes: ' + error.message);
+            }
+        };
+
+        window.testHover = function() {
+            const cy = window.cytoscapeCore.getCore();
+            const node = cy.getElementById('medium');
+
+            // Simulate hover
+            node.emit('mouseover');
+            updateStatus('Hover effect applied to Medium node - should be highlighted');
+
+            setTimeout(() => {
+                node.emit('mouseout');
+                updateStatus('Hover effect removed');
+            }, 2000);
+        };
+
+        window.testPinAnimation = function() {
+            const cy = window.cytoscapeCore.getCore();
+            const node = cy.getElementById('small');
+
+            window.cytoscapeCore.pinNode(node);
+            updateStatus('Pin animation started on Small node (orange breathing)');
+
+            setTimeout(() => {
+                window.cytoscapeCore.unpinNode(node);
+                updateStatus('Pin animation stopped');
+            }, 5000);
+        };
+
+        window.testNewNodeAnimation = function() {
+            const newNode = window.cytoscapeCore.addNodes([
+                { data: { id: 'new' + Date.now(), label: 'New Node', degree: 10 } }
+            ])[0];
+
+            window.cytoscapeCore.animateNewNode(newNode);
+            updateStatus('New node added with green breathing animation (5 second timeout)');
+
+            // Position it
+            newNode.position({ x: 300, y: 300 });
+        };
+
+        window.clearGraph = function() {
+            const cy = window.cytoscapeCore.getCore();
+            cy.elements().remove();
+            updateStatus('Graph cleared');
+        };
+    </script>
+</body>
+</html>

@@ -491,6 +491,113 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     console.log('✓ Rapid file changes handled successfully');
   });
+
+  test('should open terminal and accept input', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Terminal Functionality ===');
+
+    // Start watching first to get nodes in the graph
+    const startResult = await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+      return null;
+    }, tempDir);
+    console.log('File watching started:', startResult);
+
+    // Wait for initial scan to complete
+    await new Promise<void>(resolve => {
+      appWindow.evaluate(() => {
+        const window = globalThis as ExtendedWindow;
+        if (window.electronAPI?.onInitialScanComplete) {
+          window.electronAPI.onInitialScanComplete(() => {
+            resolve();
+          });
+        }
+      });
+      // Timeout fallback
+      setTimeout(resolve, 5000);
+    });
+
+    console.log('Initial scan completed or timed out');
+
+    // Create a test file so we have a node to right-click
+    const testFile = path.join(tempDir, 'test-node.md');
+    await fs.writeFile(testFile, '# Test Node\n\nThis is for terminal testing.');
+
+    // Wait for node to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for node to appear',
+      timeout: 15000
+    }).toBe(1);
+
+    // Right-click on the node to open context menu
+    const node = await appWindow.locator('.cy-node').first();
+    await node.click({ button: 'right' });
+
+    await appWindow.waitForTimeout(500);
+
+    // Click Terminal option in context menu
+    const terminalOption = await appWindow.locator('text=Terminal').first();
+    await expect(terminalOption).toBeVisible({ timeout: 3000 });
+    await terminalOption.click();
+
+    // Wait for terminal window to appear
+    const terminalWindow = await appWindow.locator('.floating-window').filter({
+      has: appWindow.locator('text=Terminal')
+    });
+    await expect(terminalWindow).toBeVisible({ timeout: 5000 });
+
+    // Find the xterm terminal element
+    const terminalContent = await terminalWindow.locator('.xterm').first();
+    await expect(terminalContent).toBeVisible({ timeout: 5000 });
+
+    // Click on terminal to focus it
+    await terminalContent.click();
+    await appWindow.waitForTimeout(1000);
+
+    // Type a test command
+    console.log('Typing "echo Hello Terminal" in terminal...');
+    await appWindow.keyboard.type('echo Hello Terminal');
+    await appWindow.waitForTimeout(500);
+
+    // Press Enter
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
+
+    // Get terminal output
+    const terminalText = await terminalContent.textContent();
+    console.log('Terminal output:', terminalText?.substring(0, 200));
+
+    // Verify the command was executed
+    expect(terminalText).toContain('echo Hello Terminal');
+    expect(terminalText).toContain('Hello Terminal');
+
+    // Test another command
+    await appWindow.keyboard.type('pwd');
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
+
+    const updatedText = await terminalContent.textContent();
+    console.log('After pwd command:', updatedText?.substring(0, 300));
+
+    // Should show a path
+    expect(updatedText).toMatch(/\/.*|C:\\.*/); // Unix path or Windows path
+
+    // Type exit to close terminal
+    await appWindow.keyboard.type('exit');
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
+
+    console.log('✓ Terminal input and output working correctly');
+  });
 });
 
 // Export for use in other tests

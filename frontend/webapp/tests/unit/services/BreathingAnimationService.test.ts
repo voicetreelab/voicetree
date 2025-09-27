@@ -1,0 +1,219 @@
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { BreathingAnimationService, AnimationType } from '@/graph-core/services/BreathingAnimationService';
+import cytoscape, { type NodeSingular, type NodeCollection } from 'cytoscape';
+
+describe('BreathingAnimationService', () => {
+  let service: BreathingAnimationService;
+  let cy: cytoscape.Core;
+  let node: NodeSingular;
+
+  beforeEach(() => {
+    // Create a cytoscape instance with a test node
+    cy = cytoscape({
+      headless: true,
+      elements: [
+        { data: { id: 'test-node', label: 'Test Node' } }
+      ]
+    });
+
+    node = cy.getElementById('test-node') as NodeSingular;
+    service = new BreathingAnimationService();
+
+    // Mock the animate function since it won't work in headless mode
+    vi.spyOn(node, 'animate').mockImplementation((options: any) => {
+      // Simulate immediate completion for testing
+      if (options.complete) {
+        setTimeout(() => options.complete(), 0);
+      }
+      return {
+        play: vi.fn().mockReturnThis(),
+        promise: vi.fn().mockResolvedValue(undefined)
+      } as any;
+    });
+
+    vi.spyOn(node, 'stop').mockImplementation(() => node);
+  });
+
+  afterEach(() => {
+    service.destroy();
+    cy.destroy();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+  });
+
+  describe('addBreathingAnimation', () => {
+    it('should add breathing animation to a node', () => {
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+
+      expect(node.data('breathingActive')).toBe(true);
+      expect(node.data('animationType')).toBe(AnimationType.NEW_NODE);
+    });
+
+    it('should store original border values', () => {
+      // Set initial border style
+      node.style('border-width', '3px');
+      node.style('border-color', '#ff0000');
+
+      service.addBreathingAnimation(node, AnimationType.PINNED);
+
+      expect(node.data('originalBorderWidth')).toBe('3px');
+      expect(node.data('originalBorderColor')).toBe('#ff0000');
+    });
+
+    it('should apply different colors for different animation types', () => {
+      // Test NEW_NODE animation (green)
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      expect(node.animate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: expect.objectContaining({
+            'border-color': 'rgba(0, 255, 0, 0.9)'
+          })
+        })
+      );
+
+      vi.clearAllMocks();
+
+      // Test PINNED animation (orange)
+      service.addBreathingAnimation(node, AnimationType.PINNED);
+      expect(node.animate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: expect.objectContaining({
+            'border-color': 'rgba(255, 165, 0, 0.9)'
+          })
+        })
+      );
+
+      vi.clearAllMocks();
+
+      // Test APPENDED_CONTENT animation (cyan)
+      service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
+      expect(node.animate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          style: expect.objectContaining({
+            'border-color': 'rgba(0, 255, 255, 0.9)'
+          })
+        })
+      );
+    });
+
+    it('should set timeout for animations with timeout config', () => {
+      vi.useFakeTimers();
+      const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+
+      // NEW_NODE has a timeout
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 5000);
+
+      vi.clearAllMocks();
+
+      // PINNED has no timeout
+      service.addBreathingAnimation(node, AnimationType.PINNED);
+      expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+    it('should stop existing animation before adding new one', () => {
+      const stopAnimationSpy = vi.spyOn(service, 'stopAnimation');
+
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      service.addBreathingAnimation(node, AnimationType.PINNED);
+
+      expect(stopAnimationSpy).toHaveBeenCalledWith('test-node');
+    });
+  });
+
+  describe('stopAnimationForNode', () => {
+    it('should mark node as inactive', () => {
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      service.stopAnimationForNode(node);
+
+      expect(node.data('breathingActive')).toBe(false);
+    });
+
+    it('should restore original border styles', () => {
+      node.style('border-width', '5px');
+      node.style('border-color', '#00ff00');
+
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      service.stopAnimationForNode(node);
+
+      expect(node.style).toHaveBeenCalledWith({
+        'border-width': '5px',
+        'border-color': '#00ff00',
+        'border-opacity': 1
+      });
+    });
+
+    it('should remove animation data from node', () => {
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      service.stopAnimationForNode(node);
+
+      expect(node.removeData).toHaveBeenCalledWith(
+        'breathingActive originalBorderWidth originalBorderColor animationType'
+      );
+    });
+
+    it('should stop the animation', () => {
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      service.stopAnimationForNode(node);
+
+      expect(node.stop).toHaveBeenCalledWith(true, false);
+    });
+  });
+
+  describe('stopAllAnimations', () => {
+    it('should stop animations for all nodes', () => {
+      const node2 = cy.add({ data: { id: 'test-node-2' } })[0] as NodeSingular;
+
+      // Mock animate for node2
+      vi.spyOn(node2, 'animate').mockImplementation(() => ({
+        play: vi.fn().mockReturnThis(),
+        promise: vi.fn().mockResolvedValue(undefined)
+      } as any));
+      vi.spyOn(node2, 'stop').mockImplementation(() => node2);
+
+      const nodes = cy.nodes();
+      service.addBreathingAnimation(nodes, AnimationType.NEW_NODE);
+
+      const stopSpy = vi.spyOn(service, 'stopAnimationForNode');
+      service.stopAllAnimations(nodes);
+
+      expect(stopSpy).toHaveBeenCalledTimes(2);
+      expect(stopSpy).toHaveBeenCalledWith(node);
+      expect(stopSpy).toHaveBeenCalledWith(node2);
+    });
+  });
+
+  describe('isAnimationActive', () => {
+    it('should return true when animation is active', () => {
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      expect(service.isAnimationActive(node)).toBe(true);
+    });
+
+    it('should return false when animation is not active', () => {
+      expect(service.isAnimationActive(node)).toBe(false);
+    });
+
+    it('should return false after stopping animation', () => {
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      service.stopAnimationForNode(node);
+      expect(service.isAnimationActive(node)).toBe(false);
+    });
+  });
+
+  describe('destroy', () => {
+    it('should clear all timeouts', () => {
+      vi.useFakeTimers();
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
+
+      service.destroy();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+  });
+});
