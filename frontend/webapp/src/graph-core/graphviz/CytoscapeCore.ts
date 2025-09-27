@@ -1,18 +1,29 @@
-import cytoscape, { type Core, type NodeCollection, type EdgeCollection } from 'cytoscape';
+import cytoscape, { type Core, type NodeCollection, type EdgeCollection, type NodeSingular } from 'cytoscape';
 import { type NodeDefinition, type EdgeDefinition } from '@/graph-core/types';
-import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER } from '@/graph-core/constants';
+import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, CLASS_PINNED, CLASS_EXPANDED } from '@/graph-core/constants';
+import { ContextMenuService, type ContextMenuConfig } from '@/graph-core/services/ContextMenuService';
+import { StyleService } from '@/graph-core/services/StyleService';
+import { BreathingAnimationService, AnimationType } from '@/graph-core/services/BreathingAnimationService';
+
+export { AnimationType };
 
 export class CytoscapeCore {
   private viz: Core;
   private container: HTMLElement;
+  private contextMenuService: ContextMenuService | null = null;
+  private styleService: StyleService;
+  private animationService: BreathingAnimationService;
 
   constructor(container: HTMLElement, elements: (NodeDefinition | EdgeDefinition)[] = []) {
     this.container = container;
+    this.styleService = new StyleService();
+    this.animationService = new BreathingAnimationService();
 
-    // Initialize cytoscape with minimal configuration
+    // Initialize cytoscape with styling
     this.viz = cytoscape({
       container: container,
       elements: elements,
+      style: this.styleService.getCombinedStylesheet(),
       minZoom: 0.3,
       maxZoom: 10,
       wheelSensitivity: 1.0,
@@ -103,8 +114,83 @@ export class CytoscapeCore {
     return this.viz;
   }
 
+  // Enable context menu with configuration
+  enableContextMenu(config: ContextMenuConfig): void {
+    if (!this.contextMenuService) {
+      this.contextMenuService = new ContextMenuService(config);
+      this.contextMenuService.initialize(this.viz);
+    } else {
+      this.contextMenuService.updateConfig(config);
+    }
+  }
+
+  // Disable context menu
+  disableContextMenu(): void {
+    if (this.contextMenuService) {
+      this.contextMenuService.destroy();
+      this.contextMenuService = null;
+    }
+  }
+
+  // Pin a node to its current position
+  pinNode(node: NodeSingular): void {
+    node.addClass(CLASS_PINNED);
+    node.lock();
+    this.animationService.addBreathingAnimation(node, AnimationType.PINNED);
+  }
+
+  // Unpin a node
+  unpinNode(node: NodeSingular): void {
+    node.removeClass(CLASS_PINNED);
+    node.unlock();
+    this.animationService.stopAnimationForNode(node);
+  }
+
+  // Mark node as expanded
+  expandNode(node: NodeSingular): void {
+    node.addClass(CLASS_EXPANDED);
+  }
+
+  // Mark node as collapsed
+  collapseNode(node: NodeSingular): void {
+    node.removeClass(CLASS_EXPANDED);
+  }
+
+  // Remove/hide a node from the graph
+  hideNode(node: NodeSingular): void {
+    node.remove();
+  }
+
+  // Animation methods
+  animateNewNode(node: NodeSingular): void {
+    this.animationService.addBreathingAnimation(node, AnimationType.NEW_NODE);
+  }
+
+  animatePinnedNode(node: NodeSingular): void {
+    this.animationService.addBreathingAnimation(node, AnimationType.PINNED);
+  }
+
+  animateAppendedContent(node: NodeSingular): void {
+    this.animationService.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
+  }
+
+  stopNodeAnimation(node: NodeSingular): void {
+    this.animationService.stopAnimationForNode(node);
+  }
+
+  stopAllAnimations(): void {
+    this.animationService.stopAllAnimations(this.viz.nodes());
+  }
+
   // Destroy the graph
   destroy(): void {
+    if (this.animationService) {
+      this.animationService.destroy();
+    }
+    if (this.contextMenuService) {
+      this.contextMenuService.destroy();
+      this.contextMenuService = null;
+    }
     if (this.viz) {
       this.viz.destroy();
     }

@@ -501,6 +501,94 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
       // Apply stylesheet
       core.style(getCytoscapeStylesheet());
 
+      // Enable context menu
+      cytoscapeRef.current.enableContextMenu({
+        onOpenEditor: (nodeId: string) => {
+          // Check if already open
+          if (windowsRef.current.some(w => w.nodeId === nodeId)) {
+            return;
+          }
+
+          // Find file path and content for this node
+          let content: string | undefined;
+          let filePath: string | undefined;
+          for (const [path, fileContent] of markdownFiles.current) {
+            if (normalizeFileId(path) === nodeId) {
+              content = fileContent;
+              filePath = path;
+              break;
+            }
+          }
+
+          if (content && filePath) {
+            const node = core.getElementById(nodeId);
+            if (node.length > 0) {
+              const nodeGraphPos = node.position();
+              const nodeScreenPos = node.renderedPosition();
+              const zoom = core.zoom();
+
+              const initialGraphOffset = {
+                x: -50 / zoom,
+                y: -50 / zoom
+              };
+
+              openWindowRef.current({
+                nodeId,
+                title: nodeId,
+                type: 'MarkdownEditor',
+                content,
+                position: { x: nodeScreenPos.x - 50, y: nodeScreenPos.y - 50 },
+                graphAnchor: nodeGraphPos,
+                graphOffset: initialGraphOffset,
+                size: { width: 700, height: 500 },
+                onSave: async (text: string) => {
+                  if (window.electronAPI?.saveFileContent) {
+                    const result = await window.electronAPI.saveFileContent(filePath, text);
+                    if (!result.success) {
+                      throw new Error(result.error || 'Failed to save file');
+                    }
+                  } else {
+                    throw new Error('Save functionality not available');
+                  }
+                }
+              });
+            }
+          }
+        },
+        onExpandNode: (node) => {
+          cytoscapeRef.current?.expandNode(node);
+          // Trigger layout update
+          core.layout({ name: 'cola', animate: true }).run();
+        },
+        onCollapseNode: (node) => {
+          cytoscapeRef.current?.collapseNode(node);
+          // Remove connected nodes that aren't connected to other expanded nodes
+          const connectedNodes = node.connectedEdges().connectedNodes();
+          connectedNodes.forEach((connectedNode: any) => {
+            const otherConnections = connectedNode.connectedEdges().connectedNodes('.expanded');
+            if (otherConnections.length === 1) { // Only connected to this collapsing node
+              connectedNode.remove();
+            }
+          });
+          core.layout({ name: 'cola', animate: true }).run();
+        },
+        onPinNode: (node) => {
+          cytoscapeRef.current?.pinNode(node);
+        },
+        onUnpinNode: (node) => {
+          cytoscapeRef.current?.unpinNode(node);
+        },
+        onHideNode: (node) => {
+          cytoscapeRef.current?.hideNode(node);
+          setNodeCount(core.nodes().length);
+          setEdgeCount(core.edges().length);
+          core.layout({ name: 'cola', animate: true }).run();
+        },
+        onCopyNodeName: (nodeId: string) => {
+          navigator.clipboard.writeText(nodeId);
+        }
+      });
+
       // Add event listener for tapping on a node
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();

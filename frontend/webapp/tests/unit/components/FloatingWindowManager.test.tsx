@@ -169,6 +169,46 @@ describe('FloatingWindowManager - Graph Coordinate Support', () => {
     });
   });
 
+  describe('position prop updates', () => {
+    it('should update window position when position prop changes (controlled mode)', () => {
+      const { result } = renderHook(() => useFloatingWindows(), { wrapper });
+
+      // Open a window with initial position
+      act(() => {
+        result.current.openWindow({
+          nodeId: 'test-node',
+          type: 'MarkdownEditor',
+          title: 'Test Window',
+          position: { x: 100, y: 100 },
+          size: { width: 300, height: 200 },
+          graphAnchor: { x: 50, y: 50 },
+          graphOffset: { x: 0, y: 0 }
+        });
+      });
+
+      const windowId = result.current.windows[0].id;
+      expect(result.current.windows[0].position).toEqual({ x: 100, y: 100 });
+
+      // Simulate position update (like what happens during pan/zoom)
+      act(() => {
+        result.current.updateWindowPosition(windowId, { x: 200, y: 200 });
+      });
+
+      // Window position should have updated
+      expect(result.current.windows[0].position).toEqual({ x: 200, y: 200 });
+
+      // Simulate multiple rapid position updates (like during continuous panning)
+      act(() => {
+        result.current.updateWindowPosition(windowId, { x: 250, y: 250 });
+        result.current.updateWindowPosition(windowId, { x: 300, y: 300 });
+        result.current.updateWindowPosition(windowId, { x: 350, y: 350 });
+      });
+
+      // Should have the last position
+      expect(result.current.windows[0].position).toEqual({ x: 350, y: 350 });
+    });
+  });
+
   describe('existing functionality preservation', () => {
     it('should maintain all existing window operations', () => {
       const { result } = renderHook(() => useFloatingWindows(), { wrapper });

@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Draggable from 'react-draggable';
+import { Resizable } from 're-resizable';
 import type { FloatingWindow as FloatingWindowType } from './types';
 import { useFloatingWindows } from './hooks/useFloatingWindows';
 import { MarkdownEditor } from './editors/MarkdownEditor';
@@ -17,6 +18,7 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
   const { id, title, type, position, size, zIndex, graphAnchor } = props;
   const { closeWindow, bringToFront, updateWindowPosition } = useFloatingWindows();
   const nodeRef = useRef(null);
+  const [currentSize, setCurrentSize] = useState(size);
 
   // Debug position changes
   React.useEffect(() => {
@@ -61,24 +63,67 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
         }
       }}
     >
-      <div
-        ref={nodeRef}
-        className="floating-window"
-        onMouseDown={() => bringToFront(id)}
-        style={{
-          position: 'absolute',
-          width: `${size.width}px`,
-          height: `${size.height}px`,
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          background: 'white',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex,
-          pointerEvents: 'auto', // Re-enable mouse events for the window itself
+      <Resizable
+        size={{ width: currentSize.width, height: currentSize.height }}
+        onResizeStop={(e, direction, ref, d) => {
+          setCurrentSize({
+            width: currentSize.width + d.width,
+            height: currentSize.height + d.height
+          });
+        }}
+        minWidth={300}
+        minHeight={200}
+        enable={{
+          top: false,
+          right: true,
+          bottom: true,
+          left: false,
+          topRight: false,
+          bottomRight: true,
+          bottomLeft: false,
+          topLeft: false
+        }}
+        handleStyles={{
+          right: {
+            width: '4px',
+            right: '0px',
+            cursor: 'ew-resize',
+            backgroundColor: 'transparent'
+          },
+          bottom: {
+            height: '4px',
+            bottom: '0px',
+            cursor: 'ns-resize',
+            backgroundColor: 'transparent'
+          },
+          bottomRight: {
+            width: '12px',
+            height: '12px',
+            right: '0px',
+            bottom: '0px',
+            cursor: 'nwse-resize',
+            backgroundColor: 'transparent'
+          }
         }}
       >
+        <div
+          ref={nodeRef}
+          className="floating-window"
+          onMouseDown={() => bringToFront(id)}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: '1px solid #ccc',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            background: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex,
+            pointerEvents: 'auto',
+            position: 'relative'
+          }}
+        >
         <div
           className="window-title-bar"
           style={{
@@ -104,7 +149,25 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
         <div className="window-content" style={{ flex: 1, overflow: 'hidden' }}>
           {renderContent()}
         </div>
+        {/* Resize handle indicator in bottom-right corner */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '4px',
+            right: '4px',
+            width: '12px',
+            height: '12px',
+            cursor: 'nwse-resize',
+            opacity: 0.3,
+            pointerEvents: 'none'
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M11 11L1 1M11 6L6 1M11 1L11 11L1 11" stroke="#666" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
       </div>
+      </Resizable>
     </Draggable>
   );
 };
