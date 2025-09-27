@@ -5,6 +5,7 @@ It also contains an input window for voice-> text or text input which will call 
 The tree is navigateable, and can be modified with markdown hover edtiors.
 
 After making changes, test with
-npm run test
+`npm run test (specific test file)`
+(LOOK AT THE FULL OUTPUT, NOT JUST the tail)
 
 DO NOT run npm run dev in foreground. This will block your session as it starts an indefinite server.

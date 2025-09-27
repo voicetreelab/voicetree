@@ -235,3 +235,64 @@ We will create a communication bridge between the Cytoscape instance and the Rea
 - `src/components/floating-windows/FloatingWindowContainer.tsx` - Position update handling
 - `src/components/voicetree-layout.tsx` - Central state management and coordination
 - `tests/e2e/isolated-with-harness/` - Comprehensive test coverage
+- `src/test/mock-electron-api.ts` - Added saveFileContent() for browser mode
+- `src/test/setup-browser-tests.ts` - Simplified window detection
+
+## 8. Browser Mode Support Implementation
+
+### What Was Implemented
+- **MockElectronAPI** auto-injected in browser when no real Electron API exists
+- Example files automatically load when clicking "Open Folder" in browser mode
+- Editors work identically in both browser and Electron modes
+- Save operations in browser emit file-changed events (simulated, not persisted to disk)
+
+### Architecture Decisions - What We AVOIDED
+
+1. **NO Extra In-Memory Cache in MockElectronAPI**
+   - Initially considered storing file contents in MockElectronAPI
+   - Rejected because VoiceTreeLayout already has `markdownFiles.current` Map
+   - Would have created duplicate state and unnecessary complexity
+
+2. **NO Complex Environment Detection**
+   - Avoided complicated DEV/PROD/TEST mode checks
+   - Simple rule: if `window.electronAPI` doesn't exist, inject mock
+   - Used feature detection pattern instead of environment sniffing
+
+3. **NO Different UI/UX for Browser vs Electron**
+   - Both modes look and behave identically to the user
+   - "Open Folder" works in both (browser loads examples, Electron opens dialog)
+   - Keeps testing realistic and maintenance simple
+
+### Final Data Flow
+
+**Browser Mode:**
+```
+Editor → VoiceTreeLayout (cache) → MockElectronAPI → Events → Graph
+         ↑_______________________________________|
+         (file-changed event updates cache)
+```
+
+**Electron Mode:**
+```
+Editor → VoiceTreeLayout (cache) → ElectronAPI → File System
+         ↑________________________ Chokidar _______|
+         (file watcher detects changes)
+```
+
+### UI Cleanup - Remove Duplication
+
+**Current Duplication:**
+- Two file watching panels exist in the UI:
+  1. **"Live File Watching"** (in App.tsx) - Production component integrated with useGraphManager and graph visualization
+  2. **"File Watcher Demo"** (file-watcher-demo.tsx) - Debug/demo component showing raw file system events
+
+**Action Required:**
+- **KEEP:** "Live File Watching" panel - This is the production feature
+- **REMOVE:** "File Watcher Demo" component from App.tsx - It's a debugging tool that creates confusion
+- Remove the import and usage of `<FileWatcherDemo />` in App.tsx
+- Can keep the component file for debugging if needed, just don't render it in main app
+
+**Why This Matters:**
+- Single file watching UI reduces user confusion
+- Both components connect to the same file watching system
+- The demo was useful during development but not needed in production UI
