@@ -135,9 +135,8 @@ describe('ContextMenuService', () => {
         onOpenEditor: vi.fn(),
         onExpandNode: vi.fn(),
         onCollapseNode: vi.fn(),
-        onPinNode: vi.fn(),
-        onUnpinNode: vi.fn(),
-        onHideNode: vi.fn(),
+        onOpenTerminal: vi.fn(),
+        onDeleteNode: vi.fn(),
         onCopyNodeName: vi.fn(),
       };
 
@@ -152,18 +151,13 @@ describe('ContextMenuService', () => {
       const node1 = cy.getElementById('node1');
       const commands1 = commandsFunc(node1);
 
-      expect(commands1).toHaveLength(5); // Edit, Expand, Pin, Hide, Copy
+      expect(commands1).toHaveLength(5); // Edit, Expand, Terminal, Delete, Copy
       expect(commands1[0].enabled).toBe(true);
 
       // Test with expanded node
       node1.addClass(CLASS_EXPANDED);
       const commands2 = commandsFunc(node1);
-      expect(commands2).toHaveLength(5); // Edit, Collapse (instead of Expand), Pin, Hide, Copy
-
-      // Test with pinned node
-      node1.addClass(CLASS_PINNED);
-      const commands3 = commandsFunc(node1);
-      expect(commands3).toHaveLength(5); // Edit, Collapse, Unpin (instead of Pin), Hide, Copy
+      expect(commands2).toHaveLength(5); // Edit, Collapse (instead of Expand), Terminal, Delete, Copy
     });
 
     it('should execute callbacks when menu items are selected', () => {

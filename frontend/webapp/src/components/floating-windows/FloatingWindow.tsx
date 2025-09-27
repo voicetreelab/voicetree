@@ -11,8 +11,8 @@ interface FloatingWindowProps extends FloatingWindowType {
 }
 
 /**
- * Renders a single, generic, draggable window frame.
- * It handles its own position, stacking order, and renders the specific content (editor/terminal).
+ * Renders a single, generic, draggable and resizable window frame.
+ * It handles its own position, stacking order, resizing, and renders the specific content (editor/terminal).
  */
 export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
   const { id, title, type, position, size, zIndex, graphAnchor } = props;
@@ -63,111 +63,121 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
         }
       }}
     >
-      <Resizable
-        size={{ width: currentSize.width, height: currentSize.height }}
-        onResizeStop={(e, direction, ref, d) => {
-          setCurrentSize({
-            width: currentSize.width + d.width,
-            height: currentSize.height + d.height
-          });
-        }}
-        minWidth={300}
-        minHeight={200}
-        enable={{
-          top: false,
-          right: true,
-          bottom: true,
-          left: false,
-          topRight: false,
-          bottomRight: true,
-          bottomLeft: false,
-          topLeft: false
-        }}
-        handleStyles={{
-          right: {
-            width: '4px',
-            right: '0px',
-            cursor: 'ew-resize',
-            backgroundColor: 'transparent'
-          },
-          bottom: {
-            height: '4px',
-            bottom: '0px',
-            cursor: 'ns-resize',
-            backgroundColor: 'transparent'
-          },
-          bottomRight: {
-            width: '12px',
-            height: '12px',
-            right: '0px',
-            bottom: '0px',
-            cursor: 'nwse-resize',
-            backgroundColor: 'transparent'
-          }
+      <div
+        ref={nodeRef}
+        className="floating-window"
+        onMouseDown={() => bringToFront(id)}
+        style={{
+          position: 'absolute',
+          zIndex,
+          pointerEvents: 'auto'
         }}
       >
-        <div
-          ref={nodeRef}
-          className="floating-window"
-          onMouseDown={() => bringToFront(id)}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: '1px solid #ccc',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            background: 'white',
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex,
-            pointerEvents: 'auto',
-            position: 'relative'
-          }}
-        >
+        {/* Title bar - outside resizable for independent dragging */}
         <div
           className="window-title-bar"
           style={{
             padding: '8px 12px',
             backgroundColor: '#f0f0f0',
-            borderBottom: '1px solid #ccc',
+            border: '1px solid #ccc',
+            borderBottom: 'none',
             cursor: 'move',
             borderTopLeftRadius: '8px',
             borderTopRightRadius: '8px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            userSelect: 'none',
+            width: currentSize.width,
+            boxSizing: 'border-box'
           }}
         >
-          <span style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+          <span style={{
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {title}
+          </span>
           <button
             onClick={() => closeWindow(id)}
-            style={{ all: 'unset', cursor: 'pointer', fontSize: '16px' }}
+            style={{
+              all: 'unset',
+              cursor: 'pointer',
+              fontSize: '16px',
+              width: '20px',
+              height: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           >
             &times;
           </button>
         </div>
-        <div className="window-content" style={{ flex: 1, overflow: 'hidden' }}>
-          {renderContent()}
-        </div>
-        {/* Resize handle indicator in bottom-right corner */}
-        <div
+
+        {/* Content - resizable */}
+        <Resizable
+          size={{ width: currentSize.width, height: currentSize.height }}
+          onResizeStop={(e, direction, ref, d) => {
+            setCurrentSize({
+              width: currentSize.width + d.width,
+              height: currentSize.height + d.height
+            });
+          }}
+          minWidth={300}
+          minHeight={200}
+          enable={{
+            top: false,
+            right: true,
+            bottom: true,
+            left: false,
+            topRight: false,
+            bottomRight: true,
+            bottomLeft: false,
+            topLeft: false
+          }}
           style={{
-            position: 'absolute',
-            bottom: '4px',
-            right: '4px',
-            width: '12px',
-            height: '12px',
-            cursor: 'nwse-resize',
-            opacity: 0.3,
-            pointerEvents: 'none'
+            border: '1px solid #ccc',
+            borderTop: 'none',
+            borderBottomLeftRadius: '8px',
+            borderBottomRightRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            background: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            overflow: 'hidden'
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M11 11L1 1M11 6L6 1M11 1L11 11L1 11" stroke="#666" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </div>
+          <div className="window-content" style={{ flex: 1, overflow: 'auto' }}>
+            {renderContent()}
+          </div>
+          {/* Resize handle visual indicator in bottom-right corner */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '2px',
+              right: '2px',
+              width: '12px',
+              height: '12px',
+              opacity: 0.3,
+              pointerEvents: 'none',
+              userSelect: 'none'
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path
+                d="M11 11L1 1M11 6L6 1M11 1L11 11L1 11"
+                stroke="#666"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+        </Resizable>
       </div>
-      </Resizable>
     </Draggable>
   );
 };

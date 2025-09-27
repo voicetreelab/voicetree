@@ -9,11 +9,12 @@ cytoscape.use(cxtmenu);
 
 export interface ContextMenuConfig {
   onOpenEditor?: (nodeId: string) => void;
+  onOpenTerminal?: (nodeId: string) => void;
   onExpandNode?: (node: NodeSingular) => void;
   onCollapseNode?: (node: NodeSingular) => void;
   onPinNode?: (node: NodeSingular) => void;
   onUnpinNode?: (node: NodeSingular) => void;
-  onHideNode?: (node: NodeSingular) => void;
+  onDeleteNode?: (node: NodeSingular) => void;
   onCopyNodeName?: (nodeId: string) => void;
 }
 
@@ -104,26 +105,20 @@ export class ContextMenuService {
       });
     }
 
-    // Pin/Unpin
-    if (isPinned && this.config.onUnpinNode) {
+    // Terminal (replaces Pin/Unpin)
+    if (this.config.onOpenTerminal) {
       commands.push({
-        content: this.createSvgIcon('unlock', 'Unpin'),
-        select: () => this.config.onUnpinNode?.(node),
-        enabled: true,
-      });
-    } else if (!isPinned && this.config.onPinNode) {
-      commands.push({
-        content: this.createSvgIcon('pin', 'Pin'),
-        select: () => this.config.onPinNode?.(node),
+        content: this.createSvgIcon('terminal', 'Terminal'),
+        select: () => this.config.onOpenTerminal?.(nodeId),
         enabled: true,
       });
     }
 
-    // Hide
-    if (this.config.onHideNode) {
+    // Delete node
+    if (this.config.onDeleteNode) {
       commands.push({
-        content: this.createSvgIcon('hide', 'Hide'),
-        select: () => this.config.onHideNode?.(node),
+        content: this.createSvgIcon('trash', 'Delete'),
+        select: () => this.config.onDeleteNode?.(node),
         enabled: true,
       });
     }
@@ -166,7 +161,9 @@ export class ContextMenuService {
       pin: 'M12 17v5 M9 10.76a7 7 0 1 0 6 0 M12 2v8',
       unlock: 'M7 11V7a5 5 0 0 1 9.9-1 M3 11h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V11z',
       hide: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
-      copy: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z'
+      copy: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z',
+      terminal: 'M4 17l6-6-6-6 M12 19h8',
+      trash: 'M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14'
     };
 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');

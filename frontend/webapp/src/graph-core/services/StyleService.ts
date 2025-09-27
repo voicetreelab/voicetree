@@ -64,11 +64,27 @@ export class StyleService {
           'background-color': this.fillColor,
           'color': this.textColor,
           'font-family': this.font,
-          'text-valign': 'bottom' as any,
+          'text-valign': 'center' as any,
+          'text-halign': 'center' as any,
           'shape': 'ellipse',
           'border-width': 0,
           'text-wrap': 'wrap',
           'min-zoomed-font-size': 8,
+          'overlay-opacity': 0,
+        }
+      },
+
+      // Node labels - support both 'name' and 'label' fields
+      {
+        selector: 'node[label]',
+        style: {
+          'label': 'data(label)',
+        }
+      },
+
+      {
+        selector: 'node[name]',
+        style: {
           'label': 'data(name)',
         }
       },

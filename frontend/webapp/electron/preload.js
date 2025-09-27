@@ -47,4 +47,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File content management
   saveFileContent: (filePath, content) => ipcRenderer.invoke('save-file-content', filePath, content),
+  deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
+
+  // Terminal API
+  terminal: {
+    spawn: () => ipcRenderer.invoke('terminal:spawn'),
+    write: (terminalId, data) => ipcRenderer.invoke('terminal:write', terminalId, data),
+    resize: (terminalId, cols, rows) => ipcRenderer.invoke('terminal:resize', terminalId, cols, rows),
+    kill: (terminalId) => ipcRenderer.invoke('terminal:kill', terminalId),
+    onData: (callback) => {
+      ipcRenderer.on('terminal:data', (event, terminalId, data) => callback(terminalId, data));
+    },
+    onExit: (callback) => {
+      ipcRenderer.on('terminal:exit', (event, terminalId, code) => callback(terminalId, code));
+    }
+  }
 });

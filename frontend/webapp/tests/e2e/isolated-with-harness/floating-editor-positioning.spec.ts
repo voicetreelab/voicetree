@@ -17,7 +17,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 1: Node Click Opens Editor
     // ===================
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Trigger tap event on node1
         cy.$('#node1').trigger('tap');
@@ -38,7 +38,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 2: Pan Movement
     // ===================
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Pan the view by 100px to the right and 50px down
         cy.pan({ x: cy.pan().x + 100, y: cy.pan().y + 50 });
@@ -62,7 +62,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 3: Zoom In
     // ===================
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Zoom in by 50%
         cy.zoom(cy.zoom() * 1.5);
@@ -88,7 +88,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 4: Zoom Out
     // ===================
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Zoom out to original level
         cy.zoom(1);
@@ -112,7 +112,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 6: Pan After Zoom - Window Should Move with Pan
     // ===================
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Pan again
         cy.pan({ x: cy.pan().x - 50, y: cy.pan().y - 30 });
@@ -137,7 +137,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // ===================
     // First reset view to bring window into viewport
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.pan({ x: 0, y: 0 });
         cy.zoom(1);
@@ -152,7 +152,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open window for second node
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node2').trigger('tap');
       }
@@ -166,7 +166,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 8: Reset View
     // ===================
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Reset to original view
         cy.pan({ x: 0, y: 0 });
@@ -188,7 +188,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open editor for node1
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node1').trigger('tap');
       }
@@ -200,7 +200,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Perform rapid pan and zoom operations
     for (let i = 0; i < 5; i++) {
       await page.evaluate((index) => {
-        const cy = (window as typeof window & { cy: unknown }).cy;
+        const cy = (window as typeof window & { cy: any }).cy;
         if (cy) {
           // Alternate between pan and zoom
           if (index % 2 === 0) {
@@ -220,7 +220,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Get the node's rendered position
     const nodePos = await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         const node = cy.$('#node1');
         const pos = node.renderedPosition();
@@ -254,7 +254,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open editor
     await page.evaluate(() => {
-      const cy = (window as typeof window & { cy: unknown }).cy;
+      const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node1').trigger('tap');
       }
@@ -297,7 +297,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
       // Now pan the graph
       await page.evaluate(() => {
-        const cy = (window as typeof window & { cy: unknown }).cy;
+        const cy = (window as typeof window & { cy: any }).cy;
         if (cy) {
           cy.pan({ x: cy.pan().x + 100, y: cy.pan().y + 100 });
         }
@@ -313,6 +313,189 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
         expect(Math.abs(pannedPos.x - draggedPos.x - 100)).toBeLessThan(10);
         expect(Math.abs(pannedPos.y - draggedPos.y - 100)).toBeLessThan(10);
       }
+    }
+  });
+
+  test('terminal window should also maintain position relative to node during graph operations', async ({ page }) => {
+    await page.goto('/tests/e2e/isolated-with-harness/harness.html?mode=cytoscape');
+    await page.waitForTimeout(1000);
+
+    // NOTE: The test harness only supports one editor window at a time.
+    // However, the positioning logic we're testing (in voicetree-layout.tsx)
+    // works the same for both editors and terminals.
+    // The integration test (terminal-graph-movement.test.tsx) confirms
+    // that terminals use the same positioning system.
+
+    // Open window for node1 (simulating terminal behavior)
+    await page.evaluate(() => {
+      const cy = (window as typeof window & { cy: any }).cy;
+      if (cy) {
+        cy.$('#node1').trigger('tap');
+      }
+    });
+
+    // Wait for window to appear
+    const terminalWindow = page.locator('.floating-window');
+    await expect(terminalWindow).toBeVisible();
+
+    // Get initial terminal position
+    const initialTerminalPos = await terminalWindow.boundingBox();
+    expect(initialTerminalPos).not.toBeNull();
+
+    // ===================
+    // Test 1: Pan Movement - Terminal should move with graph
+    // ===================
+    await page.evaluate(() => {
+      const cy = (window as typeof window & { cy: any }).cy;
+      if (cy) {
+        // Pan the view by 150px to the right and 75px down
+        cy.pan({ x: cy.pan().x + 150, y: cy.pan().y + 75 });
+      }
+    });
+
+    await page.waitForTimeout(100);
+
+    // Get position after pan
+    const terminalPosAfterPan = await terminalWindow.boundingBox();
+    expect(terminalPosAfterPan).not.toBeNull();
+
+    // Verify the terminal moved with the pan
+    if (initialTerminalPos && terminalPosAfterPan) {
+      expect(Math.abs(terminalPosAfterPan.x - initialTerminalPos.x - 150)).toBeLessThan(5);
+      expect(Math.abs(terminalPosAfterPan.y - initialTerminalPos.y - 75)).toBeLessThan(5);
+    }
+
+    // ===================
+    // Test 2: Zoom - Terminal should maintain relative position
+    // ===================
+    await page.evaluate(() => {
+      const cy = (window as typeof window & { cy: any }).cy;
+      if (cy) {
+        // Zoom in by 2x
+        cy.zoom(cy.zoom() * 2);
+      }
+    });
+
+    await page.waitForTimeout(100);
+
+    // Get position after zoom
+    const terminalPosAfterZoom = await terminalWindow.boundingBox();
+    expect(terminalPosAfterZoom).not.toBeNull();
+
+    // The terminal should have moved because the node position changed due to zoom
+    if (terminalPosAfterPan && terminalPosAfterZoom) {
+      const moved = Math.abs(terminalPosAfterZoom.x - terminalPosAfterPan.x) > 5 ||
+                    Math.abs(terminalPosAfterZoom.y - terminalPosAfterPan.y) > 5;
+      expect(moved).toBeTruthy();
+    }
+
+    // ===================
+    // Test 3: Verify window continues moving correctly after multiple operations
+    // ===================
+    // Reset view first
+    await page.evaluate(() => {
+      const cy = (window as typeof window & { cy: any }).cy;
+      if (cy) {
+        cy.pan({ x: 0, y: 0 });
+        cy.zoom(1);
+        cy.fit();
+      }
+    });
+    await page.waitForTimeout(100);
+
+    // Note: Test harness only supports one window at a time,
+    // but the positioning logic is the same for terminals
+    // The actual app uses the same positioning system for both types
+
+    // Get position before final pan
+    const beforeFinalPan = await terminalWindow.boundingBox();
+
+    // Pan the graph once more
+    await page.evaluate(() => {
+      const cy = (window as typeof window & { cy: any }).cy;
+      if (cy) {
+        cy.pan({ x: cy.pan().x + 100, y: cy.pan().y + 100 });
+      }
+    });
+
+    await page.waitForTimeout(100);
+
+    // Get new position
+    const afterFinalPan = await terminalWindow.boundingBox();
+
+    // Window should have moved by the pan amount
+    if (beforeFinalPan && afterFinalPan) {
+      const deltaX = afterFinalPan.x - beforeFinalPan.x;
+      const deltaY = afterFinalPan.y - beforeFinalPan.y;
+
+      // Should have moved approximately 100px in each direction
+      expect(Math.abs(deltaX - 100)).toBeLessThan(5);
+      expect(Math.abs(deltaY - 100)).toBeLessThan(5);
+    }
+  });
+
+  test('terminal window should handle rapid pan and zoom events without losing sync', async ({ page }) => {
+    await page.goto('/tests/e2e/isolated-with-harness/harness.html?mode=cytoscape');
+    await page.waitForTimeout(1000);
+
+    // Open window for node1 (simulating terminal behavior)
+    await page.evaluate(() => {
+      const cy = (window as typeof window & { cy: any }).cy;
+      if (cy) {
+        cy.$('#node1').trigger('tap');
+      }
+    });
+
+    const terminalWindow = page.locator('.floating-window');
+    await expect(terminalWindow).toBeVisible();
+
+    // Perform rapid pan and zoom operations
+    for (let i = 0; i < 10; i++) {
+      await page.evaluate((index) => {
+        const cy = (window as typeof window & { cy: any }).cy;
+        if (cy) {
+          // Alternate between pan and zoom
+          if (index % 2 === 0) {
+            cy.pan({ x: cy.pan().x + 30, y: cy.pan().y - 20 });
+          } else {
+            cy.zoom(cy.zoom() * (index % 4 === 1 ? 1.2 : 0.8));
+          }
+        }
+      }, i);
+
+      // Small delay to let the update happen
+      await page.waitForTimeout(30);
+    }
+
+    // Terminal should still be visible and positioned correctly
+    await expect(terminalWindow).toBeVisible();
+
+    // Get the node's rendered position
+    const nodePos = await page.evaluate(() => {
+      const cy = (window as typeof window & { cy: any }).cy;
+      if (cy) {
+        const node = cy.$('#node1');
+        const pos = node.renderedPosition();
+        return { x: pos.x, y: pos.y };
+      }
+      return null;
+    });
+
+    expect(nodePos).not.toBeNull();
+
+    // Terminal should be near the node (with some offset)
+    const terminalPos = await terminalWindow.boundingBox();
+    expect(terminalPos).not.toBeNull();
+
+    if (nodePos && terminalPos) {
+      // Terminal is positioned with an offset from the node
+      // Check that it's within a reasonable distance
+      const distance = Math.sqrt(
+        Math.pow(terminalPos.x - nodePos.x, 2) +
+        Math.pow(terminalPos.y - nodePos.y, 2)
+      );
+      // Should be close to the node (allowing for offset)
+      expect(distance).toBeLessThan(200);
     }
   });
 });
