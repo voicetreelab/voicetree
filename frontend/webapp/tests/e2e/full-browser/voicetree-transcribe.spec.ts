@@ -1,4 +1,8 @@
+// THSI TESTS THE TRANSCRIPTIION VVOICE TO TEXT (AND ALSO STANDARD TEXT INPUT) FUNCTIOINALITY FOR MAIN APP
+
 import { test, expect } from '@playwright/test';
+
+
 
 test.describe('VoiceTree Transcribe', () => {
 //   test('should start recording and add text input to transcription', async ({ page }) => {

@@ -3,7 +3,6 @@ import { test as base, expect, _electron as electron, ElectronApplication, Page 
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
-import type { NodeData, EdgeData } from '@/graph-core/data/load_markdown/MarkdownParser';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -48,7 +47,7 @@ const test = base.extend<{
   // eslint-disable-next-line no-empty-pattern
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'electron.cjs')],
+      args: [path.join(PROJECT_ROOT, 'electron/electron.cjs')],
       env: {
         ...process.env,
         NODE_ENV: 'development',

@@ -41,12 +41,12 @@ export class MockElectronAPI implements ElectronAPI {
   }
 
   private loadExampleFiles(): void {
-    console.log('MockElectronAPI: Loading example files...');
+    // console.log('MockElectronAPI: Loading example files...');
 
     // Emit file-added events for each example file with a small delay
     EXAMPLE_FILES.forEach((file, index) => {
       setTimeout(() => {
-        console.log(`MockElectronAPI: Loading example file: ${file.path}`);
+        // console.log(`MockElectronAPI: Loading example file: ${file.path}`);
         this.emit('file-added', {
           path: file.path,
           fullPath: `${this.watchDirectory}/${file.path}`,
@@ -69,6 +69,65 @@ export class MockElectronAPI implements ElectronAPI {
 
   async getWatchStatus(): Promise<WatchStatus> {
     return this.watchStatus;
+  }
+
+  // File operations
+  async saveFileContent(filePath: string, content: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Extract filename from path
+      const fileName = filePath.split('/').pop() || filePath;
+
+      // Emit a file-changed event to simulate the file watcher detecting the change
+      // This maintains the same data flow as real Electron
+      setTimeout(() => {
+        this.emit('file-changed', {
+          path: fileName,
+          fullPath: filePath,
+          content: content,
+          size: content.length,
+          modified: new Date().toISOString()
+        });
+      }, 50);
+
+      // console.log(`MockElectronAPI: Saved file ${filePath} (simulated)`);
+      return { success: true };
+    } catch (error) {
+      console.error(`MockElectronAPI: Failed to save file ${filePath}:`, error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
+  async openDirectoryDialog(): Promise<{ canceled: boolean; filePaths: string[] }> {
+    // Simulate selecting the example directory in browser mode
+    // console.log('MockElectronAPI: Opening directory dialog (simulated)');
+    return { canceled: false, filePaths: [EXAMPLE_DIRECTORY] };
+  }
+
+  // General IPC methods for compatibility
+  async invoke(channel: string, ...args: unknown[]): Promise<unknown> {
+    // console.log(`MockElectronAPI: invoke(${channel}, ${JSON.stringify(args)})`)
+    // Handle common invoke patterns
+    switch (channel) {
+      case 'save-file-content':
+        return this.saveFileContent(args[0] as string, args[1] as string);
+      default:
+        console.warn(`MockElectronAPI: Unhandled invoke channel: ${channel}`);
+        return Promise.resolve();
+    }
+  }
+
+  on(channel: string, listener: (...args: unknown[]) => void): void {
+    this.addListener(channel, listener as (data: unknown) => void);
+  }
+
+  off(channel: string, listener: (...args: unknown[]) => void): void {
+    const listeners = this.listeners.get(channel);
+    if (listeners) {
+      const index = listeners.indexOf(listener as (data: unknown) => void);
+      if (index !== -1) {
+        listeners.splice(index, 1);
+      }
+    }
   }
 
   // Event Listeners
@@ -114,31 +173,31 @@ export class MockElectronAPI implements ElectronAPI {
 
   // Helper methods for testing
   private addListener(event: string, callback: (data: unknown) => void): void {
-    console.log(`MockElectronAPI: Adding listener for event '${event}'`);
+    // console.log(`MockElectronAPI: Adding listener for event '${event}'`);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
     this.listeners.get(event)!.push(callback);
-    console.log(`MockElectronAPI: Total listeners for '${event}': ${this.listeners.get(event)!.length}`);
+    // console.log(`MockElectronAPI: Total listeners for '${event}': ${this.listeners.get(event)!.length}`);
   }
 
   private emit(event: string, data: unknown): void {
-    console.log(`MockElectronAPI: Emitting event '${event}' with data:`, data);
+    // console.log(`MockElectronAPI: Emitting event '${event}' with data:`, data);
     const callbacks = this.listeners.get(event);
     if (callbacks) {
-      console.log(`MockElectronAPI: Found ${callbacks.length} callback(s) for event '${event}'`);
+      // console.log(`MockElectronAPI: Found ${callbacks.length} callback(s) for event '${event}'`);
       callbacks.forEach(callback => callback(data));
     } else {
-      console.log(`MockElectronAPI: No callbacks registered for event '${event}'`);
+      // console.log(`MockElectronAPI: No callbacks registered for event '${event}'`);
     }
   }
 
   // Set up listeners for test events
   private setupTestEventListeners(): void {
-    console.log('MockElectronAPI: Setting up test event listeners on window');
+    // console.log('MockElectronAPI: Setting up test event listeners on window');
     // Listen for custom events dispatched by tests
-    window.addEventListener('file-added', (event: CustomEvent) => {
-      console.log('MockElectronAPI: Received file-added CustomEvent from window:', event.detail);
+    window.addEventListener('file-added', ((event: CustomEvent) => {
+      // console.log('MockElectronAPI: Received file-added CustomEvent from window:', event.detail);
       this.emit('file-added', {
         path: event.detail.path,
         fullPath: `/mock/test/directory/${event.detail.path}`,
@@ -146,9 +205,9 @@ export class MockElectronAPI implements ElectronAPI {
         size: event.detail.content?.length || 0,
         modified: new Date().toISOString()
       });
-    });
+    }) as EventListener);
 
-    window.addEventListener('file-changed', (event: CustomEvent) => {
+    window.addEventListener('file-changed', ((event: CustomEvent) => {
       this.emit('file-changed', {
         path: event.detail.path,
         fullPath: `/mock/test/directory/${event.detail.path}`,
@@ -156,28 +215,28 @@ export class MockElectronAPI implements ElectronAPI {
         size: event.detail.content?.length || 0,
         modified: new Date().toISOString()
       });
-    });
+    }) as EventListener);
 
-    window.addEventListener('file-deleted', (event: CustomEvent) => {
+    window.addEventListener('file-deleted', ((event: CustomEvent) => {
       this.emit('file-deleted', {
         path: event.detail.path,
         fullPath: `/mock/test/directory/${event.detail.path}`
       });
-    });
+    }) as EventListener);
 
-    window.addEventListener('directory-added', (event: CustomEvent) => {
+    window.addEventListener('directory-added', ((event: CustomEvent) => {
       this.emit('directory-added', {
         path: event.detail.path,
         fullPath: `/mock/test/directory/${event.detail.path}`
       });
-    });
+    }) as EventListener);
 
-    window.addEventListener('directory-deleted', (event: CustomEvent) => {
+    window.addEventListener('directory-deleted', ((event: CustomEvent) => {
       this.emit('directory-deleted', {
         path: event.detail.path,
         fullPath: `/mock/test/directory/${event.detail.path}`
       });
-    });
+    }) as EventListener);
   }
 
   // Method to simulate file events for testing (can be called directly)

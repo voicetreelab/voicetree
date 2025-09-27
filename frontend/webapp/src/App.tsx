@@ -5,9 +5,17 @@ import { useGraphManager } from "./hooks/useGraphManager";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { FloatingWindowManagerProvider } from "./components/floating-windows/context/FloatingWindowManager";
+import { MockElectronAPI } from "./test/mock-electron-api";
 
-// Import mock setup synchronously
-import "./test/setup-browser-tests";
+// Use real Electron API if available, otherwise fall back to mock
+if (!window.electronAPI) {
+  const mockAPI = new MockElectronAPI();
+  window.electronAPI = mockAPI;
+  window.mockElectronAPI = mockAPI;
+  // console.log('App: No Electron API found, using mock as fallback');
+} else {
+  // console.log('App: Using real Electron API');
+}
 
 function App() {
   // Use the graph manager hook for file watching

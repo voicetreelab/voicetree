@@ -1,3 +1,5 @@
+// BROWSER TEST FOR GRAPH UPDATING WIITH FILIE UPDATES BUT FILE SYSTEM MOCKED
+
 import { test, expect } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { EdgeData } from '@/graph-core/data/load_markdown/MarkdownParser';

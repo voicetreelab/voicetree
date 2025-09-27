@@ -51,7 +51,7 @@ const test = base.extend<{
   // eslint-disable-next-line no-empty-pattern
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'electron.cjs')],
+      args: [path.join(PROJECT_ROOT, 'electron/electron.cjs')],
       env: {
         ...process.env,
         NODE_ENV: 'development',

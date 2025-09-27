@@ -36,6 +36,7 @@ export interface ElectronAPI {
   getWatchStatus: () => Promise<WatchStatus>;
 
   // File system event listeners
+  onWatchingStarted?: (callback: (data: { directory: string; timestamp: string }) => void) => void;
   onFileAdded: (callback: (data: FileEvent) => void) => void;
   onFileChanged: (callback: (data: FileEvent) => void) => void;
   onFileDeleted: (callback: (data: FileEvent) => void) => void;
