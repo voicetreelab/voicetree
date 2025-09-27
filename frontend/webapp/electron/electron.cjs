@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const os = require('os');
-const pty = require('node-pty');
+const { spawn } = require('child_process');
 const FileWatchManager = require('./file-watch-manager.cjs');
 
 // Global file watch manager instance
@@ -132,33 +132,67 @@ ipcMain.handle('delete-file', async (event, filePath) => {
 ipcMain.handle('terminal:spawn', async (event) => {
   try {
     const terminalId = `term-${Date.now()}`;
+    let shellProcess;
 
-    // Determine shell based on platform
-    const shell = process.platform === 'win32'
-      ? 'cmd.exe'
-      : process.env.SHELL || '/bin/bash';
+    if (process.platform === 'win32') {
+      // Windows: Use cmd.exe directly
+      shellProcess = spawn('cmd.exe', [], {
+        cwd: process.env.USERPROFILE || process.cwd(),
+        env: { ...process.env, TERM: 'xterm-256color' }
+      });
+    } else {
+      // Unix/Mac: Use shell with explicit PTY allocation
+      const shell = process.env.SHELL || '/bin/bash';
 
-    // Spawn PTY process with proper terminal emulation
-    const ptyProcess = pty.spawn(shell, [], {
-      name: 'xterm-color',
-      cols: 80,
-      rows: 24,
-      cwd: process.env.HOME || process.env.USERPROFILE,
-      env: process.env
-    });
+      // Use script command with better options for macOS
+      if (process.platform === 'darwin') {
+        // macOS: script command syntax
+        shellProcess = spawn('script', ['-q', '/dev/null', shell], {
+          cwd: process.env.HOME || process.cwd(),
+          env: { ...process.env, TERM: 'xterm-256color' }
+        });
+      } else {
+        // Linux: script command syntax (slightly different)
+        shellProcess = spawn('script', ['-qfc', shell, '/dev/null'], {
+          cwd: process.env.HOME || process.cwd(),
+          env: { ...process.env, TERM: 'xterm-256color' }
+        });
+      }
+
+      // Handle spawn error
+      shellProcess.on('error', (error) => {
+        console.error('Failed to spawn shell:', error);
+        // Fallback to basic shell
+        shellProcess = spawn(shell, ['-i'], {
+          cwd: process.env.HOME || process.cwd(),
+          env: { ...process.env, TERM: 'xterm-256color' }
+        });
+      });
+    }
 
     // Store the process
-    terminals.set(terminalId, ptyProcess);
+    terminals.set(terminalId, shellProcess);
 
-    // Handle PTY output
-    ptyProcess.onData((data) => {
-      event.sender.send('terminal:data', terminalId, data);
+    // Handle stdout
+    shellProcess.stdout.on('data', (data) => {
+      event.sender.send('terminal:data', terminalId, data.toString());
+    });
+
+    // Handle stderr
+    shellProcess.stderr.on('data', (data) => {
+      event.sender.send('terminal:data', terminalId, data.toString());
     });
 
     // Handle process exit
-    ptyProcess.onExit((exitEvent) => {
-      event.sender.send('terminal:exit', terminalId, exitEvent.exitCode);
+    shellProcess.on('exit', (code) => {
+      event.sender.send('terminal:exit', terminalId, code);
       terminals.delete(terminalId);
+    });
+
+    // Handle errors
+    shellProcess.on('error', (error) => {
+      console.error(`Terminal ${terminalId} error:`, error);
+      event.sender.send('terminal:data', terminalId, `\r\nError: ${error.message}\r\n`);
     });
 
     return { success: true, terminalId };
@@ -170,13 +204,13 @@ ipcMain.handle('terminal:spawn', async (event) => {
 
 ipcMain.handle('terminal:write', async (event, terminalId, data) => {
   try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
+    const shellProcess = terminals.get(terminalId);
+    if (!shellProcess) {
       return { success: false, error: 'Terminal not found' };
     }
 
-    // Write to PTY process
-    ptyProcess.write(data);
+    // Write to shell process stdin
+    shellProcess.stdin.write(data);
     return { success: true };
   } catch (error) {
     console.error(`Failed to write to terminal ${terminalId}:`, error);
@@ -186,13 +220,17 @@ ipcMain.handle('terminal:write', async (event, terminalId, data) => {
 
 ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
   try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
+    const shellProcess = terminals.get(terminalId);
+    if (!shellProcess) {
       return { success: false, error: 'Terminal not found' };
     }
 
-    // Resize the PTY
-    ptyProcess.resize(cols, rows);
+    // For script command, we can send window size change signal
+    // Note: This won't work perfectly without real PTY, but it's better than nothing
+    if (process.platform !== 'win32') {
+      // Send SIGWINCH signal to notify about window resize
+      shellProcess.kill('SIGWINCH');
+    }
     return { success: true };
   } catch (error) {
     console.error(`Failed to resize terminal ${terminalId}:`, error);
@@ -202,13 +240,13 @@ ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
 
 ipcMain.handle('terminal:kill', async (event, terminalId) => {
   try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
+    const shellProcess = terminals.get(terminalId);
+    if (!shellProcess) {
       return { success: false, error: 'Terminal not found' };
     }
 
-    // Kill the PTY process
-    ptyProcess.kill();
+    // Kill the shell process
+    shellProcess.kill();
     terminals.delete(terminalId);
     return { success: true };
   } catch (error) {
