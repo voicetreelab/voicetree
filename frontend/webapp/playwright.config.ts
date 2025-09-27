@@ -19,15 +19,25 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         permissions: ['microphone'],
+        headless: true,
+        launchOptions: {
+          args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+        },
       },
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        headless: true,
+      },
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        headless: true,
+      },
     },
   ],
 

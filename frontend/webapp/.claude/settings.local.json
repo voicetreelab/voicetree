@@ -38,13 +38,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run check",
-            "timeout": 90
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-runner.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/test-runner.py",
-            "timeout": 90
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/test-runner.py"
           }
         ]
       }

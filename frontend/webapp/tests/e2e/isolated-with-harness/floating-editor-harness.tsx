@@ -2,13 +2,48 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import cytoscape from 'cytoscape';
 import MDEditor from '@uiw/react-md-editor';
+import { MarkdownParser } from '@/graph-core/data/load_markdown/MarkdownParser';
+
+// Define types for test window
+interface TestWindow extends Window {
+  electronAPI?: {
+    saveFileContent: (filePath: string, content: string) => Promise<void>;
+  };
+  _test_savedPayload?: unknown;
+  _test_logs?: string[];
+  testGraphManager?: {
+    graphData: { nodes: GraphNode[]; edges: GraphEdge[] };
+    parsedNodesMap: Map<string, ParsedNode>;
+  };
+}
+
+interface GraphNode {
+  data: {
+    id: string;
+    label: string;
+    linkedNodeIds: string[];
+  };
+}
+
+interface GraphEdge {
+  data: {
+    id: string;
+    source: string;
+    target: string;
+  };
+}
+
+interface ParsedNode {
+  title?: string;
+  links: Array<{ targetFile: string }>;
+}
 
 // Mock the electronAPI for the browser-based test
-(window as typeof window & { electronAPI: unknown, _test_savedPayload?: unknown }).electronAPI = {
+(window as TestWindow).electronAPI = {
   saveFileContent: async (filePath: string, content: string) => {
     console.log('Mock saveFileContent called with:', { filePath, content });
     // Store the payload in a global variable for the test to access
-    (window as typeof window & { _test_savedPayload?: unknown })._test_savedPayload = { filePath, content };
+    (window as TestWindow)._test_savedPayload = { filePath, content };
   },
 };
 
@@ -274,13 +309,71 @@ const FileWatcherEditor = () => {
     ['test/other.md', '# Other Content']
   ]));
 
+  // Graph state management - simulates useGraphManager functionality
+  const [parsedNodesMap, setParsedNodesMap] = useState<Map<string, ParsedNode>>(new Map());
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [graphData, setGraphData] = useState<{ nodes: GraphNode[], edges: GraphEdge[] }>({ nodes: [], edges: [] });
+
+  // Initialize graph data from file content map
+  useEffect(() => {
+    const initialParsedNodes = new Map();
+    for (const [filePath, content] of fileContentMap.current) {
+      const parsedNode = MarkdownParser.parseMarkdownFile(content, filePath);
+      initialParsedNodes.set(filePath, parsedNode);
+    }
+    setParsedNodesMap(initialParsedNodes);
+  }, []);
+
+  // Transform parsed nodes to graph data (simulates useMemo in useGraphManager)
+  useEffect(() => {
+    const testLogs = (window as TestWindow)._test_logs || [];
+    testLogs.push(`Transforming parsed nodes to graph data, node count: ${parsedNodesMap.size}`);
+
+    const nodes: GraphNode[] = [];
+    const edges: GraphEdge[] = [];
+
+    for (const [filePath, parsedNode] of parsedNodesMap) {
+      const linkedNodeIds: string[] = [];
+
+      // Create edges from the parsed links
+      for (const link of parsedNode.links) {
+        linkedNodeIds.push(link.targetFile);
+        edges.push({
+          data: {
+            id: `${filePath}->${link.targetFile}`,
+            source: filePath,
+            target: link.targetFile
+          }
+        });
+      }
+
+      // Create node with parsed data
+      nodes.push({
+        data: {
+          id: filePath,
+          label: parsedNode.title || filePath.replace('.md', '').replace(/_/g, ' '),
+          linkedNodeIds
+        }
+      });
+    }
+
+    const newGraphData = { nodes, edges };
+    setGraphData(newGraphData);
+
+    // Expose graph data for testing
+    (window as TestWindow).testGraphManager = {
+      graphData: newGraphData,
+      parsedNodesMap
+    };
+  }, [parsedNodesMap]);
+
   // Function to update window content (simulates updateWindowContent from FloatingWindowManager)
   const updateWindowContent = (nodeId: string, newContent: string) => {
     setOpenEditors(prev => {
       const newMap = new Map(prev);
       const existing = newMap.get(nodeId);
       if (existing) {
-        const testLogs = (window as any)._test_logs;
+        const testLogs = (window as TestWindow)._test_logs || [];
         testLogs.push(`VoiceTreeLayout: Updating editor content for node ${nodeId} due to external file change`);
 
         newMap.set(nodeId, {
@@ -306,8 +399,19 @@ const FileWatcherEditor = () => {
   const handleFileChanged = useRef((data: { path: string; content: string }) => {
     if (!data.path.endsWith('.md') || !data.content) return;
 
+    const testLogs = (window as TestWindow)._test_logs || [];
+    testLogs.push(`File changed: ${data.path}`);
+
     // Update stored content (simulate markdownFiles.current.set)
     fileContentMap.current.set(data.path, data.content);
+
+    // Parse the markdown file and update the parsed nodes map
+    const parsedNode = MarkdownParser.parseMarkdownFile(data.content, data.path);
+    setParsedNodesMap(prevMap => {
+      const newMap = new Map(prevMap);
+      newMap.set(data.path, parsedNode);
+      return newMap;
+    });
 
     const nodeId = normalizeFileId(data.path);
 
@@ -350,7 +454,7 @@ const FileWatcherEditor = () => {
         nodeId,
         filePath,
         content,
-        position: { x: 100 + newMap.size * 50, y: 100 + newMap.size * 50 },
+        position: { x: 100 + newMap.size * 50, y: 150 + newMap.size * 50 },
         size: { width: 400, height: 300 }
       });
       return newMap;
@@ -366,18 +470,20 @@ const FileWatcherEditor = () => {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>File Watcher Editor Test</h1>
+    <div style={{ padding: '20px', minHeight: '100vh', position: 'relative' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'white', padding: '20px', zIndex: 1000, borderBottom: '1px solid #ccc' }}>
+        <h1 style={{ margin: '0 0 10px 0' }}>File Watcher Editor Test</h1>
 
-      <button onClick={() => openEditor('test', 'test/test.md')}>
-        Open Editor for Test Node
-      </button>
+        <button onClick={() => openEditor('test', 'test/test.md')}>
+          Open Editor for Test Node
+        </button>
 
-      <button onClick={() => openEditor('other', 'test/other.md')} style={{ marginLeft: '10px' }}>
-        Open Editor for Other Node
-      </button>
+        <button onClick={() => openEditor('other', 'test/other.md')} style={{ marginLeft: '10px' }}>
+          Open Editor for Other Node
+        </button>
+      </div>
 
-      {Array.from(openEditors.values()).map((editor) => (
+      {Array.from(openEditors.values()).map((editor, index) => (
         <div
           key={editor.windowId}
           className="floating-window"
@@ -393,7 +499,7 @@ const FileWatcherEditor = () => {
             background: 'white',
             display: 'flex',
             flexDirection: 'column',
-            zIndex: 100,
+            zIndex: 100 + index,
           }}
         >
           <div
@@ -435,8 +541,36 @@ const FileWatcherEditor = () => {
                   return newMap;
                 });
               }}
-              height={200}
+              height={150}
             />
+            <button
+              data-editor-id={editor.nodeId}
+              onClick={async (e) => {
+                const button = e.currentTarget as HTMLButtonElement;
+                try {
+                  await (window as TestWindow).electronAPI?.saveFileContent(editor.filePath, editor.content);
+                  // Show "Saved!" temporarily
+                  const originalText = button.textContent;
+                  button.textContent = 'Saved!';
+                  setTimeout(() => {
+                    button.textContent = originalText;
+                  }, 2000);
+                } catch (error) {
+                  console.error('Save failed:', error);
+                }
+              }}
+              style={{
+                marginTop: '10px',
+                padding: '6px 12px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Save
+            </button>
           </div>
         </div>
       ))}

@@ -106,3 +106,129 @@ We will create a communication bridge between the Cytoscape instance and the Rea
 8.  **Implement Event Listeners in `VoiceTreeLayout`:**
     -   In the `useEffect` hook where the Cytoscape instance is initialized, attach listeners for the `pan`, `zoom`, and `resize` events.
     -   Implement the throttled position calculation logic inside these listeners and have them call the `onViewportChange` prop.
+
+## 7. Implementation Progress
+
+### Task Tree
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     PHASE 1: Foundation                      │
+│                    (Can be parallelized)                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                 ┌────────────┴────────────┐
+                 ▼                         ▼
+    ┌─────────────────────┐     ┌─────────────────────┐
+    │  1.1 Editor Props   │     │  1.2 State Setup    │
+    │     Refactoring     │     │  in VoiceTreeLayout │
+    ├─────────────────────┤     ├─────────────────────┤
+    │ • Remove filePath   │     │ • Add editor state  │
+    │ • Add content prop  │     │ • Track open editors│
+    │ • Add onSave prop   │     │ • Cache positions   │
+    └─────────────────────┘     └─────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                     PHASE 2: Core Logic                      │
+│                  (Depends on Phase 1)                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                 ┌────────────┼────────────┐
+                 ▼            ▼            ▼
+    ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+    │ 2.1 Save System │ │ 2.2 Position    │ │ 2.3 Content      │
+    │                 │ │     Bridge       │ │     Provider     │
+    ├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+    │ • onSave handler│ │ • CSS transforms │ │ • Read from cache│
+    │ • File API call │ │ • React portals  │ │ • Pass to editor │
+    │ • Error handling│ │ • Viewport events│ │ • Initial content│
+    └──────────────────┘ └──────────────────┘ └──────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   PHASE 3: Integration                       │
+│                  (Depends on Phase 2)                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                 ┌────────────┴────────────┐
+                 ▼                         ▼
+    ┌─────────────────────┐     ┌─────────────────────┐
+    │  3.1 File Watcher   │     │  3.2 Graph Update   │
+    │     Integration     │     │      Integration    │
+    ├─────────────────────┤     ├─────────────────────┤
+    │ • Detect saves      │     │ • Update node data  │
+    │ • Update cache      │     │ • Refresh editors   │
+    │ • Trigger re-render │     │ • Sync visual state │
+    └─────────────────────┘     └─────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                 PHASE 4: Enhanced Positioning                │
+│              (Can start after Phase 2.2)                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+         ┌────────────────────┼────────────────────┐
+         ▼                    ▼                    ▼
+┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│ 4.1 Drag Support│ │ 4.2 Performance  │ │ 4.3 Multi-Editor │
+│                 │ │    Optimization   │ │     Management   │
+├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+│ • Drag detection│ │ • RAF batching   │ │ • Z-index mgmt   │
+│ • Offset update │ │ • Transform cache│ │ • Focus handling │
+│ • State persist │ │ • Debounce events│ │ • Minimize/max   │
+└──────────────────┘ └──────────────────┘ └──────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    PHASE 5: Testing                          │
+│                  (Parallel to Phase 3-4)                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                 ┌────────────┼────────────┐
+                 ▼            ▼            ▼
+    ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+    │ 5.1 Unit Tests  │ │ 5.2 Integration  │ │ 5.3 E2E Tests    │
+    │                 │ │      Tests       │ │                  │
+    ├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+    │ • Editor props  │ │ • Save flow      │ │ • Full workflow  │
+    │ • State mgmt    │ │ • File updates   │ │ • User scenarios │
+    │ • Positioning   │ │ • Graph sync     │ │ • Playwright     │
+    └──────────────────┘ └──────────────────┘ └──────────────────┘
+```
+
+### Implementation Status
+
+#### ✅ PHASE 1: Foundation - **COMPLETE**
+- **1.1 Editor Props Refactoring**: Removed `filePath` dependency, added `content` and `onSave` props
+- **1.2 State Management**: Added comprehensive editor tracking in VoiceTreeLayout with position/content caching
+
+#### ✅ PHASE 2: Core Logic - **COMPLETE**
+- **2.1 Save System**: Moved save logic to VoiceTreeLayout with proper callbacks
+- **2.2 Positioning Bridge**: Implemented individual positioning system using RAF throttling
+- **2.3 Content Provider**: Content properly passed from cache to editors
+
+#### ✅ PHASE 3: Integration - **COMPLETE**
+- **3.1 File Watcher**: External file changes update open editors automatically
+- **3.2 Graph Updates**: Save → file write → watcher → graph update flow working
+
+#### ⏳ PHASE 4: Enhancements - **PENDING**
+- 4.1 Drag Support: Not yet implemented
+- 4.2 Performance Optimization: Basic RAF batching done
+- 4.3 Multi-Editor Management: Basic support working
+
+#### ✅ PHASE 5: Testing - **COMPLETE FOR PHASES 1-3**
+- Unit tests: 83/83 passing
+- Integration tests: 18/18 passing
+- E2E tests: Full workflow coverage
+
+### Key Architecture Decisions Made
+
+1. **Individual Positioning** over global transforms for better debuggability
+2. **Simple left/top CSS** positioning instead of complex transform matrices
+3. **RAF throttling** for smooth performance during pan/zoom
+4. **Proper separation of concerns** - editors are pure components with no file system knowledge
+
+### Files Modified
+
+- `src/components/floating-windows/editors/MarkdownEditor.tsx` - Pure component with props
+- `src/components/floating-windows/FloatingWindow.tsx` - Simplified delegation
+- `src/components/floating-windows/FloatingWindowContainer.tsx` - Position update handling
+- `src/components/voicetree-layout.tsx` - Central state management and coordination
+- `tests/e2e/isolated-with-harness/` - Comprehensive test coverage
