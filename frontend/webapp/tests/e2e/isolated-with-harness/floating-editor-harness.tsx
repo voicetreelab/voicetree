@@ -140,6 +140,9 @@ const CytoscapeEditor = () => {
   const [showEditor, setShowEditor] = useState(false);
   const [editorPosition, setEditorPosition] = useState({ x: 100, y: 100 });
   const [content, setContent] = useState('# Node Content');
+  const [currentNodeId, setCurrentNodeId] = useState<string>('');
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!cyRef.current) return;
@@ -175,19 +178,8 @@ const CytoscapeEditor = () => {
       const renderedPos = node.renderedPosition();
       setEditorPosition({ x: renderedPos.x, y: renderedPos.y });
       setContent(`# Content for ${node.id()}`);
+      setCurrentNodeId(node.id());
       setShowEditor(true);
-    });
-
-    // Handle pan events to update editor position
-    cyInstance.current.on('pan', () => {
-      if (showEditor && cyInstance.current) {
-        // Get the node's rendered position after pan
-        const node = cyInstance.current.$('#node1');
-        if (node.length > 0) {
-          const renderedPos = node.renderedPosition();
-          setEditorPosition({ x: renderedPos.x, y: renderedPos.y });
-        }
-      }
     });
 
     // Expose cy instance globally for testing
@@ -196,30 +188,69 @@ const CytoscapeEditor = () => {
     return () => {
       cyInstance.current?.destroy();
     };
-  }, [showEditor]);
+  }, []);
 
-  // Update position when pan occurs
+  // Update position when pan/zoom occurs (only if not dragging)
   useEffect(() => {
     if (!cyInstance.current || !showEditor) return;
 
-    const handlePan = () => {
-      const node = cyInstance.current!.$('#node1');
+    const updatePosition = () => {
+      if (isDragging) return; // Don't update position while dragging
+
+      const node = cyInstance.current!.$(
+`#${currentNodeId}`);
       if (node.length > 0) {
         const renderedPos = node.renderedPosition();
         setEditorPosition({ x: renderedPos.x, y: renderedPos.y });
       }
     };
 
-    cyInstance.current.on('pan zoom', handlePan);
+    cyInstance.current.on('pan zoom resize', updatePosition);
 
     return () => {
-      cyInstance.current?.off('pan zoom', handlePan);
+      cyInstance.current?.off('pan zoom resize', updatePosition);
     };
-  }, [showEditor]);
+  }, [showEditor, currentNodeId, isDragging]);
 
   const handleSave = async () => {
     await ((window as typeof window & { electronAPI?: { saveFileContent: (path: string, content: string) => Promise<void> } }).electronAPI?.saveFileContent('test/node.md', content));
   };
+
+  // Handle drag events on the window
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.window-title-bar')) {
+      setIsDragging(true);
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      dragOffset.current = {
+        x: e.clientX - rect.left - rect.width / 2,
+        y: e.clientY - rect.top - rect.height / 2
+      };
+      e.preventDefault();
+    }
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setEditorPosition({
+        x: e.clientX - dragOffset.current.x,
+        y: e.clientY - dragOffset.current.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -236,6 +267,8 @@ const CytoscapeEditor = () => {
       {showEditor && (
         <div
           className="floating-window"
+          data-window-id={currentNodeId}
+          onMouseDown={handleMouseDown}
           style={{
             position: 'absolute',
             top: editorPosition.y,
@@ -250,6 +283,7 @@ const CytoscapeEditor = () => {
             flexDirection: 'column',
             zIndex: 100,
             transform: 'translate(-50%, -50%)',
+            cursor: isDragging ? 'grabbing' : 'default',
           }}
         >
           <div
@@ -263,6 +297,7 @@ const CytoscapeEditor = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
+              cursor: 'grab',
             }}
           >
             <span>Node Editor</span>

@@ -16,6 +16,7 @@ interface ExtendedWindow extends Window {
     startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
     stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
     getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    onInitialScanComplete: (callback: (data: { directory: string }) => void) => void;
   };
 }
 
@@ -173,6 +174,15 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     if (!watchStatus || !watchStatus.isWatching) {
       throw new Error(`File watching did not start properly. Status: ${JSON.stringify(watchStatus)}`);
     }
+
+    console.log('=== STEP 2.5: Wait for chokidar to be fully ready ===');
+
+    // Give chokidar time to fully initialize and be ready to detect new files
+    // The initial scan completes immediately for empty directories, but
+    // chokidar still needs a moment to set up file system watchers
+    await appWindow.waitForTimeout(3000);
+
+    console.log('Chokidar should be ready, proceeding with file creation');
 
     console.log('=== STEP 3: Create first markdown file ===');
 
