@@ -116,17 +116,10 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
   const [edgeCount, setEdgeCount] = useState(0);
   const { openWindow, windows, updateWindowContent } = useFloatingWindows();
   const openWindowRef = useRef(openWindow);
+  const windowsRef = useRef(windows);
 
-  // State management for tracking open editors
-  const [openEditors, setOpenEditors] = useState<Map<string, {
-    windowId: string;
-    nodeId: string;
-    filePath: string;
-    content: string;
-    position: { x: number; y: number };
-    size: { width: number; height: number };
-  }>>(new Map());
-  const openEditorsRef = useRef(openEditors);
+  // Note: We now use useFloatingWindows context as the single source of truth for window state
+  // No duplicate openEditors state needed
 
   // Ref to store the position update callback from FloatingWindowContainer
   const positionUpdateCallbackRef = useRef<((positionUpdates: Map<string, { x: number; y: number }>) => void) | null>(null);
@@ -140,28 +133,16 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     apiKey: getAPIKey,
   });
 
-  // Update ref when openWindow changes
+  // Update refs when values change
   useEffect(() => {
     openWindowRef.current = openWindow;
   }, [openWindow]);
 
-  // Update ref when openEditors changes
   useEffect(() => {
-    openEditorsRef.current = openEditors;
-  }, [openEditors]);
+    windowsRef.current = windows;
+  }, [windows]);
 
-  // Helper functions for editor state management - exposed via window for testing
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getOpenEditorInfo = (nodeId: string) => openEditors.get(nodeId);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getOpenEditorCount = () => openEditors.size;
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getAllOpenEditors = () => Array.from(openEditors.entries());
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isEditorOpen = (nodeId: string) => openEditors.has(nodeId);
 
   // Function to update positions of all open editors based on their node positions
   const updateEditorPositions = useCallback(() => {
@@ -172,16 +153,17 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     const cy = cytoscapeRef.current.getCore();
     const positionUpdates = new Map<string, { x: number; y: number }>();
 
-    // Get current positions for all open editors
-    for (const [nodeId] of openEditorsRef.current) {
-      const node = cy.getElementById(nodeId);
-      if (node.length > 0) {
-        const renderedPos = node.renderedPosition();
-        // Position the editor slightly offset from the node
-        positionUpdates.set(nodeId, {
-          x: renderedPos.x - 50,
-          y: renderedPos.y - 50
-        });
+    // Use actual windows from context instead of duplicate openEditorsRef
+    for (const window of windowsRef.current) {
+      if (window.nodeId && window.type === 'MarkdownEditor') {
+        const node = cy.getElementById(window.nodeId);
+        if (node.length > 0) {
+          const renderedPos = node.renderedPosition();
+          positionUpdates.set(window.nodeId, {
+            x: renderedPos.x - 50,
+            y: renderedPos.y - 50
+          });
+        }
       }
     }
 
@@ -206,42 +188,6 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     positionUpdateCallbackRef.current = callback;
   }, []);
 
-  // Sync openEditors state with floating windows state
-  useEffect(() => {
-    setOpenEditors(prev => {
-      const newMap = new Map(prev);
-      let hasChanges = false;
-
-      // Remove editors for windows that have been closed
-      for (const [nodeId] of prev) {
-        const windowExists = windows.some(w => w.nodeId === nodeId);
-        if (!windowExists) {
-          newMap.delete(nodeId);
-          hasChanges = true;
-          console.log(`VoiceTreeLayout: Editor closed for node ${nodeId}, remaining editors: ${newMap.size}`);
-        }
-      }
-
-      // Update positions and content for existing windows
-      for (const window of windows) {
-        if (window.type === 'MarkdownEditor' && newMap.has(window.nodeId)) {
-          newMap.set(window.nodeId, {
-            ...newMap.get(window.nodeId)!,
-            position: window.position,
-            size: window.size,
-            content: window.content
-          });
-          hasChanges = true;
-        }
-      }
-
-      if (hasChanges) {
-        console.log(`VoiceTreeLayout: Editor state synced, total open editors: ${newMap.size}`);
-      }
-
-      return newMap;
-    });
-  }, [windows]);
 
   // Dark mode management
   useEffect(() => {
@@ -374,6 +320,17 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
     for (const match of linkMatches) {
       const targetId = normalizeFileId(match[1]);
+
+      // Ensure target node exists (create placeholder if needed)
+      if (!cy.getElementById(targetId).length) {
+        cy.add({
+          data: {
+            id: targetId,
+            label: targetId.replace(/_/g, ' ')
+          }
+        });
+      }
+
       const edgeId = `${nodeId}->${targetId}`;
 
       // Add edge if it doesn't exist
@@ -394,18 +351,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
 
     // Run layout
     cy.layout({ name: 'cola', animate: true }).run();
-
-    // Update window reference for tests
-    if (typeof window !== 'undefined') {
-      (window as unknown as { cytoscapeInstance: CytoscapeCore }).cytoscapeInstance = cy;
-      (window as unknown as { voiceTreeEditorState: object }).voiceTreeEditorState = {
-        getOpenEditors: () => openEditors,
-        getOpenEditorCount: () => openEditors.size,
-        getAllOpenEditors: () => Array.from(openEditors.values()),
-        isEditorOpen: (nodeId: string) => openEditors.has(nodeId)
-      };
-    }
-  }, [openEditors]);
+  }, []);
 
   const handleFileChanged = useCallback((data: { path: string; content?: string }) => {
     if (!data.path.endsWith('.md') || !data.content) return;
@@ -425,6 +371,17 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
     for (const match of linkMatches) {
       const targetId = normalizeFileId(match[1]);
+
+      // Ensure target node exists (create placeholder if needed)
+      if (!cy.getElementById(targetId).length) {
+        cy.add({
+          data: {
+            id: targetId,
+            label: targetId.replace(/_/g, ' ')
+          }
+        });
+      }
+
       const edgeId = `${nodeId}->${targetId}`;
 
       cy.add({
@@ -444,28 +401,10 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     cy.layout({ name: 'cola', animate: true }).run();
 
     // Update any open editors for this file
-    const editorInfo = openEditorsRef.current.get(nodeId);
-    if (editorInfo) {
+    const window = windows.find(w => w.nodeId === nodeId);
+    if (window) {
       console.log(`VoiceTreeLayout: Updating editor content for node ${nodeId} due to external file change`);
-
-      // Find the corresponding window and update its content
-      const window = windows.find(w => w.nodeId === nodeId);
-      if (window) {
-        updateWindowContent(window.id, data.content);
-
-        // Also update the openEditors state to keep it in sync
-        setOpenEditors(prev => {
-          const newMap = new Map(prev);
-          const existing = newMap.get(nodeId);
-          if (existing) {
-            newMap.set(nodeId, {
-              ...existing,
-              content: data.content
-            });
-          }
-          return newMap;
-        });
-      }
+      updateWindowContent(window.id, data.content);
     }
   }, [windows, updateWindowContent]);
 
@@ -526,13 +465,12 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
 
-        // Check if editor is already open for this node
-        if (openEditorsRef.current.has(nodeId)) {
-          // Editor already open, no need to open another
-          return;
+        // Check using actual window state, not duplicate
+        if (windowsRef.current.some(w => w.nodeId === nodeId)) {
+          return; // Already open
         }
 
-        // Look up by full path that matches the nodeId
+        // Find file path and content for this node
         let content: string | undefined;
         let filePath: string | undefined;
         for (const [path, fileContent] of markdownFiles.current) {
@@ -543,51 +481,26 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
           }
         }
 
-        if (typeof content !== 'undefined' && filePath) {
-          // Get the node's rendered position
-          const nodePosition = event.target.renderedPosition();
-          const position = { x: nodePosition.x - 50, y: nodePosition.y - 50 };
-          const size = { width: 700, height: 500 };
+        if (content && filePath) {
+          const nodePos = event.target.renderedPosition();
 
-          // Generate a unique window ID
-          const windowId = `window_${nodeId}_${Date.now()}`;
-
-          // Create the save callback for this specific file
-          const onSave = async (newContent: string) => {
-            if (window.electronAPI?.saveFileContent) {
-              const result = await window.electronAPI.saveFileContent(filePath, newContent);
-              if (!result.success) {
-                throw new Error(result.error || 'Failed to save file');
-              }
-            } else {
-              throw new Error('Save functionality not available');
-            }
-          };
-
-          // Add to our editor tracking state
-          setOpenEditors(prev => {
-            const newMap = new Map(prev);
-            newMap.set(nodeId, {
-              windowId,
-              nodeId,
-              filePath,
-              content,
-              position,
-              size
-            });
-            console.log(`VoiceTreeLayout: Editor opened for node ${nodeId}, total open editors: ${newMap.size}`);
-            return newMap;
-          });
-
-          // Open the window through the floating window system
           openWindowRef.current({
-            nodeId: nodeId,
-            title: nodeId, // Use file path as title
+            nodeId,
+            title: nodeId,
             type: 'MarkdownEditor',
-            content: content,
-            position,
-            size,
-            onSave,
+            content,
+            position: { x: nodePos.x - 50, y: nodePos.y - 50 },
+            size: { width: 700, height: 500 },
+            onSave: async (text: string) => {
+              if (window.electronAPI?.saveFileContent) {
+                const result = await window.electronAPI.saveFileContent(filePath, text);
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to save file');
+                }
+              } else {
+                throw new Error('Save functionality not available');
+              }
+            }
           });
         }
       });

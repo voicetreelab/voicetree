@@ -17,6 +17,7 @@ interface UseGraphManagerReturn {
   stopWatching: () => Promise<void>;
   clearError: () => void;
   clearFileEvents: () => void;
+  syncWatchingState: () => Promise<void>;  // NEW
 
   // Utility
   isElectron: boolean;
@@ -43,17 +44,17 @@ export function useGraphManager(): UseGraphManagerReturn {
 
   // Handle file events - just track them, don't process
   const handleFileAdded = useCallback((data: FileEvent) => {
-    console.log('useGraphManager: File added:', data.path);
+    // console.log('useGraphManager: File added:', data.path);
     addFileEvent('File Added', data);
   }, [addFileEvent]);
 
   const handleFileChanged = useCallback((data: FileEvent) => {
-    console.log('useGraphManager: File changed:', data.path);
+    // console.log('useGraphManager: File changed:', data.path);
     addFileEvent('File Changed', data);
   }, [addFileEvent]);
 
   const handleFileDeleted = useCallback((data: FileEvent) => {
-    console.log('useGraphManager: File deleted:', data.path);
+    // console.log('useGraphManager: File deleted:', data.path);
     addFileEvent('File Deleted', data);
   }, [addFileEvent]);
 
@@ -77,6 +78,13 @@ export function useGraphManager(): UseGraphManagerReturn {
     setIsLoading(false);
   }, [addFileEvent]);
 
+  // Handle watching started (for state sync when initiated externally)
+  const handleWatchingStarted = useCallback((data: { directory: string; timestamp: string }) => {
+    setWatchStatus({ isWatching: true, directory: data.directory });
+    addFileEvent('Watching Started', data);
+    setIsLoading(false);
+  }, [addFileEvent]);
+
   // Set up event listeners
   useEffect(() => {
     if (!isElectron) return;
@@ -94,8 +102,9 @@ export function useGraphManager(): UseGraphManagerReturn {
     checkStatus();
 
     // Set up event listeners
-    console.log('useGraphManager: Setting up event listeners on window.electronAPI');
-    console.log('useGraphManager: electronAPI available:', !!window.electronAPI);
+    // console.log('useGraphManager: Setting up event listeners on window.electronAPI');
+    // console.log('useGraphManager: electronAPI available:', !!window.electronAPI);
+    window.electronAPI!.onWatchingStarted?.(handleWatchingStarted);
     window.electronAPI!.onFileAdded(handleFileAdded);
     window.electronAPI!.onFileChanged(handleFileChanged);
     window.electronAPI!.onFileDeleted(handleFileDeleted);
@@ -105,10 +114,11 @@ export function useGraphManager(): UseGraphManagerReturn {
     window.electronAPI!.onFileWatchError(handleError);
     window.electronAPI!.onFileWatchInfo((data) => addFileEvent('Info', data));
     window.electronAPI!.onFileWatchingStopped(handleWatchingStopped);
-    console.log('useGraphManager: All event listeners registered');
+    // console.log('useGraphManager: All event listeners registered');
 
     return () => {
       // Cleanup listeners
+      window.electronAPI!.removeAllListeners('watching-started');
       window.electronAPI!.removeAllListeners('file-added');
       window.electronAPI!.removeAllListeners('file-changed');
       window.electronAPI!.removeAllListeners('file-deleted');
@@ -119,7 +129,7 @@ export function useGraphManager(): UseGraphManagerReturn {
       window.electronAPI!.removeAllListeners('file-watch-info');
       window.electronAPI!.removeAllListeners('file-watching-stopped');
     };
-  }, [isElectron, handleFileAdded, handleFileChanged, handleFileDeleted, handleInitialScanComplete, handleError, handleWatchingStopped, addFileEvent]);
+  }, [isElectron, handleFileAdded, handleFileChanged, handleFileDeleted, handleInitialScanComplete, handleError, handleWatchingStopped, handleWatchingStarted, addFileEvent]);
 
   // Start watching function
   const startWatching = useCallback(async () => {
@@ -173,6 +183,22 @@ export function useGraphManager(): UseGraphManagerReturn {
     setFileEvents([]);
   }, []);
 
+  // New: Sync watching state for external initiation
+  const syncWatchingState = useCallback(async () => {
+    if (!isElectron) return;
+
+    try {
+      const status = await window.electronAPI!.getWatchStatus();
+      setWatchStatus(status);
+
+      if (status.isWatching) {
+        addFileEvent('Watching Synced', { directory: status.directory });
+      }
+    } catch (err) {
+      console.error('Failed to sync watch status:', err);
+    }
+  }, [isElectron, addFileEvent]);
+
   return {
     // File watching state
     isWatching: watchStatus.isWatching,
@@ -188,6 +214,7 @@ export function useGraphManager(): UseGraphManagerReturn {
     stopWatching,
     clearError,
     clearFileEvents,
+    syncWatchingState,  // NEW
 
     // Utility
     isElectron,
