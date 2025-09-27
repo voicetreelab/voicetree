@@ -1,0 +1,50 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+// Expose protected methods that allow the renderer process to use
+// the ipcRenderer without exposing the entire object
+contextBridge.exposeInMainWorld('electronAPI', {
+  // File watching controls
+  startFileWatching: (directoryPath) => ipcRenderer.invoke('start-file-watching', directoryPath),
+  stopFileWatching: () => ipcRenderer.invoke('stop-file-watching'),
+  getWatchStatus: () => ipcRenderer.invoke('get-watch-status'),
+
+  // File watching event listeners
+  onWatchingStarted: (callback) => {
+    ipcRenderer.on('watching-started', (event, data) => callback(data));
+  },
+  onFileAdded: (callback) => {
+    ipcRenderer.on('file-added', (event, data) => callback(data));
+  },
+  onFileChanged: (callback) => {
+    ipcRenderer.on('file-changed', (event, data) => callback(data));
+  },
+  onFileDeleted: (callback) => {
+    ipcRenderer.on('file-deleted', (event, data) => callback(data));
+  },
+  onDirectoryAdded: (callback) => {
+    ipcRenderer.on('directory-added', (event, data) => callback(data));
+  },
+  onDirectoryDeleted: (callback) => {
+    ipcRenderer.on('directory-deleted', (event, data) => callback(data));
+  },
+  onInitialScanComplete: (callback) => {
+    ipcRenderer.on('initial-scan-complete', (event, data) => callback(data));
+  },
+  onFileWatchError: (callback) => {
+    ipcRenderer.on('file-watch-error', (event, data) => callback(data));
+  },
+  onFileWatchInfo: (callback) => {
+    ipcRenderer.on('file-watch-info', (event, data) => callback(data));
+  },
+  onFileWatchingStopped: (callback) => {
+    ipcRenderer.on('file-watching-stopped', (event, data) => callback(data));
+  },
+
+  // Remove event listeners (cleanup)
+  removeAllListeners: (channel) => {
+    ipcRenderer.removeAllListeners(channel);
+  },
+
+  // File content management
+  saveFileContent: (filePath, content) => ipcRenderer.invoke('save-file-content', filePath, content),
+});
