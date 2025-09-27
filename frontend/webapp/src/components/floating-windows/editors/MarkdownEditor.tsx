@@ -26,6 +26,7 @@ const components = {
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, content, onSave }) => {
   const [value, setValue] = useState(content);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const { updateWindowContent } = useFloatingWindows();
 
   const debouncedUpdate = useMemo(
@@ -34,6 +35,25 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
     }, 300),
     [updateWindowContent]
   );
+
+  // Check for dark mode on mount and when it changes
+  React.useEffect(() => {
+    const checkDarkMode = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+    };
+
+    checkDarkMode();
+
+    // Watch for changes to dark mode class
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleChange = (newValue: string | undefined) => {
     const content = newValue || '';
@@ -65,7 +85,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
   };
 
   return (
-    <div data-color-mode="light" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div data-color-mode={isDarkMode ? 'dark' : 'light'} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '4px 8px', background: '#f7f7f7', borderBottom: '1px solid #e1e1e1', display: 'flex', justifyContent: 'flex-end' }}>
         <button
           onClick={handleSave}
@@ -88,6 +108,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
         onChange={handleChange}
         components={components}
         height="100%"
+        preview="edit"
         style={{ flex: 1, borderRadius: 0, border: 'none' }}
       />
     </div>
