@@ -28,7 +28,8 @@ export interface ElectronAPI {
   openDirectoryDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>;
 
   // File operations
-  saveFileContent: (filePath: string, content: string) => Promise<void>;
+  saveFileContent: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
 
   // File watching methods
   startFileWatching: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;

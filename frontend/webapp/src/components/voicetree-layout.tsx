@@ -9,6 +9,8 @@ import cytoscape from 'cytoscape';
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
 import { toScreenCoords, toGraphCoords } from '@/utils/coordinate-conversions';
+// Import graph styles
+import '@/graph-core/styles/graph.css';
 // @ts-expect-error - cytoscape-cola doesn't have proper TypeScript definitions
 import cola from 'cytoscape-cola';
 
@@ -47,62 +49,6 @@ function normalizeFileId(filename: string): string {
     id = id.substring(lastSlash + 1);
   }
   return id;
-}
-
-// Get Cytoscape stylesheet
-function getCytoscapeStylesheet() {
-  return [
-    {
-      selector: 'node',
-      style: {
-        'background-color': DEFAULT_NODE_COLOR,
-        'label': 'data(label)',
-        'text-wrap': 'wrap',
-        'text-max-width': 120,
-        'text-valign': 'center',
-        'text-halign': 'center',
-        'color': '#ffffff',
-        'font-size': '12px',
-        'font-weight': 'bold',
-        'width': 60,
-        'height': 60,
-        'overlay-opacity': 0
-      } as cytoscape.Css.Node
-    },
-    {
-      selector: 'edge',
-      style: {
-        'width': 2,
-        'line-color': DEFAULT_EDGE_COLOR,
-        'target-arrow-color': DEFAULT_EDGE_COLOR,
-        'target-arrow-shape': 'triangle',
-        'curve-style': 'bezier',
-        'opacity': 0.8
-      } as cytoscape.Css.Edge
-    },
-    {
-      selector: 'node.hover',
-      style: {
-        'background-color': HOVER_COLOR,
-        'transition-property': 'background-color',
-        'transition-duration': '0.2s'
-      } as cytoscape.Css.Node
-    },
-    {
-      selector: 'node.unhover',
-      style: {
-        'opacity': 0.3
-      } as cytoscape.Css.Node
-    },
-    {
-      selector: 'edge.connected-hover',
-      style: {
-        'line-color': HOVER_COLOR,
-        'target-arrow-color': HOVER_COLOR,
-        'opacity': 1.0
-      } as cytoscape.Css.Edge
-    }
-  ] as cytoscape.Stylesheet[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -159,24 +105,22 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
 
     // Use actual windows from context instead of duplicate openEditorsRef
     for (const window of windowsRef.current) {
-      if (window.nodeId && window.type === 'MarkdownEditor') {
-        // If window has graph coordinates, use them
-        if (window.graphAnchor) {
+      // Update position for any window with graph coordinates (not just editors)
+      if (window.nodeId && window.graphAnchor) {
           const graphX = window.graphAnchor.x + (window.graphOffset?.x || 0);
           const graphY = window.graphAnchor.y + (window.graphOffset?.y || 0);
           const screenPos = toScreenCoords(graphX, graphY, cy);
           console.log(`[DEBUG] Window ${window.nodeId}: graph(${graphX},${graphY}) -> screen(${screenPos.x},${screenPos.y})`);
           positionUpdates.set(window.nodeId, screenPos);
-        } else {
-          // Fallback to old behavior for backward compatibility
-          const node = cy.getElementById(window.nodeId);
-          if (node.length > 0) {
-            const renderedPos = node.renderedPosition();
-            positionUpdates.set(window.nodeId, {
-              x: renderedPos.x - 50,
-              y: renderedPos.y - 50
-            });
-          }
+      } else if (window.nodeId) {
+        // Fallback to old behavior for backward compatibility (windows without graph coordinates)
+        const node = cy.getElementById(window.nodeId);
+        if (node.length > 0) {
+          const renderedPos = node.renderedPosition();
+          positionUpdates.set(window.nodeId, {
+            x: renderedPos.x - 50,
+            y: renderedPos.y - 50
+          });
         }
       }
     }
@@ -498,9 +442,6 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
         (window as unknown as { cytoscapeInstance: CytoscapeCore }).cytoscapeInstance = core;
       }
 
-      // Apply stylesheet
-      core.style(getCytoscapeStylesheet());
-
       // Enable context menu
       cytoscapeRef.current.enableContextMenu({
         onOpenEditor: (nodeId: string) => {
@@ -572,20 +513,85 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
           });
           core.layout({ name: 'cola', animate: true }).run();
         },
-        onPinNode: (node) => {
-          cytoscapeRef.current?.pinNode(node);
-        },
-        onUnpinNode: (node) => {
-          cytoscapeRef.current?.unpinNode(node);
-        },
-        onHideNode: (node) => {
-          cytoscapeRef.current?.hideNode(node);
-          setNodeCount(core.nodes().length);
-          setEdgeCount(core.edges().length);
-          core.layout({ name: 'cola', animate: true }).run();
+        onDeleteNode: async (node) => {
+          const nodeId = node.id();
+
+          // Find the file path for this node
+          let filePath: string | undefined;
+          for (const [path] of markdownFiles.current) {
+            if (normalizeFileId(path) === nodeId) {
+              filePath = path;
+              break;
+            }
+          }
+
+          if (filePath && window.electronAPI?.deleteFile) {
+            // Confirm deletion
+            if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
+              return;
+            }
+
+            try {
+              const result = await window.electronAPI.deleteFile(filePath);
+              if (result.success) {
+                // Remove from our local state
+                markdownFiles.current.delete(filePath);
+                // Remove from graph
+                cytoscapeRef.current?.hideNode(node);
+                setNodeCount(core.nodes().length);
+                setEdgeCount(core.edges().length);
+                core.layout({ name: 'cola', animate: true }).run();
+              } else {
+                console.error('Failed to delete file:', result.error);
+                alert(`Failed to delete file: ${result.error}`);
+              }
+            } catch (error) {
+              console.error('Error deleting file:', error);
+              alert(`Error deleting file: ${error}`);
+            }
+          }
         },
         onCopyNodeName: (nodeId: string) => {
           navigator.clipboard.writeText(nodeId);
+        },
+        onOpenTerminal: (nodeId: string) => {
+          // Generate unique terminal ID with node context
+          const terminalId = `terminal-${nodeId}-${Date.now()}`;
+
+          // Find the node position to place terminal near it
+          const node = core.getElementById(nodeId);
+          if (node.length > 0) {
+            const nodeGraphPos = node.position(); // Get graph position
+            const nodeScreenPos = node.renderedPosition();
+            const zoom = core.zoom();
+
+            // Calculate initial offset in graph coordinates (50px offset in screen space)
+            const initialGraphOffset = {
+              x: 50 / zoom,
+              y: 50 / zoom
+            };
+
+            openWindowRef.current({
+              nodeId: terminalId,
+              title: `Terminal - ${nodeId}`,
+              type: 'Terminal',
+              content: '',
+              position: { x: nodeScreenPos.x + 50, y: nodeScreenPos.y + 50 },
+              graphAnchor: nodeGraphPos,  // Store node position in graph coords
+              graphOffset: initialGraphOffset,  // Store initial offset in graph coords
+              size: { width: 800, height: 400 }
+            });
+          } else {
+            // Fallback if node not found
+            openWindowRef.current({
+              nodeId: terminalId,
+              title: `Terminal - ${nodeId}`,
+              type: 'Terminal',
+              content: '',
+              position: { x: 150, y: 150 },
+              size: { width: 800, height: 400 }
+            });
+          }
         }
       });
 

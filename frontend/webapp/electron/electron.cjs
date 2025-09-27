@@ -1,10 +1,15 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const os = require('os');
+const pty = require('node-pty');
 const FileWatchManager = require('./file-watch-manager.cjs');
 
 // Global file watch manager instance
 const fileWatchManager = new FileWatchManager();
+
+// Terminal process management
+const terminals = new Map();
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -107,6 +112,107 @@ ipcMain.handle('save-file-content', async (event, filePath, content) => {
     return { success: true };
   } catch (error) {
     console.error(`Failed to save file ${filePath}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-file', async (event, filePath) => {
+  try {
+    // Use Electron's shell.trashItem to move to trash instead of permanently deleting
+    const { shell } = require('electron');
+    await shell.trashItem(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to delete file ${filePath}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Terminal IPC handlers
+ipcMain.handle('terminal:spawn', async (event) => {
+  try {
+    const terminalId = `term-${Date.now()}`;
+
+    // Determine shell based on platform
+    const shell = process.platform === 'win32'
+      ? 'cmd.exe'
+      : process.env.SHELL || '/bin/bash';
+
+    // Spawn PTY process with proper terminal emulation
+    const ptyProcess = pty.spawn(shell, [], {
+      name: 'xterm-color',
+      cols: 80,
+      rows: 24,
+      cwd: process.env.HOME || process.env.USERPROFILE,
+      env: process.env
+    });
+
+    // Store the process
+    terminals.set(terminalId, ptyProcess);
+
+    // Handle PTY output
+    ptyProcess.onData((data) => {
+      event.sender.send('terminal:data', terminalId, data);
+    });
+
+    // Handle process exit
+    ptyProcess.onExit((exitEvent) => {
+      event.sender.send('terminal:exit', terminalId, exitEvent.exitCode);
+      terminals.delete(terminalId);
+    });
+
+    return { success: true, terminalId };
+  } catch (error) {
+    console.error('Failed to spawn terminal:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('terminal:write', async (event, terminalId, data) => {
+  try {
+    const ptyProcess = terminals.get(terminalId);
+    if (!ptyProcess) {
+      return { success: false, error: 'Terminal not found' };
+    }
+
+    // Write to PTY process
+    ptyProcess.write(data);
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to write to terminal ${terminalId}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
+  try {
+    const ptyProcess = terminals.get(terminalId);
+    if (!ptyProcess) {
+      return { success: false, error: 'Terminal not found' };
+    }
+
+    // Resize the PTY
+    ptyProcess.resize(cols, rows);
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to resize terminal ${terminalId}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('terminal:kill', async (event, terminalId) => {
+  try {
+    const ptyProcess = terminals.get(terminalId);
+    if (!ptyProcess) {
+      return { success: false, error: 'Terminal not found' };
+    }
+
+    // Kill the PTY process
+    ptyProcess.kill();
+    terminals.delete(terminalId);
+    return { success: true };
+  } catch (error) {
+    console.error(`Failed to kill terminal ${terminalId}:`, error);
     return { success: false, error: error.message };
   }
 });
