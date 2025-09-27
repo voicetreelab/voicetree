@@ -9,6 +9,7 @@ export interface FloatingWindowManagerContextType {
   closeWindow: (id: string) => void;
   updateWindowContent: (id: string, newContent: string) => void;
   updateWindowPosition: (id: string, newPosition: { x: number; y: number }) => void;
+  updateWindowGraphOffset: (id: string, graphOffset: { x: number; y: number }) => void;
   bringToFront: (id: string) => void;
 }
 

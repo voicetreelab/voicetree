@@ -4,13 +4,15 @@ import { FloatingWindow } from './FloatingWindow';
 
 interface FloatingWindowContainerProps {
   onPositionUpdateCallback?: (callback: (positionUpdates: Map<string, { x: number; y: number }>) => void) => void;
+  onDragStop?: (windowId: string, screenPosition: { x: number; y: number }) => void;
 }
 
 /**
  * Renders all active floating windows. It acts as the container layer for all floating elements.
  */
 export const FloatingWindowContainer: React.FC<FloatingWindowContainerProps> = ({
-  onPositionUpdateCallback
+  onPositionUpdateCallback,
+  onDragStop
 }) => {
   const { windows, updateWindowPosition } = useFloatingWindows();
 
@@ -45,7 +47,11 @@ export const FloatingWindowContainer: React.FC<FloatingWindowContainerProps> = (
       }}
     >
       {windows.map(window => (
-        <FloatingWindow key={window.id} {...window} />
+        <FloatingWindow
+          key={window.id}
+          {...window}
+          onDragStop={onDragStop ? (pos) => onDragStop(window.id, pos) : undefined}
+        />
       ))}
     </div>
   );

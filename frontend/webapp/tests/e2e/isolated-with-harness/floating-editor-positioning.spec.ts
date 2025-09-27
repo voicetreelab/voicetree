@@ -309,12 +309,6 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
       expect(pannedPos).not.toBeNull();
 
       if (draggedPos && pannedPos) {
-        // Debug output
-        console.log('draggedPos:', draggedPos);
-        console.log('pannedPos:', pannedPos);
-        console.log('X difference:', pannedPos.x - draggedPos.x);
-        console.log('Y difference:', pannedPos.y - draggedPos.y);
-
         // Should have moved approximately by the pan amount
         expect(Math.abs(pannedPos.x - draggedPos.x - 100)).toBeLessThan(10);
         expect(Math.abs(pannedPos.y - draggedPos.y - 100)).toBeLessThan(10);

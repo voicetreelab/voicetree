@@ -17,6 +17,15 @@ export interface FloatingWindow {
     width: number;
     height: number;
   };
+  // Graph coordinate fields for zoom-independent positioning
+  graphAnchor?: {
+    x: number;  // Node position in graph coordinates
+    y: number;
+  };
+  graphOffset?: {
+    x: number;  // User's drag offset from anchor in graph coordinates
+    y: number;
+  };
   zIndex: number;
   onSave?: (newContent: string) => Promise<void>;
 }

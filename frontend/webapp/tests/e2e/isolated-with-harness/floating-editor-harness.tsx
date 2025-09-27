@@ -143,6 +143,7 @@ const CytoscapeEditor = () => {
   const [currentNodeId, setCurrentNodeId] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
+  const windowOffset = useRef({ x: 0, y: 0 }); // Track offset from node after dragging
 
   useEffect(() => {
     if (!cyRef.current) return;
@@ -179,6 +180,7 @@ const CytoscapeEditor = () => {
       setEditorPosition({ x: renderedPos.x, y: renderedPos.y });
       setContent(`# Content for ${node.id()}`);
       setCurrentNodeId(node.id());
+      windowOffset.current = { x: 0, y: 0 }; // Reset offset when opening new window
       setShowEditor(true);
     });
 
@@ -197,11 +199,13 @@ const CytoscapeEditor = () => {
     const updatePosition = () => {
       if (isDragging) return; // Don't update position while dragging
 
-      const node = cyInstance.current!.$(
-`#${currentNodeId}`);
+      const node = cyInstance.current!.$(`#${currentNodeId}`);
       if (node.length > 0) {
         const renderedPos = node.renderedPosition();
-        setEditorPosition({ x: renderedPos.x, y: renderedPos.y });
+        setEditorPosition({
+          x: renderedPos.x + windowOffset.current.x,
+          y: renderedPos.y + windowOffset.current.y
+        });
       }
     };
 
@@ -240,6 +244,17 @@ const CytoscapeEditor = () => {
     };
 
     const handleMouseUp = () => {
+      // Calculate and store the offset from the node
+      if (cyInstance.current && currentNodeId) {
+        const node = cyInstance.current.$(`#${currentNodeId}`);
+        if (node.length > 0) {
+          const nodePos = node.renderedPosition();
+          windowOffset.current = {
+            x: editorPosition.x - nodePos.x,
+            y: editorPosition.y - nodePos.y
+          };
+        }
+      }
       setIsDragging(false);
     };
 
@@ -250,7 +265,7 @@ const CytoscapeEditor = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, currentNodeId, editorPosition]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>

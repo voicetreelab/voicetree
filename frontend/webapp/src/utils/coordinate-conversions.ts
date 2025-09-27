@@ -1,0 +1,65 @@
+import type { Core } from 'cytoscape';
+
+/**
+ * Converts graph coordinates to screen coordinates.
+ * Screen coordinates account for zoom, pan, and container offset.
+ *
+ * Formula: screenX = (graphX * zoom) + pan.x + containerRect.left
+ *          screenY = (graphY * zoom) + pan.y + containerRect.top
+ */
+export function toScreenCoords(
+  graphX: number,
+  graphY: number,
+  cy: Core
+): { x: number; y: number } {
+  const zoom = cy.zoom();
+  const pan = cy.pan();
+  const containerRect = cy.container().getBoundingClientRect();
+
+  return {
+    x: (graphX * zoom) + pan.x + containerRect.left,
+    y: (graphY * zoom) + pan.y + containerRect.top
+  };
+}
+
+/**
+ * Converts screen coordinates to graph coordinates.
+ * Removes the effect of zoom, pan, and container offset.
+ *
+ * Formula: graphX = (screenX - containerRect.left - pan.x) / zoom
+ *          graphY = (screenY - containerRect.top - pan.y) / zoom
+ */
+export function toGraphCoords(
+  screenX: number,
+  screenY: number,
+  cy: Core
+): { x: number; y: number } {
+  const zoom = cy.zoom();
+  const pan = cy.pan();
+  const containerRect = cy.container().getBoundingClientRect();
+
+  return {
+    x: (screenX - containerRect.left - pan.x) / zoom,
+    y: (screenY - containerRect.top - pan.y) / zoom
+  };
+}
+
+/**
+ * Scales a scalar value from graph units to screen units.
+ * Used for converting distances, sizes, etc.
+ *
+ * Formula: screenValue = graphValue * zoom
+ */
+export function graphToScreen(value: number, zoom: number): number {
+  return value * zoom;
+}
+
+/**
+ * Scales a scalar value from screen units to graph units.
+ * Used for converting distances, sizes, etc.
+ *
+ * Formula: graphValue = screenValue / zoom
+ */
+export function screenToGraph(value: number, zoom: number): number {
+  return value / zoom;
+}

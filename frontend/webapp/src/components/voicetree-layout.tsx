@@ -8,6 +8,7 @@ import { DEFAULT_NODE_COLOR, DEFAULT_EDGE_COLOR, HOVER_COLOR } from "@/graph-cor
 import cytoscape from 'cytoscape';
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
+import { toScreenCoords, toGraphCoords } from '@/utils/coordinate-conversions';
 // @ts-expect-error - cytoscape-cola doesn't have proper TypeScript definitions
 import cola from 'cytoscape-cola';
 
@@ -114,7 +115,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
   const markdownFiles = useRef<Map<string, string>>(new Map());
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
-  const { openWindow, windows, updateWindowContent } = useFloatingWindows();
+  const { openWindow, windows, updateWindowContent, updateWindowGraphOffset } = useFloatingWindows();
   const openWindowRef = useRef(openWindow);
   const windowsRef = useRef(windows);
 
@@ -156,13 +157,22 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     // Use actual windows from context instead of duplicate openEditorsRef
     for (const window of windowsRef.current) {
       if (window.nodeId && window.type === 'MarkdownEditor') {
-        const node = cy.getElementById(window.nodeId);
-        if (node.length > 0) {
-          const renderedPos = node.renderedPosition();
-          positionUpdates.set(window.nodeId, {
-            x: renderedPos.x - 50,
-            y: renderedPos.y - 50
-          });
+        // If window has graph coordinates, use them
+        if (window.graphAnchor) {
+          const graphX = window.graphAnchor.x + (window.graphOffset?.x || 0);
+          const graphY = window.graphAnchor.y + (window.graphOffset?.y || 0);
+          const screenPos = toScreenCoords(graphX, graphY, cy);
+          positionUpdates.set(window.nodeId, screenPos);
+        } else {
+          // Fallback to old behavior for backward compatibility
+          const node = cy.getElementById(window.nodeId);
+          if (node.length > 0) {
+            const renderedPos = node.renderedPosition();
+            positionUpdates.set(window.nodeId, {
+              x: renderedPos.x - 50,
+              y: renderedPos.y - 50
+            });
+          }
         }
       }
     }
@@ -187,6 +197,27 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
   const handlePositionUpdateCallback = useCallback((callback: (positionUpdates: Map<string, { x: number; y: number }>) => void) => {
     positionUpdateCallbackRef.current = callback;
   }, []);
+
+  // Handle window drag to update graph offset
+  const handleWindowDragStop = useCallback((windowId: string, screenPosition: { x: number; y: number }) => {
+    const cy = cytoscapeRef.current?.getCore();
+    if (!cy) return;
+
+    const window = windows.find(w => w.id === windowId);
+    if (!window || !window.graphAnchor) return;
+
+    // Convert screen position to graph coordinates
+    const graphPos = toGraphCoords(screenPosition.x, screenPosition.y, cy);
+
+    // Calculate new offset from anchor
+    const newGraphOffset = {
+      x: graphPos.x - window.graphAnchor.x,
+      y: graphPos.y - window.graphAnchor.y
+    };
+
+    // Update the window's graph offset
+    updateWindowGraphOffset(windowId, newGraphOffset);
+  }, [windows, updateWindowGraphOffset]);
 
 
   // Dark mode management
@@ -482,14 +513,25 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
         }
 
         if (content && filePath) {
-          const nodePos = event.target.renderedPosition();
+          const nodeGraphPos = event.target.position(); // Get graph position
+          const nodeScreenPos = event.target.renderedPosition();
+          const cy = event.cy;
+          const zoom = cy.zoom();
+
+          // Calculate initial offset in graph coordinates
+          const initialGraphOffset = {
+            x: -50 / zoom,  // Convert pixel offset to graph units
+            y: -50 / zoom
+          };
 
           openWindowRef.current({
             nodeId,
             title: nodeId,
             type: 'MarkdownEditor',
             content,
-            position: { x: nodePos.x - 50, y: nodePos.y - 50 },
+            position: { x: nodeScreenPos.x - 50, y: nodeScreenPos.y - 50 }, // Keep for initial display
+            graphAnchor: nodeGraphPos,  // Store node position in graph coords
+            graphOffset: initialGraphOffset,  // Store initial offset in graph coords
             size: { width: 700, height: 500 },
             onSave: async (text: string) => {
               if (window.electronAPI?.saveFileContent) {
@@ -652,7 +694,10 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
       </div>
 
       {/* Floating Window Container - Renders on top of everything */}
-      <FloatingWindowContainer onPositionUpdateCallback={handlePositionUpdateCallback} />
+      <FloatingWindowContainer
+        onPositionUpdateCallback={handlePositionUpdateCallback}
+        onDragStop={handleWindowDragStop}
+      />
 
       {/* Speed Dial Menu */}
       <SpeedDialMenu
