@@ -18,6 +18,11 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
   const { closeWindow, bringToFront, updateWindowPosition } = useFloatingWindows();
   const nodeRef = useRef(null);
 
+  // Debug position changes
+  React.useEffect(() => {
+    console.log(`[DEBUG] FloatingWindow ${id} position changed to:`, position);
+  }, [position, id]);
+
   const handleSave = async (newContent: string) => {
     if (props.onSave) {
       await props.onSave(newContent);
@@ -41,12 +46,16 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
     <Draggable
       nodeRef={nodeRef}
       handle=".window-title-bar"
-      defaultPosition={position}
-      onStop={(_, data) => {
+      position={position}
+      onDrag={(_, data) => {
+        // Update position during drag for smooth dragging
         const newPosition = { x: data.x, y: data.y };
         updateWindowPosition(id, newPosition);
+      }}
+      onStop={(_, data) => {
+        const newPosition = { x: data.x, y: data.y };
 
-        // If we have graph coordinates and a drag callback, notify parent
+        // If we have graph coordinates and a drag callback, notify parent to update graph offset
         if (props.onDragStop && graphAnchor) {
           props.onDragStop(newPosition);
         }
