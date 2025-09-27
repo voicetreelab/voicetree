@@ -1,17 +1,9 @@
-import React, { createContext, useContext, useRef } from 'react';
+import React, { useRef } from 'react';
 import type { Core } from 'cytoscape';
 import type { PropsWithChildren } from 'react';
 import { toGraphCoords, toScreenCoords, graphToScreen, screenToGraph } from '@/utils/coordinate-conversions';
-
-interface CoordinateContextType {
-  getCyInstance: () => Core | null;
-  toGraphCoords: (screenX: number, screenY: number) => { x: number; y: number } | null;
-  toScreenCoords: (graphX: number, graphY: number) => { x: number; y: number } | null;
-  graphToScreen: (value: number) => number | null;
-  screenToGraph: (value: number) => number | null;
-}
-
-const CoordinateContext = createContext<CoordinateContextType | null>(null);
+import { CoordinateContext } from '@/components/floating-windows/context/CoordinateContextTypes';
+import type { CoordinateContextType } from '@/components/floating-windows/context/CoordinateContextTypes';
 
 interface CoordinateProviderProps extends PropsWithChildren {
   cyInstance: Core | null;
@@ -54,12 +46,4 @@ export const CoordinateProvider: React.FC<CoordinateProviderProps> = ({ children
       {children}
     </CoordinateContext.Provider>
   );
-};
-
-export const useCoordinates = (): CoordinateContextType => {
-  const context = useContext(CoordinateContext);
-  if (!context) {
-    throw new Error('useCoordinates must be used within a CoordinateProvider');
-  }
-  return context;
 };

@@ -15,7 +15,7 @@ interface FloatingWindowProps extends FloatingWindowType {
  */
 export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
   const { id, title, type, position, size, zIndex, graphAnchor } = props;
-  const { closeWindow, bringToFront, updateWindowPosition, updateWindowGraphOffset } = useFloatingWindows();
+  const { closeWindow, bringToFront, updateWindowPosition } = useFloatingWindows();
   const nodeRef = useRef(null);
 
   const handleSave = async (newContent: string) => {
