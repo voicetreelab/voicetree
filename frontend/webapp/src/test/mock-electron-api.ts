@@ -1,4 +1,5 @@
 import type { ElectronAPI, FileEvent, ErrorEvent, WatchStatus } from '@/types/electron';
+import { EXAMPLE_FILES, EXAMPLE_DIRECTORY } from './example-files';
 
 /**
  * Mock Electron API for testing the file-to-graph pipeline in browser environment
@@ -8,6 +9,7 @@ export class MockElectronAPI implements ElectronAPI {
   private listeners: Map<string, Array<(data: unknown) => void>> = new Map();
   private watchStatus: WatchStatus = { isWatching: false };
   private watchDirectory?: string;
+  private hasLoadedExampleFiles = false;
 
   constructor() {
     // Set up event listener for custom events from tests
@@ -17,19 +19,43 @@ export class MockElectronAPI implements ElectronAPI {
   // IPC Methods
   async startFileWatching(directoryPath?: string): Promise<{ success: boolean; directory?: string; error?: string }> {
     if (!directoryPath) {
-      // Simulate user selecting a directory
-      directoryPath = '/mock/test/directory';
+      // Use example directory by default
+      directoryPath = EXAMPLE_DIRECTORY;
     }
 
     this.watchDirectory = directoryPath;
     this.watchStatus = { isWatching: true, directory: directoryPath };
 
-    // Simulate initial scan
+    // Load example files automatically on first watch
+    if (!this.hasLoadedExampleFiles) {
+      this.loadExampleFiles();
+      this.hasLoadedExampleFiles = true;
+    }
+
+    // Simulate initial scan complete
     setTimeout(() => {
       this.emit('initial-scan-complete', { directory: directoryPath });
     }, 100);
 
     return { success: true, directory: directoryPath };
+  }
+
+  private loadExampleFiles(): void {
+    console.log('MockElectronAPI: Loading example files...');
+
+    // Emit file-added events for each example file with a small delay
+    EXAMPLE_FILES.forEach((file, index) => {
+      setTimeout(() => {
+        console.log(`MockElectronAPI: Loading example file: ${file.path}`);
+        this.emit('file-added', {
+          path: file.path,
+          fullPath: `${this.watchDirectory}/${file.path}`,
+          content: file.content,
+          size: file.content.length,
+          modified: new Date().toISOString()
+        });
+      }, 100 + (index * 50)); // Stagger the file additions
+    });
   }
 
   async stopFileWatching(): Promise<{ success: boolean; error?: string }> {

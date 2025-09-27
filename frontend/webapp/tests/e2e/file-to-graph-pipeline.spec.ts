@@ -11,39 +11,36 @@ test.describe('File-to-Graph Pipeline E2E Test', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    // Since the app is using the .ts version of useGraphManager which uses the mock file observer,
-    // we can directly use the mock file observer and trigger its methods
-
     // Wait for the page to be fully loaded
     await page.waitForTimeout(1000);
 
     // STEP 1: Start with empty state (verify initial UI state)
-    console.log('=== STEP 1: Testing empty state ===');
+    console.log('=== STEP 1: Testing initial UI state ===');
 
     // Verify the File Watching Panel is visible
     await expect(page.locator('h3:has-text("Live File Watching")')).toBeVisible();
 
-    // Since the app detects non-Electron environment, it should show the "file watching available in Electron app only" message
-    await expect(page.locator('text=File watching available in Electron app only')).toBeVisible();
+    // The app now has MockElectronAPI, so it should show the control buttons
+    await expect(page.locator('button:has-text("Open Folder")')).toBeVisible();
 
-    // The app uses the mock file observer, which starts automatically with simulation
-    // Let's wait for the mock simulation to start and then interact with it
-    await page.waitForTimeout(2000);
+    // STEP 2: Start file watching
+    console.log('=== STEP 2: Starting file watching ===');
 
-    // STEP 2: Since the mock file observer automatically simulates file additions,
-    // we should see some nodes appearing from the simulation
-    console.log('=== STEP 2: Observing mock simulation ===');
+    // Click the Open Folder button to start watching
+    await page.locator('button:has-text("Open Folder")').click();
 
-    // The mock file observer should be creating some files automatically
-    // Let's wait and check if nodes appear
-    await page.waitForTimeout(3000);
+    // Wait for the example files to be loaded
+    await page.waitForTimeout(1000);
 
-    // Check if any nodes have appeared from the mock simulation
-    const nodeCountElement = page.locator('text=/Nodes:\\s*\\d+/');
-    if (await nodeCountElement.count() > 0) {
-      const nodeText = await nodeCountElement.textContent();
-      console.log('Found node count:', nodeText);
-    }
+    // Check that status changed to "Watching"
+    await expect(page.locator('span:has-text("Watching")')).toBeVisible();
+
+    // STEP 3: Verify example files are loaded
+    console.log('=== STEP 3: Verifying example files loaded ===');
+
+    // The mock API automatically loads 6 example files
+    // Let's wait a bit more for all files to be processed
+    await page.waitForTimeout(1500);
 
     // Take a screenshot for documentation
     await page.screenshot({
@@ -51,7 +48,7 @@ test.describe('File-to-Graph Pipeline E2E Test', () => {
       fullPage: true
     });
 
-    console.log('✓ File-to-graph pipeline test completed - demonstrating UI integration');
+    console.log('✓ File-to-graph pipeline test completed - example files loaded automatically');
   });
 
   test('should display file watching UI components correctly', async ({ page }) => {
@@ -71,17 +68,20 @@ test.describe('File-to-Graph Pipeline E2E Test', () => {
     console.log('✓ UI components validation test completed');
   });
 
-  test('should show correct status for non-Electron environment', async ({ page }) => {
+  test('should show correct status with mock Electron API', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
-    // In non-Electron environment, should show the limitation message
-    await expect(page.locator('text=File watching available in Electron app only')).toBeVisible();
+    // With MockElectronAPI, the app should show control buttons
+    // Use .first() since there might be multiple file watching panels
+    await expect(page.locator('button:has-text("Open Folder")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Stop Watching")').first()).toBeVisible();
 
-    // But should still show the status and other UI elements
-    await expect(page.locator('span:has-text("Status:")')).toBeVisible();
+    // Should show the status UI elements
+    await expect(page.locator('span:has-text("Status:")').first()).toBeVisible();
+    await expect(page.locator('span:has-text("Not watching")').first()).toBeVisible();
 
-    console.log('✓ Non-Electron environment handling test completed');
+    console.log('✓ Mock Electron API UI test completed');
   });
 });

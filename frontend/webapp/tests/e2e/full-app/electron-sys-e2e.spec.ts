@@ -47,6 +47,7 @@ const test = base.extend<{
   tempDir: string;
 }>({
   // Set up Electron application
+  // eslint-disable-next-line no-empty-pattern
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
       args: [path.join(PROJECT_ROOT, 'electron.cjs')],
@@ -68,6 +69,7 @@ const test = base.extend<{
   },
 
   // Create temporary directory for test files
+  // eslint-disable-next-line no-empty-pattern
   tempDir: async ({}, use) => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-test-'));
     console.log(`Created temp directory: ${dir}`);

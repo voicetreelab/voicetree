@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 
+interface TestWindow extends Window {
+  _test_logs?: string[];
+}
+
 test.describe('File Change Editor Update Integration', () => {
 
   test('should update editor content when external file changes', async ({ page }) => {
@@ -41,7 +45,7 @@ test.describe('File Change Editor Update Integration', () => {
 
     // Verify the update was logged
     const logs = await page.evaluate(() => {
-      return (window as any)._test_logs || [];
+      return (window as TestWindow)._test_logs || [];
     });
 
     expect(logs.some((log: string) =>
@@ -77,7 +81,7 @@ test.describe('File Change Editor Update Integration', () => {
 
     // Verify the logs show no editor update attempt
     const logs = await page.evaluate(() => {
-      return (window as any)._test_logs || [];
+      return (window as TestWindow)._test_logs || [];
     });
 
     expect(logs.some((log: string) =>

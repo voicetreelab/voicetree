@@ -245,6 +245,7 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: process.env.HEADLESS_TEST !== '1', // Hide window in headless test mode
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

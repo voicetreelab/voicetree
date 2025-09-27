@@ -12,7 +12,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1, // Single worker for Electron tests
-  reporter: [['list'], ['html', { outputFolder: 'playwright-report-electron' }]],
+  reporter: [['list'], ['html', { outputFolder: 'playwright-report-electron', open: 'never' }]],
   use: {
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
