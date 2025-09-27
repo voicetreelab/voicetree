@@ -4,6 +4,9 @@ import type { PropsWithChildren } from 'react';
 import type { FloatingWindow } from '@/components/floating-windows/types';
 import { FloatingWindowContext, type FloatingWindowManagerContextType } from './FloatingWindowContext';
 
+// Counter for generating unique window IDs
+let windowIdCounter = 0;
+
 // Create the provider component
 export const FloatingWindowManagerProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [windows, setWindows] = useState<FloatingWindow[]>([]);
@@ -28,7 +31,7 @@ export const FloatingWindowManagerProvider: React.FC<PropsWithChildren> = ({ chi
 
       const newWindow: FloatingWindow = {
         ...config,
-        id: `window_${Date.now().toString()}`,
+        id: `window_${++windowIdCounter}`,
         content: config.content || '',
         zIndex: getHighestZIndex(prev),
       };

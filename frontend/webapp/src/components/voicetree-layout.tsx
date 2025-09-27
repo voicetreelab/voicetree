@@ -148,11 +148,14 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
   // Function to update positions of all open editors based on their node positions
   const updateEditorPositions = useCallback(() => {
     if (!positionUpdateCallbackRef.current || !cytoscapeRef.current) {
+      console.log('[DEBUG] updateEditorPositions early return - no callback or cy');
       return;
     }
 
     const cy = cytoscapeRef.current.getCore();
     const positionUpdates = new Map<string, { x: number; y: number }>();
+
+    console.log('[DEBUG] Windows to update:', windowsRef.current.length);
 
     // Use actual windows from context instead of duplicate openEditorsRef
     for (const window of windowsRef.current) {
@@ -162,6 +165,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
           const graphX = window.graphAnchor.x + (window.graphOffset?.x || 0);
           const graphY = window.graphAnchor.y + (window.graphOffset?.y || 0);
           const screenPos = toScreenCoords(graphX, graphY, cy);
+          console.log(`[DEBUG] Window ${window.nodeId}: graph(${graphX},${graphY}) -> screen(${screenPos.x},${screenPos.y})`);
           positionUpdates.set(window.nodeId, screenPos);
         } else {
           // Fallback to old behavior for backward compatibility
@@ -178,16 +182,21 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     }
 
     if (positionUpdates.size > 0) {
+      console.log('[DEBUG] Calling position update callback with', positionUpdates.size, 'updates');
       positionUpdateCallbackRef.current(positionUpdates);
+    } else {
+      console.log('[DEBUG] No position updates to send');
     }
   }, []);
 
   // Throttled version using requestAnimationFrame
   const throttledUpdateEditorPositions = useCallback(() => {
+    console.log('[DEBUG] throttledUpdateEditorPositions called');
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
     }
     rafIdRef.current = requestAnimationFrame(() => {
+      console.log('[DEBUG] RAF executing updateEditorPositions');
       updateEditorPositions();
       rafIdRef.current = null;
     });
