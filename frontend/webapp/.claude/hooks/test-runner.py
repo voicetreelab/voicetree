@@ -89,8 +89,7 @@ def run_e2e_test():
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
-            timeout=120,  # Increased timeout for e2e test
-            env={**os.environ, "HEADLESS_TEST": "1"}
+            timeout=120  # Increased timeout for e2e test
         )
         elapsed_time = time.time() - start_time
         return result.returncode, result.stdout, result.stderr, elapsed_time

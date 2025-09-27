@@ -30,6 +30,9 @@ Any proposed solution must satisfy the following constraints:
 
 ## 4. Proposed Solution
 
+editor <-> indirection layer <-> filies -> graphData -> graphViiz (slighlty different for read/write paths)
+
+
 The chosen architecture uses the principle of **Inversion of Control**. The editor component will be a "pure" or "dumb" component that is orchestrated by its parent (`VoiceTreeLayout`). It receives its content and the functions it needs to communicate changes as props.
 
 This creates a clean, unidirectional data flow loop.

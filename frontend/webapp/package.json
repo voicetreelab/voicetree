@@ -18,7 +18,7 @@
     "test:e2e:headless": "xvfb-run -a playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "test:electron": "npm run build:test && HEADLESS_TEST=1 playwright test --config=playwright-electron.config.ts",
+    "test:electron": "npm run build:test && playwright test --config=playwright-electron.config.ts",
     "test:browser": "playwright test tests/e2e/file-to-graph-pipeline-behavioral.spec.ts",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && NODE_ENV=development electron .\"",

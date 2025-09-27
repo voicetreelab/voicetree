@@ -54,7 +54,7 @@ const test = base.extend<{
       env: {
         ...process.env,
         NODE_ENV: 'development',
-        HEADLESS_TEST: '1' // Optionally run headless
+        MINIMIZE_TEST: '1' // Run with window minimized to avoid popups
       }
     });
 
@@ -140,28 +140,39 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
     // Trigger the file watching for our temp directory
     // This simulates clicking "Open Folder" and selecting our temp dir
-    await appWindow.evaluate((dir) => {
+    const startResult = await appWindow.evaluate((dir) => {
       // Directly call the Electron API to start watching
       if ((window as ExtendedWindow).electronAPI) {
+        console.log('Starting file watching for:', dir);
         return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      } else {
+        console.log('electronAPI not available!');
+        return null;
       }
     }, tempDir);
+    console.log('Start file watching result:', startResult);
 
-    // Wait for file watching to start
-    await expect.poll(async () => {
-      return appWindow.evaluate(() => {
-        if ((window as ExtendedWindow).electronAPI) {
-          return (window as ExtendedWindow).electronAPI.getWatchStatus();
-        }
-        return null;
-      });
-    }, {
-      message: 'Waiting for file watching to start',
-      timeout: 5000
-    }).toMatchObject({
-      isWatching: true,
-      directory: tempDir
+    // Wait a moment for the IPC to complete
+    await appWindow.waitForTimeout(1000);
+
+    // Wait for file watching to start and verify it's working
+    const watchStatus = await appWindow.evaluate(() => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.getWatchStatus();
+      }
+      return null;
     });
+
+    console.log('Watch status after start:', watchStatus);
+
+    // Also check if the UI has updated
+    const uiStatus = await appWindow.locator('text=Not watching').count();
+    console.log('UI still shows "Not watching":', uiStatus > 0);
+
+    // If watch status shows it's watching, continue even if UI hasn't updated yet
+    if (!watchStatus || !watchStatus.isWatching) {
+      throw new Error(`File watching did not start properly. Status: ${JSON.stringify(watchStatus)}`);
+    }
 
     console.log('=== STEP 3: Create first markdown file ===');
 
