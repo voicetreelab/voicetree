@@ -1,7 +1,6 @@
 import VoiceTreeLayout from "./components/voicetree-layout";
 import VoiceTreeTranscribe from "./renderers/voicetree-transcribe";
 import Sidebar from "./components/sidebar";
-import FileWatcherDemo from "./components/file-watcher-demo";
 import { useGraphManager } from "./hooks/useGraphManager";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
@@ -114,12 +113,6 @@ function App() {
           <div>
             <h2 className="text-lg font-bold mb-2">Live Graph From Files</h2>
             <FileWatchingPanel />
-          </div>
-
-          {/* File Watcher Demo - For comparison */}
-          <div>
-            <h2 className="text-lg font-bold mb-2">File Watcher Demo</h2>
-            <FileWatcherDemo />
           </div>
 
           {/* Voice Transcribe Component */}
