@@ -4,7 +4,6 @@ import getAPIKey from "@/utils/get-api-key";
 import { type Token } from "@soniox/speech-to-text-web";
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
-import { DEFAULT_NODE_COLOR, DEFAULT_EDGE_COLOR, HOVER_COLOR } from "@/graph-core/constants";
 import cytoscape from 'cytoscape';
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
@@ -405,6 +404,24 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     const nodeId = normalizeFileId(data.path);
     cy.getElementById(nodeId).remove();
 
+    // Clean up orphaned placeholder nodes
+    // A placeholder node is one that has no corresponding file and no incoming edges
+    cy.nodes().forEach(node => {
+      const id = node.id();
+      // Check if this node has a corresponding file
+      let hasFile = false;
+      for (const [path] of markdownFiles.current) {
+        if (normalizeFileId(path) === id) {
+          hasFile = true;
+          break;
+        }
+      }
+      // If no file and no incoming edges, remove it
+      if (!hasFile && cy.edges(`[target = "${id}"]`).length === 0) {
+        node.remove();
+      }
+    });
+
     // Update counts
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
@@ -505,7 +522,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
           cytoscapeRef.current?.collapseNode(node);
           // Remove connected nodes that aren't connected to other expanded nodes
           const connectedNodes = node.connectedEdges().connectedNodes();
-          connectedNodes.forEach((connectedNode: any) => {
+          connectedNodes.forEach((connectedNode: cytoscape.NodeSingular) => {
             const otherConnections = connectedNode.connectedEdges().connectedNodes('.expanded');
             if (otherConnections.length === 1) { // Only connected to this collapsing node
               connectedNode.remove();

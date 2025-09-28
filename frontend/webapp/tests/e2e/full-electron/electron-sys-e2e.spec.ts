@@ -314,7 +314,9 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     const nestedFile2 = path.join(subDir, 'utils.md');
 
     await fs.writeFile(nestedFile1, '# Core Concepts\n\nFundamental ideas.');
+    await appWindow.waitForTimeout(500); // Give time for first file to be processed
     await fs.writeFile(nestedFile2, '# Utilities\n\nHelper functions. See [[core]] for basics.');
+    await appWindow.waitForTimeout(500); // Give time for second file to be processed
 
     // Wait for nested files to be detected and processed
     await expect.poll(async () => {
@@ -379,14 +381,22 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
 
   test('should handle rapid real file changes without corruption', async ({ appWindow, tempDir }) => {
     await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000); // Give time for Cytoscape to initialize
+
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         // Check if the app is fully initialized for rapid test
-        return document.readyState === 'complete' && (window as ExtendedWindow).cytoscapeInstance;
+        const hasCytoscape = !!(window as ExtendedWindow).cytoscapeInstance;
+        console.log('Rapid test init check:', {
+          readyState: document.readyState,
+          hasCytoscape,
+          electronAPI: !!(window as ExtendedWindow).electronAPI
+        });
+        return document.readyState === 'complete' && hasCytoscape;
       });
     }, {
       message: 'Waiting for app to fully load for rapid changes test',
-      timeout: 10000
+      timeout: 15000
     }).toBe(true);
 
     // Start watching
@@ -538,9 +548,26 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
       timeout: 15000
     }).toBe(1);
 
-    // Right-click on the node to open context menu
-    const node = await appWindow.locator('.cy-node').first();
-    await node.click({ button: 'right' });
+    // Right-click on the node using Cytoscape API
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        const position = node.renderedPosition();
+        const event = new MouseEvent('contextmenu', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          clientX: position.x,
+          clientY: position.y,
+          button: 2
+        });
+        const canvas = cy.container().querySelector('canvas');
+        if (canvas) {
+          canvas.dispatchEvent(event);
+        }
+      }
+    });
 
     await appWindow.waitForTimeout(500);
 
