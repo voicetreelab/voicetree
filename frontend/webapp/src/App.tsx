@@ -33,7 +33,6 @@ function App() {
   // File Watching Control Panel Component
   const FileWatchingPanel = () => (
     <div className="border rounded-lg p-4 bg-white shadow-sm">
-      <h3 className="text-md font-semibold mb-3">Live File Watching</h3>
 
       {/* Status Display */}
       <div className="mb-3 text-sm">
@@ -65,27 +64,20 @@ function App() {
         {/* Graph data display removed - not available from useGraphManager */}
       </div>
 
-      {/* Control Buttons */}
+      {/* Control Button */}
       <div className="flex gap-2 mb-3">
         {isElectron ? (
-          <>
-            <Button
-              onClick={startWatching}
-              disabled={isLoading || isWatching}
-              size="sm"
-              variant="default"
-            >
-              {isLoading ? 'Starting...' : 'Open Folder'}
-            </Button>
-            <Button
-              onClick={stopWatching}
-              disabled={isLoading || !isWatching}
-              size="sm"
-              variant="secondary"
-            >
-              {isLoading ? 'Stopping...' : 'Stop Watching'}
-            </Button>
-          </>
+          <Button
+            onClick={isWatching ? stopWatching : startWatching}
+            disabled={isLoading}
+            size="sm"
+            variant={isWatching ? "destructive" : "default"}
+          >
+            {isLoading
+              ? (isWatching ? 'Stopping...' : 'Starting...')
+              : (isWatching ? 'Stop Watching' : 'Open Folder')
+            }
+          </Button>
         ) : (
           <div className="text-xs text-gray-500">
             File watching available in Electron app only
@@ -117,16 +109,17 @@ function App() {
     <div className="min-h-screen bg-background">
       <FloatingWindowManagerProvider>
         <div className="grid grid-cols-1 gap-4 p-4">
-          {/* File Watching Panel - New Feature */}
-          <div>
-            <h2 className="text-lg font-bold mb-2">Live Graph From Files</h2>
-            <FileWatchingPanel />
-          </div>
+          {/* Side by side layout - FileWatching (1/6) and VoiceTranscribe (5/6) */}
+          <div className="flex gap-4">
+            {/* File Watching Panel - 1/6 width */}
+            <div className="w-1/6">
+              <FileWatchingPanel />
+            </div>
 
-          {/* Voice Transcribe Component */}
-          <div>
-            <h2 className="text-lg font-bold mb-2">VoiceTreeTranscribe Component</h2>
-            <VoiceTreeTranscribe />
+            {/* Voice Transcribe Component - 5/6 width */}
+            <div className="flex-1">
+              <VoiceTreeTranscribe />
+            </div>
           </div>
 
           {/* Main Graph Visualization with Sidebar */}

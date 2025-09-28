@@ -8,7 +8,7 @@ const FileWatchManager = require('./file-watch-manager.cjs');
 // Global file watch manager instance
 const fileWatchManager = new FileWatchManager();
 
-// Terminal process management with node-pty ONLY
+// Terminal process management with node-pty
 const terminals = new Map();
 
 function createWindow() {
@@ -48,7 +48,7 @@ function createWindow() {
   });
 }
 
-// IPC handlers for file watching
+// IPC handlers for file watching (same as before)
 ipcMain.handle('start-file-watching', async (event, directoryPath) => {
   try {
     let selectedDirectory = directoryPath;
@@ -120,14 +120,14 @@ ipcMain.handle('delete-file', async (event, filePath) => {
   }
 });
 
-// Terminal IPC handlers using node-pty ONLY - No fallbacks!
+// Terminal IPC handlers using node-pty
 ipcMain.handle('terminal:spawn', async (event) => {
   try {
     const terminalId = `term-${Date.now()}`;
 
-    // Determine shell based on platform
+    // Determine shell
     const shell = process.platform === 'win32'
-      ? 'powershell.exe'
+      ? 'cmd.exe'
       : process.env.SHELL || '/bin/bash';
 
     // Get home directory
@@ -137,7 +137,7 @@ ipcMain.handle('terminal:spawn', async (event) => {
 
     console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
 
-    // Create PTY instance - THIS IS THE ONLY WAY, NO FALLBACKS
+    // Create PTY instance
     const ptyProcess = pty.spawn(shell, [], {
       name: 'xterm-256color',
       cols: 80,
@@ -155,8 +155,8 @@ ipcMain.handle('terminal:spawn', async (event) => {
     });
 
     // Handle PTY exit
-    ptyProcess.onExit((exitInfo) => {
-      event.sender.send('terminal:exit', terminalId, exitInfo.exitCode);
+    ptyProcess.onExit((exitCode) => {
+      event.sender.send('terminal:exit', terminalId, exitCode.exitCode);
       terminals.delete(terminalId);
     });
 
@@ -164,17 +164,7 @@ ipcMain.handle('terminal:spawn', async (event) => {
     return { success: true, terminalId };
   } catch (error) {
     console.error('Failed to spawn terminal:', error);
-
-    // Send error message to display in terminal
-    const errorMessage = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error.message}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
-
-    // Create a fake terminal ID for error display
-    const terminalId = `error-${Date.now()}`;
-    setTimeout(() => {
-      event.sender.send('terminal:data', terminalId, errorMessage);
-    }, 100);
-
-    return { success: true, terminalId }; // Return success with error terminal
+    return { success: false, error: error.message };
   }
 });
 
@@ -182,10 +172,6 @@ ipcMain.handle('terminal:write', async (event, terminalId, data) => {
   try {
     const ptyProcess = terminals.get(terminalId);
     if (!ptyProcess) {
-      // Check if it's an error terminal
-      if (terminalId.startsWith('error-')) {
-        return { success: true }; // Ignore writes to error terminals
-      }
       return { success: false, error: 'Terminal not found' };
     }
 
@@ -202,10 +188,6 @@ ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
   try {
     const ptyProcess = terminals.get(terminalId);
     if (!ptyProcess) {
-      // Ignore resize for error terminals
-      if (terminalId.startsWith('error-')) {
-        return { success: true };
-      }
       return { success: false, error: 'Terminal not found' };
     }
 
@@ -223,11 +205,6 @@ ipcMain.handle('terminal:kill', async (event, terminalId) => {
   try {
     const ptyProcess = terminals.get(terminalId);
     if (!ptyProcess) {
-      // Clean up error terminals too
-      if (terminalId.startsWith('error-')) {
-        terminals.delete(terminalId);
-        return { success: true };
-      }
       return { success: false, error: 'Terminal not found' };
     }
 
@@ -249,9 +226,7 @@ app.on('window-all-closed', () => {
   for (const [id, ptyProcess] of terminals) {
     console.log(`Cleaning up terminal ${id}`);
     try {
-      if (!id.startsWith('error-') && ptyProcess.kill) {
-        ptyProcess.kill();
-      }
+      ptyProcess.kill();
     } catch (e) {
       console.error(`Error killing terminal ${id}:`, e);
     }

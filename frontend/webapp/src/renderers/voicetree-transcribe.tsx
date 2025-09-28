@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatusDisplay from "@/components/status-display";
-import SoundWaveVisualizer from "@/components/sound-wave-visualizer";
 import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";
@@ -168,17 +167,17 @@ export default function VoiceTreeTranscribe() {
 
 
   return (
-    <div className="h-screen flex flex-col bg-background relative">
-      {/* Background Wave Visualizer - Always visible */}
-      <div className="absolute inset-0 pointer-events-none z-10 opacity-20">
-        <SoundWaveVisualizer
-          isActive={true}
-          fallbackAnimation={true}
-          barCount={40}
-          barColor="rgb(59, 130, 246)"
-          className="w-full h-full"
-        />
-      </div>
+    <div className="flex flex-col bg-background relative">
+      {/*/!* Background Wave Visualizer - Always visible *!/*/}
+      {/*<div className="absolute inset-0 pointer-events-none z-10 opacity-20">*/}
+      {/*  <SoundWaveVisualizer*/}
+      {/*    isActive={true}*/}
+      {/*    fallbackAnimation={true}*/}
+      {/*    barCount={40}*/}
+      {/*    barColor="rgb(59, 130, 246)"*/}
+      {/*    className="w-full h-full"*/}
+      {/*  />*/}
+      {/*</div>*/}
 
       {/* Header with Status Bar */}
       <div className="border-b bg-background/95 backdrop-blur-sm relative z-20">
@@ -210,7 +209,7 @@ export default function VoiceTreeTranscribe() {
       {/* Transcription Display - Always visible */}
       <div
         ref={autoScrollRef}
-        className="h-1/4 overflow-y-auto p-4 border rounded-lg bg-white/95 backdrop-blur-sm mb-4 relative z-20"
+        className="h-32 overflow-y-auto p-4 border rounded-lg bg-white/95 backdrop-blur-sm mb-4 relative z-20"
       >
         <Renderer
           tokens={allTokens}

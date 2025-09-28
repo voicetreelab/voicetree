@@ -2,20 +2,26 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const os = require('os');
-const pty = require('node-pty');
+let pty;
+try {
+  pty = require('node-pty');
+} catch (e) {
+  console.warn('node-pty not available, falling back to child_process');
+  const { spawn } = require('child_process');
+}
 const FileWatchManager = require('./file-watch-manager.cjs');
 
 // Global file watch manager instance
 const fileWatchManager = new FileWatchManager();
 
-// Terminal process management with node-pty ONLY
+// Terminal process management
 const terminals = new Map();
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    show: false,
+    show: false, // Don't show initially, we'll control it below
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -29,6 +35,7 @@ function createWindow() {
 
   // Load the app
   if (process.env.MINIMIZE_TEST === '1') {
+    // For Playwright tests, always load built files
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   } else if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:3000');
@@ -40,19 +47,22 @@ function createWindow() {
   // Control window visibility after content is ready
   mainWindow.once('ready-to-show', () => {
     if (process.env.MINIMIZE_TEST === '1') {
+      // For tests: show window but minimize it immediately
       mainWindow.show();
       mainWindow.minimize();
     } else {
+      // Normal operation: just show the window
       mainWindow.show();
     }
   });
 }
 
-// IPC handlers for file watching
+// IPC handlers
 ipcMain.handle('start-file-watching', async (event, directoryPath) => {
   try {
     let selectedDirectory = directoryPath;
 
+    // If no directory provided, show directory picker
     if (!selectedDirectory) {
       const result = await dialog.showOpenDialog({
         properties: ['openDirectory'],
@@ -68,6 +78,7 @@ ipcMain.handle('start-file-watching', async (event, directoryPath) => {
     }
 
     return await fileWatchManager.startWatching(selectedDirectory);
+
   } catch (error) {
     console.error('Error in start-file-watching handler:', error);
     return {
@@ -93,104 +104,107 @@ ipcMain.handle('stop-file-watching', async () => {
 ipcMain.handle('get-watch-status', () => {
   const status = {
     isWatching: fileWatchManager.isWatching(),
-    watchedPath: fileWatchManager.getWatchedPath()
+    directory: fileWatchManager.getWatchedDirectory()
   };
-  console.log('Watch status:', status);
+  console.log('Watch status requested:', status, 'watcher exists:', !!fileWatchManager.watcher);
   return status;
 });
 
-// File content handlers
 ipcMain.handle('save-file-content', async (event, filePath, content) => {
   try {
-    await fs.writeFile(filePath, content, 'utf8');
+    // The watcher gets the absolute path, so we expect one here.
+    // No need to join with watchedDirectory.
+    await fs.writeFile(filePath, content, 'utf-8');
     return { success: true };
   } catch (error) {
-    console.error('Error saving file:', error);
+    console.error(`Failed to save file ${filePath}:`, error);
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('delete-file', async (event, filePath) => {
   try {
-    await fs.unlink(filePath);
+    // Use Electron's shell.trashItem to move to trash instead of permanently deleting
+    const { shell } = require('electron');
+    await shell.trashItem(filePath);
     return { success: true };
   } catch (error) {
-    console.error('Error deleting file:', error);
+    console.error(`Failed to delete file ${filePath}:`, error);
     return { success: false, error: error.message };
   }
 });
 
-// Terminal IPC handlers using node-pty ONLY - No fallbacks!
+// Terminal IPC handlers
 ipcMain.handle('terminal:spawn', async (event) => {
   try {
     const terminalId = `term-${Date.now()}`;
+    let shellProcess;
 
-    // Determine shell based on platform
-    const shell = process.platform === 'win32'
-      ? 'powershell.exe'
-      : process.env.SHELL || '/bin/bash';
+    if (process.platform === 'win32') {
+      // Windows: Use cmd.exe directly
+      shellProcess = spawn('cmd.exe', [], {
+        cwd: process.env.USERPROFILE || process.cwd(),
+        env: { ...process.env, TERM: 'xterm-256color' }
+      });
+    } else {
+      // Unix/Mac: Use bash/zsh directly in simple interactive mode
+      const shell = process.env.SHELL || '/bin/bash';
 
-    // Get home directory
-    const cwd = process.platform === 'win32'
-      ? process.env.USERPROFILE || process.cwd()
-      : process.env.HOME || process.cwd();
+      console.log(`Spawning shell: ${shell}`);
 
-    console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
+      // Use the shell in interactive mode without TTY-specific commands
+      shellProcess = spawn(shell, ['-i'], {
+        cwd: process.env.HOME || process.cwd(),
+        env: {
+          ...process.env,
+          TERM: 'dumb',  // Use dumb terminal to avoid escape sequences
+          PS1: '$ ',      // Simple prompt
+          PS2: '> '       // Continuation prompt
+        }
+      });
+    }
 
-    // Create PTY instance - THIS IS THE ONLY WAY, NO FALLBACKS
-    const ptyProcess = pty.spawn(shell, [], {
-      name: 'xterm-256color',
-      cols: 80,
-      rows: 24,
-      cwd: cwd,
-      env: process.env
+    // Store the process
+    terminals.set(terminalId, shellProcess);
+
+    // Handle stdout
+    shellProcess.stdout.on('data', (data) => {
+      event.sender.send('terminal:data', terminalId, data.toString());
     });
 
-    // Store the PTY process
-    terminals.set(terminalId, ptyProcess);
-
-    // Handle PTY data
-    ptyProcess.onData((data) => {
-      event.sender.send('terminal:data', terminalId, data);
+    // Handle stderr
+    shellProcess.stderr.on('data', (data) => {
+      event.sender.send('terminal:data', terminalId, data.toString());
     });
 
-    // Handle PTY exit
-    ptyProcess.onExit((exitInfo) => {
-      event.sender.send('terminal:exit', terminalId, exitInfo.exitCode);
+    // Handle process exit
+    shellProcess.on('exit', (code) => {
+      event.sender.send('terminal:exit', terminalId, code);
       terminals.delete(terminalId);
     });
 
-    console.log(`Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);
+    // Handle errors
+    shellProcess.on('error', (error) => {
+      console.error(`Terminal ${terminalId} error:`, error);
+      event.sender.send('terminal:data', terminalId, `\r\nError: ${error.message}\r\n`);
+    });
+
     return { success: true, terminalId };
   } catch (error) {
     console.error('Failed to spawn terminal:', error);
-
-    // Send error message to display in terminal
-    const errorMessage = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error.message}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
-
-    // Create a fake terminal ID for error display
-    const terminalId = `error-${Date.now()}`;
-    setTimeout(() => {
-      event.sender.send('terminal:data', terminalId, errorMessage);
-    }, 100);
-
-    return { success: true, terminalId }; // Return success with error terminal
+    return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('terminal:write', async (event, terminalId, data) => {
   try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
-      // Check if it's an error terminal
-      if (terminalId.startsWith('error-')) {
-        return { success: true }; // Ignore writes to error terminals
-      }
+    const shellProcess = terminals.get(terminalId);
+    if (!shellProcess) {
       return { success: false, error: 'Terminal not found' };
     }
 
-    // Write to PTY
-    ptyProcess.write(data);
+    // Write to shell process stdin
+    shellProcess.stdin.write(data);
     return { success: true };
   } catch (error) {
     console.error(`Failed to write to terminal ${terminalId}:`, error);
@@ -200,18 +214,17 @@ ipcMain.handle('terminal:write', async (event, terminalId, data) => {
 
 ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
   try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
-      // Ignore resize for error terminals
-      if (terminalId.startsWith('error-')) {
-        return { success: true };
-      }
+    const shellProcess = terminals.get(terminalId);
+    if (!shellProcess) {
       return { success: false, error: 'Terminal not found' };
     }
 
-    // Resize PTY
-    ptyProcess.resize(cols, rows);
-    console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
+    // For script command, we can send window size change signal
+    // Note: This won't work perfectly without real PTY, but it's better than nothing
+    if (process.platform !== 'win32') {
+      // Send SIGWINCH signal to notify about window resize
+      shellProcess.kill('SIGWINCH');
+    }
     return { success: true };
   } catch (error) {
     console.error(`Failed to resize terminal ${terminalId}:`, error);
@@ -221,18 +234,13 @@ ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
 
 ipcMain.handle('terminal:kill', async (event, terminalId) => {
   try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
-      // Clean up error terminals too
-      if (terminalId.startsWith('error-')) {
-        terminals.delete(terminalId);
-        return { success: true };
-      }
+    const shellProcess = terminals.get(terminalId);
+    if (!shellProcess) {
       return { success: false, error: 'Terminal not found' };
     }
 
-    // Kill the PTY process
-    ptyProcess.kill();
+    // Kill the shell process
+    shellProcess.kill();
     terminals.delete(terminalId);
     return { success: true };
   } catch (error) {
@@ -244,19 +252,9 @@ ipcMain.handle('terminal:kill', async (event, terminalId) => {
 // App event handlers
 app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
-  // Clean up all terminals
-  for (const [id, ptyProcess] of terminals) {
-    console.log(`Cleaning up terminal ${id}`);
-    try {
-      if (!id.startsWith('error-') && ptyProcess.kill) {
-        ptyProcess.kill();
-      }
-    } catch (e) {
-      console.error(`Error killing terminal ${id}:`, e);
-    }
-  }
-  terminals.clear();
+app.on('window-all-closed', async () => {
+  // Clean up file watcher before quitting
+  await fileWatchManager.stopWatching();
 
   if (process.platform !== 'darwin') {
     app.quit();
@@ -267,4 +265,19 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+// Clean up on app quit
+app.on('before-quit', async () => {
+  await fileWatchManager.stopWatching();
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
+  fileWatchManager.stopWatching();
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
 });
