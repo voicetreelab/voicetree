@@ -266,7 +266,7 @@ test.describe('Isolated xterm.js Terminal Tests', () => {
     test('should handle empty commands', async ({ terminalPage }) => {
       await terminalPage.waitForTimeout(100);
 
-      const initialContent = await terminalPage.locator('.xterm-screen').textContent();
+      await terminalPage.locator('.xterm-screen').textContent();
 
       // Press Enter without typing anything
       await terminalPage.keyboard.press('Enter');

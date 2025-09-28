@@ -1,4 +1,5 @@
 """Shared logging configuration for VoiceTree."""
+
 import logging
 import os
 

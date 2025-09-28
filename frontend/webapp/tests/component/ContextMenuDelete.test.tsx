@@ -60,7 +60,7 @@ describe('Context Menu Delete Functionality', () => {
     window.electronAPI = {
       deleteFile: vi.fn().mockResolvedValue({ success: true }),
       saveFileContent: vi.fn().mockResolvedValue({ success: true }),
-    } as any;
+    } as typeof window.electronAPI;
 
     // Mock window.confirm
     window.confirm = vi.fn().mockReturnValue(true);
@@ -113,7 +113,7 @@ describe('Context Menu Delete Functionality', () => {
 
     // The context menu should now be visible
     // Since we mocked cxtmenu, we need to directly test the commands
-    const menuInstance = cy.cxtmenu as any;
+    const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
 
     expect(menuInstance).toHaveBeenCalled();
 
@@ -136,7 +136,7 @@ describe('Context Menu Delete Functionality', () => {
   it('should show confirmation dialog when delete is selected', async () => {
     const mockFilePath = '/test/path/test-node.md';
     const onDeleteNode = vi.fn(async (node) => {
-      // Simulate the delete logic from VoiceTreeLayout
+      // Simulate the delete logic from VoiceTreeGraphVizLayout
       if (window.confirm(`Are you sure you want to delete "${node.id()}"? This will move the file to trash.`)) {
         const result = await window.electronAPI!.deleteFile!(mockFilePath);
         if (result.success) {
@@ -154,7 +154,7 @@ describe('Context Menu Delete Functionality', () => {
     const node = cy.getElementById('test-node');
 
     // Get menu commands
-    const menuInstance = cy.cxtmenu as any;
+    const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
     const deleteCommand = commands.find((cmd: any) =>
@@ -194,7 +194,7 @@ describe('Context Menu Delete Functionality', () => {
     const node = cy.getElementById('test-node');
 
     // Get and execute delete command
-    const menuInstance = cy.cxtmenu as any;
+    const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
     const deleteCommand = commands.find((cmd: any) =>
@@ -233,7 +233,7 @@ describe('Context Menu Delete Functionality', () => {
     expect(cy.nodes().length).toBe(2);
 
     // Get and execute delete command
-    const menuInstance = cy.cxtmenu as any;
+    const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
     const deleteCommand = commands.find((cmd: any) =>
@@ -282,7 +282,7 @@ describe('Context Menu Delete Functionality', () => {
     const node = cy.getElementById('test-node');
 
     // Get and execute delete command
-    const menuInstance = cy.cxtmenu as any;
+    const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
     const deleteCommand = commands.find((cmd: any) =>
@@ -310,7 +310,7 @@ describe('Context Menu Delete Functionality', () => {
     const node = cy.getElementById('test-node');
 
     // Get menu commands
-    const menuInstance = cy.cxtmenu as any;
+    const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
     const deleteCommand = commands.find((cmd: any) => {

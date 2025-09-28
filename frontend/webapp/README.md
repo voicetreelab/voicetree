@@ -119,7 +119,7 @@ npm test -- --grep "text input"
 ### Test Coverage
 
 The test suite covers:
-- **Components**: RecordButton, SoundWaveVisualizer, VoiceTreeLayout
+- **Components**: RecordButton, SoundWaveVisualizer, VoiceTreeGraphVizLayout
 - **User Flows**: Text input submission, speech-to-text, history management
 - **Error Handling**: Server offline scenarios, API failures
 - **State Management**: Processing states, dark mode, localStorage persistence

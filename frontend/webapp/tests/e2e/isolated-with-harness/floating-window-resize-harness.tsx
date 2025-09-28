@@ -3,15 +3,14 @@
  * This creates a standalone page with a single resizable floating window.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { FloatingWindow } from '../../../src/components/floating-windows/FloatingWindow';
-import { FloatingWindowManagerProvider, useFloatingWindows } from '../../../src/components/floating-windows/context/FloatingWindowManager';
-import '../../../src/index.css';
+import { FloatingWindow } from '@/components/floating-windows/FloatingWindow';
+import { FloatingWindowManagerProvider, useFloatingWindows } from '@/components/floating-windows/context/FloatingWindowManager';
+import '@/index.css';
 
-function TestHarness() {
-  const { openWindow, windows, closeWindow, bringToFront, updateWindowPosition } = useFloatingWindows();
-  const [sizeInfo, setSizeInfo] = useState({ width: 400, height: 300 });
+export function TestHarness() {
+  const { openWindow, windows, closeWindow, updateWindowPosition } = useFloatingWindows();
 
   React.useEffect(() => {
     // Open a test window on mount
@@ -103,7 +102,7 @@ function TestHarness() {
   );
 }
 
-function App() {
+export function App() {
   return (
     <FloatingWindowManagerProvider>
       <TestHarness />

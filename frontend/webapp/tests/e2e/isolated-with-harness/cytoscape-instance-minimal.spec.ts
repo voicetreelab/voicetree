@@ -31,8 +31,8 @@ test.describe('Minimal Cytoscape Instance Access', () => {
     await page.waitForTimeout(500);
 
     // Check console logs for initialization messages
-    const initLogs = consoleLogs.filter(log => log.includes('VoiceTreeLayout'));
-    console.log('VoiceTreeLayout logs:', initLogs);
+    const initLogs = consoleLogs.filter(log => log.includes('VoiceTreeGraphVizLayout'));
+    console.log('VoiceTreeGraphVizLayout logs:', initLogs);
 
     // Step 1: Verify initial state - cytoscapeInstance should exist
     const initialState = await page.evaluate((): CytoscapeState => {
@@ -107,7 +107,7 @@ test.describe('Minimal Cytoscape Instance Access', () => {
 
     // Print relevant logs
     const relevantLogs = consoleLogs.filter(log =>
-      log.includes('VoiceTreeLayout') ||
+      log.includes('VoiceTreeGraphVizLayout') ||
       log.includes('Adding elements') ||
       log.includes('nodes count')
     );
@@ -123,7 +123,7 @@ test.describe('Minimal Cytoscape Instance Access', () => {
 
     // Add console listener to debug
     page.on('console', msg => {
-      if (msg.text().includes('VoiceTreeLayout') || msg.text().includes('cytoscapeInstance')) {
+      if (msg.text().includes('VoiceTreeGraphVizLayout') || msg.text().includes('cytoscapeInstance')) {
         console.log('Console:', msg.text());
       }
     });

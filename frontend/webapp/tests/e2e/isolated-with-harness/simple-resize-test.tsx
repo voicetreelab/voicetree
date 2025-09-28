@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import Draggable from 'react-draggable';
 import { Resizable } from 're-resizable';
 
-function SimpleResizeTest() {
+export function SimpleResizeTest() {
   const [size, setSize] = useState({ width: 400, height: 300 });
   const nodeRef = useRef<HTMLDivElement>(null);
 

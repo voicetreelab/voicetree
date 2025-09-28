@@ -40,7 +40,8 @@ function createWindow() {
   // Control window visibility after content is ready
   mainWindow.once('ready-to-show', () => {
     if (process.env.MINIMIZE_TEST === '1') {
-      mainWindow.show();
+      // For tests: show window without stealing focus, then minimize
+      mainWindow.showInactive();
       mainWindow.minimize();
     } else {
       mainWindow.show();

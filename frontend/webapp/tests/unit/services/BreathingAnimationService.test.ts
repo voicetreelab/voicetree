@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { BreathingAnimationService, AnimationType } from '@/graph-core/services/BreathingAnimationService';
-import cytoscape, { type NodeSingular, type NodeCollection } from 'cytoscape';
+import cytoscape, { type NodeSingular } from 'cytoscape';
 
 describe('BreathingAnimationService', () => {
   let service: BreathingAnimationService;
@@ -20,7 +20,7 @@ describe('BreathingAnimationService', () => {
     service = new BreathingAnimationService();
 
     // Mock the animate function since it won't work in headless mode
-    vi.spyOn(node, 'animate').mockImplementation((options: any) => {
+    vi.spyOn(node, 'animate').mockImplementation((options: cytoscape.AnimateOptions) => {
       // Simulate immediate completion for testing
       if (options.complete) {
         setTimeout(() => options.complete(), 0);
@@ -28,10 +28,26 @@ describe('BreathingAnimationService', () => {
       return {
         play: vi.fn().mockReturnThis(),
         promise: vi.fn().mockResolvedValue(undefined)
-      } as any;
+      } as ReturnType<NodeSingular['animate']>;
     });
 
     vi.spyOn(node, 'stop').mockImplementation(() => node);
+
+    // Store style values for mocking
+    const styleValues: Record<string, string> = {};
+
+    // Mock style() method to handle both setting and getting
+    const originalStyle = node.style.bind(node);
+    vi.spyOn(node, 'style').mockImplementation((name: string, value?: string) => {
+      if (value !== undefined) {
+        // Setting a style
+        styleValues[name] = value;
+        return originalStyle(name, value);
+      } else {
+        // Getting a style
+        return styleValues[name] || originalStyle(name);
+      }
+    });
   });
 
   afterEach(() => {
@@ -102,13 +118,21 @@ describe('BreathingAnimationService', () => {
 
       // NEW_NODE has a timeout
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
-      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 5000);
+
+      // Filter out the timeout from animate mock (if any)
+      const timeoutCalls = setTimeoutSpy.mock.calls.filter(
+        call => call[1] === 5000
+      );
+      expect(timeoutCalls.length).toBe(1);
 
       vi.clearAllMocks();
 
-      // PINNED has no timeout
+      // PINNED has no timeout (0 means no timeout)
       service.addBreathingAnimation(node, AnimationType.PINNED);
-      expect(setTimeoutSpy).not.toHaveBeenCalled();
+      const pinnedTimeoutCalls = setTimeoutSpy.mock.calls.filter(
+        call => call[1] > 0 && call[1] !== 0
+      );
+      expect(pinnedTimeoutCalls.length).toBe(0);
 
       vi.useRealTimers();
     });
@@ -126,18 +150,29 @@ describe('BreathingAnimationService', () => {
   describe('stopAnimationForNode', () => {
     it('should mark node as inactive', () => {
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+
+      // Verify it's active initially
+      expect(node.data('breathingActive')).toBe(true);
+
       service.stopAnimationForNode(node);
 
-      expect(node.data('breathingActive')).toBe(false);
+      // After stopping, the data is removed
+      expect(node.data('breathingActive')).toBeUndefined();
     });
 
     it('should restore original border styles', () => {
+      // Set initial styles
       node.style('border-width', '5px');
       node.style('border-color', '#00ff00');
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+
+      // Clear previous mock calls
+      vi.clearAllMocks();
+
       service.stopAnimationForNode(node);
 
+      // Check that style was called to restore original values
       expect(node.style).toHaveBeenCalledWith({
         'border-width': '5px',
         'border-color': '#00ff00',
@@ -146,10 +181,13 @@ describe('BreathingAnimationService', () => {
     });
 
     it('should remove animation data from node', () => {
+      // Spy on the removeData method
+      const removeDataSpy = vi.spyOn(node, 'removeData');
+
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.stopAnimationForNode(node);
 
-      expect(node.removeData).toHaveBeenCalledWith(
+      expect(removeDataSpy).toHaveBeenCalledWith(
         'breathingActive originalBorderWidth originalBorderColor animationType'
       );
     });
@@ -170,7 +208,7 @@ describe('BreathingAnimationService', () => {
       vi.spyOn(node2, 'animate').mockImplementation(() => ({
         play: vi.fn().mockReturnThis(),
         promise: vi.fn().mockResolvedValue(undefined)
-      } as any));
+      } as ReturnType<NodeSingular['animate']>));
       vi.spyOn(node2, 'stop').mockImplementation(() => node2);
 
       const nodes = cy.nodes();

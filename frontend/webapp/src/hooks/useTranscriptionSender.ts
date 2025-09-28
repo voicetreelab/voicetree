@@ -1,0 +1,146 @@
+import { useState, useRef, useCallback } from 'react';
+import { type Token } from '@soniox/speech-to-text-web';
+
+interface UseTranscriptionSenderOptions {
+  endpoint: string;
+}
+
+interface UseTranscriptionSenderReturn {
+  sendIncrementalTokens: (tokens: Token[]) => Promise<void>;
+  sendManualText: (text: string) => Promise<void>;
+  bufferLength: number;
+  isProcessing: boolean;
+  connectionError: string | null;
+  reset: () => void;
+}
+
+/**
+ * Custom hook for sending transcription text incrementally to the backend.
+ * Tracks what has been sent and only sends new text to avoid duplicates.
+ */
+export function useTranscriptionSender({
+  endpoint
+}: UseTranscriptionSenderOptions): UseTranscriptionSenderReturn {
+  // State
+  const [bufferLength, setBufferLength] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // Track what's been sent (doesn't trigger re-render)
+  const sentTokensCount = useRef(0);
+  const lastProcessedText = useRef("");
+
+  // Extract text from tokens (only final tokens)
+  const getTranscriptText = (tokens: Token[]): string => {
+    return tokens
+      .filter(token => token.text !== "<end>" && token.is_final === true)
+      .map(token => token.text)
+      .join("");
+  };
+
+  // Core sending function
+  const sendToBackend = useCallback(async (text: string): Promise<void> => {
+    if (!text.trim()) return;
+
+    // Avoid sending the same text twice
+    if (text === lastProcessedText.current) {
+      console.log('Skipping duplicate text:', text.substring(0, 50));
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      console.log(`Sending incremental text (${text.length} chars):`, text.substring(0, 50) + '...');
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.buffer_length !== undefined) {
+          setBufferLength(result.buffer_length);
+        }
+        setConnectionError(null);
+        lastProcessedText.current = text;
+      } else {
+        const errorMsg = `Server error: ${response.status} ${response.statusText}`;
+        setConnectionError(errorMsg);
+        throw new Error(errorMsg);
+      }
+    } catch (err) {
+      console.error("Error sending to VoiceTree:", err);
+      const errorMsg = err instanceof Error ? err.message : "Cannot connect to VoiceTree server";
+      setConnectionError(errorMsg);
+      throw err; // Re-throw to allow caller to handle
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [endpoint]);
+
+  // Send only NEW FINAL tokens incrementally
+  const sendIncrementalTokens = useCallback(async (tokens: Token[]): Promise<void> => {
+    // Filter to ensure we only work with final tokens
+    const finalTokensOnly = tokens.filter(token => token.is_final === true);
+
+    // Only process tokens that we haven't sent yet
+    const newTokens = finalTokensOnly.slice(sentTokensCount.current);
+
+    if (newTokens.length === 0) {
+      return;
+    }
+
+    // Convert only the new tokens to text
+    const newText = getTranscriptText(newTokens);
+
+    if (!newText.trim()) {
+      // Update count even if text is empty (to avoid reprocessing)
+      sentTokensCount.current = finalTokensOnly.length;
+      return;
+    }
+
+    try {
+      await sendToBackend(newText);
+      // Only update the count after successful send (track final tokens only)
+      sentTokensCount.current = finalTokensOnly.length;
+      console.log(`Updated sent tokens count to ${sentTokensCount.current} (final tokens only)`);
+    } catch (err) {
+      // Don't update sentTokensCount on error, so we retry next time
+      console.error('Failed to send incremental tokens, will retry:', err);
+    }
+  }, [sendToBackend]);
+
+  // Send manual text (doesn't use token tracking)
+  const sendManualText = useCallback(async (text: string): Promise<void> => {
+    if (!text.trim()) return;
+
+    try {
+      await sendToBackend(text);
+    } catch (err) {
+      console.error('Failed to send manual text:', err);
+    }
+  }, [sendToBackend]);
+
+  // Reset tracking (e.g., when starting new session)
+  const reset = useCallback(() => {
+    sentTokensCount.current = 0;
+    lastProcessedText.current = "";
+    setBufferLength(0);
+    setConnectionError(null);
+    console.log('Reset transcription sender state');
+  }, []);
+
+  return {
+    sendIncrementalTokens,
+    sendManualText,
+    bufferLength,
+    isProcessing,
+    connectionError,
+    reset,
+  };
+}

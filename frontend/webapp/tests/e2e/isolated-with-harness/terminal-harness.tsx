@@ -26,7 +26,7 @@ interface TestWindow extends Window {
 }
 
 // Terminal Test Harness Component
-const TerminalTestHarness: React.FC = () => {
+export const TerminalTestHarness: React.FC = () => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const terminalIdRef = useRef<string | null>(null);

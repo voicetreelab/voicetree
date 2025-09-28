@@ -2,7 +2,7 @@ import type { Core, NodeSingular } from 'cytoscape';
 // @ts-expect-error - cytoscape-cxtmenu doesn't have proper TypeScript definitions
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
-import { CLASS_EXPANDED, CLASS_PINNED } from '@/graph-core/constants';
+import { CLASS_EXPANDED } from '@/graph-core/constants';
 
 // Register the extension with cytoscape
 cytoscape.use(cxtmenu);
@@ -27,7 +27,7 @@ interface MenuCommand {
 export class ContextMenuService {
   private cy: Core | null = null;
   private config: ContextMenuConfig;
-  private menuInstance: any = null;
+  private menuInstance: unknown = null;
 
   constructor(config: ContextMenuConfig = {}) {
     this.config = config;
@@ -79,7 +79,6 @@ export class ContextMenuService {
     const commands: MenuCommand[] = [];
     const nodeId = node.id();
     const isExpanded = node.hasClass(CLASS_EXPANDED);
-    const isPinned = node.hasClass(CLASS_PINNED);
 
     // Open in Editor
     if (this.config.onOpenEditor) {

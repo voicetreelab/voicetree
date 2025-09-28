@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 
@@ -14,7 +14,7 @@ declare global {
         onData: (callback: (terminalId: string, data: string) => void) => void;
         onExit: (callback: (terminalId: string, code: number) => void) => void;
       };
-      [key: string]: any;
+      [key: string]: unknown;
     };
   }
 }
@@ -26,7 +26,6 @@ export const Terminal: React.FC = () => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const terminalIdRef = useRef<string | null>(null);
-  const [terminalId, setTerminalId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -54,7 +53,6 @@ export const Terminal: React.FC = () => {
         const result = await window.electronAPI.terminal.spawn();
 
         if (result.success && result.terminalId) {
-          setTerminalId(result.terminalId);
           terminalIdRef.current = result.terminalId;  // Store in ref for immediate access
 
           // Set up data listener
@@ -68,7 +66,6 @@ export const Terminal: React.FC = () => {
           window.electronAPI.terminal.onExit((id, code) => {
             if (id === result.terminalId) {
               term.writeln(`\r\nProcess exited with code ${code}`);
-              setTerminalId(null);
               terminalIdRef.current = null;
             }
           });

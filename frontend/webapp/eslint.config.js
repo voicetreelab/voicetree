@@ -29,4 +29,19 @@ export default tseslint.config([
       }]
     },
   },
+  // Special rules for test files
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      // Disable react-hooks rules in test files (Playwright's 'use' is not a React hook)
+      'react-hooks/rules-of-hooks': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      // Allow empty pattern for Playwright fixture args
+      'no-empty-pattern': 'off',
+      // Allow require imports in test files
+      '@typescript-eslint/no-require-imports': 'off',
+      // Allow any in test files for mock types
+      '@typescript-eslint/no-explicit-any': 'warn'
+    }
+  }
 ])

@@ -160,6 +160,6 @@ export class MockElectronAPI extends EventEmitter {
 // Create a global instance that can be attached to window
 export function setupMockElectronAPI(): MockElectronAPI {
   const mockAPI = new MockElectronAPI();
-  (window as any).electronAPI = mockAPI;
+  (window as unknown as { electronAPI: MockElectronAPI }).electronAPI = mockAPI;
   return mockAPI;
 }

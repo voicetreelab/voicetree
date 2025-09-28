@@ -6,7 +6,7 @@ import { vi } from 'vitest';
 
 // Mock react-draggable to make testing easier
 vi.mock('react-draggable', () => ({
-  default: ({ children, position, defaultPosition, onDrag, onStop }: any) => {
+  default: ({ children, position, defaultPosition }: { children: React.ReactNode; position?: { x: number; y: number }; defaultPosition?: { x: number; y: number } }) => {
     // Use position for transform if provided, otherwise use defaultPosition
     const pos = position || defaultPosition || { x: 0, y: 0 };
     return (

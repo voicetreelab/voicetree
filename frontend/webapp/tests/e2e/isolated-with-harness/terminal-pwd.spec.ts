@@ -47,7 +47,7 @@ test.describe('Terminal - pwd command test', () => {
     const pwdLine = lines.find(line => line.startsWith('/'));
 
     expect(pwdLine).toBeTruthy();
-    expect(pwdLine).toMatch(/^\/[\w\-\/\.]+/); // Basic path validation
+    expect(pwdLine).toMatch(/^\/[\w\-/.]+/); // Basic path validation
   });
 
   test('should handle multiple commands in sequence', async ({ page }) => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import cytoscape from 'cytoscape';
 import { ContextMenuService } from '@/graph-core/services/ContextMenuService';
-import { CLASS_EXPANDED, CLASS_PINNED } from '@/graph-core/constants';
+import { CLASS_EXPANDED } from '@/graph-core/constants';
 
 // Mock cytoscape-cxtmenu
 vi.mock('cytoscape-cxtmenu', () => ({
@@ -95,7 +95,7 @@ describe('ContextMenuService', () => {
           };
           return props[prop] || '';
         },
-      } as any);
+      } as CSSStyleDeclaration);
 
       service = new ContextMenuService({});
       service.initialize(cy);
@@ -144,7 +144,7 @@ describe('ContextMenuService', () => {
       service.initialize(cy);
 
       // Get the commands function from the mock call
-      const menuOptions = (cy.cxtmenu as any).mock.calls[0][0];
+      const menuOptions = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.calls[0][0];
       const commandsFunc = menuOptions.commands;
 
       // Test with normal node
@@ -172,7 +172,7 @@ describe('ContextMenuService', () => {
       service = new ContextMenuService(config);
       service.initialize(cy);
 
-      const menuOptions = (cy.cxtmenu as any).mock.calls[0][0];
+      const menuOptions = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.calls[0][0];
       const commandsFunc = menuOptions.commands;
 
       const node = cy.getElementById('node1');
@@ -200,7 +200,7 @@ describe('ContextMenuService', () => {
       expect(cy.cxtmenu).toHaveBeenCalledTimes(1);
 
       // Get the mock menu instance
-      const menuInstance = (cy.cxtmenu as any).mock.results[0].value;
+      const menuInstance = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.results[0].value;
 
       // Update config
       const newOnOpenEditor = vi.fn();
@@ -234,7 +234,7 @@ describe('ContextMenuService', () => {
       service = new ContextMenuService({});
       service.initialize(cy);
 
-      const menuInstance = (cy.cxtmenu as any).mock.results[0].value;
+      const menuInstance = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.results[0].value;
 
       service.destroy();
 
@@ -256,7 +256,7 @@ describe('ContextMenuService', () => {
       });
       service.initialize(cy);
 
-      const menuOptions = (cy.cxtmenu as any).mock.calls[0][0];
+      const menuOptions = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.calls[0][0];
       const commandsFunc = menuOptions.commands;
 
       const node = cy.getElementById('node1');
