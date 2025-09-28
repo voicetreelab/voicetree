@@ -38,6 +38,9 @@ export default function VoiceTreeTranscribe() {
 
   // Track how many voice tokens we've seen to append new ones only
   const voiceTokenCountRef = useRef(0);
+  // Track if we're currently sending to prevent duplicate sends
+  const isSendingRef = useRef(false);
+  const lastSentCountRef = useRef(0);
 
   // Append new voice final tokens to our combined list
   useEffect(() => {
@@ -50,6 +53,7 @@ export default function VoiceTreeTranscribe() {
       voiceTokenCountRef.current = 0;
       setAllFinalTokens([]);
       resetSender(); // Reset the sender when transcription restarts
+      lastSentCountRef.current = 0;
     }
   }, [finalTokens, resetSender]);
 
@@ -74,9 +78,26 @@ export default function VoiceTreeTranscribe() {
 
   // Send incremental FINAL tokens to server (only new ones)
   useEffect(() => {
-    if (finalTokens.length > 0) {
-      // Only send final tokens, not non-final ones
-      sendIncrementalTokens(finalTokens);
+    if (finalTokens.length > 0 && finalTokens.length > lastSentCountRef.current) {
+      // Only proceed if we have new tokens and not already sending
+      if (isSendingRef.current) {
+        console.log('Skipping send - already in progress');
+        return;
+      }
+
+      isSendingRef.current = true;
+
+      // Use async function to handle the send
+      const doSend = async () => {
+        try {
+          await sendIncrementalTokens(finalTokens);
+          lastSentCountRef.current = finalTokens.length;
+        } finally {
+          isSendingRef.current = false;
+        }
+      };
+
+      doSend();
     }
   }, [finalTokens, sendIncrementalTokens]);
 

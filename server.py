@@ -1,10 +1,13 @@
+import asyncio
 import logging
 import os
 import tempfile
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+import json
+import time
 
 from backend.logging_config import setup_logging
 from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
@@ -21,8 +24,8 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor im
     ChunkProcessor,
 )
 
-# Configure logging
-logger = setup_logging('voicetree.log', console_level=logging.ERROR)
+# Configure logging - log to both file and console
+logger = setup_logging('voicetree_server.log', console_level=logging.INFO)
 
 # Create temp directory for workflow state
 temp_dir = tempfile.mkdtemp()
@@ -77,6 +80,43 @@ clear_debug_logs()
 # FastAPI app setup
 app = FastAPI(title="VoiceTree Server", description="API for processing text into VoiceTree")
 
+# Background processing task (like main.py's llm_processing_loop)
+async def buffer_processing_loop():
+    """
+    Continuously process text from buffer when ready.
+    This mimics the llm_processing_loop from main.py.
+    """
+    logger.info("Starting buffer processing loop...")
+    while True:
+        try:
+            # Check if buffer has enough text to process
+            text_to_process = processor.buffer_manager.getBufferTextWhichShouldBeProcessed()
+
+            if text_to_process:
+                logger.info(f"Processing buffer text ({len(text_to_process)} chars)...")
+                print(f"Buffer full, processing {len(text_to_process)} chars")
+
+                # Process the text chunk (this is what main.py does in its loop)
+                await processor.process_new_text(text_to_process)
+
+                logger.info("Buffer processing completed")
+
+            # Small delay to prevent CPU spinning
+            await asyncio.sleep(0.1)
+
+        except Exception as e:
+            logger.error(f"Error in buffer processing loop: {e}", exc_info=True)
+            # Continue the loop even if there's an error
+            await asyncio.sleep(1.0)
+
+# Start the background loop when the app starts
+@app.on_event("startup")
+async def startup_event():
+    """Start the background buffer processing loop"""
+    asyncio.create_task(buffer_processing_loop())
+    logger.info("VoiceTree server started with background processing")
+    print("VoiceTree server started - background processing loop is running")
+
 # Add CORS middleware for web frontend
 app.add_middleware(
     CORSMiddleware,
@@ -86,6 +126,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add middleware to log all requests
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    # Log request details
+    if request.url.path == "/send-text" and request.method == "POST":
+        # For send-text endpoint, we'll log the body in the endpoint itself
+        logger.info(f"[REQUEST] {request.client.host} - {request.method} {request.url.path}")
+    else:
+        logger.info(f"[REQUEST] {request.client.host} - {request.method} {request.url.path}")
+
+    # Process the request
+    response = await call_next(request)
+
+    # Log response time
+    process_time = time.time() - start_time
+    logger.info(f"[RESPONSE] {request.url.path} completed in {process_time:.3f}s with status {response.status_code}")
+
+    return response
+
 # Request model
 class TextRequest(BaseModel):
     text: str
@@ -94,21 +155,26 @@ class TextRequest(BaseModel):
 @app.post("/send-text")
 async def send_text(request: TextRequest):
     """
-    Process text input through the VoiceTree pipeline
+    Add text to the buffer (processing happens in background loop)
     """
     try:
         if not request.text.strip():
             raise HTTPException(status_code=400, detail="Text cannot be empty")
 
-        logger.info(f"Processing text: {request.text[:50]}...")
+        # Log the incoming text
+        text_preview = request.text[:100] + "..." if len(request.text) > 100 else request.text
+        logger.info(f"[RECEIVED] Text ({len(request.text)} chars): '{text_preview}'")
+        print(f"[API] Received text ({len(request.text)} chars): '{text_preview}'")
 
-        # Process text through existing pipeline
-        await processor.process_new_text_and_update_markdown(request.text)
+        # ONLY add to buffer - don't process here!
+        processor.buffer_manager.addText(request.text)
 
-        logger.info("Text processing completed successfully")
-        # Get buffer length from the processor's buffer manager
+        # Get current buffer state
         buffer_length = len(processor.buffer_manager.getBuffer()) if processor.buffer_manager else 0
-        return {"status": "success", "message": "Text processed successfully", "buffer_length": buffer_length}
+        logger.info(f"[BUFFERED] Added to buffer. Buffer now at {buffer_length} chars")
+        print(f"[API] Buffer length: {buffer_length} chars")
+
+        return {"status": "success", "message": "Text added to buffer", "buffer_length": buffer_length}
 
     except HTTPException:
         # Re-raise HTTPExceptions (like 400 errors) without modification

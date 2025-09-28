@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
-import getAPIKey from "@/utils/get-api-key";
-import { type Token } from "@soniox/speech-to-text-web";
+// Removed voice-related imports - this component should only handle graph visualization
+// Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
 import cytoscape from 'cytoscape';
@@ -54,7 +53,7 @@ function normalizeFileId(filename: string): string {
 export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const lastSentText = useRef<string>("");
+  // REMOVED: lastSentText ref - not needed without voice transcription logic
   const cytoscapeRef = useRef<CytoscapeCore | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markdownFiles = useRef<Map<string, string>>(new Map());
@@ -73,11 +72,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // RAF throttling for position updates
   const rafIdRef = useRef<number | null>(null);
 
-  const {
-    finalTokens,
-  } = useVoiceTreeClient({
-    apiKey: getAPIKey,
-  });
+  // REMOVED: Voice transcription logic
+  // This component should only handle graph visualization
+  // Voice transcription is handled by VoiceTreeTranscribe component
 
   // Update refs when values change
   useEffect(() => {
@@ -217,13 +214,8 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     }
   }, [history]);
 
-  // Extract text from tokens for display
-  const getTranscriptText = (tokens: Token[]): string => {
-    return tokens
-      .filter(token => token.text !== "<end>")
-      .map(token => token.text)
-      .join("");
-  };
+  // REMOVED: getTranscriptText function
+  // Not needed - voice transcription is handled elsewhere
 
   // Add entry to history with limit management
   const addToHistory = useCallback((text: string, source: 'speech' | 'text') => {
@@ -249,34 +241,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     localStorage.removeItem(HISTORY_STORAGE_KEY);
   };
 
-  // Send text to VoiceTree
-  const sendToVoiceTree = useCallback(async (text: string, source: 'speech' | 'text' = 'text') => {
-    if (!text.trim() || text === lastSentText.current) return;
-
-    lastSentText.current = text;
-
-    // Always add to history, regardless of server status
-    addToHistory(text, source);
-
-    try {
-      const response = await fetch("http://localhost:8000/send-text", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text }),
-      });
-
-      if (response.ok) {
-        await response.json(); // Server response handled but result not used to avoid warnings
-      } else {
-        console.error(`Server error: ${response.status} ${response.statusText}`);
-      }
-    } catch (err) {
-      console.error("Error sending to VoiceTree:", err);
-      console.error("Cannot connect to VoiceTree server (http://localhost:8000)");
-    }
-  }, [addToHistory]);
+  // REMOVED: sendToVoiceTree function
+  // Text sending to backend should be handled by VoiceTreeTranscribe component
+  // This component should focus only on graph visualization
 
   // File event handlers
   const handleFileAdded = useCallback((data: { path: string; content?: string }) => {
@@ -754,13 +721,15 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Continuously send final tokens to server
-  useEffect(() => {
-    const currentText = getTranscriptText(finalTokens);
-    if (currentText && currentText !== lastSentText.current) {
-      sendToVoiceTree(currentText, 'speech');
-    }
-  }, [finalTokens, sendToVoiceTree]);
+  // REMOVED: Duplicate sending of final tokens to server
+  // This was causing duplicate text to be sent to the backend
+  // VoiceTreeTranscribe component already handles sending transcriptions
+  // useEffect(() => {
+  //   const currentText = getTranscriptText(finalTokens);
+  //   if (currentText && currentText !== lastSentText.current) {
+  //     sendToVoiceTree(currentText, 'speech');
+  //   }
+  // }, [finalTokens, sendToVoiceTree]);
 
   return (
     <div className="h-screen bg-background overflow-hidden relative">
