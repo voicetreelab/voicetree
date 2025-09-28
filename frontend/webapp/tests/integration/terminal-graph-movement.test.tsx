@@ -3,10 +3,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import cytoscape from 'cytoscape';
-import { FloatingWindowManagerProvider } from '../../src/components/floating-windows/context/FloatingWindowManager';
-import VoiceTreeLayout from '../../src/components/voicetree-layout';
+import { FloatingWindowManagerProvider } from '@/components/floating-windows/context/FloatingWindowManager';
 
 // Mock window.electron
 global.window.electron = {
@@ -20,7 +19,7 @@ global.window.electron = {
     destroy: vi.fn(),
     onData: vi.fn()
   }
-} as any;
+} as typeof window.electron;
 
 describe('Terminal Window Graph Movement', () => {
   let cytoscapeCore: cytoscape.Core;
@@ -82,7 +81,7 @@ describe('Terminal Window Graph Movement', () => {
       return <div ref={layoutRef}>Test Layout</div>;
     };
 
-    const { container } = render(
+    render(
       <FloatingWindowManagerProvider>
         <TestComponent />
       </FloatingWindowManagerProvider>
@@ -107,8 +106,7 @@ describe('Terminal Window Graph Movement', () => {
   });
 
   it('should update terminal position when graph pans', async () => {
-    const mockUpdatePosition = vi.fn();
-    let testWindows = [
+    const testWindows = [
       {
         id: 'window-1',
         nodeId: 'terminal-node1',

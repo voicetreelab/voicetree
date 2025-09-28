@@ -64,8 +64,8 @@ export class StyleService {
           'background-color': this.fillColor,
           'color': this.textColor,
           'font-family': this.font,
-          'text-valign': 'center' as any,
-          'text-halign': 'center' as any,
+          'text-valign': 'center' as cytoscape.Css.TextVAlign,
+          'text-halign': 'center' as cytoscape.Css.TextHAlign,
           'shape': 'ellipse',
           'border-width': 0,
           'text-wrap': 'wrap',
@@ -157,7 +157,7 @@ export class StyleService {
           'loop-direction': '-45deg',
           'width': 0.7,
           'target-arrow-shape': 'vee',
-          'target-arrow-fill': 'filled' as any,
+          'target-arrow-fill': 'filled' as cytoscape.Css.ArrowFill,
           'target-arrow-color': this.lineColor,
           'arrow-scale': 0.55,
           'font-size': 6,
@@ -234,7 +234,7 @@ export class StyleService {
       {
         selector: 'node[shape]',
         style: {
-          'shape': 'data(shape)' as any,
+          'shape': 'data(shape)' as cytoscape.Css.NodeShape,
         }
       },
       {

@@ -1,4 +1,4 @@
-import VoiceTreeLayout from "./components/voicetree-layout";
+import VoiceTreeGraphVizLayout from "./components/voice-tree-graph-viz-layout.tsx";
 import VoiceTreeTranscribe from "./renderers/voicetree-transcribe";
 import Sidebar from "./components/sidebar";
 import { useGraphManager } from "./hooks/useGraphManager";
@@ -32,12 +32,11 @@ function App() {
 
   // File Watching Control Panel Component
   const FileWatchingPanel = () => (
-    <div className="border rounded-lg p-4 bg-white shadow-sm">
+    <div className="border rounded-lg p-4 mt-11 bg-white shadow-sm">
 
       {/* Status Display */}
       <div className="mb-3 text-sm">
         <div className="flex items-center gap-2">
-          <span className="font-medium">Status:</span>
           <span className={`px-2 py-1 rounded text-xs ${
             isWatching
               ? 'bg-green-100 text-green-800'
@@ -108,7 +107,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <FloatingWindowManagerProvider>
-        <div className="grid grid-cols-1 gap-4 p-4">
+        <div className="grid grid-cols-1 p-4">
           {/* Side by side layout - FileWatching (1/6) and VoiceTranscribe (5/6) */}
           <div className="flex gap-4">
             {/* File Watching Panel - 1/6 width */}
@@ -125,7 +124,7 @@ function App() {
           {/* Main Graph Visualization with Sidebar */}
           <div className="border-r pr-4">
             <Sidebar>
-              <VoiceTreeLayout
+              <VoiceTreeGraphVizLayout
                 isWatching={isWatching}
                 isLoading={isLoading}
                 watchDirectory={watchDirectory}

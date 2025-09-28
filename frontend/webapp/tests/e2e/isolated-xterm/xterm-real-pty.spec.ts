@@ -1,6 +1,5 @@
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
-import * as os from 'os';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 

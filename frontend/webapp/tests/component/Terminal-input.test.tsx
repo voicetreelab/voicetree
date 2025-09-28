@@ -1,42 +1,42 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { Terminal } from '@/components/floating-windows/editors/Terminal';
-import '@testing-library/jest-dom';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock xterm
-jest.mock('@xterm/xterm', () => {
+vi.mock('@xterm/xterm', () => {
   const mockTerminal = {
-    open: jest.fn(),
-    write: jest.fn(),
-    writeln: jest.fn(),
-    onData: jest.fn(),
-    dispose: jest.fn(),
+    open: vi.fn(),
+    write: vi.fn(),
+    writeln: vi.fn(),
+    onData: vi.fn(),
+    dispose: vi.fn(),
   };
 
   return {
-    Terminal: jest.fn(() => mockTerminal),
+    Terminal: vi.fn(() => mockTerminal),
   };
 });
 
 // Mock electron API
 const mockElectronAPI = {
   terminal: {
-    spawn: jest.fn(),
-    write: jest.fn(),
-    resize: jest.fn(),
-    kill: jest.fn(),
-    onData: jest.fn(),
-    onExit: jest.fn(),
+    spawn: vi.fn(),
+    write: vi.fn(),
+    resize: vi.fn(),
+    kill: vi.fn(),
+    onData: vi.fn(),
+    onExit: vi.fn(),
   },
 };
 
 describe('Terminal Component Input Handling', () => {
   beforeEach(() => {
     // Reset mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Setup window.electronAPI
-    (window as any).electronAPI = mockElectronAPI;
+    (window as Window & { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
 
     // Setup successful spawn response
     mockElectronAPI.terminal.spawn.mockResolvedValue({
@@ -50,11 +50,11 @@ describe('Terminal Component Input Handling', () => {
   });
 
   afterEach(() => {
-    delete (window as any).electronAPI;
+    delete (window as Window & { electronAPI?: typeof mockElectronAPI }).electronAPI;
   });
 
   it('should properly handle terminal input after initialization', async () => {
-    const { container } = render(<Terminal />);
+    render(<Terminal />);
 
     // Wait for terminal to be spawned
     await waitFor(() => {
@@ -62,7 +62,7 @@ describe('Terminal Component Input Handling', () => {
     });
 
     // Get the mock terminal instance
-    const XTermMock = require('@xterm/xterm').Terminal;
+    const XTermMock = await import('@xterm/xterm').then(m => m.Terminal) as ReturnType<typeof vi.fn>;
     const mockTerminalInstance = XTermMock.mock.results[0].value;
 
     // Verify onData handler was registered
@@ -89,7 +89,7 @@ describe('Terminal Component Input Handling', () => {
   });
 
   it('should handle terminal output from backend', async () => {
-    const { container } = render(<Terminal />);
+    render(<Terminal />);
 
     // Wait for terminal to be spawned
     await waitFor(() => {
@@ -100,7 +100,7 @@ describe('Terminal Component Input Handling', () => {
     const onDataListener = mockElectronAPI.terminal.onData.mock.calls[0][0];
 
     // Get the mock terminal instance
-    const XTermMock = require('@xterm/xterm').Terminal;
+    const XTermMock = await import('@xterm/xterm').then(m => m.Terminal) as ReturnType<typeof vi.fn>;
     const mockTerminalInstance = XTermMock.mock.results[0].value;
 
     // Simulate backend sending data
@@ -110,7 +110,7 @@ describe('Terminal Component Input Handling', () => {
     expect(mockTerminalInstance.write).toHaveBeenCalledWith('Hello from backend');
   });
 
-  it('should not send data before terminal is initialized', () => {
+  it('should not send data before terminal is initialized', async () => {
     // Mock spawn to be slow
     mockElectronAPI.terminal.spawn.mockImplementation(() =>
       new Promise(resolve => setTimeout(() => resolve({
@@ -119,10 +119,10 @@ describe('Terminal Component Input Handling', () => {
       }), 100))
     );
 
-    const { container } = render(<Terminal />);
+    render(<Terminal />);
 
     // Get the mock terminal instance
-    const XTermMock = require('@xterm/xterm').Terminal;
+    const XTermMock = await import('@xterm/xterm').then(m => m.Terminal) as ReturnType<typeof vi.fn>;
     const mockTerminalInstance = XTermMock.mock.results[0].value;
 
     // Get the onData callback
@@ -150,8 +150,10 @@ describe('Terminal Component Input Handling', () => {
     expect(mockElectronAPI.terminal.kill).toHaveBeenCalledWith('test-terminal-123');
 
     // Get the mock terminal instance
-    const XTermMock = require('@xterm/xterm').Terminal;
+    const XTermMock = await import('@xterm/xterm').then(m => m.Terminal) as ReturnType<typeof vi.fn>;
     const mockTerminalInstance = XTermMock.mock.results[0].value;
+
+    // Verify terminal was disposed
     expect(mockTerminalInstance.dispose).toHaveBeenCalled();
   });
 });

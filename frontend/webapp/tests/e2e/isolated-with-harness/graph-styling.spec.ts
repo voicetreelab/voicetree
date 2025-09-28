@@ -22,7 +22,7 @@ test.describe('Graph Styling Visual Tests', () => {
         { data: { id: 'e3', source: 'n1', target: 'n3' } },
       ];
 
-      // @ts-ignore - accessing test harness global
+      // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - accessing test harness global
       if (window.cytoscapeCore) {
         window.cytoscapeCore.addElements(elements);
         window.cytoscapeCore.getCore().layout({ name: 'circle' }).run();
@@ -35,7 +35,7 @@ test.describe('Graph Styling Visual Tests', () => {
 
     // Verify nodes are rendered with correct styles
     const nodes = await page.evaluate(() => {
-      // @ts-ignore
+      // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
       const cy = window.cytoscapeCore?.getCore();
       if (!cy) return [];
 
@@ -74,7 +74,7 @@ test.describe('Graph Styling Visual Tests', () => {
 
     // Test hover effects
     await page.evaluate(() => {
-      // @ts-ignore
+      // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
       const cy = window.cytoscapeCore?.getCore();
       if (cy) {
         const node = cy.getElementById('n1');
@@ -84,7 +84,7 @@ test.describe('Graph Styling Visual Tests', () => {
 
     // Check hover classes are applied
     const hoverState = await page.evaluate(() => {
-      // @ts-ignore
+      // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
       const cy = window.cytoscapeCore?.getCore();
       if (!cy) return null;
 
@@ -105,7 +105,7 @@ test.describe('Graph Styling Visual Tests', () => {
 
     // Test pin animation
     await page.evaluate(() => {
-      // @ts-ignore
+      // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
       const cy = window.cytoscapeCore?.getCore();
       if (cy && window.cytoscapeCore) {
         const node = cy.getElementById('n2');
@@ -115,7 +115,7 @@ test.describe('Graph Styling Visual Tests', () => {
 
     // Check pinned state
     const pinnedState = await page.evaluate(() => {
-      // @ts-ignore
+      // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
       const cy = window.cytoscapeCore?.getCore();
       if (!cy) return null;
 
@@ -166,7 +166,7 @@ test.describe('Graph Styling Visual Tests', () => {
               rules.push(rule.selectorText);
             }
           });
-        } catch (e) {
+        } catch {
           // Cross-origin stylesheets might throw
         }
       });

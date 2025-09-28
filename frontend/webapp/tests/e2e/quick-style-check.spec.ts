@@ -13,7 +13,7 @@ test('Quick style verification', async ({ page }) => {
 
   // Get node information
   const nodeInfo = await page.evaluate(() => {
-    // @ts-ignore
+    // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
     const cy = window.cytoscapeCore?.getCore();
     if (!cy) return { error: 'No cytoscape instance' };
 
@@ -67,7 +67,7 @@ test('Quick style verification', async ({ page }) => {
   await page.waitForTimeout(500);
 
   const hoverInfo = await page.evaluate(() => {
-    // @ts-ignore
+    // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
     const cy = window.cytoscapeCore?.getCore();
     const medium = cy?.getElementById('medium');
     return {
@@ -85,7 +85,7 @@ test('Quick style verification', async ({ page }) => {
   await page.waitForTimeout(500);
 
   const animationInfo = await page.evaluate(() => {
-    // @ts-ignore
+    // @ts-expect-error - Accessing window.cytoscapeCore for testing purposes - Mock cytoscape style methods for testing
     const cy = window.cytoscapeCore?.getCore();
     const small = cy?.getElementById('small');
     return {

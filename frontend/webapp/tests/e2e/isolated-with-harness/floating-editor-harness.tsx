@@ -424,7 +424,7 @@ const FileWatcherEditor = () => {
       const existing = newMap.get(nodeId);
       if (existing) {
         const testLogs = (window as TestWindow)._test_logs || [];
-        testLogs.push(`VoiceTreeLayout: Updating editor content for node ${nodeId} due to external file change`);
+        testLogs.push(`VoiceTreeGraphVizLayout: Updating editor content for node ${nodeId} due to external file change`);
 
         newMap.set(nodeId, {
           ...existing,

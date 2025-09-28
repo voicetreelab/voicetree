@@ -42,9 +42,23 @@ Object.defineProperty(navigator, 'mediaDevices', {
   }
 });
 
+// Mock fetch to prevent actual network calls
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ buffer_length: 0 }),
+    status: 200,
+    statusText: 'OK'
+  } as Response)
+);
+
 describe('VoiceTreeTranscribe', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
   });
 
   it('should display non-final tokens while recording', () => {

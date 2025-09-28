@@ -3,18 +3,15 @@ import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StatusDisplay from "@/components/status-display";
 import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
+import { useTranscriptionSender } from "@/hooks/useTranscriptionSender";
 import getAPIKey from "@/utils/get-api-key";
 import Renderer from "./renderer";
 import useAutoScroll from "@/hooks/useAutoScroll";
 import { type Token } from "@soniox/speech-to-text-web";
 
 export default function VoiceTreeTranscribe() {
-  const [bufferLength, setBufferLength] = useState<number>(0);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [textInput, setTextInput] = useState("");
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [allFinalTokens, setAllFinalTokens] = useState<Token[]>([]);
-  const lastSentText = useRef<string>("");
 
   const {
     state,
@@ -25,6 +22,18 @@ export default function VoiceTreeTranscribe() {
     error,
   } = useVoiceTreeClient({
     apiKey: getAPIKey,
+  });
+
+  // Use the new transcription sender hook
+  const {
+    sendIncrementalTokens,
+    sendManualText,
+    bufferLength,
+    isProcessing,
+    connectionError,
+    reset: resetSender,
+  } = useTranscriptionSender({
+    endpoint: "http://localhost:8000/send-text",
   });
 
   // Track how many voice tokens we've seen to append new ones only
@@ -40,8 +49,9 @@ export default function VoiceTreeTranscribe() {
       // Reset when transcription restarts
       voiceTokenCountRef.current = 0;
       setAllFinalTokens([]);
+      resetSender(); // Reset the sender when transcription restarts
     }
-  }, [finalTokens]);
+  }, [finalTokens, resetSender]);
 
   // Combine all tokens for display
   const allTokens = [...allFinalTokens, ...nonFinalTokens];
@@ -62,59 +72,19 @@ export default function VoiceTreeTranscribe() {
     }
   }, [error]);
 
-  // Extract text from tokens for sending to server
-  const getTranscriptText = (tokens: Token[]): string => {
-    return tokens
-      .filter(token => token.text !== "<end>")
-      .map(token => token.text)
-      .join("");
-  };
-
-  // Send text to VoiceTree and get buffer length
-  const sendToVoiceTree = async (text: string) => {
-    if (!text.trim() || text === lastSentText.current) return;
-
-    setIsProcessing(true);
-    lastSentText.current = text;
-
-    try {
-      const response = await fetch("http://localhost:8000/send-text", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.buffer_length !== undefined) {
-          setBufferLength(result.buffer_length);
-        }
-        setConnectionError(null);
-      } else {
-        setConnectionError(`Server error: ${response.status} ${response.statusText}`);
-      }
-    } catch (err) {
-      console.error("Error sending to VoiceTree:", err);
-      setConnectionError("Cannot connect to VoiceTree server (http://localhost:8000)");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Continuously send final tokens to server
+  // Send incremental FINAL tokens to server (only new ones)
   useEffect(() => {
-    const currentText = getTranscriptText(finalTokens);
-    if (currentText && currentText !== lastSentText.current) {
-      sendToVoiceTree(currentText);
+    if (finalTokens.length > 0) {
+      // Only send final tokens, not non-final ones
+      sendIncrementalTokens(finalTokens);
     }
-  }, [finalTokens]);
+  }, [finalTokens, sendIncrementalTokens]);
 
   // Handle manual text submission
-  const handleTextSubmit = () => {
+  const handleTextSubmit = async () => {
     if (textInput.trim()) {
-      sendToVoiceTree(textInput);
+      // Send the manual text
+      await sendManualText(textInput);
 
       // Create tokens from the manual text input
       const tokensToAdd: Token[] = [];
@@ -209,7 +179,7 @@ export default function VoiceTreeTranscribe() {
       {/* Transcription Display - Always visible */}
       <div
         ref={autoScrollRef}
-        className="h-32 overflow-y-auto p-4 border rounded-lg bg-white/95 backdrop-blur-sm mb-4 relative z-20"
+        className="h-32 overflow-y-auto border rounded-lg bg-white/95 backdrop-blur-sm mb-4 relative z-20"
       >
         <Renderer
           tokens={allTokens}
@@ -218,7 +188,7 @@ export default function VoiceTreeTranscribe() {
       </div>
 
       {/* Input Section - at bottom */}
-      <div className="border-t bg-background/95 backdrop-blur-sm p-4 relative z-20">
+      <div className="border-t bg-background/95 backdrop-blur-sm relative z-20">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-2">
             {/* Mic Button */}

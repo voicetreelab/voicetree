@@ -26,7 +26,7 @@ interface HistoryEntry {
 const MAX_HISTORY_ENTRIES = 50;
 const HISTORY_STORAGE_KEY = 'voicetree-history';
 
-interface VoiceTreeLayoutProps {
+interface VoiceTreeGraphVizLayoutProps {
   // File watching controls from parent
   isWatching?: boolean;
   isLoading?: boolean;
@@ -51,7 +51,7 @@ function normalizeFileId(filename: string): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
+export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const lastSentText = useRef<string>("");
@@ -280,13 +280,22 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
 
   // File event handlers
   const handleFileAdded = useCallback((data: { path: string; content?: string }) => {
-    if (!data.path.endsWith('.md') || !data.content) return;
+    console.log('[DEBUG] handleFileAdded called with path:', data.path);
+    if (!data.path.endsWith('.md') || !data.content) {
+      console.log('[DEBUG] Skipping non-md file or no content');
+      return;
+    }
 
     const cy = cytoscapeRef.current?.getCore();
-    if (!cy) return;
+    console.log('[DEBUG] cytoscapeRef exists:', !!cytoscapeRef.current, 'cy exists:', !!cy);
+    if (!cy) {
+      console.log('[DEBUG] No cy instance, cannot add file');
+      return;
+    }
 
     // Store file content
     markdownFiles.current.set(data.path, data.content);
+    console.log('[DEBUG] Added file to markdownFiles, new count:', markdownFiles.current.size);
 
     // Add node if it doesn't exist
     const nodeId = normalizeFileId(data.path);
@@ -386,7 +395,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     // Update any open editors for this file
     const window = windows.find(w => w.nodeId === nodeId);
     if (window) {
-      console.log(`VoiceTreeLayout: Updating editor content for node ${nodeId} due to external file change`);
+      console.log(`VoiceTreeGraphVizLayout: Updating editor content for node ${nodeId} due to external file change`);
       updateWindowContent(window.id, data.content);
     }
   }, [windows, updateWindowContent]);
@@ -432,9 +441,27 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     }
   }, []);
 
+  // Handle watching stopped - clear everything (stable callback)
+  const handleWatchingStopped = useCallback(() => {
+    console.log('[DEBUG] VoiceTreeLayout handleWatchingStopped called');
+    console.log('[DEBUG] Before clear - markdownFiles count:', markdownFiles.current.size);
+    console.log('[DEBUG] Before clear - cytoscapeRef exists:', !!cytoscapeRef.current);
+
+    markdownFiles.current.clear();
+    const cy = cytoscapeRef.current?.getCore();
+    if (cy) {
+      console.log('[DEBUG] Removing', cy.elements().length, 'elements from graph');
+      cy.elements().remove();
+      setNodeCount(0);
+      setEdgeCount(0);
+    } else {
+      console.log('[DEBUG] No cy instance to clear');
+    }
+  }, []);
+
   // Initialize Cytoscape on mount
   useEffect(() => {
-    console.log('VoiceTreeLayout: Init effect running', {
+    console.log('VoiceTreeGraphVizLayout: Init effect running', {
       hasContainer: !!containerRef.current,
       hasCytoscapeRef: !!cytoscapeRef.current
     });
@@ -455,7 +482,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
       // Expose Cytoscape instance for testing
       const core = cytoscapeRef.current.getCore();
       if (typeof window !== 'undefined') {
-        console.log('VoiceTreeLayout: Initial cytoscapeInstance set on window');
+        console.log('VoiceTreeGraphVizLayout: Initial cytoscapeInstance set on window');
         (window as unknown as { cytoscapeInstance: CytoscapeCore }).cytoscapeInstance = core;
       }
 
@@ -676,7 +703,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
 
     // Cleanup function
     return () => {
-      console.log('VoiceTreeLayout: Cleanup running, destroying Cytoscape');
+      console.log('VoiceTreeGraphVizLayout: Cleanup running, destroying Cytoscape');
       container.removeEventListener('wheel', handleWheel);
 
       // Clean up RAF
@@ -697,31 +724,21 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
     if (!window.electronAPI) return;
 
     // Set up event listeners
-    console.log('VoiceTreeLayout: Setting up file event listeners');
+    console.log('VoiceTreeGraphVizLayout: Setting up file event listeners');
     window.electronAPI.onFileAdded(handleFileAdded);
     window.electronAPI.onFileChanged(handleFileChanged);
     window.electronAPI.onFileDeleted(handleFileDeleted);
-
-    // Handle watching stopped - clear everything
-    const handleWatchingStopped = () => {
-      markdownFiles.current.clear();
-      const cy = cytoscapeRef.current?.getCore();
-      if (cy) {
-        cy.elements().remove();
-        setNodeCount(0);
-        setEdgeCount(0);
-      }
-    };
     window.electronAPI.onFileWatchingStopped(handleWatchingStopped);
 
     return () => {
       // Cleanup listeners
+      console.log('[DEBUG] VoiceTreeGraphVizLayout: Cleaning up file event listeners');
       window.electronAPI!.removeAllListeners('file-added');
       window.electronAPI!.removeAllListeners('file-changed');
       window.electronAPI!.removeAllListeners('file-deleted');
       window.electronAPI!.removeAllListeners('file-watching-stopped');
     };
-  }, [handleFileAdded, handleFileChanged, handleFileDeleted]);
+  }, [handleFileAdded, handleFileChanged, handleFileDeleted, handleWatchingStopped]);
 
   // Handle window resize
   useEffect(() => {
@@ -764,7 +781,7 @@ export default function VoiceTreeLayout(_props: VoiceTreeLayoutProps) {
 
 
       {/* Main Canvas Area with Cytoscape.js Graph */}
-      <div className="pt-28 h-full relative">
+      <div className="h-full relative">
         {/* Graph container */}
         <div
           ref={containerRef}

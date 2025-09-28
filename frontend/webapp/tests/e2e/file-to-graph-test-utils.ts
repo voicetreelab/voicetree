@@ -3,7 +3,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 
 /**
  * Test utilities for file-to-graph pipeline tests
- * Handles multiple VoiceTreeLayout instances gracefully
+ * Handles multiple VoiceTreeGraphVizLayout instances gracefully
  */
 
 interface ExtendedWindow extends Window {
