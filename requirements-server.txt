@@ -1,0 +1,29 @@
+# Minimal dependencies for server.py (no audio/heavy ML)
+# Web/API
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+
+# LLM/AI Workflows
+openai
+google-generativeai
+google-genai>=1.20.0
+langgraph>=0.1.0
+langchain-core>=0.1.0
+
+# Text Processing
+rapidfuzz>=3.0.0
+scikit-learn
+
+# Vector Store (required for core flow)
+chromadb>=1.0.0
+
+# Utilities
+python-dotenv
+setuptools
+typing-extensions>=4.0.0
+termcolor
+requests>=2.32.5
+
+# Google API client
+google~=3.0.0

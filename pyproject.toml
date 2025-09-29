@@ -88,10 +88,14 @@ select = [
     "UP", # pyupgrade
     "ANN", # flake8-annotations - enforces type hints
     "TID252", # ban relative imports
+    "PTH", # flake8-use-pathlib - encourage pathlib usage over os.path
 ]
 ignore = [
     "E501",  # line too long
     "B008",  # do not perform function calls in argument defaults
+    # Note: PTH rules don't directly catch Path(__file__).parent patterns
+    # which can break in packaged/frozen environments. Consider using
+    # absolute paths or environment variables for configuration instead.
 ]
 
 # Enforce single imports for better refactoring
@@ -99,3 +103,7 @@ ignore = [
 force-single-line = true  # Force imports to be on separate lines
 
 # NO PER-FILE IGNORES - Enforce typing everywhere
+
+# Custom checks for Path(__file__) usage that can break in packaged environments
+# Run: python tools/check_relative_paths.py backend/
+# This detects Path(__file__) patterns that broke Electron dist builds
