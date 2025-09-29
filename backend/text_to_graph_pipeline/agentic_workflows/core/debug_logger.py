@@ -4,13 +4,35 @@ Logs input/output variables to individual files for each stage
 """
 
 import json
+import sys
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-# Create debug logs directory at the agentic_workflows level for better visibility
-DEBUG_DIR = Path(__file__).parent.parent / "debug_logs"
-DEBUG_DIR.mkdir(exist_ok=True)
+def get_debug_directory() -> Path:
+    """Get the debug directory from environment or use sensible defaults."""
+    # First check for explicit debug directory configuration
+    if debug_dir := os.environ.get('VOICETREE_DEBUG_DIR'):
+        return Path(debug_dir)
+
+    # For PyInstaller bundles, use a subdirectory next to the executable
+    if getattr(sys, 'frozen', False):
+        # sys.executable in frozen mode points to the actual executable
+        # Put logs in a 'debug_logs' folder next to the executable
+        exe_dir = Path(sys.executable).parent
+        return exe_dir / "debug_logs"
+
+    # For development, use local directory
+    return Path(__file__).parent.parent / "debug_logs"
+
+# Lazy initialization - don't create directory on import
+DEBUG_DIR = get_debug_directory()
+
+def ensure_debug_dir_exists():
+    """Create debug directory only when needed."""
+    if not DEBUG_DIR.exists():
+        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
 
 def clear_debug_logs() -> None:
     """
@@ -33,6 +55,7 @@ def log_stage_input_output(stage_name: str, inputs: dict[str, Any], outputs: dic
         inputs: State dictionary before the stage executes
         outputs: State dictionary after the stage executes
     """
+    ensure_debug_dir_exists()
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_file = DEBUG_DIR / f"{stage_name}_debug.txt"
 
@@ -146,7 +169,7 @@ def log_transcript_processing(transcript_text: str, file_source: str = "unknown"
         file_source: Source file path or description
     """
     # Don't clear logs automatically - preserve all executions during benchmarker runs
-
+    ensure_debug_dir_exists()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_file = DEBUG_DIR / "00_transcript_input.txt"
 
@@ -191,6 +214,7 @@ def log_llm_io(stage_name: str, prompt: str, response: Any, model_name: str = "u
         response: The LLM response (can be string or structured object)
         model_name: The model that was used
     """
+    ensure_debug_dir_exists()
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_file = DEBUG_DIR / f"{stage_name}_llm_io.txt"
 
@@ -233,12 +257,14 @@ def create_debug_summary() -> None:
     """
     Create a summary of all debug logs
     """
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    summary_file = DEBUG_DIR / "99_debug_summary.txt"
+    try:
+        ensure_debug_dir_exists()
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        summary_file = DEBUG_DIR / "99_debug_summary.txt"
 
-    log_files = sorted([f for f in DEBUG_DIR.glob("*.txt") if f.name != "99_debug_summary.txt"])
+        log_files = sorted([f for f in DEBUG_DIR.glob("*.txt") if f.name != "99_debug_summary.txt"])
 
-    summary_content = f"""
+        summary_content = f"""
 ==========================================
 WORKFLOW DEBUG SUMMARY - {timestamp}
 ==========================================
@@ -246,11 +272,11 @@ WORKFLOW DEBUG SUMMARY - {timestamp}
 Available Debug Logs:
 """
 
-    for log_file in log_files:
-        file_size = log_file.stat().st_size
-        summary_content += f"  - {log_file.name} ({file_size} bytes)\n"
+        for log_file in log_files:
+            file_size = log_file.stat().st_size
+            summary_content += f"  - {log_file.name} ({file_size} bytes)\n"
 
-    summary_content += f"""
+        summary_content += f"""
 Total Debug Files: {len(log_files)}
 
 To investigate the workflow issue:
@@ -268,8 +294,11 @@ Look for where the content starts to diverge from the original transcript.
 ==========================================
 """
 
-    with open(summary_file, "w", encoding="utf-8") as f:
-        f.write(summary_content)
+        with open(summary_file, "w", encoding="utf-8") as f:
+            f.write(summary_content)
 
-    # print(f"📋 Created debug summary at {summary_file.name}")
-    # print(f"🔍 Debug logs available in: {DEBUG_DIR}")
+        # print(f"📋 Created debug summary at {summary_file.name}")
+        # print(f"🔍 Debug logs available in: {DEBUG_DIR}")
+    except Exception:
+        # Silently fail if we can't create summary
+        pass

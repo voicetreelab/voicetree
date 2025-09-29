@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,9 @@ from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import (
 from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor import (
     ChunkProcessor,
 )
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging - log to both file and console
 logger = setup_logging('voicetree_server.log', console_level=logging.INFO)

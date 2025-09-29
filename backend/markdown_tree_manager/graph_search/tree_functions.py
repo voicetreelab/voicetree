@@ -8,19 +8,34 @@ from copy import deepcopy
 from typing import Any
 from typing import Optional
 
-import nltk
-from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 
-# Download stopwords if not already present
-try:
-    _STOPWORDS = set(stopwords.words('english'))
-except LookupError:
-    nltk.download('stopwords', quiet=True)
-    _STOPWORDS = set(stopwords.words('english'))
+# Simple hardcoded English stopwords list (most common ones)
+# This replaces NLTK dependency to reduce executable size
+_STOPWORDS = {
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'been', 'by', 'for', 'from',
+    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to',
+    'was', 'will', 'with', 'the', 'this', 'but', 'they', 'have', 'had',
+    'what', 'when', 'where', 'who', 'which', 'why', 'how', 'all', 'would',
+    'there', 'their', 'or', 'if', 'can', 'may', 'could', 'should', 'would',
+    'might', 'must', 'shall', 'will', 'do', 'does', 'did', 'done', 'i', 'you',
+    'he', 'she', 'we', 'they', 'them', 'him', 'her', 'us', 'our', 'your',
+    'my', 'his', 'her', 'its', 'their', 'our', 'mine', 'yours', 'hers', 'ours',
+    'theirs', 'me', 'him', 'her', 'us', 'them', 'myself', 'yourself', 'himself',
+    'herself', 'itself', 'ourselves', 'yourselves', 'themselves', 'not', 'no',
+    'nor', 'so', 'just', 'only', 'very', 'too', 'also', 'now', 'then', 'here',
+    'there', 'where', 'when', 'why', 'how', 'both', 'each', 'few', 'more',
+    'most', 'other', 'some', 'such', 'am', 'is', 'are', 'was', 'were', 'be',
+    'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
+    'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as',
+    'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against',
+    'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below',
+    'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under',
+    'again', 'further', 'then', 'once'
+}
 
 
 def _tokenize_query(query: str) -> set[str]:

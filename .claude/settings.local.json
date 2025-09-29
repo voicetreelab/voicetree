@@ -7,7 +7,8 @@
       "Bash(uv run:*)",
       "Bash(python -m pytest cross_tests/ -v --tb=short)",
       "Bash(brew install:*)",
-      "Bash(timeout 300 uv run:*)"
+      "Bash(timeout 300 uv run:*)",
+      "Bash(rg:*)"
     ],
     "deny": [],
     "ask": []
