@@ -342,7 +342,7 @@ class TreeActionDeciderWorkflow:
                 logging.info(f"Optimizer had no changes for node {node_id}.")
 
         # Always store current buffer state for next processing to detect stuck text
-        self._prev_buffer_remainder = buffer_manager.getBuffer()
+        self._prev_buffer_remainder = buffer_manager.getBuffer() #todo what's this for?
 
 
         # todo, new code, haven't extensively tested this yet
