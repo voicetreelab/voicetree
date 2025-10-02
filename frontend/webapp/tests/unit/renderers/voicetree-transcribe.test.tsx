@@ -1,5 +1,4 @@
 import { render, screen, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import VoiceTreeTranscribe from '@/renderers/voicetree-transcribe';
 import useVoiceTreeClient from '@/hooks/useVoiceTreeClient';
 import { vi } from 'vitest';
