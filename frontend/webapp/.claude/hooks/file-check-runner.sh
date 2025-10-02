@@ -12,11 +12,11 @@ fi
 cd /Users/bobbobby/repos/VoiceTree/frontend/webapp
 
 # Run eslint on the specific file
-eslint_output=$(eslint "$file_path" 2>&1)
+eslint_output=$(npx eslint "$file_path" 2>&1)
 eslint_code=$?
 
 # Run tsc on whole project (tsc --noEmit needs full context)
-tsc_output=$(tsc --noEmit 2>&1)
+tsc_output=$(npx tsc --noEmit 2>&1)
 tsc_code=$?
 
 # If either failed, output to stderr and block Claude
