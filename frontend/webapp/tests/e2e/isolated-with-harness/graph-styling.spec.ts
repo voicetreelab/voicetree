@@ -39,6 +39,7 @@ test.describe('Graph Styling Visual Tests', () => {
       const cy = window.cytoscapeCore?.getCore();
       if (!cy) return [];
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return cy.nodes().map((node: any) => ({
         id: node.id(),
         label: node.data('label'),

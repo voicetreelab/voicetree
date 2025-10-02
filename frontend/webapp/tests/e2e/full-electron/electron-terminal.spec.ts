@@ -7,7 +7,9 @@ import * as os from 'os';
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow extends Window {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   cytoscapeInstance?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   electronAPI?: any;
 }
 

@@ -13,6 +13,7 @@ const test = base.extend<{
     // Setup mock API
     await page.evaluate(() => {
       // The mock API will be loaded from the HTML file
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).testReady = true;
     });
 
@@ -29,6 +30,7 @@ test.describe('Isolated xterm.js Terminal Tests', () => {
 
     test('should create xterm instance with correct options', async ({ terminalPage }) => {
       const terminalInfo = await terminalPage.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const term = (window as any).terminalInstance;
         return {
           exists: !!term,
@@ -50,6 +52,7 @@ test.describe('Isolated xterm.js Terminal Tests', () => {
 
     test('should connect to mock backend successfully', async ({ terminalPage }) => {
       const connectionStatus = await terminalPage.evaluate(async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockAPI = (window as any).electronAPI;
         const result = await mockAPI.terminal.spawn();
         return result;
@@ -179,6 +182,7 @@ test.describe('Isolated xterm.js Terminal Tests', () => {
       // Setup exit listener
       const exitPromise = terminalPage.evaluate(() => {
         return new Promise(resolve => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).electronAPI.terminal.onExit((id: string, code: number) => {
             resolve({ id, code });
           });
@@ -196,7 +200,9 @@ test.describe('Isolated xterm.js Terminal Tests', () => {
   test.describe('Terminal Features', () => {
     test('should handle terminal resizing', async ({ terminalPage }) => {
       const resizeResult = await terminalPage.evaluate(async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const term = (window as any).terminalInstance;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockAPI = (window as any).electronAPI;
         const result = await mockAPI.terminal.spawn();
 
@@ -281,6 +287,7 @@ test.describe('Isolated xterm.js Terminal Tests', () => {
 
     test('should recover from write errors', async ({ terminalPage }) => {
       const errorTest = await terminalPage.evaluate(async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockAPI = (window as any).electronAPI;
 
         // Try to write to non-existent terminal

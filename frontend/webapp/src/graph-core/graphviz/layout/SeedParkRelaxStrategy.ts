@@ -1,3 +1,23 @@
+/**
+ * SeedParkRelaxStrategy: A three-phase incremental graph layout algorithm
+ *
+ * This strategy positions new nodes into an existing graph layout using three sequential phases:
+ *
+ * 1. SEED: Determine an initial target position based on graph connectivity
+ *    - For isolated nodes: Place near center of mass
+ *    - For single parent: Find optimal angle that avoids existing child nodes
+ *    - For multiple connections: Use weighted barycenter of connected nodes
+ *
+ * 2. PARK: Find a collision-free position near the seed location
+ *    - Check if seed position overlaps with existing nodes
+ *    - If overlap detected, spiral search outward for a clear spot
+ *    - Ensures minimum spacing between all nodes
+ *
+ * 3. MICRO-RELAX: Fine-tune position using force-directed physics
+ *    - Apply spring forces to connected nodes (pull toward target length)
+ *    - Apply repulsion forces from nearby nodes (prevent overlap)
+ *    - Iterate locally to settle into an optimal, stable position
+ */
 import type {
   PositioningStrategy,
   PositioningContext,
