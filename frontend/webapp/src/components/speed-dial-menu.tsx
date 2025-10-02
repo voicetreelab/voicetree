@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { Settings, Download, Trash2, Moon, Sun, Info } from "lucide-react";
+import { Settings, Download, Moon, Sun, Info } from "lucide-react";
 import "./speed-dial-menu.css";
 
 interface SpeedDialMenuProps {
   onToggleDarkMode: () => void;
-  onClearHistory: () => void;
   isDarkMode: boolean;
 }
 
 export default function SpeedDialMenu({
   onToggleDarkMode,
-  onClearHistory,
   isDarkMode
 }: SpeedDialMenuProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -32,12 +30,6 @@ export default function SpeedDialMenu({
       label: "Export",
       onClick: () => console.log("Export"),
       className: ""
-    },
-    {
-      icon: Trash2,
-      label: "Clear History",
-      onClick: onClearHistory,
-      className: "speed-dial-danger"
     },
     {
       icon: Info,

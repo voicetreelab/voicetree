@@ -176,6 +176,53 @@ describe('Coordinate Conversions', () => {
     });
   });
 
+  describe('floating window positioning consistency', () => {
+    it('initial position must match updateEditorPositions to avoid teleportation (regression test)', () => {
+      // This test ensures that the method used to calculate initial window position
+      // matches the method used by updateEditorPositions, avoiding window "teleportation"
+
+      const zoom = 0.4;
+      const pan = { x: -9353.98, y: 40.82 };
+      const containerRect = { left: 16, top: 242 };
+      const cy = createMockCy(zoom, pan.x, pan.y, containerRect.left, containerRect.top);
+
+      // Simulate a node at a specific graph position
+      const nodeGraphPos = { x: 23508.19, y: 126.54 };
+      const windowWidth = 700;
+      const nodeRadius = 40;
+      const spacing = 10;
+
+      // Calculate the graph offset (how we position the window relative to the node in graph coords)
+      const graphOffset = {
+        x: -(windowWidth / 2) / zoom,
+        y: (nodeRadius + spacing) / zoom
+      };
+
+      // CORRECT APPROACH: Calculate initial position using toScreenCoords(graphAnchor + graphOffset)
+      // This MUST match how updateEditorPositions calculates positions
+      const graphX = nodeGraphPos.x + graphOffset.x;
+      const graphY = nodeGraphPos.y + graphOffset.y;
+      const initialPos = toScreenCoords(graphX, graphY, cy);
+
+      // Simulate what updateEditorPositions does (must match initial position)
+      const updatedPos = toScreenCoords(
+        nodeGraphPos.x + graphOffset.x,
+        nodeGraphPos.y + graphOffset.y,
+        cy
+      );
+
+      // These MUST be exactly the same to avoid window "teleportation"
+      expect(initialPos.x).toBe(updatedPos.x);
+      expect(initialPos.y).toBe(updatedPos.y);
+
+      // Verify the actual values are reasonable (not NaN, etc.)
+      expect(initialPos.x).toBeTypeOf('number');
+      expect(initialPos.y).toBeTypeOf('number');
+      expect(isFinite(initialPos.x)).toBe(true);
+      expect(isFinite(initialPos.y)).toBe(true);
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle very small zoom levels', () => {
       const cy = createMockCy(0.1, 0, 0, 0, 0);

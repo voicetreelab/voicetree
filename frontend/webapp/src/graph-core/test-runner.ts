@@ -1,6 +1,5 @@
-import { MarkdownParser, type ParsedNode } from './data/load_markdown/MarkdownParser';
+import { MarkdownParser } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
-import { type NodeDefinition, type EdgeDefinition } from './types';
 import { LayoutManager, SeedParkRelaxStrategy, ReingoldTilfordStrategy } from './graphviz/layout';
 
 // Import all markdown files from the tests directory
@@ -46,57 +45,14 @@ async function initializeGraph() {
 
     console.log('Loaded files:', Array.from(fileMap.keys()));
 
-    // Parse files with new parser method
-    const parsedNodes: ParsedNode[] = [];
-    for (const [filename, content] of fileMap) {
-      const parsedNode = MarkdownParser.parseMarkdownFile(content, filename);
-      parsedNodes.push(parsedNode);
-    }
+    // Use parseDirectory to get correct parent-child relationships
+    const graphData = await MarkdownParser.parseDirectory(fileMap);
 
-    console.log('Parsed nodes:', parsedNodes);
+    console.log(`Parsed ${graphData.nodes.length} nodes and ${graphData.edges.length} edges`);
 
-    // Debug: Log links for each node
-    parsedNodes.forEach(node => {
-      console.log(`Node ${node.id} (${node.filename}) has ${node.links.length} links:`, node.links);
-    });
-
-    // Convert parsed nodes to cytoscape elements
-    const nodeElements: NodeDefinition[] = [];
-    const edgeElements: EdgeDefinition[] = [];
-
-    parsedNodes.forEach(node => {
-      nodeElements.push({
-        data: {
-          id: node.id,
-          label: node.title,
-          content: node.content,
-          filename: node.filename
-        }
-      });
-
-      // Add edges for each link
-      node.links.forEach((link, index) => {
-        // Use targetFile as the target since that's what contains the actual filename
-        if (link.targetFile) {
-          // Find the corresponding node ID by matching the targetFile
-          const targetNode = parsedNodes.find(n => n.filename === link.targetFile);
-          if (targetNode) {
-            edgeElements.push({
-              data: {
-                id: `${node.id}-${targetNode.id}-${index}`,
-                source: node.id,
-                target: targetNode.id,
-                label: link.type
-              }
-            });
-          }
-        }
-      });
-    });
-
-    // Initialize Cytoscape with elements
+    // Initialize Cytoscape with elements (already in correct format)
     console.log('Initializing Cytoscape...');
-    const cytoscapeCore = new CytoscapeCore(container, [...nodeElements, ...edgeElements]);
+    const cytoscapeCore = new CytoscapeCore(container, [...graphData.nodes, ...graphData.edges]);
 
     // Apply basic styling
     const cy = cytoscapeCore.getCore();

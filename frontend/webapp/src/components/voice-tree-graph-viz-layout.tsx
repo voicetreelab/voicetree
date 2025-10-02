@@ -6,19 +6,10 @@ import { CytoscapeCore } from "@/graph-core";
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
 import { toScreenCoords, toGraphCoords } from '@/utils/coordinate-conversions';
-import { LayoutManager, SeedParkRelaxStrategy, ReingoldTilfordStrategy } from '@/graph-core/graphviz/layout';
+import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
+import { useFileWatcher } from '@/hooks/useFileWatcher';
 // Import graph styles
 import '@/graph-core/styles/graph.css';
-
-interface HistoryEntry {
-  id: string;
-  text: string;
-  timestamp: Date;
-  source: 'speech' | 'text';
-}
-
-const MAX_HISTORY_ENTRIES = 50;
-const HISTORY_STORAGE_KEY = 'voicetree-history';
 
 interface VoiceTreeGraphVizLayoutProps {
   // File watching controls from parent
@@ -44,11 +35,69 @@ function normalizeFileId(filename: string): string {
   return id;
 }
 
+// Helper to open a markdown editor window for a node
+interface OpenEditorParams {
+  nodeId: string;
+  filePath: string;
+  content: string;
+  nodeGraphPos: { x: number; y: number };
+  cy: cytoscape.Core;
+  openWindow: (params: {
+    nodeId: string;
+    title: string;
+    type: string;
+    content: string;
+    position: { x: number; y: number };
+    graphAnchor?: { x: number; y: number };
+    graphOffset?: { x: number; y: number };
+    size: { width: number; height: number };
+    onSave?: (text: string) => Promise<void>;
+  }) => void;
+}
+
+function openMarkdownEditor({ nodeId, filePath, content, nodeGraphPos, cy, openWindow }: OpenEditorParams): void {
+  const zoom = cy.zoom();
+
+  // Position window below the node, centered horizontally
+  const nodeRadius = 40; // Max node size / 2 (conservative estimate)
+  const spacing = 10;
+  const windowWidth = 700;
+
+  const initialGraphOffset = {
+    x: -(windowWidth / 2) / zoom,
+    y: (nodeRadius + spacing) / zoom
+  };
+
+  // Calculate initial screen position using toScreenCoords to match future updates
+  const graphX = nodeGraphPos.x + initialGraphOffset.x;
+  const graphY = nodeGraphPos.y + initialGraphOffset.y;
+  const initialScreenPos = toScreenCoords(graphX, graphY, cy);
+
+  openWindow({
+    nodeId,
+    title: nodeId,
+    type: 'MarkdownEditor',
+    content,
+    position: initialScreenPos,
+    graphAnchor: nodeGraphPos,
+    graphOffset: initialGraphOffset,
+    size: { width: 700, height: 500 },
+    onSave: async (text: string) => {
+      if (window.electronAPI?.saveFileContent) {
+        const result = await window.electronAPI.saveFileContent(filePath, text);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save file');
+        }
+      } else {
+        throw new Error('Save functionality not available');
+      }
+    }
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutProps) {
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  // REMOVED: lastSentText ref - not needed without voice transcription logic
   const cytoscapeRef = useRef<CytoscapeCore | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markdownFiles = useRef<Map<string, string>>(new Map());
@@ -59,22 +108,39 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   const windowsRef = useRef(windows);
 
   // Track whether we're in initial bulk load phase or incremental phase
-  // During initial scan: use ReingoldTilfordStrategy for hierarchical layout
+  // During initial scan: use TidyLayoutStrategy for hierarchical layout
   // After initial scan: use SeedParkRelaxStrategy for incremental additions
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Layout manager for positioning nodes
   const layoutManagerRef = useRef<LayoutManager | null>(null);
 
-  // Track last new node for animation timeout management
-  const lastNewNodeIdRef = useRef<string | null>(null);
-
   // Initialize layout manager with appropriate strategy
   useEffect(() => {
-    const strategy = isInitialLoad ? new ReingoldTilfordStrategy() : new SeedParkRelaxStrategy();
+    const strategy = isInitialLoad ? new TidyLayoutStrategy() : new SeedParkRelaxStrategy();
     layoutManagerRef.current = new LayoutManager(strategy);
     console.log(`[Layout] Strategy changed to: ${strategy.name} (isInitialLoad=${isInitialLoad})`);
   }, [isInitialLoad]);
+
+  // File watching event handlers
+  const {
+    handleFileAdded,
+    handleFileChanged,
+    handleFileDeleted,
+    handleWatchingStopped,
+    handleInitialScanComplete,
+    handleWatchingStarted
+  } = useFileWatcher({
+    cytoscapeRef,
+    markdownFiles,
+    layoutManagerRef,
+    isInitialLoad,
+    setNodeCount,
+    setEdgeCount,
+    setIsInitialLoad,
+    windows,
+    updateWindowContent
+  });
 
   // Note: We now use useFloatingWindows context as the single source of truth for window state
   // No duplicate openEditors state needed
@@ -202,313 +268,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     }
   };
 
-  // Load history from localStorage on mount
-  useEffect(() => {
-    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
-    if (savedHistory) {
-      try {
-        const parsed = JSON.parse(savedHistory);
-        const historyWithDates = parsed.map((entry: HistoryEntry & { timestamp: string }) => ({
-          ...entry,
-          timestamp: new Date(entry.timestamp)
-        }));
-        setHistory(historyWithDates);
-      } catch (err) {
-        console.warn('Failed to load history from localStorage:', err);
-        localStorage.removeItem(HISTORY_STORAGE_KEY);
-      }
-    }
-  }, []);
-
-  // Save history to localStorage whenever it changes
-  useEffect(() => {
-    if (history.length > 0) {
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
-    }
-  }, [history]);
-
-  // REMOVED: getTranscriptText function
-  // Not needed - voice transcription is handled elsewhere
-
-  // Add entry to history with limit management
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const addToHistory = useCallback((text: string, source: 'speech' | 'text') => {
-    const newEntry: HistoryEntry = {
-      id: `${Date.now()}-${Math.random()}`,
-      text,
-      timestamp: new Date(),
-      source
-    };
-
-    setHistory(prev => {
-      const updated = [...prev, newEntry];
-      if (updated.length > MAX_HISTORY_ENTRIES) {
-        return updated.slice(updated.length - MAX_HISTORY_ENTRIES);
-      }
-      return updated;
-    });
-  }, []);
-
-  // Clear all history
-  const clearHistory = () => {
-    setHistory([]);
-    localStorage.removeItem(HISTORY_STORAGE_KEY);
-  };
-
-  // REMOVED: sendToVoiceTree function
-  // Text sending to backend should be handled by VoiceTreeTranscribe component
-  // This component should focus only on graph visualization
-
-  // File event handlers
-  const handleFileAdded = useCallback((data: { path: string; content?: string }) => {
-    console.log('[DEBUG] handleFileAdded called with path:', data.path);
-    if (!data.path.endsWith('.md') || !data.content) {
-      console.log('[DEBUG] Skipping non-md file or no content');
-      return;
-    }
-
-    const cy = cytoscapeRef.current?.getCore();
-    console.log('[DEBUG] cytoscapeRef exists:', !!cytoscapeRef.current, 'cy exists:', !!cy);
-    if (!cy) {
-      console.log('[DEBUG] No cy instance, cannot add file');
-      return;
-    }
-
-    // Store file content
-    markdownFiles.current.set(data.path, data.content);
-    console.log('[DEBUG] Added file to markdownFiles, new count:', markdownFiles.current.size);
-
-    // Parse wikilinks to get linked node IDs
-    const linkedNodeIds: string[] = [];
-    const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
-    for (const match of linkMatches) {
-      const targetId = normalizeFileId(match[1]);
-      linkedNodeIds.push(targetId);
-    }
-
-    // Add node if it doesn't exist
-    const nodeId = normalizeFileId(data.path);
-    const isNewNode = !cy.getElementById(nodeId).length;
-
-    if (isNewNode) {
-      const addedNode = cy.add({
-        data: {
-          id: nodeId,
-          label: nodeId.replace(/_/g, ' '),
-          linkedNodeIds
-        }
-      });
-
-      // If there was a previous new node, add a 10s timeout to it
-      if (lastNewNodeIdRef.current) {
-        const prevNode = cy.getElementById(lastNewNodeIdRef.current);
-        if (prevNode.length > 0 && prevNode.data('breathingActive')) {
-          cytoscapeRef.current?.setAnimationTimeout(prevNode, 10000);
-        }
-      }
-
-      // Trigger breathing animation for new node (no timeout)
-      cytoscapeRef.current?.animateNewNode(addedNode);
-
-      // Track this as the last new node
-      lastNewNodeIdRef.current = nodeId;
-    } else {
-      // Update linkedNodeIds for existing node
-      cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
-    }
-
-    // Create target nodes and edges
-    for (const targetId of linkedNodeIds) {
-      // Ensure target node exists (create placeholder if needed)
-      if (!cy.getElementById(targetId).length) {
-        cy.add({
-          data: {
-            id: targetId,
-            label: targetId.replace(/_/g, ' '),
-            linkedNodeIds: []
-          }
-        });
-      }
-
-      const edgeId = `${nodeId}->${targetId}`;
-
-      // Add edge if it doesn't exist
-      if (!cy.getElementById(edgeId).length) {
-        cy.add({
-          data: {
-            id: edgeId,
-            source: nodeId,
-            target: targetId
-          }
-        });
-      }
-    }
-
-    // Update counts
-    setNodeCount(cy.nodes().length);
-    setEdgeCount(cy.edges().length);
-
-    // Apply layout using appropriate strategy
-    // During initial load, skip individual layouts - we'll do bulk layout on scan complete
-    if (layoutManagerRef.current && isNewNode && !isInitialLoad) {
-      layoutManagerRef.current.applyLayout(cy, [nodeId]);
-    }
-  }, [isInitialLoad]);
-
-  const handleFileChanged = useCallback((data: { path: string; content?: string }) => {
-    if (!data.path.endsWith('.md') || !data.content) return;
-
-    const cy = cytoscapeRef.current?.getCore();
-    if (!cy) return;
-
-    // Update stored content
-    markdownFiles.current.set(data.path, data.content);
-
-    const nodeId = normalizeFileId(data.path);
-
-    // Remove old edges from this node
-    cy.edges(`[source = "${nodeId}"]`).remove();
-
-    // Parse wikilinks to get updated linked node IDs
-    const linkedNodeIds: string[] = [];
-    const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
-    for (const match of linkMatches) {
-      const targetId = normalizeFileId(match[1]);
-      linkedNodeIds.push(targetId);
-
-      // Ensure target node exists (create placeholder if needed)
-      if (!cy.getElementById(targetId).length) {
-        cy.add({
-          data: {
-            id: targetId,
-            label: targetId.replace(/_/g, ' '),
-            linkedNodeIds: []
-          }
-        });
-      }
-
-      const edgeId = `${nodeId}->${targetId}`;
-
-      cy.add({
-        data: {
-          id: edgeId,
-          source: nodeId,
-          target: targetId
-        }
-      });
-    }
-
-    // Update linkedNodeIds for changed node
-    const changedNode = cy.getElementById(nodeId);
-    changedNode.data('linkedNodeIds', linkedNodeIds);
-
-    // Trigger breathing animation for appended content
-    cytoscapeRef.current?.animateAppendedContent(changedNode);
-
-    // Update counts
-    setNodeCount(cy.nodes().length);
-    setEdgeCount(cy.edges().length);
-
-    // For file changes during incremental mode, apply layout
-    if (layoutManagerRef.current && !isInitialLoad) {
-      layoutManagerRef.current.applyLayout(cy, [nodeId]);
-    }
-
-    // Update any open editors for this file
-    const window = windows.find(w => w.nodeId === nodeId);
-    if (window) {
-      console.log(`VoiceTreeGraphVizLayout: Updating editor content for node ${nodeId} due to external file change`);
-      updateWindowContent(window.id, data.content);
-    }
-  }, [windows, updateWindowContent, isInitialLoad]);
-
-  const handleFileDeleted = useCallback((data: { path: string }) => {
-    if (!data.path.endsWith('.md')) return;
-
-    const cy = cytoscapeRef.current?.getCore();
-    if (!cy) return;
-
-    // Remove from stored files
-    markdownFiles.current.delete(data.path);
-
-    // Remove node and its edges
-    const nodeId = normalizeFileId(data.path);
-    cy.getElementById(nodeId).remove();
-
-    // Clean up orphaned placeholder nodes
-    // A placeholder node is one that has no corresponding file and no incoming edges
-    cy.nodes().forEach(node => {
-      const id = node.id();
-      // Check if this node has a corresponding file
-      let hasFile = false;
-      for (const [path] of markdownFiles.current) {
-        if (normalizeFileId(path) === id) {
-          hasFile = true;
-          break;
-        }
-      }
-      // If no file and no incoming edges, remove it
-      if (!hasFile && cy.edges(`[target = "${id}"]`).length === 0) {
-        node.remove();
-      }
-    });
-
-    // Update counts
-    setNodeCount(cy.nodes().length);
-    setEdgeCount(cy.edges().length);
-  }, []);
-
-  // Handle watching stopped - clear everything (stable callback)
-  const handleWatchingStopped = useCallback(() => {
-    console.log('[DEBUG] VoiceTreeLayout handleWatchingStopped called');
-    console.log('[DEBUG] Before clear - markdownFiles count:', markdownFiles.current.size);
-    console.log('[DEBUG] Before clear - cytoscapeRef exists:', !!cytoscapeRef.current);
-
-    markdownFiles.current.clear();
-    const cy = cytoscapeRef.current?.getCore();
-    if (cy) {
-      console.log('[DEBUG] Removing', cy.elements().length, 'elements from graph');
-      cy.elements().remove();
-      setNodeCount(0);
-      setEdgeCount(0);
-    } else {
-      console.log('[DEBUG] No cy instance to clear');
-    }
-
-    // Reset to initial load mode for next watch session
-    setIsInitialLoad(true);
-  }, []);
-
-  // Handle initial scan complete - switch to incremental mode
-  const handleInitialScanComplete = useCallback(() => {
-    console.log('[Layout] Initial scan complete - applying bulk layout to all nodes');
-
-    const cy = cytoscapeRef.current?.getCore();
-    if (cy && layoutManagerRef.current) {
-      // Get all node IDs for bulk layout
-      const allNodeIds = cy.nodes().map(n => n.id());
-      console.log(`[Layout] Applying ReingoldTilford to ${allNodeIds.length} nodes`);
-
-      // Apply bulk layout to all nodes at once
-      if (allNodeIds.length > 0) {
-        layoutManagerRef.current.applyLayout(cy, allNodeIds);
-      }
-
-      // Fit the graph after bulk load completes
-      cy.fit(50);
-    }
-
-    // Switch to incremental layout strategy for future additions
-    console.log('[Layout] Switching to incremental layout strategy');
-    setIsInitialLoad(false);
-  }, []);
-
-  // Handle watching started - reset to initial load mode
-  const handleWatchingStarted = useCallback(() => {
-    console.log('[Layout] Watching started - using bulk load layout strategy');
-    setIsInitialLoad(true);
-  }, []);
-
   // Initialize Cytoscape on mount
   useEffect(() => {
     console.log('VoiceTreeGraphVizLayout: Init effect running', {
@@ -560,39 +319,13 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           if (content && filePath) {
             const node = core.getElementById(nodeId);
             if (node.length > 0) {
-              const nodeGraphPos = node.position();
-              const nodeScreenPos = node.renderedPosition();
-              const zoom = core.zoom();
-
-              // Position window below the node, centered horizontally
-              const nodeRadius = 40; // Max node size / 2 (conservative estimate)
-              const spacing = 10;
-              const windowWidth = 700;
-
-              const initialGraphOffset = {
-                x: -(windowWidth / 2) / zoom,
-                y: (nodeRadius + spacing) / zoom
-              };
-
-              openWindowRef.current({
+              openMarkdownEditor({
                 nodeId,
-                title: nodeId,
-                type: 'MarkdownEditor',
+                filePath,
                 content,
-                position: { x: nodeScreenPos.x - (windowWidth / 2), y: nodeScreenPos.y + nodeRadius + spacing },
-                graphAnchor: nodeGraphPos,
-                graphOffset: initialGraphOffset,
-                size: { width: 700, height: 500 },
-                onSave: async (text: string) => {
-                  if (window.electronAPI?.saveFileContent) {
-                    const result = await window.electronAPI.saveFileContent(filePath, text);
-                    if (!result.success) {
-                      throw new Error(result.error || 'Failed to save file');
-                    }
-                  } else {
-                    throw new Error('Save functionality not available');
-                  }
-                }
+                nodeGraphPos: node.position(),
+                cy: core,
+                openWindow: openWindowRef.current
               });
             }
           }
@@ -726,44 +459,13 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
         }
 
         if (content && filePath) {
-          const nodeGraphPos = event.target.position(); // Get graph position
-          const cy = event.cy;
-          const zoom = cy.zoom();
-
-          // Position window below the node, centered horizontally
-          const nodeRadius = 40; // Max node size / 2 (conservative estimate)
-          const spacing = 10;
-          const windowWidth = 700;
-
-          const initialGraphOffset = {
-            x: -(windowWidth / 2) / zoom,
-            y: (nodeRadius + spacing) / zoom
-          };
-
-          // Calculate initial screen position using toScreenCoords to match future updates
-          const graphX = nodeGraphPos.x + initialGraphOffset.x;
-          const graphY = nodeGraphPos.y + initialGraphOffset.y;
-          const initialScreenPos = toScreenCoords(graphX, graphY, cy);
-
-          openWindowRef.current({
+          openMarkdownEditor({
             nodeId,
-            title: nodeId,
-            type: 'MarkdownEditor',
+            filePath,
             content,
-            position: initialScreenPos,
-            graphAnchor: nodeGraphPos,  // Store node position in graph coords
-            graphOffset: initialGraphOffset,  // Store initial offset in graph coords
-            size: { width: 700, height: 500 },
-            onSave: async (text: string) => {
-              if (window.electronAPI?.saveFileContent) {
-                const result = await window.electronAPI.saveFileContent(filePath, text);
-                if (!result.success) {
-                  throw new Error(result.error || 'Failed to save file');
-                }
-              } else {
-                throw new Error('Save functionality not available');
-              }
-            }
+            nodeGraphPos: event.target.position(),
+            cy: event.cy,
+            openWindow: openWindowRef.current
           });
         }
       });
@@ -849,16 +551,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // REMOVED: Duplicate sending of final tokens to server
-  // This was causing duplicate text to be sent to the backend
-  // VoiceTreeTranscribe component already handles sending transcriptions
-  // useEffect(() => {
-  //   const currentText = getTranscriptText(finalTokens);
-  //   if (currentText && currentText !== lastSentText.current) {
-  //     sendToVoiceTree(currentText, 'speech');
-  //   }
-  // }, [finalTokens, sendToVoiceTree]);
-
   return (
     <div className="h-screen bg-background overflow-hidden relative">
       {/* Hamburger Menu Button - Top Left */}
@@ -936,7 +628,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       {/* Speed Dial Menu */}
       <SpeedDialMenu
         onToggleDarkMode={toggleDarkMode}
-        onClearHistory={clearHistory}
         isDarkMode={isDarkMode}
       />
     </div>

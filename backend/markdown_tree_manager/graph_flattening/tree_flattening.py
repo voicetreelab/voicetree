@@ -154,8 +154,8 @@ def _generate_ascii_tree(tree_structure: dict[str, list[str]],
     lines: list[str] = []
     visited: set[str] = set()
 
-    def add_node(filename: str, prefix: str = "", is_last: bool = True, is_root: bool = False) -> None:
-        """Recursively add nodes to the tree visualization."""
+    def print_tree(filename: str, prefix: str = "", is_last: bool = True, is_root: bool = True) -> None:
+        """Recursively print tree structure."""
         if filename in visited:
             return
         visited.add(filename)
@@ -169,44 +169,28 @@ def _generate_ascii_tree(tree_structure: dict[str, list[str]],
         elif node.get(NEIGHBOR_KEY, False):
             title += " (neighbor)"
 
-        # Add the current node with proper tree characters
+        # Print current node
         if is_root:
-            # Root node - no prefix
             lines.append(title)
-        elif prefix == "":
-            # First level children need tree chars
-            connector = "└── " if is_last else "├── "
-            lines.append(connector + title)
         else:
-            # Deeper levels
             connector = "└── " if is_last else "├── "
             lines.append(prefix + connector + title)
 
-        # Get children of this node
+        # Print children
         children = tree_structure.get(filename, [])
-
-        # Process each child
         for i, child_file in enumerate(children):
             is_last_child = (i == len(children) - 1)
-
             if is_root:
-                # Children of root - no prefix yet
-                add_node(child_file, "", is_last_child, False)
-            elif prefix == "":
-                # Children of first level
-                extension = "    " if is_last else "│   "
-                add_node(child_file, extension, is_last_child, False)
+                child_prefix = ""
             else:
-                # Deeper levels
                 extension = "    " if is_last else "│   "
                 child_prefix = prefix + extension
-                add_node(child_file, child_prefix, is_last_child, False)
+            print_tree(child_file, child_prefix, is_last_child, False)
 
     # Start with root nodes
     roots = tree_structure.get(ROOTS_KEY, [])
-    for i, root in enumerate(roots):
-        is_last_root = (i == len(roots) - 1)
-        add_node(root, "", is_last_root, is_root=True)
+    for root in roots:
+        print_tree(root)
 
     return "\n".join(lines)
 
@@ -279,3 +263,44 @@ def _generate_ordered_content(tree_structure: dict[str, list[str]],
             traverse_and_output(root)
 
     return "\n".join(lines)
+
+
+def visualize_markdown_tree(tree: Any) -> str:
+    """
+    Visualize a MarkdownTree as ASCII tree structure.
+
+    Args:
+        tree: MarkdownTree object with tree.tree dict[int, Node]
+
+    Returns:
+        ASCII tree visualization string
+    """
+    # Build tree structure from MarkdownTree
+    tree_structure: dict[str, list[str]] = {}
+    node_map: dict[str, dict[str, Any]] = {}
+
+    # Find root nodes (nodes with no parent)
+    roots = []
+
+    for node_id, node in tree.tree.items():
+        filename = node.filename
+
+        # Add to node map
+        node_map[filename] = {
+            FILENAME_KEY: filename,
+            TITLE_KEY: node.title,
+            CONTENT_KEY: node.content,
+        }
+
+        # Build parent-child relationships
+        if node.children:
+            tree_structure[filename] = [tree.tree[child_id].filename for child_id in node.children if child_id in tree.tree]
+
+        # Track roots
+        if node.parent_id is None:
+            roots.append(filename)
+
+    # Store roots
+    tree_structure[ROOTS_KEY] = roots
+
+    return _generate_ascii_tree(tree_structure, node_map)

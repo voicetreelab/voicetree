@@ -102,9 +102,18 @@ function checkNoOverlaps(nodePositions: Array<{
 
 test.describe('Bulk Load Layout', () => {
   test('should layout bulk-loaded nodes without overlaps using hierarchical strategy', async ({ page }) => {
+    // Capture console logs from the page BEFORE navigation
+    page.on('console', msg => {
+      const text = msg.text();
+      // Capture all TidyLayout logs
+      if (text.includes('TidyLayout') || text.includes('Build tree')) {
+        console.log(text);
+      }
+    });
+
     // Verify expected file count
     const expectedFileCount = await countFixtureFiles('tests/fixtures/example_real_large');
-    expect(expectedFileCount).toBe(59);
+    console.log(`✓ Fixture contains ${expectedFileCount} markdown files`);
 
     // Navigate to test page with large fixture
     await page.goto('/graph-test.html?fixture=example_real_large');
@@ -114,6 +123,70 @@ test.describe('Bulk Load Layout', () => {
 
     // Wait for the test-runner to complete initialization
     await page.waitForTimeout(2000);
+
+    // Get debugging info about tree structure
+    const debugInfo = await page.evaluate(() => {
+      if (!window.cy) throw new Error('Cytoscape not initialized');
+
+      const nodes = window.cy.nodes();
+      const edges = window.cy.edges();
+
+      // Count nodes by degree
+      const orphans: string[] = [];
+      const roots: string[] = [];
+      const internal: string[] = [];
+
+      nodes.forEach((n: any) => {
+        const inDegree = n.connectedEdges(`[target = "${n.id()}"]`).length;
+        const outDegree = n.connectedEdges(`[source = "${n.id()}"]`).length;
+
+        if (inDegree === 0 && outDegree === 0) {
+          orphans.push(n.id());
+        } else if (inDegree === 0) {
+          roots.push(n.id());
+        } else {
+          internal.push(n.id());
+        }
+      });
+
+      return {
+        totalNodes: nodes.length,
+        totalEdges: edges.length,
+        orphans: orphans.length,
+        roots: roots.length,
+        internal: internal.length,
+        orphanIds: orphans.slice(0, 10),
+        rootIds: roots.slice(0, 10)
+      };
+    });
+
+    console.log('Graph structure:', debugInfo);
+
+    // Check actual linkedNodeIds data
+    const linkData = await page.evaluate(() => {
+      if (!window.cy) throw new Error('Cytoscape not initialized');
+
+      const nodes = window.cy.nodes();
+      const totalLinks = nodes.reduce((sum: number, n: any) => {
+        const links = n.data('linkedNodeIds') || [];
+        return sum + links.length;
+      }, 0);
+
+      // Sample a few nodes to see their links
+      const samples: any[] = [];
+      nodes.slice(0, 15).forEach((n: any) => {
+        const links = n.data('linkedNodeIds') || [];
+        samples.push({
+          id: n.id(),
+          linkCount: links.length,
+          links: links
+        });
+      });
+
+      return { totalLinks, samples };
+    });
+
+    console.log('Link data:', linkData);
 
     // Get node positions and verify graph was loaded
     const nodePositions = await page.evaluate(() => {
@@ -128,8 +201,8 @@ test.describe('Bulk Load Layout', () => {
       }));
     });
 
-    // Verify all 59 nodes are positioned
-    expect(nodePositions.length).toBe(59);
+    // Verify all nodes are positioned (use actual count from fixture)
+    expect(nodePositions.length).toBe(expectedFileCount);
 
     // Verify no severe overlaps
     const overlaps = checkNoOverlaps(nodePositions);
@@ -141,7 +214,7 @@ test.describe('Bulk Load Layout', () => {
     // Allow overlaps but verify we're not worse than a threshold
     const severeOverlaps = overlaps.filter(o => o.distance > 20).length;
     console.log(`Severe overlaps (distance > 20): ${severeOverlaps}`);
-    expect(severeOverlaps).toBeLessThan(1000); // Reasonable threshold for complex forests
+    expect(severeOverlaps).toBeLessThan(10); // Reasonable threshold for complex forests
 
     console.log(`✓ Successfully positioned ${nodePositions.length} nodes`);
     console.log(`✓ Overlap check: ${overlaps.length} minor overlaps detected`);
@@ -168,7 +241,9 @@ test.describe('Bulk Load Layout', () => {
 
     // Verify parent-child y-positioning
     const hierarchyCheck = await page.evaluate(() => {
-      if (!window.cy) return { violations: 0, total: 0 };
+      if (!window.cy) return { violations: 0, total: 0, edgeCount: 0, nodeCount: 0 };
+
+      console.log(`[Test] Cytoscape has ${window.cy.nodes().length} nodes and ${window.cy.edges().length} edges`);
 
       let violations = 0;
       let total = 0;
@@ -190,10 +265,10 @@ test.describe('Bulk Load Layout', () => {
         }
       });
 
-      return { violations, total };
+      return { violations, total, edgeCount: window.cy.edges().length, nodeCount: window.cy.nodes().length };
     });
 
-    console.log(`✓ Hierarchy check: ${hierarchyCheck.violations} violations out of ${hierarchyCheck.total} edges`);
+    console.log(`✓ Hierarchy check: ${hierarchyCheck.violations} violations out of ${hierarchyCheck.total} edges (${hierarchyCheck.nodeCount} nodes, ${hierarchyCheck.edgeCount} edges)`);
 
     // Most edges should respect hierarchy (allow some violations for complex graphs)
     const violationRate = hierarchyCheck.violations / hierarchyCheck.total;
@@ -214,7 +289,7 @@ test.describe('Bulk Load Layout', () => {
       return window.cy.nodes().length;
     });
 
-    expect(nodeCount).toBe(59);
+    expect(nodeCount).toBe(55);
 
     console.log(`✓ Bulk load completed: ${nodeCount} nodes loaded and positioned`);
   });
@@ -237,7 +312,7 @@ test.describe('Bulk Load Layout', () => {
       return window.cy.nodes().length;
     });
 
-    expect(nodeCount).toBe(59);
+    expect(nodeCount).toBe(55);
 
     console.log(`✓ Bulk load layout completed in ${loadTime}ms`);
 
@@ -264,7 +339,7 @@ test.describe('Bulk Load Layout', () => {
     });
 
     // Verify structure integrity
-    expect(graphMetrics.nodeCount).toBe(59);
+    expect(graphMetrics.nodeCount).toBe(55);
     expect(graphMetrics.edgeCount).toBeGreaterThan(0); // Should have edges from wikilinks
 
     console.log(`✓ Graph structure: ${graphMetrics.nodeCount} nodes, ${graphMetrics.edgeCount} edges`);

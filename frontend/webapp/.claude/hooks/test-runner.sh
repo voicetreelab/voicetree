@@ -1,67 +1,38 @@
 #!/bin/bash
+# Run tests for modified file
 
-# Test runner hook for Claude Code
-# Runs tests and provides concise feedback, blocking Claude if tests fail
+# Parse JSON input to get file path
+file_path=$(python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('tool_input', {}).get('file_path', ''))")
 
-PROJECT_ROOT="/Users/bobbobby/repos/VoiceTree/frontend/webapp"
-cd "$PROJECT_ROOT"
-
-# Check if there are any source code changes that would require testing
-has_source_changes() {
-    local unstaged=$(git diff --name-only -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.json' '*.html' '*.css' 2>/dev/null)
-    local staged=$(git diff --cached --name-only -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.json' '*.html' '*.css' 2>/dev/null)
-
-    if [[ -n "$unstaged" ]] || [[ -n "$staged" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Exit if no source changes
-if ! has_source_changes; then
-    echo "ℹ️ No source code changes detected, skipping tests"
+# Only check TypeScript/JavaScript files
+if [[ ! "$file_path" =~ \.(ts|tsx|js|jsx)$ ]]; then
     exit 0
 fi
 
-all_passed=true
+cd /Users/bobbobby/repos/VoiceTree/frontend/webapp
 
-# Run unit tests
-echo "Running unit tests..."
-if npx vitest run 2>&1; then
-    echo "✅ Unit tests passed"
-else
-    echo "❌ Unit tests failed"
-    all_passed=false
-fi
+# Extract filename without extension
+filename=$(basename "$file_path")
+basename_no_ext="${filename%.*}"
 
-# Run e2e test
-echo ""
-echo "Running system e2e test..."
+# Search for matching test files in tests/ folder
+test_files=$(find tests -type f \( -name "${basename_no_ext}.test.*" -o -name "${basename_no_ext}.spec.*" \))
 
-# Build for electron tests
-if ! npm run build:test >/dev/null 2>&1; then
-    echo "❌ Build failed"
-    all_passed=false
-else
-    # Run the e2e test
-    if npx playwright test tests/e2e/full-app/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts --headed=false >/dev/null 2>&1; then
-        echo "✅ E2E test passed"
-    else
-        echo "❌ E2E test failed"
-        all_passed=false
-    fi
-fi
-
-# Final summary
-echo ""
-echo "=================================================="
-if $all_passed; then
-    echo "✅ All tests passed!"
+# If no test files found, exit successfully
+if [ -z "$test_files" ]; then
     exit 0
-else
-    echo "❌ Some tests failed!"
-    echo ""
-    echo "Tests must pass before stopping. Please review and fix the failures."
+fi
+
+# Run vitest on matching test files
+test_output=$(npx vitest run $test_files 2>&1)
+test_code=$?
+
+# If tests failed, output to stderr and block Claude
+if [ $test_code -ne 0 ]; then
+    echo "Test failures for $file_path:" >&2
+    echo "$test_output" >&2
+    echo "YOU MUST NOW FIX THESE TEST FAILURES." >&2
     exit 2
 fi
+
+exit 0

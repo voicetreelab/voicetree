@@ -74,48 +74,29 @@ export class MarkdownParser {
     const contentStartIndex = frontmatterEnd >= 0 ? frontmatterEnd + 1 : 0;
     const bodyContent = lines.slice(contentStartIndex).join('\n');
 
-    // Extract links with relationship types
+    // Extract ALL wikilinks from content
+    // Any [[link]] anywhere in the file is valid
     const links: ParsedLink[] = [];
 
-    // Look for Links section
-    const linksSectionMatch = bodyContent.match(/_Links:_([\s\S]*?)(?:\n\n|$)/);
-    if (linksSectionMatch) {
-      const linksContent = linksSectionMatch[1];
+    const linkMatches = bodyContent.matchAll(/\[\[([^\]]+)\]\]/g);
+    for (const match of linkMatches) {
+      const targetFile = match[1];
 
-      // Match patterns like "- relationship_type [[filename.md]]"
-      const linkMatches = linksContent.matchAll(/- ([^[]+)\[\[([^\]]+)\]\]/g);
+      // Try to extract node ID from numbered files (e.g., "5_Something.md" -> "5")
+      const nodeIdMatch = targetFile.match(/^(\d+)_/);
 
-      for (const match of linkMatches) {
-        const relationshipType = match[1].trim();
-        const targetFile = match[2];
-        // Extract node ID from filename
-        const nodeIdMatch = targetFile.match(/^(\d+)_/);
-        const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : targetFile;
+      // Otherwise normalize the filename to get a consistent ID
+      const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : this.normalizeFileId(targetFile);
 
-        links.push({
-          type: relationshipType,  // Actual relationship type from markdown
-          targetFile: targetFile,
-          targetNodeId: targetNodeId
-        });
-      }
-    } else {
-      // Fallback: extract simple wikilinks without relationship types
-      const simpleLinkMatches = bodyContent.matchAll(/\[\[([^\]]+)\]\]/g);
-      for (const match of simpleLinkMatches) {
-        const targetFile = match[1];
-        const nodeIdMatch = targetFile.match(/^(\d+)_/);
-        const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : targetFile;
-
-        links.push({
-          type: 'link',
-          targetFile: targetFile,
-          targetNodeId: targetNodeId
-        });
-      }
+      links.push({
+        type: 'link',
+        targetFile: targetFile,
+        targetNodeId: targetNodeId
+      });
     }
 
     return {
-      id: frontmatter.node_id || '',
+      id: frontmatter.node_id || this.normalizeFileId(filename),
       title: frontmatter.title || '',
       content: bodyContent,
       links: links,
@@ -125,37 +106,91 @@ export class MarkdownParser {
 
   /**
    * Parse a directory of markdown files and return simple graph data (original API)
+   *
+   * IMPORTANT: In VoiceTree markdown format, links under "Parent:" section are links FROM child TO parent
+   * We invert these to create proper parent->child relationships for the tree layout
+   *
+   * For generic markdown without Parent: sections, we use wikilinks as-is
    */
   static async parseDirectory(files: Map<string, string>): Promise<GraphData> {
     const nodes: Array<{ data: NodeData }> = [];
     const edges: Array<{ data: EdgeData }> = [];
 
-    // For each file in the map
+    // Parse all files
+    const parsedNodes = new Map<string, { id: string; filename: string; hasParentSection: boolean }>();
     for (const [filename, content] of files) {
-      const nodeId = this.normalizeFileId(filename);
-      const linkedNodeIds: string[] = [];
+      const parsed = this.parseMarkdownFile(content, filename);
+      if (parsed.id) {
+        // Check if this file has a Parent: section
+        const linksSectionMatch = content.match(/_Links:_([\s\S]*?)(?:\n\n|$)/);
+        const hasParentSection = linksSectionMatch ? /Parent:\s*\n/.test(linksSectionMatch[1]) : false;
 
-      // Extract wikilinks: [[filename.md]]
-      const linkMatches = content.matchAll(/\[\[([^\]]+)\]\]/g);
-      for (const match of linkMatches) {
-        const targetFile = match[1];
-        const normalizedTargetId = this.normalizeFileId(targetFile);
-        linkedNodeIds.push(normalizedTargetId);
+        parsedNodes.set(parsed.id, { id: parsed.id, filename, hasParentSection });
+      }
+    }
 
-        edges.push({
-          data: {
-            id: `${nodeId}->${normalizedTargetId}`,
-            source: nodeId,
-            target: normalizedTargetId
+    // Track children for each node
+    const nodeChildren = new Map<string, Set<string>>();
+    for (const [id] of parsedNodes) {
+      nodeChildren.set(id, new Set());
+    }
+
+    // Build edges
+    for (const [filename, content] of files) {
+      const node = Array.from(parsedNodes.values()).find(n => n.filename === filename);
+      if (!node) continue;
+
+      // Check if this has a Parent: section
+      const linksSectionMatch = content.match(/_Links:_([\s\S]*?)(?:\n\n|$)/);
+      if (linksSectionMatch) {
+        const linksContent = linksSectionMatch[1];
+        const parentSectionMatch = linksContent.match(/Parent:\s*\n- [^[]+\[\[([^\]]+)\]\]/);
+
+        if (parentSectionMatch) {
+          // VoiceTree format: Parent link means "my parent is X"
+          // Create edge FROM parent TO this node
+          const parentFile = parentSectionMatch[1];
+          const parentNodeIdMatch = parentFile.match(/^(\d+)_/);
+          const parentId = parentNodeIdMatch ? parentNodeIdMatch[1] : this.normalizeFileId(parentFile);
+
+          if (parsedNodes.has(parentId)) {
+            nodeChildren.get(parentId)!.add(node.id);
+            edges.push({
+              data: {
+                id: `${parentId}->${node.id}`,
+                source: parentId,
+                target: node.id
+              }
+            });
           }
-        });
+          continue; // Skip normal wikilink processing for VoiceTree format files
+        }
       }
 
+      // Generic format: use wikilinks as-is
+      const parsed = this.parseMarkdownFile(content, filename);
+      for (const link of parsed.links) {
+        const targetId = link.targetNodeId;
+        if (parsedNodes.has(targetId)) {
+          nodeChildren.get(node.id)!.add(targetId);
+          edges.push({
+            data: {
+              id: `${node.id}->${targetId}`,
+              source: node.id,
+              target: targetId
+            }
+          });
+        }
+      }
+    }
+
+    // Create nodes with linkedNodeIds
+    for (const [id] of parsedNodes) {
       nodes.push({
         data: {
-          id: nodeId,
-          label: nodeId.replace(/_/g, ' '),
-          linkedNodeIds
+          id,
+          label: id.replace(/_/g, ' '),
+          linkedNodeIds: Array.from(nodeChildren.get(id) || [])
         }
       });
     }
