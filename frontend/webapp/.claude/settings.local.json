@@ -33,6 +33,19 @@
   "enabledMcpjsonServers": [
     "zen"
   ],
+  "disabledMcpjsonServers": [
+    "playwright"
+  ],
+    "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    }
+  },
   "hooks": {
     "Stop": [
       {
@@ -44,10 +57,6 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/test-runner.py"
-          },
-          {
-            "type": "command",
-            "command": "coderabbit --prompt-only"
           }
         ]
       }

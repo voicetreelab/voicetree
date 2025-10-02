@@ -1,7 +1,7 @@
 ---
 name: tdd-module-developer
 description: Use this agent when you need to implement complex code for a specific module, class, method, or system component following Test-Driven Development principles. This agent ensures tests focus on behavior and user interaction rather than implementation details. Examples:\n\n<example>\nContext: The user needs to implement a new data processing module.\nuser: "Create a module that processes user input and validates it against business rules"\nassistant: "I'll use the tdd-module-developer agent to implement this module following TDD principles"\n<commentary>\nSince the user is asking for module implementation, use the Task tool to launch the tdd-module-developer agent to write tests first, then implement the code.\n</commentary>\n</example>\n\n<example>\nContext: The user wants to add a new feature to an existing system.\nuser: "Add a caching layer to the API client class"\nassistant: "Let me use the tdd-module-developer agent to implement this caching layer with proper tests"\n<commentary>\nThe user needs complex code written for a specific class enhancement, so use the tdd-module-developer agent.\n</commentary>\n</example>
-model: opus
+model: inherit
 color: orange
 ---
 
