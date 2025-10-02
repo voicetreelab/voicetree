@@ -18,15 +18,15 @@ export const FloatingWindowContainer: React.FC<FloatingWindowContainerProps> = (
 
   // Create the position update handler
   const handlePositionUpdates = useCallback((positionUpdates: Map<string, { x: number; y: number }>) => {
-    console.log('[DEBUG] FloatingWindowContainer handlePositionUpdates called with', positionUpdates.size, 'updates');
+    // console.log('[DEBUG] FloatingWindowContainer handlePositionUpdates called with', positionUpdates.size, 'updates');
     for (const [nodeId, newPosition] of positionUpdates) {
       // Find the window for this node and update its position
       const window = windows.find(w => w.nodeId === nodeId);
       if (window) {
-        console.log(`[DEBUG] Updating window ${window.id} position to`, newPosition);
+        // console.log(`[DEBUG] Updating window ${window.id} position to`, newPosition);
         updateWindowPosition(window.id, newPosition);
       } else {
-        console.log(`[DEBUG] No window found for nodeId ${nodeId}`);
+        // console.log(`[DEBUG] No window found for nodeId ${nodeId}`);
       }
     }
   }, [windows, updateWindowPosition]);

@@ -4,6 +4,19 @@ import { FloatingWindow } from '@/components/floating-windows/FloatingWindow';
 import { FloatingWindowManagerProvider } from '@/components/floating-windows/context/FloatingWindowManager';
 import { vi } from 'vitest';
 
+// Mock window.electronAPI for Terminal component
+Object.defineProperty(window, 'electronAPI', {
+  value: {
+    terminal: {
+      spawn: vi.fn().mockResolvedValue({ success: true, terminalId: 'test-terminal' }),
+      onData: vi.fn(),
+      onExit: vi.fn(),
+      write: vi.fn()
+    }
+  },
+  writable: true
+});
+
 // Mock react-draggable to make testing easier
 vi.mock('react-draggable', () => ({
   default: ({ children, position, defaultPosition }: { children: React.ReactNode; position?: { x: number; y: number }; defaultPosition?: { x: number; y: number } }) => {

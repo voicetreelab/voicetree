@@ -66,6 +66,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // Layout manager for positioning nodes
   const layoutManagerRef = useRef<LayoutManager | null>(null);
 
+  // Track last new node for animation timeout management
+  const lastNewNodeIdRef = useRef<string | null>(null);
+
   // Initialize layout manager with appropriate strategy
   useEffect(() => {
     const strategy = isInitialLoad ? new ReingoldTilfordStrategy() : new SeedParkRelaxStrategy();
@@ -107,7 +110,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     const cy = cytoscapeRef.current.getCore();
     const positionUpdates = new Map<string, { x: number; y: number }>();
 
-    console.log('[DEBUG] Windows to update:', windowsRef.current.length);
+    // console.log('[DEBUG] Windows to update:', windowsRef.current.length);
 
     // Use actual windows from context instead of duplicate openEditorsRef
     for (const window of windowsRef.current) {
@@ -116,7 +119,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           const graphX = window.graphAnchor.x + (window.graphOffset?.x || 0);
           const graphY = window.graphAnchor.y + (window.graphOffset?.y || 0);
           const screenPos = toScreenCoords(graphX, graphY, cy);
-          console.log(`[DEBUG] Window ${window.nodeId}: graph(${graphX},${graphY}) -> screen(${screenPos.x},${screenPos.y})`);
+          // console.log(`[DEBUG] Window ${window.nodeId}: graph(${graphX},${graphY}) -> screen(${screenPos.x},${screenPos.y})`);
           positionUpdates.set(window.nodeId, screenPos);
       } else if (window.nodeId) {
         // Fallback to old behavior for backward compatibility (windows without graph coordinates)
@@ -132,21 +135,21 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     }
 
     if (positionUpdates.size > 0) {
-      console.log('[DEBUG] Calling position update callback with', positionUpdates.size, 'updates');
+      // console.log('[DEBUG] Calling position update callback with', positionUpdates.size, 'updates');
       positionUpdateCallbackRef.current(positionUpdates);
     } else {
-      console.log('[DEBUG] No position updates to send');
+      // console.log('[DEBUG] No position updates to send');
     }
   }, []);
 
   // Throttled version using requestAnimationFrame
   const throttledUpdateEditorPositions = useCallback(() => {
-    console.log('[DEBUG] throttledUpdateEditorPositions called');
+    // console.log('[DEBUG] throttledUpdateEditorPositions called');
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
     }
     rafIdRef.current = requestAnimationFrame(() => {
-      console.log('[DEBUG] RAF executing updateEditorPositions');
+      // console.log('[DEBUG] RAF executing updateEditorPositions');
       updateEditorPositions();
       rafIdRef.current = null;
     });
@@ -295,8 +298,20 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           linkedNodeIds
         }
       });
-      // Trigger breathing animation for new node
+
+      // If there was a previous new node, add a 10s timeout to it
+      if (lastNewNodeIdRef.current) {
+        const prevNode = cy.getElementById(lastNewNodeIdRef.current);
+        if (prevNode.length > 0 && prevNode.data('breathingActive')) {
+          cytoscapeRef.current?.setAnimationTimeout(prevNode, 10000);
+        }
+      }
+
+      // Trigger breathing animation for new node (no timeout)
       cytoscapeRef.current?.animateNewNode(addedNode);
+
+      // Track this as the last new node
+      lastNewNodeIdRef.current = nodeId;
     } else {
       // Update linkedNodeIds for existing node
       cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
@@ -338,7 +353,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     if (layoutManagerRef.current && isNewNode && !isInitialLoad) {
       layoutManagerRef.current.applyLayout(cy, [nodeId]);
     }
-  }, []);
+  }, [isInitialLoad]);
 
   const handleFileChanged = useCallback((data: { path: string; content?: string }) => {
     if (!data.path.endsWith('.md') || !data.content) return;
@@ -394,13 +409,18 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
 
+    // For file changes during incremental mode, apply layout
+    if (layoutManagerRef.current && !isInitialLoad) {
+      layoutManagerRef.current.applyLayout(cy, [nodeId]);
+    }
+
     // Update any open editors for this file
     const window = windows.find(w => w.nodeId === nodeId);
     if (window) {
       console.log(`VoiceTreeGraphVizLayout: Updating editor content for node ${nodeId} due to external file change`);
       updateWindowContent(window.id, data.content);
     }
-  }, [windows, updateWindowContent]);
+  }, [windows, updateWindowContent, isInitialLoad]);
 
   const handleFileDeleted = useCallback((data: { path: string }) => {
     if (!data.path.endsWith('.md')) return;
@@ -544,9 +564,14 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
               const nodeScreenPos = node.renderedPosition();
               const zoom = core.zoom();
 
+              // Position window below the node, centered horizontally
+              const nodeRadius = 40; // Max node size / 2 (conservative estimate)
+              const spacing = 10;
+              const windowWidth = 700;
+
               const initialGraphOffset = {
-                x: -50 / zoom,
-                y: -50 / zoom
+                x: -(windowWidth / 2) / zoom,
+                y: (nodeRadius + spacing) / zoom
               };
 
               openWindowRef.current({
@@ -554,7 +579,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
                 title: nodeId,
                 type: 'MarkdownEditor',
                 content,
-                position: { x: nodeScreenPos.x - 50, y: nodeScreenPos.y - 50 },
+                position: { x: nodeScreenPos.x - (windowWidth / 2), y: nodeScreenPos.y + nodeRadius + spacing },
                 graphAnchor: nodeGraphPos,
                 graphOffset: initialGraphOffset,
                 size: { width: 700, height: 500 },
@@ -639,21 +664,29 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           const node = core.getElementById(nodeId);
           if (node.length > 0) {
             const nodeGraphPos = node.position(); // Get graph position
-            const nodeScreenPos = node.renderedPosition();
             const zoom = core.zoom();
 
-            // Calculate initial offset in graph coordinates (50px offset in screen space)
+            // Position window below the node, centered horizontally
+            const nodeRadius = 40; // Max node size / 2 (conservative estimate)
+            const spacing = 10;
+            const windowWidth = 800;
+
             const initialGraphOffset = {
-              x: 50 / zoom,
-              y: 50 / zoom
+              x: -(windowWidth / 2) / zoom,
+              y: (nodeRadius + spacing) / zoom
             };
+
+            // Calculate initial screen position using toScreenCoords to match future updates
+            const graphX = nodeGraphPos.x + initialGraphOffset.x;
+            const graphY = nodeGraphPos.y + initialGraphOffset.y;
+            const initialScreenPos = toScreenCoords(graphX, graphY, core);
 
             openWindowRef.current({
               nodeId: terminalId,
               title: `Terminal - ${nodeId}`,
               type: 'Terminal',
               content: '',
-              position: { x: nodeScreenPos.x + 50, y: nodeScreenPos.y + 50 },
+              position: initialScreenPos,
               graphAnchor: nodeGraphPos,  // Store node position in graph coords
               graphOffset: initialGraphOffset,  // Store initial offset in graph coords
               size: { width: 800, height: 400 }
@@ -694,22 +727,30 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
         if (content && filePath) {
           const nodeGraphPos = event.target.position(); // Get graph position
-          const nodeScreenPos = event.target.renderedPosition();
           const cy = event.cy;
           const zoom = cy.zoom();
 
-          // Calculate initial offset in graph coordinates
+          // Position window below the node, centered horizontally
+          const nodeRadius = 40; // Max node size / 2 (conservative estimate)
+          const spacing = 10;
+          const windowWidth = 700;
+
           const initialGraphOffset = {
-            x: -50 / zoom,  // Convert pixel offset to graph units
-            y: -50 / zoom
+            x: -(windowWidth / 2) / zoom,
+            y: (nodeRadius + spacing) / zoom
           };
+
+          // Calculate initial screen position using toScreenCoords to match future updates
+          const graphX = nodeGraphPos.x + initialGraphOffset.x;
+          const graphY = nodeGraphPos.y + initialGraphOffset.y;
+          const initialScreenPos = toScreenCoords(graphX, graphY, cy);
 
           openWindowRef.current({
             nodeId,
             title: nodeId,
             type: 'MarkdownEditor',
             content,
-            position: { x: nodeScreenPos.x - 50, y: nodeScreenPos.y - 50 }, // Keep for initial display
+            position: initialScreenPos,
             graphAnchor: nodeGraphPos,  // Store node position in graph coords
             graphOffset: initialGraphOffset,  // Store initial offset in graph coords
             size: { width: 700, height: 500 },

@@ -1,6 +1,3 @@
-import cytoscape from 'cytoscape';
-// @ts-expect-error - cytoscape-cola does not have proper TypeScript definitions
-import cola from 'cytoscape-cola';
 import { MarkdownParser, type ParsedNode } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
 import { type NodeDefinition, type EdgeDefinition } from './types';
@@ -22,9 +19,6 @@ const markdownModules = fixtureSet === 'example_real_large'
       import: 'default',
       eager: true
     });
-
-// Register cola extension with cytoscape
-// cytoscape.use(cola);
 
 async function initializeGraph() {
   console.log('Initializing graph test...');

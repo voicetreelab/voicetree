@@ -1,13 +1,7 @@
-import cytoscape from 'cytoscape';
-// @ts-expect-error - cytoscape-cola does not have proper TypeScript definitions
-import cola from 'cytoscape-cola';
 import { ExampleLoader } from './data/load_markdown/ExampleLoader';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
 import { type NodeDefinition, type EdgeDefinition, type GraphData } from './types';
 import { LayoutManager, SeedParkRelaxStrategy } from './graphviz/layout';
-
-// Register cola extension with cytoscape
-// cytoscape.use(cola);
 
 let cytoscapeCore: CytoscapeCore | null = null;
 let layoutManager: LayoutManager;

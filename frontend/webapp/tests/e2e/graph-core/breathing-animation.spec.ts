@@ -86,7 +86,33 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
 
     expect(stillBreathing.breathingActive).toBe(true);
 
-    console.log('✓ New node breathing animation test completed');
+    // Hover over the node - should stop animation
+    await page.evaluate((filePath) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+
+      // Trigger mouseover event
+      node.emit('mouseover');
+    }, newFilePath);
+
+    await page.waitForTimeout(500);
+
+    // Verify animation stopped after hover
+    const afterHover = await page.evaluate((filePath) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+      return {
+        breathingActive: node.data('breathingActive'),
+        borderWidth: node.style('border-width')
+      };
+    }, newFilePath);
+
+    expect(afterHover.breathingActive).toBeFalsy();
+    expect(afterHover.borderWidth).toMatch(/^(0px?|0)$/);
+
+    console.log('✓ New node breathing animation test completed (stops on hover)');
   });
 
   test('should animate updated nodes with cyan breathing effect', async ({ page }) => {
@@ -161,40 +187,12 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
       fullPage: false
     });
 
-    console.log('✓ Updated node breathing animation test completed');
-  });
+    // Wait for 10s timeout for appended content
+    console.log('Waiting 10.5s for appended content animation timeout...');
+    await page.waitForTimeout(10500);
 
-  test('should stop new node animation after 5 second timeout', async ({ page }) => {
-    await page.goto('http://localhost:3000');
-    await page.waitForSelector('.__________cytoscape_container', { state: 'visible' });
-    await page.waitForTimeout(1000);
-
-    // Create a new node
-    const filePath = 'test-timeout-node.md';
-    const content = '# Timeout Test\n\nThis should stop animating after 5 seconds.';
-
-    await page.evaluate(({ path, content }) => {
-      (window as any).testHandlers.handleFileAdded({ path, content });
-    }, { path: filePath, content });
-
-    await page.waitForTimeout(500);
-
-    // Verify animation started
-    const animationStarted = await page.evaluate((fp) => {
-      const cy = (window as any).cytoscapeInstance;
-      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
-      const node = cy.getElementById(nodeId);
-      return node.data('breathingActive') === true;
-    }, filePath);
-
-    expect(animationStarted).toBe(true);
-
-    // Wait for timeout (NEW_NODE has 5 second timeout)
-    console.log('Waiting 5.5 seconds for animation timeout...');
-    await page.waitForTimeout(5500);
-
-    // Verify animation stopped
-    const animationStopped = await page.evaluate((fp) => {
+    // Verify animation stopped after timeout
+    const afterTimeout = await page.evaluate((fp) => {
       const cy = (window as any).cytoscapeInstance;
       const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
       const node = cy.getElementById(nodeId);
@@ -204,12 +202,109 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
       };
     }, filePath);
 
-    console.log('After timeout:', animationStopped);
+    console.log('After timeout:', afterTimeout);
 
-    expect(animationStopped.breathingActive).toBeFalsy();
-    expect(animationStopped.borderWidth).toMatch(/^(0px?|0)$/);
+    expect(afterTimeout.breathingActive).toBeFalsy();
+    expect(afterTimeout.borderWidth).toMatch(/^(0px?|0)$/);
 
-    console.log('✓ Animation timeout test completed');
+    console.log('✓ Updated node breathing animation test completed (with 10s timeout)');
+  });
+
+  test('should keep last new node animating, add timeout to previous nodes', async ({ page }) => {
+    await page.goto('http://localhost:3000');
+    await page.waitForSelector('.__________cytoscape_container', { state: 'visible' });
+    await page.waitForTimeout(1000);
+
+    // Create first new node
+    const firstPath = 'test-first-node.md';
+    const firstContent = '# First Node\n\nThis is the first node.';
+
+    await page.evaluate(({ path, content }) => {
+      (window as any).testHandlers.handleFileAdded({ path, content });
+    }, { path: firstPath, content: firstContent });
+
+    await page.waitForTimeout(500);
+
+    // Verify first node is animating
+    const firstAnimating = await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+      return node.data('breathingActive') === true;
+    }, firstPath);
+
+    expect(firstAnimating).toBe(true);
+    console.log('✓ First node is animating');
+
+    // Wait 3 seconds - first node should still be animating (no timeout)
+    await page.waitForTimeout(3000);
+
+    const firstStillAnimating = await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+      return node.data('breathingActive') === true;
+    }, firstPath);
+
+    expect(firstStillAnimating).toBe(true);
+    console.log('✓ First node still animating after 3s (no timeout)');
+
+    // Create second new node - this should add 10s timeout to first node
+    const secondPath = 'test-second-node.md';
+    const secondContent = '# Second Node\n\nThis is the second node.';
+
+    await page.evaluate(({ path, content }) => {
+      (window as any).testHandlers.handleFileAdded({ path, content });
+    }, { path: secondPath, content: secondContent });
+
+    await page.waitForTimeout(500);
+
+    // Both should be animating now
+    const bothStatus = await page.evaluate(({ first, second }) => {
+      const cy = (window as any).cytoscapeInstance;
+      const firstId = first.replace(/\.md$/, '').replace(/\//g, '_');
+      const secondId = second.replace(/\.md$/, '').replace(/\//g, '_');
+      return {
+        first: cy.getElementById(firstId).data('breathingActive'),
+        second: cy.getElementById(secondId).data('breathingActive')
+      };
+    }, { first: firstPath, second: secondPath });
+
+    expect(bothStatus.first).toBe(true);
+    expect(bothStatus.second).toBe(true);
+    console.log('✓ Both nodes animating after second node created');
+
+    // Wait 10.5 seconds - first node should timeout, second should still animate
+    console.log('Waiting 10.5s for first node timeout...');
+    await page.waitForTimeout(10500);
+
+    const afterTimeout = await page.evaluate(({ first, second }) => {
+      const cy = (window as any).cytoscapeInstance;
+      const firstId = first.replace(/\.md$/, '').replace(/\//g, '_');
+      const secondId = second.replace(/\.md$/, '').replace(/\//g, '_');
+      return {
+        first: {
+          breathing: cy.getElementById(firstId).data('breathingActive'),
+          border: cy.getElementById(firstId).style('border-width')
+        },
+        second: {
+          breathing: cy.getElementById(secondId).data('breathingActive'),
+          border: cy.getElementById(secondId).style('border-width')
+        }
+      };
+    }, { first: firstPath, second: secondPath });
+
+    console.log('After timeout:', afterTimeout);
+
+    // First node should have stopped
+    expect(afterTimeout.first.breathing).toBeFalsy();
+    expect(afterTimeout.first.border).toMatch(/^(0px?|0)$/);
+
+    // Second node should still be animating (no timeout)
+    expect(afterTimeout.second.breathing).toBe(true);
+    expect(afterTimeout.second.border).not.toMatch(/^(0px?|0)$/);
+
+    console.log('✓ First node stopped, second node still animating');
   });
 
   test('should maintain pinned node animation indefinitely', async ({ page }) => {

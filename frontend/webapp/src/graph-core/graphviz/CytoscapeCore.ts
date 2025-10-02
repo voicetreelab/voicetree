@@ -47,6 +47,11 @@ export class CytoscapeCore {
         .addClass(CLASS_CONNECTED_HOVER)
         .connectedNodes()
         .addClass(CLASS_CONNECTED_HOVER);
+
+      // Stop breathing animation on hover for new nodes
+      if (this.animationService.isAnimationActive(node) && node.data('animationType') === 'new_node') {
+        this.animationService.stopAnimationForNode(node);
+      }
     });
 
     this.viz.on('mouseout', (e) => {
@@ -176,6 +181,10 @@ export class CytoscapeCore {
 
   stopNodeAnimation(node: NodeSingular): void {
     this.animationService.stopAnimationForNode(node);
+  }
+
+  setAnimationTimeout(node: NodeSingular, timeout: number): void {
+    this.animationService.setAnimationTimeout(node, timeout);
   }
 
   stopAllAnimations(): void {
