@@ -124,6 +124,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
   // File watching event handlers
   const {
+    handleBulkFilesAdded,
     handleFileAdded,
     handleFileChanged,
     handleFileDeleted,
@@ -501,6 +502,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
     // Set up event listeners
     console.log('VoiceTreeGraphVizLayout: Setting up file event listeners');
+    window.electronAPI.onInitialFilesLoaded(handleBulkFilesAdded);
     window.electronAPI.onFileAdded(handleFileAdded);
     window.electronAPI.onFileChanged(handleFileChanged);
     window.electronAPI.onFileDeleted(handleFileDeleted);
@@ -524,6 +526,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     return () => {
       // Cleanup listeners
       console.log('[DEBUG] VoiceTreeGraphVizLayout: Cleaning up file event listeners');
+      window.electronAPI!.removeAllListeners('initial-files-loaded');
       window.electronAPI!.removeAllListeners('file-added');
       window.electronAPI!.removeAllListeners('file-changed');
       window.electronAPI!.removeAllListeners('file-deleted');
@@ -535,7 +538,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
         window.electronAPI!.removeAllListeners('watching-started');
       }
     };
-  }, [handleFileAdded, handleFileChanged, handleFileDeleted, handleWatchingStopped, handleInitialScanComplete, handleWatchingStarted]);
+  }, [handleBulkFilesAdded, handleFileAdded, handleFileChanged, handleFileDeleted, handleWatchingStopped, handleInitialScanComplete, handleWatchingStarted]);
 
   // Handle window resize
   useEffect(() => {

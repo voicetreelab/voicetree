@@ -38,6 +38,7 @@ export interface ElectronAPI {
 
   // File system event listeners
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string }) => void) => void;
+  onInitialFilesLoaded: (callback: (data: { files: FileEvent[]; directory: string }) => void) => void;
   onFileAdded: (callback: (data: FileEvent) => void) => void;
   onFileChanged: (callback: (data: FileEvent) => void) => void;
   onFileDeleted: (callback: (data: FileEvent) => void) => void;

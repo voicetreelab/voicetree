@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onWatchingStarted: (callback) => {
     ipcRenderer.on('watching-started', (event, data) => callback(data));
   },
+  onInitialFilesLoaded: (callback) => {
+    ipcRenderer.on('initial-files-loaded', (event, data) => callback(data));
+  },
   onFileAdded: (callback) => {
     ipcRenderer.on('file-added', (event, data) => callback(data));
   },

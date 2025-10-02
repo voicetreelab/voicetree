@@ -7,6 +7,8 @@ class FileWatchManager {
     this.watcher = null;
     this.watchedDirectory = null;
     this.mainWindow = null;
+    this.initialScanFiles = [];
+    this.isInitialScan = true;
   }
 
   setMainWindow(window) {
@@ -25,6 +27,8 @@ class FileWatchManager {
       console.log(`[FileWatchManager] Directory accessible: ${directoryPath}`);
 
       this.watchedDirectory = directoryPath;
+      this.initialScanFiles = [];
+      this.isInitialScan = true;
 
       // Configure chokidar watcher with optimized settings
       console.log(`[FileWatchManager] Creating chokidar watcher for *.md files`);
@@ -108,17 +112,28 @@ class FileWatchManager {
         // filePath is already absolute when watching a directory
         const fullPath = filePath;
         const relativePath = path.relative(this.watchedDirectory, filePath);
-        const content = await this.readFileWithRetry(fullPath);
-        const stats = await fs.stat(fullPath);
 
-        console.log(`Sending file-added event for: ${relativePath}`);
-        this.sendToRenderer('file-added', {
-          path: relativePath,
-          fullPath: fullPath,
-          content: content,
-          size: stats.size,
-          modified: stats.mtime.toISOString()
-        });
+        if (this.isInitialScan) {
+          // Collect files during initial scan
+          console.log(`Collecting file for bulk load: ${relativePath}`);
+          this.initialScanFiles.push({
+            filePath: fullPath,
+            relativePath: relativePath
+          });
+        } else {
+          // After initial scan, send individually
+          const content = await this.readFileWithRetry(fullPath);
+          const stats = await fs.stat(fullPath);
+
+          console.log(`Sending file-added event for: ${relativePath}`);
+          this.sendToRenderer('file-added', {
+            path: relativePath,
+            fullPath: fullPath,
+            content: content,
+            size: stats.size,
+            modified: stats.mtime.toISOString()
+          });
+        }
       } catch (error) {
         console.error(`Error reading added file ${filePath}:`, error);
         this.sendToRenderer('file-watch-error', {
@@ -182,11 +197,48 @@ class FileWatchManager {
     });
 
     // Initial scan complete
-    this.watcher.on('ready', () => {
-      console.log('Initial scan complete');
-      this.sendToRenderer('initial-scan-complete', {
-        directory: this.watchedDirectory
-      });
+    this.watcher.on('ready', async () => {
+      console.log(`Initial scan complete - collected ${this.initialScanFiles.length} files`);
+
+      try {
+        // Read all collected files in parallel
+        const filePromises = this.initialScanFiles.map(async ({ filePath, relativePath }) => {
+          try {
+            const content = await this.readFileWithRetry(filePath);
+            const stats = await fs.stat(filePath);
+            return {
+              path: relativePath,
+              fullPath: filePath,
+              content: content,
+              size: stats.size,
+              modified: stats.mtime.toISOString()
+            };
+          } catch (error) {
+            console.error(`Error reading file ${relativePath}:`, error);
+            return null;
+          }
+        });
+
+        const files = (await Promise.all(filePromises)).filter(f => f !== null);
+
+        console.log(`Sending bulk load with ${files.length} files`);
+        this.sendToRenderer('initial-files-loaded', {
+          files: files,
+          directory: this.watchedDirectory
+        });
+
+        // Clear the initial scan state
+        this.initialScanFiles = [];
+        this.isInitialScan = false;
+
+      } catch (error) {
+        console.error('Error during bulk file load:', error);
+        this.sendToRenderer('file-watch-error', {
+          type: 'bulk_load_error',
+          message: `Failed to load initial files: ${error.message}`,
+          directory: this.watchedDirectory
+        });
+      }
     });
 
     // Watch error
@@ -249,6 +301,8 @@ class FileWatchManager {
 
       this.watcher = null;
       this.watchedDirectory = null;
+      this.initialScanFiles = [];
+      this.isInitialScan = true;
 
       this.sendToRenderer('file-watching-stopped');
     }

@@ -41,6 +41,101 @@ export function useFileWatcher({
   // Track last new node for animation timeout management
   const lastNewNodeIdRef = useRef<string | null>(null);
 
+  const handleBulkFilesAdded = useCallback((data: { files: Array<{ path: string; content?: string }>; directory: string }) => {
+    console.log(`[DEBUG] handleBulkFilesAdded called with ${data.files.length} files`);
+
+    const cy = cytoscapeRef.current?.getCore();
+    if (!cy) {
+      console.log('[DEBUG] No cy instance, cannot add files');
+      return;
+    }
+
+    const allNodeIds: string[] = [];
+
+    // Process all files
+    for (const file of data.files) {
+      if (!file.path.endsWith('.md') || !file.content) {
+        continue;
+      }
+
+      // Store file content
+      markdownFiles.current.set(file.path, file.content);
+
+      // Parse wikilinks to get linked node IDs
+      const linkedNodeIds: string[] = [];
+      const linkMatches = file.content.matchAll(/\[\[([^\]]+)\]\]/g);
+      for (const match of linkMatches) {
+        const targetId = normalizeFileId(match[1]);
+        linkedNodeIds.push(targetId);
+      }
+
+      // Add node if it doesn't exist
+      const nodeId = normalizeFileId(file.path);
+      const isNewNode = !cy.getElementById(nodeId).length;
+
+      if (isNewNode) {
+        cy.add({
+          data: {
+            id: nodeId,
+            label: nodeId.replace(/_/g, ' '),
+            linkedNodeIds
+          }
+        });
+        allNodeIds.push(nodeId);
+      } else {
+        // Update linkedNodeIds for existing node
+        cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
+      }
+
+      // Create target nodes and edges
+      for (const targetId of linkedNodeIds) {
+        // Ensure target node exists (create placeholder if needed)
+        if (!cy.getElementById(targetId).length) {
+          cy.add({
+            data: {
+              id: targetId,
+              label: targetId.replace(/_/g, ' '),
+              linkedNodeIds: []
+            }
+          });
+        }
+
+        const edgeId = `${nodeId}->${targetId}`;
+
+        // Add edge if it doesn't exist
+        if (!cy.getElementById(edgeId).length) {
+          cy.add({
+            data: {
+              id: edgeId,
+              source: nodeId,
+              target: targetId
+            }
+          });
+        }
+      }
+    }
+
+    // Update counts
+    setNodeCount(cy.nodes().length);
+    setEdgeCount(cy.edges().length);
+
+    console.log(`[DEBUG] Bulk load complete: ${allNodeIds.length} nodes added`);
+
+    // Apply layout to all nodes at once
+    if (layoutManagerRef.current && allNodeIds.length > 0) {
+      console.log(`[Layout] Applying TidyLayout to ${allNodeIds.length} nodes from bulk load`);
+      layoutManagerRef.current.applyLayout(cy, allNodeIds);
+
+      // Fit the graph after bulk load completes
+      cy.fit(50);
+    }
+
+    // Switch to incremental layout strategy
+    console.log('[Layout] Switching to incremental layout strategy after bulk load');
+    setIsInitialLoad(false);
+
+  }, [cytoscapeRef, markdownFiles, layoutManagerRef, setNodeCount, setEdgeCount, setIsInitialLoad]);
+
   const handleFileAdded = useCallback((data: { path: string; content?: string }) => {
     console.log('[DEBUG] handleFileAdded called with path:', data.path);
     if (!data.path.endsWith('.md') || !data.content) {
@@ -288,6 +383,7 @@ export function useFileWatcher({
   }, [setIsInitialLoad]);
 
   return {
+    handleBulkFilesAdded,
     handleFileAdded,
     handleFileChanged,
     handleFileDeleted,

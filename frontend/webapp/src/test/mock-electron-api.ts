@@ -43,19 +43,21 @@ export class MockElectronAPI implements ElectronAPI {
   private loadExampleFiles(): void {
     // console.log('MockElectronAPI: Loading example files...');
 
-    // Emit file-added events for each example file with a small delay
-    EXAMPLE_FILES.forEach((file, index) => {
-      setTimeout(() => {
-        // console.log(`MockElectronAPI: Loading example file: ${file.path}`);
-        this.emit('file-added', {
-          path: file.path,
-          fullPath: `${this.watchDirectory}/${file.path}`,
-          content: file.content,
-          size: file.content.length,
-          modified: new Date().toISOString()
-        });
-      }, 100 + (index * 50)); // Stagger the file additions
-    });
+    // Emit bulk load event with all files at once
+    setTimeout(() => {
+      const files: FileEvent[] = EXAMPLE_FILES.map(file => ({
+        path: file.path,
+        fullPath: `${this.watchDirectory}/${file.path}`,
+        content: file.content,
+        size: file.content.length,
+        modified: new Date().toISOString()
+      }));
+
+      this.emit('initial-files-loaded', {
+        files: files,
+        directory: this.watchDirectory || EXAMPLE_DIRECTORY
+      });
+    }, 100);
   }
 
   async stopFileWatching(): Promise<{ success: boolean; error?: string }> {
@@ -72,6 +74,26 @@ export class MockElectronAPI implements ElectronAPI {
   }
 
   // File operations
+  async deleteFile(filePath: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`MockElectronAPI: Deleted file ${filePath} (simulated)`);
+
+      // Emit file-deleted event
+      setTimeout(() => {
+        const fileName = filePath.split('/').pop() || filePath;
+        this.emit('file-deleted', {
+          path: fileName,
+          fullPath: filePath
+        });
+      }, 50);
+
+      return { success: true };
+    } catch (error) {
+      console.error(`MockElectronAPI: Failed to delete file ${filePath}:`, error);
+      return { success: false, error: (error as Error).message };
+    }
+  }
+
   async saveFileContent(filePath: string, content: string): Promise<{ success: boolean; error?: string }> {
     try {
       // Extract filename from path
@@ -131,6 +153,10 @@ export class MockElectronAPI implements ElectronAPI {
   }
 
   // Event Listeners
+  onInitialFilesLoaded(callback: (data: { files: FileEvent[]; directory: string }) => void): void {
+    this.addListener('initial-files-loaded', callback);
+  }
+
   onFileAdded(callback: (data: FileEvent) => void): void {
     this.addListener('file-added', callback);
   }
@@ -172,12 +198,12 @@ export class MockElectronAPI implements ElectronAPI {
   }
 
   // Helper methods for testing
-  private addListener(event: string, callback: (data: unknown) => void): void {
+  private addListener<T = unknown>(event: string, callback: (data: T) => void): void {
     // console.log(`MockElectronAPI: Adding listener for event '${event}'`);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
-    this.listeners.get(event)!.push(callback);
+    this.listeners.get(event)!.push(callback as (data: unknown) => void);
     // console.log(`MockElectronAPI: Total listeners for '${event}': ${this.listeners.get(event)!.length}`);
   }
 
