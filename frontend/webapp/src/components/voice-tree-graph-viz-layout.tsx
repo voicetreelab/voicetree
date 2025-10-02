@@ -3,18 +3,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
-import cytoscape from 'cytoscape';
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
 import { toScreenCoords, toGraphCoords } from '@/utils/coordinate-conversions';
 import { LayoutManager, SeedParkRelaxStrategy, ReingoldTilfordStrategy } from '@/graph-core/graphviz/layout';
 // Import graph styles
 import '@/graph-core/styles/graph.css';
-// @ts-expect-error - cytoscape-cola doesn't have proper TypeScript definitions
-import cola from 'cytoscape-cola';
-
-// Register cola extension with cytoscape
-cytoscape.use(cola);
 
 interface HistoryEntry {
   id: string;
@@ -294,13 +288,15 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     const isNewNode = !cy.getElementById(nodeId).length;
 
     if (isNewNode) {
-      cy.add({
+      const addedNode = cy.add({
         data: {
           id: nodeId,
           label: nodeId.replace(/_/g, ' '),
           linkedNodeIds
         }
       });
+      // Trigger breathing animation for new node
+      cytoscapeRef.current?.animateNewNode(addedNode);
     } else {
       // Update linkedNodeIds for existing node
       cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
@@ -338,7 +334,8 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     setEdgeCount(cy.edges().length);
 
     // Apply layout using appropriate strategy
-    if (layoutManagerRef.current && isNewNode) {
+    // During initial load, skip individual layouts - we'll do bulk layout on scan complete
+    if (layoutManagerRef.current && isNewNode && !isInitialLoad) {
       layoutManagerRef.current.applyLayout(cy, [nodeId]);
     }
   }, []);
@@ -387,15 +384,15 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     }
 
     // Update linkedNodeIds for changed node
-    cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
+    const changedNode = cy.getElementById(nodeId);
+    changedNode.data('linkedNodeIds', linkedNodeIds);
+
+    // Trigger breathing animation for appended content
+    cytoscapeRef.current?.animateAppendedContent(changedNode);
 
     // Update counts
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
-
-    // For file changes, we don't need to reposition - edges changed but node structure is same
-    // Just fit the view if needed
-    cy.fit(50);
 
     // Update any open editors for this file
     const window = windows.find(w => w.nodeId === nodeId);
@@ -439,11 +436,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     // Update counts
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
-
-    // For deletions, just fit the view - don't need to relayout
-    if (cy.nodes().length > 0) {
-      cy.fit(50);
-    }
   }, []);
 
   // Handle watching stopped - clear everything (stable callback)
@@ -469,14 +461,26 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
   // Handle initial scan complete - switch to incremental mode
   const handleInitialScanComplete = useCallback(() => {
-    console.log('[Layout] Initial scan complete - switching to incremental layout strategy');
-    setIsInitialLoad(false);
+    console.log('[Layout] Initial scan complete - applying bulk layout to all nodes');
 
-    // Fit the graph after bulk load completes
     const cy = cytoscapeRef.current?.getCore();
-    if (cy) {
+    if (cy && layoutManagerRef.current) {
+      // Get all node IDs for bulk layout
+      const allNodeIds = cy.nodes().map(n => n.id());
+      console.log(`[Layout] Applying ReingoldTilford to ${allNodeIds.length} nodes`);
+
+      // Apply bulk layout to all nodes at once
+      if (allNodeIds.length > 0) {
+        layoutManagerRef.current.applyLayout(cy, allNodeIds);
+      }
+
+      // Fit the graph after bulk load completes
       cy.fit(50);
     }
+
+    // Switch to incremental layout strategy for future additions
+    console.log('[Layout] Switching to incremental layout strategy');
+    setIsInitialLoad(false);
   }, []);
 
   // Handle watching started - reset to initial load mode
@@ -510,6 +514,8 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       if (typeof window !== 'undefined') {
         console.log('VoiceTreeGraphVizLayout: Initial cytoscapeInstance set on window');
         (window as unknown as { cytoscapeInstance: CytoscapeCore }).cytoscapeInstance = core;
+        // Also expose CytoscapeCore for testing
+        (window as unknown as { cytoscapeCore: typeof cytoscapeRef.current }).cytoscapeCore = cytoscapeRef.current;
       }
 
       // Enable context menu
@@ -567,21 +573,23 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           }
         },
         onExpandNode: (node) => {
-          cytoscapeRef.current?.expandNode(node);
-          // Trigger layout update
-          core.layout({ name: 'cola', animate: true }).run();
+            console.log("EXPAND DISABLED", node);
+            // cytoscapeRef.current?.xpandNode(node);
+          // // Trigger layout update
+          // core.layout({ name: 'cola', animate: true }).run();
         },
         onCollapseNode: (node) => {
-          cytoscapeRef.current?.collapseNode(node);
-          // Remove connected nodes that aren't connected to other expanded nodes
-          const connectedNodes = node.connectedEdges().connectedNodes();
-          connectedNodes.forEach((connectedNode: cytoscape.NodeSingular) => {
-            const otherConnections = connectedNode.connectedEdges().connectedNodes('.expanded');
-            if (otherConnections.length === 1) { // Only connected to this collapsing node
-              connectedNode.remove();
-            }
-          });
-          core.layout({ name: 'cola', animate: true }).run();
+            console.log("COLLAPSE DISABLED", node);
+          // cytoscapeRef.current?.collapseNode(node);
+          // // Remove connected nodes that aren't connected to other expanded nodes
+          // const connectedNodes = node.connectedEdges().connectedNodes();
+          // connectedNodes.forEach((connectedNode: cytoscape.NodeSingular) => {
+          //   const otherConnections = connectedNode.connectedEdges().connectedNodes('.expanded');
+          //   if (otherConnections.length === 1) { // Only connected to this collapsing node
+          //     connectedNode.remove();
+          //   }
+          // });
+          // core.layout({ name: 'cola', animate: true }).run();
         },
         onDeleteNode: async (node) => {
           const nodeId = node.id();
@@ -610,7 +618,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
                 cytoscapeRef.current?.hideNode(node);
                 setNodeCount(core.nodes().length);
                 setEdgeCount(core.edges().length);
-                core.layout({ name: 'cola', animate: true }).run();
               } else {
                 console.error('Failed to delete file:', result.error);
                 alert(`Failed to delete file: ${result.error}`);
@@ -755,6 +762,13 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     window.electronAPI.onFileChanged(handleFileChanged);
     window.electronAPI.onFileDeleted(handleFileDeleted);
     window.electronAPI.onFileWatchingStopped(handleWatchingStopped);
+
+    // Expose handlers for testing
+    (window as unknown as { testHandlers: { handleFileAdded: typeof handleFileAdded; handleFileChanged: typeof handleFileChanged; handleFileDeleted: typeof handleFileDeleted } }).testHandlers = {
+      handleFileAdded,
+      handleFileChanged,
+      handleFileDeleted
+    };
 
     // Set up layout strategy event listeners
     if (window.electronAPI.onInitialScanComplete) {

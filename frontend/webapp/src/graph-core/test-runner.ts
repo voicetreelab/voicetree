@@ -24,7 +24,7 @@ const markdownModules = fixtureSet === 'example_real_large'
     });
 
 // Register cola extension with cytoscape
-cytoscape.use(cola);
+// cytoscape.use(cola);
 
 async function initializeGraph() {
   console.log('Initializing graph test...');

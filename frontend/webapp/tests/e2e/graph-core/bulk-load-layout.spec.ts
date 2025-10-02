@@ -145,6 +145,17 @@ test.describe('Bulk Load Layout', () => {
 
     console.log(`✓ Successfully positioned ${nodePositions.length} nodes`);
     console.log(`✓ Overlap check: ${overlaps.length} minor overlaps detected`);
+
+    // Take screenshot for visual inspection
+    await page.evaluate(() => {
+      if (window.cy) {
+        window.cy.fit(50);
+      }
+    });
+    await page.screenshot({
+      path: 'tests/screenshots/bulk-load-layout-59-nodes.png',
+      fullPage: true
+    });
   });
 
   test('should position children below parents in hierarchy', async ({ page }) => {

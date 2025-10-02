@@ -51,7 +51,7 @@ Lines 48-70 in implementation-electron.ts
 6. SeedParkRelax Strategy
    SeedParkRelaxStrategy.position()
    ↓
-   Uses cola.js force-directed layout
+   Uses cola.js force-directed layout <<<------ what? no it doesn't
    ↓
    Returns new positions for nodes
 
