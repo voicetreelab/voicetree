@@ -33,6 +33,8 @@ interface UseGraphManagerReturn {
   clearError: () => void;
   /** Whether running in Electron environment */
   isElectron: boolean;
+  /** Layout strategy to use: 'reingold-tilford' for bulk load, 'seed-park-relax' for incremental */
+  layoutStrategy: 'reingold-tilford' | 'seed-park-relax';
 }
 
 /**
@@ -75,6 +77,9 @@ export function useGraphManager(): UseGraphManagerReturn {
   const [isWatching, setIsWatching] = useState(false);
   const [currentConfig, setCurrentConfig] = useState<FileObserverConfig | undefined>(undefined);
 
+  // Track whether we're in initial bulk load phase (before 'ready') or incremental phase (after 'ready')
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   // Initialize file observer on first render
   useEffect(() => {
     if (!fileObserverRef.current) {
@@ -90,6 +95,8 @@ export function useGraphManager(): UseGraphManagerReturn {
     setIsLoading(false);
     setError(null);
     setIsWatching(true);
+    // Switch from bulk load to incremental mode after initial load completes
+    setIsInitialLoad(false);
   }, []);
 
   /**
@@ -202,6 +209,7 @@ export function useGraphManager(): UseGraphManagerReturn {
     try {
       setIsLoading(true);
       setError(null);
+      setIsInitialLoad(true); // Reset to bulk load mode for new directory
 
       // Clear existing data
       setParsedNodesMap(new Map());
@@ -309,6 +317,13 @@ export function useGraphManager(): UseGraphManagerReturn {
   const isElectron = typeof window !== 'undefined' && window.electronAPI !== undefined;
 
   /**
+   * Determine layout strategy based on loading phase
+   * - Bulk load (isInitialLoad=true): Use Reingold-Tilford for efficient hierarchical layout
+   * - Incremental (isInitialLoad=false): Use Seed-Park-Relax for smooth additions
+   */
+  const layoutStrategy: 'reingold-tilford' | 'seed-park-relax' = isInitialLoad ? 'reingold-tilford' : 'seed-park-relax';
+
+  /**
    * Transform parsed nodes map to GraphData - memoized for efficiency
    */
   const graphData: GraphData = useMemo(() => {
@@ -391,6 +406,7 @@ export function useGraphManager(): UseGraphManagerReturn {
     startWatching,
     stopWatching,
     clearError,
-    isElectron
+    isElectron,
+    layoutStrategy
   };
 }
