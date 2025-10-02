@@ -59,19 +59,24 @@ function openMarkdownEditor({ nodeId, filePath, content, nodeGraphPos, cy, openW
   const zoom = cy.zoom();
 
   // Position window below the node, centered horizontally
-  const nodeRadius = 40; // Max node size / 2 (conservative estimate)
-  const spacing = 10;
   const windowWidth = 700;
 
   const initialGraphOffset = {
     x: -(windowWidth / 2) / zoom,
-    y: (nodeRadius + spacing) / zoom
+    y: 5  // 5 graph units below the node
   };
 
   // Calculate initial screen position using toScreenCoords to match future updates
   const graphX = nodeGraphPos.x + initialGraphOffset.x;
   const graphY = nodeGraphPos.y + initialGraphOffset.y;
-  const initialScreenPos = toScreenCoords(graphX, graphY, cy);
+  const screenPos = toScreenCoords(graphX, graphY, cy);
+
+  // Subtract container offset since FloatingWindowContainer is positioned relative to the same parent
+  const containerRect = cy.container().getBoundingClientRect();
+  const initialScreenPos = {
+    x: screenPos.x - containerRect.left,
+    y: screenPos.y - containerRect.top
+  };
 
   openWindow({
     nodeId,
@@ -129,7 +134,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     handleFileChanged,
     handleFileDeleted,
     handleWatchingStopped,
-    handleInitialScanComplete,
     handleWatchingStarted
   } = useFileWatcher({
     cytoscapeRef,
@@ -176,6 +180,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
     const cy = cytoscapeRef.current.getCore();
     const positionUpdates = new Map<string, { x: number; y: number }>();
+    const containerRect = cy.container().getBoundingClientRect();
 
     // console.log('[DEBUG] Windows to update:', windowsRef.current.length);
 
@@ -186,8 +191,13 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           const graphX = window.graphAnchor.x + (window.graphOffset?.x || 0);
           const graphY = window.graphAnchor.y + (window.graphOffset?.y || 0);
           const screenPos = toScreenCoords(graphX, graphY, cy);
+          // Subtract container offset since FloatingWindowContainer is positioned relative to the same parent
+          const relativePos = {
+            x: screenPos.x - containerRect.left,
+            y: screenPos.y - containerRect.top
+          };
           // console.log(`[DEBUG] Window ${window.nodeId}: graph(${graphX},${graphY}) -> screen(${screenPos.x},${screenPos.y})`);
-          positionUpdates.set(window.nodeId, screenPos);
+          positionUpdates.set(window.nodeId, relativePos);
       } else if (window.nodeId) {
         // Fallback to old behavior for backward compatibility (windows without graph coordinates)
         const node = cy.getElementById(window.nodeId);
@@ -235,8 +245,11 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     const window = windows.find(w => w.id === windowId);
     if (!window || !window.graphAnchor) return;
 
-    // Convert screen position to graph coordinates
-    const graphPos = toGraphCoords(screenPosition.x, screenPosition.y, cy);
+    // Convert container-relative position to viewport position, then to graph coordinates
+    const containerRect = cy.container().getBoundingClientRect();
+    const viewportX = screenPosition.x + containerRect.left;
+    const viewportY = screenPosition.y + containerRect.top;
+    const graphPos = toGraphCoords(viewportX, viewportY, cy);
 
     // Calculate new offset from anchor
     const newGraphOffset = {
@@ -401,19 +414,24 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
             const zoom = core.zoom();
 
             // Position window below the node, centered horizontally
-            const nodeRadius = 40; // Max node size / 2 (conservative estimate)
-            const spacing = 10;
             const windowWidth = 800;
 
             const initialGraphOffset = {
               x: -(windowWidth / 2) / zoom,
-              y: (nodeRadius + spacing) / zoom
+              y: 5  // 5 graph units below the node
             };
 
             // Calculate initial screen position using toScreenCoords to match future updates
             const graphX = nodeGraphPos.x + initialGraphOffset.x;
             const graphY = nodeGraphPos.y + initialGraphOffset.y;
-            const initialScreenPos = toScreenCoords(graphX, graphY, core);
+            const screenPos = toScreenCoords(graphX, graphY, core);
+
+            // Subtract container offset since FloatingWindowContainer is positioned relative to the same parent
+            const containerRect = core.container().getBoundingClientRect();
+            const initialScreenPos = {
+              x: screenPos.x - containerRect.left,
+              y: screenPos.y - containerRect.top
+            };
 
             openWindowRef.current({
               nodeId: terminalId,
@@ -502,7 +520,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
     // Set up event listeners
     console.log('VoiceTreeGraphVizLayout: Setting up file event listeners');
+    console.log('VoiceTreeGraphVizLayout: Setting up onInitialFilesLoaded listener');
     window.electronAPI.onInitialFilesLoaded(handleBulkFilesAdded);
+    console.log('VoiceTreeGraphVizLayout: onInitialFilesLoaded listener registered');
     window.electronAPI.onFileAdded(handleFileAdded);
     window.electronAPI.onFileChanged(handleFileChanged);
     window.electronAPI.onFileDeleted(handleFileDeleted);
@@ -516,9 +536,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     };
 
     // Set up layout strategy event listeners
-    if (window.electronAPI.onInitialScanComplete) {
-      window.electronAPI.onInitialScanComplete(handleInitialScanComplete);
-    }
     if (window.electronAPI.onWatchingStarted) {
       window.electronAPI.onWatchingStarted(handleWatchingStarted);
     }
@@ -531,14 +548,11 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       window.electronAPI!.removeAllListeners('file-changed');
       window.electronAPI!.removeAllListeners('file-deleted');
       window.electronAPI!.removeAllListeners('file-watching-stopped');
-      if (window.electronAPI!.onInitialScanComplete) {
-        window.electronAPI!.removeAllListeners('initial-scan-complete');
-      }
       if (window.electronAPI!.onWatchingStarted) {
         window.electronAPI!.removeAllListeners('watching-started');
       }
     };
-  }, [handleBulkFilesAdded, handleFileAdded, handleFileChanged, handleFileDeleted, handleWatchingStopped, handleInitialScanComplete, handleWatchingStarted]);
+  }, [handleBulkFilesAdded, handleFileAdded, handleFileChanged, handleFileDeleted, handleWatchingStopped, handleWatchingStarted]);
 
   // Handle window resize
   useEffect(() => {

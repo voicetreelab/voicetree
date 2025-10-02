@@ -89,10 +89,15 @@ export class LayoutManager {
     const newNodes: NodeInfo[] = [];
 
     allNodes.forEach(node => {
+      const parentId = node.data('parentId');
+      const children = node.data('children');
+
       const nodeInfo: NodeInfo = {
         id: node.id(),
         position: node.position(),
         size: this.getNodeSize(node),
+        parentId: parentId || undefined,
+        children: children || undefined,
         linkedNodeIds: this.getLinkedNodeIds(cy, node)
       };
 
