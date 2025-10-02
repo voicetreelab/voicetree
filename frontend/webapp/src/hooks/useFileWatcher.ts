@@ -42,7 +42,7 @@ export function useFileWatcher({
   const lastNewNodeIdRef = useRef<string | null>(null);
 
   const handleBulkFilesAdded = useCallback((data: { files: Array<{ path: string; content?: string }>; directory: string }) => {
-    console.log(`[DEBUG] handleBulkFilesAdded called with ${data.files.length} files`);
+    console.log(`[Bulk Load] Processing ${data.files.length} files from initial scan`);
 
     const cy = cytoscapeRef.current?.getCore();
     if (!cy) {
@@ -354,29 +354,6 @@ export function useFileWatcher({
     setIsInitialLoad(true);
   }, [cytoscapeRef, markdownFiles, setNodeCount, setEdgeCount, setIsInitialLoad]);
 
-  const handleInitialScanComplete = useCallback(() => {
-    console.log('[Layout] Initial scan complete - applying bulk layout to all nodes');
-
-    const cy = cytoscapeRef.current?.getCore();
-    if (cy && layoutManagerRef.current) {
-      // Get all node IDs for bulk layout
-      const allNodeIds = cy.nodes().map(n => n.id());
-      console.log(`[Layout] Applying TidyLayout to ${allNodeIds.length} nodes`);
-
-      // Apply bulk layout to all nodes at once
-      if (allNodeIds.length > 0) {
-        layoutManagerRef.current.applyLayout(cy, allNodeIds);
-      }
-
-      // Fit the graph after bulk load completes
-      cy.fit(50);
-    }
-
-    // Switch to incremental layout strategy for future additions
-    console.log('[Layout] Switching to incremental layout strategy');
-    setIsInitialLoad(false);
-  }, [cytoscapeRef, layoutManagerRef, setIsInitialLoad]);
-
   const handleWatchingStarted = useCallback(() => {
     console.log('[Layout] Watching started - using bulk load layout strategy');
     setIsInitialLoad(true);
@@ -388,7 +365,6 @@ export function useFileWatcher({
     handleFileChanged,
     handleFileDeleted,
     handleWatchingStopped,
-    handleInitialScanComplete,
     handleWatchingStarted
   };
 }

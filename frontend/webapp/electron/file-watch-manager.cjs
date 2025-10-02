@@ -115,7 +115,7 @@ class FileWatchManager {
 
         if (this.isInitialScan) {
           // Collect files during initial scan
-          console.log(`Collecting file for bulk load: ${relativePath}`);
+          console.log(`[FileWatchManager] Collecting file for bulk load: ${relativePath} (total now: ${this.initialScanFiles.length + 1})`);
           this.initialScanFiles.push({
             filePath: fullPath,
             relativePath: relativePath
@@ -198,7 +198,9 @@ class FileWatchManager {
 
     // Initial scan complete
     this.watcher.on('ready', async () => {
-      console.log(`Initial scan complete - collected ${this.initialScanFiles.length} files`);
+      console.log(`[FileWatchManager] ===== READY EVENT FIRED =====`);
+      console.log(`[FileWatchManager] Initial scan complete - collected ${this.initialScanFiles.length} files`);
+      console.log(`[FileWatchManager] isInitialScan = ${this.isInitialScan}`);
 
       try {
         // Read all collected files in parallel
