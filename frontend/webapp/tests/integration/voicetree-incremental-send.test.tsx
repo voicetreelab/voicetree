@@ -21,6 +21,7 @@ vi.mock('@/utils/get-api-key', () => ({
 }));
 
 // Track all network requests
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const networkRequests: Array<{ url: string; body: any }> = [];
 
 describe('VoiceTree Incremental Sending Integration', () => {
@@ -78,6 +79,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
     let currentTokenIndex = 0;
 
     // Mock the hook to return different tokens on each render
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (useVoiceTreeClient as any).mockImplementation(() => ({
       state: 'Running',
       finalTokens: tokenSequences[currentTokenIndex] || [],
@@ -130,6 +132,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
     const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient')).default;
 
     // Start with some voice tokens
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (useVoiceTreeClient as any).mockReturnValue({
       state: 'Idle',
       finalTokens: [
@@ -142,7 +145,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
       error: null,
     });
 
-    render(<VoiceTreeTranscribe />);
+    const { rerender } = render(<VoiceTreeTranscribe />);
 
     // Wait for voice tokens to be sent
     await waitFor(() => {
@@ -167,6 +170,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
     expect(networkRequests[1].body.text).toBe('Manual text entry');
 
     // Update voice tokens
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (useVoiceTreeClient as any).mockReturnValue({
       state: 'Idle',
       finalTokens: [
@@ -180,7 +184,6 @@ describe('VoiceTree Incremental Sending Integration', () => {
       error: null,
     });
 
-    const { rerender } = render(<VoiceTreeTranscribe />);
     rerender(<VoiceTreeTranscribe />);
 
     // Wait for the incremental voice update
@@ -204,6 +207,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
       error: null,
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (useVoiceTreeClient as any).mockImplementation(() => mockState);
 
     const { rerender } = render(<VoiceTreeTranscribe />);

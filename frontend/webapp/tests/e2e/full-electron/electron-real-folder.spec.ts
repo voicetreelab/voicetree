@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/rules-of-hooks */
+ 
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -44,7 +44,7 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   // Set up Electron application
-  // eslint-disable-next-line no-empty-pattern
+   
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
       args: [path.join(PROJECT_ROOT, 'electron/electron.cjs')],

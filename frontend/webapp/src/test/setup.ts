@@ -150,11 +150,15 @@ window.MediaStream = class MediaStream {
   }
 } as unknown as typeof MediaStream;
 
-// Mock getUserMedia to reject with permission denied (simulating no microphone access)
+// Mock getUserMedia to grant permission and return a mock MediaStream
 Object.defineProperty(navigator, "mediaDevices", {
   writable: true,
   value: {
-    getUserMedia: () => Promise.reject(new Error('Permission denied')),
+    getUserMedia: vi.fn(() => Promise.resolve({
+      getTracks: () => [{
+        stop: vi.fn()
+      }]
+    })),
     enumerateDevices: () => Promise.resolve([]),
   },
 });
@@ -168,3 +172,6 @@ Object.defineProperty(navigator, 'clipboard', {
   writable: true,
   configurable: true
 });
+
+// Mock HTMLElement.scrollTo for useAutoScroll tests
+HTMLElement.prototype.scrollTo = vi.fn();

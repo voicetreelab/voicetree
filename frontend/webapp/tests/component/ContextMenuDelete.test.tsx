@@ -124,6 +124,7 @@ describe('Context Menu Delete Functionality', () => {
 
     // Test that delete command exists
     const commands = menuConfig.commands(node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deleteCommand = commands.find((cmd: any) =>
       cmd.content?.title === 'Delete' ||
       cmd.content?.querySelector?.('svg') !== undefined
@@ -157,6 +158,7 @@ describe('Context Menu Delete Functionality', () => {
     const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deleteCommand = commands.find((cmd: any) =>
       cmd.content?.title === 'Delete' ||
       cmd.content?.querySelector?.('svg') !== undefined
@@ -197,6 +199,7 @@ describe('Context Menu Delete Functionality', () => {
     const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deleteCommand = commands.find((cmd: any) =>
       cmd.content?.title === 'Delete' ||
       cmd.content?.querySelector?.('svg') !== undefined
@@ -236,6 +239,7 @@ describe('Context Menu Delete Functionality', () => {
     const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deleteCommand = commands.find((cmd: any) =>
       cmd.content?.title === 'Delete' ||
       cmd.content?.querySelector?.('svg') !== undefined
@@ -285,6 +289,7 @@ describe('Context Menu Delete Functionality', () => {
     const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deleteCommand = commands.find((cmd: any) =>
       cmd.content?.title === 'Delete' ||
       cmd.content?.querySelector?.('svg') !== undefined
@@ -313,6 +318,7 @@ describe('Context Menu Delete Functionality', () => {
     const menuInstance = cy.cxtmenu as ReturnType<typeof cy.cxtmenu>;
     const menuConfig = menuInstance.mock.calls[0][0];
     const commands = menuConfig.commands(node);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deleteCommand = commands.find((cmd: any) => {
       // Check if it's an HTML element with an SVG
       if (cmd.content && typeof cmd.content === 'object' && cmd.content.querySelector) {

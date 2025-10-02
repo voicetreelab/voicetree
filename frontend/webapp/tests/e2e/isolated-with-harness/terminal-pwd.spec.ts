@@ -16,6 +16,7 @@ test.describe('Terminal - pwd command test', () => {
 
     // Execute pwd command using the test utilities
     const output = await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const testWindow = window as any;
 
       if (!testWindow._test_terminal) {
@@ -29,6 +30,7 @@ test.describe('Terminal - pwd command test', () => {
       try {
         const output = await testWindow._test_terminal.waitForOutput(/\/.*/, 3000);
         return output;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         throw new Error(`Failed to get pwd output: ${error.message}`);
       }
@@ -64,6 +66,7 @@ test.describe('Terminal - pwd command test', () => {
 
     // Execute multiple commands
     const results = await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const testWindow = window as any;
 
       if (!testWindow._test_terminal) {
@@ -106,6 +109,7 @@ test.describe('Terminal - pwd command test', () => {
 
     // Execute pwd and verify it appears in the terminal
     await page.evaluate(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const testWindow = window as any;
       await testWindow._test_terminal.executeCommand('pwd');
       await testWindow._test_terminal.waitForOutput(/\/.*/, 3000);

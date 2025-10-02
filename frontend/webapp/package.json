@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "check": "eslint . && tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest run && playwright test tests/e2e/full-electron/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts",
+    "test": "vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts",
     "test:parallel": "vitest && playwright test",
     "test:unit": "vitest run",
     "test:watch": "vitest",
@@ -90,7 +90,7 @@
     "appId": "com.voicetree.webapp",
     "productName": "VoiceTree",
     "directories": {
-      "output": "dist-electron"
+      "output": "../../dist/electron"
     },
     "files": [
       "dist/**/*",
@@ -98,6 +98,12 @@
       "preload.js",
       "package.json",
       "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../../dist/resources/server",
+        "to": "server"
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity"

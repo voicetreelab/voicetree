@@ -23,6 +23,7 @@ export default function SoundWaveVisualizer({
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const internalStreamRef = useRef<MediaStream | null>(null);
 
   const [hasRealAudio, setHasRealAudio] = useState(false);
   const [fallbackValues, setFallbackValues] = useState<number[]>([]);
@@ -41,27 +42,31 @@ export default function SoundWaveVisualizer({
     if (!audioStream && isActive) {
       navigator.mediaDevices
         .getUserMedia({ audio: true, video: false })
-        .then((stream) => {
-          setInternalStream(stream);
+        .then((mediaStream) => {
+          internalStreamRef.current = mediaStream;
+          setInternalStream(mediaStream);
         })
         .catch((error) => {
           console.warn('Could not access microphone for visualization:', error);
+          internalStreamRef.current = null;
           setInternalStream(null);
         });
     } else {
       // Clean up internal stream if we have an external one or are inactive
-      if (internalStream) {
-        internalStream.getTracks().forEach(track => track.stop());
-        setInternalStream(null);
+      if (internalStreamRef.current) {
+        internalStreamRef.current.getTracks().forEach(track => track.stop());
+        internalStreamRef.current = null;
       }
+      setInternalStream(null);
     }
 
     return () => {
-      if (internalStream) {
-        internalStream.getTracks().forEach(track => track.stop());
+      if (internalStreamRef.current) {
+        internalStreamRef.current.getTracks().forEach(track => track.stop());
+        internalStreamRef.current = null;
       }
     };
-  }, [audioStream, isActive, internalStream]);
+  }, [audioStream, isActive]);
 
   // Initialize Web Audio API
   const initializeAudio = useCallback(async () => {

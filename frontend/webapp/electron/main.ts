@@ -1,9 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const path = require('path');
-const fs = require('fs').promises;
-const os = require('os');
-const pty = require('node-pty');
-const FileWatchManager = require('./file-watch-manager.cjs');
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import path from 'path';
+import { promises as fs } from 'fs';
+import pty from 'node-pty';
+import FileWatchManager from './file-watch-manager.cjs';
 
 // Global file watch manager instance
 const fileWatchManager = new FileWatchManager();

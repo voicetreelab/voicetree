@@ -27,22 +27,21 @@ echo "Step 5: Building executable with PyInstaller..."
 # PyInstaller must run INSIDE the venv to see all dependencies
 .venv-server/bin/python -m PyInstaller server.spec --clean
 
-# Step 6: Copy to frontend resources
-echo "Step 6: Copying executable to frontend resources..."
-mkdir -p ../frontend/webapp/resources/server
-cp -r ./dist/voicetree-server/* ../frontend/webapp/resources/server/
-echo "Copied to frontend/webapp/resources/server/"
+# Step 6: Copy to root dist resources
+echo "Step 6: Copying executable to root dist/resources/server..."
+mkdir -p ./dist/resources/server
+cp -r ./dist/voicetree-server/* ./dist/resources/server/
+echo "Copied to dist/resources/server/"
 
 # Step 7: Display results
 echo ""
 echo "Build complete!"
 echo "==============="
 echo "✅ Server executable built: ./dist/voicetree-server/voicetree-server"
-echo "✅ Copied to frontend: ../frontend/webapp/resources/server/"
+echo "✅ Copied to root dist: ./dist/resources/server/"
 echo ""
 echo "Next steps:"
 echo "  1. Test standalone server: ./dist/voicetree-server/voicetree-server"
-echo "  2. Test in Electron: cd ../frontend/webapp && npm run electron:prod"
-echo "  3. Build Electron app: cd ../frontend/webapp && npm run electron:dist"
+echo "  2. Build full app: ./build_and_package_all.sh"
 echo ""
 echo "The server is now ready to be bundled with the Electron app!"

@@ -39,11 +39,11 @@ export function useTranscriptionSender({
   };
 
   // Core sending function
-  const sendToBackend = useCallback(async (text: string): Promise<void> => {
+  const sendToBackend = useCallback(async (text: string, skipDuplicateCheck: boolean = false): Promise<void> => {
     if (!text.trim()) return;
 
-    // Avoid sending the same text twice
-    if (text === lastProcessedText.current) {
+    // Avoid sending the same text twice (only for manual text)
+    if (!skipDuplicateCheck && text === lastProcessedText.current) {
       console.log('Skipping duplicate text:', text.substring(0, 50));
       return;
     }
@@ -67,7 +67,9 @@ export function useTranscriptionSender({
           setBufferLength(result.buffer_length);
         }
         setConnectionError(null);
-        lastProcessedText.current = text;
+        if (!skipDuplicateCheck) {
+          lastProcessedText.current = text;
+        }
       } else {
         const errorMsg = `Server error: ${response.status} ${response.statusText}`;
         setConnectionError(errorMsg);
@@ -105,7 +107,8 @@ export function useTranscriptionSender({
     }
 
     try {
-      await sendToBackend(newText);
+      // Skip duplicate check for incremental tokens - they're already tracked by sentTokensCount
+      await sendToBackend(newText, true);
       // Only update the count after successful send (track final tokens only)
       sentTokensCount.current = finalTokensOnly.length;
       console.log(`Updated sent tokens count to ${sentTokensCount.current} (final tokens only)`);

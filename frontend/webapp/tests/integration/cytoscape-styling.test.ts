@@ -10,8 +10,11 @@ describe.skip('CytoscapeCore Styling Integration', () => {
   beforeEach(() => {
     // Set up DOM environment
     dom = new JSDOM('<!DOCTYPE html><div id="cy"></div>');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     global.document = dom.window.document as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     global.window = dom.window as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     global.getComputedStyle = dom.window.getComputedStyle as any;
 
     // Mock canvas for cytoscape

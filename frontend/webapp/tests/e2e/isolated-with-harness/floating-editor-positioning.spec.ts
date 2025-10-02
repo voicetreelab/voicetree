@@ -17,6 +17,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 1: Node Click Opens Editor
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Trigger tap event on node1
@@ -38,6 +39,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 2: Pan Movement
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Pan the view by 100px to the right and 50px down
@@ -62,6 +64,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 3: Zoom In
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Zoom in by 50%
@@ -88,6 +91,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 4: Zoom Out
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Zoom out to original level
@@ -112,6 +116,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 6: Pan After Zoom - Window Should Move with Pan
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Pan again
@@ -137,6 +142,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // ===================
     // First reset view to bring window into viewport
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.pan({ x: 0, y: 0 });
@@ -152,6 +158,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open window for second node
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node2').trigger('tap');
@@ -166,6 +173,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 8: Reset View
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Reset to original view
@@ -188,6 +196,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open editor for node1
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node1').trigger('tap');
@@ -200,6 +209,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Perform rapid pan and zoom operations
     for (let i = 0; i < 5; i++) {
       await page.evaluate((index) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cy = (window as typeof window & { cy: any }).cy;
         if (cy) {
           // Alternate between pan and zoom
@@ -220,6 +230,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Get the node's rendered position
     const nodePos = await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         const node = cy.$('#node1');
@@ -254,6 +265,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open editor
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node1').trigger('tap');
@@ -297,6 +309,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
       // Now pan the graph
       await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cy = (window as typeof window & { cy: any }).cy;
         if (cy) {
           cy.pan({ x: cy.pan().x + 100, y: cy.pan().y + 100 });
@@ -328,6 +341,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open window for node1 (simulating terminal behavior)
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node1').trigger('tap');
@@ -346,6 +360,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 1: Pan Movement - Terminal should move with graph
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Pan the view by 150px to the right and 75px down
@@ -369,6 +384,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Test 2: Zoom - Terminal should maintain relative position
     // ===================
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         // Zoom in by 2x
@@ -394,6 +410,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // ===================
     // Reset view first
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.pan({ x: 0, y: 0 });
@@ -412,6 +429,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Pan the graph once more
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.pan({ x: cy.pan().x + 100, y: cy.pan().y + 100 });
@@ -440,6 +458,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Open window for node1 (simulating terminal behavior)
     await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         cy.$('#node1').trigger('tap');
@@ -452,6 +471,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
     // Perform rapid pan and zoom operations
     for (let i = 0; i < 10; i++) {
       await page.evaluate((index) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cy = (window as typeof window & { cy: any }).cy;
         if (cy) {
           // Alternate between pan and zoom
@@ -472,6 +492,7 @@ test.describe('Floating Editor Advanced Positioning Tests', () => {
 
     // Get the node's rendered position
     const nodePos = await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cy = (window as typeof window & { cy: any }).cy;
       if (cy) {
         const node = cy.$('#node1');

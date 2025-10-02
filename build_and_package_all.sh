@@ -20,8 +20,8 @@ echo "📦 Step 1: Building Python server executable..."
 echo "----------------------------------------------"
 ./build_server.sh
 
-if [ ! -f "dist/voicetree-server/voicetree-server" ]; then
-    echo "❌ Error: Server build failed"
+if [ ! -f "dist/resources/server/voicetree-server" ]; then
+    echo "❌ Error: Server build failed or not copied to dist/resources/server/"
     exit 1
 fi
 
@@ -76,10 +76,12 @@ echo "📦 Step 4: Creating distributable package..."
 echo "----------------------------------------------"
 echo "Building Electron distributable (this may take a few minutes)..."
 
-# Clean previous builds
-rm -rf dist-electron
+# Clean previous builds in root
+cd ../..
+rm -rf dist/electron
 
-# Build the distributable
+# Build the distributable from frontend
+cd frontend/webapp
 npm run electron:dist
 
 # Step 7: Report results
@@ -90,14 +92,14 @@ echo "=========================================="
 echo ""
 echo "Artifacts created:"
 echo "  • Python server: ../../dist/voicetree-server/"
-echo "  • Server in resources: resources/server/"
+echo "  • Server in resources: ../../dist/resources/server/"
 
-if [ -d "dist-electron" ]; then
-    echo "  • Electron app: dist-electron/"
+if [ -d "../../dist/electron" ]; then
+    echo "  • Electron app: ../../dist/electron/"
 
     # List the actual built files
     if [ "$(uname)" == "Darwin" ]; then
-        DMG_FILE=$(find dist-electron -name "*.dmg" 2>/dev/null | head -1)
+        DMG_FILE=$(find ../../dist/electron -name "*.dmg" 2>/dev/null | head -1)
         if [ -n "$DMG_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
@@ -107,14 +109,14 @@ if [ -d "dist-electron" ]; then
             echo "   Users can install it without needing Python or any dependencies."
         fi
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-        APPIMAGE_FILE=$(find dist-electron -name "*.AppImage" 2>/dev/null | head -1)
+        APPIMAGE_FILE=$(find ../../dist/electron -name "*.AppImage" 2>/dev/null | head -1)
         if [ -n "$APPIMAGE_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
             echo "   $APPIMAGE_FILE"
         fi
     elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ] || [ "$(expr substr $(uname -s) 1 10)" == "MINGW64_NT" ]; then
-        EXE_FILE=$(find dist-electron -name "*.exe" 2>/dev/null | head -1)
+        EXE_FILE=$(find ../../dist/electron -name "*.exe" 2>/dev/null | head -1)
         if [ -n "$EXE_FILE" ]; then
             echo ""
             echo "🎉 Distributable package ready:"
@@ -125,6 +127,6 @@ fi
 
 echo ""
 echo "To test the production app locally:"
-echo "  npm run electron:prod"
+echo "  cd frontend/webapp && npm run electron:prod"
 echo ""
 echo "Done! 🚀"

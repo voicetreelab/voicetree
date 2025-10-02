@@ -46,12 +46,15 @@ describe('Terminal Window Graph Movement', () => {
   });
 
   it('should create terminal windows with graph coordinates', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockWindowsRef: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockOpenWindow = vi.fn((windowConfig: any) => {
       mockWindowsRef.push(windowConfig);
     });
 
     const TestComponent = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const layoutRef = React.useRef<any>(null);
 
       React.useEffect(() => {

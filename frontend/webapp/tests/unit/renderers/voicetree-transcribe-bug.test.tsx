@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { act } from 'react';
+import { render, waitFor } from '@testing-library/react';
 import VoiceTreeTranscribe from '@/renderers/voicetree-transcribe';
 import { type Token } from '@soniox/speech-to-text-web';
 

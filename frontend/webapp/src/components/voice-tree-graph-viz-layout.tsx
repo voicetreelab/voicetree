@@ -218,6 +218,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // Not needed - voice transcription is handled elsewhere
 
   // Add entry to history with limit management
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const addToHistory = useCallback((text: string, source: 'speech' | 'text') => {
     const newEntry: HistoryEntry = {
       id: `${Date.now()}-${Math.random()}`,
