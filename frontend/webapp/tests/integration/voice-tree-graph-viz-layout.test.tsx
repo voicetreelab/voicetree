@@ -17,6 +17,7 @@ describe('VoiceTreeGraphVizLayout Integration Tests', () => {
 
     // Mock electronAPI
     const electronAPIMock = {
+      onInitialFilesLoaded: vi.fn(),
       onFileAdded: vi.fn(),
       onFileChanged: vi.fn(),
       onFileDeleted: vi.fn(),

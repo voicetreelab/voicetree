@@ -1,17 +1,16 @@
 /**
- * TidyLayoutStrategy: High-performance tidy tree layout algorithm
+ * IncrementalTidyLayoutStrategy: Efficient partial relayout for online tree building
  *
- * Based on the O(n) algorithm by van der Ploeg (2014) for drawing non-layered tidy trees.
- * Reference: https://www.zxch3n.com/tidy/tidy/
+ * Based on the Tidy Tree algorithm with support for incremental updates.
+ * When a node changes (resize, add child, delete child), only the affected
+ * portions of the tree are re-laid out.
  *
- * This implementation follows the aesthetic rules for tidy tree visualization:
- * 1. No overlapped nodes
- * 2. No crossed lines
- * 3. A node's children should stay on the same line
- * 4. Parents should be centered over their children
- * 5. A subtree should be drawn the same way regardless of where it occurs
- * 6. Nodes are ordered correctly
- * 7. Symmetric drawings produce mirror images
+ * Key insight from the blog:
+ * - Only ancestors' bounding boxes change when a node is modified
+ * - Siblings need thread pointer updates but their internal layouts stay the same
+ * - We only need to relayout the immediate parent's children
+ *
+ * Time complexity: O(d) where d is the depth of the changed node
  */
 
 import type {
@@ -20,7 +19,7 @@ import type {
   PositioningResult,
   Position,
   NodeInfo
-} from '@/graph-core/graphviz/layout/types';
+} from './types';
 
 // Extended node with tidy layout data
 interface TidyData {
@@ -51,7 +50,7 @@ interface LayoutNode {
   tidy: TidyData | null;
 }
 
-// Linked list for tracking y-coordinates and subtree indices
+// Linked list for tracking y-coordinates
 class LinkedYList {
   constructor(
     public index: number,
@@ -60,21 +59,15 @@ class LinkedYList {
   ) {}
 
   update(minY: number, index: number): LinkedYList {
-    // Walk the list to find where this new entry should be inserted
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
     let current: LinkedYList | null = this;
     while (current !== null && minY >= current.bottom) {
       current = current.next;
     }
     return new LinkedYList(index, minY, current);
   }
-
-  pop(): LinkedYList | null {
-    return this.next;
-  }
 }
 
-// Contour for tracking left/right edges of subtrees
+// Contour for tracking left/right edges
 class Contour {
   current: LayoutNode | null;
   modifierSum: number;
@@ -129,95 +122,208 @@ class Contour {
   }
 }
 
-export class TidyLayoutStrategy implements PositioningStrategy {
-  name = 'tidy-layout';
+export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
+  name = 'incremental-tidy-layout';
 
   private readonly PARENT_CHILD_MARGIN = 100;   // Vertical spacing between parent and children
-  private readonly PEER_MARGIN = 200;           // Horizontal spacing between siblings
-  private readonly isLayered = false;          // Non-layered layout
+  private readonly PEER_MARGIN = 60;           // Horizontal spacing between siblings
+
+  // Cache of layout nodes for incremental updates
+  private layoutNodesCache = new Map<string, LayoutNode>();
+  private rootsCache: LayoutNode[] = [];
 
   position(context: PositioningContext): PositioningResult {
     const positions = new Map<string, Position>();
-
-    // Combine all nodes - TidyLayout needs to see the entire tree structure
     const allNodes = [...context.nodes, ...context.newNodes];
 
     if (allNodes.length === 0) {
       return { positions };
     }
 
-    console.log(`[TidyLayout] Positioning ${allNodes.length} nodes (${context.nodes.length} existing + ${context.newNodes.length} new)`);
+    // Check if this is an incremental update (only new nodes)
+    const isIncremental = context.newNodes.length > 0 && context.nodes.length > 0;
 
-    // Build tree structure from node links
-    const layoutNodes = this.buildTree(allNodes);
+    if (isIncremental) {
+      // Use partial relayout
+      console.log(`[IncrementalTidy] Partial relayout for ${context.newNodes.length} new nodes`);
+      return this.partialRelayout(context);
+    } else {
+      // Full layout
+      console.log(`[IncrementalTidy] Full layout for ${allNodes.length} nodes`);
+      return this.fullLayout(context);
+    }
+  }
 
-    // Debug: Analyze tree structure
-    this.debugTreeStructure(layoutNodes);
+  private fullLayout(context: PositioningContext): PositioningResult {
+    const positions = new Map<string, Position>();
+    const allNodes = [...context.nodes, ...context.newNodes];
 
-    // Find root nodes (nodes with no parents)
-    const roots = this.findRoots(layoutNodes, allNodes);
+    // Build tree structure
+    this.layoutNodesCache = this.buildTree(allNodes);
+    this.rootsCache = this.findRoots(this.layoutNodesCache, allNodes);
 
-    if (roots.length === 0) {
-      console.warn('[TidyLayout] No roots found');
+    if (this.rootsCache.length === 0) {
+      console.warn('[IncrementalTidy] No roots found');
       return { positions };
     }
 
-    console.log(`[TidyLayout] Found ${roots.length} root nodes:`, roots.map(r => r.id));
-
-    // Layout each root tree with horizontal spacing between them
+    // Layout each root tree
     let forestOffsetX = 0;
-    const TREE_SPACING = 80; // Spacing between separate trees in forest
+    const TREE_SPACING = 80;
 
-    for (let i = 0; i < roots.length; i++) {
-      const root = roots[i];
+    for (const root of this.rootsCache) {
       this.layout(root);
 
-      // Calculate tree width (find min and max x positions)
       const treeNodes = this.collectTreeNodes(root);
-      console.log(`[TidyLayout] Tree ${i} (root: ${root.id}) has ${treeNodes.length} nodes`);
-
       if (treeNodes.length > 0) {
         const minX = Math.min(...treeNodes.map(n => n.x));
         const maxX = Math.max(...treeNodes.map(n => n.x));
         const maxWidth = Math.max(...treeNodes.map(n => n.width));
-        const treeWidth = maxX - minX + maxWidth; // Add node width to get true tree width
+        const treeWidth = maxX - minX + maxWidth;
 
-        console.log(`[TidyLayout] Tree ${i}: minX=${minX.toFixed(1)}, maxX=${maxX.toFixed(1)}, width=${treeWidth.toFixed(1)}`);
-
-        // Shift tree to forestOffsetX
         const shiftAmount = forestOffsetX - minX;
         for (const node of treeNodes) {
           node.x += shiftAmount;
         }
 
-        console.log(`[TidyLayout] Tree ${i} shifted by ${shiftAmount.toFixed(1)} to start at ${forestOffsetX.toFixed(1)}`);
-
-        // Update offset for next tree
         forestOffsetX += treeWidth + TREE_SPACING;
       }
     }
 
-    // Convert layout positions to result map
-    for (const [id, layoutNode] of layoutNodes) {
+    // Convert to positions
+    this.layoutNodesCache.forEach((layoutNode, id) => {
       positions.set(id, { x: layoutNode.x, y: layoutNode.y });
-    }
-
-    // Debug: Sample some positions
-    const samplePositions = Array.from(positions.entries()).slice(0, 10);
-    console.log(`[TidyLayout] Sample positions:`, samplePositions.map(([id, pos]) =>
-      `${id}: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`
-    ));
-
-    console.log(`[TidyLayout] Positioned ${positions.size} nodes`);
+    });
 
     return { positions };
+  }
+
+  private partialRelayout(context: PositioningContext): PositioningResult {
+    const positions = new Map<string, Position>();
+
+    // Add new nodes to cache
+    for (const nodeInfo of context.newNodes) {
+      if (!this.layoutNodesCache.has(nodeInfo.id)) {
+        const layoutNode: LayoutNode = {
+          id: nodeInfo.id,
+          x: 0,
+          y: 0,
+          relativeX: 0,
+          relativeY: 0,
+          width: nodeInfo.size.width,
+          height: nodeInfo.size.height,
+          depth: 0,
+          children: [],
+          parent: null,
+          tidy: null
+        };
+        this.layoutNodesCache.set(nodeInfo.id, layoutNode);
+      }
+    }
+
+    // Build parent-child relationships for new nodes
+    for (const nodeInfo of context.newNodes) {
+      const layoutNode = this.layoutNodesCache.get(nodeInfo.id)!;
+
+      if (nodeInfo.parentId) {
+        const parentLayoutNode = this.layoutNodesCache.get(nodeInfo.parentId);
+        if (parentLayoutNode) {
+          layoutNode.parent = parentLayoutNode;
+          if (!parentLayoutNode.children.includes(layoutNode)) {
+            parentLayoutNode.children.push(layoutNode);
+          }
+        }
+      }
+    }
+
+    // Perform partial relayout for each changed node
+    context.newNodes.forEach(nodeInfo => {
+      const changedNode = this.layoutNodesCache.get(nodeInfo.id);
+      if (changedNode) {
+        this.relayout(changedNode);
+      }
+    });
+
+    // Update absolute positions with second walk
+    for (const root of this.rootsCache) {
+      this.secondWalk(root, 0);
+    }
+
+    // Convert to positions
+    this.layoutNodesCache.forEach((layoutNode, id) => {
+      positions.set(id, { x: layoutNode.x, y: layoutNode.y });
+    });
+
+    return { positions };
+  }
+
+  /**
+   * Partial relayout algorithm from the blog:
+   * Walk up from changed node, invalidating sibling threads and relaying parent's children
+   */
+  private relayout(changedNode: LayoutNode): void {
+    let node: LayoutNode | null = changedNode;
+
+    while (node && node.parent) {
+      // Invalidate thread pointers for all siblings
+      for (const sibling of node.parent.children) {
+        const rightBottom = this.getRightBottomNode(sibling);
+        if (rightBottom.tidy) {
+          rightBottom.tidy.threadRight = null;
+          rightBottom.tidy.modifierThreadRight = 0;
+        }
+
+        const leftBottom = this.getLeftBottomNode(sibling);
+        if (leftBottom.tidy) {
+          leftBottom.tidy.threadLeft = null;
+          leftBottom.tidy.modifierThreadLeft = 0;
+        }
+      }
+
+      // Relayout this node's parent's children
+      this.layoutSubtree(node.parent);
+
+      // Move up to parent
+      node = node.parent;
+    }
+  }
+
+  /**
+   * Layout a subtree (just this node's immediate children)
+   */
+  private layoutSubtree(node: LayoutNode): void {
+    if (node.children.length === 0) {
+      this.setExtreme(node);
+      return;
+    }
+
+    // Initialize node
+    this.initNode(node);
+    for (const child of node.children) {
+      this.initNode(child);
+    }
+
+    // Set Y positions for children
+    this.setY(node);
+    for (const child of node.children) {
+      this.setY(child);
+    }
+
+    // Run first walk just on this node's children
+    this.firstWalk(node);
+  }
+
+  private layout(root: LayoutNode): void {
+    this.preOrderTraversal(root, (node) => this.initNode(node));
+    this.setYRecursive(root);
+    this.firstWalk(root);
+    this.secondWalk(root, 0);
   }
 
   private buildTree(nodes: NodeInfo[]): Map<string, LayoutNode> {
     const layoutNodes = new Map<string, LayoutNode>();
     const nodeIds = new Set(nodes.map(n => n.id));
 
-    // Create all layout nodes first
     for (const node of nodes) {
       layoutNodes.set(node.id, {
         id: node.id,
@@ -234,45 +340,17 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       });
     }
 
-    // Build parent-child relationships using canonical structure
-    let parentChildPairs = 0;
-
     for (const node of nodes) {
       const layoutNode = layoutNodes.get(node.id)!;
 
-      // Prefer canonical parentId/children structure
-      if (node.parentId !== undefined || (node.children && node.children.length > 0)) {
-        // Use canonical structure
-        if (node.parentId && nodeIds.has(node.parentId)) {
-          const parentLayoutNode = layoutNodes.get(node.parentId);
-          if (parentLayoutNode) {
-            layoutNode.parent = parentLayoutNode;
-            parentLayoutNode.children.push(layoutNode);
-            parentChildPairs++;
-          }
-        }
-      } else if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
-        // Fallback to linkedNodeIds (for backward compatibility)
-        // linkedNodeIds should now be correctly interpreted without inversion
-        for (const linkedId of node.linkedNodeIds) {
-          if (linkedId === node.id) continue;
-          if (!nodeIds.has(linkedId)) continue;
-
-          const linkedLayoutNode = layoutNodes.get(linkedId);
-          if (!linkedLayoutNode) continue;
-
-          // Only set parent if not already set
-          if (layoutNode.parent === null) {
-            layoutNode.parent = linkedLayoutNode;
-            linkedLayoutNode.children.push(layoutNode);
-            parentChildPairs++;
-            break; // Only use first parent
-          }
+      if (node.parentId && nodeIds.has(node.parentId)) {
+        const parentLayoutNode = layoutNodes.get(node.parentId);
+        if (parentLayoutNode) {
+          layoutNode.parent = parentLayoutNode;
+          parentLayoutNode.children.push(layoutNode);
         }
       }
     }
-
-    console.log(`[TidyLayout] Built tree with ${parentChildPairs} parent-child pairs using canonical structure`);
 
     return layoutNodes;
   }
@@ -287,31 +365,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       }
     }
 
-    // If no roots found (cycle), pick the first node
     if (roots.length === 0 && nodes.length > 0) {
       const firstNode = layoutNodes.get(nodes[0].id);
-      if (firstNode) {
-        roots.push(firstNode);
-      }
+      if (firstNode) roots.push(firstNode);
     }
 
     return roots;
-  }
-
-  private layout(root: LayoutNode): void {
-    // Initialize all nodes
-    this.preOrderTraversal(root, (node) => {
-      this.initNode(node);
-    });
-
-    // Set y positions
-    this.setYRecursive(root);
-
-    // First walk: determine relative x positions
-    this.firstWalk(root);
-
-    // Second walk: finalize absolute positions
-    this.secondWalk(root, 0);
   }
 
   private initNode(node: LayoutNode): void {
@@ -335,9 +394,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   }
 
   private setYRecursive(root: LayoutNode): void {
-    this.preOrderTraversal(root, (node) => {
-      this.setY(node);
-    });
+    this.preOrderTraversal(root, (node) => this.setY(node));
   }
 
   private setY(node: LayoutNode): void {
@@ -355,7 +412,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       return;
     }
 
-    // Layout first child
     this.firstWalk(node.children[0]);
     const firstExtremeRight = this.getExtremeRight(node.children[0]);
     let yList: LinkedYList = new LinkedYList(
@@ -363,7 +419,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       firstExtremeRight.y + firstExtremeRight.height
     );
 
-    // Layout remaining children and separate them
     for (let i = 1; i < node.children.length; i++) {
       const child = node.children[i];
       this.firstWalk(child);
@@ -386,14 +441,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     let currentYList: LinkedYList | null = yList;
 
     while (!leftContour.isNone() && !rightContour.isNone()) {
-      // Update yList index as we traverse
       if (currentYList && leftContour.bottom() > currentYList.bottom) {
         currentYList = currentYList.next;
       }
 
       const dist = leftContour.right() - rightContour.left() + this.PEER_MARGIN;
       if (dist > 0) {
-        // Move right subtree by dist to avoid collision
         rightContour.modifierSum += dist;
         this.moveSubtree(node, childIndex, currentYList?.index ?? 0, dist);
       }
@@ -409,7 +462,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       }
     }
 
-    // Set threads for contour merging
     if (leftContour.isNone() && !rightContour.isNone()) {
       this.setLeftThread(node, childIndex, rightContour.current!, rightContour.modifierSum);
     } else if (!leftContour.isNone() && rightContour.isNone()) {
@@ -459,7 +511,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     const child = node.children[currentIndex];
     child.tidy!.modifierToSubtree += distance;
 
-    // Distribute extra space to nodes between fromIndex and currentIndex
     if (fromIndex !== currentIndex - 1) {
       const indexDiff = currentIndex - fromIndex;
       node.children[fromIndex + 1].tidy!.shiftAcceleration += distance / indexDiff;
@@ -507,6 +558,22 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     return node.tidy?.extremeRight ?? node;
   }
 
+  private getRightBottomNode(node: LayoutNode): LayoutNode {
+    let current = node;
+    while (current.children.length > 0) {
+      current = current.children[current.children.length - 1];
+    }
+    return current;
+  }
+
+  private getLeftBottomNode(node: LayoutNode): LayoutNode {
+    let current = node;
+    while (current.children.length > 0) {
+      current = current.children[0];
+    }
+    return current;
+  }
+
   private secondWalk(node: LayoutNode, modSum: number): void {
     modSum += node.tidy?.modifierToSubtree ?? 0;
     node.x = node.relativeX + modSum;
@@ -542,74 +609,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     }
   }
 
-  private postOrderTraversal(node: LayoutNode, fn: (node: LayoutNode) => void): void {
-    for (const child of node.children) {
-      this.postOrderTraversal(child, fn);
-    }
-    fn(node);
-  }
-
   private collectTreeNodes(root: LayoutNode): LayoutNode[] {
     const nodes: LayoutNode[] = [];
-    this.preOrderTraversal(root, (node) => {
-      nodes.push(node);
-    });
+    this.preOrderTraversal(root, (node) => nodes.push(node));
     return nodes;
-  }
-
-  private debugTreeStructure(layoutNodes: Map<string, LayoutNode>): void {
-    console.log(`[TidyLayout Debug] Total nodes: ${layoutNodes.size}`);
-
-    // Count nodes by number of children
-    const childrenCounts = new Map<number, number>();
-    let orphans = 0;
-    let nodesWithParent = 0;
-    let nodesWithChildren = 0;
-
-    for (const [, node] of layoutNodes) {
-      const childCount = node.children.length;
-      const hasParent = node.parent !== null;
-
-      childrenCounts.set(childCount, (childrenCounts.get(childCount) || 0) + 1);
-
-      if (hasParent) {
-        nodesWithParent++;
-      }
-
-      if (childCount > 0) {
-        nodesWithChildren++;
-      }
-
-      if (!hasParent && childCount === 0) {
-        orphans++;
-      }
-    }
-
-    console.log(`[TidyLayout Debug] Nodes with parent: ${nodesWithParent}`);
-    console.log(`[TidyLayout Debug] Nodes with children: ${nodesWithChildren}`);
-    console.log(`[TidyLayout Debug] Orphan nodes (no parent, no children): ${orphans}`);
-    console.log(`[TidyLayout Debug] Nodes by child count:`, Array.from(childrenCounts.entries()).sort((a, b) => a[0] - b[0]));
-
-    // Find potential connected components by traversing from each root
-    const visited = new Set<string>();
-    const components: LayoutNode[][] = [];
-
-    for (const [id, node] of layoutNodes) {
-      if (visited.has(id)) continue;
-      if (node.parent !== null) continue; // Not a root
-
-      // This is a root node - collect its entire tree
-      const component: LayoutNode[] = [];
-      this.preOrderTraversal(node, (n) => {
-        visited.add(n.id);
-        component.push(n);
-      });
-
-      components.push(component);
-    }
-
-    console.log(`[TidyLayout Debug] Connected components: ${components.length}`);
-    console.log(`[TidyLayout Debug] Component sizes:`, components.map(c => c.length));
-    console.log(`[TidyLayout Debug] Component roots:`, components.map(c => c[0].id));
   }
 }

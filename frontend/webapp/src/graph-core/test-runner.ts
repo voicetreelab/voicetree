@@ -1,6 +1,6 @@
 import { MarkdownParser } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
-import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from './graphviz/layout';
+import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy, IncrementalTidyLayoutStrategy } from './graphviz/layout';
 
 // Import all markdown files from the tests directory
 // Support different fixture sets via URL parameter: ?fixture=example_small or ?fixture=example_real_large
@@ -13,7 +13,7 @@ const markdownModules = fixtureSet === 'example_real_large'
       import: 'default',
       eager: true
     })
-  : import.meta.glob('../../tests/example_small/*.md', {
+  : import.meta.glob('../../tests/fixtures/example_small/*.md', {
       query: '?raw',
       import: 'default',
       eager: true
