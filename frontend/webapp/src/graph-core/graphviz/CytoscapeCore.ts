@@ -25,7 +25,7 @@ export class CytoscapeCore {
       elements: elements,
       style: this.styleService.getCombinedStylesheet(),
       minZoom: 0.3,
-      maxZoom: 10,
+      maxZoom: 100,
       wheelSensitivity: 1.0,
     });
 
