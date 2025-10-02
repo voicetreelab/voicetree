@@ -1,12 +1,27 @@
-// Basic node structure
+// Basic node structure - single source of truth (matches Python Node class)
 export interface Node {
   id: string;
   label?: string;
+
+  // Tree structure
+  parentId?: string;      // Single parent ID (undefined for roots)
+  children: string[];     // Child node IDs
+
+  // Position & rendering
   x?: number;
   y?: number;
   size?: number;
   color?: string;
+
+  // Optional metadata
+  content?: string;
+  createdAt?: Date;
+  modifiedAt?: Date;
+  tags?: string[];
 }
+
+// Removed TreeNode - was duplicate of Node with different naming
+// Use Node with parents/children fields instead
 
 // Basic edge structure
 export interface Edge {
@@ -23,6 +38,8 @@ export interface GraphData {
   edges: Edge[];
 }
 
+
+// why do we also need these?????? duplication?????
 // Cytoscape-specific definitions (extracted from cytoscape types)
 export interface NodeDefinition {
   data: {

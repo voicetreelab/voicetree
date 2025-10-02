@@ -22,7 +22,7 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
 
   // Debug position changes
   React.useEffect(() => {
-    console.log(`[DEBUG] FloatingWindow ${id} position changed to:`, position);
+    // console.log(`[DEBUG] FloatingWindow ${id} position changed to:`, position);
   }, [position, id]);
 
   const handleSave = async (newContent: string) => {

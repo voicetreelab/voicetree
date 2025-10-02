@@ -4,8 +4,11 @@ It also contains an input window for voice-> text or text input which will call 
 
 The tree is navigateable, and can be modified with markdown hover edtiors.
 
-After making changes, test with
-`npm run test (specific test file)`
-(LOOK AT THE FULL OUTPUT, NOT JUST the tail)
+After making changes, test with either
+`npm run test` this runs all unit test, and our main e2e system playwright test.
 
-DO NOT run npm run dev in foreground. This will block your session as it starts an indefinite server.
+`npx vitest run <file>` test specific unit tests
+
+`npx playwright test tests/e2e/graph-core/breathing-animation.spec.ts` # run a playwright test
+
+DO NOT run `npm run dev` in foreground. This will block your session as it starts an indefinite server.

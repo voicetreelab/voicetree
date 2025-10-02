@@ -111,9 +111,9 @@ describe('ReingoldTilfordStrategy', () => {
 
     it('ensures siblings at same level have same y-coordinate', () => {
       const strategy = new ReingoldTilfordStrategy();
-      const parent = createNode('parent', ['child1', 'child2']);
-      const child1 = createNode('child1');
-      const child2 = createNode('child2');
+      const parent = createNode('parent');
+      const child1 = createNode('child1', ['parent']);
+      const child2 = createNode('child2', ['parent']);
       const context = createContext([parent, child1, child2]);
 
       const result = strategy.position(context);

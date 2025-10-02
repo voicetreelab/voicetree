@@ -27,16 +27,14 @@ import type {
   Position,
   NodeInfo
 } from '@/graph-core/graphviz/layout/types';
+import type { Node } from '@/graph-core/types';
 
-interface TreeNode {
-  id: string;
-  children: string[];
-  parents: string[];
+// Extended Node with layout-specific fields
+interface LayoutNode extends Node {
   depth: number;
-  x: number;
-  y: number;
   width: number;
   height: number;
+  parents: string[];  // Temporary: track multiple parents for DAG->tree conversion
 }
 
 export class ReingoldTilfordStrategy implements PositioningStrategy {
@@ -54,59 +52,75 @@ export class ReingoldTilfordStrategy implements PositioningStrategy {
       return { positions };
     }
 
-    // Build tree structure
-    const treeNodes = this.buildTree(context.newNodes);
-
-    // Find root nodes (nodes that no other node points to as a child)
-    const nodeIds = new Set(context.newNodes.map(n => n.id));
-    const childrenSet = new Set<string>();
-
-    // Collect all nodes that are children (appear in some node's linkedNodeIds)
-    context.newNodes.forEach(n => {
-      n.linkedNodeIds.forEach(childId => {
-        if (nodeIds.has(childId)) {
-          childrenSet.add(childId);
-        }
+    // Debug: Check how many nodes have links
+    const nodesWithLinks = context.newNodes.filter(n => n.linkedNodeIds.length > 0);
+    console.log(`[ReingoldTilford] Nodes with links: ${nodesWithLinks.length}/${context.newNodes.length}`);
+    if (nodesWithLinks.length > 0) {
+      console.log(`[ReingoldTilford] Sample node with links:`, {
+        id: nodesWithLinks[0].id,
+        linkedNodeIds: nodesWithLinks[0].linkedNodeIds
       });
-    });
+    }
 
-    // Roots are nodes that are NOT children of any other node
-    const roots = context.newNodes.filter(n => !childrenSet.has(n.id));
+    // Build tree structure
+    const layoutNodes = this.buildTree(context.newNodes);
+
+    // Find root nodes (nodes with no parents in the tree)
+    // After buildTree, layoutNodes have proper parent-child relationships
+    const roots: typeof context.newNodes = [];
+    for (const node of context.newNodes) {
+      const layoutNode = layoutNodes.get(node.id);
+      if (layoutNode && layoutNode.parents.length === 0) {
+        roots.push(node);
+      }
+    }
+
+    console.log(`[ReingoldTilford] Total nodes: ${context.newNodes.length}, Roots found: ${roots.length}`);
+    console.log(`[ReingoldTilford] Root IDs:`, roots.map(r => r.id).slice(0, 10));
 
     if (roots.length === 0) {
       // All nodes have parents - pick one arbitrarily as root
       roots.push(context.newNodes[0]);
+      console.log(`[ReingoldTilford] No roots found - using arbitrary root: ${roots[0].id}`);
     }
 
     // Assign depths via BFS
-    this.assignDepths(treeNodes, roots.map(r => r.id));
+    this.assignDepths(layoutNodes, roots.map(r => r.id));
 
     // Position each tree
     let forestOffset = 0;
-    const treeSets = this.partitionIntoTrees(treeNodes, roots.map(r => r.id));
+    const treeSets = this.partitionIntoTrees(layoutNodes, roots.map(r => r.id));
+
+    console.log(`[ReingoldTilford] Partitioned into ${treeSets.length} trees`);
 
     for (const treeRootIds of treeSets) {
       // Position this tree starting at forestOffset
-      const treeWidth = this.positionTree(treeNodes, treeRootIds, forestOffset);
+      const treeWidth = this.positionTree(layoutNodes, treeRootIds, forestOffset);
+      console.log(`[ReingoldTilford] Tree with roots [${treeRootIds}] positioned at offset ${forestOffset}, width ${treeWidth}`);
       forestOffset += treeWidth + this.TREE_SPACING;
     }
 
-    // Convert tree positions to result map
-    for (const [id, treeNode] of treeNodes) {
-      positions.set(id, { x: treeNode.x, y: treeNode.y });
+    // Convert layout positions to result map
+    const depthCounts = new Map<number, number>();
+    for (const [id, layoutNode] of layoutNodes) {
+      positions.set(id, { x: layoutNode.x!, y: layoutNode.y! });
+      depthCounts.set(layoutNode.depth, (depthCounts.get(layoutNode.depth) || 0) + 1);
     }
+
+    console.log(`[ReingoldTilford] Depth distribution:`, Array.from(depthCounts.entries()).sort((a,b) => a[0] - b[0]));
 
     return { positions };
   }
 
-  private buildTree(nodes: NodeInfo[]): Map<string, TreeNode> {
-    const treeNodes = new Map<string, TreeNode>();
+  private buildTree(nodes: NodeInfo[]): Map<string, LayoutNode> {
+    const layoutNodes = new Map<string, LayoutNode>();
     const nodeIds = new Set(nodes.map(n => n.id));
 
-    // Initialize tree nodes
+    // Initialize layout nodes (extends Node with layout fields)
     for (const node of nodes) {
-      treeNodes.set(node.id, {
+      layoutNodes.set(node.id, {
         id: node.id,
+        label: node.id,
         children: [],
         parents: [],
         depth: 0,
@@ -120,7 +134,7 @@ export class ReingoldTilfordStrategy implements PositioningStrategy {
     // Build parent-child relationships
     // linkedNodeIds contains the children (targets of outgoing edges)
     for (const node of nodes) {
-      const treeNode = treeNodes.get(node.id)!;
+      const layoutNode = layoutNodes.get(node.id)!;
 
       for (const childId of node.linkedNodeIds) {
         // Skip self-references to prevent infinite recursion
@@ -128,25 +142,25 @@ export class ReingoldTilfordStrategy implements PositioningStrategy {
 
         if (!nodeIds.has(childId)) continue;
 
-        const childTreeNode = treeNodes.get(childId);
-        if (!childTreeNode) continue;
+        const childLayoutNode = layoutNodes.get(childId);
+        if (!childLayoutNode) continue;
 
         // node.id is parent of childId (linkedNodeIds contains children/targets)
-        treeNode.children.push(childId);
-        childTreeNode.parents.push(node.id);
+        layoutNode.children.push(childId);
+        childLayoutNode.parents.push(node.id);
       }
     }
 
-    return treeNodes;
+    return layoutNodes;
   }
 
-  private assignDepths(treeNodes: Map<string, TreeNode>, rootIds: string[]): void {
+  private assignDepths(layoutNodes: Map<string, LayoutNode>, rootIds: string[]): void {
     const visited = new Set<string>();
     const queue: string[] = [...rootIds];
 
     // Set root depths to 0
     for (const rootId of rootIds) {
-      const node = treeNodes.get(rootId);
+      const node = layoutNodes.get(rootId);
       if (node) {
         node.depth = 0;
         visited.add(rootId);
@@ -156,13 +170,13 @@ export class ReingoldTilfordStrategy implements PositioningStrategy {
     // BFS to assign depths
     while (queue.length > 0) {
       const nodeId = queue.shift()!;
-      const node = treeNodes.get(nodeId);
+      const node = layoutNodes.get(nodeId);
       if (!node) continue;
 
       for (const childId of node.children) {
         if (visited.has(childId)) continue;
 
-        const child = treeNodes.get(childId);
+        const child = layoutNodes.get(childId);
         if (!child) continue;
 
         child.depth = node.depth + 1;
@@ -172,25 +186,25 @@ export class ReingoldTilfordStrategy implements PositioningStrategy {
     }
   }
 
-  private partitionIntoTrees(treeNodes: Map<string, TreeNode>, rootIds: string[]): string[][] {
+  private partitionIntoTrees(layoutNodes: Map<string, LayoutNode>, rootIds: string[]): string[][] {
     // For simplicity, treat each root as a separate tree
     // A more sophisticated approach would merge roots that share descendants
     return rootIds.map(rootId => [rootId]);
   }
 
-  private positionTree(treeNodes: Map<string, TreeNode>, rootIds: string[], offsetX: number): number {
+  private positionTree(layoutNodes: Map<string, LayoutNode>, rootIds: string[], offsetX: number): number {
     let maxWidth = 0;
 
     for (const rootId of rootIds) {
-      const width = this.positionSubtree(treeNodes, rootId, offsetX);
+      const width = this.positionSubtree(layoutNodes, rootId, offsetX);
       maxWidth = Math.max(maxWidth, width);
     }
 
     return maxWidth;
   }
 
-  private positionSubtree(treeNodes: Map<string, TreeNode>, nodeId: string, offsetX: number): number {
-    const node = treeNodes.get(nodeId);
+  private positionSubtree(layoutNodes: Map<string, LayoutNode>, nodeId: string, offsetX: number): number {
+    const node = layoutNodes.get(nodeId);
     if (!node) return 0;
 
     // Base case: leaf node
@@ -206,10 +220,10 @@ export class ReingoldTilfordStrategy implements PositioningStrategy {
     const childPositions: number[] = [];
 
     for (const childId of node.children) {
-      const childWidth = this.positionSubtree(treeNodes, childId, childOffsetX);
-      const child = treeNodes.get(childId);
+      const childWidth = this.positionSubtree(layoutNodes, childId, childOffsetX);
+      const child = layoutNodes.get(childId);
       if (child) {
-        childPositions.push(child.x);
+        childPositions.push(child.x!);
       }
       childOffsetX += childWidth + this.MIN_SIBLING_SPACING;
     }
@@ -226,7 +240,7 @@ export class ReingoldTilfordStrategy implements PositioningStrategy {
     node.y = node.depth * this.LEVEL_HEIGHT;
 
     // Return total width used by this subtree (including last child's width)
-    const lastChild = node.children.length > 0 ? treeNodes.get(node.children[node.children.length - 1]) : null;
+    const lastChild = node.children.length > 0 ? layoutNodes.get(node.children[node.children.length - 1]) : null;
     const lastChildWidth = lastChild ? lastChild.width : 0;
     return (childOffsetX - offsetX - this.MIN_SIBLING_SPACING) + lastChildWidth + this.NODE_PADDING;
   }

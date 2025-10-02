@@ -116,21 +116,28 @@ describe('BreathingAnimationService', () => {
       vi.useFakeTimers();
       const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
 
-      // NEW_NODE has a timeout
+      // NEW_NODE has no timeout (0 = no timeout, persists until next node)
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
-
-      // Filter out the timeout from animate mock (if any)
-      const timeoutCalls = setTimeoutSpy.mock.calls.filter(
-        call => call[1] === 5000
+      const newNodeTimeoutCalls = setTimeoutSpy.mock.calls.filter(
+        call => call[1] > 0
       );
-      expect(timeoutCalls.length).toBe(1);
+      expect(newNodeTimeoutCalls.length).toBe(0);
+
+      vi.clearAllMocks();
+
+      // APPENDED_CONTENT has a 10s timeout
+      service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
+      const appendedTimeoutCalls = setTimeoutSpy.mock.calls.filter(
+        call => call[1] === 10000
+      );
+      expect(appendedTimeoutCalls.length).toBe(1);
 
       vi.clearAllMocks();
 
       // PINNED has no timeout (0 means no timeout)
       service.addBreathingAnimation(node, AnimationType.PINNED);
       const pinnedTimeoutCalls = setTimeoutSpy.mock.calls.filter(
-        call => call[1] > 0 && call[1] !== 0
+        call => call[1] > 0
       );
       expect(pinnedTimeoutCalls.length).toBe(0);
 

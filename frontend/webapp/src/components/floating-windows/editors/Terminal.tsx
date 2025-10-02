@@ -48,7 +48,7 @@ export const Terminal: React.FC = () => {
 
     // Initialize terminal backend connection
     const initTerminal = async () => {
-      if (window.electronAPI?.terminal) {
+      if (typeof window !== 'undefined' && window.electronAPI?.terminal) {
         // Running in Electron
         const result = await window.electronAPI.terminal.spawn();
 
@@ -56,19 +56,21 @@ export const Terminal: React.FC = () => {
           terminalIdRef.current = result.terminalId;  // Store in ref for immediate access
 
           // Set up data listener
-          window.electronAPI.terminal.onData((id, data) => {
-            if (id === result.terminalId) {
-              term.write(data);
-            }
-          });
+          if (typeof window !== 'undefined' && window.electronAPI?.terminal) {
+            window.electronAPI.terminal.onData((id, data) => {
+              if (id === result.terminalId) {
+                term.write(data);
+              }
+            });
 
-          // Set up exit listener
-          window.electronAPI.terminal.onExit((id, code) => {
-            if (id === result.terminalId) {
-              term.writeln(`\r\nProcess exited with code ${code}`);
-              terminalIdRef.current = null;
-            }
-          });
+            // Set up exit listener
+            window.electronAPI.terminal.onExit((id, code) => {
+              if (id === result.terminalId) {
+                term.writeln(`\r\nProcess exited with code ${code}`);
+                terminalIdRef.current = null;
+              }
+            });
+          }
         } else {
           term.writeln('Failed to spawn terminal: ' + (result.error || 'Unknown error'));
         }
@@ -84,7 +86,7 @@ export const Terminal: React.FC = () => {
     // Handle terminal input - use ref to get current terminalId
     term.onData(data => {
       console.log('Terminal onData:', data, 'terminalId:', terminalIdRef.current);
-      if (terminalIdRef.current && window.electronAPI?.terminal) {
+      if (terminalIdRef.current && typeof window !== 'undefined' && window.electronAPI?.terminal) {
         // Send input to backend
         console.log('Sending to backend:', data);
         window.electronAPI.terminal.write(terminalIdRef.current, data).then(result => {
@@ -93,13 +95,16 @@ export const Terminal: React.FC = () => {
           console.error('Write error:', err);
         });
       } else {
-        console.log('No terminalId or electronAPI:', { terminalId: terminalIdRef.current, hasAPI: !!window.electronAPI?.terminal });
+        console.log('No terminalId or electronAPI:', {
+          terminalId: terminalIdRef.current,
+          hasAPI: typeof window !== 'undefined' && !!window.electronAPI?.terminal
+        });
       }
     });
 
     // Cleanup on unmount
     return () => {
-      if (terminalIdRef.current && window.electronAPI?.terminal) {
+      if (terminalIdRef.current && typeof window !== 'undefined' && window.electronAPI?.terminal) {
         window.electronAPI.terminal.kill(terminalIdRef.current);
       }
       term.dispose();
