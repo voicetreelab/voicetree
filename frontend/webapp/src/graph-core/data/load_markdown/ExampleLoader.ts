@@ -1,5 +1,6 @@
-import { MarkdownParser, type GraphData } from './MarkdownParser';
+import { loadMarkdownTree } from './MarkdownParser';
 import { FileLoader } from './FileLoader';
+import { MarkdownTree } from '@/graph-core/types';
 
 export class ExampleLoader {
   /**
@@ -7,7 +8,7 @@ export class ExampleLoader {
    * Note: This is a development utility and would need to be adapted for production
    * where files would likely be loaded via API calls instead of direct file system access
    */
-  static async loadExampleSmall(): Promise<GraphData> {
+  static async loadExampleSmall(): Promise<MarkdownTree> {
     // In a real application, these would be loaded via fetch() or API calls
     // For now, we'll simulate the example data based on the files we examined
     const exampleFiles = new Map<string, string>();
@@ -96,42 +97,42 @@ You want me to drive you soon, Dan? Can we drive you soon? Okay, give me five mi
 _Links:_
 `);
 
-    return MarkdownParser.parseDirectory(exampleFiles);
+    return loadMarkdownTree(exampleFiles);
   }
 
   /**
    * Load files from user's computer using file picker
    * Cross-browser compatible approach
    */
-  static async loadFromUserFiles(): Promise<GraphData | null> {
+  static async loadFromUserFiles(): Promise<MarkdownTree | null> {
     return FileLoader.pickMultipleFiles();
   }
 
   /**
    * Load a single file from user's computer using file picker
    */
-  static async loadSingleFile(): Promise<GraphData | null> {
+  static async loadSingleFile(): Promise<MarkdownTree | null> {
     return FileLoader.pickSingleFile();
   }
 
   /**
    * Load directory from user's computer using directory picker
    */
-  static async loadFromDirectory(): Promise<GraphData | null> {
+  static async loadFromDirectory(): Promise<MarkdownTree | null> {
     return FileLoader.pickDirectory();
   }
 
   /**
    * Create a drag & drop zone for file loading
    */
-  static createFileDropZone(onFilesLoaded: (graphData: GraphData) => void): HTMLDivElement {
+  static createFileDropZone(onFilesLoaded: (tree: MarkdownTree) => void): HTMLDivElement {
     return FileLoader.createDropZone(onFilesLoaded);
   }
 
   /**
    * Setup paste handler for file loading (Ctrl+V)
    */
-  static setupFilePasteHandler(onFilesLoaded: (graphData: GraphData) => void): void {
+  static setupFilePasteHandler(onFilesLoaded: (tree: MarkdownTree) => void): void {
     FileLoader.setupPasteHandler(onFilesLoaded);
   }
 }

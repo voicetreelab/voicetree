@@ -1,8 +1,10 @@
-import { MarkdownParser, type GraphData } from './MarkdownParser';
+import { loadMarkdownTree } from './MarkdownParser';
+import { MarkdownTree } from '@/graph-core/types';
 
 /**
  * Cross-browser file loading utility for markdown files
  * Supports single files, multiple files, and directory selection
+ * Returns canonical MarkdownTree structure
  */
 export class FileLoader {
   /**
@@ -62,7 +64,7 @@ export class FileLoader {
   /**
    * Open file picker for single markdown file
    */
-  static async pickSingleFile(): Promise<GraphData | null> {
+  static async pickSingleFile(): Promise<MarkdownTree | null> {
     return new Promise((resolve) => {
       const input = this.createFileInput('.md', false, false);
 
@@ -81,8 +83,8 @@ export class FileLoader {
         }
 
         const fileMap = await this.processFiles(markdownFiles);
-        const graphData = await MarkdownParser.parseDirectory(fileMap);
-        resolve(graphData);
+        const tree = loadMarkdownTree(fileMap);
+        resolve(tree);
       };
 
       document.body.appendChild(input);
@@ -94,7 +96,7 @@ export class FileLoader {
   /**
    * Open file picker for multiple markdown files
    */
-  static async pickMultipleFiles(): Promise<GraphData | null> {
+  static async pickMultipleFiles(): Promise<MarkdownTree | null> {
     return new Promise((resolve) => {
       const input = this.createFileInput('.md', true, false);
 
@@ -113,8 +115,8 @@ export class FileLoader {
         }
 
         const fileMap = await this.processFiles(markdownFiles);
-        const graphData = await MarkdownParser.parseDirectory(fileMap);
-        resolve(graphData);
+        const tree = loadMarkdownTree(fileMap);
+        resolve(tree);
       };
 
       document.body.appendChild(input);
@@ -126,7 +128,7 @@ export class FileLoader {
   /**
    * Open directory picker for folder containing markdown files
    */
-  static async pickDirectory(): Promise<GraphData | null> {
+  static async pickDirectory(): Promise<MarkdownTree | null> {
     return new Promise((resolve) => {
       const input = this.createFileInput('', false, true);
 
@@ -145,8 +147,8 @@ export class FileLoader {
         }
 
         const fileMap = await this.processFiles(markdownFiles);
-        const graphData = await MarkdownParser.parseDirectory(fileMap);
-        resolve(graphData);
+        const tree = loadMarkdownTree(fileMap);
+        resolve(tree);
       };
 
       document.body.appendChild(input);
@@ -159,7 +161,7 @@ export class FileLoader {
    * Create drag & drop zone that accepts markdown files
    * Returns a div element that can be styled and placed in the DOM
    */
-  static createDropZone(onFilesLoaded: (graphData: GraphData) => void): HTMLDivElement {
+  static createDropZone(onFilesLoaded: (tree: MarkdownTree) => void): HTMLDivElement {
     const dropZone = document.createElement('div');
     dropZone.style.border = '2px dashed #ccc';
     dropZone.style.borderRadius = '8px';
@@ -196,15 +198,15 @@ export class FileLoader {
       }
 
       const fileMap = await this.processFiles(markdownFiles);
-      const graphData = await MarkdownParser.parseDirectory(fileMap);
-      onFilesLoaded(graphData);
+      const tree = loadMarkdownTree(fileMap);
+      onFilesLoaded(tree);
     });
 
     // Handle click to open file picker
     dropZone.addEventListener('click', async () => {
-      const graphData = await this.pickMultipleFiles();
-      if (graphData) {
-        onFilesLoaded(graphData);
+      const tree = await this.pickMultipleFiles();
+      if (tree) {
+        onFilesLoaded(tree);
       }
     });
 
@@ -214,7 +216,7 @@ export class FileLoader {
   /**
    * Handle paste events for file loading (Ctrl+V)
    */
-  static setupPasteHandler(onFilesLoaded: (graphData: GraphData) => void): void {
+  static setupPasteHandler(onFilesLoaded: (tree: MarkdownTree) => void): void {
     document.addEventListener('paste', async (e) => {
       const files = Array.from(e.clipboardData?.files || []);
       const markdownFiles = files.filter(file =>
@@ -227,8 +229,8 @@ export class FileLoader {
 
       e.preventDefault();
       const fileMap = await this.processFiles(markdownFiles);
-      const graphData = await MarkdownParser.parseDirectory(fileMap);
-      onFilesLoaded(graphData);
+      const tree = loadMarkdownTree(fileMap);
+      onFilesLoaded(tree);
     });
   }
 }

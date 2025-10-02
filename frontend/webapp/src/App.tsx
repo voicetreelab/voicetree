@@ -120,6 +120,7 @@ function App() {
               <VoiceTreeTranscribe />
             </div>
           </div>
+            <h1>NEW OLD </h1>
 
           {/* Main Graph Visualization with Sidebar */}
           <div className="border-r pr-4">

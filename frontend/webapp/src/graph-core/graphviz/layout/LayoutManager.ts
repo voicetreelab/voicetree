@@ -5,6 +5,7 @@ import type {
   NodeInfo,
   Position
 } from './types';
+import type { Node, MarkdownTree } from '@/graph-core/types';
 import { SeedParkRelaxStrategy } from './SeedParkRelaxStrategy';
 
 export class LayoutManager {
@@ -23,6 +24,20 @@ export class LayoutManager {
    */
   applyLayout(cy: Core, newNodeIds: string[]): void {
     const context = this.extractContext(cy, newNodeIds);
+    const result = this.strategy.position(context);
+    this.applyPositions(cy, result.positions);
+  }
+
+  /**
+   * Apply layout using canonical tree structure from MarkdownTree or Node map
+   */
+  applyLayoutWithTree(
+    cy: Core,
+    tree: MarkdownTree | Map<string, Node>,
+    newNodeIds: string[]
+  ): void {
+    const nodeMap = tree instanceof Map ? tree : tree.tree;
+    const context = this.extractContextWithTree(cy, nodeMap, newNodeIds);
     const result = this.strategy.position(context);
     this.applyPositions(cy, result.positions);
   }
@@ -101,6 +116,54 @@ export class LayoutManager {
     };
   }
 
+  /**
+   * Extract context using canonical tree structure from Node types
+   */
+  private extractContextWithTree(
+    cy: Core,
+    nodeMap: Map<string, Node>,
+    newNodeIds: string[],
+    treatAsExisting?: Set<string>
+  ): PositioningContext {
+    const allNodes = cy.nodes();
+    const nodes: NodeInfo[] = [];
+    const newNodes: NodeInfo[] = [];
+
+    allNodes.forEach(node => {
+      const nodeId = node.id();
+      const canonicalNode = nodeMap.get(nodeId);
+
+      const nodeInfo: NodeInfo = {
+        id: nodeId,
+        position: node.position(),
+        size: this.getNodeSize(node),
+        // Use canonical tree structure if available
+        parentId: canonicalNode?.parentId,
+        children: canonicalNode?.children || [],
+        // Keep linkedNodeIds for backward compatibility
+        linkedNodeIds: canonicalNode ? undefined : this.getLinkedNodeIds(cy, node)
+      };
+
+      const isNew = newNodeIds.includes(nodeId) &&
+                    !(treatAsExisting && treatAsExisting.has(nodeId));
+
+      if (isNew) {
+        newNodes.push(nodeInfo);
+      } else {
+        nodes.push(nodeInfo);
+      }
+    });
+
+    return {
+      nodes,
+      newNodes,
+      bounds: {
+        width: cy.width(),
+        height: cy.height()
+      }
+    };
+  }
+
   private getNodeSize(node: NodeSingular): { width: number; height: number } {
     const bb = node.boundingBox({ includeLabels: false });
     return {
@@ -137,14 +200,25 @@ export class LayoutManager {
   private applyPositions(cy: Core, positions: Map<string, Position>): void {
     cy.startBatch();
 
+    let appliedCount = 0;
+    const samples: string[] = [];
+
     positions.forEach((pos, nodeId) => {
       const node = cy.$id(nodeId);
       if (node.length > 0) {
         node.position(pos);
+        appliedCount++;
+
+        // Sample first 5 for debugging
+        if (samples.length < 5) {
+          samples.push(`${nodeId}: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`);
+        }
       }
     });
 
     cy.endBatch();
+
+    console.log(`[LayoutManager] Applied ${appliedCount} positions. Samples:`, samples);
   }
 
   /**
