@@ -1,60 +1,131 @@
-interface NodeData {
-  id: string;
-  label: string;
-  linkedNodeIds: string[];
+import { Node, MarkdownTree } from '@/graph-core/types';
+
+/**
+ * Converts markdown files to tree data structure
+ * Direct 1:1 port of Python MarkdownToTreeConverter
+ * (backend/markdown_tree_manager/markdown_to_tree/tree_from_markdown.py)
+ */
+
+interface ParsedRelationships {
+  parent?: {
+    filename: string;
+    relationshipType: string;
+  };
+  children: Array<{
+    filename: string;
+    relationshipType: string;
+  }>;
 }
 
-interface EdgeData {
-  id: string;
-  source: string;
-  target: string;
-}
+export class MarkdownToTreeConverter {
+  private treeData: Map<string, Node> = new Map();
+  private filenameToNodeId: Map<string, string> = new Map();
 
-export interface GraphData {
-  nodes: Array<{ data: NodeData }>;
-  edges: Array<{ data: EdgeData }>;
-}
-
-export interface ParsedLink {
-  type: string;
-  targetFile: string;
-  targetNodeId: string;
-}
-
-export interface ParsedNode {
-  id: string;
-  title: string;
-  content: string;
-  links: ParsedLink[];
-  filename: string;
-}
-
-export class MarkdownParser {
   /**
-   * Normalize a filename to a consistent ID
-   * 'concepts/introduction.md' -> 'introduction'
-   * 'introduction.md' -> 'introduction'
+   * Main entry point to load tree from markdown files
+   * @param files Map of filename -> content
+   * @param outputDir Output directory for markdown files (default: "markdownTreeVaultDefault")
+   * @returns MarkdownTree object
    */
-  private static normalizeFileId(filename: string): string {
-    // Remove .md extension
-    let id = filename.replace(/\.md$/i, '');
-    // Take just the filename without path
-    const lastSlash = id.lastIndexOf('/');
-    if (lastSlash >= 0) {
-      id = id.substring(lastSlash + 1);
+  loadTreeFromMarkdown(files: Map<string, string>, outputDir: string = "markdownTreeVaultDefault"): MarkdownTree {
+    console.log(`Loading tree from ${files.size} markdown files`);
+
+    // First pass: Load all nodes and build filename mapping
+    for (const [filename, content] of files) {
+      try {
+        const node = this.parseMarkdownFile(content, filename);
+        if (node) {
+          // Check for duplicate node IDs
+          if (this.treeData.has(node.id)) {
+            const existingNode = this.treeData.get(node.id)!;
+            console.warn(`Duplicate node_id ${node.id}: ${existingNode.filename} vs ${filename}`);
+          }
+          this.treeData.set(node.id, node);
+          this.filenameToNodeId.set(filename, node.id);
+        } else {
+          console.warn(`Failed to parse file ${filename} - node is null`);
+        }
+      } catch (error) {
+        console.error(`Error parsing file ${filename}:`, error);
+      }
     }
-    return id;
+
+    // Second pass: Resolve relationships
+    for (const [filename, content] of files) {
+      try {
+        this.parseRelationships(content, filename);
+      } catch (error) {
+        console.error(`Error parsing relationships in ${filename}:`, error);
+      }
+    }
+
+    console.log(`Loaded ${this.treeData.size} nodes from markdown`);
+
+    // Build MarkdownTree object
+    // nextNodeId: find max numeric ID, ignore string IDs like "4_1"
+    const numericIds = Array.from(this.treeData.keys())
+      .map(id => parseInt(id, 10))
+      .filter(id => !isNaN(id));
+    const nextNodeId = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1;
+
+    return {
+      tree: this.treeData,
+      nextNodeId,
+      outputDir,
+    };
   }
 
   /**
-   * Parse a single markdown file with frontmatter and extract structured data
+   * Parse a single markdown file to extract node data
+   * Wrapper around comprehensive parser (matches Python structure)
+   * @param content File content
+   * @param filename Filename
+   * @returns Node object or null if parsing fails
    */
-  static parseMarkdownFile(content: string, filename: string): ParsedNode {
+  private parseMarkdownFile(content: string, filename: string): Node | null {
+    const parsedData = this.parseMarkdownFileComplete(content);
+    if (!parsedData) {
+      console.warn(`Could not parse file ${filename}`);
+      return null;
+    }
+
+    // Create Node object from parsed data (match Python defaults)
+    const node: Node = {
+      id: parsedData.nodeId,
+      title: parsedData.title,
+      filename: filename,
+      content: parsedData.content,
+      summary: parsedData.summary || '',  // Default to empty string like Python
+      children: [],
+      relationships: {},
+      createdAt: parsedData.createdAt || new Date(),  // Default to now like Python
+      modifiedAt: parsedData.modifiedAt || new Date(),  // Default to now like Python
+      tags: parsedData.tags || [],  // Default to empty array like Python
+      color: parsedData.color,  // Optional, can be undefined
+    };
+
+    return node;
+  }
+
+  /**
+   * Parse complete markdown file (frontmatter + content)
+   * Equivalent to Python comprehensive_parser.parse_markdown_file_complete
+   */
+  private parseMarkdownFileComplete(content: string): {
+    nodeId: string;
+    title: string;
+    content: string;
+    summary?: string;
+    createdAt?: Date;
+    modifiedAt?: Date;
+    tags?: string[];
+    color?: string;
+  } | null {
     const lines = content.split('\n');
     let frontmatterEnd = -1;
     const frontmatter: Record<string, string> = {};
 
-    // Parse frontmatter if present
+    // Parse frontmatter (YAML between --- markers)
     if (lines[0]?.trim() === '---') {
       for (let i = 1; i < lines.length; i++) {
         if (lines[i]?.trim() === '---') {
@@ -70,131 +141,156 @@ export class MarkdownParser {
       }
     }
 
-    // Extract content (everything after frontmatter)
-    const contentStartIndex = frontmatterEnd >= 0 ? frontmatterEnd + 1 : 0;
-    const bodyContent = lines.slice(contentStartIndex).join('\n');
+    // Extract required fields - node_id is always converted to string
+    const nodeId = frontmatter.node_id?.trim();
+    const title = frontmatter.title || '';
 
-    // Extract ALL wikilinks from content
-    // Any [[link]] anywhere in the file is valid
-    const links: ParsedLink[] = [];
-
-    const linkMatches = bodyContent.matchAll(/\[\[([^\]]+)\]\]/g);
-    for (const match of linkMatches) {
-      const targetFile = match[1];
-
-      // Try to extract node ID from numbered files (e.g., "5_Something.md" -> "5")
-      const nodeIdMatch = targetFile.match(/^(\d+)_/);
-
-      // Otherwise normalize the filename to get a consistent ID
-      const targetNodeId = nodeIdMatch ? nodeIdMatch[1] : this.normalizeFileId(targetFile);
-
-      links.push({
-        type: 'link',
-        targetFile: targetFile,
-        targetNodeId: targetNodeId
-      });
+    if (!nodeId || !title) {
+      console.warn('Missing required frontmatter fields (node_id or title)');
+      return null;
     }
 
+    // Extract body content (everything after frontmatter)
+    const contentStartIndex = frontmatterEnd >= 0 ? frontmatterEnd + 1 : 0;
+    const bodyContent = lines.slice(contentStartIndex).join('\n').trim();
+
     return {
-      id: frontmatter.node_id || this.normalizeFileId(filename),
-      title: frontmatter.title || '',
+      nodeId,
+      title,
       content: bodyContent,
-      links: links,
-      filename: filename
+      summary: frontmatter.summary,
+      createdAt: frontmatter.created_at ? new Date(frontmatter.created_at) : undefined,
+      modifiedAt: frontmatter.modified_at ? new Date(frontmatter.modified_at) : undefined,
+      tags: frontmatter.tags ? frontmatter.tags.split(',').map(t => t.trim()) : undefined,
+      color: frontmatter.color,
     };
   }
 
   /**
-   * Parse a directory of markdown files and return simple graph data (original API)
-   *
-   * IMPORTANT: In VoiceTree markdown format, links under "Parent:" section are links FROM child TO parent
-   * We invert these to create proper parent->child relationships for the tree layout
-   *
-   * For generic markdown without Parent: sections, we use wikilinks as-is
+   * Parse relationships from _Links: section
+   * Equivalent to Python parse_relationships_from_links
    */
-  static async parseDirectory(files: Map<string, string>): Promise<GraphData> {
-    const nodes: Array<{ data: NodeData }> = [];
-    const edges: Array<{ data: EdgeData }> = [];
-
-    // Parse all files
-    const parsedNodes = new Map<string, { id: string; filename: string; hasParentSection: boolean }>();
-    for (const [filename, content] of files) {
-      const parsed = this.parseMarkdownFile(content, filename);
-      if (parsed.id) {
-        // Check if this file has a Parent: section
-        const linksSectionMatch = content.match(/_Links:_([\s\S]*?)(?:\n\n|$)/);
-        const hasParentSection = linksSectionMatch ? /Parent:\s*\n/.test(linksSectionMatch[1]) : false;
-
-        parsedNodes.set(parsed.id, { id: parsed.id, filename, hasParentSection });
-      }
+  private parseRelationships(content: string, filename: string): void {
+    if (!this.filenameToNodeId.has(filename)) {
+      return;
     }
 
-    // Track children for each node
-    const nodeChildren = new Map<string, Set<string>>();
-    for (const [id] of parsedNodes) {
-      nodeChildren.set(id, new Set());
-    }
+    const nodeId = this.filenameToNodeId.get(filename)!;
+    const node = this.treeData.get(nodeId)!;
 
-    // Build edges
-    for (const [filename, content] of files) {
-      const node = Array.from(parsedNodes.values()).find(n => n.filename === filename);
-      if (!node) continue;
+    const relationships = this.parseRelationshipsFromLinks(content);
 
-      // Check if this has a Parent: section
-      const linksSectionMatch = content.match(/_Links:_([\s\S]*?)(?:\n\n|$)/);
-      if (linksSectionMatch) {
-        const linksContent = linksSectionMatch[1];
-        const parentSectionMatch = linksContent.match(/Parent:\s*\n- [^[]+\[\[([^\]]+)\]\]/);
+    // Process parent relationship
+    if (relationships.parent) {
+      let parentFilename = relationships.parent.filename;
+      const relationshipType = relationships.parent.relationshipType;
 
-        if (parentSectionMatch) {
-          // VoiceTree format: Parent link means "my parent is X"
-          // Create edge FROM parent TO this node
-          const parentFile = parentSectionMatch[1];
-          const parentNodeIdMatch = parentFile.match(/^(\d+)_/);
-          const parentId = parentNodeIdMatch ? parentNodeIdMatch[1] : this.normalizeFileId(parentFile);
-
-          if (parsedNodes.has(parentId)) {
-            nodeChildren.get(parentId)!.add(node.id);
-            edges.push({
-              data: {
-                id: `${parentId}->${node.id}`,
-                source: parentId,
-                target: node.id
-              }
-            });
-          }
-          continue; // Skip normal wikilink processing for VoiceTree format files
-        }
+      // Strip directory prefix if present (e.g., "2025-09-30/file.md" -> "file.md")
+      const lastSlash = parentFilename.lastIndexOf('/');
+      if (lastSlash >= 0) {
+        parentFilename = parentFilename.substring(lastSlash + 1);
       }
 
-      // Generic format: use wikilinks as-is
-      const parsed = this.parseMarkdownFile(content, filename);
-      for (const link of parsed.links) {
-        const targetId = link.targetNodeId;
-        if (parsedNodes.has(targetId)) {
-          nodeChildren.get(node.id)!.add(targetId);
-          edges.push({
-            data: {
-              id: `${node.id}->${targetId}`,
-              source: node.id,
-              target: targetId
-            }
-          });
+      if (this.filenameToNodeId.has(parentFilename)) {
+        const parentId = this.filenameToNodeId.get(parentFilename)!;
+        node.parentId = parentId;
+        node.relationships[parentId] = relationshipType;
+
+        // Add this node as child to parent
+        const parentNode = this.treeData.get(parentId);
+        if (parentNode && !parentNode.children.includes(nodeId)) {
+          parentNode.children.push(nodeId);
         }
       }
     }
 
-    // Create nodes with linkedNodeIds
-    for (const [id] of parsedNodes) {
-      nodes.push({
-        data: {
-          id,
-          label: id.replace(/_/g, ' '),
-          linkedNodeIds: Array.from(nodeChildren.get(id) || [])
-        }
-      });
-    }
+    // Process children relationships (if any)
+    for (const childInfo of relationships.children) {
+      let childFilename = childInfo.filename;
+      const relationshipType = childInfo.relationshipType;
 
-    return { nodes, edges };
+      // Strip directory prefix if present
+      const lastSlash = childFilename.lastIndexOf('/');
+      if (lastSlash >= 0) {
+        childFilename = childFilename.substring(lastSlash + 1);
+      }
+
+      if (this.filenameToNodeId.has(childFilename)) {
+        const childId = this.filenameToNodeId.get(childFilename)!;
+        if (!node.children.includes(childId)) {
+          node.children.push(childId);
+        }
+
+        // Set the relationship from child's perspective
+        const childNode = this.treeData.get(childId);
+        if (childNode) {
+          childNode.parentId = nodeId;
+          childNode.relationships[nodeId] = relationshipType;
+        }
+      }
+    }
   }
+
+  /**
+   * Parse _Links: section to extract parent and children relationships
+   * Format:
+   *   _Links:_
+   *   Parent:
+   *   - relationship_type [[filename.md]]
+   *
+   *   Children:
+   *   - relationship_type [[filename.md]]
+   */
+  private parseRelationshipsFromLinks(content: string): ParsedRelationships {
+    const result: ParsedRelationships = {
+      children: [],
+    };
+
+    // Find _Links:_ section
+    const linksSectionMatch = content.match(/_Links:_([\s\S]*?)(?:\n\n|$)/);
+    if (!linksSectionMatch) {
+      return result;
+    }
+
+    const linksContent = linksSectionMatch[1];
+
+    // Parse Parent: section
+    const parentMatch = linksContent.match(/Parent:\s*\n- ([^[]+)\[\[([^\]]+)\]\]/);
+    if (parentMatch) {
+      const relationshipType = parentMatch[1].trim();
+      const filename = parentMatch[2].trim();
+      result.parent = {
+        filename,
+        relationshipType,
+      };
+    }
+
+    // Parse Children: section
+    const childrenSectionMatch = linksContent.match(/Children:([\s\S]*?)(?:\n\n|$)/);
+    if (childrenSectionMatch) {
+      const childrenContent = childrenSectionMatch[1];
+      const childMatches = childrenContent.matchAll(/- ([^[]+)\[\[([^\]]+)\]\]/g);
+      for (const match of childMatches) {
+        const relationshipType = match[1].trim();
+        const filename = match[2].trim();
+        result.children.push({
+          filename,
+          relationshipType,
+        });
+      }
+    }
+
+    return result;
+  }
+}
+
+/**
+ * Convenience function to load tree from markdown files
+ * @param files Map of filename -> content
+ * @param outputDir Output directory (default: "markdownTreeVaultDefault")
+ * @returns MarkdownTree object
+ */
+export function loadMarkdownTree(files: Map<string, string>, outputDir?: string): MarkdownTree {
+  const converter = new MarkdownToTreeConverter();
+  return converter.loadTreeFromMarkdown(files, outputDir);
 }

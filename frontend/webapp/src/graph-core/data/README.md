@@ -20,8 +20,8 @@ A comprehensive markdown file parser that supports both simple wikilink extracti
 // Parse a single file with frontmatter
 const parsed = MarkdownParser.parseMarkdownFile(content, filename);
 
-// Parse a directory of files into graph data
-const graph = await MarkdownParser.parseDirectory(files);
+// Parse a directory of files into MarkdownTree
+const tree = loadMarkdownTree(files);
 ```
 
 ### ExampleLoader
@@ -44,17 +44,19 @@ const exampleData = await ExampleLoader.loadExampleSmall();
 - `links`: Array of structured links with types
 - `filename`: Original filename
 
-**GraphData**: Cytoscape-compatible graph data structure
-- `nodes`: Array of graph nodes with data properties
-- `edges`: Array of graph edges with source/target relationships
+**MarkdownTree**: Canonical tree structure matching Python backend
+- `tree`: Map of node IDs to Node objects
+- `nextNodeId`: Next available node ID
+- `outputDir`: Output directory for markdown files
 
 ## Example Usage
 
 ```typescript
-import { MarkdownParser, ExampleLoader } from './data';
+import { loadMarkdownTree } from './data/load_markdown/MarkdownParser';
+import { ExampleLoader } from './data';
 
 // Load example data
-const exampleGraph = await ExampleLoader.loadExampleSmall();
+const exampleTree = await ExampleLoader.loadExampleSmall();
 
 // Parse your own files
 const files = new Map([
@@ -62,7 +64,7 @@ const files = new Map([
   ['node2.md', '# Node 2\nReferences [[node1.md]]']
 ]);
 
-const graph = await MarkdownParser.parseDirectory(files);
+const tree = loadMarkdownTree(files);
 ```
 
 ## Testing

@@ -1,6 +1,6 @@
 import { MarkdownParser } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
-import { LayoutManager, SeedParkRelaxStrategy, ReingoldTilfordStrategy } from './graphviz/layout';
+import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from './graphviz/layout';
 
 // Import all markdown files from the tests directory
 // Support different fixture sets via URL parameter: ?fixture=example_small or ?fixture=example_real_large
@@ -112,18 +112,18 @@ async function initializeGraph() {
     // Choose layout strategy based on whether this is a bulk load
     // Bulk load: all nodes loaded at once (fixture loading)
     // Incremental: nodes added one at a time (file observer events)
-    const isBulkLoad = nodeElements.length > 10; // Heuristic: >10 nodes = bulk load
-    const strategy = isBulkLoad ? new ReingoldTilfordStrategy() : new SeedParkRelaxStrategy();
+    const isBulkLoad = graphData.nodes.length > 10; // Heuristic: >10 nodes = bulk load
+    const strategy = isBulkLoad ? new TidyLayoutStrategy() : new SeedParkRelaxStrategy();
     const layoutManager = new LayoutManager(strategy);
 
-    console.log(`Using ${strategy.name} layout strategy for ${nodeElements.length} nodes`);
+    console.log(`Using ${strategy.name} layout strategy for ${graphData.nodes.length} nodes`);
 
     // Store linkedNodeIds on nodes for the layout algorithm
     // Edges in our data go FROM child TO parent (child links to parent)
     // So linkedNodeIds = targets of outgoing edges = parents
-    nodeElements.forEach(nodeEl => {
+    graphData.nodes.forEach(nodeEl => {
       const linkedIds: string[] = [];
-      edgeElements.forEach(edgeEl => {
+      graphData.edges.forEach(edgeEl => {
         if (isBulkLoad) {
           // Hierarchical: linkedNodeIds = parents (targets of outgoing edges)
           if (edgeEl.data.source === nodeEl.data.id) {
@@ -145,7 +145,7 @@ async function initializeGraph() {
     if (isBulkLoad) {
       // For bulk load with hierarchical layout, apply to all nodes at once
       console.log('Applying bulk hierarchical layout...');
-      const allNodeIds = nodeElements.map(n => n.data.id);
+      const allNodeIds = graphData.nodes.map(n => n.data.id);
       layoutManager.applyLayout(cy, allNodeIds);
     } else {
       // For incremental, use BFS positioning
@@ -157,16 +157,16 @@ async function initializeGraph() {
     cy.fit(50);
 
     // Expose to window for debugging and testing
-    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).cy = cy;
-    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).cytoscapeCore = cytoscapeCore;
-    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).parsedNodes = parsedNodes;
-    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).layoutManager = layoutManager;
-    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).LayoutManager = LayoutManager;
-    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).SeedParkRelaxStrategy = SeedParkRelaxStrategy;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; graphData?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).cy = cy;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; graphData?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).cytoscapeCore = cytoscapeCore;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; graphData?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).graphData = graphData;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; graphData?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).layoutManager = layoutManager;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; graphData?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).LayoutManager = LayoutManager;
+    (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; graphData?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).SeedParkRelaxStrategy = SeedParkRelaxStrategy;
 
     console.log('Graph initialization complete!');
-    console.log(`Loaded ${fixtureSet} fixture with ${nodeElements.length} nodes and ${edgeElements.length} edges`);
-    console.log('Available in window: cy, cytoscapeCore, parsedNodes, layoutManager');
+    console.log(`Loaded ${fixtureSet} fixture with ${graphData.nodes.length} nodes and ${graphData.edges.length} edges`);
+    console.log('Available in window: cy, cytoscapeCore, graphData, layoutManager');
 
     // Add event listeners for interactivity
     cy.on('tap', 'node', function(evt) {

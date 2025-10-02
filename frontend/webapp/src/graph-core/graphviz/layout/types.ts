@@ -14,7 +14,11 @@ export interface NodeInfo {
   id: string;
   position: Position;
   size: NodeSize;
-  linkedNodeIds: string[];
+  // Canonical tree structure (preferred)
+  parentId?: string;
+  children?: string[];
+  // Legacy wikilinks (kept for backward compatibility)
+  linkedNodeIds?: string[];
 }
 
 export interface PositioningContext {
