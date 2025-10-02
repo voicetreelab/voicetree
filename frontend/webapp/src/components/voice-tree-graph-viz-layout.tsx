@@ -7,6 +7,7 @@ import cytoscape from 'cytoscape';
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
 import { toScreenCoords, toGraphCoords } from '@/utils/coordinate-conversions';
+import { LayoutManager, SeedParkRelaxStrategy, ReingoldTilfordStrategy } from '@/graph-core/graphviz/layout';
 // Import graph styles
 import '@/graph-core/styles/graph.css';
 // @ts-expect-error - cytoscape-cola doesn't have proper TypeScript definitions
@@ -62,6 +63,21 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   const { openWindow, windows, updateWindowContent, updateWindowGraphOffset } = useFloatingWindows();
   const openWindowRef = useRef(openWindow);
   const windowsRef = useRef(windows);
+
+  // Track whether we're in initial bulk load phase or incremental phase
+  // During initial scan: use ReingoldTilfordStrategy for hierarchical layout
+  // After initial scan: use SeedParkRelaxStrategy for incremental additions
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Layout manager for positioning nodes
+  const layoutManagerRef = useRef<LayoutManager | null>(null);
+
+  // Initialize layout manager with appropriate strategy
+  useEffect(() => {
+    const strategy = isInitialLoad ? new ReingoldTilfordStrategy() : new SeedParkRelaxStrategy();
+    layoutManagerRef.current = new LayoutManager(strategy);
+    console.log(`[Layout] Strategy changed to: ${strategy.name} (isInitialLoad=${isInitialLoad})`);
+  }, [isInitialLoad]);
 
   // Note: We now use useFloatingWindows context as the single source of truth for window state
   // No duplicate openEditors state needed
@@ -265,28 +281,40 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     markdownFiles.current.set(data.path, data.content);
     console.log('[DEBUG] Added file to markdownFiles, new count:', markdownFiles.current.size);
 
-    // Add node if it doesn't exist
-    const nodeId = normalizeFileId(data.path);
-    if (!cy.getElementById(nodeId).length) {
-      cy.add({
-        data: {
-          id: nodeId,
-          label: nodeId.replace(/_/g, ' ')
-        }
-      });
-    }
-
-    // Parse and add edges
+    // Parse wikilinks to get linked node IDs
+    const linkedNodeIds: string[] = [];
     const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
     for (const match of linkMatches) {
       const targetId = normalizeFileId(match[1]);
+      linkedNodeIds.push(targetId);
+    }
 
+    // Add node if it doesn't exist
+    const nodeId = normalizeFileId(data.path);
+    const isNewNode = !cy.getElementById(nodeId).length;
+
+    if (isNewNode) {
+      cy.add({
+        data: {
+          id: nodeId,
+          label: nodeId.replace(/_/g, ' '),
+          linkedNodeIds
+        }
+      });
+    } else {
+      // Update linkedNodeIds for existing node
+      cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
+    }
+
+    // Create target nodes and edges
+    for (const targetId of linkedNodeIds) {
       // Ensure target node exists (create placeholder if needed)
       if (!cy.getElementById(targetId).length) {
         cy.add({
           data: {
             id: targetId,
-            label: targetId.replace(/_/g, ' ')
+            label: targetId.replace(/_/g, ' '),
+            linkedNodeIds: []
           }
         });
       }
@@ -309,8 +337,10 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
 
-    // Run layout
-    cy.layout({ name: 'cola', animate: true }).run();
+    // Apply layout using appropriate strategy
+    if (layoutManagerRef.current && isNewNode) {
+      layoutManagerRef.current.applyLayout(cy, [nodeId]);
+    }
   }, []);
 
   const handleFileChanged = useCallback((data: { path: string; content?: string }) => {
@@ -327,17 +357,20 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     // Remove old edges from this node
     cy.edges(`[source = "${nodeId}"]`).remove();
 
-    // Parse and add new edges
+    // Parse wikilinks to get updated linked node IDs
+    const linkedNodeIds: string[] = [];
     const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
     for (const match of linkMatches) {
       const targetId = normalizeFileId(match[1]);
+      linkedNodeIds.push(targetId);
 
       // Ensure target node exists (create placeholder if needed)
       if (!cy.getElementById(targetId).length) {
         cy.add({
           data: {
             id: targetId,
-            label: targetId.replace(/_/g, ' ')
+            label: targetId.replace(/_/g, ' '),
+            linkedNodeIds: []
           }
         });
       }
@@ -353,12 +386,16 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       });
     }
 
+    // Update linkedNodeIds for changed node
+    cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
+
     // Update counts
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
 
-    // Run layout
-    cy.layout({ name: 'cola', animate: true }).run();
+    // For file changes, we don't need to reposition - edges changed but node structure is same
+    // Just fit the view if needed
+    cy.fit(50);
 
     // Update any open editors for this file
     const window = windows.find(w => w.nodeId === nodeId);
@@ -403,9 +440,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
 
-    // Run layout
+    // For deletions, just fit the view - don't need to relayout
     if (cy.nodes().length > 0) {
-      cy.layout({ name: 'cola', animate: true }).run();
+      cy.fit(50);
     }
   }, []);
 
@@ -425,6 +462,27 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     } else {
       console.log('[DEBUG] No cy instance to clear');
     }
+
+    // Reset to initial load mode for next watch session
+    setIsInitialLoad(true);
+  }, []);
+
+  // Handle initial scan complete - switch to incremental mode
+  const handleInitialScanComplete = useCallback(() => {
+    console.log('[Layout] Initial scan complete - switching to incremental layout strategy');
+    setIsInitialLoad(false);
+
+    // Fit the graph after bulk load completes
+    const cy = cytoscapeRef.current?.getCore();
+    if (cy) {
+      cy.fit(50);
+    }
+  }, []);
+
+  // Handle watching started - reset to initial load mode
+  const handleWatchingStarted = useCallback(() => {
+    console.log('[Layout] Watching started - using bulk load layout strategy');
+    setIsInitialLoad(true);
   }, []);
 
   // Initialize Cytoscape on mount
@@ -698,6 +756,14 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     window.electronAPI.onFileDeleted(handleFileDeleted);
     window.electronAPI.onFileWatchingStopped(handleWatchingStopped);
 
+    // Set up layout strategy event listeners
+    if (window.electronAPI.onInitialScanComplete) {
+      window.electronAPI.onInitialScanComplete(handleInitialScanComplete);
+    }
+    if (window.electronAPI.onWatchingStarted) {
+      window.electronAPI.onWatchingStarted(handleWatchingStarted);
+    }
+
     return () => {
       // Cleanup listeners
       console.log('[DEBUG] VoiceTreeGraphVizLayout: Cleaning up file event listeners');
@@ -705,8 +771,14 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       window.electronAPI!.removeAllListeners('file-changed');
       window.electronAPI!.removeAllListeners('file-deleted');
       window.electronAPI!.removeAllListeners('file-watching-stopped');
+      if (window.electronAPI!.onInitialScanComplete) {
+        window.electronAPI!.removeAllListeners('initial-scan-complete');
+      }
+      if (window.electronAPI!.onWatchingStarted) {
+        window.electronAPI!.removeAllListeners('watching-started');
+      }
     };
-  }, [handleFileAdded, handleFileChanged, handleFileDeleted, handleWatchingStopped]);
+  }, [handleFileAdded, handleFileChanged, handleFileDeleted, handleWatchingStopped, handleInitialScanComplete, handleWatchingStarted]);
 
   // Handle window resize
   useEffect(() => {

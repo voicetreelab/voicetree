@@ -4,14 +4,24 @@ import cola from 'cytoscape-cola';
 import { MarkdownParser, type ParsedNode } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
 import { type NodeDefinition, type EdgeDefinition } from './types';
-import { LayoutManager, SeedParkRelaxStrategy } from './graphviz/layout';
+import { LayoutManager, SeedParkRelaxStrategy, ReingoldTilfordStrategy } from './graphviz/layout';
 
 // Import all markdown files from the tests directory
-const markdownModules = import.meta.glob('../../tests/example_small/*.md', {
-  query: '?raw',
-  import: 'default',
-  eager: true
-});
+// Support different fixture sets via URL parameter: ?fixture=example_small or ?fixture=example_real_large
+const urlParams = new URLSearchParams(window.location.search);
+const fixtureSet = urlParams.get('fixture') || 'example_small';
+
+const markdownModules = fixtureSet === 'example_real_large'
+  ? import.meta.glob('../../tests/fixtures/example_real_large/**/*.md', {
+      query: '?raw',
+      import: 'default',
+      eager: true
+    })
+  : import.meta.glob('../../tests/example_small/*.md', {
+      query: '?raw',
+      import: 'default',
+      eager: true
+    });
 
 // Register cola extension with cytoscape
 cytoscape.use(cola);
@@ -149,25 +159,49 @@ async function initializeGraph() {
       node.position({ x, y });
     });
 
-    // Initialize LayoutManager with SeedParkRelaxStrategy
-    const layoutManager = new LayoutManager(new SeedParkRelaxStrategy());
+    // Choose layout strategy based on whether this is a bulk load
+    // Bulk load: all nodes loaded at once (fixture loading)
+    // Incremental: nodes added one at a time (file observer events)
+    const isBulkLoad = nodeElements.length > 10; // Heuristic: >10 nodes = bulk load
+    const strategy = isBulkLoad ? new ReingoldTilfordStrategy() : new SeedParkRelaxStrategy();
+    const layoutManager = new LayoutManager(strategy);
+
+    console.log(`Using ${strategy.name} layout strategy for ${nodeElements.length} nodes`);
 
     // Store linkedNodeIds on nodes for the layout algorithm
+    // Edges in our data go FROM child TO parent (child links to parent)
+    // So linkedNodeIds = targets of outgoing edges = parents
     nodeElements.forEach(nodeEl => {
       const linkedIds: string[] = [];
       edgeElements.forEach(edgeEl => {
-        if (edgeEl.data.source === nodeEl.data.id) {
-          linkedIds.push(edgeEl.data.target);
-        } else if (edgeEl.data.target === nodeEl.data.id) {
-          linkedIds.push(edgeEl.data.source);
+        if (isBulkLoad) {
+          // Hierarchical: linkedNodeIds = parents (targets of outgoing edges)
+          if (edgeEl.data.source === nodeEl.data.id) {
+            linkedIds.push(edgeEl.data.target);
+          }
+        } else {
+          // Force-directed: bidirectional
+          if (edgeEl.data.source === nodeEl.data.id) {
+            linkedIds.push(edgeEl.data.target);
+          } else if (edgeEl.data.target === nodeEl.data.id) {
+            linkedIds.push(edgeEl.data.source);
+          }
         }
       });
       nodeEl.data.linkedNodeIds = linkedIds;
     });
 
-    // Apply the layout using BFS from root
-    console.log('Applying incremental layout...');
-    layoutManager.positionGraphBFS(cy);
+    // Apply the layout
+    if (isBulkLoad) {
+      // For bulk load with hierarchical layout, apply to all nodes at once
+      console.log('Applying bulk hierarchical layout...');
+      const allNodeIds = nodeElements.map(n => n.data.id);
+      layoutManager.applyLayout(cy, allNodeIds);
+    } else {
+      // For incremental, use BFS positioning
+      console.log('Applying incremental layout...');
+      layoutManager.positionGraphBFS(cy);
+    }
 
     // Fit to viewport
     cy.fit(50);
@@ -181,7 +215,8 @@ async function initializeGraph() {
     (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; parsedNodes?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).SeedParkRelaxStrategy = SeedParkRelaxStrategy;
 
     console.log('Graph initialization complete!');
-    console.log('Available in window: cy, cytoscapeCore, parsedNodes');
+    console.log(`Loaded ${fixtureSet} fixture with ${nodeElements.length} nodes and ${edgeElements.length} edges`);
+    console.log('Available in window: cy, cytoscapeCore, parsedNodes, layoutManager');
 
     // Add event listeners for interactivity
     cy.on('tap', 'node', function(evt) {
