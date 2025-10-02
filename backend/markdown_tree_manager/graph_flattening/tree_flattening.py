@@ -52,6 +52,8 @@ def flatten_tree(nodes: list[dict[str, Any]]) -> str:
     if not nodes:
         return "No nodes to display."
 
+    # todo, this is broken and should use visualize_markdown_tree(tree)
+
     # Build tree structure from nodes
     tree_structure, node_map = _build_tree_structure(nodes)
 
