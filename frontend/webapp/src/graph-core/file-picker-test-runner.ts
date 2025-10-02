@@ -7,7 +7,7 @@ import { type NodeDefinition, type EdgeDefinition, type GraphData } from './type
 import { LayoutManager, SeedParkRelaxStrategy } from './graphviz/layout';
 
 // Register cola extension with cytoscape
-cytoscape.use(cola);
+// cytoscape.use(cola);
 
 let cytoscapeCore: CytoscapeCore | null = null;
 let layoutManager: LayoutManager;

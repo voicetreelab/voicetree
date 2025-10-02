@@ -33,7 +33,7 @@ export class BreathingAnimationService {
       }],
       [AnimationType.NEW_NODE, {
         duration: 1000,
-        timeout: 5000, // 5 seconds
+        timeout: 0, // No timeout - persists until next node or user interaction
         expandWidth: 4,
         expandColor: 'rgba(0, 255, 0, 0.9)', // Green
         expandOpacity: 0.8,
@@ -42,7 +42,7 @@ export class BreathingAnimationService {
       }],
       [AnimationType.APPENDED_CONTENT, {
         duration: 1200,
-        timeout: 15000, // 15 seconds
+        timeout: 10000, // 10 seconds
         expandWidth: 4,
         expandColor: 'rgba(0, 255, 255, 0.9)', // Cyan
         expandOpacity: 0.8,
@@ -167,6 +167,37 @@ export class BreathingAnimationService {
     nodes.forEach((node) => {
       this.stopAnimationForNode(node);
     });
+  }
+
+  /**
+   * Sets or updates the timeout for an active animation
+   * @param node - The node with an active animation
+   * @param timeout - Timeout in milliseconds (0 = no timeout, runs indefinitely)
+   */
+  setAnimationTimeout(node: NodeSingular, timeout: number): void {
+    const nodeId = node.id();
+
+    // Only set timeout if animation is active
+    if (!node.data('breathingActive')) {
+      return;
+    }
+
+    // Clear existing timeout if any
+    const existingTimeout = this.activeAnimations.get(nodeId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout
+    if (timeout > 0) {
+      const newTimeout = setTimeout(() => {
+        this.stopAnimationForNode(node);
+      }, timeout);
+      this.activeAnimations.set(nodeId, newTimeout);
+    } else {
+      // Remove timeout (animation runs indefinitely)
+      this.activeAnimations.delete(nodeId);
+    }
   }
 
   isAnimationActive(node: NodeSingular): boolean {

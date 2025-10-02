@@ -1,378 +1,289 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Breathing Animation for New Nodes', () => {
-  test('should animate new nodes and auto-stop after timeout', async ({ page }) => {
-    // Navigate to the app
-    await page.goto('http://localhost:3002');
-
-    // Wait for the graph container to be ready
+test.describe('Breathing Animation for New and Updated Nodes', () => {
+  test('should animate new nodes with green breathing effect', async ({ page }) => {
+    await page.goto('http://localhost:3000');
     await page.waitForSelector('.__________cytoscape_container', { state: 'visible' });
     await page.waitForTimeout(1000);
 
-    // Graph is already initialized with example files, no need to open folder
+    // Get initial node count
+    const initialNodeCount = await page.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      return cy ? cy.nodes().length : 0;
+    });
 
-    // Add a new node with animation
-    const firstNodeId = 'test-node-1';
-    const addedFirstNode = await page.evaluate((nodeId) => {
-      const cy = window.cytoscapeInstance;
-      if (!cy) return { error: 'No cytoscape instance' };
+    // Create a new markdown file by simulating file observer event
+    const newFilePath = 'test-new-node.md';
+    const newFileContent = '# Test New Node\n\nThis is a new test node.';
 
-      // Add first node directly to cytoscape
-      const node = cy.add({
-        data: { id: nodeId, label: 'First New Node' }
-      });
+    await page.evaluate(({ path, content }) => {
+      // Call the exposed test handler directly
+      (window as any).testHandlers.handleFileAdded({ path, content });
+    }, { path: newFilePath, content: newFileContent });
 
-      // Manually trigger breathing animation since we don't have cytoscapeRef
-      // We'll simulate the animation by adding the data attributes
-      node.data('breathingActive', true);
-      node.data('animationType', 'new_node');
-      node.data('originalBorderWidth', '0');
-      node.data('originalBorderColor', 'rgba(0, 0, 0, 0)');
+    // Wait a moment for the animation to start
+    await page.waitForTimeout(500);
 
-      // Start animation
-      node.animate({
-        style: {
-          'border-width': 4,
-          'border-color': 'rgba(0, 255, 0, 0.9)',
-          'border-opacity': 0.8,
-          'border-style': 'solid'
-        },
-        duration: 1000,
-        easing: 'ease-in-out-sine'
-      });
+    // Check that a new node was added
+    const newNodeCount = await page.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      return cy ? cy.nodes().length : 0;
+    });
 
-      // Set timeout to stop animation after 5 seconds
-      setTimeout(() => {
-        node.data('breathingActive', false);
-        node.stop();
-        node.style({
-          'border-width': '0',
-          'border-color': 'rgba(0, 0, 0, 0)',
-          'border-opacity': 1
-        });
-      }, 5000);
+    expect(newNodeCount).toBeGreaterThan(initialNodeCount);
 
-      // Check animation state
-      return {
-        id: nodeId,
-        hasAnimation: node.data('breathingActive'),
-        animationType: node.data('animationType'),
-        borderColor: node.style('border-color')
-      };
-    }, firstNodeId);
+    // Check for green breathing animation (NEW_NODE type)
+    const nodeStyle = await page.evaluate((filePath) => {
+      const cy = (window as any).cytoscapeInstance;
+      if (!cy) return null;
 
-    console.log('First node added:', addedFirstNode);
+      // Normalize the file path to match how the app does it
+      const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
 
-    // Verify first node has animation
-    expect(addedFirstNode.hasAnimation).toBe(true);
-    expect(addedFirstNode.animationType).toBe('new_node');
-
-    // Wait 2 seconds then add another node
-    await page.waitForTimeout(2000);
-
-    const secondNodeId = 'test-node-2';
-    const addedSecondNode = await page.evaluate((nodeId) => {
-      const cy = window.cytoscapeInstance;
-      if (!cy) return { error: 'No cytoscape instance' };
-
-      // Add second node
-      const node = cy.add({
-        data: { id: nodeId, label: 'Second New Node' }
-      });
-
-      // Position it differently
-      node.position({ x: 200, y: 200 });
-
-      // Animate the new node
-      node.data('breathingActive', true);
-      node.data('animationType', 'new_node');
-      node.data('originalBorderWidth', '0');
-      node.data('originalBorderColor', 'rgba(0, 0, 0, 0)');
-
-      node.animate({
-        style: {
-          'border-width': 4,
-          'border-color': 'rgba(0, 255, 0, 0.9)',
-          'border-opacity': 0.8,
-          'border-style': 'solid'
-        },
-        duration: 1000,
-        easing: 'ease-in-out-sine'
-      });
-
-      // Set timeout to stop animation after 5 seconds
-      setTimeout(() => {
-        node.data('breathingActive', false);
-        node.stop();
-        node.style({
-          'border-width': '0',
-          'border-color': 'rgba(0, 0, 0, 0)',
-          'border-opacity': 1
-        });
-      }, 5000);
+      if (!node || node.length === 0) return null;
 
       return {
-        id: nodeId,
-        hasAnimation: node.data('breathingActive'),
+        exists: true,
+        borderWidth: node.style('border-width'),
+        borderColor: node.style('border-color'),
+        borderOpacity: node.style('border-opacity'),
+        breathingActive: node.data('breathingActive'),
         animationType: node.data('animationType')
       };
-    }, secondNodeId);
+    }, newFilePath);
 
-    console.log('Second node added:', addedSecondNode);
+    console.log('New node style:', nodeStyle);
 
-    // Verify second node has animation
-    expect(addedSecondNode.hasAnimation).toBe(true);
-    expect(addedSecondNode.animationType).toBe('new_node');
+    // Verify animation is active
+    expect(nodeStyle).not.toBeNull();
+    expect(nodeStyle?.exists).toBe(true);
+    expect(nodeStyle?.breathingActive).toBe(true);
+    expect(nodeStyle?.animationType).toBe('new_node');
 
-    // Check that BOTH nodes still have animations
-    const bothNodesStatus = await page.evaluate(() => {
-      const cy = window.cytoscapeInstance;
-      if (!cy) return { error: 'No cytoscape instance' };
+    // Check for visible border (breathing effect should have started)
+    expect(nodeStyle?.borderWidth).not.toBe('0');
+    expect(nodeStyle?.borderWidth).not.toBe('0px');
 
-      const node1 = cy.getElementById('test-node-1');
-      const node2 = cy.getElementById('test-node-2');
-
-      return {
-        node1: {
-          hasAnimation: node1.data('breathingActive'),
-          borderWidth: node1.style('border-width'),
-          borderColor: node1.style('border-color')
-        },
-        node2: {
-          hasAnimation: node2.data('breathingActive'),
-          borderWidth: node2.style('border-width'),
-          borderColor: node2.style('border-color')
-        }
-      };
-    });
-
-    console.log('Both nodes status after 2 seconds:', bothNodesStatus);
-
-    // Both should still have animations
-    expect(bothNodesStatus.node1.hasAnimation).toBe(true);
-    expect(bothNodesStatus.node2.hasAnimation).toBe(true);
-
-    // Take screenshot with animations active
+    // Take screenshot during animation
     await page.screenshot({
-      path: 'tests/e2e/screenshots/nodes-with-animation.png',
+      path: 'tests/e2e/screenshots/new-node-breathing-animation.png',
       fullPage: false
     });
 
-    // Wait for animation timeout (5 seconds for NEW_NODE type)
-    // First node should timeout at ~5s, second node at ~7s from their creation
-    console.log('Waiting 3.5 more seconds for first node animation to timeout...');
-    await page.waitForTimeout(3500);
+    // Wait and verify the breathing continues
+    await page.waitForTimeout(1500);
 
-    // Check first node animation should be stopped, second still active
-    const afterFirstTimeout = await page.evaluate(() => {
-      const cy = window.cytoscapeInstance;
-      if (!cy) return { error: 'No cytoscape instance' };
+    const stillBreathing = await page.evaluate((filePath) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+      return {
+        breathingActive: node.data('breathingActive'),
+        borderWidth: node.style('border-width')
+      };
+    }, newFilePath);
 
-      const node1 = cy.getElementById('test-node-1');
-      const node2 = cy.getElementById('test-node-2');
+    expect(stillBreathing.breathingActive).toBe(true);
+
+    console.log('✓ New node breathing animation test completed');
+  });
+
+  test('should animate updated nodes with cyan breathing effect', async ({ page }) => {
+    await page.goto('http://localhost:3000');
+    await page.waitForSelector('.__________cytoscape_container', { state: 'visible' });
+    await page.waitForTimeout(1000);
+
+    // First, create a node
+    const filePath = 'test-update-node.md';
+    const initialContent = '# Test Update Node\n\nInitial content.';
+
+    await page.evaluate(({ path, content }) => {
+      (window as any).testHandlers.handleFileAdded({ path, content });
+    }, { path: filePath, content: initialContent });
+
+    await page.waitForTimeout(1000);
+
+    // Clear any existing animations
+    await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+      if (node && node.length > 0) {
+        node.data('breathingActive', false);
+        node.stop(true);
+        node.style({
+          'border-width': '0',
+          'border-color': 'rgba(0, 0, 0, 0)',
+          'border-opacity': 1
+        });
+      }
+    }, filePath);
+
+    await page.waitForTimeout(500);
+
+    // Now update the file content
+    const updatedContent = '# Test Update Node\n\nInitial content.\n\n## Appended Content\n\nThis is new content.';
+
+    await page.evaluate(({ path, content }) => {
+      (window as any).testHandlers.handleFileChanged({ path, content });
+    }, { path: filePath, content: updatedContent });
+
+    await page.waitForTimeout(500);
+
+    // Check for cyan breathing animation (APPENDED_CONTENT type)
+    const updatedNodeStyle = await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
 
       return {
-        node1: {
-          hasAnimation: node1.data('breathingActive'),
-          borderWidth: node1.style('border-width')
-        },
-        node2: {
-          hasAnimation: node2.data('breathingActive'),
-          borderWidth: node2.style('border-width')
-        }
+        exists: node && node.length > 0,
+        borderWidth: node.style('border-width'),
+        borderColor: node.style('border-color'),
+        breathingActive: node.data('breathingActive'),
+        animationType: node.data('animationType')
       };
-    });
+    }, filePath);
 
-    console.log('After first timeout (5.5 seconds total):', afterFirstTimeout);
+    console.log('Updated node style:', updatedNodeStyle);
 
-    // First node animation should be stopped (or at least falsy)
-    if (afterFirstTimeout.node1.hasAnimation === false || afterFirstTimeout.node1.hasAnimation === undefined) {
-      console.log('✓ First node animation stopped as expected');
-    } else {
-      console.log('✗ First node still animating, will check again in 1s');
-      await page.waitForTimeout(1000);
-      const recheckFirst = await page.evaluate(() => {
-        const cy = window.cytoscapeInstance;
-        const node1 = cy.getElementById('test-node-1');
-        return node1.data('breathingActive');
-      });
-      expect(recheckFirst).toBeFalsy();
-    }
+    // Verify appended content animation
+    expect(updatedNodeStyle.exists).toBe(true);
+    expect(updatedNodeStyle.breathingActive).toBe(true);
+    expect(updatedNodeStyle.animationType).toBe('appended_content');
+    expect(updatedNodeStyle.borderWidth).not.toBe('0');
+    expect(updatedNodeStyle.borderWidth).not.toBe('0px');
 
-    // Second node should still be animating
-    expect(afterFirstTimeout.node2.hasAnimation).toBe(true);
-
-    // Wait 2 more seconds for second node to timeout
-    console.log('Waiting 2 more seconds for second node animation to timeout...');
-    await page.waitForTimeout(2000);
-
-    // Both animations should be stopped now
-    const afterAllTimeouts = await page.evaluate(() => {
-      const cy = window.cytoscapeInstance;
-      if (!cy) return { error: 'No cytoscape instance' };
-
-      const node1 = cy.getElementById('test-node-1');
-      const node2 = cy.getElementById('test-node-2');
-
-      return {
-        node1: {
-          hasAnimation: node1.data('breathingActive'),
-          borderWidth: node1.style('border-width'),
-          borderColor: node1.style('border-color')
-        },
-        node2: {
-          hasAnimation: node2.data('breathingActive'),
-          borderWidth: node2.style('border-width'),
-          borderColor: node2.style('border-color')
-        }
-      };
-    });
-
-    console.log('After all timeouts (8 seconds total):', afterAllTimeouts);
-
-    // Both animations should be stopped
-    expect(afterAllTimeouts.node1.hasAnimation).toBeFalsy();
-    expect(afterAllTimeouts.node2.hasAnimation).toBeFalsy();
-
-    // Border should be back to original (0 or minimal)
-    expect(afterAllTimeouts.node1.borderWidth).toMatch(/^(0px?|0)$/);
-    expect(afterAllTimeouts.node2.borderWidth).toMatch(/^(0px?|0)$/);
-
-    // Take final screenshot
+    // Take screenshot
     await page.screenshot({
-      path: 'tests/e2e/screenshots/nodes-after-animation-timeout.png',
+      path: 'tests/e2e/screenshots/updated-node-breathing-animation.png',
       fullPage: false
     });
 
-    console.log('✓ Animation test completed successfully');
+    console.log('✓ Updated node breathing animation test completed');
+  });
+
+  test('should stop new node animation after 5 second timeout', async ({ page }) => {
+    await page.goto('http://localhost:3000');
+    await page.waitForSelector('.__________cytoscape_container', { state: 'visible' });
+    await page.waitForTimeout(1000);
+
+    // Create a new node
+    const filePath = 'test-timeout-node.md';
+    const content = '# Timeout Test\n\nThis should stop animating after 5 seconds.';
+
+    await page.evaluate(({ path, content }) => {
+      (window as any).testHandlers.handleFileAdded({ path, content });
+    }, { path: filePath, content });
+
+    await page.waitForTimeout(500);
+
+    // Verify animation started
+    const animationStarted = await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+      return node.data('breathingActive') === true;
+    }, filePath);
+
+    expect(animationStarted).toBe(true);
+
+    // Wait for timeout (NEW_NODE has 5 second timeout)
+    console.log('Waiting 5.5 seconds for animation timeout...');
+    await page.waitForTimeout(5500);
+
+    // Verify animation stopped
+    const animationStopped = await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
+      return {
+        breathingActive: node.data('breathingActive'),
+        borderWidth: node.style('border-width')
+      };
+    }, filePath);
+
+    console.log('After timeout:', animationStopped);
+
+    expect(animationStopped.breathingActive).toBeFalsy();
+    expect(animationStopped.borderWidth).toMatch(/^(0px?|0)$/);
+
+    console.log('✓ Animation timeout test completed');
   });
 
   test('should maintain pinned node animation indefinitely', async ({ page }) => {
-    await page.goto('http://localhost:3002');
+    await page.goto('http://localhost:3000');
     await page.waitForSelector('.__________cytoscape_container', { state: 'visible' });
     await page.waitForTimeout(1000);
 
-    // Add and pin a node
-    const pinnedNodeStatus = await page.evaluate(() => {
-      const cy = window.cytoscapeInstance;
-      if (!cy) return { error: 'No cytoscape instance' };
+    // Create a node
+    const filePath = 'test-pinned-node.md';
+    const content = '# Pinned Node Test\n\nThis will be pinned.';
 
-      // Add node
-      const node = cy.add({
-        data: { id: 'pinned-node', label: 'Pinned Node' }
-      });
+    await page.evaluate(({ path, content }) => {
+      (window as any).testHandlers.handleFileAdded({ path, content });
+    }, { path: filePath, content });
 
-      // Pin it manually
-      node.addClass('pinned');
-      node.lock();
+    await page.waitForTimeout(500);
 
-      // Add PINNED animation (no timeout)
-      node.data('breathingActive', true);
-      node.data('animationType', 'pinned');
-      node.data('originalBorderWidth', '0');
-      node.data('originalBorderColor', 'rgba(0, 0, 0, 0)');
+    // Pin the node (this should trigger PINNED animation)
+    await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
 
-      // Create breathing animation loop for pinned nodes (orange color)
-      const animateBreathing = () => {
-        if (!node.data('breathingActive')) return;
+      // Simulate pin action - would normally come from context menu
+      if ((window as any).cytoscapeCore) {
+        (window as any).cytoscapeCore.pinNode(node);
+      }
+    }, filePath);
 
-        node.animate({
-          style: {
-            'border-width': 4,
-            'border-color': 'rgba(255, 165, 0, 0.9)', // Orange for pinned
-            'border-opacity': 0.8,
-            'border-style': 'solid'
-          },
-          duration: 800,
-          easing: 'ease-in-out-sine',
-          complete: () => {
-            if (!node.data('breathingActive')) return;
+    await page.waitForTimeout(500);
 
-            node.animate({
-              style: {
-                'border-width': 2,
-                'border-color': 'rgba(255, 165, 0, 0.4)',
-                'border-opacity': 0.6
-              },
-              duration: 800,
-              easing: 'ease-in-out-sine',
-              complete: animateBreathing // Loop
-            });
-          }
-        });
-      };
-
-      animateBreathing();
+    // Check for orange breathing animation (PINNED type)
+    const pinnedStyle = await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
 
       return {
+        breathingActive: node.data('breathingActive'),
+        animationType: node.data('animationType'),
         isPinned: node.hasClass('pinned'),
-        hasAnimation: node.data('breathingActive'),
-        animationType: node.data('animationType')
+        borderWidth: node.style('border-width')
       };
-    });
+    }, filePath);
 
-    console.log('Pinned node status:', pinnedNodeStatus);
+    console.log('Pinned node style:', pinnedStyle);
 
-    expect(pinnedNodeStatus.isPinned).toBe(true);
-    expect(pinnedNodeStatus.hasAnimation).toBe(true);
-    expect(pinnedNodeStatus.animationType).toBe('pinned');
+    expect(pinnedStyle.breathingActive).toBe(true);
+    expect(pinnedStyle.animationType).toBe('pinned');
+    expect(pinnedStyle.isPinned).toBe(true);
+    expect(pinnedStyle.borderWidth).not.toBe('0');
 
-    // Wait 10 seconds (longer than NEW_NODE timeout)
+    // Wait longer than NEW_NODE timeout (10 seconds)
     console.log('Waiting 10 seconds to verify pinned animation persists...');
     await page.waitForTimeout(10000);
 
-    // Check animation is still active
-    const stillAnimating = await page.evaluate(() => {
-      const cy = window.cytoscapeInstance;
-      const node = cy.getElementById('pinned-node');
+    // Verify animation is still active
+    const stillPinned = await page.evaluate((fp) => {
+      const cy = (window as any).cytoscapeInstance;
+      const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
+      const node = cy.getElementById(nodeId);
 
       return {
-        hasAnimation: node.data('breathingActive'),
-        animationType: node.data('animationType'),
-        isPinned: node.hasClass('pinned')
+        breathingActive: node.data('breathingActive'),
+        animationType: node.data('animationType')
       };
-    });
+    }, filePath);
 
-    console.log('After 10 seconds, pinned node status:', stillAnimating);
+    console.log('After 10 seconds, pinned node:', stillPinned);
 
-    // Should still be animating because PINNED type has no timeout
-    expect(stillAnimating.hasAnimation).toBe(true);
-    expect(stillAnimating.animationType).toBe('pinned');
-    expect(stillAnimating.isPinned).toBe(true);
+    // Should still be animating (PINNED has no timeout)
+    expect(stillPinned.breathingActive).toBe(true);
+    expect(stillPinned.animationType).toBe('pinned');
 
-    // Unpin the node
-    await page.evaluate(() => {
-      const cy = window.cytoscapeInstance;
-      const node = cy.getElementById('pinned-node');
-
-      // Manually unpin
-      node.removeClass('pinned');
-      node.unlock();
-      node.data('breathingActive', false);
-      node.stop();
-      node.style({
-        'border-width': '0',
-        'border-color': 'rgba(0, 0, 0, 0)',
-        'border-opacity': 1
-      });
-    });
-
-    // Verify animation stopped
-    const afterUnpin = await page.evaluate(() => {
-      const cy = window.cytoscapeInstance;
-      const node = cy.getElementById('pinned-node');
-
-      return {
-        hasAnimation: node.data('breathingActive'),
-        isPinned: node.hasClass('pinned')
-      };
-    });
-
-    console.log('After unpinning:', afterUnpin);
-
-    expect(afterUnpin.hasAnimation).toBeFalsy();
-    expect(afterUnpin.isPinned).toBe(false);
-
-    console.log('✓ Pinned animation test completed successfully');
+    console.log('✓ Pinned node animation persistence test completed');
   });
 });
