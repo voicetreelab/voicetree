@@ -4,7 +4,7 @@
  * Styles for the floating window overlay and individual windows
  */
 
-/* Overlay container - positioned over the Cytoscape graph */
+/* Overlay container - sibling to cytoscape container */
 .cy-floating-overlay {
   position: absolute;
   top: 0;
@@ -16,14 +16,25 @@
   transform-origin: top left;
 }
 
-/* Individual floating window elements */
+/* Individual floating windows */
 .cy-floating-window {
   position: absolute;
   pointer-events: auto;
-  /* Windows can add their own styling */
+  min-width: 300px;
+  min-height: 200px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-/* Shadow nodes - invisible but interactive */
+/* Resizable windows */
+.cy-floating-window.resizable {
+  resize: both;
+  overflow: auto;
+}
+
+/* Shadow nodes (invisible) */
 .floating-window-node {
   opacity: 0;
 }

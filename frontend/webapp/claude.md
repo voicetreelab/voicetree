@@ -19,6 +19,9 @@ Testing:
 ## Important Config Notes
 DO NOT run `npm run dev` or `npm run electron` in foreground. These will block your session as they start indefinite servers.
 
+All code you write will be typechecked, this means you can't use `any` type (edits will be blocked)
+@typescript-eslint/no-explicit-any
+Same with "Unexpected aliasing of 'this' to local variable" from @typescript-eslint/no-this-alias
 
 ## Folders
 

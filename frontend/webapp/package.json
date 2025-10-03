@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:test": "vite build",
+    "build:test-extension": "vite build --config vite.config.test-extension.ts",
     "lint": "eslint .",
     "check": "eslint . && tsc --noEmit",
     "preview": "vite preview",

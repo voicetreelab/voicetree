@@ -12,6 +12,8 @@ interface FloatingWindowConfig {
   component: string | React.ReactElement;
   position?: { x: number; y: number };
   nodeData?: Record<string, unknown>;
+  resizable?: boolean;
+  initialContent?: string;
 }
 
 // Store React roots for cleanup
@@ -76,8 +78,30 @@ function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElem
 /**
  * Mount a React component or HTML string to a DOM element
  */
-function mountComponent(domElement: HTMLElement, component: string | React.ReactElement, windowId: string) {
-  if (typeof component === 'string') {
+function mountComponent(
+  domElement: HTMLElement,
+  component: string | React.ReactElement,
+  windowId: string,
+  config: FloatingWindowConfig
+) {
+  // Check if component is a registered component name
+  if (typeof component === 'string' && (window as any).componentRegistry?.[component]) {
+    const ComponentClass = (window as any).componentRegistry[component];
+    const root = (window as any).ReactDOM.createRoot(domElement);
+
+    // Create component instance with props
+    const componentElement = (window as any).React.createElement(ComponentClass, {
+      windowId: windowId,
+      content: config.initialContent || '',
+      onSave: (content: string) => {
+        console.log('Saved content:', content);
+        return Promise.resolve();
+      }
+    });
+
+    root.render(componentElement);
+    reactRoots.set(windowId, root);
+  } else if (typeof component === 'string') {
     // HTML string - use eval to execute React.createElement if present
     if (component.includes('React.createElement')) {
       try {
@@ -109,7 +133,7 @@ export function registerFloatingWindows(cytoscape: typeof import('cytoscape')) {
   // Add the addFloatingWindow method to Core prototype
   cytoscape('core', 'addFloatingWindow', function(this: cytoscape.Core, config: FloatingWindowConfig) {
     const cy = this;
-    const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
+    const { id, component, position = { x: 0, y: 0 }, nodeData = {}, resizable = false } = config;
 
     // 1. Get or create overlay
     const overlay = getOrCreateOverlay(cy);
@@ -135,9 +159,30 @@ export function registerFloatingWindows(cytoscape: typeof import('cytoscape')) {
     windowElement.className = 'cy-floating-window';
     windowElement.style.position = 'absolute';
     windowElement.style.pointerEvents = 'auto';
+    windowElement.style.minWidth = '300px';
+    windowElement.style.minHeight = '200px';
+    windowElement.style.background = 'white';
+    windowElement.style.border = '1px solid #ccc';
+    windowElement.style.borderRadius = '4px';
+    windowElement.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+
+    // Event isolation - prevent graph interactions
+    windowElement.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
+    windowElement.addEventListener('wheel', (e) => {
+      e.stopPropagation();
+    }, { passive: false });
+
+    // Add resizable capability if requested
+    if (resizable) {
+      windowElement.classList.add('resizable');
+      windowElement.style.resize = 'both';
+      windowElement.style.overflow = 'auto';
+    }
 
     // 5. Mount component to window element
-    mountComponent(windowElement, component, id);
+    mountComponent(windowElement, component, id, config);
 
     // 6. Add window to overlay
     overlay.appendChild(windowElement);

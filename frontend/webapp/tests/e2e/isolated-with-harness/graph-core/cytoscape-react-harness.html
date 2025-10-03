@@ -6,6 +6,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.33.1/cytoscape.min.js"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Load floating windows extension bundle -->
+  <script src="./dist/floating-windows-extension.iife.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -47,6 +49,14 @@
       window.cytoscape = cytoscape;
       window.React = React;
       window.ReactDOM = ReactDOM;
+
+      // Register the floating windows extension
+      if (window.FloatingWindowsExtension && window.FloatingWindowsExtension.registerFloatingWindows) {
+        window.FloatingWindowsExtension.registerFloatingWindows(cytoscape);
+        window.extensionLoaded = true;
+      } else {
+        console.error('FloatingWindowsExtension not loaded!');
+      }
 
       // Signal that the harness is ready
       document.body.setAttribute('data-harness-ready', 'true');
