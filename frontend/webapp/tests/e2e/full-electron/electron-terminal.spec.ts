@@ -184,6 +184,28 @@ test.describe('Terminal E2E Tests', () => {
 
     // 3. Terminal is interactive (has prompt)
     expect(terminalContent.length).toBeGreaterThan(0);
+
+    // 4. Verify environment variables are set for the node
+    await appWindow.waitForTimeout(500);
+
+    // Type command to check environment variable
+    const envCheckCommand = 'echo $OBSIDIAN_SOURCE_NAME';
+    await appWindow.keyboard.type(envCheckCommand);
+    await appWindow.keyboard.press('Enter');
+
+    // Wait for output
+    await appWindow.waitForTimeout(1000);
+
+    // Get terminal content after env check
+    const envCheckContent = await appWindow.evaluate(() => {
+      const xtermScreen = document.querySelector('.xterm-screen');
+      return xtermScreen?.textContent || '';
+    });
+
+    console.log('Terminal content after env check:', envCheckContent);
+
+    // Verify the environment variable contains the node name (test node or test-node)
+    expect(envCheckContent).toMatch(/test[\s-]node/i);
   });
 
   test('should handle terminal resize properly', async ({ appWindow, tempDir }) => {

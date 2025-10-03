@@ -76,8 +76,8 @@ class LinkedYList {
 
 // Contour for tracking left/right edges of subtrees
 class Contour {
-  current: LayoutNode | null;
-  modifierSum: number;
+  current!: LayoutNode | null;
+  modifierSum!: number;
 
   constructor(
     public isLeft: boolean,
@@ -134,7 +134,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
   private readonly PARENT_CHILD_MARGIN = 100;   // Vertical spacing between parent and children
   private readonly PEER_MARGIN = 200;           // Horizontal spacing between siblings
-  private readonly isLayered = false;          // Non-layered layout
+  private readonly _isLayered = false;          // Non-layered layout
 
   position(context: PositioningContext): PositioningResult {
     const positions = new Map<string, Position>();
@@ -542,9 +542,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     }
   }
 
-  private postOrderTraversal(node: LayoutNode, fn: (node: LayoutNode) => void): void {
+  private _postOrderTraversal(node: LayoutNode, fn: (node: LayoutNode) => void): void {
     for (const child of node.children) {
-      this.postOrderTraversal(child, fn);
+      this._postOrderTraversal(child, fn);
     }
     fn(node);
   }

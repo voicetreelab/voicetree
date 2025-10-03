@@ -1,27 +1,55 @@
 /// <reference types="vitest" />
-import {defineConfig} from "vite";
-import { getRendererConfig } from "./vite.renderer.config";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import path from "path";
 
-// https://vite.dev/config/
-export default defineConfig(async () => {
-    const rendererConfig = await getRendererConfig();
-
-    return {
-        ...rendererConfig,
-        test: {
-            globals: true,
-            environment: "jsdom",
-            setupFiles: "./src/test/setup.ts",
-            include: ["tests/unit/**/*.test.{ts,tsx}", "tests/component/**/*.test.{ts,tsx}", "tests/integration/**/*.test.{ts,tsx}"],
-            exclude: ["node_modules/**", "dist/**", "tests/e2e/**"],
-            reporters: [
-                ['default', {summary: false, verbose: false}],
-            ],
-            silent: true, // Hides console for passing tests, shows for failing tests
-            coverage: {
-                provider: "v8",
-                reporter: ["text", "json", "html"],
-            },
-        },
-    };
+/**
+ * Vite configuration for browser-only dev (npm run dev) and Vitest
+ *
+ * NOTE: This is a SECONDARY config. Primary development uses electron.vite.config.ts
+ * If this config drifts from electron.vite.config.ts, that's acceptable.
+ */
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  base: "./",
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  server: {
+    port: 3000,
+    watch: {
+      ignored: [
+        '**/dist/**',
+        '**/dist-electron/**',
+        '**/resources/**',
+        '**/.venv*/**',
+        '**/node_modules/**'
+      ]
+    }
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+      },
+    },
+  },
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: "./tests/setup.ts",
+    include: ["tests/unit/**/*.test.{ts,tsx}", "tests/component/**/*.test.{ts,tsx}", "tests/integration/**/*.test.{ts,tsx}"],
+    exclude: ["node_modules/**", "dist/**", "tests/e2e/**"],
+    reporters: [
+      ['default', {summary: false, verbose: false}],
+    ],
+    silent: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+    },
+  },
 });

@@ -69,8 +69,8 @@ class LinkedYList {
 
 // Contour for tracking left/right edges
 class Contour {
-  current: LayoutNode | null;
-  modifierSum: number;
+  current!: LayoutNode | null;
+  modifierSum!: number;
 
   constructor(
     public isLeft: boolean,

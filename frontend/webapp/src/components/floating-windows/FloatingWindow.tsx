@@ -38,7 +38,7 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
       case 'MarkdownEditor':
         return <MarkdownEditor windowId={id} content={props.content} onSave={handleSave} />;
       case 'Terminal':
-        return <Terminal />;
+        return <Terminal nodeMetadata={props.nodeMetadata} />;
       default:
         return null;
     }
@@ -120,7 +120,7 @@ export const FloatingWindow: React.FC<FloatingWindowProps> = (props) => {
         {/* Content - resizable */}
         <Resizable
           size={{ width: currentSize.width, height: currentSize.height }}
-          onResizeStop={(e, direction, ref, d) => {
+          onResizeStop={(_e, _direction, _ref, d) => {
             setCurrentSize({
               width: currentSize.width + d.width,
               height: currentSize.height + d.height

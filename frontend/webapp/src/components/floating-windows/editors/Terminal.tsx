@@ -1,28 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
+import type { NodeMetadata } from '@/components/floating-windows/types';
 
-// Extend window interface for Electron API
-declare global {
-  interface Window {
-    electronAPI?: {
-      terminal: {
-        spawn: () => Promise<{ success: boolean; terminalId?: string; error?: string }>;
-        write: (terminalId: string, data: string) => Promise<{ success: boolean; error?: string }>;
-        resize: (terminalId: string, cols: number, rows: number) => Promise<{ success: boolean; error?: string }>;
-        kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
-        onData: (callback: (terminalId: string, data: string) => void) => void;
-        onExit: (callback: (terminalId: string, code: number) => void) => void;
-      };
-      [key: string]: unknown;
-    };
-  }
+interface TerminalProps {
+  nodeMetadata?: NodeMetadata;
 }
 
 /**
  * Terminal component using xterm.js for terminal emulation.
  */
-export const Terminal: React.FC = () => {
+export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const terminalIdRef = useRef<string | null>(null);
@@ -49,8 +37,9 @@ export const Terminal: React.FC = () => {
     // Initialize terminal backend connection
     const initTerminal = async () => {
       if (typeof window !== 'undefined' && window.electronAPI?.terminal) {
-        // Running in Electron
-        const result = await window.electronAPI.terminal.spawn();
+        // Running in Electron - pass node metadata to spawn terminal
+        console.log('[Terminal Component] Spawning with nodeMetadata:', nodeMetadata);
+        const result = await window.electronAPI.terminal.spawn(nodeMetadata);
 
         if (result.success && result.terminalId) {
           terminalIdRef.current = result.terminalId;  // Store in ref for immediate access

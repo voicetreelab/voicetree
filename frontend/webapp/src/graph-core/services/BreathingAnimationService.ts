@@ -18,7 +18,7 @@ interface AnimationConfig {
 
 export class BreathingAnimationService {
   private activeAnimations: Map<string, NodeJS.Timeout> = new Map();
-  private configs: Map<AnimationType, AnimationConfig>;
+  private configs!: Map<AnimationType, AnimationConfig>;
 
   constructor() {
     this.configs = new Map([

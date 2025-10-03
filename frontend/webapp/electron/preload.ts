@@ -54,7 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Terminal API
   terminal: {
-    spawn: () => ipcRenderer.invoke('terminal:spawn'),
+    spawn: (nodeMetadata) => ipcRenderer.invoke('terminal:spawn', nodeMetadata),
     write: (terminalId, data) => ipcRenderer.invoke('terminal:write', terminalId, data),
     resize: (terminalId, cols, rows) => ipcRenderer.invoke('terminal:resize', terminalId, cols, rows),
     kill: (terminalId) => ipcRenderer.invoke('terminal:kill', terminalId),

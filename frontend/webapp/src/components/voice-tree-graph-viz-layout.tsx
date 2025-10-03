@@ -407,6 +407,24 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           // Generate unique terminal ID with node context
           const terminalId = `terminal-${nodeId}-${Date.now()}`;
 
+          // Find the file path for this node
+          let filePath: string | undefined;
+          for (const [path] of markdownFiles.current) {
+            if (normalizeFileId(path) === nodeId) {
+              filePath = path;
+              break;
+            }
+          }
+
+          // Build node metadata for terminal environment
+          const nodeMetadata = {
+            id: nodeId,
+            name: nodeId.replace(/_/g, ' '),
+            filePath: filePath
+          };
+
+          console.log('[Terminal] nodeMetadata:', nodeMetadata);
+
           // Find the node position to place terminal near it
           const node = core.getElementById(nodeId);
           if (node.length > 0) {
@@ -441,7 +459,8 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
               position: initialScreenPos,
               graphAnchor: nodeGraphPos,  // Store node position in graph coords
               graphOffset: initialGraphOffset,  // Store initial offset in graph coords
-              size: { width: 800, height: 400 }
+              size: { width: 800, height: 400 },
+              nodeMetadata: nodeMetadata  // Pass node metadata
             });
           } else {
             // Fallback if node not found
@@ -451,7 +470,8 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
               type: 'Terminal',
               content: '',
               position: { x: 150, y: 150 },
-              size: { width: 800, height: 400 }
+              size: { width: 800, height: 400 },
+              nodeMetadata: nodeMetadata  // Pass node metadata even in fallback
             });
           }
         }

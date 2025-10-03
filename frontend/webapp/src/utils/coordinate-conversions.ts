@@ -14,7 +14,7 @@ export function toScreenCoords(
 ): { x: number; y: number } {
   const zoom = cy.zoom();
   const pan = cy.pan();
-  const containerRect = cy.container().getBoundingClientRect();
+  const containerRect = cy.container()!.getBoundingClientRect();
 
   const result = {
     x: (graphX * zoom) + pan.x + containerRect.left,
@@ -40,7 +40,7 @@ export function toGraphCoords(
 ): { x: number; y: number } {
   const zoom = cy.zoom();
   const pan = cy.pan();
-  const containerRect = cy.container().getBoundingClientRect();
+  const containerRect = cy.container()!.getBoundingClientRect();
 
   return {
     x: (screenX - containerRect.left - pan.x) / zoom,
