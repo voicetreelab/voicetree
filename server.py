@@ -81,6 +81,8 @@ processor = ChunkProcessor(decision_tree,
 # Clear debug logs at startup
 clear_debug_logs()
 
+simple_buffer = ""
+
 # FastAPI app setup
 app = FastAPI(title="VoiceTree Server", description="API for processing text into VoiceTree")
 
@@ -90,11 +92,15 @@ async def buffer_processing_loop():
     Continuously process text from buffer when ready.
     This mimics the llm_processing_loop from main.py.
     """
+    global simple_buffer
     logger.info("Starting buffer processing loop...")
     while True:
         try:
+            text_to_process = None
             # Check if buffer has enough text to process
-            text_to_process = processor.buffer_manager.getBufferTextWhichShouldBeProcessed()
+            if len(simple_buffer) > 1:
+                text_to_process = simple_buffer
+                simple_buffer = ""
 
             if text_to_process:
                 logger.info(f"Processing buffer text ({len(text_to_process)} chars)...")
@@ -155,12 +161,14 @@ async def log_requests(request: Request, call_next):
 class TextRequest(BaseModel):
     text: str
 
+
 # API endpoint
 @app.post("/send-text")
 async def send_text(request: TextRequest):
     """
     Add text to the buffer (processing happens in background loop)
     """
+    global simple_buffer
     try:
         if not request.text.strip():
             raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -171,10 +179,10 @@ async def send_text(request: TextRequest):
         print(f"[API] Received text ({len(request.text)} chars): '{text_preview}'")
 
         # ONLY add to buffer - don't process here!
-        processor.buffer_manager.addText(request.text)
+        simple_buffer += request.text
 
         # Get current buffer state
-        buffer_length = len(processor.buffer_manager.getBuffer()) if processor.buffer_manager else 0
+        buffer_length = len(simple_buffer)
         logger.info(f"[BUFFERED] Added to buffer. Buffer now at {buffer_length} chars")
         print(f"[API] Buffer length: {buffer_length} chars")
 
@@ -195,7 +203,8 @@ async def health_check():
 @app.get("/buffer-status")
 async def buffer_status():
     """Get current buffer status"""
-    buffer_length = len(processor.buffer_manager.getBuffer()) if processor.buffer_manager else 0
+    global simple_buffer
+    buffer_length = len(simple_buffer)
     return {"buffer_length": buffer_length}
 
 
