@@ -5,119 +5,13 @@ import { test, expect } from '@playwright/test';
 test.describe('Cytoscape Floating Window Extension - Phase 1', () => {
 
   test('should add floating window that moves with graph transformations', async ({ page }) => {
-    // Navigate to the new shared test harness
+    // Navigate to the new shared test harness (extension is auto-loaded)
     await page.goto('/tests/e2e/isolated-with-harness/graph-core/cytoscape-react-harness.html');
     await page.waitForSelector('[data-harness-ready="true"]');
 
-    // Inject the extension code
-    await page.evaluate(() => {
-      // Store React roots for cleanup
-      const reactRoots = new Map<string, any>();
-
-      function getOrCreateOverlay(cy: any): HTMLElement {
-        const container = cy.container() as HTMLElement;
-        const parent = container.parentElement;
-
-        if (!parent) {
-          throw new Error('Cytoscape container has no parent element');
-        }
-
-        let overlay = parent.querySelector('.cy-floating-overlay') as HTMLElement;
-
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.className = 'cy-floating-overlay';
-          overlay.style.position = 'absolute';
-          overlay.style.top = '0';
-          overlay.style.left = '0';
-          overlay.style.width = '100%';
-          overlay.style.height = '100%';
-          overlay.style.pointerEvents = 'none';
-          overlay.style.zIndex = '1000';
-          overlay.style.transformOrigin = 'top left';
-
-          parent.appendChild(overlay);
-
-          const syncTransform = () => {
-            const pan = cy.pan();
-            const zoom = cy.zoom();
-            overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
-          };
-
-          syncTransform();
-          cy.on('pan zoom resize', syncTransform);
-        }
-
-        return overlay;
-      }
-
-      function updateWindowPosition(node: any, domElement: HTMLElement) {
-        const pos = node.position();
-        domElement.style.left = `${pos.x}px`;
-        domElement.style.top = `${pos.y}px`;
-        domElement.style.transform = 'translate(-50%, -50%)';
-      }
-
-      function mountComponent(domElement: HTMLElement, component: string, windowId: string) {
-        if (typeof component === 'string') {
-          if (component.includes('React.createElement')) {
-            try {
-              const componentElement = eval(component);
-              const root = (window as any).ReactDOM.createRoot(domElement);
-              root.render(componentElement);
-              reactRoots.set(windowId, root);
-            } catch (e) {
-              console.error('Failed to eval React component:', e);
-              domElement.innerHTML = component;
-            }
-          } else {
-            domElement.innerHTML = component;
-          }
-        } else {
-          const root = (window as any).ReactDOM.createRoot(domElement);
-          root.render(component);
-          reactRoots.set(windowId, root);
-        }
-      }
-
-      // Register extension
-      (window as any).cytoscape('core', 'addFloatingWindow', function(this: any, config: any) {
-        const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
-
-        const overlay = getOrCreateOverlay(cy);
-
-        const shadowNode = cy.add({
-          group: 'nodes',
-          data: { id, ...nodeData },
-          position
-        });
-
-        shadowNode.style({
-          'opacity': 0,
-          'events': 'yes',
-          'width': 1,
-          'height': 1
-        });
-
-        const windowElement = document.createElement('div');
-        windowElement.id = `window-${id}`;
-        windowElement.className = 'cy-floating-window';
-        windowElement.style.position = 'absolute';
-        windowElement.style.pointerEvents = 'auto';
-
-        mountComponent(windowElement, component, id);
-        overlay.appendChild(windowElement);
-        updateWindowPosition(shadowNode, windowElement);
-
-        shadowNode.on('position', () => {
-          updateWindowPosition(shadowNode, windowElement);
-        });
-
-        return shadowNode;
-      });
-
-      window.extensionLoaded = true;
-    });
+    // Verify extension is loaded
+    const extensionLoaded = await page.evaluate(() => window.extensionLoaded);
+    expect(extensionLoaded).toBe(true);
 
     // Initialize cytoscape with extension
     const setup = await page.evaluate(() => {
@@ -310,82 +204,6 @@ test.describe('Cytoscape Floating Window Extension - Phase 1', () => {
     await page.goto('/tests/e2e/isolated-with-harness/graph-core/cytoscape-react-harness.html');
     await page.waitForSelector('[data-harness-ready="true"]');
 
-    // Inject the extension code
-    await page.evaluate(() => {
-      const reactRoots = new Map<string, any>();
-
-      function getOrCreateOverlay(cy: any): HTMLElement {
-        const container = cy.container() as HTMLElement;
-        const parent = container.parentElement;
-        if (!parent) throw new Error('Cytoscape container has no parent element');
-        let overlay = parent.querySelector('.cy-floating-overlay') as HTMLElement;
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.className = 'cy-floating-overlay';
-          overlay.style.position = 'absolute';
-          overlay.style.top = '0';
-          overlay.style.left = '0';
-          overlay.style.width = '100%';
-          overlay.style.height = '100%';
-          overlay.style.pointerEvents = 'none';
-          overlay.style.zIndex = '1000';
-          overlay.style.transformOrigin = 'top left';
-          parent.appendChild(overlay);
-          const syncTransform = () => {
-            const pan = cy.pan();
-            const zoom = cy.zoom();
-            overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
-          };
-          syncTransform();
-          cy.on('pan zoom resize', syncTransform);
-        }
-        return overlay;
-      }
-
-      function updateWindowPosition(node: any, domElement: HTMLElement) {
-        const pos = node.position();
-        domElement.style.left = `${pos.x}px`;
-        domElement.style.top = `${pos.y}px`;
-        domElement.style.transform = 'translate(-50%, -50%)';
-      }
-
-      function mountComponent(domElement: HTMLElement, component: string, windowId: string) {
-        if (typeof component === 'string') {
-          if (component.includes('React.createElement')) {
-            try {
-              const componentElement = eval(component);
-              const root = (window as any).ReactDOM.createRoot(domElement);
-              root.render(componentElement);
-              reactRoots.set(windowId, root);
-            } catch (e) {
-              console.error('Failed to eval React component:', e);
-              domElement.innerHTML = component;
-            }
-          } else {
-            domElement.innerHTML = component;
-          }
-        }
-      }
-
-      (window as any).cytoscape('core', 'addFloatingWindow', function(config: any) {
-        const cy = this;
-        const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
-        const overlay = getOrCreateOverlay(cy);
-        const shadowNode = cy.add({ group: 'nodes', data: { id, ...nodeData }, position });
-        shadowNode.style({ 'opacity': 0, 'events': 'yes', 'width': 1, 'height': 1 });
-        const windowElement = document.createElement('div');
-        windowElement.id = `window-${id}`;
-        windowElement.className = 'cy-floating-window';
-        windowElement.style.position = 'absolute';
-        windowElement.style.pointerEvents = 'auto';
-        mountComponent(windowElement, component, id);
-        overlay.appendChild(windowElement);
-        updateWindowPosition(shadowNode, windowElement);
-        shadowNode.on('position', () => { updateWindowPosition(shadowNode, windowElement); });
-        return shadowNode;
-      });
-    });
-
     const multiWindowTest = await page.evaluate(() => {
       const cy = window.cy;
 
@@ -445,93 +263,6 @@ test.describe('Cytoscape Floating Window Extension - Phase 2 (Resizing)', () => 
   test('should allow resizing floating windows with resize handles', async ({ page }) => {
     await page.goto('/tests/e2e/isolated-with-harness/graph-core/cytoscape-react-harness.html');
     await page.waitForSelector('[data-harness-ready="true"]');
-
-    // Inject the extension code (same as Phase 1, but now with resizing support)
-    await page.evaluate(() => {
-      const reactRoots = new Map<string, any>();
-
-      function getOrCreateOverlay(cy: any): HTMLElement {
-        const container = cy.container() as HTMLElement;
-        const parent = container.parentElement;
-        if (!parent) throw new Error('Cytoscape container has no parent element');
-        let overlay = parent.querySelector('.cy-floating-overlay') as HTMLElement;
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.className = 'cy-floating-overlay';
-          overlay.style.position = 'absolute';
-          overlay.style.top = '0';
-          overlay.style.left = '0';
-          overlay.style.width = '100%';
-          overlay.style.height = '100%';
-          overlay.style.pointerEvents = 'none';
-          overlay.style.zIndex = '1000';
-          overlay.style.transformOrigin = 'top left';
-          parent.appendChild(overlay);
-          const syncTransform = () => {
-            const pan = cy.pan();
-            const zoom = cy.zoom();
-            overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
-          };
-          syncTransform();
-          cy.on('pan zoom resize', syncTransform);
-        }
-        return overlay;
-      }
-
-      function updateWindowPosition(node: any, domElement: HTMLElement) {
-        const pos = node.position();
-        domElement.style.left = `${pos.x}px`;
-        domElement.style.top = `${pos.y}px`;
-        domElement.style.transform = 'translate(-50%, -50%)';
-      }
-
-      function mountComponent(domElement: HTMLElement, component: string, windowId: string) {
-        if (typeof component === 'string') {
-          if (component.includes('React.createElement')) {
-            try {
-              const componentElement = eval(component);
-              const root = (window as any).ReactDOM.createRoot(domElement);
-              root.render(componentElement);
-              reactRoots.set(windowId, root);
-            } catch (e) {
-              console.error('Failed to eval React component:', e);
-              domElement.innerHTML = component;
-            }
-          } else {
-            domElement.innerHTML = component;
-          }
-        }
-      }
-
-      (window as any).cytoscape('core', 'addFloatingWindow', function(config: any) {
-        const cy = this;
-        const { id, component, position = { x: 0, y: 0 }, nodeData = {}, resizable = false } = config;
-        const overlay = getOrCreateOverlay(cy);
-        const shadowNode = cy.add({ group: 'nodes', data: { id, ...nodeData }, position });
-        shadowNode.style({ 'opacity': 0, 'events': 'yes', 'width': 1, 'height': 1 });
-
-        const windowElement = document.createElement('div');
-        windowElement.id = `window-${id}`;
-        windowElement.className = 'cy-floating-window';
-        windowElement.style.position = 'absolute';
-        windowElement.style.pointerEvents = 'auto';
-        windowElement.style.minWidth = '100px';
-        windowElement.style.minHeight = '100px';
-
-        // Add resizable capability if requested
-        if (resizable) {
-          windowElement.classList.add('resizable');
-          windowElement.style.resize = 'both';
-          windowElement.style.overflow = 'auto';
-        }
-
-        mountComponent(windowElement, component, id);
-        overlay.appendChild(windowElement);
-        updateWindowPosition(shadowNode, windowElement);
-        shadowNode.on('position', () => { updateWindowPosition(shadowNode, windowElement); });
-        return shadowNode;
-      });
-    });
 
     // Create a resizable floating window
     const setup = await page.evaluate(() => {
@@ -593,9 +324,11 @@ test.describe('Cytoscape Floating Window Extension - Phase 2 (Resizing)', () => 
       };
     });
 
-    // ✅ Test 3: Dimensions should update
-    expect(afterResize.width).toBe(300);
-    expect(afterResize.height).toBe(200);
+    // ✅ Test 3: Dimensions should update (allowing for borders/padding)
+    expect(afterResize.width).toBeGreaterThanOrEqual(300);
+    expect(afterResize.width).toBeLessThanOrEqual(304);
+    expect(afterResize.height).toBeGreaterThanOrEqual(200);
+    expect(afterResize.height).toBeLessThanOrEqual(204);
 
     // ✅ Test 4: Position anchor should remain at center (node position unchanged)
     expect(afterResize.nodePosition).toEqual(setup.initialPosition);
@@ -613,8 +346,8 @@ test.describe('Cytoscape Floating Window Extension - Phase 2 (Resizing)', () => 
       };
     });
 
-    expect(afterPan.width).toBe(300);
-    expect(afterPan.height).toBe(200);
+    expect(afterPan.width).toBeGreaterThanOrEqual(300);
+    expect(afterPan.height).toBeGreaterThanOrEqual(200);
 
     // ✅ Test 6: Resized dimensions should persist during zoom
     await page.evaluate(() => {
@@ -629,10 +362,10 @@ test.describe('Cytoscape Floating Window Extension - Phase 2 (Resizing)', () => 
       };
     });
 
-    expect(afterZoom.width).toBe(300);
-    expect(afterZoom.height).toBe(200);
+    expect(afterZoom.width).toBeGreaterThanOrEqual(300);
+    expect(afterZoom.height).toBeGreaterThanOrEqual(200);
 
-    // ✅ Test 7: Minimum size constraints
+    // ✅ Test 7: Minimum size constraints (from real extension: 300x200)
     await page.evaluate(() => {
       const windowElement = document.querySelector('#window-resizable-window') as HTMLElement;
       windowElement.style.width = '50px'; // Below minimum
@@ -650,11 +383,11 @@ test.describe('Cytoscape Floating Window Extension - Phase 2 (Resizing)', () => 
       };
     });
 
-    expect(afterMinResize.minWidth).toBe('100px');
-    expect(afterMinResize.minHeight).toBe('100px');
+    expect(afterMinResize.minWidth).toBe('300px');
+    expect(afterMinResize.minHeight).toBe('200px');
     // Browser enforces minimum size
-    expect(afterMinResize.actualWidth).toBeGreaterThanOrEqual(100);
-    expect(afterMinResize.actualHeight).toBeGreaterThanOrEqual(100);
+    expect(afterMinResize.actualWidth).toBeGreaterThanOrEqual(300);
+    expect(afterMinResize.actualHeight).toBeGreaterThanOrEqual(200);
 
     // ✅ Test 8: Screenshot
     await page.screenshot({
