@@ -1,3 +1,5 @@
 node_modules/**/*
 .idea/**/*
 webapp/package-lock.json
+/dist-electron/main/index.js
+/dist-electron/preload/index.js

@@ -1,39 +1,13 @@
 /// <reference types="vitest" />
 import {defineConfig} from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+import { getRendererConfig } from "./vite.renderer.config";
 
 // https://vite.dev/config/
 export default defineConfig(async () => {
-    const {default: tailwindcss} = await import("@tailwindcss/vite");
+    const rendererConfig = await getRendererConfig();
 
     return {
-        plugins: [react(), tailwindcss()],
-        base: "./", // Use relative paths for assets (needed for Electron)
-        server: {
-            port: 3000,
-            watch: {
-                ignored: [
-                    '**/dist/**',
-                    '**/dist-electron/**',
-                    '**/resources/**',
-                    '**/.venv*/**',
-                    '**/node_modules/**'
-                ]
-            }
-        },
-        resolve: {
-            alias: {
-                "@": path.resolve(__dirname, "./src"),
-            },
-        },
-        build: {
-            rollupOptions: {
-                input: {
-                    main: path.resolve(__dirname, "index.html"),
-                },
-            },
-        },
+        ...rendererConfig,
         test: {
             globals: true,
             environment: "jsdom",

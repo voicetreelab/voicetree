@@ -26,9 +26,23 @@ function createWindow() {
   // Set the main window reference
   fileWatchManager.setMainWindow(mainWindow);
 
+  // Pipe renderer console logs to electron terminal
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    // Filter out Electron security warnings in dev mode
+    if (message.includes('Electron Security Warning')) return;
+
+    const levels = ['LOG', 'WARNING', 'ERROR'];
+    const levelName = levels[level] || 'LOG';
+    console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
+  });
+
   // Load the app
   if (process.env.MINIMIZE_TEST === '1') {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  } else if (process.env.VITE_DEV_SERVER_URL) {
+    // electron-vite dev mode
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    mainWindow.webContents.openDevTools();
   } else if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
@@ -135,10 +149,10 @@ ipcMain.handle('terminal:spawn', async (event) => {
       ? process.env.USERPROFILE
       : process.env.HOME;
     const cwd = homeDir
-      ? path.join(homeDir, 'repos', 'VoiceTree', 'markdownTreeVaultDefault')
+      ? path.join(homeDir, 'repos', 'VoiceTree', 'tools')
       : process.cwd();
 
-    console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
+    console.log(`Spawning NEWWWWWWW PTY with shell: ${shell} in directory: ${cwd}`);
 
     // Create PTY instance - THIS IS THE ONLY WAY, NO FALLBACKS
     const ptyProcess = pty.spawn(shell, [], {
