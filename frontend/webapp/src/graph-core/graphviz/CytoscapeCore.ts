@@ -192,6 +192,28 @@ export class CytoscapeCore {
     this.animationService.stopAllAnimations(this.viz.nodes());
   }
 
+  // Proxy floating window extension method to underlying cytoscape instance
+  addFloatingWindow(config: {
+    id: string;
+    component: string | React.ReactElement;
+    position?: { x: number; y: number };
+    nodeData?: Record<string, unknown>;
+    resizable?: boolean;
+    initialContent?: string;
+  }): NodeSingular {
+    console.log('[CytoscapeCore] addFloatingWindow called, checking viz...');
+    const vizWithExtension = this.viz as Core & { addFloatingWindow?: (config: unknown) => NodeSingular };
+    console.log('[CytoscapeCore] viz.addFloatingWindow type:', typeof vizWithExtension.addFloatingWindow);
+    console.log('[CytoscapeCore] viz methods:', Object.keys(vizWithExtension).slice(0, 10));
+
+    if (typeof vizWithExtension.addFloatingWindow === 'function') {
+      console.log('[CytoscapeCore] Calling viz.addFloatingWindow');
+      return vizWithExtension.addFloatingWindow(config);
+    }
+    console.error('[CytoscapeCore] Floating windows extension not found on viz instance');
+    throw new Error('Floating windows extension not registered');
+  }
+
   // Destroy the graph
   destroy(): void {
     if (this.animationService) {

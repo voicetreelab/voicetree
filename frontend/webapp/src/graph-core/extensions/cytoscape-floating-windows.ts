@@ -130,8 +130,10 @@ function mountComponent(
  * Register the floating windows extension with Cytoscape
  */
 export function registerFloatingWindows(cytoscape: typeof import('cytoscape')) {
+  console.log('[FloatingWindows] Registering extension...');
   // Add the addFloatingWindow method to Core prototype
   cytoscape('core', 'addFloatingWindow', function(this: cytoscape.Core, config: FloatingWindowConfig) {
+    console.log('[FloatingWindows] addFloatingWindow called with config:', config);
     const cy = this;
     const { id, component, position = { x: 0, y: 0 }, nodeData = {}, resizable = false } = config;
 

@@ -177,3 +177,123 @@ window.FloatingWindowsExtension.registerFloatingWindows(cytoscape);
 ```
 
 ---
+
+## 2024-01-03 - Phase 5 Progress (25 min check)
+
+### Phase 5: Production E2E Test Implementation 🚀
+
+**New Files Created:**
+- `tests/e2e/full-electron/electron-floating-window-production.spec.ts` (184 lines)
+- `ProductionValidator_e2e_test.md` - Subagent task definition
+
+**Test Implementation:**
+- Proper Electron app launch with test environment
+- Cytoscape instance detection with timeout handling
+- Component registry setup for production
+- Floating window creation in real app
+- DOM element verification
+- Interactivity testing (textarea input)
+
+**Test Coverage:**
+1. Extension registration validation ✅
+2. Component registry setup ✅
+3. Floating window creation ✅
+4. DOM element visibility ✅
+5. User interaction (typing in textarea) ✅
+6. Text selection without graph interference ✅
+7. Pan/zoom non-interference ✅
+8. Save button functionality ✅
+
+**Current Status:**
+- Using placeholder textarea instead of real MarkdownEditor
+- Need to integrate actual MarkdownEditor component
+- Component registry pattern established
+
+**Next Steps:**
+- Wire real MarkdownEditor to component registry
+- Test MDEditor specific features
+- Validate save callbacks in production
+
+---
+
+## 2024-01-03 - Phase 5 Update (30 min check)
+
+### Production Integration Debugging 🔍
+
+**Key Changes:**
+1. **Debug Logging Added:**
+   - `src/graph-core/index.ts` - Module loading logs
+   - `voice-tree-graph-viz-layout.tsx` - Extension registration try-catch with logging
+
+2. **Test Enhancements:**
+   - Better console output filtering (FloatingWindows, register)
+   - HTTP error monitoring
+   - Crash detection
+   - Manual extension registration workaround in test
+
+3. **Manual Registration Workaround:**
+   ```javascript
+   // Test manually adds extension if not present
+   cy.addFloatingWindow = function(config) { ... }
+   ```
+
+**Current Issue:**
+- Extension not auto-registering in production
+- Test needs manual registration workaround
+- Debugging logs added to trace registration flow
+
+**Positive Progress:**
+- Test framework properly set up
+- All test scenarios passing with workaround
+- Text selection doesn't interfere with graph (✅)
+
+**Resolution Needed:**
+- Fix extension auto-registration in production
+- Remove manual workaround from test
+
+---
+
+## 2024-01-03 - Phase 5 Final (35 min check)
+
+### Architecture Issue Identified & Fixed 🔧
+
+**Root Cause Found:**
+- `CytoscapeCore` is a wrapper class around cytoscape
+- Extension registers on cytoscape prototype
+- But wrapper doesn't expose extended methods
+- `window.cytoscapeInstance` is the wrapper, not raw cytoscape
+
+**Solution Implemented:**
+1. **Added proxy method to CytoscapeCore:**
+   ```typescript
+   addFloatingWindow(config: {...}): NodeSingular {
+     const vizWithExtension = this.viz as Core & { addFloatingWindow?: ... };
+     if (typeof vizWithExtension.addFloatingWindow === 'function') {
+       return vizWithExtension.addFloatingWindow(config);
+     }
+     throw new Error('Floating windows extension not registered');
+   }
+   ```
+
+2. **Moved registration to graph-core/index.ts:**
+   - Extension registers at module load
+   - Before any CytoscapeCore instances created
+   - Ensures cytoscape prototype has method before wrapper uses it
+
+**Clean Test Created:**
+- `/tests/e2e/full-electron/electron-floating-window.spec.ts`
+- Simple, no debug code or workarounds
+- Tests extension availability and basic functionality
+
+**Current Status:**
+- ⚠️ Test still failing (needs investigation of build/bundle issue)
+- ✅ Architecture fix implemented
+- ✅ Clean test spec ready
+- ✅ Issue well-documented
+
+**Next Steps:**
+- Debug why proxy method isn't accessible in built app
+- Possibly try dev mode instead of production build
+- Or investigate if there's a bundling/minification issue
+
+---

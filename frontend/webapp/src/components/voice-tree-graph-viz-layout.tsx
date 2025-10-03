@@ -2,18 +2,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // Removed voice-related imports - this component should only handle graph visualization
 // Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
-import { CytoscapeCore, registerFloatingWindows } from "@/graph-core";
+import { CytoscapeCore } from "@/graph-core";
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
 import { toScreenCoords, toGraphCoords } from '@/utils/coordinate-conversions';
 import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
-import cytoscape from 'cytoscape';
 // Import graph styles
 import '@/graph-core/styles/graph.css';
 
-// Register floating windows extension once at module level
-registerFloatingWindows(cytoscape);
+// Note: Floating windows extension is registered in @/graph-core/index.ts at module load
 
 interface VoiceTreeGraphVizLayoutProps {
   // File watching controls from parent
