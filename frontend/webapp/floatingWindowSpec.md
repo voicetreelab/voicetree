@@ -59,3 +59,20 @@ Requirements:
 - Verify real MarkdownEditor component integration in live app
 - No event conflicts (typing, clicking, selecting text work without graph interference)
 
+## Phase 5: Production MarkdownEditor End-to-End Test
+
+**PRIMARY REQUIREMENT VALIDATION:** Test real MarkdownEditor in actual production application.
+
+Requirements:
+- E2E test that launches real app (not isolated harness)
+- Opens actual MarkdownEditor in floating window
+- Validates ALL editor functionality:
+  - Can type and edit markdown
+  - Save button works
+  - Text selection works
+  - No graph pan/zoom interference
+  - MDEditor component fully functional
+- Tests real useFloatingWindows hook integration
+- Validates production component registry setup
+- Confirms no event conflicts in production environment
+
