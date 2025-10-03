@@ -48,3 +48,203 @@ This step wires up the new extension so it can be used by the application.
 *   **Behavior to Test (Integration Tests):**
     *   Confirm the `cy.addFloatingWindow` function is available on the main application's Cytoscape instance.
     *   Confirm that adding a window through the main application graph works as expected and does not cause crashes.
+
+---
+
+## Critical Implementation Details
+
+### TypeScript Interfaces
+
+```typescript
+// In cytoscape-floating-windows.ts
+interface FloatingWindowConfig {
+  id: string;
+  component: React.ReactElement | string;  // React component or HTML string
+  position?: { x: number; y: number };     // Optional initial position
+  nodeData?: any;                          // Additional data for the shadow node
+}
+
+// Extend Cytoscape Core type
+declare module 'cytoscape' {
+  interface Core {
+    addFloatingWindow(config: FloatingWindowConfig): cytoscape.NodeSingular;
+  }
+}
+```
+
+### Overlay Placement (CRITICAL)
+
+**DO NOT** append overlay as child of cytoscape container. Instead:
+
+```typescript
+// ✅ CORRECT: Append to container's parent
+const container = cy.container();
+const parent = container.parentElement;
+parent.appendChild(overlay);
+
+// ❌ WRONG: Would cause double transform
+container.appendChild(overlay);
+```
+
+**Why:** Cytoscape container itself may have transforms. Overlay must be a sibling to avoid compounding transforms.
+
+### Transform Synchronization Formula
+
+```typescript
+function syncOverlayTransform(cy: Core, overlay: HTMLElement) {
+  const pan = cy.pan();
+  const zoom = cy.zoom();
+
+  // GPU-accelerated transform - affects all windows at once
+  overlay.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+  overlay.style.transformOrigin = 'top left';
+}
+
+// Listen to ALL viewport changes
+cy.on('pan zoom resize', () => syncOverlayTransform(cy, overlay));
+```
+
+### Position Synchronization (Node → DOM)
+
+```typescript
+function updateWindowPosition(node: NodeSingular, domElement: HTMLElement) {
+  const pos = node.position();
+
+  // Position element at node's graph coordinates
+  domElement.style.left = `${pos.x}px`;
+  domElement.style.top = `${pos.y}px`;
+
+  // Center element on position point
+  domElement.style.transform = 'translate(-50%, -50%)';
+}
+
+// Listen to specific node's position changes
+cy.on(`position.${nodeId}`, () => updateWindowPosition(node, element));
+```
+
+### Shadow Node Styling
+
+```typescript
+// Make node invisible but interactive
+node.style({
+  'opacity': 0,           // Invisible on canvas
+  'events': 'yes',        // Still receives events (for edges, selection, layout)
+  'width': 1,             // Minimal size to not interfere with layout
+  'height': 1
+});
+
+node.addClass('floating-window-node');
+```
+
+### React Component Mounting
+
+```typescript
+// Store roots for later cleanup (Phase 2)
+const reactRoots = new Map<string, ReactDOM.Root>();
+
+function mountComponent(domElement: HTMLElement, component: React.ReactElement | string) {
+  if (typeof component === 'string') {
+    // HTML string
+    domElement.innerHTML = component;
+  } else {
+    // React component
+    const root = ReactDOM.createRoot(domElement);
+    root.render(component);
+    reactRoots.set(domElement.id, root);
+  }
+}
+```
+
+---
+
+## Edge Cases & Gotchas
+
+1. **Multiple overlay creation:** Ensure `getOrCreateOverlay()` returns existing overlay if present:
+   ```typescript
+   function getOrCreateOverlay(cy: Core): HTMLElement {
+     const container = cy.container();
+     const parent = container.parentElement;
+     let overlay = parent.querySelector('.cy-floating-overlay') as HTMLElement;
+
+     if (!overlay) {
+       overlay = document.createElement('div');
+       overlay.className = 'cy-floating-overlay';
+       // ... setup
+       parent.appendChild(overlay);
+     }
+
+     return overlay;
+   }
+   ```
+
+2. **Transform origin matters:** Must be `top left` to match Cytoscape's coordinate system origin.
+
+3. **Pointer events layering:**
+   - Overlay: `pointer-events: none` (let graph handle events)
+   - Window elements: `pointer-events: auto` (re-enable for windows)
+
+4. **Z-index hierarchy:**
+   ```css
+   #cy { position: relative; z-index: 1; }
+   .cy-floating-overlay { z-index: 10; }
+   .cy-floating-window { z-index: 1; }  /* relative within overlay */
+   ```
+
+5. **Event namespacing:** Use namespaced events to allow removal:
+   ```typescript
+   cy.on(`position.window-${nodeId}`, handler);
+   // Later: cy.off(`position.window-${nodeId}`);
+   ```
+
+---
+
+## What Phase 1 Does NOT Include
+
+Phase 1 is **display only**. Explicitly excluded:
+
+- ❌ User dragging windows (DOM → Node sync)
+- ❌ Window resizing
+- ❌ Memory cleanup / React root unmounting
+- ❌ ResizeObserver for size sync
+- ❌ Event conflict resolution (box selection, etc.)
+- ❌ Migration of existing FloatingWindow system
+- ❌ Title bars, close buttons, or window chrome
+
+Phase 1 Success = Windows appear and move perfectly with graph transformations.
+
+---
+
+## Test Coverage
+
+**Created Test File:** `tests/e2e/isolated-with-harness/graph-core/floating-window-extension.spec.ts`
+
+This test validates:
+1. Extension registration
+2. Shadow node creation
+3. DOM overlay creation and reuse
+4. React component rendering
+5. Pan synchronization (transform updates, position unchanged)
+6. Zoom synchronization (scale updates)
+7. Node position tracking (move node → window follows)
+8. Edge connectivity (shadow node accepts edges)
+9. Multiple windows (shared overlay)
+
+**Run test:**
+```bash
+npx playwright test tests/e2e/isolated-with-harness/graph-core/floating-window-extension.spec.ts
+```
+
+Test will **fail** until implementation is complete.
+
+---
+
+## Implementation Order
+
+1. Create `cytoscape-floating-windows.ts` with extension registration
+2. Create `floating-windows.css` with styles
+3. Update `graph-core/index.ts` to export extension
+4. Update `voice-tree-graph-viz-layout.tsx` to register extension
+5. Run test to verify all behaviors pass
+6. Manual testing with real markdown editor component
+
+**Estimated time:** 2-3 hours for Phase 1 implementation.
