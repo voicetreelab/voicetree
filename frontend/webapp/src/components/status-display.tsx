@@ -18,7 +18,7 @@ export default function StatusDisplay({ state }: StatusDisplayProps) {
             : "bg-gray-400"
         }`}
       ></div>
-      <span className="text-sm text-gray-600">{state}</span>
+      <span className="text-sm text-gray-600">{state} - with Soniox</span>
     </div>
   );
 }

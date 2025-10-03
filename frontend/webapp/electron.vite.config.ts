@@ -13,6 +13,9 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: 'dist-electron/main',
+      watch: {
+        buildDelay: 500 // Debounce rebuilds by 500ms to reduce restart frequency
+      },
       rollupOptions: {
         input: {
           index: path.resolve(__dirname, 'electron/main.ts')
@@ -25,6 +28,9 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: 'dist-electron/preload',
+      watch: {
+        buildDelay: 500 // Debounce rebuilds by 500ms to reduce restart frequency
+      },
       rollupOptions: {
         input: {
           index: path.resolve(__dirname, 'electron/preload.ts')
