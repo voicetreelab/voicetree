@@ -31,7 +31,7 @@ test_code=$?
 if [ $test_code -ne 0 ]; then
     echo "Test failures for $file_path:" >&2
     echo "$test_output" >&2
-    echo "YOU MUST NOW FIX THESE TEST FAILURES." >&2
+    echo "please fix THESE TEST FAILURES." >&2
     exit 2
 fi
 

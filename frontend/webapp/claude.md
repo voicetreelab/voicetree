@@ -18,3 +18,8 @@ Testing:
 
 ## Important Config Notes
 DO NOT run `npm run dev` or `npm run electron` in foreground. These will block your session as they start indefinite servers.
+
+
+## Folders
+
+cytoscape graph visualisation is at webapp/src/graph-core

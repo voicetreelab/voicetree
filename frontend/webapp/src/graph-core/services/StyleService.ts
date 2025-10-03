@@ -6,6 +6,7 @@ import {
   MAX_FONT_SIZE,
   MIN_TEXT_WIDTH,
   MAX_TEXT_WIDTH,
+  DEFAULT_TEXT_WIDTH,
 } from '@/graph-core/constants';
 
 export class StyleService {
@@ -69,6 +70,7 @@ export class StyleService {
           'shape': 'ellipse',
           'border-width': 0,
           'text-wrap': 'wrap',
+          'text-max-width': `${DEFAULT_TEXT_WIDTH}px`,  // Default text width for wrapping
           'min-zoomed-font-size': 8,
           'overlay-opacity': 0,
         }
@@ -89,7 +91,7 @@ export class StyleService {
         }
       },
 
-      // Node sizing based on degree
+      // Node sizing based on degree (when degree data is available)
       {
         selector: 'node[degree]',
         style: {
@@ -97,7 +99,7 @@ export class StyleService {
           'height': `mapData(degree, 0, 60, ${MIN_NODE_SIZE}, ${MAX_NODE_SIZE})`,
           'font-size': `mapData(degree, 0, 60, ${MIN_FONT_SIZE}, ${MAX_FONT_SIZE})`,
           'text-opacity': 'mapData(degree, 0, 60, 0.7, 1)',
-          'text-max-width': `mapData(degree, 0, 60, ${MIN_TEXT_WIDTH}px, ${MAX_TEXT_WIDTH}px)`,
+          'text-max-width': `mapData(degree, 0, 60, ${MIN_TEXT_WIDTH}, ${MAX_TEXT_WIDTH})`,
         }
       },
 

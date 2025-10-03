@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CytoscapeCore, AnimationType } from '@/graph-core/graphviz/CytoscapeCore';
 import { JSDOM } from 'jsdom';
 
-describe.skip('CytoscapeCore Styling Integration', () => {
+describe('CytoscapeCore Styling Integration', () => {
   let container: HTMLElement;
   let cytoscapeCore: CytoscapeCore;
   let dom: JSDOM;
@@ -62,7 +62,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'e1', source: 'n1', target: 'n2' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
 
       // Check that nodes exist
@@ -85,7 +85,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'large', label: 'Large', degree: 30 } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
 
       const smallNode = cy.getElementById('small');
@@ -112,7 +112,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
 
       const node = cy.getElementById('custom');
@@ -134,7 +134,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'e1', source: 'n1', target: 'n2' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
 
       const node1 = cy.getElementById('n1');
@@ -156,7 +156,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'n2', label: 'Node 2' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
 
       const node1 = cy.getElementById('n1');
@@ -173,7 +173,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
 
   describe('Animation Integration', () => {
     it('should add breathing animation to new nodes', () => {
-      cytoscapeCore = new CytoscapeCore(container);
+      cytoscapeCore = new CytoscapeCore(container, [], true);
       cytoscapeCore.getCore();
 
       // Add a new node
@@ -195,7 +195,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'n1', label: 'Node 1' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
       const node = cy.getElementById('n1');
 
@@ -213,7 +213,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'n1', label: 'Node 1' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
       const node = cy.getElementById('n1');
 
@@ -231,7 +231,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'n1', label: 'Node 1' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
       const node = cy.getElementById('n1');
 
@@ -247,7 +247,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'n2', label: 'Node 2' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
 
       // Animate both nodes
@@ -270,7 +270,7 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'n1', label: 'Node 1' }, classes: 'filtered' }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
       const node = cy.getElementById('n1');
 
@@ -282,11 +282,63 @@ describe.skip('CytoscapeCore Styling Integration', () => {
         { data: { id: 'n1', label: 'Node 1' }, classes: 'dangling' }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements);
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
       const node = cy.getElementById('n1');
 
       expect(node.hasClass('dangling')).toBe(true);
+    });
+  });
+
+  describe('Text Wrapping', () => {
+    it('should configure text wrapping on nodes with text-max-width', () => {
+      const longText = 'This is a very long text that should wrap to multiple lines when displayed on the node';
+      const elements = [
+        { data: { id: 'n1', label: longText, degree: 10 } }
+      ];
+
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
+
+      // Get the StyleService instance to verify configuration
+      const styleService = cytoscapeCore['styleService'];
+      const stylesheet = styleService.getCombinedStylesheet();
+
+      // Find the base node style
+      const baseNodeStyle = stylesheet.find(s => s.selector === 'node');
+      expect(baseNodeStyle).toBeDefined();
+      expect(baseNodeStyle.style['text-wrap']).toBe('wrap');
+      expect(baseNodeStyle.style['text-max-width']).toBe('80px');
+
+      // Find the node[degree] style with text-max-width
+      const degreeNodeStyle = stylesheet.find(s => s.selector === 'node[degree]');
+      expect(degreeNodeStyle).toBeDefined();
+      expect(degreeNodeStyle.style['text-max-width']).toBeDefined();
+
+      // Verify the text-max-width uses correct mapData
+      const textMaxWidth = degreeNodeStyle.style['text-max-width'];
+      expect(textMaxWidth).toContain('mapData');
+      expect(textMaxWidth).toContain('degree');
+      // Should map from MIN_TEXT_WIDTH (60) to MAX_TEXT_WIDTH (120)
+      expect(textMaxWidth).toContain('60');
+      expect(textMaxWidth).toContain('120');
+    });
+
+    it('should scale text-max-width based on node degree', () => {
+      const elements = [
+        { data: { id: 'small', label: 'Small node with long text that needs wrapping', degree: 0 } },
+        { data: { id: 'large', label: 'Large node with long text that needs wrapping', degree: 60 } }
+      ];
+
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
+
+      // Get the StyleService configuration
+      const styleService = cytoscapeCore['styleService'];
+      const stylesheet = styleService.getCombinedStylesheet();
+      const degreeStyle = stylesheet.find(s => s.selector === 'node[degree]');
+
+      // The mapData expression should scale from MIN to MAX based on degree 0-60
+      const expectedExpression = 'mapData(degree, 0, 60, 60, 120)';
+      expect(degreeStyle.style['text-max-width']).toBe(expectedExpression);
     });
   });
 });
