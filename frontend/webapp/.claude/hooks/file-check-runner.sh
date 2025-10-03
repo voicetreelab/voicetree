@@ -41,7 +41,7 @@ if [ $eslint_code -ne 0 ] || [ $tsc_has_file_errors -ne 0 ]; then
         echo "TypeScript errors in $file_path:" >&2
         echo "$tsc_file_errors" >&2
     fi
-    echo "YOU MUST NOW FIX THESE PROBLEMS." >&2
+    echo "please fix THESE PROBLEMS." >&2
     exit 2
 fi
 

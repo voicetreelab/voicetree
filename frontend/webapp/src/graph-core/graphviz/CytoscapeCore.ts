@@ -1,4 +1,4 @@
-import cytoscape, { type Core, type NodeCollection, type EdgeCollection, type NodeSingular } from 'cytoscape';
+import cytoscape, { type Core, type NodeCollection, type EdgeCollection, type NodeSingular, type CytoscapeOptions } from 'cytoscape';
 import { type NodeDefinition, type EdgeDefinition } from '@/graph-core/types';
 import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, CLASS_PINNED, CLASS_EXPANDED, MIN_ZOOM, MAX_ZOOM } from '@/graph-core/constants';
 import { ContextMenuService, type ContextMenuConfig } from '@/graph-core/services/ContextMenuService';
@@ -14,19 +14,21 @@ export class CytoscapeCore {
   private styleService: StyleService;
   private animationService: BreathingAnimationService;
 
-  constructor(container: HTMLElement, elements: (NodeDefinition | EdgeDefinition)[] = []) {
+  constructor(container: HTMLElement, elements: (NodeDefinition | EdgeDefinition)[] = [], headless = false) {
     this.container = container;
     this.styleService = new StyleService();
     this.animationService = new BreathingAnimationService();
 
     // Initialize cytoscape with styling
-    this.viz = cytoscape({
-      container: container,
+    const cytoscapeOptions: CytoscapeOptions = {
       elements: elements,
       style: this.styleService.getCombinedStylesheet(),
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
-    });
+      ...(headless ? { headless: true } : { container: container })
+    };
+
+    this.viz = cytoscape(cytoscapeOptions);
 
     this.setupEventListeners();
   }
