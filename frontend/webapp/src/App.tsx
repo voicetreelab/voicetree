@@ -4,7 +4,7 @@ import Sidebar from "./components/sidebar";
 import { useGraphManager } from "./hooks/useGraphManager";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
-import { FloatingWindowManagerProvider } from "./components/floating-windows/context/FloatingWindowManager";
+import { FloatingWindowManagerProvider } from "@/components/floating-windows";
 
 function App() {
   // Use the graph manager hook for file watching

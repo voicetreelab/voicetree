@@ -10,7 +10,7 @@ fi
 # Function to check required environment variables
 check_obsidian_env() {
     if [ -z "$OBSIDIAN_SOURCE_NOTE" ]; then
-        echo "Error: OBSIDIAN_SOURCE_NAME is not set"
+        echo "Error: OBSIDIAN_SOURCE_NOTE is not set"
         echo "This script should be run from a Juggl terminal with the environment variable set"
         exit 1
     fi

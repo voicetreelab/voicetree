@@ -1,5 +1,5 @@
 import { loadMarkdownTree } from './MarkdownParser';
-import { MarkdownTree } from '@/graph-core/types';
+import type { MarkdownTree } from '@/graph-core/types';
 
 /**
  * Cross-browser file loading utility for markdown files

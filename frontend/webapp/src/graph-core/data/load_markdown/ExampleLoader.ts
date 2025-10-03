@@ -1,6 +1,6 @@
 import { loadMarkdownTree } from './MarkdownParser';
 import { FileLoader } from './FileLoader';
-import { MarkdownTree } from '@/graph-core/types';
+import type { MarkdownTree } from '@/graph-core/types';
 
 export class ExampleLoader {
   /**

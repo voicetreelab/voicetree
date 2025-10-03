@@ -177,7 +177,7 @@ export class LayoutManager {
     };
   }
 
-  private getLinkedNodeIds(cy: Core, node: NodeSingular): string[] {
+  private getLinkedNodeIds(_cy: Core, node: NodeSingular): string[] {
     // First check if node has linkedNodeIds data
     const dataLinks = node.data('linkedNodeIds');
     if (dataLinks && Array.isArray(dataLinks)) {

@@ -3,6 +3,13 @@
 
 export type FloatingWindowType = 'MarkdownEditor' | 'Terminal';
 
+export interface NodeMetadata {
+  id: string;
+  name: string;
+  filePath?: string;
+  extraEnv?: Record<string, string>;
+}
+
 export interface FloatingWindow {
   id: string;
   nodeId: string;
@@ -28,4 +35,5 @@ export interface FloatingWindow {
   };
   zIndex: number;
   onSave?: (newContent: string) => Promise<void>;
+  nodeMetadata?: NodeMetadata;  // Metadata for terminal environment variables
 }

@@ -135,7 +135,7 @@ ipcMain.handle('delete-file', async (event, filePath) => {
 });
 
 // Terminal IPC handlers using node-pty ONLY - No fallbacks!
-ipcMain.handle('terminal:spawn', async (event) => {
+ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
   try {
     const terminalId = `term-${Date.now()}`;
 
@@ -152,7 +152,38 @@ ipcMain.handle('terminal:spawn', async (event) => {
       ? path.join(homeDir, 'repos', 'VoiceTree', 'tools')
       : process.cwd();
 
-    console.log(`Spawning NEWWWWWWW PTY with shell: ${shell} in directory: ${cwd}`);
+    // Build custom environment with node metadata
+    const customEnv = { ...process.env };
+
+    if (nodeMetadata) {
+      // Set node-based environment variables
+      if (nodeMetadata.filePath) {
+        // OBSIDIAN_SOURCE_NOTE is the relative path from vault root (e.g., "2025-10-03/23_Commitment.md")
+        customEnv.OBSIDIAN_SOURCE_NOTE = nodeMetadata.filePath;
+
+        // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03")
+        customEnv.OBSIDIAN_SOURCE_DIR = path.dirname(nodeMetadata.filePath);
+
+        // OBSIDIAN_SOURCE_NAME is the filename with extension (e.g., "23_Commitment.md")
+        customEnv.OBSIDIAN_SOURCE_NAME = path.basename(nodeMetadata.filePath);
+
+        customEnv.OBSIDIAN_VAULT_PATH = "/Users/bobbobby/repos/VoiceTree/markdownTreeVault" // todo-hardcoded
+
+        // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
+        const ext = path.extname(nodeMetadata.filePath);
+        customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(nodeMetadata.filePath, ext);
+      }
+
+      // Extra env vars (e.g., agent info)
+      if (nodeMetadata.extraEnv) {
+        Object.assign(customEnv, nodeMetadata.extraEnv);
+      }
+    }
+
+    console.log(`Spawning env PTY with shell: ${shell} in directory: ${cwd}`);
+    if (nodeMetadata) {
+      console.log(`Node metadata:`, nodeMetadata);
+    }
 
     // Create PTY instance - THIS IS THE ONLY WAY, NO FALLBACKS
     const ptyProcess = pty.spawn(shell, [], {
@@ -160,7 +191,7 @@ ipcMain.handle('terminal:spawn', async (event) => {
       cols: 80,
       rows: 24,
       cwd: cwd,
-      env: process.env
+      env: customEnv
     });
 
     // Store the PTY process

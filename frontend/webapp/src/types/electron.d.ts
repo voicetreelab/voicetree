@@ -3,6 +3,9 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { CytoscapeCore as VoiceTreeCytoscapeCore } from '@/graph-core/graphviz/CytoscapeCore';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
 
+// Re-export NodeMetadata for use in terminal API
+export type { NodeMetadata } from '@/components/floating-windows/types';
+
 export interface FileEvent {
   path: string;
   fullPath: string;
@@ -49,6 +52,16 @@ export interface ElectronAPI {
   onFileWatchInfo: (callback: (data: { type: string; message: string }) => void) => void;
   onFileWatchingStopped: (callback: (data?: unknown) => void) => void;
   removeAllListeners: (channel: string) => void;
+
+  // Terminal operations
+  terminal: {
+    spawn: (nodeMetadata?: NodeMetadata) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
+    write: (terminalId: string, data: string) => Promise<{ success: boolean; error?: string }>;
+    resize: (terminalId: string, cols: number, rows: number) => Promise<{ success: boolean; error?: string }>;
+    kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
+    onData: (callback: (terminalId: string, data: string) => void) => void;
+    onExit: (callback: (terminalId: string, code: number) => void) => void;
+  };
 
   // General IPC communication methods
   invoke(channel: string, ...args: unknown[]): Promise<unknown>;

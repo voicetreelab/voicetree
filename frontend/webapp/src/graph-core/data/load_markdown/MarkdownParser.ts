@@ -1,4 +1,4 @@
-import { Node, MarkdownTree } from '@/graph-core/types';
+import type { Node, MarkdownTree } from '@/graph-core/types';
 
 /**
  * Converts markdown files to tree data structure
