@@ -19,7 +19,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, '../preload/index.js')
     }
   });
 
@@ -130,10 +130,13 @@ ipcMain.handle('terminal:spawn', async (event) => {
       ? 'powershell.exe'
       : process.env.SHELL || '/bin/bash';
 
-    // Get home directory
-    const cwd = process.platform === 'win32'
-      ? process.env.USERPROFILE || process.cwd()
-      : process.env.HOME || process.cwd();
+    // TODO: WILL NEED TO MAKE THE TOOLS DISTRIBUTED WITH APP, and this path customizable
+    const homeDir = process.platform === 'win32'
+      ? process.env.USERPROFILE
+      : process.env.HOME;
+    const cwd = homeDir
+      ? path.join(homeDir, 'repos', 'VoiceTree', 'markdownTreeVaultDefault')
+      : process.cwd();
 
     console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
 
