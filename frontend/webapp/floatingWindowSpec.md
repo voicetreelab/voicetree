@@ -12,5 +12,16 @@ I.e. any floatingWindow, can be added to cytoscape with one command. e.g. .addFl
   space
 - can have edges to other nodes in the graph
 
-under the hood this can be supported with a cytoscape node that it has a two way anchor to. 
+under the hood this can be supported with a cytoscape node that it has a two way anchor to.
+
+
+## Phase 2: Resizing
+
+Floating windows should be resizable:
+
+- User can resize windows by dragging edges or corners
+- Resizing updates window dimensions (width/height)
+- Window maintains position anchor at center during resize
+- Resized dimensions persist during pan/zoom operations
+- Minimum size constraints (e.g., 100x100px) to prevent unusable windows
 

@@ -1,0 +1,29 @@
+/**
+ * Floating Windows CSS
+ *
+ * Styles for the floating window overlay and individual windows
+ */
+
+/* Overlay container - positioned over the Cytoscape graph */
+.cy-floating-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+  transform-origin: top left;
+}
+
+/* Individual floating window elements */
+.cy-floating-window {
+  position: absolute;
+  pointer-events: auto;
+  /* Windows can add their own styling */
+}
+
+/* Shadow nodes - invisible but interactive */
+.floating-window-node {
+  opacity: 0;
+}
