@@ -4,8 +4,8 @@ export const MAX_NODE_SIZE = 80;
 export const MIN_FONT_SIZE = 8;
 export const MAX_FONT_SIZE = 16;
 export const MIN_TEXT_WIDTH = 60;
-export const MAX_TEXT_WIDTH = 120;
-export const DEFAULT_TEXT_WIDTH = 80;  // Default text-max-width for nodes without degree data
+export const MAX_TEXT_WIDTH = 180;
+export const DEFAULT_TEXT_WIDTH = 180;  // Default text-max-width for nodes without degree data
 
 // Layout constants
 export const DEFAULT_DISTANCE = 143;
