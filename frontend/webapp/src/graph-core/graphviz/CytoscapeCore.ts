@@ -1,6 +1,6 @@
 import cytoscape, { type Core, type NodeCollection, type EdgeCollection, type NodeSingular } from 'cytoscape';
 import { type NodeDefinition, type EdgeDefinition } from '@/graph-core/types';
-import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, CLASS_PINNED, CLASS_EXPANDED } from '@/graph-core/constants';
+import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, CLASS_PINNED, CLASS_EXPANDED, MIN_ZOOM, MAX_ZOOM } from '@/graph-core/constants';
 import { ContextMenuService, type ContextMenuConfig } from '@/graph-core/services/ContextMenuService';
 import { StyleService } from '@/graph-core/services/StyleService';
 import { BreathingAnimationService, AnimationType } from '@/graph-core/services/BreathingAnimationService';
@@ -24,8 +24,8 @@ export class CytoscapeCore {
       container: container,
       elements: elements,
       style: this.styleService.getCombinedStylesheet(),
-      minZoom: 1,
-      maxZoom: 1000,
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
     });
 
     this.setupEventListeners();

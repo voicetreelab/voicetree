@@ -9,6 +9,10 @@ export const MAX_TEXT_WIDTH = 120;
 // Layout constants
 export const DEFAULT_DISTANCE = 143;
 
+// Zoom constants
+export const MIN_ZOOM = 0.1;
+export const MAX_ZOOM = 3;
+
 // Color constants
 export const DEFAULT_NODE_COLOR = '#3498db';
 export const DEFAULT_EDGE_COLOR = '#95a5a6';
