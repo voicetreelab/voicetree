@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "electron/electron.cjs",
+  "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -23,12 +23,12 @@
     "test:e2e:debug": "playwright test --debug",
     "test:electron": "npm run build:test && playwright test --config=playwright-electron.config.ts",
     "test:browser": "playwright test tests/e2e/isolated-with-harness/file-to-graph-pipeline-behavioral.spec.ts",
-    "electron": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && NODE_ENV=development electron .\"",
-    "electron:prod": "electron .",
-    "electron:test": "NODE_ENV=development TEST_FILE_WATCHER=1 electron .",
-    "electron:build": "npm run build && electron .",
-    "electron:pack": "npm run build && electron-builder",
-    "electron:dist": "npm run build && electron-builder --publish=never"
+    "electron": "electron-vite dev",
+    "electron:prod": "electron-vite build && electron .",
+    "electron:test": "NODE_ENV=development TEST_FILE_WATCHER=1 electron-vite build && electron .",
+    "electron:build": "electron-vite build && electron .",
+    "electron:pack": "electron-vite build && electron-builder",
+    "electron:dist": "electron-vite build && electron-builder --publish=never"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",
