@@ -9,7 +9,7 @@ import type cytoscape from 'cytoscape';
 import type React from 'react';
 import type ReactDOM from 'react-dom/client';
 
-interface FloatingWindowConfig {
+export interface FloatingWindowConfig {
   id: string;
   component: string | React.ReactElement;
   title?: string;
@@ -90,145 +90,157 @@ function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElem
 }
 
 /**
- * Mount a React component or HTML string to a DOM element
+ * Create the window chrome (frame) synchronously with vanilla DOM
+ * This includes: window container, title bar, close button, and content container
+ * Returns the main window element and the content container for React mounting
  */
-// Create wrapper component factory outside of mountComponent to avoid hook issues
-function createWindowWrapper(
-  domElement: HTMLElement,
-  windowId: string,
-  config: FloatingWindowConfig,
-  ComponentClass: React.ComponentType<Record<string, unknown>>
-) {
-  if (!extensionConfig) return null;
-  const { React } = extensionConfig;
+function createWindowChrome(
+  cy: cytoscape.Core,
+  config: FloatingWindowConfig
+): { windowElement: HTMLElement; contentContainer: HTMLElement } {
+  const { id, title, resizable = false } = config;
 
-  return function WindowWrapper() {
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+  // Create main window container
+  const windowElement = document.createElement('div');
+  windowElement.id = `window-${id}`;
+  windowElement.className = 'cy-floating-window';
+  windowElement.setAttribute('data-shadow-node-id', id);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-      if ((e.target as HTMLElement).tagName === 'BUTTON') return;
-      setIsDragging(true);
+  if (resizable) {
+    windowElement.classList.add('resizable');
+  }
 
-      // Get cytoscape instance for pan/zoom info
-      const cy = (window as unknown as { lastCyInstance?: cytoscape.Core }).lastCyInstance;
-      if (!cy) return;
+  // Event isolation - prevent graph interactions
+  windowElement.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+  });
+  windowElement.addEventListener('wheel', (e) => {
+    e.stopPropagation();
+  }, { passive: false });
 
-      const pan = cy.pan();
-      const zoom = cy.zoom();
+  // Create title bar
+  const titleBar = document.createElement('div');
+  titleBar.className = 'cy-floating-window-title';
 
-      // Get current position in graph coordinates from style
-      const currentLeft = parseFloat(domElement.style.left) || 0;
-      const currentTop = parseFloat(domElement.style.top) || 0;
+  // Create title text
+  const titleText = document.createElement('span');
+  titleText.className = 'cy-floating-window-title-text';
+  titleText.textContent = title || `Window: ${id}`;
 
-      // Convert current graph position to viewport coordinates
-      const viewportX = (currentLeft * zoom) + pan.x;
-      const viewportY = (currentTop * zoom) + pan.y;
+  // Create close button
+  const closeButton = document.createElement('button');
+  closeButton.className = 'cy-floating-window-close';
+  closeButton.textContent = '×';
 
-      // Store offset in viewport coordinates
-      setDragOffset({
-        x: e.clientX - viewportX,
-        y: e.clientY - viewportY
-      });
-      e.preventDefault();
-    };
+  // Attach close handler
+  closeButton.addEventListener('click', () => {
+    // Find and remove shadow node
+    const shadowNode = cy.$(`#${id}`);
+    if (shadowNode.length > 0) {
+      shadowNode.remove();
+    }
+    // Unmount React and remove DOM
+    const root = reactRoots.get(id);
+    if (root) {
+      root.unmount();
+      reactRoots.delete(id);
+    }
+    windowElement.remove();
+  });
 
-    React.useEffect(() => {
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!isDragging) return;
+  // Assemble title bar
+  titleBar.appendChild(titleText);
+  titleBar.appendChild(closeButton);
 
-        // Get cytoscape instance for pan/zoom info
-        const cy = (window as unknown as { lastCyInstance?: cytoscape.Core }).lastCyInstance;
-        if (!cy) return;
+  // Create content container
+  const contentContainer = document.createElement('div');
+  contentContainer.className = 'cy-floating-window-content';
 
-        const pan = cy.pan();
-        const zoom = cy.zoom();
+  // Assemble window
+  windowElement.appendChild(titleBar);
+  windowElement.appendChild(contentContainer);
 
-        // Calculate new viewport position
-        const viewportX = e.clientX - dragOffset.x;
-        const viewportY = e.clientY - dragOffset.y;
+  // Attach drag handlers to title bar
+  attachDragHandlers(cy, titleBar, windowElement);
 
-        // Convert viewport coordinates to graph coordinates
-        const graphX = (viewportX - pan.x) / zoom;
-        const graphY = (viewportY - pan.y) / zoom;
-
-        domElement.style.left = `${graphX}px`;
-        domElement.style.top = `${graphY}px`;
-      };
-
-      const handleMouseUp = () => {
-        setIsDragging(false);
-      };
-
-      if (isDragging) {
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-        return () => {
-          document.removeEventListener('mousemove', handleMouseMove);
-          document.removeEventListener('mouseup', handleMouseUp);
-        };
-      }
-    }, [isDragging, dragOffset]);
-
-    const handleClose = () => {
-      // Find shadow node and remove it
-      const shadowNode = domElement.getAttribute('data-shadow-node-id');
-      if (shadowNode) {
-        const cy = (window as unknown as { lastCyInstance?: cytoscape.Core }).lastCyInstance;
-        if (cy) {
-          const node = cy.$(`#${shadowNode}`);
-          if (node.length > 0) {
-            node.remove();
-          }
-        }
-      }
-      // Unmount React and remove DOM
-      const root = reactRoots.get(windowId);
-      if (root) {
-        root.unmount();
-        reactRoots.delete(windowId);
-      }
-      domElement.remove();
-    };
-
-    return React.createElement('div', {
-      className: 'cy-floating-window-wrapper'
-    }, [
-      // Title bar
-      React.createElement('div', {
-        key: 'titlebar',
-        className: `cy-floating-window-title ${isDragging ? 'dragging' : ''}`,
-        onMouseDown: handleMouseDown
-      }, [
-        React.createElement('span', {
-          key: 'title',
-          className: 'cy-floating-window-title-text'
-        }, config.title || `Window: ${windowId}`),
-        React.createElement('button', {
-          key: 'close',
-          className: 'cy-floating-window-close',
-          onClick: handleClose
-        }, '×')
-      ]),
-      // Content
-      React.createElement('div', {
-        key: 'content',
-        className: 'cy-floating-window-content'
-      }, React.createElement(ComponentClass, {
-        windowId: windowId,
-        content: config.initialContent || '',
-        nodeMetadata: config.nodeMetadata,
-        onSave: config.onSave || ((content: string) => {
-          console.log('Saved content:', content);
-          return Promise.resolve();
-        })
-      }))
-    ]);
-  };
+  return { windowElement, contentContainer };
 }
 
+/**
+ * Attach drag-and-drop handlers to the title bar (vanilla JS)
+ */
+function attachDragHandlers(
+  cy: cytoscape.Core,
+  titleBar: HTMLElement,
+  windowElement: HTMLElement
+) {
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+
+  const handleMouseDown = (e: MouseEvent) => {
+    // Don't start drag if clicking on buttons
+    if ((e.target as HTMLElement).tagName === 'BUTTON') return;
+
+    isDragging = true;
+    titleBar.classList.add('dragging');
+
+    const pan = cy.pan();
+    const zoom = cy.zoom();
+
+    // Get current position in graph coordinates from style
+    const currentLeft = parseFloat(windowElement.style.left) || 0;
+    const currentTop = parseFloat(windowElement.style.top) || 0;
+
+    // Convert current graph position to viewport coordinates
+    const viewportX = (currentLeft * zoom) + pan.x;
+    const viewportY = (currentTop * zoom) + pan.y;
+
+    // Store offset in viewport coordinates
+    dragOffset = {
+      x: e.clientX - viewportX,
+      y: e.clientY - viewportY
+    };
+
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+
+    const pan = cy.pan();
+    const zoom = cy.zoom();
+
+    // Calculate new viewport position
+    const viewportX = e.clientX - dragOffset.x;
+    const viewportY = e.clientY - dragOffset.y;
+
+    // Convert viewport coordinates to graph coordinates
+    const graphX = (viewportX - pan.x) / zoom;
+    const graphY = (viewportY - pan.y) / zoom;
+
+    windowElement.style.left = `${graphX}px`;
+    windowElement.style.top = `${graphY}px`;
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      isDragging = false;
+      titleBar.classList.remove('dragging');
+    }
+  };
+
+  // Attach listeners
+  titleBar.addEventListener('mousedown', handleMouseDown);
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+}
+
+/**
+ * Mount React content component to the content container
+ * Simplified to only handle content rendering - no wrapper, no title bar
+ */
 function mountComponent(
-  domElement: HTMLElement,
+  contentContainer: HTMLElement,
   component: string | React.ReactElement,
   windowId: string,
   config: FloatingWindowConfig
@@ -236,54 +248,51 @@ function mountComponent(
   console.log('[FloatingWindows] mountComponent called for:', windowId, 'component:', component);
 
   if (!extensionConfig) {
-    console.error('[FloatingWindows] Extension not properly initialized. Call registerFloatingWindows with config first.');
-    domElement.innerHTML = '<div style="padding: 10px; color: red;">Error: Extension not initialized</div>';
+    console.error('[FloatingWindows] Extension not properly initialized.');
+    contentContainer.innerHTML = '<div style="padding: 10px; color: red;">Error: Extension not initialized</div>';
     return;
   }
 
   const { React, ReactDOM, components } = extensionConfig;
-  console.log('[FloatingWindows] Available components:', Object.keys(components));
 
   // Check if component is a registered component name
   if (typeof component === 'string') {
     if (!components[component]) {
-      throw new Error(`[FloatingWindows] Component '${component}' not found in component registry. Available components: ${Object.keys(components).join(', ')}`);
+      throw new Error(`[FloatingWindows] Component '${component}' not found in component registry. Available: ${Object.keys(components).join(', ')}`);
     }
 
     const ComponentClass = components[component];
     console.log('[FloatingWindows] Creating root for component:', component);
-    console.log('[FloatingWindows] DOM element in document?', document.body.contains(domElement));
-    console.log('[FloatingWindows] DOM element id:', domElement.id);
 
-    if (!document.body.contains(domElement)) {
-      console.error('[FloatingWindows] ERROR: DOM element must be in document before mounting React!');
+    if (!document.body.contains(contentContainer)) {
+      console.error('[FloatingWindows] ERROR: Content container must be in document before mounting React!');
       return;
     }
 
     try {
-      const root = ReactDOM.createRoot(domElement);
+      const root = ReactDOM.createRoot(contentContainer);
 
-      // Create wrapper component using the factory
-      const WrapperComponent = createWindowWrapper(domElement, windowId, config, ComponentClass);
+      // Render the component directly - no wrapper
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      root.render(React.createElement(ComponentClass as any, {
+        windowId: windowId,
+        content: config.initialContent || '',
+        nodeMetadata: config.nodeMetadata,
+        onSave: config.onSave || ((content: string) => {
+          console.log('Saved content:', content);
+          return Promise.resolve();
+        })
+      }));
 
-      if (!WrapperComponent) {
-        console.error('[FloatingWindows] Failed to create wrapper component');
-        return;
-      }
-
-      console.log('[FloatingWindows] Rendering wrapper component to DOM');
-
-      // Render the wrapper component
-      root.render(React.createElement(WrapperComponent));
       reactRoots.set(windowId, root);
       console.log('[FloatingWindows] Component mounted successfully');
     } catch (error) {
       console.error('[FloatingWindows] Error mounting component:', error);
-      domElement.innerHTML = `<div style="padding: 10px; color: red;">Error mounting component: ${error}</div>`;
+      contentContainer.innerHTML = `<div style="padding: 10px; color: red;">Error mounting component: ${error}</div>`;
     }
   } else {
     // React element
-    const root = ReactDOM.createRoot(domElement);
+    const root = ReactDOM.createRoot(contentContainer);
     root.render(component);
     reactRoots.set(windowId, root);
   }
@@ -322,7 +331,7 @@ export function registerFloatingWindows(
   // Add the addFloatingWindow method to Core prototype
   cytoscape('core', 'addFloatingWindow', function(this: cytoscape.Core, config: FloatingWindowConfig) {
     console.log('[FloatingWindows] addFloatingWindow called with config:', config);
-    const { id, component, position = { x: 0, y: 0 }, nodeData = {}, resizable = false } = config;
+    const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
 
     // Validate extension is initialized
     if (!extensionConfig) {
@@ -340,7 +349,7 @@ export function registerFloatingWindows(
     // 1. Get or create overlay
     const overlay = getOrCreateOverlay(this);
 
-    // 2. Create shadow node
+    // 2. Create shadow node (invisible anchor in graph space)
     const shadowNode = this.add({
       group: 'nodes',
       data: { id, ...nodeData },
@@ -355,42 +364,24 @@ export function registerFloatingWindows(
       'height': 1
     });
 
-    // 4. Create DOM element for window
-    const windowElement = document.createElement('div');
-    windowElement.id = `window-${id}`;
-    windowElement.className = 'cy-floating-window';
-    windowElement.setAttribute('data-shadow-node-id', id);
+    // 4. Create window chrome SYNCHRONOUSLY with vanilla DOM
+    // This is the key fix - chrome exists immediately in DOM
+    const { windowElement, contentContainer } = createWindowChrome(this, config);
 
-    // Store cy instance for close button
-    (window as unknown as { lastCyInstance: cytoscape.Core }).lastCyInstance = this;
-
-    // Event isolation - prevent graph interactions
-    windowElement.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-    });
-    windowElement.addEventListener('wheel', (e) => {
-      e.stopPropagation();
-    }, { passive: false });
-
-
-    // Add resizable capability if requested
-    if (resizable) {
-      windowElement.classList.add('resizable');
-    }
-
-    // 5. Add window to overlay FIRST (must be in DOM before React mount)
+    // 5. Add window to overlay (must be in DOM before React mount)
     overlay.appendChild(windowElement);
 
-    // 6. Mount component to window element (after it's in the DOM)
-    mountComponent(windowElement, component, id, config);
-
-    // 7. Initial position sync
+    // 6. Initial position sync
     updateWindowPosition(shadowNode, windowElement);
 
-    // 8. Listen to node position changes
+    // 7. Listen to node position changes
     shadowNode.on('position', () => {
       updateWindowPosition(shadowNode, windowElement);
     });
+
+    // 8. Mount React component ASYNCHRONOUSLY to content container
+    // This happens after the chrome is already in the DOM and testable
+    mountComponent(contentContainer, component, id, config);
 
     // Return the shadow node for further manipulation
     return shadowNode;

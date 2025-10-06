@@ -13,8 +13,7 @@ Testing:
 `npm run test` - Runs all unit tests and our main e2e system playwright test
 `npx vitest run <file>` - Test specific unit tests
 `npx playwright test tests/e2e/isolated-with-harness-graph-core/breathing-animation.spec.ts` - Run a specific playwright test in browser
-
-`npx playwright test webapp/tests/e2e/full-electron/electron-terminal.spec.ts --config=playwright-electron.config.ts` - Run electron test
+`npx electron-vite build && npx playwright test webapp/tests/e2e/full-electron/electron-terminal.spec.ts --config=playwright-electron.config.ts` - Run electron test
 
 ## Important Config Notes
 DO NOT run `npm run dev` or `npm run electron` in foreground. These will block your session as they start indefinite servers.
