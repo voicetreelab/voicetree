@@ -21,6 +21,12 @@ const test = base.extend<{
 
   appWindow: async ({ electronApp }, use) => {
     const window = await electronApp.firstWindow();
+
+    // Log all console messages to see registration logs
+    window.on('console', msg => {
+      console.log(`BROWSER [${msg.type()}]:`, msg.text());
+    });
+
     await window.waitForLoadState('domcontentloaded');
 
     // Wait for Cytoscape instance
@@ -34,6 +40,23 @@ const test = base.extend<{
 test.describe('Floating Window - Electron E2E', () => {
 
   test('should create floating window in Electron app', async ({ appWindow }) => {
+    // Debug: Check what's available
+    const debugInfo = await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      const core = (window as any).cytoscapeCore;
+      return {
+        hasCy: !!cy,
+        hasCore: !!core,
+        cyType: typeof cy,
+        coreType: typeof core,
+        cyHasMethod: typeof cy?.addFloatingWindow,
+        coreHasMethod: typeof core?.addFloatingWindow,
+        cyProtoMethods: cy ? Object.getOwnPropertyNames(Object.getPrototypeOf(cy)).filter((k: string) => k.includes('Float') || k.includes('add')) : [],
+        coreProtoMethods: core ? Object.getOwnPropertyNames(Object.getPrototypeOf(core)).filter((k: string) => k.includes('Float') || k.includes('add')) : []
+      };
+    });
+    console.log('Debug info:', JSON.stringify(debugInfo, null, 2));
+
     //  Test: Verify extension registered
     const hasExtension = await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
