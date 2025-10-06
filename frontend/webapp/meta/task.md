@@ -140,10 +140,10 @@ Here's your specific task: [task]
 Here's where it fits: [minimal tree view]
 
 
-Always ask subagents to update markdown checkboxees tracking their progress.
+Always ask subagents to update markdown checkboxes tracking their progress.
 
-REMEMBER, Save state of tasks WITHIN THE VOICETREE markdown files, in $OBSIDIAN_VAULT_PATH (specifically
-in the directory of $OBSIDIAN_SOURCE_NOTE)
+REMEMBER, Save state of tasks at project root.
+
 AND TELL YOUR subagentS TO DO THE SAME.
 
 ## Best Practices for Multi-subagent Development
@@ -202,6 +202,7 @@ include my original spec file in the task file.
 2. add to test.spec file
 3. create a subagent task file (same template)
 4. Launch subagent
+5. Review subagents work, and integrate it into the larger system 
 5. (new) Check webapp/codeReview.md for any external comments on the code from another reviewer
 6. Continue to next phase goto step 1 
 

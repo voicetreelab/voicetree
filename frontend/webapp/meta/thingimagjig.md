@@ -1,5 +1,7 @@
 poll every 5 minutes to check for changes to the git diff, and if so do a
-concise code review and add to webapp/codeReview.md
+concise code review for any bugs, or bad practices and add your analysis to webapp/codeReview.md
+
+Only mention problems that have a MORE simple solution, not something that ADDS complexity.
 
 how to do this:
 Make a shell script that just takes 5 minutes to do nothing before it finishes with exit code 0 saying
@@ -18,7 +20,7 @@ sleep 300
 
 echo "======================================"
 echo "[$(date)] TIMER COMPLETE!"
-echo "NOW CHECK GIT DIFF, ADD CONCISE REVIEW to codeReview.md, THEN CALL ME AGAIN WITH SHELL TOOL"
+echo "NOW CHECK GIT DIFF, ADD CONCISE REVIEW, call out any unnecessary complexity to codeReview.md, THEN CALL ME AGAIN WITH SHELL TOOL"
 echo "======================================"
 
 exit 0
