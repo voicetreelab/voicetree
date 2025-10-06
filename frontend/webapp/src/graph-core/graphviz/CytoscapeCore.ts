@@ -200,6 +200,7 @@ export class CytoscapeCore {
     nodeData?: Record<string, unknown>;
     resizable?: boolean;
     initialContent?: string;
+    onSave?: (content: string) => Promise<void>;
   }): NodeSingular {
     console.log('[CytoscapeCore] addFloatingWindow called, checking viz...');
     const vizWithExtension = this.viz as Core & { addFloatingWindow?: (config: unknown) => NodeSingular };

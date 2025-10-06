@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 // Removed voice-related imports - this component should only handle graph visualization
 // Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
 import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
 import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
-import { toScreenCoords, toGraphCoords } from '@/utils/coordinate-conversions';
 import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
 // Import graph styles
@@ -37,70 +36,6 @@ function normalizeFileId(filename: string): string {
   return id;
 }
 
-// Helper to open a markdown editor window for a node
-interface OpenEditorParams {
-  nodeId: string;
-  filePath: string;
-  content: string;
-  nodeGraphPos: { x: number; y: number };
-  cy: cytoscape.Core;
-  openWindow: (params: {
-    nodeId: string;
-    title: string;
-    type: string;
-    content: string;
-    position: { x: number; y: number };
-    graphAnchor?: { x: number; y: number };
-    graphOffset?: { x: number; y: number };
-    size: { width: number; height: number };
-    onSave?: (text: string) => Promise<void>;
-  }) => void;
-}
-
-function openMarkdownEditor({ nodeId, filePath, content, nodeGraphPos, cy, openWindow }: OpenEditorParams): void {
-  const zoom = cy.zoom();
-
-  // Position window below the node, centered horizontally
-  const windowWidth = 700;
-
-  const initialGraphOffset = {
-    x: -(windowWidth / 2) / zoom,
-    y: 5  // 5 graph units below the node
-  };
-
-  // Calculate initial screen position using toScreenCoords to match future updates
-  const graphX = nodeGraphPos.x + initialGraphOffset.x;
-  const graphY = nodeGraphPos.y + initialGraphOffset.y;
-  const screenPos = toScreenCoords(graphX, graphY, cy);
-
-  // Subtract container offset since FloatingWindowContainer is positioned relative to the same parent
-  const containerRect = cy.container().getBoundingClientRect();
-  const initialScreenPos = {
-    x: screenPos.x - containerRect.left,
-    y: screenPos.y - containerRect.top
-  };
-
-  openWindow({
-    nodeId,
-    title: nodeId,
-    type: 'MarkdownEditor',
-    content,
-    position: initialScreenPos,
-    graphAnchor: nodeGraphPos,
-    graphOffset: initialGraphOffset,
-    size: { width: 700, height: 500 },
-    onSave: async (text: string) => {
-      if (window.electronAPI?.saveFileContent) {
-        const result = await window.electronAPI.saveFileContent(filePath, text);
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to save file');
-        }
-      } else {
-        throw new Error('Save functionality not available');
-      }
-    }
-  });
-}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutProps) {
@@ -110,9 +45,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   const markdownFiles = useRef<Map<string, string>>(new Map());
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
-  const { openWindow, windows, updateWindowContent, updateWindowGraphOffset } = useFloatingWindows();
-  const openWindowRef = useRef(openWindow);
-  const windowsRef = useRef(windows);
+  const { windows, updateWindowContent } = useFloatingWindows();
 
   // Track whether we're in initial bulk load phase or incremental phase
   // During initial scan: use TidyLayoutStrategy for hierarchical layout
@@ -121,6 +54,100 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
   // Layout manager for positioning nodes
   const layoutManagerRef = useRef<LayoutManager | null>(null);
+
+  // Helper function to create floating editor window
+  const createFloatingEditor = (
+    nodeId: string,
+    filePath: string,
+    content: string,
+    nodePos: { x: number; y: number },
+    cy: CytoscapeCore
+  ) => {
+    const editorId = `editor-${nodeId}`;
+
+    console.log('[createFloatingEditor] Called for node:', nodeId, 'with cy:', cy);
+
+    // Check if editor window already exists by checking for shadow node
+    const existingNodes = cy.getCore().nodes(`#${editorId}`);
+    if (existingNodes && existingNodes.length > 0) {
+      console.log('[createFloatingEditor] Window already exists for:', editorId);
+      return; // Already open
+    }
+
+    console.log('[createFloatingEditor] Calling cy.addFloatingWindow for:', editorId);
+
+    try {
+      // Use the new extension API
+      const shadowNode = cy.addFloatingWindow({
+        id: editorId,
+        component: 'MarkdownEditor',
+        position: {
+          x: nodePos.x,
+          y: nodePos.y + 50 // Offset below node
+        },
+        nodeData: {
+          isFloatingWindow: true,
+          parentNodeId: nodeId
+        },
+        resizable: true,
+        initialContent: content,
+        onSave: async (newContent: string) => {
+          if (window.electronAPI?.saveFileContent) {
+            const result = await window.electronAPI.saveFileContent(filePath, newContent);
+            if (!result.success) {
+              throw new Error(result.error || 'Failed to save file');
+            }
+          } else {
+            throw new Error('Save functionality not available');
+          }
+        }
+      });
+      console.log('[createFloatingEditor] Shadow node created:', shadowNode);
+    } catch (error) {
+      console.error('[createFloatingEditor] Error calling addFloatingWindow:', error);
+    }
+  };
+
+  // Helper function to create floating terminal window
+  const createFloatingTerminal = (
+    nodeId: string,
+    nodeMetadata: { id: string; name: string; filePath?: string },
+    nodePos: { x: number; y: number },
+    cy: CytoscapeCore
+  ) => {
+    const terminalId = `terminal-${nodeId}`;
+    console.log('[createFloatingTerminal] Called for node:', nodeId, 'with metadata:', nodeMetadata);
+
+    // Check if terminal window already exists by checking for shadow node
+    const existingNodes = cy.getCore().nodes(`#${terminalId}`);
+    if (existingNodes && existingNodes.length > 0) {
+      console.log('[createFloatingTerminal] Window already exists for:', terminalId);
+      return; // Already open
+    }
+
+    console.log('[createFloatingTerminal] Calling cy.addFloatingWindow for:', terminalId);
+    try {
+      // Use the new extension API
+      const shadowNode = cy.addFloatingWindow({
+        id: terminalId,
+        component: 'Terminal',
+        position: {
+          x: nodePos.x + 100, // Offset to the right
+          y: nodePos.y
+        },
+        nodeData: {
+          isFloatingWindow: true,
+          parentNodeId: nodeId
+        },
+        resizable: true,
+        nodeMetadata: nodeMetadata
+      });
+
+      console.log('[createFloatingTerminal] Shadow node created:', shadowNode);
+    } catch (error) {
+      console.error('[createFloatingTerminal] Error calling addFloatingWindow:', error);
+    }
+  };
 
   // Initialize layout manager with appropriate strategy
   useEffect(() => {
@@ -152,116 +179,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // Note: We now use useFloatingWindows context as the single source of truth for window state
   // No duplicate openEditors state needed
 
-  // Ref to store the position update callback from FloatingWindowContainer
-  const positionUpdateCallbackRef = useRef<((positionUpdates: Map<string, { x: number; y: number }>) => void) | null>(null);
-
-  // RAF throttling for position updates
-  const rafIdRef = useRef<number | null>(null);
-
   // REMOVED: Voice transcription logic
   // This component should only handle graph visualization
   // Voice transcription is handled by VoiceTreeTranscribe component
-
-  // Update refs when values change
-  useEffect(() => {
-    openWindowRef.current = openWindow;
-  }, [openWindow]);
-
-  useEffect(() => {
-    windowsRef.current = windows;
-  }, [windows]);
-
-
-
-  // Function to update positions of all open editors based on their node positions
-  const updateEditorPositions = useCallback(() => {
-    if (!positionUpdateCallbackRef.current || !cytoscapeRef.current) {
-      console.log('[DEBUG] updateEditorPositions early return - no callback or cy');
-      return;
-    }
-
-    const cy = cytoscapeRef.current.getCore();
-    const positionUpdates = new Map<string, { x: number; y: number }>();
-    const containerRect = cy.container().getBoundingClientRect();
-
-    // console.log('[DEBUG] Windows to update:', windowsRef.current.length);
-
-    // Use actual windows from context instead of duplicate openEditorsRef
-    for (const window of windowsRef.current) {
-      // Update position for any window with graph coordinates (not just editors)
-      if (window.nodeId && window.graphAnchor) {
-          const graphX = window.graphAnchor.x + (window.graphOffset?.x || 0);
-          const graphY = window.graphAnchor.y + (window.graphOffset?.y || 0);
-          const screenPos = toScreenCoords(graphX, graphY, cy);
-          // Subtract container offset since FloatingWindowContainer is positioned relative to the same parent
-          const relativePos = {
-            x: screenPos.x - containerRect.left,
-            y: screenPos.y - containerRect.top
-          };
-          // console.log(`[DEBUG] Window ${window.nodeId}: graph(${graphX},${graphY}) -> screen(${screenPos.x},${screenPos.y})`);
-          positionUpdates.set(window.nodeId, relativePos);
-      } else if (window.nodeId) {
-        // Fallback to old behavior for backward compatibility (windows without graph coordinates)
-        const node = cy.getElementById(window.nodeId);
-        if (node.length > 0) {
-          const renderedPos = node.renderedPosition();
-          positionUpdates.set(window.nodeId, {
-            x: renderedPos.x - 50,
-            y: renderedPos.y - 50
-          });
-        }
-      }
-    }
-
-    if (positionUpdates.size > 0) {
-      // console.log('[DEBUG] Calling position update callback with', positionUpdates.size, 'updates');
-      positionUpdateCallbackRef.current(positionUpdates);
-    } else {
-      // console.log('[DEBUG] No position updates to send');
-    }
-  }, []);
-
-  // Throttled version using requestAnimationFrame
-  const throttledUpdateEditorPositions = useCallback(() => {
-    // console.log('[DEBUG] throttledUpdateEditorPositions called');
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-    }
-    rafIdRef.current = requestAnimationFrame(() => {
-      // console.log('[DEBUG] RAF executing updateEditorPositions');
-      updateEditorPositions();
-      rafIdRef.current = null;
-    });
-  }, [updateEditorPositions]);
-
-  // Callback to register the position update function from FloatingWindowContainer
-  const handlePositionUpdateCallback = useCallback((callback: (positionUpdates: Map<string, { x: number; y: number }>) => void) => {
-    positionUpdateCallbackRef.current = callback;
-  }, []);
-
-  // Handle window drag to update graph offset
-  const handleWindowDragStop = useCallback((windowId: string, screenPosition: { x: number; y: number }) => {
-    const cy = cytoscapeRef.current?.getCore();
-    if (!cy) return;
-
-    const window = windows.find(w => w.id === windowId);
-    if (!window || !window.graphAnchor) return;
-
-    // Convert container-relative position to viewport position, then to graph coordinates
-    const containerRect = cy.container().getBoundingClientRect();
-    const viewportX = screenPosition.x + containerRect.left;
-    const viewportY = screenPosition.y + containerRect.top;
-    const graphPos = toGraphCoords(viewportX, viewportY, cy);
-
-    // Calculate new offset from anchor
-    const newGraphOffset = {
-      x: graphPos.x - window.graphAnchor.x,
-      y: graphPos.y - window.graphAnchor.y
-    };
-
-    // Update the window's graph offset
-    updateWindowGraphOffset(windowId, newGraphOffset);
-  }, [windows, updateWindowGraphOffset]);
 
 
   // Dark mode management
@@ -302,25 +222,24 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
     try {
       // Create Cytoscape instance
+      console.log('[VoiceTreeGraphVizLayout] Creating CytoscapeCore instance');
       cytoscapeRef.current = new CytoscapeCore(container);
+      console.log('[VoiceTreeGraphVizLayout] CytoscapeCore created successfully');
 
       // Expose Cytoscape instance for testing
       const core = cytoscapeRef.current.getCore();
+      console.log('[VoiceTreeGraphVizLayout] Got core from CytoscapeCore');
       if (typeof window !== 'undefined') {
         console.log('VoiceTreeGraphVizLayout: Initial cytoscapeInstance set on window');
-        (window as unknown as { cytoscapeInstance: CytoscapeCore }).cytoscapeInstance = core;
+        (window as unknown as { cytoscapeInstance: cytoscape.Core }).cytoscapeInstance = core;
         // Also expose CytoscapeCore for testing
-        (window as unknown as { cytoscapeCore: typeof cytoscapeRef.current }).cytoscapeCore = cytoscapeRef.current;
+        (window as unknown as { cytoscapeCore: CytoscapeCore | null }).cytoscapeCore = cytoscapeRef.current;
       }
 
       // Enable context menu
+      console.log('[VoiceTreeGraphVizLayout] About to enable context menu');
       cytoscapeRef.current.enableContextMenu({
         onOpenEditor: (nodeId: string) => {
-          // Check if already open
-          if (windowsRef.current.some(w => w.nodeId === nodeId)) {
-            return;
-          }
-
           // Find file path and content for this node
           let content: string | undefined;
           let filePath: string | undefined;
@@ -332,17 +251,11 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
             }
           }
 
-          if (content && filePath) {
+          if (content && filePath && cytoscapeRef.current) {
             const node = core.getElementById(nodeId);
             if (node.length > 0) {
-              openMarkdownEditor({
-                nodeId,
-                filePath,
-                content,
-                nodeGraphPos: node.position(),
-                cy: core,
-                openWindow: openWindowRef.current
-              });
+              const nodePos = node.position();
+              createFloatingEditor(nodeId, filePath, content, nodePos, cytoscapeRef.current);
             }
           }
         },
@@ -406,9 +319,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           navigator.clipboard.writeText(nodeId);
         },
         onOpenTerminal: (nodeId: string) => {
-          // Generate unique terminal ID with node context
-          const terminalId = `terminal-${nodeId}-${Date.now()}`;
-
           // Find the file path for this node
           let filePath: string | undefined;
           for (const [path] of markdownFiles.current) {
@@ -427,66 +337,23 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
           console.log('[Terminal] nodeMetadata:', nodeMetadata);
 
-          // Find the node position to place terminal near it
-          const node = core.getElementById(nodeId);
-          if (node.length > 0) {
-            const nodeGraphPos = node.position(); // Get graph position
-            const zoom = core.zoom();
-
-            // Position window below the node, centered horizontally
-            const windowWidth = 800;
-
-            const initialGraphOffset = {
-              x: -(windowWidth / 2) / zoom,
-              y: 5  // 5 graph units below the node
-            };
-
-            // Calculate initial screen position using toScreenCoords to match future updates
-            const graphX = nodeGraphPos.x + initialGraphOffset.x;
-            const graphY = nodeGraphPos.y + initialGraphOffset.y;
-            const screenPos = toScreenCoords(graphX, graphY, core);
-
-            // Subtract container offset since FloatingWindowContainer is positioned relative to the same parent
-            const containerRect = core.container().getBoundingClientRect();
-            const initialScreenPos = {
-              x: screenPos.x - containerRect.left,
-              y: screenPos.y - containerRect.top
-            };
-
-            openWindowRef.current({
-              nodeId: terminalId,
-              title: `Terminal - ${nodeId}`,
-              type: 'Terminal',
-              content: '',
-              position: initialScreenPos,
-              graphAnchor: nodeGraphPos,  // Store node position in graph coords
-              graphOffset: initialGraphOffset,  // Store initial offset in graph coords
-              size: { width: 800, height: 400 },
-              nodeMetadata: nodeMetadata  // Pass node metadata
-            });
-          } else {
-            // Fallback if node not found
-            openWindowRef.current({
-              nodeId: terminalId,
-              title: `Terminal - ${nodeId}`,
-              type: 'Terminal',
-              content: '',
-              position: { x: 150, y: 150 },
-              size: { width: 800, height: 400 },
-              nodeMetadata: nodeMetadata  // Pass node metadata even in fallback
-            });
+          // Get node position and create terminal window
+          if (cytoscapeRef.current) {
+            const core = cytoscapeRef.current.getCore();
+            const node = core.getElementById(nodeId);
+            if (node.length > 0) {
+              const nodePos = node.position();
+              createFloatingTerminal(nodeId, nodeMetadata, nodePos, cytoscapeRef.current);
+            }
           }
         }
       });
 
       // Add event listener for tapping on a node
+      console.log('[VoiceTreeGraphVizLayout] Registering tap handler for floating windows');
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
-
-        // Check using actual window state, not duplicate
-        if (windowsRef.current.some(w => w.nodeId === nodeId)) {
-          return; // Already open
-        }
+        console.log('[VoiceTreeGraphVizLayout] Node tapped:', nodeId);
 
         // Find file path and content for this node
         let content: string | undefined;
@@ -499,20 +366,16 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           }
         }
 
-        if (content && filePath) {
-          openMarkdownEditor({
-            nodeId,
-            filePath,
-            content,
-            nodeGraphPos: event.target.position(),
-            cy: event.cy,
-            openWindow: openWindowRef.current
-          });
+        console.log('[VoiceTreeGraphVizLayout] Found content?', !!content, 'filePath?', !!filePath, 'cytoscapeRef?', !!cytoscapeRef.current);
+
+        if (content && filePath && cytoscapeRef.current) {
+          const nodePos = event.target.position();
+          console.log('[VoiceTreeGraphVizLayout] Calling createFloatingEditor');
+          createFloatingEditor(nodeId, filePath, content, nodePos, cytoscapeRef.current);
+        } else {
+          console.log('[VoiceTreeGraphVizLayout] Not opening editor - missing requirements');
         }
       });
-
-      // Add viewport event listeners for positioning bridge
-      core.on('pan zoom resize', throttledUpdateEditorPositions);
 
     } catch (error) {
       console.error('Failed to initialize Cytoscape:', error);
@@ -523,18 +386,12 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       console.log('VoiceTreeGraphVizLayout: Cleanup running, destroying Cytoscape');
       container.removeEventListener('wheel', handleWheel);
 
-      // Clean up RAF
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
-
       if (cytoscapeRef.current) {
         cytoscapeRef.current.destroy();
         cytoscapeRef.current = null;
       }
     };
-  }, [throttledUpdateEditorPositions]); // Include the throttled function in deps
+  }, []); // No dependencies needed
 
   // Set up file event listeners
   useEffect(() => {
@@ -659,10 +516,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       </div>
 
       {/* Floating Window Container - Renders on top of everything */}
-      <FloatingWindowContainer
-        onPositionUpdateCallback={handlePositionUpdateCallback}
-        onDragStop={handleWindowDragStop}
-      />
+      <FloatingWindowContainer />
 
       {/* Speed Dial Menu */}
       <SpeedDialMenu

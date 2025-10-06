@@ -27,11 +27,22 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
   const [value, setValue] = useState(content);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const { updateWindowContent } = useFloatingWindows();
+
+  // Try to use floating windows context, but work without it
+  let updateWindowContent: ((id: string, content: string) => void) | null = null;
+  try {
+    const floatingWindowsHook = useFloatingWindows();
+    updateWindowContent = floatingWindowsHook.updateWindowContent;
+  } catch (e) {
+    // Context not available - component mounted by extension
+    console.log('[MarkdownEditor] Running without FloatingWindowsProvider context');
+  }
 
   const debouncedUpdate = useMemo(
     () => debounce((id: string, content: string) => {
-      updateWindowContent(id, content);
+      if (updateWindowContent) {
+        updateWindowContent(id, content);
+      }
     }, 300),
     [updateWindowContent]
   );
