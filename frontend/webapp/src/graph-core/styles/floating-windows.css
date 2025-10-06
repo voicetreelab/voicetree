@@ -24,8 +24,67 @@
   min-height: 200px;
   background: white;
   border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Window wrapper container */
+.cy-floating-window-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+/* Title bar */
+.cy-floating-window-title {
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border-bottom: 1px solid #ccc;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  cursor: move;
+}
+
+.cy-floating-window-title.dragging {
+  cursor: grabbing;
+}
+
+/* Title text */
+.cy-floating-window-title-text {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Close button */
+.cy-floating-window-close {
+  all: unset;
+  cursor: pointer;
+  font-size: 16px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cy-floating-window-close:hover {
+  background-color: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Content area */
+.cy-floating-window-content {
+  flex: 1;
+  overflow: auto;
 }
 
 /* Resizable windows */
