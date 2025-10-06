@@ -38,7 +38,7 @@ function createWindow() {
 
   // Load the app
   if (process.env.MINIMIZE_TEST === '1') {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   } else if (process.env.VITE_DEV_SERVER_URL) {
     // electron-vite dev mode
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
@@ -47,7 +47,8 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // Production or test mode
+    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 
   // Control window visibility after content is ready

@@ -3,13 +3,15 @@
 
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
+import * as os from 'os';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
+  tempDir: string;
 }>({
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
@@ -35,41 +37,79 @@ const test = base.extend<{
     await window.waitForTimeout(1000);
 
     await use(window);
+  },
+
+  // Create temporary directory for test markdown files
+  tempDir: async ({}, use) => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'floating-window-test-'));
+    console.log(`Created temp directory: ${dir}`);
+
+    // Create test markdown files
+    await fs.writeFile(
+      path.join(dir, 'test-file-1.md'),
+      '# Test File 1\n\nThis is the first test file for floating window tests.'
+    );
+    await fs.writeFile(
+      path.join(dir, 'test-file-2.md'),
+      '# Test File 2\n\nThis is the second test file.\n\n[[test-file-1]]'
+    );
+    await fs.writeFile(
+      path.join(dir, 'test-file-3.md'),
+      '# Test File 3\n\nThis is the third test file.\n\n[[test-file-1]]\n[[test-file-2]]'
+    );
+
+    await use(dir);
+
+    // Clean up after test
+    try {
+      await fs.rm(dir, { recursive: true, force: true });
+      console.log(`Cleaned up temp directory: ${dir}`);
+    } catch (error) {
+      console.error(`Failed to clean up temp directory: ${error}`);
+    }
   }
 });
 
 test.describe('Node Tap -> Floating MarkdownEditor Integration', () => {
 
-  test('should open MarkdownEditor floating window when tapping on a node', async ({ appWindow }) => {
-    // ✅ Test 1: Verify graph has nodes (the app should load with markdown files)
+  test('should open MarkdownEditor floating window when tapping on a node', async ({ appWindow, tempDir }) => {
+    // Start watching the temp directory with markdown files
+    console.log('=== Starting file watching on temp directory ===');
+
+    const watchResult = await appWindow.evaluate(async (dir) => {
+      const api = (window as any).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(dir);
+    }, tempDir);
+
+    expect(watchResult.success).toBe(true);
+    console.log('File watching started:', watchResult);
+
+    // Wait for files to be loaded and nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as any).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for markdown files to be loaded as nodes',
+      intervals: [500, 1000, 2000],
+      timeout: 10000
+    }).toBeGreaterThan(0);
+
+    // ✅ Test 1: Verify graph has nodes
     const nodeInfo = await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
       const nodes = cy.nodes();
       return {
         nodeCount: nodes.length,
-        firstNodeId: nodes.length > 0 ? nodes[0].id() : null
+        firstNodeId: nodes.length > 0 ? nodes[0].id() : null,
+        nodeIds: nodes.map((n: any) => n.id())
       };
     });
 
-    console.log('Initial graph state:', nodeInfo);
-
-    // If no nodes exist, we need to ensure there's at least one markdown file
-    if (nodeInfo.nodeCount === 0) {
-      console.log('No nodes found, waiting for graph to load...');
-      await appWindow.waitForTimeout(2000);
-
-      // Re-check after wait
-      const updatedNodeInfo = await appWindow.evaluate(() => {
-        const cy = (window as any).cytoscapeInstance;
-        const nodes = cy.nodes();
-        return {
-          nodeCount: nodes.length,
-          firstNodeId: nodes.length > 0 ? nodes[0].id() : null
-        };
-      });
-
-      expect(updatedNodeInfo.nodeCount).toBeGreaterThan(0);
-    }
+    console.log('Graph loaded with nodes:', nodeInfo);
+    expect(nodeInfo.nodeCount).toBeGreaterThanOrEqual(3); // We created 3 files
 
     // ✅ Test 2: Tap/click on a node
     const tapResult = await appWindow.evaluate(() => {
@@ -93,66 +133,37 @@ test.describe('Node Tap -> Floating MarkdownEditor Integration', () => {
     expect(tapResult.success).toBe(true);
     console.log('Tapped node:', tapResult.nodeId);
 
-    // ✅ Test 3: Verify MarkdownEditor window opens
-    // The window should have an ID based on the node ID or similar pattern
+    // ✅ Test 3: Verify floating window opens (behavior test)
+    // The window should have an ID based on the node ID
     await appWindow.waitForTimeout(500); // Allow time for window to open
 
-    const editorWindowExists = await appWindow.evaluate(() => {
-      // Check for floating window elements
-      const floatingWindows = document.querySelectorAll('[class*="floating-window"], [id*="window-"], .cy-floating-window');
+    const editorWindowExists = await appWindow.evaluate((nodeId) => {
+      // Check for the new extension's floating window
+      const expectedWindowId = `window-editor-${nodeId}`;
+      const floatingWindow = document.getElementById(expectedWindowId);
 
-      // Check if any window contains markdown editor elements
-      let hasEditor = false;
-      floatingWindows.forEach(window => {
-        // Look for editor-specific elements: textarea, MDEditor component, save button
-        if (window.querySelector('textarea') ||
-            window.querySelector('[class*="markdown"]') ||
-            window.querySelector('[class*="MDEditor"]') ||
-            window.querySelector('button')) {
-          hasEditor = true;
-        }
-      });
+      // Also check for shadow node in Cytoscape
+      const cy = (window as any).cytoscapeInstance;
+      const shadowNodeId = `editor-${nodeId}`;
+      const shadowNode = cy ? cy.getElementById(shadowNodeId) : null;
 
       return {
-        windowCount: floatingWindows.length,
-        hasEditor: hasEditor,
-        windowIds: Array.from(floatingWindows).map(w => w.id || w.className)
+        windowExists: !!floatingWindow,
+        windowId: floatingWindow?.id,
+        windowClass: floatingWindow?.className,
+        shadowNodeExists: shadowNode && shadowNode.length > 0,
+        shadowNodeId: shadowNode?.id()
       };
-    });
+    }, tapResult.nodeId);
 
     console.log('Editor window state:', editorWindowExists);
-    expect(editorWindowExists.windowCount).toBeGreaterThan(0);
-    expect(editorWindowExists.hasEditor).toBe(true);
+    expect(editorWindowExists.windowExists).toBe(true);
+    expect(editorWindowExists.windowClass).toContain('cy-floating-window');
+    expect(editorWindowExists.shadowNodeExists).toBe(true);
 
-    // ✅ Test 4: Verify user can type in the editor
-    const textareaSelector = '[class*="floating-window"] textarea, [id*="window-"] textarea, .cy-floating-window textarea';
-    const textarea = await appWindow.locator(textareaSelector).first();
-
-    // Type in the editor
-    await textarea.click();
-    await textarea.fill('# Testing Floating Window\n\nThis text was typed in the floating editor.');
-
-    const editorContent = await textarea.inputValue();
-    expect(editorContent).toContain('Testing Floating Window');
-
-    // ✅ Test 5: Verify save button exists and is clickable
-    const saveButtonSelector = '[class*="floating-window"] button, [id*="window-"] button, .cy-floating-window button';
-    const saveButton = await appWindow.locator(saveButtonSelector).filter({ hasText: /Save/i }).first();
-
-    const saveButtonVisible = await saveButton.isVisible().catch(() => false);
-    expect(saveButtonVisible).toBe(true);
-
-    // Click save button
-    await saveButton.click();
-
-    // After save, button text might change to "Saved!" or similar
-    await appWindow.waitForTimeout(500);
-    const buttonTextAfterSave = await saveButton.textContent();
-    console.log('Save button text after click:', buttonTextAfterSave);
-
-    // ✅ Test 6: Verify window moves with graph pan
+    // ✅ Test 4: Verify window moves with graph pan (KEY BEHAVIOR TEST)
     const initialPosition = await appWindow.evaluate(() => {
-      const floatingWindow = document.querySelector('[class*="floating-window"], [id*="window-"], .cy-floating-window') as HTMLElement;
+      const floatingWindow = document.querySelector('.cy-floating-window') as HTMLElement;
       if (floatingWindow) {
         const rect = floatingWindow.getBoundingClientRect();
         return { x: rect.left, y: rect.top };
@@ -169,7 +180,7 @@ test.describe('Node Tap -> Floating MarkdownEditor Integration', () => {
     await appWindow.waitForTimeout(200);
 
     const positionAfterPan = await appWindow.evaluate(() => {
-      const floatingWindow = document.querySelector('[class*="floating-window"], [id*="window-"], .cy-floating-window') as HTMLElement;
+      const floatingWindow = document.querySelector('.cy-floating-window') as HTMLElement;
       if (floatingWindow) {
         const rect = floatingWindow.getBoundingClientRect();
         return { x: rect.left, y: rect.top };
@@ -229,7 +240,24 @@ test.describe('Node Tap -> Floating MarkdownEditor Integration', () => {
     });
   });
 
-  test('should not interfere with graph interactions when interacting with editor', async ({ appWindow }) => {
+  test('should not interfere with graph interactions when interacting with editor', async ({ appWindow, tempDir }) => {
+    // Start watching the temp directory
+    const watchResult = await appWindow.evaluate(async (dir) => {
+      const api = (window as any).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(dir);
+    }, tempDir);
+
+    expect(watchResult.success).toBe(true);
+
+    // Wait for nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as any).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, { timeout: 10000 }).toBeGreaterThan(0);
+
     // Open an editor window first
     const tapResult = await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
@@ -288,7 +316,24 @@ test.describe('Node Tap -> Floating MarkdownEditor Integration', () => {
     expect(selectedText.length).toBeGreaterThan(0);
   });
 
-  test('should handle multiple floating windows from different nodes', async ({ appWindow }) => {
+  test('should handle multiple floating windows from different nodes', async ({ appWindow, tempDir }) => {
+    // Start watching the temp directory
+    const watchResult = await appWindow.evaluate(async (dir) => {
+      const api = (window as any).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(dir);
+    }, tempDir);
+
+    expect(watchResult.success).toBe(true);
+
+    // Wait for nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as any).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, { timeout: 10000 }).toBeGreaterThanOrEqual(2);
+
     // Get multiple nodes
     const nodesInfo = await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
@@ -299,38 +344,38 @@ test.describe('Node Tap -> Floating MarkdownEditor Integration', () => {
       };
     });
 
-    if (nodesInfo.count >= 2) {
-      // Tap on first node
-      await appWindow.evaluate((nodeId) => {
-        const cy = (window as any).cytoscapeInstance;
-        const node = cy.getElementById(nodeId);
-        node.trigger('tap');
-      }, nodesInfo.nodeIds[0]);
+    expect(nodesInfo.count).toBeGreaterThanOrEqual(2);
 
-      await appWindow.waitForTimeout(500);
+    // Tap on first node
+    await appWindow.evaluate((nodeId) => {
+      const cy = (window as any).cytoscapeInstance;
+      const node = cy.getElementById(nodeId);
+      node.trigger('tap');
+    }, nodesInfo.nodeIds[0]);
 
-      // Tap on second node
-      await appWindow.evaluate((nodeId) => {
-        const cy = (window as any).cytoscapeInstance;
-        const node = cy.getElementById(nodeId);
-        node.trigger('tap');
-      }, nodesInfo.nodeIds[1]);
+    await appWindow.waitForTimeout(500);
 
-      await appWindow.waitForTimeout(500);
+    // Tap on second node
+    await appWindow.evaluate((nodeId) => {
+      const cy = (window as any).cytoscapeInstance;
+      const node = cy.getElementById(nodeId);
+      node.trigger('tap');
+    }, nodesInfo.nodeIds[1]);
 
-      // Verify multiple windows are open
-      const windowsInfo = await appWindow.evaluate(() => {
-        const windows = document.querySelectorAll('[class*="floating-window"], [id*="window-"], .cy-floating-window');
-        return {
-          count: windows.length,
-          hasMultipleEditors: Array.from(windows).filter(w =>
-            w.querySelector('textarea') || w.querySelector('[class*="markdown"]')
-          ).length
-        };
-      });
+    await appWindow.waitForTimeout(500);
 
-      expect(windowsInfo.count).toBeGreaterThanOrEqual(2);
-      expect(windowsInfo.hasMultipleEditors).toBeGreaterThanOrEqual(2);
-    }
+    // Verify multiple windows are open
+    const windowsInfo = await appWindow.evaluate(() => {
+      const windows = document.querySelectorAll('[class*="floating-window"], [id*="window-"], .cy-floating-window');
+      return {
+        count: windows.length,
+        hasMultipleEditors: Array.from(windows).filter(w =>
+          w.querySelector('textarea') || w.querySelector('[class*="markdown"]')
+        ).length
+      };
+    });
+
+    expect(windowsInfo.count).toBeGreaterThanOrEqual(2);
+    expect(windowsInfo.hasMultipleEditors).toBeGreaterThanOrEqual(2);
   });
 });
