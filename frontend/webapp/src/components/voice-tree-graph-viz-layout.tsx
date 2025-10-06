@@ -81,6 +81,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       const shadowNode = cy.addFloatingWindow({
         id: editorId,
         component: 'MarkdownEditor',
+        title: `Editor: ${nodeId}`,
         position: {
           x: nodePos.x,
           y: nodePos.y + 50 // Offset below node
@@ -131,6 +132,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       const shadowNode = cy.addFloatingWindow({
         id: terminalId,
         component: 'Terminal',
+        title: `Terminal: ${nodeId}`,
         position: {
           x: nodePos.x + 100, // Offset to the right
           y: nodePos.y
