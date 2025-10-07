@@ -23,8 +23,6 @@ interface UseFileWatcherParams {
   setNodeCount: (count: number) => void;
   setEdgeCount: (count: number) => void;
   setIsInitialLoad: (value: boolean) => void;
-  windows: Array<{ id: string; nodeId?: string }>;
-  updateWindowContent: (windowId: string, content: string) => void;
 }
 
 export function useFileWatcher({
@@ -34,9 +32,7 @@ export function useFileWatcher({
   isInitialLoad,
   setNodeCount,
   setEdgeCount,
-  setIsInitialLoad,
-  windows,
-  updateWindowContent
+  setIsInitialLoad
 }: UseFileWatcherParams) {
   // Track last new node for animation timeout management
   const lastNewNodeIdRef = useRef<string | null>(null);
@@ -58,8 +54,8 @@ export function useFileWatcher({
         continue;
       }
 
-      // Store file content
-      markdownFiles.current.set(file.path, file.content);
+      // Store file content using fullPath (absolute path) for save operations
+      markdownFiles.current.set(file.fullPath, file.content);
 
       // Parse wikilinks to get linked node IDs
       const linkedNodeIds: string[] = [];
@@ -150,8 +146,8 @@ export function useFileWatcher({
       return;
     }
 
-    // Store file content
-    markdownFiles.current.set(data.path, data.content);
+    // Store file content using fullPath (absolute path) for save operations
+    markdownFiles.current.set(data.fullPath, data.content);
     console.log('[DEBUG] Added file to markdownFiles, new count:', markdownFiles.current.size);
 
     // Parse wikilinks to get linked node IDs
@@ -237,8 +233,8 @@ export function useFileWatcher({
     const cy = cytoscapeRef.current?.getCore();
     if (!cy) return;
 
-    // Update stored content
-    markdownFiles.current.set(data.path, data.content);
+    // Update stored content using fullPath (absolute path) for save operations
+    markdownFiles.current.set(data.fullPath, data.content);
 
     const nodeId = normalizeFileId(data.path);
 
@@ -290,13 +286,10 @@ export function useFileWatcher({
       layoutManagerRef.current.applyLayout(cy, [nodeId]);
     }
 
-    // Update any open editors for this file
-    const window = windows.find(w => w.nodeId === nodeId);
-    if (window) {
-      console.log(`VoiceTreeGraphVizLayout: Updating editor content for node ${nodeId} due to external file change`);
-      updateWindowContent(window.id, data.content);
-    }
-  }, [cytoscapeRef, markdownFiles, layoutManagerRef, isInitialLoad, setNodeCount, setEdgeCount, windows, updateWindowContent]);
+    // TODO: Implement external file change sync to open editors
+    // The old React Context-based system has been removed.
+    // Need to implement sync via the Cytoscape extension system.
+  }, [cytoscapeRef, markdownFiles, layoutManagerRef, isInitialLoad, setNodeCount, setEdgeCount]);
 
   const handleFileDeleted = useCallback((data: { path: string }) => {
     if (!data.path.endsWith('.md')) return;
@@ -304,8 +297,8 @@ export function useFileWatcher({
     const cy = cytoscapeRef.current?.getCore();
     if (!cy) return;
 
-    // Remove from stored files
-    markdownFiles.current.delete(data.path);
+    // Remove from stored files using fullPath (absolute path)
+    markdownFiles.current.delete(data.fullPath);
 
     // Remove node and its edges
     const nodeId = normalizeFileId(data.path);

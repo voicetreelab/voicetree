@@ -3,8 +3,6 @@ import { useState, useEffect, useRef } from "react";
 // Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
-import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
-import { FloatingWindowContainer } from '@/components/floating-windows/FloatingWindowContainer';
 import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
 // Import graph styles
@@ -45,7 +43,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   const markdownFiles = useRef<Map<string, string>>(new Map());
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
-  const { windows, updateWindowContent } = useFloatingWindows();
+
+  // Store file change handler ref for manual graph updates after save
+  const handleFileChangedRef = useRef<((data: { path: string; fullPath: string; content: string }) => void) | null>(null);
 
   // Track whether we're in initial bulk load phase or incremental phase
   // During initial scan: use TidyLayoutStrategy for hierarchical layout
@@ -93,12 +93,27 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
         resizable: true,
         initialContent: content,
         onSave: async (newContent: string) => {
+          console.log('[onSave] Called with filePath:', filePath);
           if (window.electronAPI?.saveFileContent) {
+            console.log('[onSave] Calling saveFileContent...');
             const result = await window.electronAPI.saveFileContent(filePath, newContent);
+            console.log('[onSave] Result:', result);
             if (!result.success) {
               throw new Error(result.error || 'Failed to save file');
             }
+
+            // Manually trigger graph update since file watcher doesn't detect editor saves
+            // Call handleFileChanged directly to update the graph
+            if (handleFileChangedRef.current) {
+              console.log('[onSave] Manually triggering graph update');
+              handleFileChangedRef.current({
+                path: filePath,
+                fullPath: filePath,
+                content: newContent
+              });
+            }
           } else {
+            console.error('[onSave] electronAPI.saveFileContent not available!');
             throw new Error('Save functionality not available');
           }
         }
@@ -173,13 +188,13 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     isInitialLoad,
     setNodeCount,
     setEdgeCount,
-    setIsInitialLoad,
-    windows,
-    updateWindowContent
+    setIsInitialLoad
   });
 
-  // Note: We now use useFloatingWindows context as the single source of truth for window state
-  // No duplicate openEditors state needed
+  // Store handleFileChanged ref for manual updates after editor saves
+  useEffect(() => {
+    handleFileChangedRef.current = handleFileChanged;
+  }, [handleFileChanged]);
 
   // REMOVED: Voice transcription logic
   // This component should only handle graph visualization
@@ -516,9 +531,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
           </div>
         )}
       </div>
-
-      {/* Floating Window Container - Renders on top of everything */}
-      <FloatingWindowContainer />
 
       {/* Speed Dial Menu */}
       <SpeedDialMenu
