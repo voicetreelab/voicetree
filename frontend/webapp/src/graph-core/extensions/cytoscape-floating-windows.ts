@@ -220,6 +220,15 @@ function attachDragHandlers(
 
     windowElement.style.left = `${graphX}px`;
     windowElement.style.top = `${graphY}px`;
+
+    // Update shadow node position so edge follows
+    const shadowNodeId = windowElement.getAttribute('data-shadow-node-id');
+    if (shadowNodeId) {
+      const shadowNode = cy.$(`#${shadowNodeId}`);
+      if (shadowNode.length > 0) {
+        shadowNode.position({ x: graphX, y: graphY });
+      }
+    }
   };
 
   const handleMouseUp = () => {
@@ -364,22 +373,34 @@ export function registerFloatingWindows(
       'height': 1
     });
 
-    // 4. Create window chrome SYNCHRONOUSLY with vanilla DOM
+    // 4. Create edge from parent node to shadow node if parentNodeId exists
+    if (nodeData.parentNodeId) {
+      this.add({
+        group: 'edges',
+        data: {
+          id: `edge-${nodeData.parentNodeId}-${id}`,
+          source: nodeData.parentNodeId,
+          target: id
+        }
+      });
+    }
+
+    // 5. Create window chrome SYNCHRONOUSLY with vanilla DOM
     // This is the key fix - chrome exists immediately in DOM
     const { windowElement, contentContainer } = createWindowChrome(this, config);
 
-    // 5. Add window to overlay (must be in DOM before React mount)
+    // 6. Add window to overlay (must be in DOM before React mount)
     overlay.appendChild(windowElement);
 
-    // 6. Initial position sync
+    // 7. Initial position sync
     updateWindowPosition(shadowNode, windowElement);
 
-    // 7. Listen to node position changes
+    // 8. Listen to node position changes
     shadowNode.on('position', () => {
       updateWindowPosition(shadowNode, windowElement);
     });
 
-    // 8. Mount React component ASYNCHRONOUSLY to content container
+    // 9. Mount React component ASYNCHRONOUSLY to content container
     // This happens after the chrome is already in the DOM and testable
     mountComponent(contentContainer, component, id, config);
 

@@ -319,4 +319,218 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
       path: 'tests/screenshots/electron-floating-window-refactor-multiple.png'
     });
   });
+
+  test('should render markdown editor in different preview modes', async ({ appWindow }) => {
+    // Test that all three preview modes work: "edit", "live", and "preview"
+
+    // ✅ Test 1: Edit mode (current default)
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.addFloatingWindow({
+        id: 'editor-edit-mode',
+        component: 'MarkdownEditor',
+        title: 'Edit Mode',
+        position: { x: 100, y: 100 },
+        initialContent: '# Edit Mode\nThis is **edit** mode.'
+      });
+    });
+
+    // Wait for MDEditor to render
+    await appWindow.waitForSelector('#window-editor-edit-mode .w-md-editor', { timeout: 5000 });
+
+    // Check that editor toolbar is present (should be visible in edit mode)
+    const editModeHasToolbar = await appWindow.evaluate(() => {
+      const container = document.querySelector('#window-editor-edit-mode .w-md-editor');
+      const toolbar = container?.querySelector('.w-md-editor-toolbar');
+      return !!toolbar;
+    });
+    expect(editModeHasToolbar).toBe(true);
+
+    // ✅ Test 2: Live mode (split view)
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.addFloatingWindow({
+        id: 'editor-live-mode',
+        component: 'MarkdownEditor',
+        title: 'Live Mode',
+        position: { x: 500, y: 100 },
+        initialContent: '# Live Mode\nThis is **live** mode.',
+        previewMode: 'live'
+      });
+    });
+
+    await appWindow.waitForSelector('#window-editor-live-mode .w-md-editor', { timeout: 5000 });
+
+    // Check that both editor and preview are present
+    const liveModeHasBothPanes = await appWindow.evaluate(() => {
+      const container = document.querySelector('#window-editor-live-mode .w-md-editor');
+      const textarea = container?.querySelector('textarea');
+      const preview = container?.querySelector('.w-md-editor-preview');
+      return !!textarea && !!preview;
+    });
+    expect(liveModeHasBothPanes).toBe(true);
+
+    // ✅ Test 3: Preview mode (preview only - THIS IS THE BROKEN ONE)
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.addFloatingWindow({
+        id: 'editor-preview-mode',
+        component: 'MarkdownEditor',
+        title: 'Preview Mode',
+        position: { x: 900, y: 100 },
+        initialContent: '# Preview Mode\nThis is **preview** mode.',
+        previewMode: 'preview'
+      });
+    });
+
+    await appWindow.waitForSelector('#window-editor-preview-mode .w-md-editor', { timeout: 5000 });
+
+    // Check that ONLY preview is present (no editor textarea)
+    const previewModeStructure = await appWindow.evaluate(() => {
+      const container = document.querySelector('#window-editor-preview-mode .w-md-editor');
+      const textarea = container?.querySelector('textarea');
+      const preview = container?.querySelector('.w-md-editor-preview');
+      return {
+        hasTextarea: !!textarea,
+        hasPreview: !!preview,
+        containerExists: !!container
+      };
+    });
+
+    expect(previewModeStructure.containerExists).toBe(true);
+    expect(previewModeStructure.hasTextarea).toBe(false); // Should not have editor in preview mode
+    expect(previewModeStructure.hasPreview).toBe(true); // Should have preview
+
+    // ✅ Screenshot showing all three modes
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-markdown-preview-modes.png'
+    });
+  });
+
+  test('should create edge between parent node and floating window ghost node', async ({ appWindow }) => {
+    // Create a parent node first
+    const edgeCreated = await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+
+      // Add a parent node
+      cy.add({
+        group: 'nodes',
+        data: { id: 'parent-node', label: 'Parent Node' },
+        position: { x: 300, y: 300 }
+      });
+
+      // Create floating window with parentNodeId
+      cy.addFloatingWindow({
+        id: 'child-window',
+        component: 'MarkdownEditor',
+        title: 'Child Window',
+        position: { x: 400, y: 400 },
+        initialContent: '# Child Window',
+        nodeData: {
+          isFloatingWindow: true,
+          parentNodeId: 'parent-node'
+        }
+      });
+
+      // Check if edge was created
+      const edge = cy.$('#edge-parent-node-child-window');
+      const edgeExists = edge.length > 0;
+
+      return {
+        edgeExists,
+        edgeSource: edgeExists ? edge.data('source') : null,
+        edgeTarget: edgeExists ? edge.data('target') : null
+      };
+    });
+
+    // Verify edge was created with correct source and target
+    expect(edgeCreated.edgeExists).toBe(true);
+    expect(edgeCreated.edgeSource).toBe('parent-node');
+    expect(edgeCreated.edgeTarget).toBe('child-window');
+
+    // ✅ Screenshot showing edge
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-floating-window-parent-edge.png'
+    });
+  });
+
+  test('should update edge when dragging floating window', async ({ appWindow }) => {
+    // Create parent node and floating window with edge
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+
+      // Add a parent node
+      cy.add({
+        group: 'nodes',
+        data: { id: 'parent-drag', label: 'Parent' },
+        position: { x: 300, y: 300 }
+      });
+
+      // Create floating window with parentNodeId
+      cy.addFloatingWindow({
+        id: 'child-drag',
+        component: 'MarkdownEditor',
+        title: 'Child Draggable',
+        position: { x: 400, y: 400 },
+        initialContent: '# Drag me and watch the edge!',
+        nodeData: {
+          isFloatingWindow: true,
+          parentNodeId: 'parent-drag'
+        }
+      });
+    });
+
+    // Get initial shadow node position
+    const initialPos = await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      const shadowNode = cy.$('#child-drag');
+      return shadowNode.position();
+    });
+
+    expect(initialPos.x).toBe(400);
+    expect(initialPos.y).toBe(400);
+
+    // Screenshot before drag
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-floating-window-edge-before-drag.png'
+    });
+
+    // Drag the window
+    const titleBar = appWindow.locator('#window-child-drag .cy-floating-window-title');
+    const box = await titleBar.boundingBox();
+    if (!box) throw new Error('Title bar not found');
+
+    await appWindow.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await appWindow.mouse.down();
+    await appWindow.mouse.move(box.x + 150, box.y + 100);
+    await appWindow.mouse.up();
+    await appWindow.waitForTimeout(100);
+
+    // Get new shadow node position
+    const newPos = await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      const shadowNode = cy.$('#child-drag');
+      const windowElement = document.querySelector('#window-child-drag') as HTMLElement;
+
+      return {
+        shadowNodeX: shadowNode.position().x,
+        shadowNodeY: shadowNode.position().y,
+        windowLeft: parseFloat(windowElement.style.left),
+        windowTop: parseFloat(windowElement.style.top)
+      };
+    });
+
+    // Shadow node position should match window position
+    expect(newPos.shadowNodeX).toBeCloseTo(newPos.windowLeft, 0);
+    expect(newPos.shadowNodeY).toBeCloseTo(newPos.windowTop, 0);
+
+    // Position should have changed from initial
+    expect(newPos.shadowNodeX).not.toBe(400);
+    expect(newPos.shadowNodeY).not.toBe(400);
+
+    // Screenshot after drag - edge should follow
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-floating-window-edge-after-drag.png'
+    });
+  });
 });

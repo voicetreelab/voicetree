@@ -103,16 +103,6 @@ export class StyleService {
         }
       },
 
-      // Selected node
-      {
-        selector: 'node:selected',
-        style: {
-          'background-blacken': 0.3,
-          'font-weight': 'bold',
-          'border-width': 'mapData(degree, 0, 60, 1, 3)',
-        }
-      },
-
       // Hover effects
       {
         selector: 'node.hover',
@@ -175,16 +165,6 @@ export class StyleService {
         style: {
           'width': 'mapData(edgeCount, 1, 50, 0.55, 3)',
           'arrow-scale': 'mapData(edgeCount, 1, 50, 0.35, 1.5)',
-        }
-      },
-
-      // Selected edge
-      {
-        selector: 'edge:selected',
-        style: {
-          'width': 0.7,
-          'font-weight': 'bold',
-          'line-color': this.lineHighlightColor,
         }
       },
 
