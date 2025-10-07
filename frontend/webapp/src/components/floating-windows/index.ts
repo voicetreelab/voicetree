@@ -1,13 +1,9 @@
-// Barrel file to export all floating window components for easy access.
-// This simplifies imports in other parts of the application.
-//
-// Dependencies:
-// - None
-//
-// Called by:
-// - Potentially any UI component that needs a floating window.
+// Barrel file to export floating window editor components and types.
+// The floating window system itself is now managed by the Cytoscape extension.
+// See: src/graph-core/extensions/cytoscape-floating-windows.ts
 
-export { FloatingWindow } from './FloatingWindow';
-export { FloatingWindowContainer } from './FloatingWindowContainer';
-export { FloatingWindowManagerProvider } from './context/FloatingWindowManager';
-export { useFloatingWindows } from './hooks/useFloatingWindows';
+export { MarkdownEditor } from './editors/MarkdownEditor';
+export { Terminal } from './editors/Terminal';
+export { TestComponent } from './editors/TestComponent';
+export { MermaidRenderer } from './editors/MermaidRenderer';
+export type { NodeMetadata } from './types';

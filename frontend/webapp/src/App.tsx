@@ -4,7 +4,6 @@ import Sidebar from "./components/sidebar";
 import { useGraphManager } from "./hooks/useGraphManager";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
-import { FloatingWindowManagerProvider } from "@/components/floating-windows";
 
 function App() {
   // Use the graph manager hook for file watching
@@ -95,37 +94,35 @@ function App() {
   // Always render the full app UI - no conditional rendering
   return (
     <div className="min-h-screen bg-background">
-      <FloatingWindowManagerProvider>
-        <div className="grid grid-cols-1 p-4">
-          {/* Side by side layout - FileWatching (1/6) and VoiceTranscribe (5/6) */}
-          <div className="flex gap-4">
-            {/* File Watching Panel - 1/6 width */}
-            <div className="w-1/6">
-              <FileWatchingPanel />
-            </div>
-
-            {/* Voice Transcribe Component - 5/6 width */}
-            <div className="flex-1">
-              <VoiceTreeTranscribe />
-            </div>
+      <div className="grid grid-cols-1 p-4">
+        {/* Side by side layout - FileWatching (1/6) and VoiceTranscribe (5/6) */}
+        <div className="flex gap-4">
+          {/* File Watching Panel - 1/6 width */}
+          <div className="w-1/6">
+            <FileWatchingPanel />
           </div>
 
-          {/* Main Graph Visualization with Sidebar */}
-          <div className="border-r pr-4">
-            <Sidebar>
-              <VoiceTreeGraphVizLayout
-                isWatching={isWatching}
-                isLoading={isLoading}
-                watchDirectory={watchDirectory}
-                error={error}
-                startWatching={startWatching}
-                stopWatching={stopWatching}
-                clearError={clearError}
-              />
-            </Sidebar>
+          {/* Voice Transcribe Component - 5/6 width */}
+          <div className="flex-1">
+            <VoiceTreeTranscribe />
           </div>
         </div>
-      </FloatingWindowManagerProvider>
+
+        {/* Main Graph Visualization with Sidebar */}
+        <div className="border-r pr-4">
+          <Sidebar>
+            <VoiceTreeGraphVizLayout
+              isWatching={isWatching}
+              isLoading={isLoading}
+              watchDirectory={watchDirectory}
+              error={error}
+              startWatching={startWatching}
+              stopWatching={stopWatching}
+              clearError={clearError}
+            />
+          </Sidebar>
+        </div>
+      </div>
     </div>
   );
 }

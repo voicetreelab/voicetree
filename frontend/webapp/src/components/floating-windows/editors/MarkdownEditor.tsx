@@ -1,8 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import { MermaidRenderer } from './MermaidRenderer';
-import { useFloatingWindows } from '@/components/floating-windows/hooks/useFloatingWindows';
-import debounce from 'lodash.debounce';
 
 interface MarkdownEditorProps {
   windowId: string;
@@ -28,25 +26,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Try to use floating windows context, but work without it
-  let updateWindowContent: ((id: string, content: string) => void) | null = null;
-  try {
-    const floatingWindowsHook = useFloatingWindows();
-    updateWindowContent = floatingWindowsHook.updateWindowContent;
-  } catch (e) {
-    // Context not available - component mounted by extension
-    console.log('[MarkdownEditor] Running without FloatingWindowsProvider context');
-  }
-
-  const debouncedUpdate = useMemo(
-    () => debounce((id: string, content: string) => {
-      if (updateWindowContent) {
-        updateWindowContent(id, content);
-      }
-    }, 300),
-    [updateWindowContent]
-  );
-
   // Check for dark mode on mount and when it changes
   React.useEffect(() => {
     const checkDarkMode = () => {
@@ -70,10 +49,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
     const content = newValue || '';
     setValue(content);
     setSaveStatus('idle'); // Reset save status on edit
-    debouncedUpdate(windowId, content);
   };
 
   const handleSave = async () => {
+    console.log('[MarkdownEditor] handleSave called, value length:', value.length, 'first 50 chars:', value.substring(0, 50));
     setSaveStatus('saving');
     try {
       await onSave(value);

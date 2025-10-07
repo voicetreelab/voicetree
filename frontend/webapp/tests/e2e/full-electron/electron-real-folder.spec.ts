@@ -47,10 +47,11 @@ const test = base.extend<{
    
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'electron/electron.cjs')],
+      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
       env: {
         ...process.env,
-        NODE_ENV: 'development',
+        NODE_ENV: 'test',
+        HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1' // Minimize window to avoid dialog popups
       }
     });
@@ -62,28 +63,25 @@ const test = base.extend<{
   // Get the main window
   appWindow: async ({ electronApp }, use) => {
     const window = await electronApp.firstWindow();
+
+    // Log console messages for debugging
+    window.on('console', msg => {
+      console.log(`BROWSER [${msg.type()}]:`, msg.text());
+    });
+
+    await window.waitForLoadState('domcontentloaded');
+    await window.waitForFunction(() => (window as any).cytoscapeInstance, { timeout: 10000 });
+    await window.waitForTimeout(1000);
+
     await use(window);
   }
 });
 
 test.describe('Real Folder E2E Tests', () => {
   test('should load and visualize a real markdown vault', async ({ appWindow }) => {
-    // Set up console logging
-    appWindow.on('console', msg => {
-      console.log(`[Browser] ${msg.type()}: ${msg.text()}`);
-    });
+    console.log('=== STEP 1: Verify app loaded ===');
 
-    appWindow.on('pageerror', error => {
-      console.error('[Page Error]:', error.message);
-    });
-
-    console.log('=== STEP 1: Wait for app to load ===');
-
-    // Wait for app to fully load
-    await appWindow.waitForLoadState('domcontentloaded');
-    await appWindow.waitForTimeout(2000); // Give React time to mount
-
-    // Verify app loaded properly
+    // Verify app loaded properly (already waited in fixture)
     const appReady = await appWindow.evaluate(() => {
       return !!(window as ExtendedWindow).cytoscapeInstance &&
              !!(window as ExtendedWindow).electronAPI;
@@ -276,9 +274,6 @@ It demonstrates that the file watcher detects new files in real-time.`);
   });
 
   test('should handle complex wiki-link patterns', async ({ appWindow }) => {
-    await appWindow.waitForLoadState('domcontentloaded');
-    await appWindow.waitForTimeout(2000);
-
     console.log('=== Testing complex wiki-link patterns ===');
 
     // Start watching the fixture vault
@@ -360,6 +355,373 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     // Clean up
     await fs.unlink(complexLinkFile);
     console.log('✓ Complex wiki-link patterns test completed');
+  });
+
+  test('should save markdown files in subfolders via editor', async ({ appWindow }) => {
+    console.log('=== Testing markdown file saving in subfolders ===');
+
+    // Start watching the fixture vault
+    await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    await appWindow.waitForTimeout(3000); // Wait for initial scan
+
+    // Read original file content for restoration later
+    const testFilePath = path.join(FIXTURE_VAULT_PATH, 'concepts', 'architecture.md');
+    const originalContent = await fs.readFile(testFilePath, 'utf-8');
+    console.log('Original file content length:', originalContent.length);
+
+    // Click on the 'architecture' node to open editor
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const node = cy.getElementById('architecture');
+      if (node.length === 0) throw new Error('architecture node not found');
+
+      // Trigger tap event to open editor
+      node.trigger('tap');
+    });
+
+    // Wait for editor window to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        const shadowNode = cy.getElementById('editor-architecture');
+        return shadowNode.length > 0;
+      });
+    }, {
+      message: 'Waiting for editor shadow node to appear',
+      timeout: 5000
+    }).toBe(true);
+
+    console.log('✓ Editor window opened');
+
+    // Wait for editor React content to render
+    await appWindow.waitForSelector('#window-editor-architecture .w-md-editor', { timeout: 5000 });
+
+    // Modify content in the editor
+    const testContent = '# Architecture\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nSee [[core-principles]] for details.';
+
+    await appWindow.evaluate((newContent) => {
+      const editor = document.querySelector('#window-editor-architecture .w-md-editor-text-input') as HTMLTextAreaElement;
+      if (editor) {
+        // Focus the editor first
+        editor.focus();
+
+        // Set value
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set;
+        nativeInputValueSetter!.call(editor, newContent);
+
+        // Trigger React's onChange by dispatching input event that React listens to
+        const event = new InputEvent('input', { bubbles: true, cancelable: true });
+        editor.dispatchEvent(event);
+      }
+    }, testContent);
+
+    console.log('✓ Content modified in editor');
+
+    await appWindow.waitForTimeout(1000); // Let editor update
+
+    // Click the save button
+    const saveClicked = await appWindow.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const saveButton = buttons.find(btn => btn.textContent?.includes('Save'));
+      if (saveButton) {
+        saveButton.click();
+        return true;
+      }
+      return false;
+    });
+
+    expect(saveClicked).toBe(true);
+    console.log('✓ Save button clicked');
+
+    // Wait for save to complete
+    await appWindow.waitForTimeout(2000);
+
+    // Verify file content changed on disk
+    const savedContent = await fs.readFile(testFilePath, 'utf-8');
+    console.log('Saved file content length:', savedContent.length);
+    expect(savedContent).toBe(testContent);
+    console.log('✓ File content saved correctly to disk');
+
+    // Close the editor by removing the shadow node
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return;
+      const shadowNode = cy.getElementById('editor-architecture');
+      if (shadowNode.length > 0) {
+        shadowNode.remove();
+      }
+    });
+
+    await appWindow.waitForTimeout(500);
+
+    // Re-open the editor to verify content persisted
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const node = cy.getElementById('architecture');
+      node.trigger('tap');
+    });
+
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        const shadowNode = cy.getElementById('editor-architecture');
+        return shadowNode.length > 0;
+      });
+    }, {
+      message: 'Waiting for editor to re-open',
+      timeout: 5000
+    }).toBe(true);
+
+    // Wait for editor React content to render again
+    await appWindow.waitForSelector('#window-editor-architecture .w-md-editor', { timeout: 5000 });
+
+    // Verify the editor shows the saved content
+    const editorContent = await appWindow.evaluate(() => {
+      const editor = document.querySelector('#window-editor-architecture .w-md-editor-text-input') as HTMLTextAreaElement;
+      return editor?.value || null;
+    });
+
+    expect(editorContent).toBe(testContent);
+    console.log('✓ Editor shows saved content after reopening');
+
+    // Restore original file content (reset for clean git state)
+    await fs.writeFile(testFilePath, originalContent, 'utf-8');
+    console.log('✓ Original file content restored');
+
+    // Wait for file change to be detected
+    await appWindow.waitForTimeout(2000);
+
+    console.log('✓ Markdown file save test completed');
+  });
+
+  test('should update graph when wikilink is added via editor', async ({ appWindow }) => {
+    console.log('=== Testing graph update when adding wikilink ===');
+
+    // Start watching the fixture vault
+    await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    await appWindow.waitForTimeout(3000); // Wait for initial scan
+
+    // Read original file content for restoration
+    const testFilePath = path.join(FIXTURE_VAULT_PATH, 'concepts', 'introduction.md');
+    const originalContent = await fs.readFile(testFilePath, 'utf-8');
+
+    // Get initial edge count for 'introduction' node
+    const initialEdges = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const node = cy.getElementById('introduction');
+      if (node.length === 0) throw new Error('introduction node not found');
+
+      const connectedEdges = node.connectedEdges();
+      return {
+        totalEdges: cy.edges().length,
+        nodeEdgeCount: connectedEdges.length,
+        edgeTargets: connectedEdges.map((e: EdgeSingular) => ({
+          source: e.source().id(),
+          target: e.target().id()
+        }))
+      };
+    });
+
+    console.log('Initial edges for introduction node:', initialEdges.nodeEdgeCount);
+    console.log('Initial total edges:', initialEdges.totalEdges);
+
+    // Click on the 'introduction' node to open editor
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const node = cy.getElementById('introduction');
+      node.trigger('tap');
+    });
+
+    // Wait for editor to open
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        const shadowNode = cy.getElementById('editor-introduction');
+        return shadowNode.length > 0;
+      });
+    }, {
+      message: 'Waiting for editor to open',
+      timeout: 5000
+    }).toBe(true);
+
+    console.log('✓ Editor opened');
+
+    // Wait for editor React content to render
+    await appWindow.waitForSelector('#window-editor-introduction .w-md-editor', { timeout: 5000 });
+
+    // Add a new wikilink to the content (link to 'README' which exists but isn't linked from introduction)
+    const newContent = originalContent + '\n\nNew section linking to [[README]] for testing.';
+
+    await appWindow.evaluate((content) => {
+      const editor = document.querySelector('#window-editor-introduction .w-md-editor-text-input') as HTMLTextAreaElement;
+      if (editor) {
+        // Focus the editor first
+        editor.focus();
+
+        // Set value using native setter
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set;
+        nativeInputValueSetter!.call(editor, content);
+
+        // Trigger React's onChange with a proper InputEvent
+        const event = new InputEvent('input', { bubbles: true, cancelable: true });
+        editor.dispatchEvent(event);
+      }
+    }, newContent);
+
+    console.log('✓ Added wikilink to README');
+    await appWindow.waitForTimeout(1000); // Longer wait for state update
+
+    // Click save button
+    await appWindow.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const saveButton = buttons.find(btn => btn.textContent?.includes('Save'));
+      if (saveButton) saveButton.click();
+    });
+
+    console.log('✓ Save button clicked');
+    await appWindow.waitForTimeout(2000); // Wait for save and file change detection
+
+    // Verify new edge was created
+    const updatedEdges = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const node = cy.getElementById('introduction');
+      const connectedEdges = node.connectedEdges();
+
+      return {
+        totalEdges: cy.edges().length,
+        nodeEdgeCount: connectedEdges.length,
+        edgeTargets: connectedEdges.map((e: EdgeSingular) => ({
+          source: e.source().id(),
+          target: e.target().id()
+        })),
+        hasREADMEEdge: connectedEdges.some((e: EdgeSingular) =>
+          (e.source().id() === 'introduction' && e.target().id() === 'README') ||
+          (e.source().id() === 'README' && e.target().id() === 'introduction')
+        )
+      };
+    });
+
+    console.log('Updated edges for introduction node:', updatedEdges.nodeEdgeCount);
+    console.log('Updated total edges:', updatedEdges.totalEdges);
+    console.log('Has README edge:', updatedEdges.hasREADMEEdge);
+
+    // Verify edge count increased and new edge to 'README' exists
+    expect(updatedEdges.totalEdges).toBeGreaterThan(initialEdges.totalEdges);
+    expect(updatedEdges.hasREADMEEdge).toBe(true);
+    console.log('✓ New edge to README node created in graph');
+
+    // Restore original file content
+    await fs.writeFile(testFilePath, originalContent, 'utf-8');
+    console.log('✓ Original file content restored');
+
+    // Wait for file change to be detected and graph to update
+    await appWindow.waitForTimeout(2000);
+
+    console.log('✓ Graph wikilink update test completed');
+  });
+
+  test('should sync external file changes to open editors (bidirectional sync)', async ({ appWindow }) => {
+    console.log('=== Testing bidirectional sync: external changes -> open editor ===');
+
+    // Start watching the fixture vault
+    await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    await appWindow.waitForTimeout(3000); // Wait for initial scan
+
+    // Read original file content for restoration
+    const testFilePath = path.join(FIXTURE_VAULT_PATH, 'concepts', 'api-design.md');
+    const originalContent = await fs.readFile(testFilePath, 'utf-8');
+    console.log('Original file content:', originalContent.substring(0, 50) + '...');
+
+    // Open the editor for api-design node
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const node = cy.getElementById('api-design');
+      if (node.length === 0) throw new Error('api-design node not found');
+      node.trigger('tap');
+    });
+
+    // Wait for editor to open
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        const shadowNode = cy.getElementById('editor-api-design');
+        return shadowNode.length > 0;
+      });
+    }, {
+      message: 'Waiting for editor to open',
+      timeout: 5000
+    }).toBe(true);
+
+    console.log('✓ Editor opened');
+
+    // Wait for editor React content to render
+    await appWindow.waitForSelector('#window-editor-api-design .w-md-editor', { timeout: 5000 });
+
+    // Get initial editor content
+    const initialEditorContent = await appWindow.evaluate(() => {
+      const editor = document.querySelector('#window-editor-api-design .w-md-editor-text-input') as HTMLTextAreaElement;
+      return editor?.value || null;
+    });
+
+    expect(initialEditorContent).toBe(originalContent);
+    console.log('✓ Editor shows original content');
+
+    // Make an EXTERNAL change to the file (simulating external editor or another process)
+    const externallyChangedContent = '# API Design\n\n**EXTERNAL CHANGE** - This file was changed by an external process!\n\nThe editor should automatically sync to show this change.';
+    await fs.writeFile(testFilePath, externallyChangedContent, 'utf-8');
+    console.log('✓ File changed externally');
+
+    // Wait for file watcher to detect the change
+    await appWindow.waitForTimeout(2000);
+
+    // Check if editor content was updated to match the external change
+    const updatedEditorContent = await appWindow.evaluate(() => {
+      const editor = document.querySelector('#window-editor-api-design .w-md-editor-text-input') as HTMLTextAreaElement;
+      return editor?.value || null;
+    });
+
+    console.log('Editor content after external change:', updatedEditorContent?.substring(0, 50) + '...');
+
+    // This is the key assertion - editor should show the externally changed content
+    expect(updatedEditorContent).toBe(externallyChangedContent);
+    console.log('✓ Editor synced with external file change');
+
+    // Restore original file content
+    await fs.writeFile(testFilePath, originalContent, 'utf-8');
+    console.log('✓ Original file content restored');
+
+    // Wait for file change to be detected
+    await appWindow.waitForTimeout(2000);
+
+    console.log('✓ Bidirectional sync test completed');
   });
 });
 
