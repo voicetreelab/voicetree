@@ -208,7 +208,7 @@ test.describe('Terminal E2E Tests', () => {
     expect(envCheckContent).toMatch(/test[\s-]node/i);
   });
 
-  test('should handle terminal resize properly', async ({ appWindow, tempDir }) => {
+  test('should handle terminal resize properly without visual artifacts or text loss', async ({ appWindow, tempDir }) => {
     // Start file watching
     await appWindow.evaluate(async (dir) => {
       const window = globalThis as ExtendedWindow;
@@ -229,79 +229,213 @@ test.describe('Terminal E2E Tests', () => {
       timeout: 10000
     }).toBe(true);
 
-    // Open terminal through evaluation (simpler for this test)
-    await appWindow.evaluate(() => {
+    // Get first node position and right-click on it
+    const nodePosition = await appWindow.evaluate(() => {
       const window = globalThis as ExtendedWindow;
       const cy = window.cytoscapeInstance;
-      if (cy) {
-        // Trigger terminal opening through the context menu callback
-        const event = new CustomEvent('openTerminal');
-        document.dispatchEvent(event);
-      }
+      if (!cy) return null;
+      const node = cy.nodes().first();
+      return node.renderedPosition();
     });
 
-    // Actually, let's trigger it properly through the floating windows system
-    await appWindow.evaluate(() => {
-      const openWindowEvent = new CustomEvent('open-floating-window', {
-        detail: {
-          nodeId: `terminal-test-${Date.now()}`,
-          title: 'Terminal Test',
-          type: 'Terminal',
-          content: '',
-          position: { x: 100, y: 100 },
-          size: { width: 800, height: 400 }
+    expect(nodePosition).toBeTruthy();
+
+    // Right-click on the node to open context menu
+    await appWindow.mouse.click(nodePosition.x, nodePosition.y, { button: 'right' });
+    await appWindow.waitForTimeout(500);
+
+    // Find and click the terminal option in the context menu
+    const terminalMenuOption = await appWindow.evaluate(() => {
+      const menus = document.querySelectorAll('.cxtmenu-item');
+      for (const menu of menus) {
+        const svg = menu.querySelector('svg');
+        if (svg && menu.getAttribute('title') === 'Terminal') {
+          return {
+            found: true,
+            element: menu.getBoundingClientRect()
+          };
         }
-      });
-      document.dispatchEvent(openWindowEvent);
+      }
+      return { found: false };
     });
+
+    expect(terminalMenuOption.found).toBe(true);
+
+    // Click on terminal menu option
+    await appWindow.mouse.click(
+      terminalMenuOption.element.x + terminalMenuOption.element.width / 2,
+      terminalMenuOption.element.y + terminalMenuOption.element.height / 2
+    );
 
     // Wait for terminal window to open
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const terminals = document.querySelectorAll('.floating-window');
-        return terminals.length > 0;
+        for (const terminal of terminals) {
+          const title = terminal.querySelector('.window-title-bar span');
+          if (title && title.textContent?.includes('Terminal')) {
+            return true;
+          }
+        }
+        return false;
       });
     }, {
       message: 'Waiting for terminal window to open',
       timeout: 5000
     }).toBe(true);
 
-    // Get initial terminal size
-    const initialSize = await appWindow.evaluate(() => {
-      const terminalWindow = document.querySelector('.floating-window');
-      if (!terminalWindow) return null;
-      const rect = terminalWindow.getBoundingClientRect();
-      return { width: rect.width, height: rect.height };
+    // Wait for xterm to initialize
+    await appWindow.waitForTimeout(1000);
+
+    // Focus and add some test content to the terminal
+    await appWindow.evaluate(() => {
+      const xtermElement = document.querySelector('.xterm') as HTMLElement;
+      if (xtermElement) {
+        xtermElement.focus();
+        xtermElement.click();
+      }
     });
 
-    expect(initialSize).toBeTruthy();
-    expect(initialSize.width).toBeCloseTo(800, 0);
-    expect(initialSize.height).toBeCloseTo(400, 0);
+    // Type some test content that we can verify after resize
+    const testText = 'echo "This is test content for resize verification"';
+    await appWindow.keyboard.type(testText);
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
 
-    // Resize the terminal window
-    const resizeHandle = await appWindow.evaluate(() => {
+    // Get initial terminal state
+    const initialState = await appWindow.evaluate(() => {
+      const terminalWindow = document.querySelector('.floating-window');
+      const xtermScreen = document.querySelector('.xterm-screen');
+      const xtermViewport = document.querySelector('.xterm-viewport') as HTMLElement;
+
+      if (!terminalWindow) return null;
+
+      const rect = terminalWindow.getBoundingClientRect();
+      const content = xtermScreen?.textContent || '';
+      const viewportStyle = window.getComputedStyle(xtermViewport);
+
+      return {
+        width: rect.width,
+        height: rect.height,
+        content: content,
+        backgroundColor: viewportStyle.backgroundColor,
+        hasContent: content.length > 0
+      };
+    });
+
+    expect(initialState).toBeTruthy();
+    expect(initialState.hasContent).toBe(true);
+    expect(initialState.content).toContain('test content');
+
+    // Test 1: Resize LARGER and check for visual artifacts (white/black rectangles)
+    const resizeHandleLarger = await appWindow.evaluate(() => {
       const handle = document.querySelector('.resize-handle-corner');
       if (!handle) return null;
       const rect = handle.getBoundingClientRect();
       return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
     });
 
-    if (resizeHandle) {
-      await appWindow.mouse.move(resizeHandle.x, resizeHandle.y);
+    if (resizeHandleLarger) {
+      // Drag to make window larger
+      await appWindow.mouse.move(resizeHandleLarger.x, resizeHandleLarger.y);
       await appWindow.mouse.down();
-      await appWindow.mouse.move(resizeHandle.x + 100, resizeHandle.y + 100);
+      await appWindow.mouse.move(resizeHandleLarger.x + 200, resizeHandleLarger.y + 150);
       await appWindow.mouse.up();
+      await appWindow.waitForTimeout(500);
 
-      // Check new size
-      const newSize = await appWindow.evaluate(() => {
+      // Check state after enlarging
+      const enlargedState = await appWindow.evaluate(() => {
         const terminalWindow = document.querySelector('.floating-window');
+        const xtermScreen = document.querySelector('.xterm-screen');
+        const xtermViewport = document.querySelector('.xterm-viewport') as HTMLElement;
+
         if (!terminalWindow) return null;
+
         const rect = terminalWindow.getBoundingClientRect();
-        return { width: rect.width, height: rect.height };
+        const content = xtermScreen?.textContent || '';
+        const viewportStyle = window.getComputedStyle(xtermViewport);
+
+        // Check for visual artifacts (white rectangles)
+        const hasWhiteArtifact = viewportStyle.backgroundColor === 'rgb(255, 255, 255)' ||
+                                 viewportStyle.backgroundColor === 'white';
+
+        return {
+          width: rect.width,
+          height: rect.height,
+          content: content,
+          backgroundColor: viewportStyle.backgroundColor,
+          hasWhiteArtifact: hasWhiteArtifact,
+          contentPreserved: content.includes('test content')
+        };
       });
 
-      expect(newSize.width).toBeGreaterThan(initialSize.width);
-      expect(newSize.height).toBeGreaterThan(initialSize.height);
+      // BUG REPRODUCTION: Terminal should NOT show white rectangles or lose content when enlarged
+      expect(enlargedState.width).toBeGreaterThan(initialState.width);
+      expect(enlargedState.height).toBeGreaterThan(initialState.height);
+      expect(enlargedState.hasWhiteArtifact).toBe(false); // Should not have white background artifact
+      expect(enlargedState.contentPreserved).toBe(true); // Content should still be visible
     }
+
+    // Test 2: Resize SMALLER and check for text loss
+    const resizeHandleSmaller = await appWindow.evaluate(() => {
+      const handle = document.querySelector('.resize-handle-corner');
+      if (!handle) return null;
+      const rect = handle.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    });
+
+    if (resizeHandleSmaller) {
+      // Drag to make window smaller
+      await appWindow.mouse.move(resizeHandleSmaller.x, resizeHandleSmaller.y);
+      await appWindow.mouse.down();
+      await appWindow.mouse.move(resizeHandleSmaller.x - 150, resizeHandleSmaller.y - 100);
+      await appWindow.mouse.up();
+      await appWindow.waitForTimeout(500);
+
+      // Check state after shrinking
+      const shrunkState = await appWindow.evaluate(() => {
+        const terminalWindow = document.querySelector('.floating-window');
+        const xtermScreen = document.querySelector('.xterm-screen');
+
+        if (!terminalWindow) return null;
+
+        const rect = terminalWindow.getBoundingClientRect();
+        const content = xtermScreen?.textContent || '';
+
+        return {
+          width: rect.width,
+          height: rect.height,
+          content: content,
+          contentPreserved: content.includes('test content')
+        };
+      });
+
+      // BUG REPRODUCTION: Terminal should NOT lose text when made smaller
+      expect(shrunkState.width).toBeLessThan(initialState.width);
+      expect(shrunkState.height).toBeLessThan(initialState.height);
+      expect(shrunkState.contentPreserved).toBe(true); // Text should wrap, not be lost
+    }
+
+    // Test 3: Verify terminal remains functional after resizing
+    await appWindow.evaluate(() => {
+      const xtermElement = document.querySelector('.xterm') as HTMLElement;
+      if (xtermElement) {
+        xtermElement.focus();
+        xtermElement.click();
+      }
+    });
+
+    const postResizeCommand = 'echo "After resize"';
+    await appWindow.keyboard.type(postResizeCommand);
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
+
+    const finalContent = await appWindow.evaluate(() => {
+      const xtermScreen = document.querySelector('.xterm-screen');
+      return xtermScreen?.textContent || '';
+    });
+
+    // Terminal should still be functional after resizing
+    expect(finalContent).toContain('After resize');
   });
 });

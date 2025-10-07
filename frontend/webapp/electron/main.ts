@@ -9,6 +9,8 @@ const fileWatchManager = new FileWatchManager();
 
 // Terminal process management with node-pty ONLY
 const terminals = new Map();
+// Track which window owns which terminal for cleanup
+const terminalToWindow = new Map(); // terminalId -> webContents.id
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -22,6 +24,9 @@ function createWindow() {
       preload: path.join(__dirname, '../preload/index.js')
     }
   });
+
+  // Capture window ID before it gets destroyed
+  const windowId = mainWindow.webContents.id;
 
   // Set the main window reference
   fileWatchManager.setMainWindow(mainWindow);
@@ -59,6 +64,28 @@ function createWindow() {
       mainWindow.minimize();
     } else {
       mainWindow.show();
+    }
+  });
+
+  // Clean up terminals when window closes
+  mainWindow.on('closed', () => {
+    console.log(`Window ${windowId} closed, cleaning up terminals`);
+
+    // Find and kill all terminals owned by this window
+    for (const [terminalId, webContentsId] of terminalToWindow.entries()) {
+      if (webContentsId === windowId) {
+        console.log(`Cleaning up terminal ${terminalId} for window ${windowId}`);
+        const ptyProcess = terminals.get(terminalId);
+        if (ptyProcess && ptyProcess.kill) {
+          try {
+            ptyProcess.kill();
+          } catch (error) {
+            console.error(`Error killing terminal ${terminalId}:`, error);
+          }
+        }
+        terminals.delete(terminalId);
+        terminalToWindow.delete(terminalId);
+      }
     }
   });
 }
@@ -198,15 +225,27 @@ ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
     // Store the PTY process
     terminals.set(terminalId, ptyProcess);
 
+    // Track terminal ownership for cleanup when window closes
+    terminalToWindow.set(terminalId, event.sender.id);
+
     // Handle PTY data
     ptyProcess.onData((data) => {
-      event.sender.send('terminal:data', terminalId, data);
+      try {
+        event.sender.send('terminal:data', terminalId, data);
+      } catch (error) {
+        console.error(`Failed to send terminal data for ${terminalId}:`, error);
+      }
     });
 
     // Handle PTY exit
     ptyProcess.onExit((exitInfo) => {
-      event.sender.send('terminal:exit', terminalId, exitInfo.exitCode);
+      try {
+        event.sender.send('terminal:exit', terminalId, exitInfo.exitCode);
+      } catch (error) {
+        console.error(`Failed to send terminal exit for ${terminalId}:`, error);
+      }
       terminals.delete(terminalId);
+      terminalToWindow.delete(terminalId);
     });
 
     console.log(`Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);

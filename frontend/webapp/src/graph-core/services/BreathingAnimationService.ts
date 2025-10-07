@@ -145,6 +145,12 @@ export class BreathingAnimationService {
     // Mark as inactive
     node.data('breathingActive', false);
 
+    // Clear append animation trigger flag if this was an appended content animation
+    const animationType = node.data('animationType');
+    if (animationType === AnimationType.APPENDED_CONTENT) {
+      node.data('appendAnimationTriggered', false);
+    }
+
     // Stop timeout
     this.stopAnimation(nodeId);
 
@@ -159,8 +165,8 @@ export class BreathingAnimationService {
       'border-opacity': 1,
     });
 
-    // Clean up data
-    node.removeData('breathingActive originalBorderWidth originalBorderColor animationType');
+    // Clean up data (but keep breathingActive as false for tests)
+    node.removeData('originalBorderWidth originalBorderColor animationType');
   }
 
   stopAllAnimations(nodes: NodeCollection): void {

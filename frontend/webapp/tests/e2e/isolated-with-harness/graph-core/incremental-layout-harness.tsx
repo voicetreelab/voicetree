@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { CytoscapeCore } from '../../../../src/graph-core/graphviz/CytoscapeCore';
-import { LayoutManager, IncrementalTidyLayoutStrategy } from '../../../../src/graph-core/graphviz/layout';
+import { CytoscapeCore } from '@/graph-core/graphviz/CytoscapeCore';
+import { LayoutManager, IncrementalTidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 
 /**
  * Minimal test harness for incremental layout testing
@@ -15,7 +15,17 @@ import { LayoutManager, IncrementalTidyLayoutStrategy } from '../../../../src/gr
  * - layoutManager: LayoutManager instance
  */
 
-function GraphHarness() {
+// Extend window type for test harness
+interface TestWindow extends Window {
+  cy: ReturnType<CytoscapeCore['getCore']>;
+  layoutManager: LayoutManager;
+  IncrementalTidyLayoutStrategy: typeof IncrementalTidyLayoutStrategy;
+  LayoutManager: typeof LayoutManager;
+}
+
+declare const window: TestWindow;
+
+export function GraphHarness() {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -63,10 +73,12 @@ function GraphHarness() {
     console.log('[Incremental Layout Harness] Using IncrementalTidyLayoutStrategy');
 
     // Expose to window for test access
-    (window as any).cy = cy;
-    (window as any).layoutManager = layoutManager;
+    window.cy = cy;
+    window.layoutManager = layoutManager;
+    window.IncrementalTidyLayoutStrategy = IncrementalTidyLayoutStrategy;
+    window.LayoutManager = LayoutManager;
 
-    console.log('[Incremental Layout Harness] Ready! Available: window.cy, window.layoutManager');
+    console.log('[Incremental Layout Harness] Ready! Available: window.cy, window.layoutManager, window.IncrementalTidyLayoutStrategy, window.LayoutManager');
 
     return () => {
       cy.destroy();

@@ -6,6 +6,7 @@ interface MarkdownEditorProps {
   windowId: string;
   content: string;
   onSave: (newContent: string) => void;
+  previewMode?: 'edit' | 'live' | 'preview';
 }
 
 type SaveStatus = 'idle' | 'saving' | 'success' | 'error';
@@ -21,7 +22,7 @@ const components = {
   },
 };
 
-export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, content, onSave }) => {
+export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, content, onSave, previewMode = 'edit' }) => {
   const [value, setValue] = useState(content);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -98,7 +99,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
         onChange={handleChange}
         components={components}
         height="100%"
-        preview="edit"
+        preview={previewMode}
         style={{ flex: 1, borderRadius: 0, border: 'none' }}
       />
     </div>

@@ -51,11 +51,11 @@ const test = base.extend<{
    
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'electron/electron.cjs')],
+      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
       env: {
         ...process.env,
-        NODE_ENV: 'development',
-        MINIMIZE_TEST: '1' // Run with window minimized to avoid popups
+        NODE_ENV: 'test',
+        HEADLESS_TEST: '1'
       }
     });
 
@@ -66,6 +66,16 @@ const test = base.extend<{
   // Get the main window
   appWindow: async ({ electronApp }, use) => {
     const window = await electronApp.firstWindow();
+
+    // Log console messages for debugging
+    window.on('console', msg => {
+      console.log(`BROWSER [${msg.type()}]:`, msg.text());
+    });
+
+    await window.waitForLoadState('domcontentloaded');
+    await window.waitForFunction(() => (window as any).cytoscapeInstance, { timeout: 10000 });
+    await window.waitForTimeout(1000);
+
     await use(window);
   },
 
@@ -624,6 +634,472 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     await appWindow.waitForTimeout(1000);
 
     console.log('✓ Terminal input and output working correctly');
+  });
+
+  test('should layout 10 nodes in 3 islands with proper spacing and no overlaps', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Layout with 3 Disconnected Components ===');
+
+    // Start watching
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    await appWindow.waitForTimeout(3000); // Wait for chokidar to be ready
+
+    // Create 3 disconnected components (islands)
+    // Island 1: 4 nodes (A -> B -> C -> D)
+    await fs.writeFile(path.join(tempDir, 'A.md'), '# Node A\n\nFirst node in island 1. Links to [[B]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'B.md'), '# Node B\n\nSecond node in island 1. Links to [[C]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'C.md'), '# Node C\n\nThird node in island 1. Links to [[D]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'D.md'), '# Node D\n\nFourth node in island 1.');
+    await appWindow.waitForTimeout(200);
+
+    // Island 2: 3 nodes (E -> F -> G)
+    await fs.writeFile(path.join(tempDir, 'E.md'), '# Node E\n\nFirst node in island 2. Links to [[F]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'F.md'), '# Node F\n\nSecond node in island 2. Links to [[G]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'G.md'), '# Node G\n\nThird node in island 2.');
+    await appWindow.waitForTimeout(200);
+
+    // Island 3: 3 nodes (H -> I -> J)
+    await fs.writeFile(path.join(tempDir, 'H.md'), '# Node H\n\nFirst node in island 3. Links to [[I]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'I.md'), '# Node I\n\nSecond node in island 3. Links to [[J]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'J.md'), '# Node J\n\nThird node in island 3.');
+
+    // Wait for all nodes to be added
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for all 10 nodes to be added',
+      timeout: 15000
+    }).toBe(10);
+
+    console.log('All 10 nodes added, verifying layout quality...');
+
+    // Verify layout quality
+    const layoutQuality = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const nodes = cy.nodes();
+      const edges = cy.edges();
+
+      // Calculate minimum distance between all node pairs
+      let minDistance = Infinity;
+      const positions: Array<{ id: string; x: number; y: number; width: number; height: number }> = [];
+
+      for (let i = 0; i < nodes.length; i++) {
+        const n1 = nodes[i];
+        const pos1 = n1.position();
+        const bb1 = n1.boundingBox({ includeLabels: false });
+        positions.push({
+          id: n1.id(),
+          x: pos1.x,
+          y: pos1.y,
+          width: bb1.w,
+          height: bb1.h
+        });
+
+        for (let j = i + 1; j < nodes.length; j++) {
+          const n2 = nodes[j];
+          const pos2 = n2.position();
+
+          const distance = Math.hypot(pos1.x - pos2.x, pos1.y - pos2.y);
+          if (distance < minDistance) {
+            minDistance = distance;
+          }
+        }
+      }
+
+      // Check for overlapping nodes (center points too close)
+      const MINIMUM_NODE_DISTANCE = 50; // Nodes should be at least 50px apart
+      const closeNodes = [];
+      for (let i = 0; i < positions.length; i++) {
+        for (let j = i + 1; j < positions.length; j++) {
+          const dist = Math.hypot(
+            positions[i].x - positions[j].x,
+            positions[i].y - positions[j].y
+          );
+          if (dist < MINIMUM_NODE_DISTANCE) {
+            closeNodes.push({
+              node1: positions[i].id,
+              node2: positions[j].id,
+              distance: dist
+            });
+          }
+        }
+      }
+
+      // Check for edge overlaps using bounding box intersection
+      const edgeOverlaps = [];
+      for (let i = 0; i < edges.length; i++) {
+        const e1 = edges[i];
+        const e1Source = e1.source().position();
+        const e1Target = e1.target().position();
+
+        for (let j = i + 1; j < edges.length; j++) {
+          const e2 = edges[j];
+          const e2Source = e2.source().position();
+          const e2Target = e2.target().position();
+
+          // Check if edges share a node (adjacent edges can overlap at their common point)
+          const shareNode =
+            e1.source().id() === e2.source().id() ||
+            e1.source().id() === e2.target().id() ||
+            e1.target().id() === e2.source().id() ||
+            e1.target().id() === e2.target().id();
+
+          if (!shareNode) {
+            // Simple edge overlap check: check if line segments are too close
+            // For simplicity, we'll check if edges cross or are very close
+            const segmentsClose = checkSegmentsClose(
+              e1Source, e1Target,
+              e2Source, e2Target,
+              10 // threshold distance
+            );
+
+            if (segmentsClose) {
+              edgeOverlaps.push({
+                edge1: `${e1.source().id()}->${e1.target().id()}`,
+                edge2: `${e2.source().id()}->${e2.target().id()}`
+              });
+            }
+          }
+        }
+      }
+
+      // Helper function to check if two line segments are close
+      function checkSegmentsClose(
+        p1: { x: number; y: number },
+        p2: { x: number; y: number },
+        p3: { x: number; y: number },
+        p4: { x: number; y: number },
+        threshold: number
+      ): boolean {
+        // Calculate minimum distance between segments using point-to-line distance
+        const dist1 = pointToSegmentDistance(p3, p1, p2);
+        const dist2 = pointToSegmentDistance(p4, p1, p2);
+        const dist3 = pointToSegmentDistance(p1, p3, p4);
+        const dist4 = pointToSegmentDistance(p2, p3, p4);
+
+        return Math.min(dist1, dist2, dist3, dist4) < threshold;
+      }
+
+      function pointToSegmentDistance(
+        p: { x: number; y: number },
+        a: { x: number; y: number },
+        b: { x: number; y: number }
+      ): number {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const lenSq = dx * dx + dy * dy;
+
+        if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+
+        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const closestX = a.x + t * dx;
+        const closestY = a.y + t * dy;
+
+        return Math.hypot(p.x - closestX, p.y - closestY);
+      }
+
+      // Check graph spread
+      const allX = positions.map(p => p.x);
+      const allY = positions.map(p => p.y);
+      const minX = Math.min(...allX);
+      const maxX = Math.max(...allX);
+      const minY = Math.min(...allY);
+      const maxY = Math.max(...allY);
+
+      return {
+        nodeCount: nodes.length,
+        edgeCount: edges.length,
+        minDistance,
+        closeNodes,
+        edgeOverlaps,
+        graphSpread: {
+          width: maxX - minX,
+          height: maxY - minY
+        },
+        positions
+      };
+    });
+
+    console.log('Layout quality metrics:', {
+      nodeCount: layoutQuality.nodeCount,
+      edgeCount: layoutQuality.edgeCount,
+      minDistance: layoutQuality.minDistance,
+      closeNodesCount: layoutQuality.closeNodes.length,
+      edgeOverlapsCount: layoutQuality.edgeOverlaps.length,
+      graphSpread: layoutQuality.graphSpread
+    });
+
+    // Assertions
+    expect(layoutQuality.nodeCount).toBe(10);
+    expect(layoutQuality.edgeCount).toBeGreaterThanOrEqual(6); // At least 6 edges (3+2+1 in each island)
+
+    // Nodes should not be too close to each other
+    expect(layoutQuality.minDistance).toBeGreaterThan(50);
+    expect(layoutQuality.closeNodes.length).toBe(0);
+
+    // No edge overlaps (excluding adjacent edges)
+    expect(layoutQuality.edgeOverlaps.length).toBe(0);
+
+    // Graph should be reasonably spread out
+    expect(layoutQuality.graphSpread.width).toBeGreaterThan(200);
+    expect(layoutQuality.graphSpread.height).toBeGreaterThan(200);
+
+    // Take screenshot for visual verification
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-layout-3-islands.png',
+      fullPage: true
+    });
+
+    console.log('✓ Layout with 3 islands verified successfully');
+  });
+
+  test('should animate new nodes with breathing effect and stop on hover', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Breathing Animation Feature ===');
+
+    // Start watching
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    await appWindow.waitForTimeout(3000); // Wait for chokidar to be ready
+
+    console.log('=== Creating first file and checking breathing animation ===');
+
+    // Create first file
+    const file1Path = path.join(tempDir, 'first-node.md');
+    await fs.writeFile(file1Path, '# First Node\n\nThis is the first node.');
+
+    // Wait for node to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for first node to appear',
+      timeout: 8000
+    }).toBe(1);
+
+    console.log('First node created, checking if animation is breathing...');
+
+    // Sample border width AND color multiple times to verify it's actually animating (breathing)
+    const breathingCheck = await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+
+      // Sample border width and color at 3 different points in time
+      const widthSamples: number[] = [];
+      const colorSamples: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const borderWidth = parseFloat(node.style('border-width'));
+        const borderColor = node.style('border-color');
+        widthSamples.push(borderWidth);
+        colorSamples.push(borderColor);
+        await new Promise(resolve => setTimeout(resolve, 400)); // Wait 400ms between samples
+      }
+
+      // Check if values are different (breathing = animating)
+      const isWidthAnimating = widthSamples[0] !== widthSamples[1] || widthSamples[1] !== widthSamples[2];
+      const isColorAnimating = colorSamples[0] !== colorSamples[1] || colorSamples[1] !== colorSamples[2];
+
+      return {
+        nodeId: node.id(),
+        borderWidthSamples: widthSamples,
+        borderColorSamples: colorSamples,
+        isWidthAnimating,
+        isColorAnimating,
+        breathingActive: node.data('breathingActive'),
+        animationType: node.data('animationType')
+      };
+    });
+
+    console.log('Breathing check results:', breathingCheck);
+
+    // Verify animation is breathing (both width and color should change)
+    expect(breathingCheck?.isWidthAnimating).toBe(true);
+    expect(breathingCheck?.isColorAnimating).toBe(true);
+    expect(breathingCheck?.breathingActive).toBe(true);
+    expect(breathingCheck?.animationType).toBe('new_node');
+
+    // All width samples should be non-zero
+    for (const sample of breathingCheck?.borderWidthSamples || []) {
+      expect(sample).toBeGreaterThan(0);
+    }
+
+    console.log('✓ Animation is breathing (border width AND color change over time)');
+
+    // Now test hover stopping the animation
+    console.log('=== Testing hover stops animation ===');
+
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return;
+
+      const node = cy.nodes().first();
+      // Trigger mouseover event
+      node.emit('mouseover');
+    });
+
+    await appWindow.waitForTimeout(100);
+
+    // Check multiple times to ensure animation stays stopped (width and color don't change)
+    const afterHoverChecks = await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const checks = [];
+
+      for (let i = 0; i < 3; i++) {
+        checks.push({
+          breathingActive: node.data('breathingActive'),
+          borderWidth: node.style('border-width'),
+          borderColor: node.style('border-color')
+        });
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      return checks;
+    });
+
+    console.log('After hover checks:', afterHoverChecks);
+
+    // All checks should show animation is stopped
+    for (const check of afterHoverChecks || []) {
+      expect(check.breathingActive).toBeFalsy();
+      expect(check.borderWidth).toMatch(/^(0px?|0)$/);
+    }
+
+    // Verify border width and color are not changing (animation really stopped)
+    const borderWidths = (afterHoverChecks || []).map(c => c.borderWidth);
+    const borderColors = (afterHoverChecks || []).map(c => c.borderColor);
+    const widthsAllSame = borderWidths.every(w => w === borderWidths[0]);
+    const colorsAllSame = borderColors.every(c => c === borderColors[0]);
+    expect(widthsAllSame).toBe(true);
+    expect(colorsAllSame).toBe(true);
+
+    // Verify color changed from animated state (should be different from breathing colors)
+    const finalColor = borderColors[0];
+    const wasAnimatingWithDifferentColor = breathingCheck?.borderColorSamples.some(c => c !== finalColor);
+    expect(wasAnimatingWithDifferentColor).toBe(true);
+
+    console.log('✓ Hover stops animation immediately and it stays stopped (width and color stable)');
+
+    // Test updated node breathing animation
+    console.log('=== Testing updated node breathing animation ===');
+
+    // Create a second file
+    const file2Path = path.join(tempDir, 'second-node.md');
+    await fs.writeFile(file2Path, '# Second Node\n\nInitial content.');
+
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for second node',
+      timeout: 8000
+    }).toBe(2);
+
+    // Wait for animation to complete and clear it
+    await appWindow.waitForTimeout(1000);
+
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return;
+      const node = cy.getElementById('second-node');
+      if (node.length > 0) {
+        node.data('breathingActive', false);
+        node.stop(true);
+        node.style({
+          'border-width': '0',
+          'border-color': 'rgba(0, 0, 0, 0)',
+          'border-opacity': 1
+        });
+      }
+    });
+
+    await appWindow.waitForTimeout(500);
+
+    // Update the file
+    await fs.writeFile(file2Path, '# Second Node\n\nInitial content.\n\n## New Section\n\nAppended content!');
+
+    await appWindow.waitForTimeout(500);
+
+    // Check for cyan breathing animation (APPENDED_CONTENT type)
+    const updatedNodeBreathing = await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.getElementById('second-node');
+      if (!node || node.length === 0) return null;
+
+      // Sample border width and color at 3 different points in time
+      const widthSamples: number[] = [];
+      const colorSamples: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const borderWidth = parseFloat(node.style('border-width'));
+        const borderColor = node.style('border-color');
+        widthSamples.push(borderWidth);
+        colorSamples.push(borderColor);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      const isWidthAnimating = widthSamples[0] !== widthSamples[1] || widthSamples[1] !== widthSamples[2];
+      const isColorAnimating = colorSamples[0] !== colorSamples[1] || colorSamples[1] !== colorSamples[2];
+
+      return {
+        borderWidthSamples: widthSamples,
+        borderColorSamples: colorSamples,
+        isWidthAnimating,
+        isColorAnimating,
+        breathingActive: node.data('breathingActive'),
+        animationType: node.data('animationType')
+      };
+    });
+
+    console.log('Updated node breathing check:', updatedNodeBreathing);
+
+    expect(updatedNodeBreathing?.breathingActive).toBe(true);
+    expect(updatedNodeBreathing?.animationType).toBe('appended_content');
+    expect(updatedNodeBreathing?.isWidthAnimating).toBe(true);
+    expect(updatedNodeBreathing?.isColorAnimating).toBe(true);
+
+    for (const sample of updatedNodeBreathing?.borderWidthSamples || []) {
+      expect(sample).toBeGreaterThan(0);
+    }
+
+    console.log('✓ Updated node has breathing animation');
+    console.log('✓ Breathing animation feature test completed successfully');
   });
 });
 

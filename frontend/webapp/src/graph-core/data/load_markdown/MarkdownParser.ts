@@ -83,7 +83,7 @@ export class MarkdownToTreeConverter {
    * @returns Node object or null if parsing fails
    */
   private parseMarkdownFile(content: string, filename: string): Node | null {
-    const parsedData = this.parseMarkdownFileComplete(content);
+    const parsedData = this.parseMarkdownFileComplete(content, filename);
     if (!parsedData) {
       console.warn(`Could not parse file ${filename}`);
       return null;
@@ -111,7 +111,7 @@ export class MarkdownToTreeConverter {
    * Parse complete markdown file (frontmatter + content)
    * Equivalent to Python comprehensive_parser.parse_markdown_file_complete
    */
-  private parseMarkdownFileComplete(content: string): {
+  private parseMarkdownFileComplete(content: string, filename: string): {
     nodeId: string;
     title: string;
     content: string;
@@ -141,18 +141,29 @@ export class MarkdownToTreeConverter {
       }
     }
 
-    // Extract required fields - node_id is always converted to string
-    const nodeId = frontmatter.node_id?.trim();
-    const title = frontmatter.title || '';
-
-    if (!nodeId || !title) {
-      console.warn('Missing required frontmatter fields (node_id or title)');
-      return null;
-    }
-
     // Extract body content (everything after frontmatter)
     const contentStartIndex = frontmatterEnd >= 0 ? frontmatterEnd + 1 : 0;
     const bodyContent = lines.slice(contentStartIndex).join('\n').trim();
+
+    // Extract node_id: use frontmatter if available, otherwise derive from filename
+    let nodeId = frontmatter.node_id?.trim();
+    if (!nodeId) {
+      // Fallback: use filename without .md extension as node_id
+      nodeId = filename.replace(/\.md$/i, '');
+    }
+
+    // Extract title: use frontmatter if available, otherwise try first # heading, or filename
+    let title = frontmatter.title || '';
+    if (!title) {
+      // Try to extract from first # heading
+      const headingMatch = bodyContent.match(/^#\s+(.+)$/m);
+      if (headingMatch) {
+        title = headingMatch[1].trim();
+      } else {
+        // Fallback: use filename without extension
+        title = filename.replace(/\.md$/i, '');
+      }
+    }
 
     return {
       nodeId,
@@ -179,8 +190,9 @@ export class MarkdownToTreeConverter {
     const node = this.treeData.get(nodeId)!;
 
     const relationships = this.parseRelationshipsFromLinks(content);
+    let parentFound = false;
 
-    // Process parent relationship
+    // Process parent relationship from _Links:_ section
     if (relationships.parent) {
       let parentFilename = relationships.parent.filename;
       const relationshipType = relationships.parent.relationshipType;
@@ -195,11 +207,41 @@ export class MarkdownToTreeConverter {
         const parentId = this.filenameToNodeId.get(parentFilename)!;
         node.parentId = parentId;
         node.relationships[parentId] = relationshipType;
+        parentFound = true;
 
         // Add this node as child to parent
         const parentNode = this.treeData.get(parentId);
         if (parentNode && !parentNode.children.includes(nodeId)) {
           parentNode.children.push(nodeId);
+        }
+      }
+    }
+
+    // If no parent found in _Links:_, use first [[wikilink]] as parent
+    if (!parentFound) {
+      const wikilinkMatch = content.match(/\[\[([^\]]+)\]\]/);
+      if (wikilinkMatch) {
+        let linkTarget = wikilinkMatch[1];
+
+        // Handle relative paths (strip ../ or ./)
+        linkTarget = linkTarget.replace(/^(\.\.\/)+/, '').replace(/^\.\//, '');
+
+        // Add .md extension if not present
+        if (!linkTarget.endsWith('.md')) {
+          linkTarget += '.md';
+        }
+
+        // Check if this wikilink points to an existing node
+        if (this.filenameToNodeId.has(linkTarget)) {
+          const parentId = this.filenameToNodeId.get(linkTarget)!;
+          node.parentId = parentId;
+          node.relationships[parentId] = 'references';
+
+          // Add this node as child to parent
+          const parentNode = this.treeData.get(parentId);
+          if (parentNode && !parentNode.children.includes(nodeId)) {
+            parentNode.children.push(nodeId);
+          }
         }
       }
     }

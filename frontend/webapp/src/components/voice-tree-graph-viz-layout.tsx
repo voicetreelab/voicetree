@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 // Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
-import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
+import { LayoutManager, IncrementalTidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
 // Import graph styles
 import '@/graph-core/styles/graph.css';
@@ -49,7 +49,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
   // Track whether we're in initial bulk load phase or incremental phase
   // During initial scan: use TidyLayoutStrategy for hierarchical layout
-  // After initial scan: use SeedParkRelaxStrategy for incremental additions
+  // After initial scan: use IncrementalTidyLayoutStrategy for incremental additions
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Layout manager for positioning nodes
@@ -166,12 +166,13 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     }
   };
 
-  // Initialize layout manager with appropriate strategy
+  // Initialize layout manager once with incremental strategy (persists state)
+  // The same strategy instance is reused for all layouts - cache persists
   useEffect(() => {
-    const strategy = isInitialLoad ? new TidyLayoutStrategy() : new SeedParkRelaxStrategy();
+    const strategy = new IncrementalTidyLayoutStrategy();
     layoutManagerRef.current = new LayoutManager(strategy);
-    console.log(`[Layout] Strategy changed to: ${strategy.name} (isInitialLoad=${isInitialLoad})`);
-  }, [isInitialLoad]);
+    console.log('[Layout] LayoutManager initialized with persistent IncrementalTidyLayoutStrategy');
+  }, []); // Empty deps - run once only
 
   // File watching event handlers
   const {

@@ -59,11 +59,15 @@ class LinkedYList {
   ) {}
 
   update(minY: number, index: number): LinkedYList {
-    let current: LinkedYList | null = this;
-    while (current !== null && minY >= current.bottom) {
-      current = current.next;
+    if (minY < this.bottom) {
+      return new LinkedYList(index, minY, this);
     }
-    return new LinkedYList(index, minY, current);
+
+    let node: LinkedYList | null = this.next;
+    while (node !== null && minY >= node.bottom) {
+      node = node.next;
+    }
+    return new LinkedYList(index, minY, node);
   }
 }
 
@@ -201,10 +205,26 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
   private partialRelayout(context: PositioningContext): PositioningResult {
     const positions = new Map<string, Position>();
 
-    // Add new nodes to cache
+    // Temporary fallback: run full layout until filtered walks are stabilized
+    console.warn('[IncrementalTidy] Partial relayout disabled (fallback to full layout)');
+    return this.fullLayout(context);
+
+    /*
+    // On first run (cache empty), delegate to full layout
+    if (this.rootsCache.length === 0) {
+      console.log('[IncrementalTidy] First run, performing full layout');
+      return this.fullLayout(context);
+    }
+
+    // Step 1: Integrate new nodes into the cached tree structure
+    const changedLayoutNodes: LayoutNode[] = [];
+
     for (const nodeInfo of context.newNodes) {
-      if (!this.layoutNodesCache.has(nodeInfo.id)) {
-        const layoutNode: LayoutNode = {
+      let layoutNode = this.layoutNodesCache.get(nodeInfo.id);
+
+      if (!layoutNode) {
+        // Create new layout node
+        layoutNode = {
           id: nodeInfo.id,
           x: 0,
           y: 0,
@@ -219,12 +239,16 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
         };
         this.layoutNodesCache.set(nodeInfo.id, layoutNode);
       }
-    }
 
-    // Build parent-child relationships for new nodes
-    for (const nodeInfo of context.newNodes) {
-      const layoutNode = this.layoutNodesCache.get(nodeInfo.id)!;
+      // Update latest size information
+      layoutNode.width = nodeInfo.size.width;
+      layoutNode.height = nodeInfo.size.height;
 
+      if (!layoutNode.tidy) {
+        this.initNode(layoutNode);
+      }
+
+      // Attach to parent
       if (nodeInfo.parentId) {
         const parentLayoutNode = this.layoutNodesCache.get(nodeInfo.parentId);
         if (parentLayoutNode) {
@@ -234,83 +258,122 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
           }
         }
       }
+
+      changedLayoutNodes.push(layoutNode);
     }
 
-    // Perform partial relayout for each changed node
-    context.newNodes.forEach(nodeInfo => {
-      const changedNode = this.layoutNodesCache.get(nodeInfo.id);
-      if (changedNode) {
-        this.relayout(changedNode);
-      }
-    });
+    for (const node of changedLayoutNodes) {
+      this.setYRecursive(node);
+    }
 
-    // Update absolute positions with second walk
+    // Step 2: Build set of affected nodes (changed + all ancestors)
+    const affectedSet = this.buildAffectedSet(changedLayoutNodes);
+
+    console.log(`[IncrementalTidy] Partial relayout: ${context.newNodes.length} new nodes, ${affectedSet.size} affected nodes`);
+
+    // Step 3: Run filtered first walk from each root
     for (const root of this.rootsCache) {
-      this.secondWalk(root, 0);
+      this.firstWalkWithFilter(root, affectedSet);
     }
 
-    // Convert to positions
+    // Step 4: Run filtered second walk to update absolute positions
+    for (const root of this.rootsCache) {
+      this.secondWalkWithFilter(root, 0, affectedSet);
+    }
+
+    // Step 5: Collect all positions
     this.layoutNodesCache.forEach((layoutNode, id) => {
       positions.set(id, { x: layoutNode.x, y: layoutNode.y });
     });
 
     return { positions };
+    */
   }
 
   /**
-   * Partial relayout algorithm from the blog:
-   * Walk up from changed node, invalidating sibling threads and relaying parent's children
+   * Build set of all nodes that need relayout: changed nodes + all their ancestors
    */
-  private relayout(changedNode: LayoutNode): void {
-    let node: LayoutNode | null = changedNode;
+  private buildAffectedSet(changedNodes: LayoutNode[]): Set<string> {
+    const affected = new Set<string>();
 
-    while (node && node.parent) {
-      // Invalidate thread pointers for all siblings
-      for (const sibling of node.parent.children) {
-        const rightBottom = this.getRightBottomNode(sibling);
-        if (rightBottom.tidy) {
-          rightBottom.tidy.threadRight = null;
-          rightBottom.tidy.modifierThreadRight = 0;
+    for (const node of changedNodes) {
+      let current: LayoutNode | null = node;
+      while (current) {
+        affected.add(current.id);
+        if (!current.tidy) {
+          this.initNode(current);
         }
-
-        const leftBottom = this.getLeftBottomNode(sibling);
-        if (leftBottom.tidy) {
-          leftBottom.tidy.threadLeft = null;
-          leftBottom.tidy.modifierThreadLeft = 0;
-        }
+        this.invalidateExtremeThreads(current);
+        current = current.parent;
       }
-
-      // Relayout this node's parent's children
-      this.layoutSubtree(node.parent);
-
-      // Move up to parent
-      node = node.parent;
     }
+
+    return affected;
   }
 
   /**
-   * Layout a subtree (just this node's immediate children)
+   * Filtered first walk: only process nodes in the affected set
+   * Unchanged subtrees are treated as rigid black boxes
    */
-  private layoutSubtree(node: LayoutNode): void {
+  private firstWalkWithFilter(node: LayoutNode, affectedSet: Set<string>): void {
+    // If this node isn't affected, skip it entirely
+    if (!affectedSet.has(node.id)) {
+      this.invalidateExtremeThreads(node);
+      return;
+    }
+
     if (node.children.length === 0) {
       this.setExtreme(node);
       return;
     }
 
-    // Initialize node
-    this.initNode(node);
-    for (const child of node.children) {
-      this.initNode(child);
+    // Recursively process children (will skip unaffected ones)
+    this.firstWalkWithFilter(node.children[0], affectedSet);
+
+    const firstExtremeRight = this.getExtremeRight(node.children[0]);
+    let yList: LinkedYList = new LinkedYList(
+      0,
+      firstExtremeRight.y + firstExtremeRight.height
+    );
+
+    for (let i = 1; i < node.children.length; i++) {
+      const child = node.children[i];
+      if (child.tidy) {
+        child.tidy.modifierToSubtree = -child.relativeX;
+      }
+      this.firstWalkWithFilter(child, affectedSet);
+
+      const childExtremeLeft = this.getExtremeLeft(child);
+      const maxY = childExtremeLeft.y + childExtremeLeft.height;
+
+      yList = this.separate(node, i, yList);
+      yList = yList.update(maxY, i);
     }
 
-    // Set Y positions for children
-    this.setY(node);
-    for (const child of node.children) {
-      this.setY(child);
+    this.positionRoot(node);
+    this.setExtreme(node);
+  }
+
+  /**
+   * Filtered second walk: update positions starting from roots
+   * Only traverse into affected subtrees
+   */
+  private secondWalkWithFilter(node: LayoutNode, modSum: number, affectedSet: Set<string>): void {
+    modSum += node.tidy?.modifierToSubtree ?? 0;
+    const newX = node.relativeX + modSum;
+    const isAffected = affectedSet.has(node.id);
+
+    if (!isAffected && Math.abs(newX - node.x) < 1e-6) {
+      return;
     }
 
-    // Run first walk just on this node's children
-    this.firstWalk(node);
+    node.x = newX;
+
+    this.addChildSpacing(node);
+
+    for (const child of node.children) {
+      this.secondWalkWithFilter(child, modSum, affectedSet);
+    }
   }
 
   private layout(root: LayoutNode): void {
@@ -558,20 +621,25 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
     return node.tidy?.extremeRight ?? node;
   }
 
-  private getRightBottomNode(node: LayoutNode): LayoutNode {
-    let current = node;
-    while (current.children.length > 0) {
-      current = current.children[current.children.length - 1];
-    }
-    return current;
-  }
+  private invalidateExtremeThreads(node: LayoutNode): void {
+    if (!node.tidy) return;
+    this.setExtreme(node);
 
-  private getLeftBottomNode(node: LayoutNode): LayoutNode {
-    let current = node;
-    while (current.children.length > 0) {
-      current = current.children[0];
+    const extremeLeft = this.getExtremeLeft(node);
+    if (extremeLeft.tidy) {
+      extremeLeft.tidy.threadLeft = null;
+      extremeLeft.tidy.threadRight = null;
+      extremeLeft.tidy.modifierThreadLeft = 0;
+      extremeLeft.tidy.modifierThreadRight = 0;
     }
-    return current;
+
+    const extremeRight = this.getExtremeRight(node);
+    if (extremeRight.tidy) {
+      extremeRight.tidy.threadLeft = null;
+      extremeRight.tidy.threadRight = null;
+      extremeRight.tidy.modifierThreadLeft = 0;
+      extremeRight.tidy.modifierThreadRight = 0;
+    }
   }
 
   private secondWalk(node: LayoutNode, modSum: number): void {
@@ -595,7 +663,8 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
       speed += child.tidy.shiftAcceleration;
       delta += speed + child.tidy.shiftChange;
       child.tidy.modifierToSubtree += delta;
-      child.relativeX += delta;
+      // NOTE: Do NOT add delta to relativeX - it's already in modifierToSubtree
+      // child.relativeX += delta; // ❌ BUG - causes double-counting
 
       child.tidy.shiftAcceleration = 0;
       child.tidy.shiftChange = 0;

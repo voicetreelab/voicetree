@@ -49,9 +49,12 @@ export class CytoscapeCore {
         .connectedNodes()
         .addClass(CLASS_CONNECTED_HOVER);
 
-      // Stop breathing animation on hover for new nodes
-      if (this.animationService.isAnimationActive(node) && node.data('animationType') === 'new_node') {
-        this.animationService.stopAnimationForNode(node);
+      // Stop breathing animation on hover for new nodes and appended content
+      if (this.animationService.isAnimationActive(node)) {
+        const animationType = node.data('animationType');
+        if (animationType === 'new_node' || animationType === 'appended_content') {
+          this.animationService.stopAnimationForNode(node);
+        }
       }
     });
 
