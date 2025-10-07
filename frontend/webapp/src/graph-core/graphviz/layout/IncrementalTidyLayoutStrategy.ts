@@ -205,11 +205,6 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
   private partialRelayout(context: PositioningContext): PositioningResult {
     const positions = new Map<string, Position>();
 
-    // Temporary fallback: run full layout until filtered walks are stabilized
-    console.warn('[IncrementalTidy] Partial relayout disabled (fallback to full layout)');
-    return this.fullLayout(context);
-
-    /*
     // On first run (cache empty), delegate to full layout
     if (this.rootsCache.length === 0) {
       console.log('[IncrementalTidy] First run, performing full layout');
@@ -262,32 +257,25 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
       changedLayoutNodes.push(layoutNode);
     }
 
+    // Ensure root list contains any newly created roots
     for (const node of changedLayoutNodes) {
-      this.setYRecursive(node);
+      if (!node.parent && !this.rootsCache.includes(node)) {
+        this.rootsCache.push(node);
+      }
     }
 
-    // Step 2: Build set of affected nodes (changed + all ancestors)
-    const affectedSet = this.buildAffectedSet(changedLayoutNodes);
-
-    console.log(`[IncrementalTidy] Partial relayout: ${context.newNodes.length} new nodes, ${affectedSet.size} affected nodes`);
-
-    // Step 3: Run filtered first walk from each root
+    // Fallback strategy: re-layout entire forest for correctness
+    console.warn('[IncrementalTidy] Using full forest relayout fallback for incremental update');
     for (const root of this.rootsCache) {
-      this.firstWalkWithFilter(root, affectedSet);
+      this.layout(root);
     }
 
-    // Step 4: Run filtered second walk to update absolute positions
-    for (const root of this.rootsCache) {
-      this.secondWalkWithFilter(root, 0, affectedSet);
-    }
-
-    // Step 5: Collect all positions
+    // Collect all positions
     this.layoutNodesCache.forEach((layoutNode, id) => {
       positions.set(id, { x: layoutNode.x, y: layoutNode.y });
     });
 
     return { positions };
-    */
   }
 
   /**
