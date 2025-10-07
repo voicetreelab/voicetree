@@ -163,8 +163,8 @@ describe('BreathingAnimationService', () => {
 
       service.stopAnimationForNode(node);
 
-      // After stopping, the data is removed
-      expect(node.data('breathingActive')).toBeUndefined();
+      // After stopping, the data is set to false
+      expect(node.data('breathingActive')).toBe(false);
     });
 
     it('should restore original border styles', () => {
@@ -195,7 +195,7 @@ describe('BreathingAnimationService', () => {
       service.stopAnimationForNode(node);
 
       expect(removeDataSpy).toHaveBeenCalledWith(
-        'breathingActive originalBorderWidth originalBorderColor animationType'
+        'originalBorderWidth originalBorderColor animationType'
       );
     });
 

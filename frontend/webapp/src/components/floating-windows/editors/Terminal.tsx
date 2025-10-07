@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import type { NodeMetadata } from '@/components/floating-windows/types';
 
@@ -14,6 +15,9 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const terminalIdRef = useRef<string | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const lastSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -27,12 +31,69 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
         background: '#1e1e1e',
         foreground: '#cccccc',
       },
-      cols: 80,
-      rows: 24,
+      // Don't set fixed cols/rows - let FitAddon handle it dynamically
+      scrollback: 10000, // Keep scrollback history
     });
+
+    // Create and load FitAddon for automatic resizing
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    fitAddonRef.current = fitAddon;
 
     xtermRef.current = term;
     term.open(terminalRef.current);
+
+    // Initial fit to container
+    try {
+      fitAddon.fit();
+      // Store initial size
+      if (terminalRef.current) {
+        lastSizeRef.current = {
+          width: terminalRef.current.offsetWidth,
+          height: terminalRef.current.offsetHeight
+        };
+      }
+    } catch (e) {
+      console.error('[Terminal] Initial fit failed:', e);
+    }
+
+    // Set up ResizeObserver to handle window resizing
+    // Standard pattern: debounce + size change detection to avoid excessive fit() calls
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!fitAddonRef.current || !xtermRef.current) return;
+
+      // Clear any pending resize timeout (debouncing)
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+
+      // Debounce resize to avoid excessive fit() calls during rapid resizing
+      resizeTimeoutRef.current = setTimeout(() => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        const { width, height } = entry.contentRect;
+
+        // Only fit if size actually changed (avoid triggering on every DOM update)
+        if (
+          Math.abs(width - lastSizeRef.current.width) > 5 ||
+          Math.abs(height - lastSizeRef.current.height) > 5
+        ) {
+          try {
+            // Fit terminal to new container size
+            fitAddonRef.current?.fit();
+
+            // Update stored size
+            lastSizeRef.current = { width, height };
+          } catch (e) {
+            console.error('[Terminal] Resize fit failed:', e);
+          }
+        }
+      }, 100); // 100ms debounce (standard for ResizeObserver)
+    });
+
+    // Observe the terminal container for size changes
+    resizeObserver.observe(terminalRef.current);
 
     // Initialize terminal backend connection
     const initTerminal = async () => {
@@ -93,12 +154,23 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
 
     // Cleanup on unmount
     return () => {
+      // Clear any pending resize timeout
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+
+      // Disconnect resize observer
+      resizeObserver.disconnect();
+
+      // Kill terminal process
       if (terminalIdRef.current && typeof window !== 'undefined' && window.electronAPI?.terminal) {
         window.electronAPI.terminal.kill(terminalIdRef.current);
       }
+
+      // Dispose terminal instance
       term.dispose();
     };
-  }, []);
+  }, [nodeMetadata]);
 
   return (
     <div

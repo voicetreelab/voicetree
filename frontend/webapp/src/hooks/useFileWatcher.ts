@@ -70,11 +70,15 @@ export function useFileWatcher({
       const isNewNode = !cy.getElementById(nodeId).length;
 
       if (isNewNode) {
+        // Use first wikilink as parent for tree structure
+        const parentId = linkedNodeIds.length > 0 ? linkedNodeIds[0] : undefined;
+
         cy.add({
           data: {
             id: nodeId,
             label: nodeId.replace(/_/g, ' '),
-            linkedNodeIds
+            linkedNodeIds,
+            parentId
           }
         });
         allNodeIds.push(nodeId);
@@ -163,11 +167,15 @@ export function useFileWatcher({
     const isNewNode = !cy.getElementById(nodeId).length;
 
     if (isNewNode) {
+      // Use first wikilink as parent for tree structure
+      const parentId = linkedNodeIds.length > 0 ? linkedNodeIds[0] : undefined;
+
       const addedNode = cy.add({
         data: {
           id: nodeId,
           label: nodeId.replace(/_/g, ' '),
-          linkedNodeIds
+          linkedNodeIds,
+          parentId
         }
       });
 
@@ -274,8 +282,12 @@ export function useFileWatcher({
     const changedNode = cy.getElementById(nodeId);
     changedNode.data('linkedNodeIds', linkedNodeIds);
 
-    // Trigger breathing animation for appended content
-    cytoscapeRef.current?.animateAppendedContent(changedNode);
+    // Trigger breathing animation for appended content (only once per node)
+    // Only trigger if not already triggered to prevent re-triggering on every file change
+    if (!changedNode.data('appendAnimationTriggered')) {
+      changedNode.data('appendAnimationTriggered', true);
+      cytoscapeRef.current?.animateAppendedContent(changedNode);
+    }
 
     // Update counts
     setNodeCount(cy.nodes().length);

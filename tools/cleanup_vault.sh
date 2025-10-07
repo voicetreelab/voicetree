@@ -33,12 +33,35 @@ for dir in "$SOURCE_DIR"/*; do
     fi
 done
 
+# Move markdown files from root to destination with timestamp
+md_count=0
+for md_file in "$SOURCE_DIR"/*.md; do
+    if [ -f "$md_file" ]; then
+        md_name=$(basename "$md_file")
+        md_dest="$DEST_DIR/${md_name%.md}_$TIMESTAMP.md"
+
+        echo "Moving $md_file to $md_dest"
+        mv "$md_file" "$md_dest"
+
+        if [ $? -eq 0 ]; then
+            echo "Successfully moved $md_name"
+            ((md_count++))
+        else
+            echo "Error moving $md_name"
+        fi
+    fi
+done
+
+if [ $md_count -eq 0 ]; then
+    echo "No markdown files found in root, skipping"
+fi
+
 # Move voicetree.log to destination with timestamp if it exists
 if [ -f "voicetree.log" ]; then
     log_dest="$DEST_DIR/voicetree_$TIMESTAMP.log"
     echo "Moving voicetree.log to $log_dest"
     mv "voicetree.log" "$log_dest"
-    
+
     if [ $? -eq 0 ]; then
         echo "Successfully moved voicetree.log"
     else
@@ -48,4 +71,4 @@ else
     echo "voicetree.log not found, skipping"
 fi
 
-echo "Cleanup completed. Date folders moved to $DEST_DIR with timestamp $TIMESTAMP"
+echo "Cleanup completed. Moved $md_count markdown files and date folders to $DEST_DIR with timestamp $TIMESTAMP"

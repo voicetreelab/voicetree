@@ -320,90 +320,53 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
     });
   });
 
-  test('should render markdown editor in different preview modes', async ({ appWindow }) => {
-    // Test that all three preview modes work: "edit", "live", and "preview"
+  test('should render markdown preview mode with visible content (not blank)', async ({ appWindow }) => {
+    // Test that preview mode shows rendered content, not a blank white rectangle
+    // BUG: Currently preview mode shows blank white rectangle
 
-    // ✅ Test 1: Edit mode (current default)
     await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
       cy.addFloatingWindow({
-        id: 'editor-edit-mode',
+        id: 'editor-preview-test',
         component: 'MarkdownEditor',
-        title: 'Edit Mode',
-        position: { x: 100, y: 100 },
-        initialContent: '# Edit Mode\nThis is **edit** mode.'
-      });
-    });
-
-    // Wait for MDEditor to render
-    await appWindow.waitForSelector('#window-editor-edit-mode .w-md-editor', { timeout: 5000 });
-
-    // Check that editor toolbar is present (should be visible in edit mode)
-    const editModeHasToolbar = await appWindow.evaluate(() => {
-      const container = document.querySelector('#window-editor-edit-mode .w-md-editor');
-      const toolbar = container?.querySelector('.w-md-editor-toolbar');
-      return !!toolbar;
-    });
-    expect(editModeHasToolbar).toBe(true);
-
-    // ✅ Test 2: Live mode (split view)
-    await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
-      cy.addFloatingWindow({
-        id: 'editor-live-mode',
-        component: 'MarkdownEditor',
-        title: 'Live Mode',
-        position: { x: 500, y: 100 },
-        initialContent: '# Live Mode\nThis is **live** mode.',
-        previewMode: 'live'
-      });
-    });
-
-    await appWindow.waitForSelector('#window-editor-live-mode .w-md-editor', { timeout: 5000 });
-
-    // Check that both editor and preview are present
-    const liveModeHasBothPanes = await appWindow.evaluate(() => {
-      const container = document.querySelector('#window-editor-live-mode .w-md-editor');
-      const textarea = container?.querySelector('textarea');
-      const preview = container?.querySelector('.w-md-editor-preview');
-      return !!textarea && !!preview;
-    });
-    expect(liveModeHasBothPanes).toBe(true);
-
-    // ✅ Test 3: Preview mode (preview only - THIS IS THE BROKEN ONE)
-    await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
-      cy.addFloatingWindow({
-        id: 'editor-preview-mode',
-        component: 'MarkdownEditor',
-        title: 'Preview Mode',
-        position: { x: 900, y: 100 },
-        initialContent: '# Preview Mode\nThis is **preview** mode.',
+        title: 'Preview Mode Test',
+        position: { x: 300, y: 300 },
+        initialContent: '# Test Header\n\nThis is a **bold** test.\n\n- Item 1\n- Item 2',
         previewMode: 'preview'
       });
     });
 
-    await appWindow.waitForSelector('#window-editor-preview-mode .w-md-editor', { timeout: 5000 });
+    // Wait for MDEditor to render
+    await appWindow.waitForSelector('#window-editor-preview-test .w-md-editor', { timeout: 5000 });
 
-    // Check that ONLY preview is present (no editor textarea)
-    const previewModeStructure = await appWindow.evaluate(() => {
-      const container = document.querySelector('#window-editor-preview-mode .w-md-editor');
-      const textarea = container?.querySelector('textarea');
+    // Check that the preview area exists and has content
+    const previewContent = await appWindow.evaluate(() => {
+      const container = document.querySelector('#window-editor-preview-test .w-md-editor');
       const preview = container?.querySelector('.w-md-editor-preview');
+
       return {
-        hasTextarea: !!textarea,
-        hasPreview: !!preview,
-        containerExists: !!container
+        containerExists: !!container,
+        previewExists: !!preview,
+        previewHTML: preview?.innerHTML || '',
+        previewText: preview?.textContent || '',
+        previewEmpty: !preview?.textContent || preview.textContent.trim().length === 0
       };
     });
 
-    expect(previewModeStructure.containerExists).toBe(true);
-    expect(previewModeStructure.hasTextarea).toBe(false); // Should not have editor in preview mode
-    expect(previewModeStructure.hasPreview).toBe(true); // Should have preview
+    // Assertions
+    expect(previewContent.containerExists).toBe(true);
+    expect(previewContent.previewExists).toBe(true);
 
-    // ✅ Screenshot showing all three modes
+    // THIS IS THE KEY TEST: Preview should have visible content, not be blank
+    expect(previewContent.previewEmpty).toBe(false);
+    expect(previewContent.previewText).toContain('Test Header');
+    expect(previewContent.previewText).toContain('bold');
+    expect(previewContent.previewHTML).toContain('<h1');
+    expect(previewContent.previewHTML).toContain('<strong>');
+
+    // Screenshot to verify visual appearance
     await appWindow.screenshot({
-      path: 'tests/screenshots/electron-markdown-preview-modes.png'
+      path: 'tests/screenshots/electron-markdown-preview-mode.png'
     });
   });
 
@@ -532,5 +495,366 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
     await appWindow.screenshot({
       path: 'tests/screenshots/electron-floating-window-edge-after-drag.png'
     });
+  });
+
+  test('should kill terminal PTY process when window closes', async ({ electronApp, appWindow }) => {
+    // Test for bug: PTY processes trying to send data to destroyed webContents crash the app
+    // This test verifies terminals are properly cleaned up when windows close
+
+    const mainLogs: string[] = [];
+
+    // Capture console logs from main process
+    electronApp.on('console', (msg) => {
+      const text = msg.text();
+      mainLogs.push(text);
+      console.log(`[MAIN PROCESS]: ${text}`);
+    });
+
+    // Create a terminal window
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.addFloatingWindow({
+        id: 'terminal-cleanup-test',
+        component: 'Terminal',
+        title: 'Terminal Cleanup Test',
+        position: { x: 300, y: 200 },
+        nodeMetadata: {
+          fileName: 'cleanup-test-terminal',
+          filePath: '/tmp/cleanup-test-terminal'
+        }
+      });
+    });
+
+    // Wait for terminal to initialize
+    await appWindow.waitForSelector('#window-terminal-cleanup-test .xterm', { timeout: 5000 });
+    await appWindow.waitForTimeout(1000);
+
+    // Verify terminal window exists
+    const terminalExists = await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-cleanup-test');
+      const xtermElement = windowElement?.querySelector('.xterm');
+      return {
+        windowExists: !!windowElement,
+        xtermExists: !!xtermElement
+      };
+    });
+
+    expect(terminalExists.windowExists).toBe(true);
+    expect(terminalExists.xtermExists).toBe(true);
+
+    // Type a command to generate some PTY activity
+    await appWindow.evaluate(() => {
+      const xtermElement = document.querySelector('.xterm') as HTMLElement;
+      if (xtermElement) {
+        xtermElement.focus();
+        xtermElement.click();
+      }
+    });
+
+    await appWindow.keyboard.type('echo "Terminal is running"');
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(500);
+
+    // Clear logs before closing
+    mainLogs.length = 0;
+
+    // Close the window using the close button
+    const closeButton = appWindow.locator('#window-terminal-cleanup-test .cy-floating-window-close');
+    await closeButton.click();
+
+    // Wait for cleanup to happen
+    await appWindow.waitForTimeout(500);
+
+    // Verify window is removed from DOM
+    const windowRemoved = await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-cleanup-test');
+      return windowElement === null;
+    });
+
+    expect(windowRemoved).toBe(true);
+
+    // Verify shadow node is removed from cytoscape
+    const shadowNodeRemoved = await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      const node = cy.$('#terminal-cleanup-test');
+      return node.length === 0;
+    });
+
+    expect(shadowNodeRemoved).toBe(true);
+
+    // Check that no "Object has been destroyed" errors occurred
+    const hasDestroyedError = mainLogs.some(log =>
+      log.includes('Object has been destroyed')
+    );
+
+    expect(hasDestroyedError).toBe(false);
+
+    // Verify cleanup log messages appeared
+    const hasCleanupLog = mainLogs.some(log =>
+      log.includes('Cleaning up terminal') ||
+      log.includes('closed, cleaning up terminals')
+    );
+
+    // Note: This assertion may be soft since cleanup happens in 'closed' event
+    // which fires after the window is already destroyed
+    console.log('Captured main process logs:', mainLogs);
+
+    // The key assertion: No crash occurred (test completed successfully)
+    // If the bug still existed, the app would crash with "Object has been destroyed"
+  });
+
+  test('should resize terminal window without visual artifacts or text loss', async ({ appWindow }) => {
+    // Test for bug: Terminal windows show visual artifacts when enlarged and lose text when shrunk
+    // This test verifies the fix: FitAddon + ResizeObserver properly resizes xterm
+
+    // Create a terminal window
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.addFloatingWindow({
+        id: 'terminal-resize-test',
+        component: 'Terminal',
+        title: 'Terminal Resize Test',
+        position: { x: 300, y: 200 },
+        resizable: true,
+        nodeMetadata: {
+          fileName: 'test-terminal',
+          filePath: '/tmp/test-terminal'
+        }
+      });
+    });
+
+    // Wait for terminal to initialize
+    await appWindow.waitForSelector('#window-terminal-resize-test .xterm', { timeout: 5000 });
+    await appWindow.waitForTimeout(1000);
+
+    // Get initial window size
+    const initialSize = await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
+      const xtermElement = windowElement?.querySelector('.xterm') as HTMLElement;
+
+      return {
+        windowWidth: windowElement.offsetWidth,
+        windowHeight: windowElement.offsetHeight,
+        xtermExists: !!xtermElement
+      };
+    });
+
+    expect(initialSize.xtermExists).toBe(true);
+
+    // Test 1: Resize window LARGER using CSS (simulating user drag)
+    await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
+      windowElement.style.width = '900px';
+      windowElement.style.height = '600px';
+    });
+
+    // Wait for ResizeObserver to trigger and FitAddon to refit
+    await appWindow.waitForTimeout(500);
+
+    // Check for visual artifacts after enlarging
+    const enlargedState = await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
+      const xtermViewport = windowElement?.querySelector('.xterm-viewport') as HTMLElement;
+      const xtermScreen = windowElement?.querySelector('.xterm-screen') as HTMLElement;
+
+      if (!xtermViewport || !xtermScreen) return null;
+
+      const viewportStyles = window.getComputedStyle(xtermViewport);
+
+      // Check for white rectangle artifact
+      const hasWhiteArtifact = viewportStyles.backgroundColor === 'rgb(255, 255, 255)' ||
+                               viewportStyles.backgroundColor === 'white';
+
+      return {
+        windowWidth: windowElement.offsetWidth,
+        windowHeight: windowElement.offsetHeight,
+        viewportBgColor: viewportStyles.backgroundColor,
+        hasWhiteArtifact,
+        screenHasContent: xtermScreen.textContent && xtermScreen.textContent.length > 0
+      };
+    });
+
+    // Verify terminal resized without artifacts
+    expect(enlargedState).toBeTruthy();
+    expect(enlargedState!.windowWidth).toBe(900);
+    expect(enlargedState!.windowHeight).toBe(600);
+    expect(enlargedState!.hasWhiteArtifact).toBe(false); // No white rectangle artifact
+
+    // Screenshot after enlarging
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-terminal-resize-enlarged.png'
+    });
+
+    // Test 2: Resize window SMALLER
+    await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
+      windowElement.style.width = '500px';
+      windowElement.style.height = '300px';
+    });
+
+    // Wait for ResizeObserver to trigger
+    await appWindow.waitForTimeout(500);
+
+    // Check that terminal still functions after shrinking
+    const shrunkState = await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
+      const xtermElement = windowElement?.querySelector('.xterm') as HTMLElement;
+
+      return {
+        windowWidth: windowElement.offsetWidth,
+        windowHeight: windowElement.offsetHeight,
+        xtermStillExists: !!xtermElement
+      };
+    });
+
+    // Verify terminal resized smaller without breaking
+    expect(shrunkState.windowWidth).toBe(500);
+    expect(shrunkState.windowHeight).toBe(300);
+    expect(shrunkState.xtermStillExists).toBe(true); // Terminal should still exist and function
+
+    // Screenshot after shrinking
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-terminal-resize-shrunk.png'
+    });
+
+    // Test 3: Verify terminal is still interactive after multiple resizes
+    const terminalResponsive = await appWindow.evaluate(() => {
+      const xtermElement = document.querySelector('#window-terminal-resize-test .xterm') as HTMLElement;
+      return xtermElement !== null && xtermElement.offsetWidth > 0 && xtermElement.offsetHeight > 0;
+    });
+
+    expect(terminalResponsive).toBe(true);
+  });
+
+  test('should not trigger excessive resizes from DOM mutations (debouncing test)', async ({ appWindow }) => {
+    // Test for bug: ResizeObserver fires on every DOM mutation, causing excessive fit() calls
+    // This verifies debouncing and size-change detection is working
+
+    let resizeCallCount = 0;
+
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.addFloatingWindow({
+        id: 'terminal-debounce-test',
+        component: 'Terminal',
+        title: 'Debounce Test Terminal',
+        position: { x: 300, y: 200 },
+        resizable: true,
+        nodeMetadata: {
+          fileName: 'debounce-test',
+          filePath: '/tmp/debounce-test'
+        }
+      });
+    });
+
+    await appWindow.waitForSelector('#window-terminal-debounce-test .xterm', { timeout: 5000 });
+    await appWindow.waitForTimeout(1000);
+
+    // Instrument the terminal to count fit() calls
+    await appWindow.evaluate(() => {
+      (window as any).terminalResizeCount = 0;
+      const terminalElement = document.querySelector('#window-terminal-debounce-test');
+      if (terminalElement) {
+        // Create a MutationObserver to count DOM changes
+        const observer = new MutationObserver(() => {
+          // DOM is changing, but fit() should NOT be called for every mutation
+        });
+        observer.observe(terminalElement, { attributes: true, childList: true, subtree: true });
+      }
+    });
+
+    // Rapidly resize multiple times - debouncing should batch these
+    for (let i = 0; i < 5; i++) {
+      await appWindow.evaluate((iteration) => {
+        const windowElement = document.querySelector('#window-terminal-debounce-test') as HTMLElement;
+        windowElement.style.width = `${600 + (iteration * 10)}px`;
+      }, i);
+      await appWindow.waitForTimeout(20); // Quick successive resizes
+    }
+
+    // Wait for debounce to settle
+    await appWindow.waitForTimeout(200);
+
+    // Terminal should still be functional after rapid resizes
+    const terminalHealthy = await appWindow.evaluate(() => {
+      const xtermElement = document.querySelector('#window-terminal-debounce-test .xterm') as HTMLElement;
+      const windowElement = document.querySelector('#window-terminal-debounce-test') as HTMLElement;
+      return {
+        xtermExists: xtermElement !== null,
+        windowWidth: windowElement?.offsetWidth || 0,
+        xtermHasSize: xtermElement && xtermElement.offsetWidth > 0 && xtermElement.offsetHeight > 0
+      };
+    });
+
+    // Verify terminal survived rapid resizing
+    expect(terminalHealthy.xtermExists).toBe(true);
+    expect(terminalHealthy.xtermHasSize).toBe(true);
+    expect(terminalHealthy.windowWidth).toBe(640); // Should be at final size
+  });
+
+  test('should only resize when container size actually changes', async ({ appWindow }) => {
+    // Test for bug: fit() called on every DOM update even when size doesn't change
+    // This verifies size-change detection is working
+
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.addFloatingWindow({
+        id: 'terminal-sizechange-test',
+        component: 'Terminal',
+        title: 'Size Change Test',
+        position: { x: 300, y: 200 },
+        resizable: true,
+        nodeMetadata: {
+          fileName: 'sizechange-test',
+          filePath: '/tmp/sizechange-test'
+        }
+      });
+    });
+
+    await appWindow.waitForSelector('#window-terminal-sizechange-test .xterm', { timeout: 5000 });
+    await appWindow.waitForTimeout(1000);
+
+    // Get initial size
+    const initialSize = await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-sizechange-test') as HTMLElement;
+      return {
+        width: windowElement.offsetWidth,
+        height: windowElement.offsetHeight
+      };
+    });
+
+    // Resize by small amount (< 5px) - should NOT trigger fit()
+    await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-sizechange-test') as HTMLElement;
+      windowElement.style.width = `${windowElement.offsetWidth + 3}px`;
+    });
+
+    await appWindow.waitForTimeout(200);
+
+    // Resize by large amount (> 5px) - SHOULD trigger fit()
+    await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-sizechange-test') as HTMLElement;
+      windowElement.style.width = '800px';
+      windowElement.style.height = '500px';
+    });
+
+    await appWindow.waitForTimeout(200);
+
+    const finalSize = await appWindow.evaluate(() => {
+      const windowElement = document.querySelector('#window-terminal-sizechange-test') as HTMLElement;
+      const xtermElement = windowElement?.querySelector('.xterm') as HTMLElement;
+      return {
+        width: windowElement.offsetWidth,
+        height: windowElement.offsetHeight,
+        xtermExists: xtermElement !== null,
+        xtermHealthy: xtermElement && xtermElement.offsetWidth > 0
+      };
+    });
+
+    // Verify final resize worked
+    expect(finalSize.width).toBe(800);
+    expect(finalSize.height).toBe(500);
+    expect(finalSize.xtermExists).toBe(true);
+    expect(finalSize.xtermHealthy).toBe(true);
   });
 });

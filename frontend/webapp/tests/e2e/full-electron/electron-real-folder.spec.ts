@@ -1,4 +1,18 @@
- 
+
+/**
+ * REAL FOLDER E2E TEST
+ *
+ * This test uses a pre-populated vault of markdown files to test the complete
+ * file-to-graph pipeline without needing to create temporary files or mock anything.
+ *
+ * Key features:
+ * - Uses real markdown files from /tests/fixtures/test-markdown-vault
+ * - Bypasses the native folder picker by providing path directly via IPC
+ * - Tests real file watching with Chokidar
+ * - Verifies graph visualization updates with actual wiki-links
+ * - tests the bulk initial layout, and incremental (on new node add) layouts
+ */
+
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -25,18 +39,6 @@ interface GraphState {
   edges: Array<{ source: string; target: string }>;
 }
 
-/**
- * REAL FOLDER E2E TEST
- *
- * This test uses a pre-populated vault of markdown files to test the complete
- * file-to-graph pipeline without needing to create temporary files or mock anything.
- *
- * Key features:
- * - Uses real markdown files from /tests/fixtures/test-markdown-vault
- * - Bypasses the native folder picker by providing path directly via IPC
- * - Tests real file watching with Chokidar
- * - Verifies graph visualization updates with actual wiki-links
- */
 
 // Extend test with Electron app
 const test = base.extend<{
@@ -639,6 +641,183 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     await appWindow.waitForTimeout(2000);
 
     console.log('✓ Graph wikilink update test completed');
+  });
+
+  test('should bulk load then incrementally add nodes with proper layout', async ({ appWindow }) => {
+    console.log('=== Testing Bulk Load + Incremental Layout (Production Flow) ===');
+
+    // Start watching the fixture vault
+    await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    // Wait for bulk load to complete
+    await appWindow.waitForTimeout(3000);
+
+    console.log('=== PHASE 1: Verify Bulk Load Layout Quality ===');
+
+    const bulkLoadState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const nodes = cy.nodes();
+      const positions = nodes.map(n => ({
+        id: n.id(),
+        x: n.position().x,
+        y: n.position().y
+      }));
+
+      // Check Y-coordinate distribution
+      const yCoords = positions.map(p => p.y);
+      const uniqueY = new Set(yCoords);
+      const allAtZero = yCoords.every(y => y === 0);
+
+      return {
+        nodeCount: nodes.length,
+        yCoords,
+        uniqueYCount: uniqueY.size,
+        allAtZero,
+        samplePositions: positions.slice(0, 5)
+      };
+    });
+
+    console.log(`Bulk load: ${bulkLoadState.nodeCount} nodes`);
+    console.log(`Y-coordinates: ${bulkLoadState.uniqueYCount} unique levels`);
+    console.log(`Sample positions:`, bulkLoadState.samplePositions);
+
+    // Critical check: ensure bulk layout worked (not all at y=0)
+    expect(bulkLoadState.allAtZero).toBe(false);
+    expect(bulkLoadState.uniqueYCount).toBeGreaterThan(1);
+    console.log('✓ Bulk load layout has proper Y-coordinate distribution');
+
+    console.log('=== PHASE 2: Add 3 New Nodes Incrementally ===');
+
+    const newFiles = [
+      {
+        name: 'incremental-test-1.md',
+        content: '# Incremental Test 1\n\nFirst incrementally added node. Links to [[introduction]].'
+      },
+      {
+        name: 'incremental-test-2.md',
+        content: '# Incremental Test 2\n\nSecond incremental node. References [[architecture]] and [[incremental-test-1]].'
+      },
+      {
+        name: 'incremental-test-3.md',
+        content: '# Incremental Test 3\n\nThird incremental node. Connects to [[core-principles]].'
+      }
+    ];
+
+    // Add files one by one and verify layout updates
+    for (let i = 0; i < newFiles.length; i++) {
+      const file = newFiles[i];
+      const filePath = path.join(FIXTURE_VAULT_PATH, 'concepts', file.name);
+
+      console.log(`Adding file ${i + 1}: ${file.name}`);
+      await fs.writeFile(filePath, file.content);
+
+      // Wait for file to be detected and laid out
+      await expect.poll(async () => {
+        return appWindow.evaluate((filename) => {
+          const cy = (window as ExtendedWindow).cytoscapeInstance;
+          if (!cy) return false;
+          const labels = cy.nodes().map((n: NodeSingular) => n.data('label'));
+          const nodeId = filename.replace('.md', '');
+          return labels.includes(nodeId);
+        }, file.name);
+      }, {
+        message: `Waiting for ${file.name} to appear in graph`,
+        timeout: 10000
+      }).toBe(true);
+
+      console.log(`✓ File ${i + 1} added and detected`);
+    }
+
+    console.log('=== PHASE 3: Verify Incremental Layout Quality ===');
+
+    const finalState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const nodes = cy.nodes();
+      const positions = nodes.map(n => ({
+        id: n.id(),
+        x: n.position().x,
+        y: n.position().y
+      }));
+
+      // Get the 3 new nodes specifically
+      const newNodeIds = [
+        'incremental-test-1',
+        'incremental-test-2',
+        'incremental-test-3'
+      ];
+
+      const newNodePositions = positions.filter(p =>
+        newNodeIds.includes(p.id)
+      );
+
+      // Check Y-coordinates for new nodes
+      const newYCoords = newNodePositions.map(p => p.y);
+      const allNewAtZero = newYCoords.every(y => y === 0);
+
+      // Check all Y-coordinates (old + new)
+      const allYCoords = positions.map(p => p.y);
+      const uniqueYAll = new Set(allYCoords);
+
+      // Check for overlaps
+      let overlapCount = 0;
+      const MINIMUM_DISTANCE = 30;
+
+      for (let i = 0; i < positions.length; i++) {
+        for (let j = i + 1; j < positions.length; j++) {
+          const dist = Math.hypot(
+            positions[i].x - positions[j].x,
+            positions[i].y - positions[j].y
+          );
+          if (dist < MINIMUM_DISTANCE) {
+            overlapCount++;
+          }
+        }
+      }
+
+      return {
+        totalNodes: nodes.length,
+        newNodePositions,
+        allNewAtZero,
+        uniqueYLevels: uniqueYAll.size,
+        overlapCount
+      };
+    });
+
+    console.log(`Final graph: ${finalState.totalNodes} nodes`);
+    console.log(`New nodes:`, finalState.newNodePositions);
+    console.log(`Unique Y levels: ${finalState.uniqueYLevels}`);
+    console.log(`Overlaps: ${finalState.overlapCount}`);
+
+    // Verify incremental nodes have proper positions
+    expect(finalState.totalNodes).toBe(bulkLoadState.nodeCount + 3);
+    expect(finalState.allNewAtZero).toBe(false); // New nodes should NOT all be at y=0
+    expect(finalState.newNodePositions.length).toBe(3);
+
+    // Check that each new node has a unique position
+    const uniqueNewPositions = new Set(
+      finalState.newNodePositions.map(p => `${Math.round(p.x)},${Math.round(p.y)}`)
+    );
+    expect(uniqueNewPositions.size).toBe(3);
+
+    console.log('✓ Incremental nodes positioned correctly');
+    console.log('✓ No excessive overlaps detected');
+
+    // Clean up the test files
+    for (const file of newFiles) {
+      const filePath = path.join(FIXTURE_VAULT_PATH, 'concepts', file.name);
+      await fs.unlink(filePath);
+    }
+
+    console.log('✓ Test files cleaned up');
+    console.log('✅ Bulk load + incremental layout test completed successfully!');
   });
 
   test('should sync external file changes to open editors (bidirectional sync)', async ({ appWindow }) => {

@@ -1,3 +1,10 @@
+/**
+ * Tests breathing animation feature for graph nodes:
+ * - New nodes: green breathing until hover (stops immediately on hover)
+ * - Updated nodes: cyan breathing with 10s timeout
+ * - Multiple new nodes: latest animates indefinitely, previous get 10s timeout
+ * - Pinned nodes: orange breathing indefinitely (no timeout)
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('Breathing Animation for New and Updated Nodes', () => {
@@ -33,7 +40,8 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
     expect(newNodeCount).toBeGreaterThan(initialNodeCount);
 
     // Check for green breathing animation (NEW_NODE type)
-    const nodeStyle = await page.evaluate((filePath) => {
+    // Sample border width multiple times to verify it's actually animating (breathing)
+    const breathingCheck = await page.evaluate(async (filePath) => {
       const cy = (window as any).cytoscapeInstance;
       if (!cy) return null;
 
@@ -43,9 +51,21 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
 
       if (!node || node.length === 0) return null;
 
+      // Sample border width at 3 different points in time
+      const samples: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const borderWidth = parseFloat(node.style('border-width'));
+        samples.push(borderWidth);
+        await new Promise(resolve => setTimeout(resolve, 400)); // Wait 400ms between samples
+      }
+
+      // Check if values are different (breathing = animating)
+      const isAnimating = samples[0] !== samples[1] || samples[1] !== samples[2];
+
       return {
         exists: true,
-        borderWidth: node.style('border-width'),
+        borderWidthSamples: samples,
+        isAnimating,
         borderColor: node.style('border-color'),
         borderOpacity: node.style('border-opacity'),
         breathingActive: node.data('breathingActive'),
@@ -53,17 +73,21 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
       };
     }, newFilePath);
 
-    console.log('New node style:', nodeStyle);
+    console.log('New node breathing check:', breathingCheck);
 
     // Verify animation is active
-    expect(nodeStyle).not.toBeNull();
-    expect(nodeStyle?.exists).toBe(true);
-    expect(nodeStyle?.breathingActive).toBe(true);
-    expect(nodeStyle?.animationType).toBe('new_node');
+    expect(breathingCheck).not.toBeNull();
+    expect(breathingCheck?.exists).toBe(true);
+    expect(breathingCheck?.breathingActive).toBe(true);
+    expect(breathingCheck?.animationType).toBe('new_node');
 
-    // Check for visible border (breathing effect should have started)
-    expect(nodeStyle?.borderWidth).not.toBe('0');
-    expect(nodeStyle?.borderWidth).not.toBe('0px');
+    // Check that animation is actually breathing (border width changes over time)
+    expect(breathingCheck?.isAnimating).toBe(true);
+
+    // Check for visible border
+    for (const sample of breathingCheck?.borderWidthSamples || []) {
+      expect(sample).toBeGreaterThan(0);
+    }
 
     // Take screenshot during animation
     await page.screenshot({
@@ -71,22 +95,7 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
       fullPage: false
     });
 
-    // Wait and verify the breathing continues
-    await page.waitForTimeout(1500);
-
-    const stillBreathing = await page.evaluate((filePath) => {
-      const cy = (window as any).cytoscapeInstance;
-      const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
-      const node = cy.getElementById(nodeId);
-      return {
-        breathingActive: node.data('breathingActive'),
-        borderWidth: node.style('border-width')
-      };
-    }, newFilePath);
-
-    expect(stillBreathing.breathingActive).toBe(true);
-
-    // Hover over the node - should stop animation
+    // Hover over the node - should stop animation immediately
     await page.evaluate((filePath) => {
       const cy = (window as any).cytoscapeInstance;
       const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
@@ -96,21 +105,38 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
       node.emit('mouseover');
     }, newFilePath);
 
-    await page.waitForTimeout(500);
+    // Wait briefly for any event handlers to process
+    await page.waitForTimeout(100);
 
-    // Verify animation stopped after hover
-    const afterHover = await page.evaluate((filePath) => {
+    // Verify animation stopped after hover - check multiple times to ensure it stays stopped
+    const afterHoverChecks = await page.evaluate(async (filePath) => {
       const cy = (window as any).cytoscapeInstance;
       const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
       const node = cy.getElementById(nodeId);
-      return {
-        breathingActive: node.data('breathingActive'),
-        borderWidth: node.style('border-width')
-      };
+
+      const checks = [];
+      for (let i = 0; i < 3; i++) {
+        checks.push({
+          breathingActive: node.data('breathingActive'),
+          borderWidth: node.style('border-width')
+        });
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      return checks;
     }, newFilePath);
 
-    expect(afterHover.breathingActive).toBeFalsy();
-    expect(afterHover.borderWidth).toMatch(/^(0px?|0)$/);
+    console.log('After hover checks:', afterHoverChecks);
+
+    // All checks should show animation is stopped
+    for (const check of afterHoverChecks) {
+      expect(check.breathingActive).toBeFalsy();
+      expect(check.borderWidth).toMatch(/^(0px?|0)$/);
+    }
+
+    // Also verify border width is not changing (animation really stopped)
+    const borderWidths = afterHoverChecks.map(c => c.borderWidth);
+    const allSame = borderWidths.every(w => w === borderWidths[0]);
+    expect(allSame).toBe(true);
 
     console.log('✓ New node breathing animation test completed (stops on hover)');
   });
@@ -158,28 +184,47 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
     await page.waitForTimeout(500);
 
     // Check for cyan breathing animation (APPENDED_CONTENT type)
-    const updatedNodeStyle = await page.evaluate((fp) => {
+    // Sample multiple times to verify it's actually animating
+    const updatedNodeBreathing = await page.evaluate(async (fp) => {
       const cy = (window as any).cytoscapeInstance;
       const nodeId = fp.replace(/\.md$/, '').replace(/\//g, '_');
       const node = cy.getElementById(nodeId);
 
+      // Sample border width at 3 different points in time
+      const samples: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        const borderWidth = parseFloat(node.style('border-width'));
+        samples.push(borderWidth);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms between samples
+      }
+
+      // Check if values are different (breathing = animating)
+      const isAnimating = samples[0] !== samples[1] || samples[1] !== samples[2];
+
       return {
         exists: node && node.length > 0,
-        borderWidth: node.style('border-width'),
+        borderWidthSamples: samples,
+        isAnimating,
         borderColor: node.style('border-color'),
         breathingActive: node.data('breathingActive'),
         animationType: node.data('animationType')
       };
     }, filePath);
 
-    console.log('Updated node style:', updatedNodeStyle);
+    console.log('Updated node breathing check:', updatedNodeBreathing);
 
     // Verify appended content animation
-    expect(updatedNodeStyle.exists).toBe(true);
-    expect(updatedNodeStyle.breathingActive).toBe(true);
-    expect(updatedNodeStyle.animationType).toBe('appended_content');
-    expect(updatedNodeStyle.borderWidth).not.toBe('0');
-    expect(updatedNodeStyle.borderWidth).not.toBe('0px');
+    expect(updatedNodeBreathing.exists).toBe(true);
+    expect(updatedNodeBreathing.breathingActive).toBe(true);
+    expect(updatedNodeBreathing.animationType).toBe('appended_content');
+
+    // Check that animation is actually breathing (border width changes over time)
+    expect(updatedNodeBreathing.isAnimating).toBe(true);
+
+    // All samples should be non-zero
+    for (const sample of updatedNodeBreathing.borderWidthSamples) {
+      expect(sample).toBeGreaterThan(0);
+    }
 
     // Take screenshot
     await page.screenshot({

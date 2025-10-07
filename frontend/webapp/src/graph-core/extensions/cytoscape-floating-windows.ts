@@ -19,6 +19,7 @@ export interface FloatingWindowConfig {
   initialContent?: string;
   onSave?: (content: string) => Promise<void>;
   nodeMetadata?: Record<string, unknown>;
+  previewMode?: 'edit' | 'live' | 'preview';
 }
 
 export interface ExtensionConfig {
@@ -287,6 +288,7 @@ function mountComponent(
         windowId: windowId,
         content: config.initialContent || '',
         nodeMetadata: config.nodeMetadata,
+        previewMode: config.previewMode,
         onSave: config.onSave || ((content: string) => {
           console.log('Saved content:', content);
           return Promise.resolve();
