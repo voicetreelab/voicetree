@@ -2,6 +2,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
 import path from "path";
 
 /**
@@ -11,7 +13,7 @@ import path from "path";
  * If this config drifts from electron.vite.config.ts, that's acceptable.
  */
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), wasm(), topLevelAwait()],
   base: "./",
   resolve: {
     alias: {

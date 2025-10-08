@@ -211,14 +211,12 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
       return this.fullLayout(context);
     }
 
-    // Step 1: Integrate new nodes into the cached tree structure
     const changedLayoutNodes: LayoutNode[] = [];
 
     for (const nodeInfo of context.newNodes) {
       let layoutNode = this.layoutNodesCache.get(nodeInfo.id);
 
       if (!layoutNode) {
-        // Create new layout node
         layoutNode = {
           id: nodeInfo.id,
           x: 0,
@@ -235,7 +233,6 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
         this.layoutNodesCache.set(nodeInfo.id, layoutNode);
       }
 
-      // Update latest size information
       layoutNode.width = nodeInfo.size.width;
       layoutNode.height = nodeInfo.size.height;
 
@@ -243,7 +240,6 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
         this.initNode(layoutNode);
       }
 
-      // Attach to parent
       if (nodeInfo.parentId) {
         const parentLayoutNode = this.layoutNodesCache.get(nodeInfo.parentId);
         if (parentLayoutNode) {
@@ -251,29 +247,48 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
           if (!parentLayoutNode.children.includes(layoutNode)) {
             parentLayoutNode.children.push(layoutNode);
           }
+        } else {
+          console.warn(`[IncrementalTidy] Parent ${nodeInfo.parentId} not found for ${nodeInfo.id}; treating as root`);
         }
+      } else {
+        console.warn(`[IncrementalTidy] No parentId for new node ${nodeInfo.id}; treating as root`);
       }
 
       changedLayoutNodes.push(layoutNode);
     }
 
-    // Ensure root list contains any newly created roots
     for (const node of changedLayoutNodes) {
-      if (!node.parent && !this.rootsCache.includes(node)) {
-        this.rootsCache.push(node);
+      if (node.parent) {
+        const parent = node.parent;
+        const siblings = parent.children.filter(child => child !== node);
+        console.log(`[IncrementalTidy] Placing ${node.id} under ${parent.id}. Sibling count: ${siblings.length}`);
+        const parentRight = siblings.length > 0
+          ? Math.max(...siblings.map(child => child.x + child.width / 2))
+          : parent.x;
+
+        const newCenter = Math.max(parentRight, parent.x) + this.PEER_MARGIN + node.width / 2;
+        node.x = newCenter;
+        node.relativeX = node.x - parent.x;
+        node.y = parent.y + parent.height + this.PARENT_CHILD_MARGIN;
+        node.relativeY = node.y - parent.y;
+
+        positions.set(node.id, { x: node.x, y: node.y });
+      } else {
+        if (!this.rootsCache.includes(node)) {
+          this.rootsCache.push(node);
+        }
+        const existingRoots = this.rootsCache.filter(root => root !== node);
+        const rightMostRoot = existingRoots.length > 0
+          ? Math.max(...existingRoots.map(root => root.x + root.width / 2))
+          : 0;
+        const newCenter = rightMostRoot + this.PEER_MARGIN + node.width / 2;
+        node.x = newCenter;
+        node.relativeX = node.x;
+        node.y = 0;
+        node.relativeY = 0;
+        positions.set(node.id, { x: node.x, y: node.y });
       }
     }
-
-    // Fallback strategy: re-layout entire forest for correctness
-    console.warn('[IncrementalTidy] Using full forest relayout fallback for incremental update');
-    for (const root of this.rootsCache) {
-      this.layout(root);
-    }
-
-    // Collect all positions
-    this.layoutNodesCache.forEach((layoutNode, id) => {
-      positions.set(id, { x: layoutNode.x, y: layoutNode.y });
-    });
 
     return { positions };
   }

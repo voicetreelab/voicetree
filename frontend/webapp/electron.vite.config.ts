@@ -1,6 +1,8 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import wasm from 'vite-plugin-wasm'
+import topLevelAwait from 'vite-plugin-top-level-await'
 import path from 'path'
 
 /**
@@ -45,7 +47,7 @@ export default defineConfig({
   renderer: {
     // Configuration for React renderer
     root: '.',
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), wasm(), topLevelAwait()],
     base: './',
     resolve: {
       alias: {

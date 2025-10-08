@@ -5,6 +5,7 @@ import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
 import { LayoutManager, IncrementalTidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
+import { StyleService } from '@/graph-core/services/StyleService';
 // Import graph styles
 import '@/graph-core/styles/graph.css';
 
@@ -43,6 +44,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   const markdownFiles = useRef<Map<string, string>>(new Map());
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
+  const isInitialMountRef = useRef(true);
 
   // Store file change handler ref for manual graph updates after save
   const handleFileChangedRef = useRef<((data: { path: string; fullPath: string; content: string }) => void) | null>(null);
@@ -221,6 +223,26 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       document.documentElement.classList.remove('dark');
     }
   };
+
+  // Re-apply graph styles when dark mode changes
+  useEffect(() => {
+    // Skip on initial mount - styles are already set during initialization
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    if (!cytoscapeRef.current) return;
+
+    // Recreate StyleService to pick up new dark mode state
+    const styleService = new StyleService();
+    const newStyles = styleService.getCombinedStylesheet();
+
+    // Apply new stylesheet to existing graph
+    cytoscapeRef.current.getCore().style(newStyles);
+
+    console.log('[Dark Mode] Applied new styles for', isDarkMode ? 'dark' : 'light', 'mode');
+  }, [isDarkMode]);
 
   // Initialize Cytoscape on mount
   useEffect(() => {
