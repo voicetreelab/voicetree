@@ -18,36 +18,6 @@ describe('BreathingAnimationService', () => {
 
     node = cy.getElementById('test-node') as NodeSingular;
     service = new BreathingAnimationService();
-
-    // Mock the animate function since it won't work in headless mode
-    vi.spyOn(node, 'animate').mockImplementation((options: cytoscape.AnimateOptions) => {
-      // Simulate immediate completion for testing
-      if (options.complete) {
-        setTimeout(() => options.complete(), 0);
-      }
-      return {
-        play: vi.fn().mockReturnThis(),
-        promise: vi.fn().mockResolvedValue(undefined)
-      } as ReturnType<NodeSingular['animate']>;
-    });
-
-    vi.spyOn(node, 'stop').mockImplementation(() => node);
-
-    // Store style values for mocking
-    const styleValues: Record<string, string> = {};
-
-    // Mock style() method to handle both setting and getting
-    const originalStyle = node.style.bind(node);
-    vi.spyOn(node, 'style').mockImplementation((name: string, value?: string) => {
-      if (value !== undefined) {
-        // Setting a style
-        styleValues[name] = value;
-        return originalStyle(name, value);
-      } else {
-        // Getting a style
-        return styleValues[name] || originalStyle(name);
-      }
-    });
   });
 
   afterEach(() => {
@@ -65,51 +35,50 @@ describe('BreathingAnimationService', () => {
       expect(node.data('animationType')).toBe(AnimationType.NEW_NODE);
     });
 
-    it('should store original border values', () => {
-      // Set initial border style
-      node.style('border-width', '3px');
-      node.style('border-color', '#ff0000');
+    it('should apply correct classes for different animation types', () => {
+      vi.useFakeTimers();
 
+      // Test NEW_NODE animation (green) - starts with expand class
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      expect(node.hasClass('breathing-new-expand')).toBe(true);
+
+      service.stopAnimationForNode(node);
+      vi.clearAllMocks();
+
+      // Test PINNED animation (orange) - starts with expand class
       service.addBreathingAnimation(node, AnimationType.PINNED);
+      expect(node.hasClass('breathing-pinned-expand')).toBe(true);
 
-      expect(node.data('originalBorderWidth')).toBe('3px');
-      expect(node.data('originalBorderColor')).toBe('#ff0000');
+      service.stopAnimationForNode(node);
+      vi.clearAllMocks();
+
+      // Test APPENDED_CONTENT animation (cyan) - starts with expand class
+      service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
+      expect(node.hasClass('breathing-appended-expand')).toBe(true);
+
+      vi.useRealTimers();
     });
 
-    it('should apply different colors for different animation types', () => {
-      // Test NEW_NODE animation (green)
+    it('should toggle between expand and contract classes', () => {
+      vi.useFakeTimers();
+
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
-      expect(node.animate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          style: expect.objectContaining({
-            'border-color': 'rgba(0, 255, 0, 0.9)'
-          })
-        })
-      );
 
-      vi.clearAllMocks();
+      // Should start with expand class
+      expect(node.hasClass('breathing-new-expand')).toBe(true);
+      expect(node.hasClass('breathing-new-contract')).toBe(false);
 
-      // Test PINNED animation (orange)
-      service.addBreathingAnimation(node, AnimationType.PINNED);
-      expect(node.animate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          style: expect.objectContaining({
-            'border-color': 'rgba(255, 165, 0, 0.9)'
-          })
-        })
-      );
+      // After duration, should switch to contract class
+      vi.advanceTimersByTime(1000);
+      expect(node.hasClass('breathing-new-expand')).toBe(false);
+      expect(node.hasClass('breathing-new-contract')).toBe(true);
 
-      vi.clearAllMocks();
+      // After another duration, should switch back to expand
+      vi.advanceTimersByTime(1000);
+      expect(node.hasClass('breathing-new-expand')).toBe(true);
+      expect(node.hasClass('breathing-new-contract')).toBe(false);
 
-      // Test APPENDED_CONTENT animation (cyan)
-      service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
-      expect(node.animate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          style: expect.objectContaining({
-            'border-color': 'rgba(0, 255, 255, 0.9)'
-          })
-        })
-      );
+      vi.useRealTimers();
     });
 
     it('should set timeout for animations with timeout config', () => {
@@ -119,7 +88,7 @@ describe('BreathingAnimationService', () => {
       // NEW_NODE has no timeout (0 = no timeout, persists until next node)
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       const newNodeTimeoutCalls = setTimeoutSpy.mock.calls.filter(
-        call => call[1] > 0
+        call => call[1] === 10000
       );
       expect(newNodeTimeoutCalls.length).toBe(0);
 
@@ -137,7 +106,7 @@ describe('BreathingAnimationService', () => {
       // PINNED has no timeout (0 means no timeout)
       service.addBreathingAnimation(node, AnimationType.PINNED);
       const pinnedTimeoutCalls = setTimeoutSpy.mock.calls.filter(
-        call => call[1] > 0
+        call => call[1] === 10000
       );
       expect(pinnedTimeoutCalls.length).toBe(0);
 
@@ -167,25 +136,40 @@ describe('BreathingAnimationService', () => {
       expect(node.data('breathingActive')).toBe(false);
     });
 
-    it('should clear border styles completely', () => {
-      // Set initial styles
-      node.style('border-width', '5px');
-      node.style('border-color', '#00ff00');
+    it('should not force inline styles - let stylesheet cascade', () => {
+      vi.useFakeTimers();
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
 
       // Clear previous mock calls
-      vi.clearAllMocks();
+      const styleSpy = vi.spyOn(node, 'style');
 
       service.stopAnimationForNode(node);
 
-      // Check that style was called to clear the border completely
-      expect(node.style).toHaveBeenCalledWith({
-        'border-width': '0',
-        'border-color': 'rgba(0, 0, 0, 0)',
-        'border-opacity': 1,
-        'border-style': 'solid'
-      });
+      // Should NOT call style() - we let the stylesheet cascade handle it
+      // This preserves other class-based styles (pinned, frontmatter, etc.)
+      expect(styleSpy).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+    it('should remove animation classes', () => {
+      vi.useFakeTimers();
+
+      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+
+      // Animation classes should be present
+      expect(
+        node.hasClass('breathing-new-expand') || node.hasClass('breathing-new-contract')
+      ).toBe(true);
+
+      service.stopAnimationForNode(node);
+
+      // Animation classes should be removed
+      expect(node.hasClass('breathing-new-expand')).toBe(false);
+      expect(node.hasClass('breathing-new-contract')).toBe(false);
+
+      vi.useRealTimers();
     });
 
     it('should remove animation data from node', () => {
@@ -195,29 +179,25 @@ describe('BreathingAnimationService', () => {
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.stopAnimationForNode(node);
 
-      expect(removeDataSpy).toHaveBeenCalledWith(
-        'originalBorderWidth originalBorderColor animationType'
-      );
+      expect(removeDataSpy).toHaveBeenCalledWith('animationType');
     });
 
-    it('should stop the animation', () => {
+    it('should clear the animation interval', () => {
+      vi.useFakeTimers();
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.stopAnimationForNode(node);
 
-      expect(node.stop).toHaveBeenCalledWith(true, true);
+      expect(clearIntervalSpy).toHaveBeenCalled();
+
+      vi.useRealTimers();
     });
   });
 
   describe('stopAllAnimations', () => {
     it('should stop animations for all nodes', () => {
       const node2 = cy.add({ data: { id: 'test-node-2' } })[0] as NodeSingular;
-
-      // Mock animate for node2
-      vi.spyOn(node2, 'animate').mockImplementation(() => ({
-        play: vi.fn().mockReturnThis(),
-        promise: vi.fn().mockResolvedValue(undefined)
-      } as ReturnType<NodeSingular['animate']>));
-      vi.spyOn(node2, 'stop').mockImplementation(() => node2);
 
       const nodes = cy.nodes();
       service.addBreathingAnimation(nodes, AnimationType.NEW_NODE);
@@ -249,9 +229,10 @@ describe('BreathingAnimationService', () => {
   });
 
   describe('destroy', () => {
-    it('should clear all timeouts', () => {
+    it('should clear all timeouts and intervals', () => {
       vi.useFakeTimers();
       const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
@@ -259,6 +240,7 @@ describe('BreathingAnimationService', () => {
       service.destroy();
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(clearIntervalSpy).toHaveBeenCalled();
       vi.useRealTimers();
     });
   });

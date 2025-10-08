@@ -307,7 +307,7 @@ describe('CytoscapeCore Styling Integration', () => {
       const baseNodeStyle = stylesheet.find(s => s.selector === 'node');
       expect(baseNodeStyle).toBeDefined();
       expect(baseNodeStyle.style['text-wrap']).toBe('wrap');
-      expect(baseNodeStyle.style['text-max-width']).toBe('80px');
+      expect(baseNodeStyle.style['text-max-width']).toBe('180px');
 
       // Find the node[degree] style with text-max-width
       const degreeNodeStyle = stylesheet.find(s => s.selector === 'node[degree]');
@@ -318,9 +318,9 @@ describe('CytoscapeCore Styling Integration', () => {
       const textMaxWidth = degreeNodeStyle.style['text-max-width'];
       expect(textMaxWidth).toContain('mapData');
       expect(textMaxWidth).toContain('degree');
-      // Should map from MIN_TEXT_WIDTH (60) to MAX_TEXT_WIDTH (120)
+      // Should map from MIN_TEXT_WIDTH (60) to MAX_TEXT_WIDTH (180)
       expect(textMaxWidth).toContain('60');
-      expect(textMaxWidth).toContain('120');
+      expect(textMaxWidth).toContain('180');
     });
 
     it('should scale text-max-width based on node degree', () => {
@@ -337,7 +337,7 @@ describe('CytoscapeCore Styling Integration', () => {
       const degreeStyle = stylesheet.find(s => s.selector === 'node[degree]');
 
       // The mapData expression should scale from MIN to MAX based on degree 0-60
-      const expectedExpression = 'mapData(degree, 0, 60, 60, 120)';
+      const expectedExpression = 'mapData(degree, 0, 60, 60, 180)';
       expect(degreeStyle.style['text-max-width']).toBe(expectedExpression);
     });
   });

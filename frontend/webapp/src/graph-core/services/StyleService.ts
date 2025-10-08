@@ -256,6 +256,84 @@ export class StyleService {
           'display': 'none',
         }
       },
+
+      // Breathing animation states - pinned nodes (orange)
+      {
+        selector: 'node.breathing-pinned-expand',
+        style: {
+          'border-width': 4,
+          'border-color': 'rgba(255, 165, 0, 0.9)',
+          'border-opacity': 0.8,
+          'border-style': 'solid',
+          'transition-property': 'border-width, border-color, border-opacity',
+          'transition-duration': '800ms',
+          'transition-timing-function': 'ease-in-out',
+        }
+      },
+      {
+        selector: 'node.breathing-pinned-contract',
+        style: {
+          'border-width': 2,
+          'border-color': 'rgba(255, 165, 0, 0.4)',
+          'border-opacity': 0.6,
+          'border-style': 'solid',
+          'transition-property': 'border-width, border-color, border-opacity',
+          'transition-duration': '800ms',
+          'transition-timing-function': 'ease-in-out',
+        }
+      },
+
+      // Breathing animation states - new nodes (green)
+      {
+        selector: 'node.breathing-new-expand',
+        style: {
+          'border-width': 4,
+          'border-color': 'rgba(0, 255, 0, 0.9)',
+          'border-opacity': 0.8,
+          'border-style': 'solid',
+          'transition-property': 'border-width, border-color, border-opacity',
+          'transition-duration': '1000ms',
+          'transition-timing-function': 'ease-in-out',
+        }
+      },
+      {
+        selector: 'node.breathing-new-contract',
+        style: {
+          'border-width': 2,
+          'border-color': 'rgba(0, 255, 0, 0.5)',
+          'border-opacity': 0.7,
+          'border-style': 'solid',
+          'transition-property': 'border-width, border-color, border-opacity',
+          'transition-duration': '1000ms',
+          'transition-timing-function': 'ease-in-out',
+        }
+      },
+
+      // Breathing animation states - appended content (cyan)
+      {
+        selector: 'node.breathing-appended-expand',
+        style: {
+          'border-width': 4,
+          'border-color': 'rgba(0, 255, 255, 0.9)',
+          'border-opacity': 0.8,
+          'border-style': 'solid',
+          'transition-property': 'border-width, border-color, border-opacity',
+          'transition-duration': '1200ms',
+          'transition-timing-function': 'ease-in-out',
+        }
+      },
+      {
+        selector: 'node.breathing-appended-contract',
+        style: {
+          'border-width': 2,
+          'border-color': 'rgba(0, 255, 255, 0.6)',
+          'border-opacity': 0.7,
+          'border-style': 'solid',
+          'transition-property': 'border-width, border-color, border-opacity',
+          'transition-duration': '1200ms',
+          'transition-timing-function': 'ease-in-out',
+        }
+      },
     ];
   }
 
