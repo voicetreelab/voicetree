@@ -1,4 +1,9 @@
-/* Cytoscape graph styles from Juggl */
+/*
+ * Cytoscape graph DOM styles
+ *
+ * IMPORTANT: This file contains ONLY DOM element styles (HTML/CSS).
+ * For Cytoscape node/edge styles, see src/graph-core/services/StyleService.ts
+ */
 
 /* Navigator view */
 div.cy-navigator {
@@ -138,35 +143,4 @@ button.graph-button:hover > svg > path {
 
 button.graph-button:disabled > svg > path {
   opacity: 0.3;
-}
-
-/* Breathing animation styles */
-@keyframes breathing-expand {
-  0% {
-    border-width: 2px;
-    border-opacity: 0.6;
-  }
-  50% {
-    border-width: 4px;
-    border-opacity: 0.9;
-  }
-  100% {
-    border-width: 2px;
-    border-opacity: 0.6;
-  }
-}
-
-.breathing-pinned {
-  animation: breathing-expand 1.6s ease-in-out infinite;
-  border-color: rgba(255, 165, 0, 0.8);
-}
-
-.breathing-new {
-  animation: breathing-expand 2s ease-in-out infinite;
-  border-color: rgba(0, 255, 0, 0.8);
-}
-
-.breathing-appended {
-  animation: breathing-expand 2.4s ease-in-out infinite;
-  border-color: rgba(0, 255, 255, 0.8);
 }

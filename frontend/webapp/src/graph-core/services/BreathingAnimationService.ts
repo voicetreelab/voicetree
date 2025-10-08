@@ -9,15 +9,13 @@ export enum AnimationType {
 interface AnimationConfig {
   duration: number;
   timeout: number;
-  expandWidth: number;
-  expandColor: string;
-  expandOpacity: number;
-  contractColor: string;
-  contractOpacity: number;
+  expandClass: string;
+  contractClass: string;
 }
 
 export class BreathingAnimationService {
   private activeAnimations: Map<string, NodeJS.Timeout> = new Map();
+  private animationIntervals: Map<string, NodeJS.Timeout> = new Map();
   private configs!: Map<AnimationType, AnimationConfig>;
 
   constructor() {
@@ -25,29 +23,20 @@ export class BreathingAnimationService {
       [AnimationType.PINNED, {
         duration: 800,
         timeout: 0, // No timeout for pinned
-        expandWidth: 4,
-        expandColor: 'rgba(255, 165, 0, 0.9)', // Orange
-        expandOpacity: 0.8,
-        contractColor: 'rgba(255, 165, 0, 0.4)',
-        contractOpacity: 0.6,
+        expandClass: 'breathing-pinned-expand',
+        contractClass: 'breathing-pinned-contract',
       }],
       [AnimationType.NEW_NODE, {
         duration: 1000,
         timeout: 0, // No timeout - persists until next node or user interaction
-        expandWidth: 4,
-        expandColor: 'rgba(0, 255, 0, 0.9)', // Green
-        expandOpacity: 0.8,
-        contractColor: 'rgba(0, 255, 0, 0.5)',
-        contractOpacity: 0.7,
+        expandClass: 'breathing-new-expand',
+        contractClass: 'breathing-new-contract',
       }],
       [AnimationType.APPENDED_CONTENT, {
         duration: 1200,
         timeout: 10000, // 10 seconds
-        expandWidth: 4,
-        expandColor: 'rgba(0, 255, 255, 0.9)', // Cyan
-        expandOpacity: 0.8,
-        contractColor: 'rgba(0, 255, 255, 0.6)',
-        contractOpacity: 0.7,
+        expandClass: 'breathing-appended-expand',
+        contractClass: 'breathing-appended-contract',
       }],
     ]);
   }
@@ -61,12 +50,6 @@ export class BreathingAnimationService {
       // Stop any existing animation
       this.stopAnimation(nodeId);
 
-      // Store original border values
-      const originalBorderWidth = node.style('border-width') || '0';
-      const originalBorderColor = node.style('border-color') || 'rgba(0, 0, 0, 0)';
-
-      node.data('originalBorderWidth', originalBorderWidth);
-      node.data('originalBorderColor', originalBorderColor);
       node.data('breathingActive', true);
       node.data('animationType', type);
 
@@ -88,84 +71,81 @@ export class BreathingAnimationService {
       return;
     }
 
-    const animate = () => {
+    const nodeId = node.id();
+    let isExpanded = false;
+
+    const toggle = () => {
       if (!node.data('breathingActive')) {
         return;
       }
 
-      // Expand animation
-      node.animate({
-        style: {
-          'border-width': config.expandWidth,
-          'border-color': config.expandColor,
-          'border-opacity': config.expandOpacity,
-          'border-style': 'solid',
-        },
-        duration: config.duration,
-        easing: 'ease-in-out-sine',
-        complete: () => {
-          if (!node.data('breathingActive')) {
-            return;
-          }
+      // Toggle between expand and contract classes
+      if (isExpanded) {
+        node.removeClass(config.expandClass);
+        node.addClass(config.contractClass);
+      } else {
+        node.removeClass(config.contractClass);
+        node.addClass(config.expandClass);
+      }
 
-          // Contract animation
-          node.animate({
-            style: {
-              'border-width': 2,
-              'border-color': config.contractColor,
-              'border-opacity': config.contractOpacity,
-            },
-            duration: config.duration,
-            easing: 'ease-in-out-sine',
-            complete: () => {
-              // Repeat the animation
-              if (node.data('breathingActive')) {
-                animate();
-              }
-            }
-          });
-        }
-      });
+      isExpanded = !isExpanded;
     };
 
-    animate();
+    // Start with expand state
+    toggle();
+
+    // Set up interval to toggle states
+    const interval = setInterval(toggle, config.duration);
+    this.animationIntervals.set(nodeId, interval);
   }
 
   stopAnimation(nodeId: string): void {
+    // Clear timeout
     const timeout = this.activeAnimations.get(nodeId);
     if (timeout) {
       clearTimeout(timeout);
       this.activeAnimations.delete(nodeId);
+    }
+
+    // Clear interval
+    const interval = this.animationIntervals.get(nodeId);
+    if (interval) {
+      clearInterval(interval);
+      this.animationIntervals.delete(nodeId);
     }
   }
 
   stopAnimationForNode(node: NodeSingular): void {
     const nodeId = node.id();
 
-    // Mark as inactive
+    // Mark as inactive FIRST - this stops new animation cycles from starting
     node.data('breathingActive', false);
 
+    // Get animation type to know which classes to remove
+    const animationType = node.data('animationType') as AnimationType | undefined;
+
     // Clear append animation trigger flag if this was an appended content animation
-    const animationType = node.data('animationType');
     if (animationType === AnimationType.APPENDED_CONTENT) {
       node.data('appendAnimationTriggered', false);
     }
 
-    // Stop timeout
+    // Stop timers
     this.stopAnimation(nodeId);
 
-    // Clear the border completely (breathing animation should remove border when stopped)
-    // Stop all animations and clear animated styles
-    node.stop(true, true);
-    node.style({
-      'border-width': '0',
-      'border-color': 'rgba(0, 0, 0, 0)',
-      'border-opacity': 1,
-      'border-style': 'solid',
-    });
+    // Remove all breathing animation classes
+    if (animationType) {
+      const config = this.configs.get(animationType);
+      if (config) {
+        node.removeClass([config.expandClass, config.contractClass]);
+      }
+    }
 
-    // Clean up data (but keep breathingActive as false for tests)
-    node.removeData('originalBorderWidth originalBorderColor animationType');
+    // Don't force inline styles - let the stylesheet cascade handle it
+    // This preserves pinned/frontmatter/other class-based styles
+    // The base stylesheet defines defaults, so removing classes is sufficient
+
+    // Clean up data
+    node.removeData('animationType');
   }
 
   stopAllAnimations(nodes: NodeCollection): void {
@@ -210,8 +190,10 @@ export class BreathingAnimationService {
   }
 
   destroy(): void {
-    // Clear all timeouts
+    // Clear all timeouts and intervals
     this.activeAnimations.forEach((timeout) => clearTimeout(timeout));
     this.activeAnimations.clear();
+    this.animationIntervals.forEach((interval) => clearInterval(interval));
+    this.animationIntervals.clear();
   }
 }
