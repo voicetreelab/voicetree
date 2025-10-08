@@ -167,7 +167,7 @@ describe('BreathingAnimationService', () => {
       expect(node.data('breathingActive')).toBe(false);
     });
 
-    it('should restore original border styles', () => {
+    it('should clear border styles completely', () => {
       // Set initial styles
       node.style('border-width', '5px');
       node.style('border-color', '#00ff00');
@@ -179,11 +179,12 @@ describe('BreathingAnimationService', () => {
 
       service.stopAnimationForNode(node);
 
-      // Check that style was called to restore original values
+      // Check that style was called to clear the border completely
       expect(node.style).toHaveBeenCalledWith({
-        'border-width': '5px',
-        'border-color': '#00ff00',
-        'border-opacity': 1
+        'border-width': '0',
+        'border-color': 'rgba(0, 0, 0, 0)',
+        'border-opacity': 1,
+        'border-style': 'solid'
       });
     });
 
@@ -203,7 +204,7 @@ describe('BreathingAnimationService', () => {
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       service.stopAnimationForNode(node);
 
-      expect(node.stop).toHaveBeenCalledWith(true, false);
+      expect(node.stop).toHaveBeenCalledWith(true, true);
     });
   });
 

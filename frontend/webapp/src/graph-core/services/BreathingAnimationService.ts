@@ -154,15 +154,14 @@ export class BreathingAnimationService {
     // Stop timeout
     this.stopAnimation(nodeId);
 
-    // Restore original style
-    const originalBorderWidth = node.data('originalBorderWidth') || '0';
-    const originalBorderColor = node.data('originalBorderColor') || 'rgba(0, 0, 0, 0)';
-
-    node.stop(true, false);
+    // Clear the border completely (breathing animation should remove border when stopped)
+    // Stop all animations and clear animated styles
+    node.stop(true, true);
     node.style({
-      'border-width': originalBorderWidth,
-      'border-color': originalBorderColor,
+      'border-width': '0',
+      'border-color': 'rgba(0, 0, 0, 0)',
       'border-opacity': 1,
+      'border-style': 'solid',
     });
 
     // Clean up data (but keep breathingActive as false for tests)
