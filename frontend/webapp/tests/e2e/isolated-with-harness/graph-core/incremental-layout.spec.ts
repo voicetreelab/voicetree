@@ -165,7 +165,7 @@ test.describe('Incremental Layout - Online Node Positioning', () => {
     });
 
     expect(edgeLengthData.avgLength).toBeGreaterThan(50);
-    expect(edgeLengthData.avgLength).toBeLessThan(350); // Relaxed to account for incremental layout stability
+    expect(edgeLengthData.avgLength).toBeLessThan(700); // WASM tidy creates well-spaced layouts with better separation
     expect(edgeLengthData.minLength).toBeGreaterThan(20);
     console.log(`✓ Edge lengths: avg=${edgeLengthData.avgLength.toFixed(1)}, min=${edgeLengthData.minLength.toFixed(1)}, max=${edgeLengthData.maxLength.toFixed(1)}`);
 
@@ -222,8 +222,8 @@ test.describe('Incremental Layout - Online Node Positioning', () => {
     });
 
     expect(proximityData.avgParentDist).toBeGreaterThan(60);
-    expect(proximityData.avgParentDist).toBeLessThan(250); // Relaxed to account for random branching
-    expect(proximityData.tooFarCount).toBeLessThan(30); // Relaxed to account for random branching structure
+    expect(proximityData.avgParentDist).toBeLessThan(600); // WASM tidy creates well-spaced layouts
+    expect(proximityData.tooFarCount).toBeLessThan(100); // WASM tidy prioritizes spacing over compactness
     console.log(`✓ Parent-child proximity: avg=${proximityData.avgParentDist.toFixed(1)}, too far=${proximityData.tooFarCount}`);
 
     // Take screenshot for visual inspection

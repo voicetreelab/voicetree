@@ -203,65 +203,44 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // Voice transcription is handled by VoiceTreeTranscribe component
 
 
-  // Dark mode management
+  // Dark mode management - set DOM class synchronously BEFORE rendering
   useEffect(() => {
     const isDark = localStorage.getItem('darkMode') === 'true';
-    console.log('[INIT] Dark mode init useEffect - localStorage darkMode:', isDark);
-    console.log('[INIT] DOM has dark class BEFORE setState:', document.documentElement.classList.contains('dark'));
-    setIsDarkMode(isDark);
+    // Set DOM class FIRST, before any state updates
     if (isDark) {
       document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
-    console.log('[INIT] DOM has dark class AFTER setState:', document.documentElement.classList.contains('dark'));
+    setIsDarkMode(isDark);
   }, []);
 
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
-    localStorage.setItem('darkMode', String(newDarkMode));
+    // Update DOM class FIRST, before state update
     if (newDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    setIsDarkMode(newDarkMode);
+    localStorage.setItem('darkMode', String(newDarkMode));
   };
 
   // Re-apply graph styles when dark mode changes
   useEffect(() => {
-    console.log('[STYLE-UPDATE] Style update useEffect triggered. isDarkMode state:', isDarkMode, 'cytoscapeRef exists:', !!cytoscapeRef.current);
-    if (!cytoscapeRef.current) {
-      console.log('[STYLE-UPDATE] Skipping - no cytoscape instance yet');
-      return;
-    }
+    if (!cytoscapeRef.current) return;
 
-    // Check DOM state
-    const domHasDark = document.documentElement.classList.contains('dark');
-    console.log('[STYLE-UPDATE] DOM has dark class:', domHasDark);
-
-    // Recreate StyleService to pick up new dark mode state
+    // Recreate StyleService to pick up current DOM dark class state
     const styleService = new StyleService();
     const newStyles = styleService.getCombinedStylesheet();
 
-    // Find the node style to see what color is actually being set
-    const nodeStyle = newStyles.find(s => s.selector === 'node');
-    console.log('[STYLE-UPDATE] About to apply. React state isDarkMode:', isDarkMode, 'DOM dark class:', domHasDark, 'Node text color in stylesheet:', nodeStyle?.style?.color);
-
     // Apply new stylesheet to existing graph
     cytoscapeRef.current.getCore().style(newStyles);
-
-    // Verify what actually got applied
-    const actualColor = cytoscapeRef.current.getCore().nodes().first()?.style('color');
-    console.log('[STYLE-UPDATE] After cytoscape.style(), actual rendered color:', actualColor);
   }, [isDarkMode]);
 
   // Initialize Cytoscape on mount
   useEffect(() => {
-    console.log('[CYTO-INIT] Cytoscape init useEffect running', {
-      hasContainer: !!containerRef.current,
-      hasCytoscapeRef: !!cytoscapeRef.current,
-      isDarkModeState: isDarkMode,
-      domHasDarkClass: document.documentElement.classList.contains('dark')
-    });
     if (!containerRef.current || cytoscapeRef.current) return;
 
     const container = containerRef.current;

@@ -67,7 +67,9 @@ export class StyleService {
   private isDarkMode(): boolean {
     if (typeof window === 'undefined') return false; // Default to light mode on server
 
-    // Check for dark class on html or body FIRST (more reliable)
+    // ONLY check for dark class on html or body
+    // This respects the app's explicit theme setting and ignores OS preference
+    // The app's theme toggle controls the 'dark' class, which should be the single source of truth
     if (typeof document !== 'undefined') {
       const html = document.documentElement;
       const body = document.body;
@@ -76,20 +78,7 @@ export class StyleService {
       }
     }
 
-    // Check for prefers-color-scheme
-    if (window.matchMedia) {
-      try {
-        const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        if (darkModeQuery.matches) {
-          return true;
-        }
-      } catch (e) {
-        // matchMedia might not be fully available yet
-        console.warn('[StyleService] matchMedia check failed:', e);
-      }
-    }
-
-    // Default to light mode if can't determine
+    // Default to light mode if no dark class is present
     return false;
   }
 
