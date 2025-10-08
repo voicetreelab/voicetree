@@ -123,6 +123,13 @@ export class CytoscapeCore {
     return this.viz;
   }
 
+  updateTheme(): void {
+    // Recreate the StyleService to pick up current theme
+    this.styleService = new StyleService();
+    // Update cytoscape with new styles
+    this.viz.style(this.styleService.getCombinedStylesheet());
+  }
+
   // Enable context menu with configuration
   enableContextMenu(config: ContextMenuConfig): void {
     if (!this.contextMenuService) {

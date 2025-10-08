@@ -44,7 +44,6 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   const markdownFiles = useRef<Map<string, string>>(new Map());
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
-  const isInitialMountRef = useRef(true);
 
   // Store file change handler ref for manual graph updates after save
   const handleFileChangedRef = useRef<((data: { path: string; fullPath: string; content: string }) => void) | null>(null);
@@ -226,22 +225,22 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
   // Re-apply graph styles when dark mode changes
   useEffect(() => {
-    // Skip on initial mount - styles are already set during initialization
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      return;
-    }
-
     if (!cytoscapeRef.current) return;
 
     // Recreate StyleService to pick up new dark mode state
     const styleService = new StyleService();
     const newStyles = styleService.getCombinedStylesheet();
 
+    // Find the node style to see what color is actually being set
+    const nodeStyle = newStyles.find(s => s.selector === 'node');
+    console.log('[Dark Mode] About to apply styles. isDarkMode state:', isDarkMode, 'Node text color in stylesheet:', nodeStyle?.style?.color);
+
     // Apply new stylesheet to existing graph
     cytoscapeRef.current.getCore().style(newStyles);
 
-    console.log('[Dark Mode] Applied new styles for', isDarkMode ? 'dark' : 'light', 'mode');
+    // Verify what actually got applied
+    const actualColor = cytoscapeRef.current.getCore().nodes().first()?.style('color');
+    console.log('[Dark Mode] After applying, actual node color:', actualColor);
   }, [isDarkMode]);
 
   // Initialize Cytoscape on mount

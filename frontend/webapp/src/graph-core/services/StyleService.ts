@@ -43,8 +43,8 @@ export class StyleService {
       console.log('body.classList.contains("dark"):', document.body.classList.contains('dark'));
     }
 
-    console.log('Expected textColor for dark mode: #dcddde');
-    console.log('Expected textColor for light mode: #2a2a2a');
+    console.log('Expected textColor for dark mode: #dcddde (light grey)');
+    console.log('Expected textColor for light mode: #2a2a2a (dark grey)');
     console.log('==========================================');
   }
 
@@ -96,13 +96,15 @@ export class StyleService {
   private getGraphColors() {
     const isDark = this.isDarkMode();
 
+    console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
+
     return {
       fillColor: '#3f3f3f',
       fillHighlightColor: '#525252',
       accentBorderColor: '#4b96ff',
       lineColor: '#5e5e5e',
       lineHighlightColor: '#7c7c7c',
-      textColor: isDark ? '#dcddde' : '#2a2a2a',
+      textColor: isDark ? '#dcddde' : '#2a2a2a', // Dark grey for light mode, light grey for dark mode
       danglingColor: '#683c3c',
     };
   }

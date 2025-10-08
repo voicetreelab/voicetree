@@ -33,6 +33,7 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
       },
       // Don't set fixed cols/rows - let FitAddon handle it dynamically
       scrollback: 10000, // Keep scrollback history
+      scrollOnUserInput: false, // Don't force scroll to bottom on user input
     });
 
     // Create and load FitAddon for automatic resizing
@@ -53,6 +54,10 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
           height: terminalRef.current.offsetHeight
         };
       }
+      // Notify backend of terminal dimensions
+      const cols = term.cols;
+      const rows = term.rows;
+      console.log(`[Terminal] Initial size: ${cols}x${rows}`);
     } catch (e) {
       console.error('[Terminal] Initial fit failed:', e);
     }
@@ -85,6 +90,14 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
 
             // Update stored size
             lastSizeRef.current = { width, height };
+
+            // Notify backend of new dimensions
+            if (terminalIdRef.current && xtermRef.current && typeof window !== 'undefined' && window.electronAPI?.terminal) {
+              const cols = xtermRef.current.cols;
+              const rows = xtermRef.current.rows;
+              console.log(`[Terminal] Resizing backend to ${cols}x${rows}`);
+              window.electronAPI.terminal.resize(terminalIdRef.current, cols, rows);
+            }
           } catch (e) {
             console.error('[Terminal] Resize fit failed:', e);
           }
@@ -104,6 +117,14 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
 
         if (result.success && result.terminalId) {
           terminalIdRef.current = result.terminalId;  // Store in ref for immediate access
+
+          // Resize backend PTY to match frontend dimensions
+          if (typeof window !== 'undefined' && window.electronAPI?.terminal && fitAddonRef.current) {
+            const cols = term.cols;
+            const rows = term.rows;
+            console.log(`[Terminal] Syncing backend size to ${cols}x${rows}`);
+            window.electronAPI.terminal.resize(result.terminalId, cols, rows);
+          }
 
           // Set up data listener
           if (typeof window !== 'undefined' && window.electronAPI?.terminal) {

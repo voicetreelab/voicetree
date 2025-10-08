@@ -77,7 +77,7 @@ class TreeActionDeciderWorkflow:
     def __init__(
         self,
         decision_tree: Optional[MarkdownTree] = None,
-        cloud_function_url: str = "http://localhost:8080"
+        cloud_function_url: str | None = None
     ) -> None:
         """
         Initialize the workflow
@@ -86,7 +86,15 @@ class TreeActionDeciderWorkflow:
             decision_tree: Optional decision tree instance (can be set later)
             cloud_function_url: URL of the Cloud Function (default: localhost:8080)
         """
+        import os
         self.decision_tree: Optional[MarkdownTree] = decision_tree
+
+        # Use provided URL, env var, or default to localhost
+        if cloud_function_url is None:
+            cloud_function_url = os.environ.get(
+                "CLOUD_FUNCTION_URL",
+                "http://localhost:8080"
+            )
 
         from cloud_functions.agentic_workflows.http_client import AppendToRelevantNodeAgentHTTPClient
         self.append_agent = AppendToRelevantNodeAgentHTTPClient(cloud_function_url)
