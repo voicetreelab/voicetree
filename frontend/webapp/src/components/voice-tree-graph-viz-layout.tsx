@@ -206,10 +206,13 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // Dark mode management
   useEffect(() => {
     const isDark = localStorage.getItem('darkMode') === 'true';
+    console.log('[INIT] Dark mode init useEffect - localStorage darkMode:', isDark);
+    console.log('[INIT] DOM has dark class BEFORE setState:', document.documentElement.classList.contains('dark'));
     setIsDarkMode(isDark);
     if (isDark) {
       document.documentElement.classList.add('dark');
     }
+    console.log('[INIT] DOM has dark class AFTER setState:', document.documentElement.classList.contains('dark'));
   }, []);
 
   const toggleDarkMode = () => {
@@ -225,7 +228,15 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
   // Re-apply graph styles when dark mode changes
   useEffect(() => {
-    if (!cytoscapeRef.current) return;
+    console.log('[STYLE-UPDATE] Style update useEffect triggered. isDarkMode state:', isDarkMode, 'cytoscapeRef exists:', !!cytoscapeRef.current);
+    if (!cytoscapeRef.current) {
+      console.log('[STYLE-UPDATE] Skipping - no cytoscape instance yet');
+      return;
+    }
+
+    // Check DOM state
+    const domHasDark = document.documentElement.classList.contains('dark');
+    console.log('[STYLE-UPDATE] DOM has dark class:', domHasDark);
 
     // Recreate StyleService to pick up new dark mode state
     const styleService = new StyleService();
@@ -233,21 +244,23 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
     // Find the node style to see what color is actually being set
     const nodeStyle = newStyles.find(s => s.selector === 'node');
-    console.log('[Dark Mode] About to apply styles. isDarkMode state:', isDarkMode, 'Node text color in stylesheet:', nodeStyle?.style?.color);
+    console.log('[STYLE-UPDATE] About to apply. React state isDarkMode:', isDarkMode, 'DOM dark class:', domHasDark, 'Node text color in stylesheet:', nodeStyle?.style?.color);
 
     // Apply new stylesheet to existing graph
     cytoscapeRef.current.getCore().style(newStyles);
 
     // Verify what actually got applied
     const actualColor = cytoscapeRef.current.getCore().nodes().first()?.style('color');
-    console.log('[Dark Mode] After applying, actual node color:', actualColor);
+    console.log('[STYLE-UPDATE] After cytoscape.style(), actual rendered color:', actualColor);
   }, [isDarkMode]);
 
   // Initialize Cytoscape on mount
   useEffect(() => {
-    console.log('VoiceTreeGraphVizLayout: Init effect running', {
+    console.log('[CYTO-INIT] Cytoscape init useEffect running', {
       hasContainer: !!containerRef.current,
-      hasCytoscapeRef: !!cytoscapeRef.current
+      hasCytoscapeRef: !!cytoscapeRef.current,
+      isDarkModeState: isDarkMode,
+      domHasDarkClass: document.documentElement.classList.contains('dark')
     });
     if (!containerRef.current || cytoscapeRef.current) return;
 
