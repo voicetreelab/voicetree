@@ -1225,6 +1225,145 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     console.log('✓ Light mode uses dark text again (rgb(42,42,42) = #2a2a2a)');
     console.log('✓ Dark/light mode toggle working correctly with reactive color updates!');
   });
+
+  test('should respect app theme over OS preference - OS prefers dark, app light mode', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+
+    console.log('=== Testing Theme Toggle With OS Dark Mode Preference ===');
+
+    // Mock OS to prefer dark mode BEFORE app initializes styles
+    await appWindow.evaluate(() => {
+      // Override matchMedia to simulate OS dark mode preference
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = function(query: string) {
+        if (query === '(prefers-color-scheme: dark)') {
+          return {
+            matches: true, // OS prefers dark
+            media: query,
+            onchange: null,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => true
+          } as MediaQueryList;
+        }
+        return originalMatchMedia(query);
+      };
+    });
+
+    await appWindow.waitForTimeout(2000);
+
+    // Start watching and create test files
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    await appWindow.waitForTimeout(3000);
+
+    const file1Path = path.join(tempDir, 'test-node.md');
+    await fs.writeFile(file1Path, '# Test Node\n\nTesting with OS dark preference.');
+
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for node to appear',
+      timeout: 8000
+    }).toBe(1);
+
+    console.log('=== Step 1: Verify OS prefers dark but app is in light mode ===');
+
+    const initialState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const osPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const appIsDark = document.documentElement.classList.contains('dark');
+
+      return {
+        osPrefersDark,
+        appIsDark,
+        nodeColor: node.style('color')
+      };
+    });
+
+    console.log('Initial state with OS dark preference:', initialState);
+
+    // OS prefers dark, but app should start in light mode (no 'dark' class)
+    expect(initialState?.osPrefersDark).toBe(true);
+    expect(initialState?.appIsDark).toBe(false);
+
+    // CRITICAL: Even though OS prefers dark, app is in light mode, so text should be DARK
+    expect(initialState?.nodeColor).toBe('rgb(42,42,42)'); // #2a2a2a - dark text for light mode
+
+    console.log('✓ App correctly uses dark text in light mode despite OS dark preference');
+
+    console.log('=== Step 2: Toggle to dark mode ===');
+
+    const darkModeButton = await appWindow.locator('[data-testid="speed-dial-item-0"]');
+    await expect(darkModeButton).toBeVisible({ timeout: 3000 });
+    await darkModeButton.click({ force: true });
+    await appWindow.waitForTimeout(500);
+
+    const afterDarkToggle = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      return {
+        appIsDark: document.documentElement.classList.contains('dark'),
+        nodeColor: node.style('color')
+      };
+    });
+
+    console.log('After dark toggle:', afterDarkToggle);
+
+    expect(afterDarkToggle?.appIsDark).toBe(true);
+    expect(afterDarkToggle?.nodeColor).toBe('rgb(220,221,222)'); // #dcddde - light text for dark mode
+
+    console.log('✓ Dark mode uses light text');
+
+    console.log('=== Step 3: Toggle back to light mode ===');
+
+    const lightModeButton = await appWindow.locator('[data-testid="speed-dial-item-0"]');
+    await expect(lightModeButton).toBeVisible({ timeout: 3000 });
+    await lightModeButton.click({ force: true });
+    await appWindow.waitForTimeout(500);
+
+    const afterLightToggle = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const osPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const appIsDark = document.documentElement.classList.contains('dark');
+
+      return {
+        osPrefersDark,
+        appIsDark,
+        nodeColor: node.style('color')
+      };
+    });
+
+    console.log('After light toggle (with OS still preferring dark):', afterLightToggle);
+
+    // CRITICAL TEST: OS still prefers dark, but app is in light mode
+    expect(afterLightToggle?.osPrefersDark).toBe(true);
+    expect(afterLightToggle?.appIsDark).toBe(false);
+
+    // THIS IS THE BUG: If StyleService checks matchMedia instead of DOM class,
+    // it will incorrectly use light text (#dcddde) even though app is in light mode
+    expect(afterLightToggle?.nodeColor).toBe('rgb(42,42,42)'); // #2a2a2a - MUST be dark text
+
+    console.log('✓ CRITICAL: App respects explicit light mode setting over OS dark preference');
+    console.log('✓ Theme toggle correctly overrides OS preference!');
+  });
 });
 
 // Export for use in other tests

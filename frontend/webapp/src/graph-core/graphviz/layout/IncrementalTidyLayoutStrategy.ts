@@ -133,22 +133,61 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
     // Create fresh WASM instance for this component
     this.tidy = Tidy.with_tidy_layout(this.PARENT_CHILD_MARGIN, this.PEER_MARGIN);
 
+    // Reset ID mappings for this component (each component gets its own ID space starting from 0)
+    const componentStringToNum = new Map<string, number>();
+    const componentNumToString = new Map<number, string>();
+    let componentNextId = 0;
+
     // Build ID mappings for component
     for (const node of nodes) {
-      this.stringToNum.set(node.id, this.nextId);
-      this.numToString.set(this.nextId, node.id);
+      componentStringToNum.set(node.id, componentNextId);
+      componentNumToString.set(componentNextId, node.id);
+      this.stringToNum.set(node.id, componentNextId);  // Still update global for tracking
+      this.numToString.set(componentNextId, node.id);
       this.wasmNodeIds.add(node.id);
-      this.nextId++;
+      componentNextId++;
     }
 
-    // Build component parent map
+    // Build component parent map (break cycles with DFS)
     const componentNodeIds = new Set(nodes.map(n => n.id));
     const componentParentMap = new Map<string, string>();
 
+    // Build adjacency lists for cycle detection
+    const tempParentMap = new Map<string, string>();
     for (const node of nodes) {
       const parentId = globalParentMap.get(node.id);
       if (parentId && componentNodeIds.has(parentId)) {
-        componentParentMap.set(node.id, parentId);
+        tempParentMap.set(node.id, parentId);
+      }
+    }
+
+    // DFS to detect and break cycles (O(N) single pass)
+    const visited = new Set<string>();
+    const inStack = new Set<string>();
+
+    const dfs = (nodeId: string): void => {
+      visited.add(nodeId);
+      inStack.add(nodeId);
+
+      const parentId = tempParentMap.get(nodeId);
+      if (parentId) {
+        if (inStack.has(parentId)) {
+          // Back edge - would create cycle, skip it
+          console.warn(`[IncrementalTidy] Breaking cycle: skipping ${nodeId}→${parentId}`);
+        } else {
+          componentParentMap.set(nodeId, parentId);
+          if (!visited.has(parentId)) {
+            dfs(parentId);
+          }
+        }
+      }
+
+      inStack.delete(nodeId);
+    };
+
+    for (const node of nodes) {
+      if (!visited.has(node.id)) {
+        dfs(node.id);
       }
     }
 
@@ -158,9 +197,9 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
     // Add nodes to WASM
     const nullId = Tidy.null_id();
     for (const node of sortedNodes) {
-      const id = this.stringToNum.get(node.id)!;
+      const id = componentStringToNum.get(node.id)!;
       const parentStringId = componentParentMap.get(node.id);
-      const parentId = parentStringId !== undefined ? this.stringToNum.get(parentStringId)! : nullId;
+      const parentId = parentStringId !== undefined ? componentStringToNum.get(parentStringId)! : nullId;
 
       this.tidy.add_node(id, node.size.width, node.size.height, parentId);
     }
@@ -174,7 +213,7 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
       const numId = posArray[i];
       const x = posArray[i + 1];
       const y = posArray[i + 2];
-      const stringId = this.numToString.get(numId);
+      const stringId = componentNumToString.get(numId);
 
       if (stringId) {
         positions.set(stringId, { x, y });

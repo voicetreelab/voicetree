@@ -4,7 +4,7 @@ The fundamental principles that guide this system:
 
 ## 1. Simplicity
 
-Keep things simple and maintainable. See [[architecture]] for how this is implemented.
+Keep things simple and maintainable.
 
 ## 2. Modularity
 

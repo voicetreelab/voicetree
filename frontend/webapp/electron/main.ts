@@ -4,6 +4,12 @@ import { promises as fs } from 'fs';
 import pty from 'node-pty';
 import FileWatchManager from './file-watch-manager.cjs';
 
+// Suppress Electron security warnings in development and test environments
+// These warnings are only shown in dev mode and don't appear in production
+if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+}
+
 // Global file watch manager instance
 const fileWatchManager = new FileWatchManager();
 

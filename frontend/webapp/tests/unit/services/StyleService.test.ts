@@ -51,7 +51,7 @@ describe('StyleService', () => {
     });
 
     it('should use light text color (#dcddde) in dark mode', () => {
-      // Mock dark mode: prefers-color-scheme: dark
+      // Mock matchMedia (though it's now ignored by StyleService)
       window.matchMedia = vi.fn().mockImplementation((query: string) => ({
         matches: query.includes('dark') ? true : false,
         media: query,
@@ -63,6 +63,9 @@ describe('StyleService', () => {
         dispatchEvent: vi.fn(),
       })) as unknown as typeof window.matchMedia;
 
+      // Add dark class to set app to dark mode (the only thing StyleService checks now)
+      document.documentElement.classList.add('dark');
+
       const darkModeService = new StyleService();
       const stylesheet = darkModeService.getDefaultStylesheet();
 
@@ -72,6 +75,9 @@ describe('StyleService', () => {
       // In dark mode, text should be light (#dcddde)
       expect(nodeStyle?.style.color).toBe('#dcddde');
       expect(edgeStyle?.style.color).toBe('#dcddde');
+
+      // Cleanup
+      document.documentElement.classList.remove('dark');
     });
 
     it('should detect dark mode from dark class on document element', () => {
@@ -100,6 +106,37 @@ describe('StyleService', () => {
 
       // Cleanup
       document.documentElement.classList.remove('dark');
+    });
+
+    it('should use dark text when app is in light mode even if OS prefers dark', () => {
+      // CRITICAL TEST: OS prefers dark, but app explicitly set to light mode
+      // This is the bug fix - app's explicit theme (DOM class) should override OS preference
+
+      // Mock matchMedia to simulate OS preferring dark mode
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('dark') ? true : false, // OS prefers dark
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })) as unknown as typeof window.matchMedia;
+
+      // Ensure NO dark class on elements (app is in light mode)
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+
+      const lightModeService = new StyleService();
+      const stylesheet = lightModeService.getDefaultStylesheet();
+
+      const nodeStyle = stylesheet.find(s => s.selector === 'node');
+      const edgeStyle = stylesheet.find(s => s.selector === 'edge');
+
+      // Even though OS prefers dark, app is in light mode, so text must be DARK
+      expect(nodeStyle?.style.color).toBe('#2a2a2a');
+      expect(edgeStyle?.style.color).toBe('#2a2a2a');
     });
   });
 
