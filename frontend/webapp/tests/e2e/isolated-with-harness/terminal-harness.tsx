@@ -47,6 +47,7 @@ export const TerminalTestHarness: React.FC = () => {
       },
       cols: 80,
       rows: 24,
+      scrollOnUserInput: false, // Don't force scroll to bottom on user input
     });
 
     xtermRef.current = term;

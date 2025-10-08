@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Graph Styling Visual Tests', () => {
   test('should display graph with Juggl-inspired styles', async ({ page }) => {
     // Navigate to test harness
-    await page.goto('http://localhost:5173/test-harness');
+    await page.goto('http://localhost:3000/test-harness');
 
     // Wait for graph container to be visible
     await page.waitForSelector('#cy-container', { state: 'visible' });
@@ -140,7 +140,7 @@ test.describe('Graph Styling Visual Tests', () => {
   });
 
   test('should apply CSS styles for UI elements', async ({ page }) => {
-    await page.goto('http://localhost:5173/test-harness');
+    await page.goto('http://localhost:3000/test-harness');
 
     // Check that graph.css is loaded
     const hasGraphCSS = await page.evaluate(() => {

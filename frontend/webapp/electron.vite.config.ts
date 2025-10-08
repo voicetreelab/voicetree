@@ -47,7 +47,12 @@ export default defineConfig({
   renderer: {
     // Configuration for React renderer
     root: '.',
-    plugins: [react(), tailwindcss(), wasm(), topLevelAwait()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      topLevelAwait(),
+      wasm()
+    ],
     base: './',
     resolve: {
       alias: {
@@ -70,6 +75,7 @@ export default defineConfig({
     },
     build: {
       outDir: 'dist',
+      target: 'esnext',
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html')

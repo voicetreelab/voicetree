@@ -71,7 +71,31 @@ const test = base.extend<{
       console.log(`BROWSER [${msg.type()}]:`, msg.text());
     });
 
+    // Capture page errors
+    window.on('pageerror', error => {
+      console.error('PAGE ERROR:', error.message);
+      console.error('Stack:', error.stack);
+    });
+
     await window.waitForLoadState('domcontentloaded');
+
+    // Check for errors before waiting for cytoscapeInstance
+    const hasErrors = await window.evaluate(() => {
+      const errors: string[] = [];
+      // Check if React rendered
+      if (!document.querySelector('#root')) errors.push('No #root element');
+      // Check if any error boundaries triggered
+      const errorText = document.body.textContent;
+      if (errorText?.includes('Error') || errorText?.includes('error')) {
+        errors.push(`Page contains error text: ${errorText.substring(0, 200)}`);
+      }
+      return errors;
+    });
+
+    if (hasErrors.length > 0) {
+      console.error('Pre-initialization errors:', hasErrors);
+    }
+
     await window.waitForFunction(() => (window as any).cytoscapeInstance, { timeout: 10000 });
     await window.waitForTimeout(1000);
 

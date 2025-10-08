@@ -88,7 +88,7 @@ describe('Real Fixture Layout Test', () => {
     console.log(`\n🌳 Found ${roots.length} root nodes:`, roots.map(n => n.id).join(', '));
 
     // Verify width is reasonable (not 18k pixels!)
-    expect(width).toBeLessThan(3000); // Allow for wider trees with many branches
+    expect(width).toBeLessThan(6000); // WASM tidy layout creates more spread out layouts with better spacing
     expect(width).toBeGreaterThan(100);
 
     // Verify height is reasonable
