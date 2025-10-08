@@ -26,6 +26,28 @@ export class StyleService {
     }
   }
 
+  public debugThemeDetection(): void {
+    console.log('=== StyleService Theme Detection Debug ===');
+    console.log('Current textColor:', this.textColor);
+    console.log('isDarkMode():', this.isDarkMode());
+
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      console.log('prefers-color-scheme: dark matches:', darkModeQuery.matches);
+    } else {
+      console.log('window.matchMedia not available');
+    }
+
+    if (typeof document !== 'undefined') {
+      console.log('html.classList.contains("dark"):', document.documentElement.classList.contains('dark'));
+      console.log('body.classList.contains("dark"):', document.body.classList.contains('dark'));
+    }
+
+    console.log('Expected textColor for dark mode: #dcddde');
+    console.log('Expected textColor for light mode: #2a2a2a');
+    console.log('==========================================');
+  }
+
   private initializeColors(): void {
     const style = getComputedStyle(document.body);
 
@@ -42,16 +64,45 @@ export class StyleService {
     }
   }
 
+  private isDarkMode(): boolean {
+    if (typeof window === 'undefined') return false; // Default to light mode on server
+
+    // Check for dark class on html or body FIRST (more reliable)
+    if (typeof document !== 'undefined') {
+      const html = document.documentElement;
+      const body = document.body;
+      if (html?.classList.contains('dark') || body?.classList.contains('dark')) {
+        return true;
+      }
+    }
+
+    // Check for prefers-color-scheme
+    if (window.matchMedia) {
+      try {
+        const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        if (darkModeQuery.matches) {
+          return true;
+        }
+      } catch (e) {
+        // matchMedia might not be fully available yet
+        console.warn('[StyleService] matchMedia check failed:', e);
+      }
+    }
+
+    // Default to light mode if can't determine
+    return false;
+  }
+
   private getGraphColors() {
-    // Simulate getting graph view colors
-    // In a real implementation, these would come from your app's theme
+    const isDark = this.isDarkMode();
+
     return {
       fillColor: '#3f3f3f',
       fillHighlightColor: '#525252',
       accentBorderColor: '#4b96ff',
       lineColor: '#5e5e5e',
       lineHighlightColor: '#7c7c7c',
-      textColor: '#dcddde',
+      textColor: isDark ? '#dcddde' : '#2a2a2a',
       danglingColor: '#683c3c',
     };
   }
@@ -65,10 +116,12 @@ export class StyleService {
           'background-color': this.fillColor,
           'color': this.textColor,
           'font-family': this.font,
-          'text-valign': 'center' as cytoscape.Css.TextVAlign,
+          'text-valign': 'bottom' as cytoscape.Css.TextVAlign,
           'text-halign': 'center' as cytoscape.Css.TextHAlign,
+          'text-margin-y': 3,
           'shape': 'ellipse',
-          'border-width': 0,
+          'border-width': 1,
+          'border-color': '#666',
           'text-wrap': 'wrap',
           'text-max-width': `${DEFAULT_TEXT_WIDTH}px`,  // Default text width for wrapping
           'min-zoomed-font-size': 8,
@@ -100,6 +153,7 @@ export class StyleService {
           'font-size': `mapData(degree, 0, 60, ${MIN_FONT_SIZE}, ${MAX_FONT_SIZE})`,
           'text-opacity': 'mapData(degree, 0, 60, 0.7, 1)',
           'text-max-width': `mapData(degree, 0, 60, ${MIN_TEXT_WIDTH}, ${MAX_TEXT_WIDTH})`,
+          'border-width': 'mapData(degree, 1, 10, 1, 8)',
         }
       },
 
@@ -147,15 +201,30 @@ export class StyleService {
           'line-color': this.lineColor,
           'loop-sweep': '-50deg',
           'loop-direction': '-45deg',
-          'width': 0.7,
-          'target-arrow-shape': 'vee',
-          'target-arrow-fill': 'filled' as cytoscape.Css.ArrowFill,
-          'target-arrow-color': this.lineColor,
-          'arrow-scale': 0.55,
-          'font-size': 6,
+          'width': 2,
+          'line-opacity': 0.3,
+          'target-arrow-shape': 'triangle',
+          'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
+          'target-arrow-color': '#666',
+          'arrow-scale': 0.7,
+          'shadow-blur': 2,
+          'shadow-color': '#333',
+          'shadow-opacity': 0.3,
+          'shadow-offset-x': 0,
+          'shadow-offset-y': 0,
+          'font-size': 11,
           'font-family': this.font,
           'color': this.textColor,
           'curve-style': 'straight',
+        }
+      },
+
+      // Edge labels - display label from data
+      {
+        selector: 'edge[label]',
+        style: {
+          'label': 'data(label)',
+          'text-rotation': 'autorotate',
         }
       },
 
@@ -165,6 +234,7 @@ export class StyleService {
         style: {
           'width': 'mapData(edgeCount, 1, 50, 0.55, 3)',
           'arrow-scale': 'mapData(edgeCount, 1, 50, 0.35, 1.5)',
+          'line-opacity': 'mapData(edgeCount, 1, 10, 0.2, 0.4)',
         }
       },
 

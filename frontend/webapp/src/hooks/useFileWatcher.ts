@@ -57,12 +57,26 @@ export function useFileWatcher({
       // Store file content using fullPath (absolute path) for save operations
       markdownFiles.current.set(file.fullPath, file.content);
 
-      // Parse wikilinks to get linked node IDs
+      // Parse wikilinks to get linked node IDs and relationship types
       const linkedNodeIds: string[] = [];
-      const linkMatches = file.content.matchAll(/\[\[([^\]]+)\]\]/g);
+      const edgeLabels: Map<string, string> = new Map(); // targetId -> label
+
+      // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
+      const linkMatches = file.content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
       for (const match of linkMatches) {
-        const targetId = normalizeFileId(match[1]);
-        linkedNodeIds.push(targetId);
+        if (match[2]) {
+          // Matched "- label [[target]]" format
+          const label = match[1]?.trim() || '';
+          const targetId = normalizeFileId(match[2]);
+          linkedNodeIds.push(targetId);
+          if (label) {
+            edgeLabels.set(targetId, label);
+          }
+        } else if (match[3]) {
+          // Matched plain "[[target]]" format (no label)
+          const targetId = normalizeFileId(match[3]);
+          linkedNodeIds.push(targetId);
+        }
       }
 
       // Add node if it doesn't exist
@@ -104,11 +118,13 @@ export function useFileWatcher({
 
         // Add edge if it doesn't exist
         if (!cy.getElementById(edgeId).length) {
+          const label = (edgeLabels.get(targetId) || '').replace(/_/g, ' ');
           cy.add({
             data: {
               id: edgeId,
               source: nodeId,
-              target: targetId
+              target: targetId,
+              label: label
             }
           });
         }
@@ -154,12 +170,26 @@ export function useFileWatcher({
     markdownFiles.current.set(data.fullPath, data.content);
     console.log('[DEBUG] Added file to markdownFiles, new count:', markdownFiles.current.size);
 
-    // Parse wikilinks to get linked node IDs
+    // Parse wikilinks to get linked node IDs and relationship types
     const linkedNodeIds: string[] = [];
-    const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
+    const edgeLabels: Map<string, string> = new Map(); // targetId -> label
+
+    // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
+    const linkMatches = data.content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
     for (const match of linkMatches) {
-      const targetId = normalizeFileId(match[1]);
-      linkedNodeIds.push(targetId);
+      if (match[2]) {
+        // Matched "- label [[target]]" format
+        const label = match[1]?.trim() || '';
+        const targetId = normalizeFileId(match[2]);
+        linkedNodeIds.push(targetId);
+        if (label) {
+          edgeLabels.set(targetId, label);
+        }
+      } else if (match[3]) {
+        // Matched plain "[[target]]" format (no label)
+        const targetId = normalizeFileId(match[3]);
+        linkedNodeIds.push(targetId);
+      }
     }
 
     // Add node if it doesn't exist
@@ -214,11 +244,13 @@ export function useFileWatcher({
 
       // Add edge if it doesn't exist
       if (!cy.getElementById(edgeId).length) {
+        const label = (edgeLabels.get(targetId) || '').replace(/_/g, ' ');
         cy.add({
           data: {
             id: edgeId,
             source: nodeId,
-            target: targetId
+            target: targetId,
+            label: label
           }
         });
       }
@@ -249,12 +281,29 @@ export function useFileWatcher({
     // Remove old edges from this node
     cy.edges(`[source = "${nodeId}"]`).remove();
 
-    // Parse wikilinks to get updated linked node IDs
+    // Parse wikilinks to get updated linked node IDs and relationship types
     const linkedNodeIds: string[] = [];
-    const linkMatches = data.content.matchAll(/\[\[([^\]]+)\]\]/g);
+    const edgeLabels: Map<string, string> = new Map(); // targetId -> label
+
+    // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
+    const linkMatches = data.content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
     for (const match of linkMatches) {
-      const targetId = normalizeFileId(match[1]);
-      linkedNodeIds.push(targetId);
+      let targetId: string;
+      if (match[2]) {
+        // Matched "- label [[target]]" format
+        const label = match[1]?.trim() || '';
+        targetId = normalizeFileId(match[2]);
+        linkedNodeIds.push(targetId);
+        if (label) {
+          edgeLabels.set(targetId, label);
+        }
+      } else if (match[3]) {
+        // Matched plain "[[target]]" format (no label)
+        targetId = normalizeFileId(match[3]);
+        linkedNodeIds.push(targetId);
+      } else {
+        continue;
+      }
 
       // Ensure target node exists (create placeholder if needed)
       if (!cy.getElementById(targetId).length) {
@@ -268,12 +317,14 @@ export function useFileWatcher({
       }
 
       const edgeId = `${nodeId}->${targetId}`;
+      const label = (edgeLabels.get(targetId) || '').replace(/_/g, ' ');
 
       cy.add({
         data: {
           id: edgeId,
           source: nodeId,
-          target: targetId
+          target: targetId,
+          label: label
         }
       });
     }

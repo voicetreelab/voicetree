@@ -19,4 +19,4 @@ know that.
 also make a TDD test file that will test some of the conversions so that we know beforehand if the agent actually did it correctly. Does
 that make sense?
 
-Test function, not implementatoin detail****
+Test function, not implementation detail

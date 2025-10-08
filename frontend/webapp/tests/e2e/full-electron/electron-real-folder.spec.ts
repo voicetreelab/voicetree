@@ -140,6 +140,122 @@ test.describe('Real Folder E2E Tests', () => {
 
     // Verify edges exist (wiki-links create edges)
     expect(initialGraph.edgeCount).toBeGreaterThan(0);
+
+    // BEHAVIORAL TEST: Verify edges are actually visible (not just present in data)
+    const edgeVisibility = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const edges = cy.edges();
+      if (edges.length === 0) return { visible: false, reason: 'no edges' };
+
+      // Sample first edge to check visibility styles
+      const edge = edges.first();
+      const opacity = parseFloat(edge.style('opacity'));
+      const width = parseFloat(edge.style('width'));
+      const color = edge.style('line-color');
+
+      return {
+        visible: opacity > 0 && width > 0 && color !== 'transparent',
+        opacity,
+        width,
+        color,
+        edgeCount: edges.length
+      };
+    });
+
+    console.log('Edge visibility check:', edgeVisibility);
+    expect(edgeVisibility.visible).toBe(true);
+    expect(edgeVisibility.opacity).toBeGreaterThan(0);
+    expect(edgeVisibility.width).toBeGreaterThan(0);
+
+    // BEHAVIORAL TEST: Verify edges have labels displayed
+    const edgeLabelCheck = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const edges = cy.edges();
+      if (edges.length === 0) return { hasLabels: false, reason: 'no edges' };
+
+      // Sample all edges to check if ANY have labels
+      const edgesWithLabels = edges.filter(e => {
+        const label = e.data('label');
+        return label && label.length > 0;
+      });
+
+      // Get style for edge labels
+      const firstEdge = edges.first();
+      const labelText = firstEdge.style('label');
+      const fontSize = firstEdge.style('font-size');
+
+      return {
+        totalEdges: edges.length,
+        edgesWithDataLabels: edgesWithLabels.length,
+        sampleLabel: edges.first().data('label'),
+        styleLabelValue: labelText,
+        fontSize: fontSize
+      };
+    });
+
+    console.log('Edge label check (initial):', edgeLabelCheck);
+    // Initial edges from plain [[wikilinks]] won't have labels
+    expect(edgeLabelCheck.totalEdges).toBeGreaterThan(0);
+
+    console.log('=== STEP 3.5: Test edge labels with relationship types ===');
+
+    // Create a file with labeled links to test edge labels
+    const labeledLinkFile = path.join(FIXTURE_VAULT_PATH, 'concepts', 'test-edge-labels.md');
+    await fs.writeFile(labeledLinkFile, `# Test Edge Labels
+
+This file tests edge labels with relationship types.
+
+_Links:_
+Parent:
+- references [[introduction]]
+- extends [[architecture]]`);
+
+    // Wait for file to be processed
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        const labels = cy.nodes().map((n: NodeSingular) => n.data('label'));
+        return labels.includes('test-edge-labels');
+      });
+    }, {
+      message: 'Waiting for test-edge-labels node to appear',
+      timeout: 10000
+    }).toBe(true);
+
+    // Check edge labels
+    const labeledEdgeCheck = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const testNode = cy.getElementById('test-edge-labels');
+      const outgoingEdges = testNode.connectedEdges('[source = "test-edge-labels"]');
+
+      const edgeLabels = outgoingEdges.map(e => ({
+        id: e.id(),
+        label: e.data('label'),
+        styleLabel: e.style('label')
+      }));
+
+      return {
+        edgeCount: outgoingEdges.length,
+        labels: edgeLabels
+      };
+    });
+
+    console.log('Labeled edge check:', labeledEdgeCheck);
+    expect(labeledEdgeCheck.edgeCount).toBeGreaterThan(0);
+    expect(labeledEdgeCheck.labels.some(e => e.label && e.label.length > 0)).toBe(true);
+
+    // Clean up test file
+    await fs.unlink(labeledLinkFile);
+    await appWindow.waitForTimeout(500);
+
+    console.log('✓ Edge labels working correctly');
     console.log('✓ Initial graph loaded correctly');
 
     console.log('=== STEP 4: Test file modification ===');

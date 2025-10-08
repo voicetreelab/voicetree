@@ -1101,6 +1101,130 @@ test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
     console.log('✓ Updated node has breathing animation');
     console.log('✓ Breathing animation feature test completed successfully');
   });
+
+  test('should toggle dark/light mode via UI and update graph colors', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Dark/Light Mode Toggle ===');
+
+    // Start watching and create a test file
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    await appWindow.waitForTimeout(3000); // Wait for chokidar
+
+    // Create test files with an edge
+    const file1Path = path.join(tempDir, 'node1.md');
+    const file2Path = path.join(tempDir, 'node2.md');
+    await fs.writeFile(file1Path, '# Node 1\n\nFirst node. Links to [[node2]].');
+    await fs.writeFile(file2Path, '# Node 2\n\nSecond node.');
+
+    // Wait for nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? { nodes: cy.nodes().length, edges: cy.edges().length } : null;
+      });
+    }, {
+      message: 'Waiting for nodes and edges to appear',
+      timeout: 8000
+    }).toMatchObject({
+      nodes: 2,
+      edges: 1
+    });
+
+    console.log('=== Step 1: Check initial colors (light mode) ===');
+
+    const initialColors = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const edge = cy.edges().first();
+
+      return {
+        isDarkMode: document.documentElement.classList.contains('dark'),
+        nodeColor: node.style('color'),
+        edgeColor: edge.style('color'),
+      };
+    });
+
+    console.log('Initial colors:', initialColors);
+
+    // Verify light mode initially
+    expect(initialColors?.isDarkMode).toBe(false);
+    expect(initialColors?.nodeColor).toBe('rgb(42,42,42)');
+    expect(initialColors?.edgeColor).toBe('rgb(42,42,42)');
+
+    console.log('✓ Initial light mode uses dark text');
+
+    console.log('=== Step 2: Click dark mode button ===');
+
+    // Click the dark mode button (first item in speed dial menu - index 0)
+    const darkModeButton = await appWindow.locator('[data-testid="speed-dial-item-0"]');
+    await expect(darkModeButton).toBeVisible({ timeout: 3000 });
+    await darkModeButton.click({ force: true }); // Force click to bypass canvas overlay
+    await appWindow.waitForTimeout(500);
+
+    const afterDarkToggle = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const edge = cy.edges().first();
+
+      return {
+        isDarkMode: document.documentElement.classList.contains('dark'),
+        nodeColor: node.style('color'),
+        edgeColor: edge.style('color'),
+      };
+    });
+
+    console.log('After dark mode toggle:', afterDarkToggle);
+
+    // Verify dark class is added and colors updated to light text
+    expect(afterDarkToggle?.isDarkMode).toBe(true);
+    expect(afterDarkToggle?.nodeColor).toBe('rgb(220,221,222)'); // #dcddde - light text for dark mode
+    expect(afterDarkToggle?.edgeColor).toBe('rgb(220,221,222)');
+
+    console.log('✓ Dark mode uses light text (rgb(220,221,222) = #dcddde)');
+
+    console.log('=== Step 3: Click light mode button ===');
+
+    // Click the same button again to toggle back to light mode
+    const lightModeButton = await appWindow.locator('[data-testid="speed-dial-item-0"]');
+    await expect(lightModeButton).toBeVisible({ timeout: 3000 });
+    await lightModeButton.click({ force: true }); // Force click to bypass canvas overlay
+    await appWindow.waitForTimeout(500);
+
+    const afterLightToggle = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const edge = cy.edges().first();
+
+      return {
+        isDarkMode: document.documentElement.classList.contains('dark'),
+        nodeColor: node.style('color'),
+        edgeColor: edge.style('color'),
+      };
+    });
+
+    console.log('After light mode toggle:', afterLightToggle);
+
+    // Verify dark class is removed and colors updated back to dark text
+    expect(afterLightToggle?.isDarkMode).toBe(false);
+    expect(afterLightToggle?.nodeColor).toBe('rgb(42,42,42)'); // #2a2a2a - dark text for light mode
+    expect(afterLightToggle?.edgeColor).toBe('rgb(42,42,42)');
+
+    console.log('✓ Light mode uses dark text again (rgb(42,42,42) = #2a2a2a)');
+    console.log('✓ Dark/light mode toggle working correctly with reactive color updates!');
+  });
 });
 
 // Export for use in other tests
