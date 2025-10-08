@@ -214,8 +214,8 @@ def search_similar_nodes_tfidf(decision_tree: Any, query: str, top_k: int = 10, 
         node_ids.append(node_id)
 
     try:
-        # Get domain-aware stopwords
-        domain_stopwords = set(stopwords.words('english'))
+        # Get domain-aware stopwords - use local _STOPWORDS constant
+        domain_stopwords = set(_STOPWORDS)
         mathematical_stopwords = {
             'average', 'number', 'adult', 'children', 'newborn', 'per', 'total',
             'equals', 'sum', 'calculation', 'count', 'population', 'quantity'

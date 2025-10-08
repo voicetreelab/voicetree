@@ -21,6 +21,7 @@ from backend.markdown_tree_manager.graph_search.tree_functions import (
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
+from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
     ConnectOrphansAgent,
 )
@@ -97,7 +98,9 @@ class TreeActionDeciderWorkflow:
             )
 
         from cloud_functions.agentic_workflows.http_client import AppendToRelevantNodeAgentHTTPClient
-        self.append_agent = AppendToRelevantNodeAgentHTTPClient(cloud_function_url)
+        # self.append_agent = AppendToRelevantNodeAgentHTTPClient(cloud_function_url)
+
+        self.append_agent: AppendToRelevantNodeAgent = AppendToRelevantNodeAgent()
 
         self.optimizer_agent: SingleAbstractionOptimizerAgent = SingleAbstractionOptimizerAgent()
         self.connect_orphans_agent: ConnectOrphansAgent = ConnectOrphansAgent()
