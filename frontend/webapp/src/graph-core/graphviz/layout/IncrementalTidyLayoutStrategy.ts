@@ -69,22 +69,11 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
     const positions = new Map<string, Position>();
     const allNodes = [...context.nodes, ...context.newNodes];
 
-    // Create fresh WASM instance
-    this.tidy = Tidy.with_tidy_layout(this.PARENT_CHILD_MARGIN, this.PEER_MARGIN);
-
     // Reset ID mappings
     this.stringToNum.clear();
     this.numToString.clear();
     this.wasmNodeIds.clear();
     this.nextId = 0;
-
-    // Build ID mappings
-    for (const node of allNodes) {
-      this.stringToNum.set(node.id, this.nextId);
-      this.numToString.set(this.nextId, node.id);
-      this.wasmNodeIds.add(node.id);
-      this.nextId++;
-    }
 
     // Build parent map
     const parentMap = new Map<string, string>();
@@ -103,20 +92,80 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
       }
     }
 
-    // Topological sort (parents before children)
-    const sortedNodes = this.topologicalSort(allNodes, parentMap);
+    // Find disconnected components
+    const components = this.findDisconnectedComponents(allNodes, parentMap);
+    console.log(`[IncrementalTidy] Full layout for ${components.length} disconnected component(s)`);
+
+    // Layout each component separately
+    let offsetX = 0;
+    const COMPONENT_SPACING = 400;
+
+    for (const component of components) {
+      const componentPositions = this.layoutComponentFull(component, parentMap);
+
+      // Find bounding box
+      const componentXs = Array.from(componentPositions.values()).map(p => p.x);
+      const minX = Math.min(...componentXs);
+      const maxX = Math.max(...componentXs);
+      const componentWidth = maxX - minX;
+
+      // Shift component
+      const shiftX = offsetX - minX;
+      for (const [nodeId, pos] of componentPositions.entries()) {
+        positions.set(nodeId, { x: pos.x + shiftX, y: pos.y });
+      }
+
+      offsetX += componentWidth + COMPONENT_SPACING;
+    }
+
+    return { positions };
+  }
+
+  /**
+   * Layout a single component for full layout
+   */
+  private layoutComponentFull(
+    nodes: NodeInfo[],
+    globalParentMap: Map<string, string>
+  ): Map<string, Position> {
+    const positions = new Map<string, Position>();
+
+    // Create fresh WASM instance for this component
+    this.tidy = Tidy.with_tidy_layout(this.PARENT_CHILD_MARGIN, this.PEER_MARGIN);
+
+    // Build ID mappings for component
+    for (const node of nodes) {
+      this.stringToNum.set(node.id, this.nextId);
+      this.numToString.set(this.nextId, node.id);
+      this.wasmNodeIds.add(node.id);
+      this.nextId++;
+    }
+
+    // Build component parent map
+    const componentNodeIds = new Set(nodes.map(n => n.id));
+    const componentParentMap = new Map<string, string>();
+
+    for (const node of nodes) {
+      const parentId = globalParentMap.get(node.id);
+      if (parentId && componentNodeIds.has(parentId)) {
+        componentParentMap.set(node.id, parentId);
+      }
+    }
+
+    // Topological sort
+    const sortedNodes = this.topologicalSort(nodes, componentParentMap);
 
     // Add nodes to WASM
     const nullId = Tidy.null_id();
     for (const node of sortedNodes) {
       const id = this.stringToNum.get(node.id)!;
-      const parentStringId = parentMap.get(node.id);
+      const parentStringId = componentParentMap.get(node.id);
       const parentId = parentStringId !== undefined ? this.stringToNum.get(parentStringId)! : nullId;
 
       this.tidy.add_node(id, node.size.width, node.size.height, parentId);
     }
 
-    // Full layout
+    // Layout
     this.tidy.layout();
 
     // Get positions
@@ -132,7 +181,69 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
       }
     }
 
-    return { positions };
+    return positions;
+  }
+
+  /**
+   * Find disconnected components in the graph
+   */
+  private findDisconnectedComponents(
+    nodes: NodeInfo[],
+    parentMap: Map<string, string>
+  ): NodeInfo[][] {
+    // Build bidirectional adjacency map
+    const adjacency = new Map<string, Set<string>>();
+
+    for (const node of nodes) {
+      if (!adjacency.has(node.id)) {
+        adjacency.set(node.id, new Set());
+      }
+
+      const parentId = parentMap.get(node.id);
+      if (parentId) {
+        adjacency.get(node.id)!.add(parentId);
+        if (!adjacency.has(parentId)) {
+          adjacency.set(parentId, new Set());
+        }
+        adjacency.get(parentId)!.add(node.id);
+      }
+    }
+
+    // Find components using DFS
+    const visited = new Set<string>();
+    const components: NodeInfo[][] = [];
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+    for (const node of nodes) {
+      if (visited.has(node.id)) continue;
+
+      const component: NodeInfo[] = [];
+      const stack = [node.id];
+
+      while (stack.length > 0) {
+        const nodeId = stack.pop()!;
+        if (visited.has(nodeId)) continue;
+
+        visited.add(nodeId);
+        const nodeData = nodeMap.get(nodeId);
+        if (nodeData) {
+          component.push(nodeData);
+        }
+
+        const neighbors = adjacency.get(nodeId) || new Set();
+        for (const neighbor of neighbors) {
+          if (!visited.has(neighbor)) {
+            stack.push(neighbor);
+          }
+        }
+      }
+
+      if (component.length > 0) {
+        components.push(component);
+      }
+    }
+
+    return components;
   }
 
   private partialRelayout(context: PositioningContext): PositioningResult {
