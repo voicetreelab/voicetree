@@ -69,11 +69,12 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
     const positions = new Map<string, Position>();
     const allNodes = [...context.nodes, ...context.newNodes];
 
-    // Reset ID mappings
+    // Reset state for fresh layout
     this.stringToNum.clear();
     this.numToString.clear();
     this.wasmNodeIds.clear();
     this.nextId = 0;
+    this.tidy = null; // Invalidate old WASM instance
 
     // Build parent map
     const parentMap = new Map<string, string>();
@@ -130,8 +131,8 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
   ): Map<string, Position> {
     const positions = new Map<string, Position>();
 
-    // Create fresh WASM instance for this component
-    this.tidy = Tidy.with_tidy_layout(this.PARENT_CHILD_MARGIN, this.PEER_MARGIN);
+    // Create fresh WASM instance for this component (DON'T store in this.tidy - it's per-component)
+    const tidy = Tidy.with_tidy_layout(this.PARENT_CHILD_MARGIN, this.PEER_MARGIN);
 
     // Reset ID mappings for this component (each component gets its own ID space starting from 0)
     const componentStringToNum = new Map<string, number>();
@@ -201,14 +202,14 @@ export class IncrementalTidyLayoutStrategy implements PositioningStrategy {
       const parentStringId = componentParentMap.get(node.id);
       const parentId = parentStringId !== undefined ? componentStringToNum.get(parentStringId)! : nullId;
 
-      this.tidy.add_node(id, node.size.width, node.size.height, parentId);
+      tidy.add_node(id, node.size.width, node.size.height, parentId);
     }
 
     // Layout
-    this.tidy.layout();
+    tidy.layout();
 
     // Get positions
-    const posArray = this.tidy.get_pos();
+    const posArray = tidy.get_pos();
     for (let i = 0; i < posArray.length; i += 3) {
       const numId = posArray[i];
       const x = posArray[i + 1];

@@ -8,8 +8,8 @@ import type {
 import type { Node, MarkdownTree } from '@/graph-core/types';
 import { SeedParkRelaxStrategy } from './SeedParkRelaxStrategy';
 
-// Animation duration for layout transitions (instant in dev/test, animated in production)
-const LAYOUT_ANIMATION_DURATION = import.meta.env.PROD ? 300 : 0;
+// Animation duration for layout transitions (0 in automated tests, 300ms otherwise)
+const LAYOUT_ANIMATION_DURATION = (typeof navigator !== 'undefined' && navigator.webdriver) ? 0 : 300;
 
 export class LayoutManager {
   private strategy: PositioningStrategy;
@@ -217,6 +217,7 @@ export class LayoutManager {
         if (LAYOUT_ANIMATION_DURATION === 0) {
           node.position(pos);
         } else {
+          console.log(`[LayoutManager] Animating node ${nodeId} with duration ${LAYOUT_ANIMATION_DURATION}ms to (${pos.x}, ${pos.y})`);
           node.animate({
             position: pos,
             duration: LAYOUT_ANIMATION_DURATION,

@@ -1,0 +1,1236 @@
+ 
+import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
+import type { NodeData, EdgeData } from '@/graph-core/data/load_markdown/MarkdownParser';
+
+// Use absolute path from project root
+const PROJECT_ROOT = path.resolve(process.cwd());
+
+// Type definitions for test
+interface ExtendedWindow extends Window {
+  cytoscapeInstance?: CytoscapeCore;
+  electronAPI?: {
+    startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+    getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    onInitialScanComplete: (callback: (data: { directory: string }) => void) => void;
+  };
+}
+
+// This interface is used in test files
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface GraphState {
+  nodeCount: number;
+  edgeCount: number;
+  nodeData: NodeData[];
+  edgeData: EdgeData[];
+  allNodesValid: boolean;
+}
+
+/**
+ * TRUE END-TO-END TEST for the file-to-graph pipeline
+ * This test:
+ * 1. Launches the actual Electron application
+ * 2. Creates real markdown files in a temporary directory
+ * 3. Uses the real chokidar file watcher via IPC
+ * 4. Verifies that real file system changes result in graph updates
+ *
+ * This is the definitive test that proves the entire system works end-to-end.
+ */
+
+// Extend the test to include Electron app and temp directory
+const test = base.extend<{
+  electronApp: ElectronApplication;
+  appWindow: Page;
+  tempDir: string;
+}>({
+  // Set up Electron application
+   
+  electronApp: async ({}, use) => {
+    const electronApp = await electron.launch({
+      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        HEADLESS_TEST: '1'
+      }
+    });
+
+    await use(electronApp);
+    await electronApp.close();
+  },
+
+  // Get the main window
+  appWindow: async ({ electronApp }, use) => {
+    const window = await electronApp.firstWindow();
+
+    // Log console messages for debugging
+    window.on('console', msg => {
+      console.log(`BROWSER [${msg.type()}]:`, msg.text());
+    });
+
+    await window.waitForLoadState('domcontentloaded');
+    await window.waitForFunction(() => (window as any).cytoscapeInstance, { timeout: 10000 });
+    await window.waitForTimeout(1000);
+
+    await use(window);
+  },
+
+  // Create temporary directory for test files
+   
+  tempDir: async ({}, use) => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-test-'));
+    console.log(`Created temp directory: ${dir}`);
+
+    await use(dir);
+
+    // Clean up after test
+    try {
+      await fs.rm(dir, { recursive: true, force: true });
+      console.log(`Cleaned up temp directory: ${dir}`);
+    } catch (error) {
+      console.error(`Failed to clean up temp directory: ${error}`);
+    }
+  }
+});
+
+test.describe('Electron File-to-Graph TRUE E2E Tests', () => {
+  test('should watch real files and update graph accordingly', async ({ appWindow, tempDir }) => {
+    // Set up console logging before anything loads
+    appWindow.on('console', msg => {
+      console.log(`Console ${msg.type()}: ${msg.text()}`);
+    });
+
+    appWindow.on('pageerror', error => {
+      console.log('Page error:', error.message);
+    });
+
+    // Wait for app to load completely
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000); // Give React time to mount
+
+    // Check if the app loaded properly first
+    const appLoaded = await appWindow.evaluate(() => {
+      return document.readyState === 'complete' && document.getElementById('root');
+    });
+    console.log('App loaded:', appLoaded);
+
+    // Check if cytoscape is available (it should be initialized even with empty graph)
+    const hasCytoscape = await appWindow.evaluate(() => {
+      return !!(window as ExtendedWindow).cytoscapeInstance;
+    });
+    console.log('Has cytoscape:', hasCytoscape);
+
+    // Debug: Check what's actually in the page
+    const pageContent = await appWindow.evaluate(() => {
+      const root = document.getElementById('root');
+      return {
+        hasRoot: !!root,
+        rootHTML: root?.innerHTML?.substring(0, 200),
+        bodyText: document.body.innerText?.substring(0, 200)
+      };
+    });
+    console.log('Page content:', pageContent);
+
+    console.log('=== STEP 1: Verify initial empty state ===');
+
+    // Check that the app loaded and shows empty graph
+    await expect(appWindow.locator('text=Graph visualization will appear here')).toBeVisible();
+
+    // Verify Cytoscape is initialized but empty
+    const initialNodeCount = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      return cy ? cy.nodes().length : 0;
+    });
+    expect(initialNodeCount).toBe(0);
+
+    console.log('=== STEP 2: Start watching the temp directory ===');
+
+    // Trigger the file watching for our temp directory
+    // This simulates clicking "Open Folder" and selecting our temp dir
+    const startResult = await appWindow.evaluate((dir) => {
+      // Directly call the Electron API to start watching
+      if ((window as ExtendedWindow).electronAPI) {
+        console.log('Starting file watching for:', dir);
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      } else {
+        console.log('electronAPI not available!');
+        return null;
+      }
+    }, tempDir);
+    console.log('Start file watching result:', startResult);
+
+    // Wait a moment for the IPC to complete
+    await appWindow.waitForTimeout(1000);
+
+    // Wait for file watching to start and verify it's working
+    const watchStatus = await appWindow.evaluate(() => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.getWatchStatus();
+      }
+      return null;
+    });
+
+    console.log('Watch status after start:', watchStatus);
+
+    // Also check if the UI has updated
+    const uiStatus = await appWindow.locator('text=Not watching').count();
+    console.log('UI still shows "Not watching":', uiStatus > 0);
+
+    // If watch status shows it's watching, continue even if UI hasn't updated yet
+    if (!watchStatus || !watchStatus.isWatching) {
+      throw new Error(`File watching did not start properly. Status: ${JSON.stringify(watchStatus)}`);
+    }
+
+    console.log('=== STEP 2.5: Wait for chokidar to be fully ready ===');
+
+    // Give chokidar time to fully initialize and be ready to detect new files
+    // The initial scan completes immediately for empty directories, but
+    // chokidar still needs a moment to set up file system watchers
+    await appWindow.waitForTimeout(3000);
+
+    console.log('Chokidar should be ready, proceeding with file creation');
+
+    console.log('=== STEP 3: Create first markdown file ===');
+
+    // Create a real markdown file in the temp directory
+    const file1Path = path.join(tempDir, 'introduction.md');
+    await fs.writeFile(file1Path, '# Introduction\n\nThis is the introduction to our system.');
+
+    // Wait for chokidar to detect the file and graph to update
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for first file to be detected and node to appear',
+      timeout: 8000
+    }).toBe(1);
+
+    // Verify the node has correct label
+    const firstNodeData = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy || cy.nodes().length === 0) return null;
+      return {
+        id: cy.nodes()[0].data('id'),
+        label: cy.nodes()[0].data('label')
+      };
+    });
+    expect(firstNodeData).toBeTruthy();
+    expect(firstNodeData.label).toContain('introduction');
+
+    console.log('=== STEP 4: Create second file with link ===');
+
+    // Create second file that links to the first
+    const file2Path = path.join(tempDir, 'advanced.md');
+    await fs.writeFile(
+      file2Path,
+      '# Advanced Topics\n\nBuilding upon [[introduction]], we explore advanced concepts.'
+    );
+
+    // Wait for second file to be detected and graph to update
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return null;
+        return {
+          nodes: cy.nodes().length,
+          edges: cy.edges().length,
+          edgeData: cy.edges().map((e: EdgeSingular) => ({
+            source: e.source().data('label'),
+            target: e.target().data('label')
+          }))
+        };
+      });
+    }, {
+      message: 'Waiting for second file with link to be processed',
+      timeout: 8000
+    }).toMatchObject({
+      nodes: 2,
+      edges: 1,
+      edgeData: [{
+        source: expect.stringContaining('advanced'),
+        target: expect.stringContaining('introduction')
+      }]
+    });
+
+    console.log('=== STEP 5: Modify a file ===');
+
+    // Modify the first file
+    await fs.writeFile(
+      file1Path,
+      '# Introduction - Updated\n\nThis is the UPDATED introduction with more content.\n\nNow with [[advanced]] backlink!'
+    );
+
+    // Wait for file modification to be processed
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return null;
+        return {
+          nodes: cy.nodes().length,
+          edges: cy.edges().length
+        };
+      });
+    }, {
+      message: 'Waiting for file modification to be processed',
+      timeout: 8000
+    }).toMatchObject({
+      nodes: 2,
+      edges: expect.any(Number)
+    });
+
+    // Verify edge count separately (could be 2 if bidirectional)
+    const graphStateAfterModify = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      return cy ? cy.edges().length : 0;
+    });
+    expect(graphStateAfterModify).toBeGreaterThanOrEqual(1);
+
+    console.log('=== STEP 6: Delete a file ===');
+
+    // Delete the second file
+    await fs.unlink(file2Path);
+
+    // Wait for file deletion to be processed
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return null;
+        return {
+          nodes: cy.nodes().length,
+          edges: cy.edges().length
+        };
+      });
+    }, {
+      message: 'Waiting for file deletion to be processed',
+      timeout: 8000
+    }).toEqual({
+      nodes: 1,
+      edges: 0
+    });
+
+    console.log('=== STEP 7: Create nested directory structure ===');
+
+    // Create subdirectories with files
+    const subDir = path.join(tempDir, 'concepts');
+    await fs.mkdir(subDir);
+
+    const nestedFile1 = path.join(subDir, 'core.md');
+    const nestedFile2 = path.join(subDir, 'utils.md');
+
+    await fs.writeFile(nestedFile1, '# Core Concepts\n\nFundamental ideas.');
+    await appWindow.waitForTimeout(500); // Give time for first file to be processed
+    await fs.writeFile(nestedFile2, '# Utilities\n\nHelper functions. See [[core]] for basics.');
+    await appWindow.waitForTimeout(500); // Give time for second file to be processed
+
+    // Wait for nested files to be detected and processed
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return null;
+        return {
+          nodes: cy.nodes().length,
+          edges: cy.edges().length,
+          nodeLabels: cy.nodes().map((n: NodeSingular) => n.data('label'))
+        };
+      });
+    }, {
+      message: 'Waiting for nested files to be detected and processed',
+      timeout: 10000
+    }).toMatchObject({
+      nodes: expect.any(Number),
+      edges: expect.any(Number),
+      nodeLabels: expect.any(Array)
+    });
+
+    // Verify minimum counts
+    const finalGraphState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      return cy ? { nodes: cy.nodes().length, edges: cy.edges().length } : null;
+    });
+    expect(finalGraphState.nodes).toBeGreaterThanOrEqual(3); // introduction + core + utils
+    expect(finalGraphState.edges).toBeGreaterThanOrEqual(1); // utils -> core link
+
+    console.log('=== STEP 8: Stop watching ===');
+
+    // Stop file watching
+    await appWindow.evaluate(() => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.stopFileWatching();
+      }
+    });
+
+    // Wait for watching to stop and graph to be cleared
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        if ((window as ExtendedWindow).electronAPI) {
+          const watchStatus = (window as ExtendedWindow).electronAPI.getWatchStatus();
+          const cy = (window as ExtendedWindow).cytoscapeInstance;
+          return {
+            isWatching: watchStatus?.isWatching || false,
+            nodeCount: cy ? cy.nodes().length : 0
+          };
+        }
+        return { isWatching: true, nodeCount: -1 }; // Still waiting
+      });
+    }, {
+      message: 'Waiting for file watching to stop and graph to be cleared',
+      timeout: 5000
+    }).toEqual({
+      isWatching: false,
+      nodeCount: 0
+    });
+
+    console.log('✓ Electron E2E test completed successfully');
+  });
+
+  test('should handle rapid real file changes without corruption', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000); // Give time for Cytoscape to initialize
+
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        // Check if the app is fully initialized for rapid test
+        const hasCytoscape = !!(window as ExtendedWindow).cytoscapeInstance;
+        console.log('Rapid test init check:', {
+          readyState: document.readyState,
+          hasCytoscape,
+          electronAPI: !!(window as ExtendedWindow).electronAPI
+        });
+        return document.readyState === 'complete' && hasCytoscape;
+      });
+    }, {
+      message: 'Waiting for app to fully load for rapid changes test',
+      timeout: 15000
+    }).toBe(true);
+
+    // Start watching
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for file watching to start
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        if ((window as ExtendedWindow).electronAPI) {
+          const status = (window as ExtendedWindow).electronAPI.getWatchStatus();
+          return status?.isWatching || false;
+        }
+        return false;
+      });
+    }, {
+      message: 'Waiting for file watching to start in rapid changes test',
+      timeout: 5000
+    }).toBe(true);
+
+    console.log('=== Testing rapid real file operations ===');
+
+    // Create multiple files rapidly
+    const files = [
+      { name: 'file1.md', content: '# File 1\n\nFirst file.' },
+      { name: 'file2.md', content: '# File 2\n\nLinks to [[file1]].' },
+      { name: 'file3.md', content: '# File 3\n\nLinks to [[file1]] and [[file2]].' },
+      { name: 'file4.md', content: '# File 4\n\nLinks to [[file3]].' },
+      { name: 'file5.md', content: '# File 5\n\nLinks to [[file4]] and [[file1]].' }
+    ];
+
+    // Write all files with minimal delay
+    for (const file of files) {
+      await fs.writeFile(path.join(tempDir, file.name), file.content);
+      await appWindow.waitForTimeout(50); // Small delay between writes to avoid overwhelming the file system
+    }
+
+    // Wait for all files to be processed and verify graph integrity
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return null;
+
+        const nodes = cy.nodes();
+        const edges = cy.edges();
+
+        // Check for graph consistency
+        const orphanedEdges = edges.filter((edge: EdgeSingular) => {
+          const sourceExists = nodes.some((n: NodeSingular) => n.id() === edge.source().id());
+          const targetExists = nodes.some((n: NodeSingular) => n.id() === edge.target().id());
+          return !sourceExists || !targetExists;
+        });
+
+        return {
+          nodeCount: nodes.length,
+          edgeCount: edges.length,
+          orphanedEdges: orphanedEdges.length,
+          allNodesValid: nodes.every((n: NodeSingular) => n.data('id') && n.data('label'))
+        };
+      });
+    }, {
+      message: 'Waiting for all 5 rapid files to be processed with graph integrity',
+      timeout: 15000
+    }).toMatchObject({
+      nodeCount: 5,
+      edgeCount: expect.any(Number),
+      orphanedEdges: 0,
+      allNodesValid: true
+    });
+
+    // Verify minimum edge count
+    const graphState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      return cy ? cy.edges().length : 0;
+    });
+    expect(graphState).toBeGreaterThanOrEqual(5);
+
+    // Now delete some files rapidly
+    await fs.unlink(path.join(tempDir, 'file3.md'));
+    await fs.unlink(path.join(tempDir, 'file4.md'));
+
+    // Wait for file deletions to be processed
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return null;
+        return {
+          nodeCount: cy.nodes().length,
+          edgeCount: cy.edges().length
+        };
+      });
+    }, {
+      message: 'Waiting for file deletions to be processed',
+      timeout: 10000
+    }).toMatchObject({
+      nodeCount: 3, // file1, file2, file5 remain
+      edgeCount: expect.any(Number)
+    });
+
+    console.log('✓ Rapid file changes handled successfully');
+  });
+
+  test('should open terminal and accept input', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Terminal Functionality ===');
+
+    // Start watching first to get nodes in the graph
+    const startResult = await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+      return null;
+    }, tempDir);
+    console.log('File watching started:', startResult);
+
+    // Wait for initial scan to complete
+    await new Promise<void>(resolve => {
+      appWindow.evaluate(() => {
+        const window = globalThis as ExtendedWindow;
+        if (window.electronAPI?.onInitialScanComplete) {
+          window.electronAPI.onInitialScanComplete(() => {
+            resolve();
+          });
+        }
+      });
+      // Timeout fallback
+      setTimeout(resolve, 5000);
+    });
+
+    console.log('Initial scan completed or timed out');
+
+    // Create a test file so we have a node to right-click
+    const testFile = path.join(tempDir, 'test-node.md');
+    await fs.writeFile(testFile, '# Test Node\n\nThis is for terminal testing.');
+
+    // Wait for node to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for node to appear',
+      timeout: 15000
+    }).toBe(1);
+
+    // Right-click on the node using Cytoscape API
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        const position = node.renderedPosition();
+        const event = new MouseEvent('contextmenu', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          clientX: position.x,
+          clientY: position.y,
+          button: 2
+        });
+        const canvas = cy.container().querySelector('canvas');
+        if (canvas) {
+          canvas.dispatchEvent(event);
+        }
+      }
+    });
+
+    await appWindow.waitForTimeout(500);
+
+    // Click Terminal option in context menu
+    const terminalOption = await appWindow.locator('text=Terminal').first();
+    await expect(terminalOption).toBeVisible({ timeout: 3000 });
+    await terminalOption.click();
+
+    // Wait for terminal window to appear
+    const terminalWindow = await appWindow.locator('.floating-window').filter({
+      has: appWindow.locator('text=Terminal')
+    });
+    await expect(terminalWindow).toBeVisible({ timeout: 5000 });
+
+    // Find the xterm terminal element
+    const terminalContent = await terminalWindow.locator('.xterm').first();
+    await expect(terminalContent).toBeVisible({ timeout: 5000 });
+
+    // Click on terminal to focus it
+    await terminalContent.click();
+    await appWindow.waitForTimeout(1000);
+
+    // Type a test command
+    console.log('Typing "echo Hello Terminal" in terminal...');
+    await appWindow.keyboard.type('echo Hello Terminal');
+    await appWindow.waitForTimeout(500);
+
+    // Press Enter
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
+
+    // Get terminal output
+    const terminalText = await terminalContent.textContent();
+    console.log('Terminal output:', terminalText?.substring(0, 200));
+
+    // Verify the command was executed
+    expect(terminalText).toContain('echo Hello Terminal');
+    expect(terminalText).toContain('Hello Terminal');
+
+    // Test another command
+    await appWindow.keyboard.type('pwd');
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
+
+    const updatedText = await terminalContent.textContent();
+    console.log('After pwd command:', updatedText?.substring(0, 300));
+
+    // Should show a path
+    expect(updatedText).toMatch(/\/.*|C:\\.*/); // Unix path or Windows path
+
+    // Type exit to close terminal
+    await appWindow.keyboard.type('exit');
+    await appWindow.keyboard.press('Enter');
+    await appWindow.waitForTimeout(1000);
+
+    console.log('✓ Terminal input and output working correctly');
+  });
+
+  test('should layout 10 nodes in 3 islands with proper spacing and no overlaps', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Layout with 3 Disconnected Components ===');
+
+    // Start watching
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    await appWindow.waitForTimeout(3000); // Wait for chokidar to be ready
+
+    // Create 3 disconnected components (islands)
+    // Island 1: 4 nodes (A -> B -> C -> D)
+    await fs.writeFile(path.join(tempDir, 'A.md'), '# Node A\n\nFirst node in island 1. Links to [[B]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'B.md'), '# Node B\n\nSecond node in island 1. Links to [[C]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'C.md'), '# Node C\n\nThird node in island 1. Links to [[D]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'D.md'), '# Node D\n\nFourth node in island 1.');
+    await appWindow.waitForTimeout(200);
+
+    // Island 2: 3 nodes (E -> F -> G)
+    await fs.writeFile(path.join(tempDir, 'E.md'), '# Node E\n\nFirst node in island 2. Links to [[F]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'F.md'), '# Node F\n\nSecond node in island 2. Links to [[G]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'G.md'), '# Node G\n\nThird node in island 2.');
+    await appWindow.waitForTimeout(200);
+
+    // Island 3: 3 nodes (H -> I -> J)
+    await fs.writeFile(path.join(tempDir, 'H.md'), '# Node H\n\nFirst node in island 3. Links to [[I]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'I.md'), '# Node I\n\nSecond node in island 3. Links to [[J]].');
+    await appWindow.waitForTimeout(200);
+    await fs.writeFile(path.join(tempDir, 'J.md'), '# Node J\n\nThird node in island 3.');
+
+    // Wait for all nodes to be added
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for all 10 nodes to be added',
+      timeout: 15000
+    }).toBe(10);
+
+    console.log('All 10 nodes added, verifying layout quality...');
+
+    // Verify layout quality
+    const layoutQuality = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const nodes = cy.nodes();
+      const edges = cy.edges();
+
+      // Calculate minimum distance between all node pairs
+      let minDistance = Infinity;
+      const positions: Array<{ id: string; x: number; y: number; width: number; height: number }> = [];
+
+      for (let i = 0; i < nodes.length; i++) {
+        const n1 = nodes[i];
+        const pos1 = n1.position();
+        const bb1 = n1.boundingBox({ includeLabels: false });
+        positions.push({
+          id: n1.id(),
+          x: pos1.x,
+          y: pos1.y,
+          width: bb1.w,
+          height: bb1.h
+        });
+
+        for (let j = i + 1; j < nodes.length; j++) {
+          const n2 = nodes[j];
+          const pos2 = n2.position();
+
+          const distance = Math.hypot(pos1.x - pos2.x, pos1.y - pos2.y);
+          if (distance < minDistance) {
+            minDistance = distance;
+          }
+        }
+      }
+
+      // Check for overlapping nodes (center points too close)
+      const MINIMUM_NODE_DISTANCE = 50; // Nodes should be at least 50px apart
+      const closeNodes = [];
+      for (let i = 0; i < positions.length; i++) {
+        for (let j = i + 1; j < positions.length; j++) {
+          const dist = Math.hypot(
+            positions[i].x - positions[j].x,
+            positions[i].y - positions[j].y
+          );
+          if (dist < MINIMUM_NODE_DISTANCE) {
+            closeNodes.push({
+              node1: positions[i].id,
+              node2: positions[j].id,
+              distance: dist
+            });
+          }
+        }
+      }
+
+      // Check for edge overlaps using bounding box intersection
+      const edgeOverlaps = [];
+      for (let i = 0; i < edges.length; i++) {
+        const e1 = edges[i];
+        const e1Source = e1.source().position();
+        const e1Target = e1.target().position();
+
+        for (let j = i + 1; j < edges.length; j++) {
+          const e2 = edges[j];
+          const e2Source = e2.source().position();
+          const e2Target = e2.target().position();
+
+          // Check if edges share a node (adjacent edges can overlap at their common point)
+          const shareNode =
+            e1.source().id() === e2.source().id() ||
+            e1.source().id() === e2.target().id() ||
+            e1.target().id() === e2.source().id() ||
+            e1.target().id() === e2.target().id();
+
+          if (!shareNode) {
+            // Simple edge overlap check: check if line segments are too close
+            // For simplicity, we'll check if edges cross or are very close
+            const segmentsClose = checkSegmentsClose(
+              e1Source, e1Target,
+              e2Source, e2Target,
+              10 // threshold distance
+            );
+
+            if (segmentsClose) {
+              edgeOverlaps.push({
+                edge1: `${e1.source().id()}->${e1.target().id()}`,
+                edge2: `${e2.source().id()}->${e2.target().id()}`
+              });
+            }
+          }
+        }
+      }
+
+      // Helper function to check if two line segments are close
+      function checkSegmentsClose(
+        p1: { x: number; y: number },
+        p2: { x: number; y: number },
+        p3: { x: number; y: number },
+        p4: { x: number; y: number },
+        threshold: number
+      ): boolean {
+        // Calculate minimum distance between segments using point-to-line distance
+        const dist1 = pointToSegmentDistance(p3, p1, p2);
+        const dist2 = pointToSegmentDistance(p4, p1, p2);
+        const dist3 = pointToSegmentDistance(p1, p3, p4);
+        const dist4 = pointToSegmentDistance(p2, p3, p4);
+
+        return Math.min(dist1, dist2, dist3, dist4) < threshold;
+      }
+
+      function pointToSegmentDistance(
+        p: { x: number; y: number },
+        a: { x: number; y: number },
+        b: { x: number; y: number }
+      ): number {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const lenSq = dx * dx + dy * dy;
+
+        if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+
+        let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const closestX = a.x + t * dx;
+        const closestY = a.y + t * dy;
+
+        return Math.hypot(p.x - closestX, p.y - closestY);
+      }
+
+      // Check graph spread
+      const allX = positions.map(p => p.x);
+      const allY = positions.map(p => p.y);
+      const minX = Math.min(...allX);
+      const maxX = Math.max(...allX);
+      const minY = Math.min(...allY);
+      const maxY = Math.max(...allY);
+
+      return {
+        nodeCount: nodes.length,
+        edgeCount: edges.length,
+        minDistance,
+        closeNodes,
+        edgeOverlaps,
+        graphSpread: {
+          width: maxX - minX,
+          height: maxY - minY
+        },
+        positions
+      };
+    });
+
+    console.log('Layout quality metrics:', {
+      nodeCount: layoutQuality.nodeCount,
+      edgeCount: layoutQuality.edgeCount,
+      minDistance: layoutQuality.minDistance,
+      closeNodesCount: layoutQuality.closeNodes.length,
+      edgeOverlapsCount: layoutQuality.edgeOverlaps.length,
+      graphSpread: layoutQuality.graphSpread
+    });
+
+    // Assertions
+    expect(layoutQuality.nodeCount).toBe(10);
+    expect(layoutQuality.edgeCount).toBeGreaterThanOrEqual(6); // At least 6 edges (3+2+1 in each island)
+
+    // Nodes should not be too close to each other
+    expect(layoutQuality.minDistance).toBeGreaterThan(50);
+    expect(layoutQuality.closeNodes.length).toBe(0);
+
+    // No edge overlaps (excluding adjacent edges)
+    expect(layoutQuality.edgeOverlaps.length).toBe(0);
+
+    // Graph should be reasonably spread out
+    expect(layoutQuality.graphSpread.width).toBeGreaterThan(200);
+    expect(layoutQuality.graphSpread.height).toBeGreaterThan(200);
+
+    // Take screenshot for visual verification
+    await appWindow.screenshot({
+      path: 'tests/screenshots/electron-layout-3-islands.png',
+      fullPage: true
+    });
+
+    console.log('✓ Layout with 3 islands verified successfully');
+  });
+
+  test('should animate new nodes with breathing effect and stop on hover', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Breathing Animation Feature ===');
+
+    // Start watching
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    await appWindow.waitForTimeout(3000); // Wait for chokidar to be ready
+
+    console.log('=== Creating first file and checking breathing animation ===');
+
+    // Create first file
+    const file1Path = path.join(tempDir, 'first-node.md');
+    await fs.writeFile(file1Path, '# First Node\n\nThis is the first node.');
+
+    // Wait for node to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for first node to appear',
+      timeout: 8000
+    }).toBe(1);
+
+    console.log('First node created, checking if animation is breathing...');
+
+    // Sample border width AND color multiple times to verify it's actually animating (breathing)
+    const breathingCheck = await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+
+      // Sample border width and color at 3 different points in time
+      const widthSamples: number[] = [];
+      const colorSamples: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const borderWidth = parseFloat(node.style('border-width'));
+        const borderColor = node.style('border-color');
+        widthSamples.push(borderWidth);
+        colorSamples.push(borderColor);
+        await new Promise(resolve => setTimeout(resolve, 400)); // Wait 400ms between samples
+      }
+
+      // Check if values are different (breathing = animating)
+      const isWidthAnimating = widthSamples[0] !== widthSamples[1] || widthSamples[1] !== widthSamples[2];
+      const isColorAnimating = colorSamples[0] !== colorSamples[1] || colorSamples[1] !== colorSamples[2];
+
+      return {
+        nodeId: node.id(),
+        borderWidthSamples: widthSamples,
+        borderColorSamples: colorSamples,
+        isWidthAnimating,
+        isColorAnimating,
+        breathingActive: node.data('breathingActive'),
+        animationType: node.data('animationType')
+      };
+    });
+
+    console.log('Breathing check results:', breathingCheck);
+
+    // Verify animation is breathing (both width and color should change)
+    expect(breathingCheck?.isWidthAnimating).toBe(true);
+    expect(breathingCheck?.isColorAnimating).toBe(true);
+    expect(breathingCheck?.breathingActive).toBe(true);
+    expect(breathingCheck?.animationType).toBe('new_node');
+
+    // All width samples should be non-zero
+    for (const sample of breathingCheck?.borderWidthSamples || []) {
+      expect(sample).toBeGreaterThan(0);
+    }
+
+    console.log('✓ Animation is breathing (border width AND color change over time)');
+
+    // Now test hover stopping the animation
+    console.log('=== Testing hover stops animation ===');
+
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return;
+
+      const node = cy.nodes().first();
+      // Trigger mouseover event
+      node.emit('mouseover');
+    });
+
+    await appWindow.waitForTimeout(100);
+
+    // Check multiple times to ensure animation stays stopped (width and color don't change)
+    const afterHoverChecks = await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const checks = [];
+
+      for (let i = 0; i < 3; i++) {
+        checks.push({
+          breathingActive: node.data('breathingActive'),
+          borderWidth: node.style('border-width'),
+          borderColor: node.style('border-color')
+        });
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      return checks;
+    });
+
+    console.log('After hover checks:', afterHoverChecks);
+
+    // All checks should show animation is stopped
+    for (const check of afterHoverChecks || []) {
+      expect(check.breathingActive).toBeFalsy();
+      expect(check.borderWidth).toMatch(/^(0px?|0)$/);
+    }
+
+    // Verify border width and color are not changing (animation really stopped)
+    const borderWidths = (afterHoverChecks || []).map(c => c.borderWidth);
+    const borderColors = (afterHoverChecks || []).map(c => c.borderColor);
+    const widthsAllSame = borderWidths.every(w => w === borderWidths[0]);
+    const colorsAllSame = borderColors.every(c => c === borderColors[0]);
+    expect(widthsAllSame).toBe(true);
+    expect(colorsAllSame).toBe(true);
+
+    // Verify color changed from animated state (should be different from breathing colors)
+    const finalColor = borderColors[0];
+    const wasAnimatingWithDifferentColor = breathingCheck?.borderColorSamples.some(c => c !== finalColor);
+    expect(wasAnimatingWithDifferentColor).toBe(true);
+
+    console.log('✓ Hover stops animation immediately and it stays stopped (width and color stable)');
+
+    // Test updated node breathing animation
+    console.log('=== Testing updated node breathing animation ===');
+
+    // Create a second file
+    const file2Path = path.join(tempDir, 'second-node.md');
+    await fs.writeFile(file2Path, '# Second Node\n\nInitial content.');
+
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for second node',
+      timeout: 8000
+    }).toBe(2);
+
+    // Wait for animation to complete and clear it
+    await appWindow.waitForTimeout(1000);
+
+    await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return;
+      const node = cy.getElementById('second-node');
+      if (node.length > 0) {
+        node.data('breathingActive', false);
+        node.stop(true);
+        node.style({
+          'border-width': '0',
+          'border-color': 'rgba(0, 0, 0, 0)',
+          'border-opacity': 1
+        });
+      }
+    });
+
+    await appWindow.waitForTimeout(500);
+
+    // Update the file
+    await fs.writeFile(file2Path, '# Second Node\n\nInitial content.\n\n## New Section\n\nAppended content!');
+
+    await appWindow.waitForTimeout(500);
+
+    // Check for cyan breathing animation (APPENDED_CONTENT type)
+    const updatedNodeBreathing = await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.getElementById('second-node');
+      if (!node || node.length === 0) return null;
+
+      // Sample border width and color at 3 different points in time
+      const widthSamples: number[] = [];
+      const colorSamples: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const borderWidth = parseFloat(node.style('border-width'));
+        const borderColor = node.style('border-color');
+        widthSamples.push(borderWidth);
+        colorSamples.push(borderColor);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      const isWidthAnimating = widthSamples[0] !== widthSamples[1] || widthSamples[1] !== widthSamples[2];
+      const isColorAnimating = colorSamples[0] !== colorSamples[1] || colorSamples[1] !== colorSamples[2];
+
+      return {
+        borderWidthSamples: widthSamples,
+        borderColorSamples: colorSamples,
+        isWidthAnimating,
+        isColorAnimating,
+        breathingActive: node.data('breathingActive'),
+        animationType: node.data('animationType')
+      };
+    });
+
+    console.log('Updated node breathing check:', updatedNodeBreathing);
+
+    expect(updatedNodeBreathing?.breathingActive).toBe(true);
+    expect(updatedNodeBreathing?.animationType).toBe('appended_content');
+    expect(updatedNodeBreathing?.isWidthAnimating).toBe(true);
+    expect(updatedNodeBreathing?.isColorAnimating).toBe(true);
+
+    for (const sample of updatedNodeBreathing?.borderWidthSamples || []) {
+      expect(sample).toBeGreaterThan(0);
+    }
+
+    console.log('✓ Updated node has breathing animation');
+    console.log('✓ Breathing animation feature test completed successfully');
+  });
+
+  test('should toggle dark/light mode via UI and update graph colors', async ({ appWindow, tempDir }) => {
+    await appWindow.waitForLoadState('domcontentloaded');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Testing Dark/Light Mode Toggle ===');
+
+    // Start watching and create a test file
+    await appWindow.evaluate((dir) => {
+      if ((window as ExtendedWindow).electronAPI) {
+        return (window as ExtendedWindow).electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    await appWindow.waitForTimeout(3000); // Wait for chokidar
+
+    // Create test files with an edge
+    const file1Path = path.join(tempDir, 'node1.md');
+    const file2Path = path.join(tempDir, 'node2.md');
+    await fs.writeFile(file1Path, '# Node 1\n\nFirst node. Links to [[node2]].');
+    await fs.writeFile(file2Path, '# Node 2\n\nSecond node.');
+
+    // Wait for nodes to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        return cy ? { nodes: cy.nodes().length, edges: cy.edges().length } : null;
+      });
+    }, {
+      message: 'Waiting for nodes and edges to appear',
+      timeout: 8000
+    }).toMatchObject({
+      nodes: 2,
+      edges: 1
+    });
+
+    console.log('=== Step 1: Check initial colors (light mode) ===');
+
+    const initialColors = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const edge = cy.edges().first();
+
+      return {
+        isDarkMode: document.documentElement.classList.contains('dark'),
+        nodeColor: node.style('color'),
+        edgeColor: edge.style('color'),
+      };
+    });
+
+    console.log('Initial colors:', initialColors);
+
+    // Verify light mode initially
+    expect(initialColors?.isDarkMode).toBe(false);
+    expect(initialColors?.nodeColor).toBe('rgb(42,42,42)');
+    expect(initialColors?.edgeColor).toBe('rgb(42,42,42)');
+
+    console.log('✓ Initial light mode uses dark text');
+
+    console.log('=== Step 2: Click dark mode button ===');
+
+    // Click the dark mode button (first item in speed dial menu - index 0)
+    const darkModeButton = await appWindow.locator('[data-testid="speed-dial-item-0"]');
+    await expect(darkModeButton).toBeVisible({ timeout: 3000 });
+    await darkModeButton.click({ force: true }); // Force click to bypass canvas overlay
+    await appWindow.waitForTimeout(500);
+
+    const afterDarkToggle = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const edge = cy.edges().first();
+
+      return {
+        isDarkMode: document.documentElement.classList.contains('dark'),
+        nodeColor: node.style('color'),
+        edgeColor: edge.style('color'),
+      };
+    });
+
+    console.log('After dark mode toggle:', afterDarkToggle);
+
+    // Verify dark class is added and colors updated to light text
+    expect(afterDarkToggle?.isDarkMode).toBe(true);
+    expect(afterDarkToggle?.nodeColor).toBe('rgb(220,221,222)'); // #dcddde - light text for dark mode
+    expect(afterDarkToggle?.edgeColor).toBe('rgb(220,221,222)');
+
+    console.log('✓ Dark mode uses light text (rgb(220,221,222) = #dcddde)');
+
+    console.log('=== Step 3: Click light mode button ===');
+
+    // Click the same button again to toggle back to light mode
+    const lightModeButton = await appWindow.locator('[data-testid="speed-dial-item-0"]');
+    await expect(lightModeButton).toBeVisible({ timeout: 3000 });
+    await lightModeButton.click({ force: true }); // Force click to bypass canvas overlay
+    await appWindow.waitForTimeout(500);
+
+    const afterLightToggle = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return null;
+
+      const node = cy.nodes().first();
+      const edge = cy.edges().first();
+
+      return {
+        isDarkMode: document.documentElement.classList.contains('dark'),
+        nodeColor: node.style('color'),
+        edgeColor: edge.style('color'),
+      };
+    });
+
+    console.log('After light mode toggle:', afterLightToggle);
+
+    // Verify dark class is removed and colors updated back to dark text
+    expect(afterLightToggle?.isDarkMode).toBe(false);
+    expect(afterLightToggle?.nodeColor).toBe('rgb(42,42,42)'); // #2a2a2a - dark text for light mode
+    expect(afterLightToggle?.edgeColor).toBe('rgb(42,42,42)');
+
+    console.log('✓ Light mode uses dark text again (rgb(42,42,42) = #2a2a2a)');
+    console.log('✓ Dark/light mode toggle working correctly with reactive color updates!');
+  });
+
+  // NOTE: OS preference override is tested at unit level (StyleService.test.ts:105-134)
+  // E2E testing this scenario is complex due to Electron's preload timing
+  // The unit test "should use dark text when app is in light mode even if OS prefers dark"
+  // comprehensively covers the bug fix where app theme should override OS preference
+});
+
+// Export for use in other tests
+export { test };
