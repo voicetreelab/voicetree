@@ -1,6 +1,7 @@
 import difflib
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 from typing import Optional
@@ -50,8 +51,12 @@ class MarkdownTree:
         self.next_node_id: int = 1
         self.output_dir = output_dir or "markdownTreeVaultDefault"
         self._markdown_converter = None  # Will be set to TreeToMarkdownConverter when needed
-        self._pending_embedding_updates: set[int] = set()  # Batch embedding updates
-        self._embedding_batch_size = 6  # Update embeddings when we have this many pending
+
+        # ThreadPool for async embedding updates
+        self._embedding_executor = ThreadPoolExecutor(
+            max_workers=2,
+            thread_name_prefix="embedding"
+        )
 
         # Dependency injection for embedding manager
         if embedding_manager is False:
@@ -112,53 +117,31 @@ class MarkdownTree:
 
         return MockEmbeddingManager()
 
-    def _update_embeddings(self, node_ids: list[int], force: bool = False) -> None:
-        """Queue embedding updates and batch process when threshold is reached.
+    def _update_embedding_async(self, node_id: int) -> None:
+        """Fire-and-forget embedding update for a single node.
 
         Args:
-            node_ids: Node IDs to update
-            force: If True, process all pending updates immediately
+            node_id: The node ID to update embeddings for
         """
-        if not self._embedding_manager or not node_ids:
+        if not self._embedding_manager or node_id not in self.tree:
             return
 
-        # Add to pending updates
-        self._pending_embedding_updates.update(node_ids)
+        node = self.tree[node_id]
 
-        # Process if we've reached batch size or forcing
-        if force or len(self._pending_embedding_updates) >= self._embedding_batch_size:
-            self._flush_embedding_updates()
+        # Submit to executor and forget about it
+        future = self._embedding_executor.submit(
+            self._embedding_manager.vector_store.add_nodes,
+            {node_id: node}
+        )
 
-    def _flush_embedding_updates(self) -> None:
-        """Process all pending embedding updates in a batch."""
-        if not self._embedding_manager or not self._pending_embedding_updates:
-            return
+        # Log errors but don't block
+        def log_error(f):
+            try:
+                f.result()
+            except Exception as e:
+                logging.warning(f"Embedding update failed for node {node_id}: {e}")
 
-        try:
-            # Get actual nodes from tree
-            nodes_to_update = {
-                nid: self.tree[nid]
-                for nid in self._pending_embedding_updates
-                if nid in self.tree
-            }
-
-            if nodes_to_update:
-                self._embedding_manager.vector_store.add_nodes(nodes_to_update)
-                logging.debug(f"Batch updated embeddings for {len(nodes_to_update)} nodes")
-
-            # Clear pending updates
-            self._pending_embedding_updates.clear()
-
-        except Exception as e:
-            logging.error(f"Failed to batch update embeddings: {e}")
-            # Don't clear on error - retry next time
-
-    def flush_embeddings(self) -> None:
-        """Public method to force flush all pending embedding updates."""
-        self._flush_embedding_updates()
-        # note, we shouldn't force flush, instead
-        # functions that rely on embeddings should include the unupdated by default
-        # or force flush i guess
+        future.add_done_callback(log_error)
 
     def _write_markdown_for_nodes(self, node_ids: list[int]) -> None:
         """Write markdown files for the specified nodes"""
@@ -207,8 +190,10 @@ class MarkdownTree:
             nodes_to_update.append(parent_node_id)
         self._write_markdown_for_nodes(nodes_to_update)
 
-        # Update embeddings
-        self._update_embeddings(nodes_to_update)
+        # Fire-and-forget embedding updates
+        self._update_embedding_async(new_node_id)
+        if parent_node_id is not None:
+            self._update_embedding_async(parent_node_id)
 
         return new_node_id
 
@@ -236,9 +221,9 @@ class MarkdownTree:
         # Write markdown for the updated node
         self._write_markdown_for_nodes([node_id])
 
-        # Update embeddings only if requested (not for sync operations)
+        # Fire-and-forget embedding update
         if update_embeddings:
-            self._update_embeddings([node_id])
+            self._update_embedding_async(node_id)
 
     def append_node_content(self, node_id: int, new_content: str, transcript: str = "") -> None:
         """
@@ -264,8 +249,8 @@ class MarkdownTree:
         # Write markdown for the updated node
         self._write_markdown_for_nodes([node_id])
 
-        # Update embeddings
-        self._update_embeddings([node_id])
+        # Fire-and-forget embedding update
+        self._update_embedding_async(node_id)
 
     def get_node_id_from_name(self, name: str, similarity_threshold: float = 0.8) -> Optional[int]:
         """
@@ -464,9 +449,6 @@ class MarkdownTree:
         Returns:
             List of node IDs ordered by relevance
         """
-        # Flush any pending updates before searching
-        self.flush_embeddings()
-
         if self._embedding_manager:
             try:
                 return self._embedding_manager.search(query, top_k)
@@ -485,8 +467,6 @@ class MarkdownTree:
         Returns:
             List of (node_id, similarity_score) tuples ordered by relevance
         """
-        self.flush_embeddings()
-
         if self._embedding_manager:
             try:
                 # Use the embedding manager's search with scores
