@@ -13,7 +13,6 @@ import glob
 import os
 import random
 import shutil
-import string
 import tempfile
 import time
 
@@ -29,15 +28,223 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
 )
 
 
-def generate_random_sentence(min_words=1, max_words=110):
-    """Generate a random sentence with specified word count."""
-    word_count = random.randint(min_words, max_words)
-    words = []
-    for _ in range(word_count):
-        word_length = random.randint(3, 10)
-        word = ''.join(random.choices(string.ascii_lowercase, k=word_length))
-        words.append(word)
-    return ' '.join(words)
+# Topic-based content structure: 5 parent topics × 5 subtopics × 5 sentences = 125 total
+TOPIC_CONTENT = {
+    "Programming": {
+        "Python Basics": [
+            "Python is a high-level programming language known for its clear syntax and readability.",
+            "Variables in Python do not need explicit type declarations due to dynamic typing.",
+            "Python uses indentation with whitespace to define code blocks instead of braces.",
+            "List comprehensions provide a concise way to create lists from existing sequences.",
+            "The Python standard library includes modules for common tasks like file handling and networking."
+        ],
+        "Web Development": [
+            "Django is a full-featured web framework that follows the model-template-view pattern.",
+            "Flask offers a lightweight approach to building web applications with minimal boilerplate.",
+            "RESTful APIs enable communication between client and server using HTTP methods.",
+            "Web frameworks handle routing to map URLs to specific handler functions.",
+            "Template engines allow dynamic HTML generation by embedding variables in markup."
+        ],
+        "Data Science": [
+            "NumPy provides efficient arrays and mathematical operations for numerical computing.",
+            "Pandas offers data structures like DataFrames for manipulating tabular data.",
+            "Matplotlib creates static, animated, and interactive visualizations in Python.",
+            "Machine learning models learn patterns from data to make predictions.",
+            "Data preprocessing includes cleaning, transforming, and normalizing datasets."
+        ],
+        "Testing": [
+            "Unit tests verify that individual functions and methods work correctly in isolation.",
+            "Integration tests check that different components work together as expected.",
+            "Test fixtures set up the necessary state and data before running tests.",
+            "Mocking allows tests to replace real dependencies with controlled test doubles.",
+            "Continuous integration automatically runs tests when code changes are pushed."
+        ],
+        "Algorithms": [
+            "Binary search efficiently finds elements in sorted arrays with logarithmic time complexity.",
+            "Quick sort uses divide-and-conquer to sort elements by partitioning around a pivot.",
+            "Hash tables provide constant-time average case lookup using key-value pairs.",
+            "Depth-first search explores graph nodes by going as deep as possible before backtracking.",
+            "Dynamic programming solves complex problems by breaking them into simpler overlapping subproblems."
+        ]
+    },
+    "Cooking": {
+        "Baking": [
+            "Baking bread requires precise measurements of flour, water, yeast, and salt.",
+            "Gluten development occurs when flour proteins form networks during kneading.",
+            "Oven temperature significantly affects the texture and crust of baked goods.",
+            "Proofing allows yeast to ferment and produce carbon dioxide for rising.",
+            "Sourdough starters contain wild yeast and bacteria for natural fermentation."
+        ],
+        "Knife Skills": [
+            "A sharp knife is safer than a dull one because it requires less force.",
+            "The chef's knife is a versatile tool suitable for most cutting tasks.",
+            "Proper grip involves pinching the blade between thumb and forefinger.",
+            "Julienne cuts create thin matchstick-sized strips of vegetables.",
+            "A stable cutting board prevents slipping and ensures precise cuts."
+        ],
+        "Sauces": [
+            "The five mother sauces form the foundation of classical French cuisine.",
+            "Béchamel sauce combines butter, flour, and milk into a creamy white sauce.",
+            "Emulsification binds oil and water-based ingredients together in sauces.",
+            "Reduction concentrates flavors by simmering liquids to evaporate water.",
+            "Deglazing releases flavorful browned bits from the pan using liquid."
+        ],
+        "Grilling": [
+            "Direct heat grilling cooks food directly over the flame or coals.",
+            "Indirect heat creates an oven-like environment for slower cooking.",
+            "Searing at high temperature creates flavorful browning through the Maillard reaction.",
+            "Resting meat after grilling allows juices to redistribute throughout the cut.",
+            "Marinades add flavor and can help tenderize tougher cuts of meat."
+        ],
+        "Herbs and Spices": [
+            "Fresh basil adds a sweet, peppery flavor to Italian and Thai dishes.",
+            "Cumin provides earthy, warm notes common in Mexican and Indian cuisine.",
+            "Toasting spices in a dry pan releases their essential oils and intensifies flavor.",
+            "Herbs should be added at different times depending on whether they are fresh or dried.",
+            "Salt enhances and balances flavors by suppressing bitterness and amplifying taste."
+        ]
+    },
+    "Astronomy": {
+        "Stars": [
+            "Stars are massive spheres of plasma held together by their own gravity.",
+            "Nuclear fusion in stellar cores converts hydrogen into helium and releases energy.",
+            "The color of a star indicates its surface temperature and spectral class.",
+            "Main sequence stars spend most of their lives fusing hydrogen into helium.",
+            "Red giants form when stars exhaust their core hydrogen and expand dramatically."
+        ],
+        "Planets": [
+            "Rocky planets like Earth have solid surfaces and relatively high densities.",
+            "Gas giants such as Jupiter consist primarily of hydrogen and helium.",
+            "Planetary orbits follow elliptical paths around their host stars.",
+            "Exoplanets are planets that orbit stars outside our solar system.",
+            "The habitable zone is the region where liquid water could exist on a planet's surface."
+        ],
+        "Galaxies": [
+            "The Milky Way is a barred spiral galaxy containing hundreds of billions of stars.",
+            "Galactic rotation curves suggest the presence of dark matter in galaxies.",
+            "Elliptical galaxies contain older stars and have little gas for new star formation.",
+            "Galaxy clusters are gravitationally bound groups of galaxies.",
+            "Active galactic nuclei emit enormous amounts of energy from supermassive black holes."
+        ],
+        "Black Holes": [
+            "Black holes have gravity so strong that nothing, not even light, can escape.",
+            "The event horizon marks the boundary beyond which escape becomes impossible.",
+            "Stellar mass black holes form when massive stars collapse at the end of their lives.",
+            "Supermassive black holes exist at the centers of most large galaxies.",
+            "Hawking radiation is a theoretical emission predicted at black hole event horizons."
+        ],
+        "Cosmology": [
+            "The Big Bang theory describes the universe's expansion from an extremely hot, dense state.",
+            "Cosmic microwave background radiation is the afterglow of the early universe.",
+            "Dark energy appears to be accelerating the universe's expansion.",
+            "Redshift measures how light stretches as the universe expands.",
+            "The observable universe is limited by the speed of light and cosmic age."
+        ]
+    },
+    "Sports": {
+        "Basketball": [
+            "Basketball is played with two teams of five players on a rectangular court.",
+            "Dribbling allows players to move with the ball by bouncing it continuously.",
+            "A three-point shot is taken from beyond the three-point arc.",
+            "Pick and roll plays involve screening a defender and rolling to the basket.",
+            "Zone defense assigns players to guard areas rather than specific opponents."
+        ],
+        "Soccer": [
+            "Soccer matches consist of two forty-five minute halves with a halftime break.",
+            "Offside rules prevent attackers from gaining an unfair positional advantage.",
+            "Passing accuracy and ball control are fundamental skills in soccer.",
+            "Formations like 4-4-2 describe how players are positioned on the field.",
+            "Set pieces including corner kicks and free kicks create scoring opportunities."
+        ],
+        "Tennis": [
+            "Tennis scoring progresses through points, games, and sets with unique terminology.",
+            "The serve initiates play and can be a powerful offensive weapon.",
+            "Topspin makes the ball dip quickly and bounce high on the opponent's side.",
+            "Court surfaces like clay, grass, and hard court affect ball speed and bounce.",
+            "A rally continues until one player fails to return the ball within the lines."
+        ],
+        "Swimming": [
+            "Freestyle is the fastest and most efficient swimming stroke for most swimmers.",
+            "Proper breathing technique involves rotating the head to the side rather than lifting.",
+            "Flip turns allow swimmers to change direction quickly at the pool wall.",
+            "Streamlining reduces drag by maintaining a horizontal, narrow body position.",
+            "Interval training alternates between high-intensity efforts and recovery periods."
+        ],
+        "Running": [
+            "Proper running form includes landing midfoot and maintaining an upright posture.",
+            "Cadence refers to the number of steps per minute while running.",
+            "Long slow distance runs build aerobic endurance and base fitness.",
+            "Interval workouts improve speed by alternating fast and slow segments.",
+            "Recovery days allow muscles to repair and adapt to training stress."
+        ]
+    },
+    "Music": {
+        "Music Theory": [
+            "Musical scales are sequences of notes ordered by pitch in ascending or descending patterns.",
+            "Chord progressions create harmonic movement and structure in compositions.",
+            "Time signatures indicate how many beats are in each measure.",
+            "Key signatures specify which notes are sharp or flat throughout a piece.",
+            "Intervals measure the distance between two pitches in terms of steps."
+        ],
+        "Piano": [
+            "Piano keys produce sound when hammers strike strings inside the instrument.",
+            "Proper hand position keeps fingers curved and wrists level with the keys.",
+            "Pedals sustain notes, soften tone, or create special effects on the piano.",
+            "Scales and arpeggios develop finger strength, dexterity, and muscle memory.",
+            "Sight reading allows pianists to play music they have not previously practiced."
+        ],
+        "Guitar": [
+            "Guitars typically have six strings tuned to E, A, D, G, B, and E.",
+            "Frets are metal strips on the fingerboard that mark different pitches.",
+            "Strumming patterns create rhythm by sweeping across multiple strings.",
+            "Barre chords use one finger to press down multiple strings across a fret.",
+            "Fingerpicking involves plucking individual strings with separate fingers."
+        ],
+        "Composition": [
+            "Melody is a sequence of single notes that form a recognizable musical line.",
+            "Harmony adds depth by combining multiple notes played simultaneously.",
+            "Rhythm organizes music in time through patterns of duration and accent.",
+            "Dynamics control the volume and intensity of musical performance.",
+            "Form provides structure through the arrangement and repetition of musical sections."
+        ],
+        "Jazz": [
+            "Improvisation allows musicians to create spontaneous melodies over chord changes.",
+            "Swing rhythm creates a laid-back, syncopated feel characteristic of jazz.",
+            "The blues scale adds flatted notes that create tension and expression.",
+            "Walking bass lines outline chord changes with stepwise quarter note movement.",
+            "Jazz standards are widely known compositions that form the common repertoire."
+        ]
+    }
+}
+
+
+def generate_topic_based_sentence(index: int) -> tuple[str, dict]:
+    """
+    Generate a sentence from the topic hierarchy based on index.
+
+    Returns:
+        tuple of (sentence, metadata) where metadata contains:
+        - parent_topic: e.g., "Programming"
+        - subtopic: e.g., "Python Basics"
+        - sentence_index: 0-4 within the subtopic
+    """
+    # Flatten the structure into a list of (sentence, metadata)
+    all_sentences = []
+    for parent_topic, subtopics in TOPIC_CONTENT.items():
+        for subtopic, sentences in subtopics.items():
+            for sent_idx, sentence in enumerate(sentences):
+                all_sentences.append((
+                    sentence,
+                    {
+                        "parent_topic": parent_topic,
+                        "subtopic": subtopic,
+                        "sentence_index": sent_idx
+                    }
+                ))
+
+    # Cycle through sentences if index exceeds available content
+    idx = index % len(all_sentences)
+    return all_sentences[idx]
 
 
 class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
@@ -211,11 +418,11 @@ class TestPipelineWithRealEmbeddings:
             workflow=mock_workflow
         )
 
-        # Generate and process random sentences until we hit ~30 actions
-        print(f"\nProcessing random text to generate ~30 actions...")
+        # Generate and process topic-based sentences until we hit ~30 actions
+        print(f"\nProcessing topic-based text to generate ~30 actions...")
         sentences_processed = 0
         while mock_workflow.total_actions < 30:
-            sentence = generate_random_sentence(20, 50)  # Medium-sized sentences
+            sentence, metadata = generate_topic_based_sentence(sentences_processed)
             await chunk_processor.process_new_text_and_update_markdown(sentence)
             sentences_processed += 1
             if sentences_processed % 5 == 0:
@@ -328,7 +535,7 @@ class TestPipelineWithRealEmbeddings:
 
         # Process several chunks to create nodes
         for i in range(5):
-            sentence = generate_random_sentence(30, 60)
+            sentence, metadata = generate_topic_based_sentence(i)
             await chunk_processor.process_new_text_and_update_markdown(sentence)
 
         # Wait a bit for any async operations

@@ -6,7 +6,6 @@ PUBLIC:
 - addText(text) -> void
 - getBufferTextWhichShouldBeProcessed() -> buffer text or ""
 - flushCompletelyProcessedText(text) -> remaining buffer contents
-- get_transcript_history(maxLength:int) ->
 
 
 PRIVATE:
@@ -112,27 +111,11 @@ should work for one word at start / middle / end of buffer. Should work for sent
         assert "Hello world again" in remaining
         assert remaining.strip().startswith(". This is a test")
 
-    def test_get_transcript_history_with_max_length(self):
-        """Test that get_transcript_history returns limited history based on maxLength"""
-        buffer_manager = TextBufferManager()
-        buffer_manager.init(bufferFlushLength=50)
-
-        # Add text to build history
-        buffer_manager.addText("First sentence.")
-        buffer_manager.addText(" Second sentence.")
-        buffer_manager.addText(" Third sentence.")
-        buffer_manager.addText(" Fourth sentence.")
-
-        # Get full history
-        full_history = buffer_manager.get_transcript_history(maxLength=None)
-        # Should not add unnecessary spaces
-        assert full_history == "First sentence. Second sentence. Third sentence. Fourth sentence."
-
-        # Get limited history
-        limited_history = buffer_manager.get_transcript_history(maxLength=20)
-        assert len(limited_history) <= 20
-        # Should return the most recent characters
-        assert "Fourth sentence" in limited_history
+    # Commented out - History management moved to TreeActionDeciderWorkflow
+    # def test_transcript_history_updates_only_after_flush(self):
+    #     """Finished segments are appended to history after successful flush."""
+    #     # History management is now handled by TreeActionDeciderWorkflow, not TextBufferManager
+    #     pass
 
     def test_flush_word_at_different_positions(self):
         """Test removing a single word from start, middle, and end of buffer"""
@@ -190,5 +173,4 @@ should work for one word at start / middle / end of buffer. Should work for sent
         assert "The cat sat on the mat." in remaining  # First sentence should remain
         assert "The dog sat on the mat." in remaining  # Last sentence should remain
         assert "The cat sits on the mat." not in remaining  # Middle should be removed
-
 
