@@ -39,11 +39,12 @@ class TestVectorStorageCreation:
                 "Test summary 2"
             )
 
-            # Force embedding update
-            tree.flush_embeddings()
+            # Give async embeddings a moment to process
+            import time
+            time.sleep(0.1)
 
-            # Verify embedding batching system works
-            assert len(tree._pending_embedding_updates) == 0  # Should be flushed
+            # Verify embedding system is working
+            # (With async updates, we can't check for pending state)
 
             # Verify search functionality works (will use mock data)
             search_results = tree.search_similar_nodes("test query", top_k=1)
@@ -89,8 +90,9 @@ class TestVectorStorageCreation:
                     "Food preparation guide"
                 )
 
-                # Force embedding update (in case batching is enabled)
-                tree.flush_embeddings()
+                # Give async embeddings time to complete
+                import time
+                time.sleep(0.5)  # Real embeddings may take longer
 
                 # Verify vectors are stored in ChromaDB
                 stats = tree._embedding_manager.get_stats()
@@ -128,7 +130,9 @@ class TestVectorStorageCreation:
                     "Data science combines statistics, programming, and domain expertise",
                     "Data science overview"
                 )
-                tree1.flush_embeddings()
+                # Give async embeddings time to complete
+                import time
+                time.sleep(0.5)
 
                 # Verify node is stored
                 stats1 = tree1._embedding_manager.get_stats()
@@ -169,13 +173,15 @@ class TestVectorStorageCreation:
                 "Test content for vector storage verification",
                 "Test summary"
             )
-            tree.flush_embeddings()
+            # Give async embeddings a moment to process
+            import time
+            time.sleep(0.1)
 
             # With mocks, just verify the embedding system is connected
             assert tree._embedding_manager is not None
 
-            # Verify batching system works
-            assert len(tree._pending_embedding_updates) == 0  # Should be flushed
+            # Verify the executor is running
+            assert tree._embedding_executor is not None
 
 
 if __name__ == "__main__":

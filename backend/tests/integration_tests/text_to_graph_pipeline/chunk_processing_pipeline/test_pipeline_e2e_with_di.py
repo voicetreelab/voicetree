@@ -169,8 +169,15 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
                 if result_nodes:
                     updated_nodes.update(result_nodes)
 
-        # Clear buffer after processing
-        buffer_manager.clear()
+        # Simulate the real workflow's segment handling:
+        # Instead of just clearing, simulate flushing routed segments
+        # and updating history (this mimics real workflow behavior)
+        from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
+        max_history = buffer_manager.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
+
+        # Simulate that all text was routed and should be in history
+        buffer_manager.flushCompletelyProcessedText(text_chunk)
+        self._history_manager.append(text_chunk, max_history)
 
         return updated_nodes
 
@@ -226,6 +233,28 @@ class TestPipelineE2EWithDI:
 
         # Verify tree has nodes
         assert len(decision_tree.tree) > 0, "Decision tree should have nodes"
+
+        # HISTORY BEHAVIOR TEST: Verify workflow manages its own history
+        workflow_history = mock_workflow.get_transcript_history()
+        assert workflow_history is not None, "Workflow should have history management"
+
+        # Verify history actually accumulated the processed text
+        # The mock now simulates segment routing, so history should contain our text
+        assert len(workflow_history) > 0, "History should contain processed segments"
+
+        # Verify history contains segments in order
+        # At least some words from each test text should be in history
+        for text in test_texts:
+            first_words = text.split()[:5]  # Check first 5 words
+            words_found = sum(1 for word in first_words if word in workflow_history)
+            assert words_found > 0, \
+                f"History should contain segments from processed text: {text[:50]}..."
+
+        # Verify history length is bounded (should trim to max length)
+        from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
+        max_expected = 183 * TRANSCRIPT_HISTORY_MULTIPLIER  # bufferFlushLength * multiplier
+        assert len(workflow_history) <= max_expected, \
+            f"History length {len(workflow_history)} should be bounded by {max_expected}"
 
         # Verify markdown files were created
         md_files = glob.glob(os.path.join(self.output_dir, "*.md"))
