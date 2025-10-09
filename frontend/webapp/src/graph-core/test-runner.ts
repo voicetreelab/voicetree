@@ -147,14 +147,19 @@ async function initializeGraph() {
       console.log('Applying bulk hierarchical layout...');
       const allNodeIds = graphData.nodes.map(n => n.data.id);
       layoutManager.applyLayout(cy, allNodeIds);
+
+      // Fit to viewport after layout animation completes
+      setTimeout(() => {
+        cy.fit(undefined, 50);
+        console.log('Initial fit complete');
+      }, 350); // 300ms layout animation + 50ms buffer
     } else {
       // For incremental, use BFS positioning
       console.log('Applying incremental layout...');
       layoutManager.positionGraphBFS(cy);
+      // Fit immediately for incremental (no animation)
+      cy.fit(undefined, 50);
     }
-
-    // Fit to viewport
-    cy.fit(50);
 
     // Expose to window for debugging and testing
     (window as typeof window & { cy?: unknown; cytoscapeCore?: unknown; graphData?: unknown; layoutManager?: unknown; LayoutManager?: unknown; SeedParkRelaxStrategy?: unknown }).cy = cy;

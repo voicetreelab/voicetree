@@ -219,6 +219,22 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     isInitialLoadRef.current = isInitialLoad;
   }, [isInitialLoad]);
 
+  // Handle initial graph fit after bulk load completes
+  // When isInitialLoad changes from true to false, the bulk load has completed
+  // We need to wait for the layout animation (300ms) to finish before fitting
+  useEffect(() => {
+    if (!isInitialLoad && cytoscapeRef.current) {
+      const cy = cytoscapeRef.current.getCore();
+      if (cy.nodes().length > 0) {
+        console.log('[Layout] Initial load complete, fitting graph after animation');
+        setTimeout(() => {
+          cy.fit(undefined, 50);
+          console.log('[Layout] Initial fit complete');
+        }, 350); // 300ms layout animation + 50ms buffer
+      }
+    }
+  }, [isInitialLoad]); // Only run when isInitialLoad changes
+
   // REMOVED: Voice transcription logic
   // This component should only handle graph visualization
   // Voice transcription is handled by VoiceTreeTranscribe component

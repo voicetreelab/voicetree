@@ -336,3 +336,111 @@ export function loadMarkdownTree(files: Map<string, string>, outputDir?: string)
   const converter = new MarkdownToTreeConverter();
   return converter.loadTreeFromMarkdown(files, outputDir);
 }
+
+/**
+ * Parsed data for Cytoscape graph visualization
+ */
+export interface ParsedCytoscapeData {
+  nodeId: string;
+  title?: string;
+  label: string;
+  color?: string;
+  linkedNodeIds: string[];
+  edgeLabels: Map<string, string>;
+}
+
+/**
+ * Parse markdown content for Cytoscape graph visualization
+ * Extracts frontmatter (color, title), wikilinks, and generates normalized IDs
+ *
+ * This is a lighter-weight parser optimized for real-time file watching,
+ * compared to the full MarkdownToTreeConverter used for batch loading.
+ *
+ * @param content Markdown file content
+ * @param filename Filename (with path and extension)
+ * @returns Parsed data ready for Cytoscape node/edge creation
+ */
+export function parseForCytoscape(content: string, filename: string): ParsedCytoscapeData {
+  // 1. Normalize filename to node ID
+  // Remove .md extension
+  let nodeId = filename.replace(/\.md$/i, '');
+  // Take just the filename without path
+  const lastSlash = nodeId.lastIndexOf('/');
+  if (lastSlash >= 0) {
+    nodeId = nodeId.substring(lastSlash + 1);
+  }
+
+  // 2. Extract frontmatter (color, title)
+  let color: string | undefined;
+  let title: string | undefined;
+
+  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  if (frontmatterMatch) {
+    const frontmatter = frontmatterMatch[1];
+
+    // Extract color
+    const colorMatch = frontmatter.match(/^color:\s*['"]?([^'"\n]+)['"]?$/m);
+    if (colorMatch) {
+      color = colorMatch[1].trim();
+    }
+
+    // Extract title
+    const titleMatch = frontmatter.match(/^title:\s*['"]?([^'"\n]+)['"]?$/m);
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+    }
+  }
+
+  // 3. Parse wikilinks to get linked node IDs and relationship types
+  const linkedNodeIds: string[] = [];
+  const edgeLabels = new Map<string, string>();
+
+  // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
+  const linkMatches = content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
+
+  for (const match of linkMatches) {
+    let targetId: string;
+
+    if (match[2]) {
+      // Matched "- label [[target]]" format
+      const label = match[1]?.trim() || '';
+      targetId = normalizeFileIdInternal(match[2]);
+      linkedNodeIds.push(targetId);
+      if (label) {
+        edgeLabels.set(targetId, label);
+      }
+    } else if (match[3]) {
+      // Matched plain "[[target]]" format (no label)
+      targetId = normalizeFileIdInternal(match[3]);
+      linkedNodeIds.push(targetId);
+    }
+  }
+
+  // 4. Generate label (use title if available, otherwise normalized nodeId with spaces)
+  const label = title || nodeId.replace(/_/g, ' ');
+
+  return {
+    nodeId,
+    title,
+    label,
+    color,
+    linkedNodeIds,
+    edgeLabels
+  };
+}
+
+/**
+ * Internal helper to normalize a filename/path to a node ID
+ * @param filename Filename or path (may include .md extension)
+ * @returns Normalized node ID
+ */
+function normalizeFileIdInternal(filename: string): string {
+  // Remove .md extension
+  let id = filename.replace(/\.md$/i, '');
+  // Take just the filename without path
+  const lastSlash = id.lastIndexOf('/');
+  if (lastSlash >= 0) {
+    id = id.substring(lastSlash + 1);
+  }
+  return id;
+}

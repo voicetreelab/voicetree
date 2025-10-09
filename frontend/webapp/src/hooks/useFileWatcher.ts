@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { CytoscapeCore } from '@/graph-core';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
+import { parseForCytoscape } from '@/graph-core/data/load_markdown/MarkdownParser';
 
 // Normalize a filename to a consistent ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -57,27 +58,10 @@ export function useFileWatcher({
       // Store file content using fullPath (absolute path) for save operations
       markdownFiles.current.set(file.fullPath, file.content);
 
-      // Parse wikilinks to get linked node IDs and relationship types
-      const linkedNodeIds: string[] = [];
-      const edgeLabels: Map<string, string> = new Map(); // targetId -> label
-
-      // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
-      const linkMatches = file.content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
-      for (const match of linkMatches) {
-        if (match[2]) {
-          // Matched "- label [[target]]" format
-          const label = match[1]?.trim() || '';
-          const targetId = normalizeFileId(match[2]);
-          linkedNodeIds.push(targetId);
-          if (label) {
-            edgeLabels.set(targetId, label);
-          }
-        } else if (match[3]) {
-          // Matched plain "[[target]]" format (no label)
-          const targetId = normalizeFileId(match[3]);
-          linkedNodeIds.push(targetId);
-        }
-      }
+      // Parse markdown using MarkdownParser (frontmatter + wikilinks)
+      const parsed = parseForCytoscape(file.content, file.path);
+      const linkedNodeIds = parsed.linkedNodeIds;
+      const edgeLabels = parsed.edgeLabels;
 
       // Add node if it doesn't exist
       const nodeId = normalizeFileId(file.path);
@@ -87,12 +71,16 @@ export function useFileWatcher({
         // Use first wikilink as parent for tree structure
         const parentId = linkedNodeIds.length > 0 ? linkedNodeIds[0] : undefined;
 
+        const color = parsed.color;
+        const label = parsed.label;
+
         cy.add({
           data: {
             id: nodeId,
-            label: nodeId.replace(/_/g, ' '),
+            label,
             linkedNodeIds,
-            parentId
+            parentId,
+            ...(color && { color }) // Only add color if it exists
           }
         });
         allNodeIds.push(nodeId);
@@ -141,9 +129,6 @@ export function useFileWatcher({
     if (layoutManagerRef.current && allNodeIds.length > 0) {
       console.log(`[Layout] Applying TidyLayout to ${allNodeIds.length} nodes from bulk load`);
       layoutManagerRef.current.applyLayout(cy, allNodeIds);
-
-      // Fit the graph after bulk load completes
-      cy.fit(50);
     }
 
     // Switch to incremental layout strategy
@@ -170,27 +155,10 @@ export function useFileWatcher({
     markdownFiles.current.set(data.fullPath, data.content);
     console.log('[DEBUG] Added file to markdownFiles, new count:', markdownFiles.current.size);
 
-    // Parse wikilinks to get linked node IDs and relationship types
-    const linkedNodeIds: string[] = [];
-    const edgeLabels: Map<string, string> = new Map(); // targetId -> label
-
-    // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
-    const linkMatches = data.content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
-    for (const match of linkMatches) {
-      if (match[2]) {
-        // Matched "- label [[target]]" format
-        const label = match[1]?.trim() || '';
-        const targetId = normalizeFileId(match[2]);
-        linkedNodeIds.push(targetId);
-        if (label) {
-          edgeLabels.set(targetId, label);
-        }
-      } else if (match[3]) {
-        // Matched plain "[[target]]" format (no label)
-        const targetId = normalizeFileId(match[3]);
-        linkedNodeIds.push(targetId);
-      }
-    }
+    // Parse markdown using MarkdownParser (frontmatter + wikilinks)
+    const parsed = parseForCytoscape(data.content, data.path);
+    const linkedNodeIds = parsed.linkedNodeIds;
+    const edgeLabels = parsed.edgeLabels;
 
     // Add node if it doesn't exist
     const nodeId = normalizeFileId(data.path);
@@ -200,12 +168,16 @@ export function useFileWatcher({
       // Use first wikilink as parent for tree structure
       const parentId = linkedNodeIds.length > 0 ? linkedNodeIds[0] : undefined;
 
+      const color = parsed.color;
+      const label = parsed.label;
+
       const addedNode = cy.add({
         data: {
           id: nodeId,
-          label: nodeId.replace(/_/g, ' '),
+          label,
           linkedNodeIds,
-          parentId
+          parentId,
+          ...(color && { color }) // Only add color if it exists
         }
       });
 
@@ -278,33 +250,37 @@ export function useFileWatcher({
 
     const nodeId = normalizeFileId(data.path);
 
-    // Remove old edges from this node
-    cy.edges(`[source = "${nodeId}"]`).remove();
+    // Parse markdown using MarkdownParser (frontmatter + wikilinks)
+    const parsed = parseForCytoscape(data.content, data.path);
+    const linkedNodeIds = parsed.linkedNodeIds;
+    const edgeLabels = parsed.edgeLabels;
 
-    // Parse wikilinks to get updated linked node IDs and relationship types
-    const linkedNodeIds: string[] = [];
-    const edgeLabels: Map<string, string> = new Map(); // targetId -> label
+    // IMPORTANT: Edge removal strategy for file changes
+    //
+    // When a markdown file changes, we need to update its edges to reflect the new wikilinks.
+    // We use a "clear and rebuild" pattern: remove old edges, then re-create based on current content.
+    //
+    // However, we must ONLY remove markdown-based edges, NOT programmatic edges!
+    //
+    // Two types of edges exist:
+    // 1. Markdown edges: Created from wikilinks like [[other-node]] in the file content
+    // 2. Programmatic edges: Created by features like floating windows (terminals, editors)
+    //    - These have ghost/shadow nodes with isFloatingWindow=true
+    //    - They persist independently of markdown file content
+    //
+    // If we removed ALL edges (the naive approach), floating window edges would disappear
+    // whenever the parent file is modified, breaking the ghost node mechanism.
+    //
+    // Solution: Filter edges before removal to preserve programmatic edges.
+    const edgesToRemove = cy.edges(`[source = "${nodeId}"]`).filter(edge => {
+      const targetNode = edge.target();
+      const isFloatingWindow = targetNode.data('isFloatingWindow');
+      return !isFloatingWindow; // Only remove non-floating-window edges
+    });
+    edgesToRemove.remove();
 
-    // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
-    const linkMatches = data.content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
-    for (const match of linkMatches) {
-      let targetId: string;
-      if (match[2]) {
-        // Matched "- label [[target]]" format
-        const label = match[1]?.trim() || '';
-        targetId = normalizeFileId(match[2]);
-        linkedNodeIds.push(targetId);
-        if (label) {
-          edgeLabels.set(targetId, label);
-        }
-      } else if (match[3]) {
-        // Matched plain "[[target]]" format (no label)
-        targetId = normalizeFileId(match[3]);
-        linkedNodeIds.push(targetId);
-      } else {
-        continue;
-      }
-
+    // Create target nodes and edges from parsed wikilinks
+    for (const targetId of linkedNodeIds) {
       // Ensure target node exists (create placeholder if needed)
       if (!cy.getElementById(targetId).length) {
         cy.add({
@@ -329,9 +305,20 @@ export function useFileWatcher({
       });
     }
 
-    // Update linkedNodeIds for changed node
+    // Update linkedNodeIds, color, and title for changed node
     const changedNode = cy.getElementById(nodeId);
     changedNode.data('linkedNodeIds', linkedNodeIds);
+
+    // Update color from frontmatter
+    if (parsed.color) {
+      changedNode.data('color', parsed.color);
+    } else {
+      // Remove color if it no longer exists in frontmatter
+      changedNode.removeData('color');
+    }
+
+    // Update label from frontmatter
+    changedNode.data('label', parsed.label);
 
     // Trigger breathing animation for appended content (only once per node)
     // Only trigger if not already triggered to prevent re-triggering on every file change
