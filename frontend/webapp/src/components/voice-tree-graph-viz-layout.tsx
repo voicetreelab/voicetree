@@ -52,6 +52,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // During initial scan: use TidyLayoutStrategy for hierarchical layout
   // After initial scan: use IncrementalTidyLayoutStrategy for incremental additions
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const isInitialLoadRef = useRef(true);
 
   // Layout manager for positioning nodes
   const layoutManagerRef = useRef<LayoutManager | null>(null);
@@ -120,6 +121,12 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
         }
       });
       console.log('[createFloatingEditor] Shadow node created:', shadowNode);
+
+      // Trigger incremental layout for the new shadow node
+      if (layoutManagerRef.current && !isInitialLoadRef.current) {
+        console.log('[createFloatingEditor] Triggering incremental layout for:', editorId);
+        layoutManagerRef.current.applyLayout(cy.getCore(), [editorId]);
+      }
     } catch (error) {
       console.error('[createFloatingEditor] Error calling addFloatingWindow:', error);
     }
@@ -162,6 +169,15 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       });
 
       console.log('[createFloatingTerminal] Shadow node created:', shadowNode);
+
+      // Trigger incremental layout for the new shadow node
+      console.log('[createFloatingTerminal] Layout check - layoutManagerRef.current:', !!layoutManagerRef.current, 'isInitialLoad:', isInitialLoadRef.current);
+      if (layoutManagerRef.current && !isInitialLoadRef.current) {
+        console.log('[createFloatingTerminal] Triggering incremental layout for:', terminalId);
+        layoutManagerRef.current.applyLayout(cy.getCore(), [terminalId]);
+      } else {
+        console.log('[createFloatingTerminal] Skipping layout - layoutManagerRef:', !!layoutManagerRef.current, 'isInitialLoad:', isInitialLoadRef.current);
+      }
     } catch (error) {
       console.error('[createFloatingTerminal] Error calling addFloatingWindow:', error);
     }
@@ -197,6 +213,11 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   useEffect(() => {
     handleFileChangedRef.current = handleFileChanged;
   }, [handleFileChanged]);
+
+  // Keep isInitialLoadRef in sync with isInitialLoad state
+  useEffect(() => {
+    isInitialLoadRef.current = isInitialLoad;
+  }, [isInitialLoad]);
 
   // REMOVED: Voice transcription logic
   // This component should only handle graph visualization
