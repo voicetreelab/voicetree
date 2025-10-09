@@ -66,22 +66,21 @@ class HistoryManager:
         )
 
     def get(self, max_length: Optional[int] = None) -> str:
-        """Return the most recent history, optionally capped to the provided length."""
+        """
+        Return the most recent history, optionally capped to the provided length.
+
+        Args:
+            max_length: Maximum length to return. None returns full history, 0 returns empty.
+                       Negative values are treated as 0 (returns empty string).
+        """
         if max_length is None:
             return self._history
 
-        if max_length == 0:
+        if max_length <= 0:
             return ""
 
-        if max_length > 0:
-            if len(self._history) > max_length:
-                return self._history[-max_length:]
-            return self._history
-
-        # Legacy behaviour for negative values: drop the first abs(max_length) characters
-        limit = -max_length
-        if len(self._history) > limit:
-            return self._history[limit:]
+        if len(self._history) > max_length:
+            return self._history[-max_length:]
         return self._history
 
     def clear(self) -> None:

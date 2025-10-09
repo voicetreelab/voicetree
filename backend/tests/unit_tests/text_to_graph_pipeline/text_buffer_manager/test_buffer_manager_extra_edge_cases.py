@@ -78,24 +78,6 @@ class TestTextBufferManagerEdgeCases:
         with pytest.raises(RuntimeError, match="Failed to find completed text in buffer"):
             buffer_manager.flushCompletelyProcessedText("A slow red turtle crawls under the active cat")
 
-    def test_transcript_history_with_zero_length(self):
-        """Test get_transcript_history with maxLength=0"""
-        buffer_manager = TextBufferManager()
-        buffer_manager.init(bufferFlushLength=50)
-        buffer_manager.addText("Hello world")
-
-        history = buffer_manager.get_transcript_history(maxLength=0)
-        assert history == ""
-
-    def test_transcript_history_larger_than_actual(self):
-        """Test when maxLength is larger than history"""
-        buffer_manager = TextBufferManager()
-        buffer_manager.init(bufferFlushLength=50)
-        buffer_manager.addText("Short")
-
-        history = buffer_manager.get_transcript_history(maxLength=1000)
-        assert history == "Short"
-
     def test_unicode_handling(self):
         """Test handling of unicode characters"""
         buffer_manager = TextBufferManager()
@@ -143,8 +125,7 @@ class TestTextBufferManagerEdgeCases:
         after = buffer_manager.getBuffer()
         assert before == after
 
-        # Transcript history shouldn't affect buffer
-        _ = buffer_manager.get_transcript_history(maxLength=5)
+        # Multiple getBuffer calls shouldn't modify state
         assert buffer_manager.getBuffer() == after
 
     # Commented out due to performance issues with fuzzy matcher on very long text
