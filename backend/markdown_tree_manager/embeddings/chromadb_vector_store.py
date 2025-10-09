@@ -319,53 +319,6 @@ class ChromaDBVectorStore:
             logger.error(f"Failed to get collection stats: {e}")
             return {}
 
-    def hybrid_search(
-        self,
-        query: str,
-        keyword_results: list[int],
-        top_k: int = 10,
-        alpha: float = 0.5
-    ) -> list[int]:
-        """
-        Combine vector search with keyword search results.
-
-        Args:
-            query: Search query
-            keyword_results: Node IDs from keyword/TF-IDF search
-            top_k: Number of results to return
-            alpha: Weight for vector search (0-1, higher = more vector weight)
-
-        Returns:
-            Combined ranked list of node IDs
-        """
-        # Get vector search results
-        vector_results_raw = self.search(query, top_k=top_k * 2, include_scores=True)
-
-        # Type guard to ensure we have tuples
-        if not vector_results_raw or not isinstance(vector_results_raw[0], tuple):
-            return keyword_results[:top_k]
-
-        vector_results: list[tuple[int, float]] = vector_results_raw  # type: ignore
-
-        # Combine scores
-        combined_scores = {}
-
-        # Add keyword results with decreasing scores
-        for i, node_id in enumerate(keyword_results):
-            score = 1.0 - (i / len(keyword_results)) if keyword_results else 0
-            combined_scores[node_id] = (1 - alpha) * score
-
-        # Add vector search scores
-        for node_id, similarity in vector_results:
-            if node_id in combined_scores:
-                combined_scores[node_id] += alpha * similarity
-            else:
-                combined_scores[node_id] = alpha * similarity
-
-        # Sort by combined score and return top-k
-        ranked = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
-        return [node_id for node_id, _ in ranked[:top_k]]
-
 
 # Convenience function for backward compatibility
 def find_relevant_nodes_with_chroma(

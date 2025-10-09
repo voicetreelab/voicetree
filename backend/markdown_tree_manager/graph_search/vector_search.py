@@ -25,10 +25,6 @@ load_dotenv()
 
 # Enable embeddings - can be toggled via environment variable
 USE_EMBEDDINGS = os.getenv("VOICETREE_USE_EMBEDDINGS", "true").lower() == "true"
-# In test mode, don't use ChromaDB for hybrid search
-IS_TEST_MODE = os.getenv("VOICETREE_TEST_MODE", "").lower() == "true"
-USE_CHROMADB = (os.getenv("VOICETREE_USE_CHROMADB", "true").lower() == "true"
-                and not IS_TEST_MODE)
 
 # Configure Gemini API
 _gemini_configured = False
@@ -204,58 +200,6 @@ def find_relevant_nodes_for_context(
     results = store.search(query, top_k=top_k, include_scores=False)
     # include_scores=False should return List[int]
     return results if isinstance(results, list) and all(isinstance(x, int) for x in results) else []
-
-
-def hybrid_search(
-    query: str,
-    tfidf_results: list[int],
-    embedding_results: list[tuple[int, float]],
-    alpha: float = 0.5,
-    use_chromadb: Optional[bool] = None
-) -> list[int]:
-    """
-    Combine TF-IDF and embedding results using weighted scoring.
-
-    Args:
-        query: Original search query
-        tfidf_results: Node IDs from TF-IDF search
-        embedding_results: (node_id, score) from embedding search
-        alpha: Weight for embedding scores (0-1)
-        use_chromadb: Whether to use ChromaDB for hybrid search
-
-    Returns:
-        Combined ranked list of node IDs
-    """
-    # Check if we should use ChromaDB's hybrid search
-    if use_chromadb is None:
-        use_chromadb = USE_CHROMADB
-
-    if use_chromadb and hasattr(ChromaDBVectorStore, 'hybrid_search'):
-        store = ChromaDBVectorStore()
-        return store.hybrid_search(query, tfidf_results, top_k=len(tfidf_results), alpha=alpha)
-
-    # Fallback to manual combination
-    if not embedding_results:
-        return tfidf_results
-
-    # Combine scores with weighting
-    combined_scores = {}
-
-    # Add TF-IDF results with decreasing scores
-    for i, node_id in enumerate(tfidf_results):
-        score = 1.0 - (i / len(tfidf_results))
-        combined_scores[node_id] = (1 - alpha) * score
-
-    # Add embedding scores
-    for node_id, score in embedding_results:
-        if node_id in combined_scores:
-            combined_scores[node_id] += alpha * score
-        else:
-            combined_scores[node_id] = alpha * score
-
-    # Sort by combined score
-    ranked = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
-    return [node_id for node_id, _ in ranked]
 
 
 # For NoLiMa-specific improvements
