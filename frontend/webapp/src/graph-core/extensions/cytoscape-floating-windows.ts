@@ -12,7 +12,7 @@ import type ReactDOM from 'react-dom/client';
 export interface FloatingWindowConfig {
   id: string;
   component: string | React.ReactElement;
-  title?: string;
+  title: string;
   position?: { x: number; y: number };
   nodeData?: Record<string, unknown>;
   resizable?: boolean;
@@ -20,6 +20,8 @@ export interface FloatingWindowConfig {
   onSave?: (content: string) => Promise<void>;
   nodeMetadata?: Record<string, unknown>;
   previewMode?: 'edit' | 'live' | 'preview';
+  // Shadow node dimensions for layout algorithm (defaults based on component type)
+  shadowNodeDimensions?: { width: number; height: number };
 }
 
 export interface ExtensionConfig {
@@ -310,6 +312,28 @@ function mountComponent(
 }
 
 /**
+ * Get default shadow node dimensions based on component type
+ * Terminals are larger, editors are medium, other components are small
+ */
+function getDefaultDimensions(component: string | React.ReactElement): { width: number; height: number } {
+  if (typeof component === 'string') {
+    switch (component) {
+      case 'Terminal':
+        // Terminals are visually large - typical size ~600x400
+        return { width: 600, height: 400 };
+      case 'MarkdownEditor':
+        // Editors are medium - typical size ~500x300
+        return { width: 500, height: 300 };
+      default:
+        // Default for unknown components
+        return { width: 200, height: 150 };
+    }
+  }
+  // React elements get default size
+  return { width: 200, height: 150 };
+}
+
+/**
  * Register the floating windows extension with Cytoscape
  */
 export function registerFloatingWindows(
@@ -361,18 +385,26 @@ export function registerFloatingWindows(
     const overlay = getOrCreateOverlay(this);
 
     // 2. Create shadow node (invisible anchor in graph space)
+    // Ensure parentId is set if parentNodeId exists (for layout algorithm compatibility)
+    const shadowNodeData = { id, ...nodeData };
+    if (nodeData.parentNodeId && !shadowNodeData.parentId) {
+      shadowNodeData.parentId = nodeData.parentNodeId;
+    }
+
     const shadowNode = this.add({
       group: 'nodes',
-      data: { id, ...nodeData },
+      data: shadowNodeData,
       position
     });
 
     // 3. Style shadow node (invisible but interactive)
+    // Set dimensions for layout algorithm - defaults based on component type
+    const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
     shadowNode.style({
       'opacity': 0,
       'events': 'yes',
-      'width': 1,
-      'height': 1
+      'width': dimensions.width,
+      'height': dimensions.height
     });
 
     // 4. Create edge from parent node to shadow node if parentNodeId exists
