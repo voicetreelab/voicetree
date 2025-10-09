@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -90,34 +91,53 @@ app = FastAPI(title="VoiceTree Server", description="API for processing text int
 async def buffer_processing_loop():
     """
     Continuously process text from buffer when ready.
-    This mimics the llm_processing_loop from main.py.
+    This mirrors main.py by offloading the LLM work to a dedicated thread so the
+    event loop stays responsive for incoming HTTP requests.
     """
     global simple_buffer
     logger.info("Starting buffer processing loop...")
-    while True:
+
+    # Dedicated executor so we never block the FastAPI event loop with LLM calls.
+    executor = ThreadPoolExecutor(max_workers=1)
+
+    def run_llm_in_thread(text_to_process: str) -> None:
+        """Run the async processor inside the worker thread."""
         try:
-            text_to_process = None
-            # Check if buffer has enough text to process
-            if len(simple_buffer) > 1:
-                text_to_process = simple_buffer
-                simple_buffer = ""
+            asyncio.run(processor.process_new_text_and_update_markdown(text_to_process))
+        except Exception as exc:
+            logger.error(f"Error in LLM processing thread: {exc}", exc_info=True)
 
-            if text_to_process:
-                logger.info(f"Processing buffer text ({len(text_to_process)} chars)...")
-                print(f"Buffer full, processing {len(text_to_process)} chars")
+    try:
+        loop = asyncio.get_running_loop()
+        while True:
+            try:
+                text_to_process = None
+                # Check if buffer has enough text to process
+                if len(simple_buffer) > 1:
+                    text_to_process = simple_buffer
+                    simple_buffer = ""
 
-                # Process the text chunk (this is what main.py does in its loop)
-                await processor.process_new_text(text_to_process)
+                if text_to_process:
+                    logger.info(f"Processing buffer text ({len(text_to_process)} chars)...")
+                    print(f"Buffer full, processing {len(text_to_process)} chars")
 
-                logger.info("Buffer processing completed")
+                    # Offload LLM work so new HTTP requests can be served concurrently.
+                    await loop.run_in_executor(executor, run_llm_in_thread, text_to_process)
 
-            # Small delay to prevent CPU spinning
-            await asyncio.sleep(0.1)
+                    logger.info("Buffer processing completed")
 
-        except Exception as e:
-            logger.error(f"Error in buffer processing loop: {e}", exc_info=True)
-            # Continue the loop even if there's an error
-            await asyncio.sleep(1.0)
+                # Small delay to prevent CPU spinning
+                await asyncio.sleep(0.1)
+
+            except Exception as e:
+                logger.error(f"Error in buffer processing loop iteration: {e}", exc_info=True)
+                # Continue the loop even if there's an error
+                await asyncio.sleep(1.0)
+    except asyncio.CancelledError:
+        logger.info("Buffer processing loop cancelled.")
+        raise
+    finally:
+        executor.shutdown(wait=True)
 
 # Start the background loop when the app starts
 @app.on_event("startup")
