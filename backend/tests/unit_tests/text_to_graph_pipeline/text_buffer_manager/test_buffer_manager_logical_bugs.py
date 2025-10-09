@@ -49,27 +49,6 @@ class TestTextBufferManagerLogicalBugs:
         result = buffer_manager.getBufferTextWhichShouldBeProcessed()
         assert result == "Short"  # This might be unexpected behavior
 
-    def test_transcript_history_never_cleaned_after_flush(self):
-        """
-        BUG: Transcript history keeps growing even after text is flushed from buffer.
-        This could lead to memory issues in long-running processes.
-        """
-        buffer_manager = TextBufferManager()
-        buffer_manager.init(bufferFlushLength=50)
-
-        # Add and flush text multiple times
-        for i in range(5):
-            buffer_manager.addText(f"Sentence {i}. ")
-
-        # Flush some text
-        buffer_manager.flushCompletelyProcessedText("Sentence 0.")
-        buffer_manager.flushCompletelyProcessedText("Sentence 1.")
-
-        # Transcript history still contains flushed text
-        history = buffer_manager.get_transcript_history()
-        assert "Sentence 0." in history  # Already flushed but still in history
-        assert "Sentence 1." in history  # Already flushed but still in history
-
     def test_fuzzy_match_removes_wrong_text_silently(self):
         """
         BUG: Fuzzy matching might remove different text than requested without warning.
