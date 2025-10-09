@@ -10,6 +10,13 @@ if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 }
 
+// Prevent focus stealing in test mode
+if (process.env.MINIMIZE_TEST === '1') {
+  // Add command line switches to run in background mode
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+}
+
 // Global file watch manager instance
 const fileWatchManager = new FileWatchManager();
 
@@ -23,6 +30,10 @@ function createWindow() {
     width: 1200,
     height: 800,
     show: false,
+    ...(process.env.MINIMIZE_TEST === '1' && {
+      focusable: false,
+      skipTaskbar: true
+    }),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -67,7 +78,8 @@ function createWindow() {
     if (process.env.MINIMIZE_TEST === '1') {
       // For tests: show window without stealing focus, then minimize
       mainWindow.showInactive();
-      mainWindow.minimize();
+      mainWindow.hide() // THIS IS THE FINAL THING THAT ACTUALLY WORKED?????????
+      // mainWindow.minimize(); // THIS IS ANNOYING IT CAUSES VISUAL ANMIATION
     } else {
       mainWindow.show();
     }
@@ -336,7 +348,13 @@ ipcMain.handle('terminal:kill', async (event, terminalId) => {
 });
 
 // App event handlers
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // Hide dock icon on macOS when running tests to prevent focus stealing
+  if (process.env.MINIMIZE_TEST === '1' && process.platform === 'darwin' && app.dock) {
+    app.dock.hide();
+  }
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   // Clean up all terminals
