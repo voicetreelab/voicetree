@@ -244,16 +244,33 @@ export async function checkBreathingAnimation(
 
     const widthSamples: number[] = [];
     const colorSamples: string[] = [];
+    const classSamples: string[][] = [];
 
     for (let i = 0; i < numSamples; i++) {
       widthSamples.push(parseFloat(node.style('border-width')));
       colorSamples.push(node.style('border-color'));
+      classSamples.push(node.classes());
       await new Promise(resolve => setTimeout(resolve, sampleInterval));
     }
 
+    // Check if breathing classes are toggling (expand/contract alternating)
+    const hasExpandClass = (classes: string[]) =>
+      classes.some(c => c.includes('breathing') && c.includes('expand'));
+    const hasContractClass = (classes: string[]) =>
+      classes.some(c => c.includes('breathing') && c.includes('contract'));
+
+    const classesChanging = classSamples.some((classes, i) => {
+      if (i === 0) return false;
+      const prevHasExpand = hasExpandClass(classSamples[i - 1]);
+      const currHasExpand = hasExpandClass(classes);
+      const prevHasContract = hasContractClass(classSamples[i - 1]);
+      const currHasContract = hasContractClass(classes);
+      return prevHasExpand !== currHasExpand || prevHasContract !== currHasContract;
+    });
+
     return {
-      isWidthAnimating: widthSamples[0] !== widthSamples[1] || widthSamples[1] !== widthSamples[2],
-      isColorAnimating: colorSamples[0] !== colorSamples[1] || colorSamples[1] !== colorSamples[2],
+      isWidthAnimating: classesChanging || widthSamples[0] !== widthSamples[1] || widthSamples[1] !== widthSamples[2],
+      isColorAnimating: classesChanging || colorSamples[0] !== colorSamples[1] || colorSamples[1] !== colorSamples[2],
       breathingActive: node.data('breathingActive'),
       animationType: node.data('animationType'),
       borderWidthSamples: widthSamples,

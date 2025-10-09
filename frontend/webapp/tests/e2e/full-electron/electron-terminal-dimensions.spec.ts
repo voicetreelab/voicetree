@@ -21,7 +21,7 @@ const test = base.extend<{ tempDir: string; appWindow: Page; electronApp: Electr
 
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'electron/electron.cjs')],
+      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
       env: {
         ...process.env,
         NODE_ENV: 'test',
