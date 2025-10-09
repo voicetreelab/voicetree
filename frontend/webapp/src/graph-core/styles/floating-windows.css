@@ -22,6 +22,7 @@
   pointer-events: auto;
   min-width: 300px;
   min-height: 200px;
+  max-height: 600px;
   background: white;
   border: 1px solid #ccc;
   border-radius: 8px;
