@@ -84,8 +84,8 @@ class ChromaDBVectorStore:
 
             self.embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
                 api_key=api_key,
-                model_name="models/text-embedding-004",
-                task_type="retrieval_document"
+                model_name="models/gemini-embedding-001",
+                task_type="SEMANTIC_SIMILARITY"
             )
             logger.info("Initialized ChromaDB with Gemini embeddings")
 
