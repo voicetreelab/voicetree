@@ -1,31 +1,34 @@
-const path = require('path');
-const fs = require('fs').promises;
-const chokidar = require('chokidar');
-const { app } = require('electron');
+import path from 'path';
+import { promises as fs, statSync } from 'fs';
+import chokidar, { FSWatcher } from 'chokidar';
+import { app, BrowserWindow } from 'electron';
+
+interface FileInfo {
+  filePath: string;
+  relativePath: string;
+}
 
 class FileWatchManager {
-  constructor() {
-    this.watcher = null;
-    this.watchedDirectory = null;
-    this.mainWindow = null;
-    this.initialScanFiles = [];
-    this.isInitialScan = true;
-  }
+  private watcher: FSWatcher | null = null;
+  private watchedDirectory: string | null = null;
+  private mainWindow: BrowserWindow | null = null;
+  private initialScanFiles: FileInfo[] = [];
+  private isInitialScan: boolean = true;
 
   // Get path to config file for storing last directory
-  getConfigPath() {
+  getConfigPath(): string {
     const userDataPath = app.getPath('userData');
     return path.join(userDataPath, 'voicetree-config.json');
   }
 
   // Load last watched directory from config
-  async loadLastDirectory() {
+  async loadLastDirectory(): Promise<string | null> {
     try {
       const configPath = this.getConfigPath();
       const data = await fs.readFile(configPath, 'utf8');
       const config = JSON.parse(data);
       return config.lastDirectory || null;
-    } catch (error) {
+    } catch {
       // TODO: Handle edge cases:
       // - Config file doesn't exist (first run)
       // - JSON parse error (corrupted config)
@@ -35,24 +38,24 @@ class FileWatchManager {
   }
 
   // Save last watched directory to config
-  async saveLastDirectory(directoryPath) {
+  async saveLastDirectory(directoryPath: string): Promise<void> {
     try {
       const configPath = this.getConfigPath();
       const config = { lastDirectory: directoryPath };
       await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8');
-    } catch (error) {
+    } catch {
       // TODO: Handle edge cases:
       // - Permission errors
       // - Disk full
-      console.error('Failed to save last directory:', error);
+      console.error('Failed to save last directory');
     }
   }
 
-  setMainWindow(window) {
+  setMainWindow(window: BrowserWindow): void {
     this.mainWindow = window;
   }
 
-  async startWatching(directoryPath) {
+  async startWatching(directoryPath: string): Promise<{ success: boolean; directory?: string; error?: string }> {
     // Stop any existing watcher
     await this.stopWatching();
 
@@ -79,12 +82,12 @@ class FileWatchManager {
           '**/*.tmp',
           '**/*.temp',
           // Ignore non-markdown files
-          (path) => {
+          (path: string) => {
             // Only watch .md files and directories
             try {
-              const stats = require('fs').statSync(path);
+              const stats = statSync(path);
               if (stats.isDirectory()) return false; // Don't ignore directories
-            } catch (e) {
+            } catch {
               // File might not exist yet
             }
             return !path.endsWith('.md');
@@ -118,18 +121,21 @@ class FileWatchManager {
 
       return { success: true, directory: directoryPath };
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to start file watching:', error);
 
       let errorMessage = 'Unknown error occurred';
-      if (error.code === 'ENOENT') {
-        errorMessage = 'Directory does not exist';
-      } else if (error.code === 'EACCES') {
-        errorMessage = 'Access denied to directory';
-      } else if (error.code === 'EPERM') {
-        errorMessage = 'Permission denied';
-      } else {
-        errorMessage = error.message;
+      if (error && typeof error === 'object' && 'code' in error) {
+        const code = (error as { code: string }).code;
+        if (code === 'ENOENT') {
+          errorMessage = 'Directory does not exist';
+        } else if (code === 'EACCES') {
+          errorMessage = 'Access denied to directory';
+        } else if (code === 'EPERM') {
+          errorMessage = 'Permission denied';
+        } else {
+          errorMessage = (error as Error).message;
+        }
       }
 
       this.sendToRenderer('file-watch-error', {
@@ -142,16 +148,16 @@ class FileWatchManager {
     }
   }
 
-  setupWatcherListeners() {
+  private setupWatcherListeners(): void {
     if (!this.watcher) return;
 
     // File added
-    this.watcher.on('add', async (filePath) => {
+    this.watcher.on('add', async (filePath: string) => {
       console.log(`File detected: ${filePath} in directory: ${this.watchedDirectory}`);
       try {
         // filePath is already absolute when watching a directory
         const fullPath = filePath;
-        const relativePath = path.relative(this.watchedDirectory, filePath);
+        const relativePath = path.relative(this.watchedDirectory!, filePath);
 
         if (this.isInitialScan) {
           // Collect files during initial scan
@@ -178,18 +184,18 @@ class FileWatchManager {
         console.error(`Error reading added file ${filePath}:`, error);
         this.sendToRenderer('file-watch-error', {
           type: 'read_error',
-          message: `Failed to read added file: ${error.message}`,
+          message: `Failed to read added file: ${(error as Error).message}`,
           filePath: filePath
         });
       }
     });
 
     // File changed
-    this.watcher.on('change', async (filePath) => {
+    this.watcher.on('change', async (filePath: string) => {
       try {
         // filePath is already absolute when watching a directory
         const fullPath = filePath;
-        const relativePath = path.relative(this.watchedDirectory, filePath);
+        const relativePath = path.relative(this.watchedDirectory!, filePath);
         const content = await this.readFileWithRetry(fullPath);
         const stats = await fs.stat(fullPath);
 
@@ -204,16 +210,16 @@ class FileWatchManager {
         console.error(`Error reading changed file ${filePath}:`, error);
         this.sendToRenderer('file-watch-error', {
           type: 'read_error',
-          message: `Failed to read changed file: ${error.message}`,
+          message: `Failed to read changed file: ${(error as Error).message}`,
           filePath: filePath
         });
       }
     });
 
     // File deleted
-    this.watcher.on('unlink', (filePath) => {
+    this.watcher.on('unlink', (filePath: string) => {
       // filePath is already absolute when watching a directory
-      const relativePath = path.relative(this.watchedDirectory, filePath);
+      const relativePath = path.relative(this.watchedDirectory!, filePath);
       this.sendToRenderer('file-deleted', {
         path: relativePath,
         fullPath: filePath
@@ -221,18 +227,18 @@ class FileWatchManager {
     });
 
     // Directory added
-    this.watcher.on('addDir', (dirPath) => {
+    this.watcher.on('addDir', (dirPath: string) => {
       this.sendToRenderer('directory-added', {
         path: dirPath,
-        fullPath: path.join(this.watchedDirectory, dirPath)
+        fullPath: path.join(this.watchedDirectory!, dirPath)
       });
     });
 
     // Directory deleted
-    this.watcher.on('unlinkDir', (dirPath) => {
+    this.watcher.on('unlinkDir', (dirPath: string) => {
       this.sendToRenderer('directory-deleted', {
         path: dirPath,
-        fullPath: path.join(this.watchedDirectory, dirPath)
+        fullPath: path.join(this.watchedDirectory!, dirPath)
       });
     });
 
@@ -277,14 +283,14 @@ class FileWatchManager {
         console.error('Error during bulk file load:', error);
         this.sendToRenderer('file-watch-error', {
           type: 'bulk_load_error',
-          message: `Failed to load initial files: ${error.message}`,
+          message: `Failed to load initial files: ${(error as Error).message}`,
           directory: this.watchedDirectory
         });
       }
     });
 
     // Watch error
-    this.watcher.on('error', (error) => {
+    this.watcher.on('error', (error: Error & { code?: string; path?: string }) => {
       console.error('File watcher error:', error);
 
       let errorMessage = error.message;
@@ -305,7 +311,7 @@ class FileWatchManager {
     });
   }
 
-  async readFileWithRetry(filePath, maxRetries = 3, delay = 100) {
+  private async readFileWithRetry(filePath: string, maxRetries = 3, delay = 100): Promise<string> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const stats = await fs.stat(filePath);
@@ -330,9 +336,10 @@ class FileWatchManager {
         await new Promise(resolve => setTimeout(resolve, delay * attempt));
       }
     }
+    throw new Error('Failed to read file after retries');
   }
 
-  async stopWatching() {
+  async stopWatching(): Promise<void> {
     if (this.watcher) {
       try {
         await this.watcher.close();
@@ -350,19 +357,19 @@ class FileWatchManager {
     }
   }
 
-  sendToRenderer(channel, data) {
+  private sendToRenderer(channel: string, data?: unknown): void {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send(channel, data);
     }
   }
 
-  isWatching() {
+  isWatching(): boolean {
     return this.watcher !== null;
   }
 
-  getWatchedDirectory() {
+  getWatchedDirectory(): string | null {
     return this.watchedDirectory;
   }
 }
 
-module.exports = FileWatchManager;
+export default FileWatchManager;

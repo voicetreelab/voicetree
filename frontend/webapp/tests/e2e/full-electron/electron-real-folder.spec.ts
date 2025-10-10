@@ -96,7 +96,7 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await window.waitForFunction(() => (window as any).cytoscapeInstance, { timeout: 10000 });
+    await window.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
     await window.waitForTimeout(1000);
 
     await use(window);
@@ -104,6 +104,25 @@ const test = base.extend<{
 });
 
 test.describe('Real Folder E2E Tests', () => {
+  // Cleanup hook to ensure test files are removed even if test fails
+  test.afterEach(async () => {
+    const testFilesToCleanup = [
+      'incremental-test-1.md',
+      'incremental-test-2.md',
+      'incremental-test-3.md'
+    ];
+
+    for (const fileName of testFilesToCleanup) {
+      const filePath = path.join(FIXTURE_VAULT_PATH, 'concepts', fileName);
+      try {
+        await fs.unlink(filePath);
+        console.log(`Cleaned up leftover file: ${fileName}`);
+      } catch {
+        // File doesn't exist, which is fine
+      }
+    }
+  });
+
   test('should load and visualize a real markdown vault', async ({ appWindow }) => {
     console.log('=== STEP 1: Verify app loaded ===');
 

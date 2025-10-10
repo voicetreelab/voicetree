@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { promises as fs } from 'fs';
 import pty from 'node-pty';
-import FileWatchManager from './file-watch-manager.cjs';
+import FileWatchManager from './file-watch-manager';
 
 // Suppress Electron security warnings in development and test environments
 // These warnings are only shown in dev mode and don't appear in production

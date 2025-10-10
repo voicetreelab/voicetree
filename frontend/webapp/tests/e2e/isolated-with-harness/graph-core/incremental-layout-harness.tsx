@@ -1,14 +1,14 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { CytoscapeCore } from '@/graph-core/graphviz/CytoscapeCore';
-import { LayoutManager, IncrementalTidyLayoutStrategy } from '@/graph-core/graphviz/layout';
+import { LayoutManager, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 
 /**
  * Minimal test harness for incremental layout testing
  *
  * Initializes:
  * - Empty Cytoscape graph
- * - LayoutManager with IncrementalTidyLayoutStrategy
+ * - LayoutManager with TidyLayoutStrategy (supports both bulk and incremental)
  *
  * Exposes to window:
  * - cy: Cytoscape core instance
@@ -19,7 +19,7 @@ import { LayoutManager, IncrementalTidyLayoutStrategy } from '@/graph-core/graph
 interface TestWindow extends Window {
   cy: ReturnType<CytoscapeCore['getCore']>;
   layoutManager: LayoutManager;
-  IncrementalTidyLayoutStrategy: typeof IncrementalTidyLayoutStrategy;
+  TidyLayoutStrategy: typeof TidyLayoutStrategy;
   LayoutManager: typeof LayoutManager;
 }
 
@@ -66,19 +66,19 @@ export function GraphHarness() {
       }
     ]);
 
-    // Initialize LayoutManager with incremental strategy
-    const strategy = new IncrementalTidyLayoutStrategy();
+    // Initialize LayoutManager with unified Tidy strategy (supports both bulk and incremental)
+    const strategy = new TidyLayoutStrategy();
     const layoutManager = new LayoutManager(strategy);
 
-    console.log('[Incremental Layout Harness] Using IncrementalTidyLayoutStrategy');
+    console.log('[Incremental Layout Harness] Using TidyLayoutStrategy');
 
     // Expose to window for test access
     window.cy = cy;
     window.layoutManager = layoutManager;
-    window.IncrementalTidyLayoutStrategy = IncrementalTidyLayoutStrategy;
+    window.TidyLayoutStrategy = TidyLayoutStrategy;
     window.LayoutManager = LayoutManager;
 
-    console.log('[Incremental Layout Harness] Ready! Available: window.cy, window.layoutManager, window.IncrementalTidyLayoutStrategy, window.LayoutManager');
+    console.log('[Incremental Layout Harness] Ready! Available: window.cy, window.layoutManager, window.TidyLayoutStrategy, window.LayoutManager');
 
     return () => {
       cy.destroy();

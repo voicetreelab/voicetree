@@ -314,3 +314,35 @@ export async function clearBreathingAnimation(appWindow: Page, nodeId: string): 
     }
   }, nodeId);
 }
+
+/**
+ * Wait for nodes to have positions (layout applied)
+ */
+export async function waitForLayout(appWindow: Page, timeout = 5000): Promise<void> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    const result = await appWindow.evaluate(() => {
+      const w = window as ExtendedWindow;
+      const cy = w.cytoscapeInstance;
+      if (!cy) return { hasPositions: false, debug: 'No cy instance' };
+      const nodes = cy.nodes();
+      if (nodes.length === 0) return { hasPositions: false, debug: 'No nodes' };
+
+      // Check that all nodes have non-zero positions
+      const positions = [];
+      for (let i = 0; i < nodes.length; i++) {
+        const pos = nodes[i].position();
+        positions.push({ id: nodes[i].id(), x: pos.x, y: pos.y });
+        if (!pos || (pos.x === 0 && pos.y === 0)) {
+          return { hasPositions: false, debug: `Node ${nodes[i].id()} at (0,0)`, positions };
+        }
+      }
+      return { hasPositions: true, debug: 'All nodes have positions', positions };
+    });
+
+    console.log('[waitForLayout]', result.debug, result.positions?.slice(0, 3));
+    if (result.hasPositions) return;
+    await appWindow.waitForTimeout(100);
+  }
+  throw new Error('Timeout waiting for layout to be applied');
+}

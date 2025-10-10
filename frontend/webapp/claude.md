@@ -25,3 +25,6 @@ Same with "Unexpected aliasing of 'this' to local variable" from @typescript-esl
 ## Folders
 
 cytoscape graph visualisation is at webapp/src/graph-core
+
+
+We favor "deep modules", a single class with a minimal public API hiding internal complexity, over shallow ones that create unnecessary indirection.

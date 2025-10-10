@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 // Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
-import { LayoutManager, IncrementalTidyLayoutStrategy } from '@/graph-core/graphviz/layout';
+import { LayoutManager, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
 import { StyleService } from '@/graph-core/services/StyleService';
 // Import graph styles
@@ -186,9 +186,9 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   // Initialize layout manager once with incremental strategy (persists state)
   // The same strategy instance is reused for all layouts - cache persists
   useEffect(() => {
-    const strategy = new IncrementalTidyLayoutStrategy();
+    const strategy = new TidyLayoutStrategy();
     layoutManagerRef.current = new LayoutManager(strategy);
-    console.log('[Layout] LayoutManager initialized with persistent IncrementalTidyLayoutStrategy');
+    console.log('[Layout] LayoutManager initialized with persistent TidyLayoutStrategy');
   }, []); // Empty deps - run once only
 
   // File watching event handlers
@@ -302,6 +302,36 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
         (window as unknown as { cytoscapeInstance: cytoscape.Core }).cytoscapeInstance = core;
         // Also expose CytoscapeCore for testing
         (window as unknown as { cytoscapeCore: CytoscapeCore | null }).cytoscapeCore = cytoscapeRef.current;
+
+        // Expose test helper for creating terminal windows (for e2e tests)
+        (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers = {
+          createTerminal: (nodeId: string) => {
+            // Find the file path for this node
+            let filePath: string | undefined;
+            for (const [path] of markdownFiles.current) {
+              if (normalizeFileId(path) === nodeId) {
+                filePath = path;
+                break;
+              }
+            }
+
+            // Build node metadata for terminal environment
+            const nodeMetadata = {
+              id: nodeId,
+              name: nodeId.replace(/_/g, ' '),
+              filePath: filePath
+            };
+
+            // Get node position and create terminal window
+            if (cytoscapeRef.current) {
+              const node = core.getElementById(nodeId);
+              if (node.length > 0) {
+                const nodePos = node.position();
+                createFloatingTerminal(nodeId, nodeMetadata, nodePos, cytoscapeRef.current);
+              }
+            }
+          }
+        };
       }
 
       // Enable context menu
