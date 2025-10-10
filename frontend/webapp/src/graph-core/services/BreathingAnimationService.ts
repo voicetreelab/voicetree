@@ -140,9 +140,9 @@ export class BreathingAnimationService {
       }
     }
 
-    // Don't force inline styles - let the stylesheet cascade handle it
-    // This preserves pinned/frontmatter/other class-based styles
-    // The base stylesheet defines defaults, so removing classes is sufficient
+    // Reset border to default by removing inline style overrides
+    // This allows the stylesheet cascade to take over (degree-based border, pinned class, etc.)
+    node.removeStyle('border-width border-color border-opacity border-style');
 
     // Clean up data
     node.removeData('animationType');
