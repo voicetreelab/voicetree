@@ -124,6 +124,48 @@ describe('CytoscapeCore Styling Integration', () => {
       expect(node.data('width')).toBe(100);
       expect(node.data('height')).toBe(50);
     });
+
+    it('should apply background-color from frontmatter color field', () => {
+      const elements = [
+        {
+          data: {
+            id: 'blue-node',
+            label: 'Blue Node',
+            color: 'blue'
+          }
+        },
+        {
+          data: {
+            id: 'red-node',
+            label: 'Red Node',
+            color: '#ff0000'
+          }
+        }
+      ];
+
+      cytoscapeCore = new CytoscapeCore(container, elements, true);
+      const cy = cytoscapeCore.getCore();
+
+      const blueNode = cy.getElementById('blue-node');
+      const redNode = cy.getElementById('red-node');
+
+      // First verify data is set
+      expect(blueNode.data('color')).toBe('blue');
+      expect(redNode.data('color')).toBe('#ff0000');
+
+      // Get the StyleService to verify frontmatter stylesheet is configured
+      const styleService = cytoscapeCore['styleService'];
+      const frontmatterStylesheet = styleService.getFrontmatterStylesheet();
+
+      // Find the color rule
+      const colorRule = frontmatterStylesheet.find(s => s.selector === 'node[color]');
+      expect(colorRule).toBeDefined();
+      expect(colorRule?.style?.['background-color']).toBe('data(color)');
+
+      // In a real (non-headless) cytoscape instance, the style would be computed
+      // For now we verify the stylesheet configuration is correct
+      // The actual rendering verification would need to be done in e2e tests
+    });
   });
 
   describe('Hover Effects', () => {

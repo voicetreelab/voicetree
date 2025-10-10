@@ -136,19 +136,19 @@ describe('BreathingAnimationService', () => {
       expect(node.data('breathingActive')).toBe(false);
     });
 
-    it('should not force inline styles - let stylesheet cascade', () => {
+    it('should reset border styles to allow stylesheet cascade', () => {
       vi.useFakeTimers();
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
 
-      // Clear previous mock calls
-      const styleSpy = vi.spyOn(node, 'style');
+      // Spy on removeStyle to verify border properties are reset
+      const removeStyleSpy = vi.spyOn(node, 'removeStyle');
 
       service.stopAnimationForNode(node);
 
-      // Should NOT call style() - we let the stylesheet cascade handle it
-      // This preserves other class-based styles (pinned, frontmatter, etc.)
-      expect(styleSpy).not.toHaveBeenCalled();
+      // Should call removeStyle to clear animation-applied inline border styles
+      // This allows the stylesheet cascade to take over (degree-based border, pinned class, etc.)
+      expect(removeStyleSpy).toHaveBeenCalledWith('border-width border-color border-opacity border-style');
 
       vi.useRealTimers();
     });
