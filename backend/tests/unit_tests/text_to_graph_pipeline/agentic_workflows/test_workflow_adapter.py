@@ -78,13 +78,13 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             # Create mock dependencies
             buffer_manager = Mock(spec=TextBufferManager)
             buffer_manager.flushCompletelyProcessedText = Mock()
+            buffer_manager.bufferFlushLength = 100  # Add missing attribute
             tree_applier = Mock(spec=TreeActionApplier)
             tree_applier.apply = Mock(return_value={1})  # node 1 was modified
 
             # Act
             result = await self.workflow.process_text_chunk(
                 "Test transcript",
-                "history",
                 tree_applier,
                 buffer_manager
             )
@@ -112,13 +112,13 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
 
             # Create mock dependencies
             buffer_manager = Mock(spec=TextBufferManager)
+            buffer_manager.bufferFlushLength = 100  # Add missing attribute
             tree_applier = Mock(spec=TreeActionApplier)
             tree_applier.apply = Mock(return_value=set())  # Return empty set when no actions
 
             # Act
             result = await self.workflow.process_text_chunk(
                 "Test transcript",
-                "history",
                 tree_applier,
                 buffer_manager
             )
@@ -138,6 +138,7 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
 
             # Create mock dependencies
             buffer_manager = Mock(spec=TextBufferManager)
+            buffer_manager.bufferFlushLength = 100  # Add missing attribute
             tree_applier = Mock(spec=TreeActionApplier)
             tree_applier.apply = Mock(return_value=set())  # Return empty set
 
@@ -145,7 +146,6 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             with self.assertRaises(Exception) as context:
                 await self.workflow.process_text_chunk(
                     "This is a test",
-                    "history",
                     tree_applier,
                     buffer_manager
                 )
@@ -197,13 +197,13 @@ class TestTreeActionDeciderWorkflow(unittest.TestCase):
             # Create mock dependencies
             buffer_manager = Mock(spec=TextBufferManager)
             buffer_manager.flushCompletelyProcessedText = Mock()
+            buffer_manager.bufferFlushLength = 100  # Add missing attribute
             tree_applier = Mock(spec=TreeActionApplier)
             tree_applier.apply = Mock(return_value={1})
 
             # Act
             await self.workflow.process_text_chunk(
                 "Test",
-                "history",
                 tree_applier,
                 buffer_manager
             )

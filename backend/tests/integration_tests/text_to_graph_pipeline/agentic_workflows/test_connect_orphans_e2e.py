@@ -209,7 +209,6 @@ class TestConnectOrphansE2E:
 
         await workflow.process_text_chunk(
             text_chunk=dummy_text,
-            transcript_history_context="",
             tree_action_applier=tree_action_applier,
             buffer_manager=buffer_manager
         )

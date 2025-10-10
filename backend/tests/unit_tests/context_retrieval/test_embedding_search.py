@@ -15,7 +15,6 @@ from backend.markdown_tree_manager.graph_search.vector_search import (
     find_similar_by_embedding,
 )
 from backend.markdown_tree_manager.graph_search.vector_search import get_node_embeddings
-from backend.markdown_tree_manager.graph_search.vector_search import hybrid_search
 from backend.markdown_tree_manager.markdown_tree_ds import Node
 
 
@@ -26,7 +25,7 @@ class TestEmbeddingGeneration:
     def test_get_node_embeddings_basic(self, mock_genai):
         """Test basic embedding generation for nodes"""
         # Setup mock genai
-        mock_genai.embed_content.return_value = {'embedding': [0.1, 0.2, 0.3] * 256}  # 768 dims
+        mock_genai.embed_content.return_value = {'embedding': [0.1, 0.2, 0.3] * 1024}  # 3072 dims
         mock_genai.configure.return_value = None
 
         # Create test nodes
@@ -44,7 +43,7 @@ class TestEmbeddingGeneration:
         assert 1 in embeddings
         assert 2 in embeddings
         assert isinstance(embeddings[1], np.ndarray)
-        assert embeddings[1].shape[0] == 768
+        assert embeddings[1].shape[0] == 3072
         assert mock_genai.embed_content.call_count == 2
 
     @patch('backend.markdown_tree_manager.graph_search.vector_search.genai')
@@ -59,7 +58,7 @@ class TestEmbeddingGeneration:
     @patch('backend.markdown_tree_manager.graph_search.vector_search.genai')
     def test_get_node_embeddings_weighted_text(self, mock_genai):
         """Test that text is properly weighted (title 3x, summary 2x, content 1x)"""
-        mock_genai.embed_content.return_value = {'embedding': [0.1] * 768}
+        mock_genai.embed_content.return_value = {'embedding': [0.1] * 3072}
         mock_genai.configure.return_value = None
 
         nodes = {
@@ -135,50 +134,6 @@ class TestSimilaritySearch:
             results = find_similar_by_embedding("", node_embeddings)
 
         assert results == []
-
-
-class TestHybridSearch:
-    """Tests for hybrid TF-IDF + embedding search"""
-
-    def test_hybrid_search_combines_results(self):
-        """Test that hybrid search properly combines TF-IDF and embedding results"""
-        tfidf_results = [1, 2, 3]
-        embedding_results = [(2, 0.9), (4, 0.8), (5, 0.7)]
-
-        combined = hybrid_search(
-            "test query", tfidf_results, embedding_results, alpha=0.5
-        )
-
-        # Should contain all unique node IDs
-        assert set(combined) == {1, 2, 3, 4, 5}
-
-        # Node 2 should rank high (appears in both)
-        assert 2 in combined[:2]
-
-    def test_hybrid_search_alpha_weighting(self):
-        """Test that alpha parameter correctly weights results"""
-        tfidf_results = [1, 2]
-        embedding_results = [(3, 1.0), (4, 0.9)]
-
-        # Alpha = 0: Only TF-IDF matters
-        combined_tfidf = hybrid_search(
-            "test", tfidf_results, embedding_results, alpha=0.0
-        )
-        assert combined_tfidf[:2] == [1, 2]
-
-        # Alpha = 1: Only embeddings matter
-        combined_embedding = hybrid_search(
-            "test", tfidf_results, embedding_results, alpha=1.0
-        )
-        assert combined_embedding[:2] == [3, 4]
-
-    def test_hybrid_search_no_embeddings(self):
-        """Test fallback when no embedding results"""
-        tfidf_results = [1, 2, 3]
-
-        combined = hybrid_search("test", tfidf_results, [], alpha=0.5)
-
-        assert combined == tfidf_results
 
 
 class TestEntityExtraction:

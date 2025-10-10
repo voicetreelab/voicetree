@@ -106,8 +106,10 @@ class MarkdownTree:
                 self.enabled = True
                 self.vector_store = self
 
-            def search(self, query: str, top_k: int) -> list[int]:
-                return []
+            def search(self, query: str, top_k: int, include_scores: bool = False) -> Any:
+                if include_scores:
+                    return []  # Return empty list of tuples
+                return []  # Return empty list of ints
 
             def update_embeddings(self, node_ids: list[int]) -> None:
                 pass  # No-op

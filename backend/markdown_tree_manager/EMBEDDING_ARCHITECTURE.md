@@ -84,7 +84,7 @@ Voice Input → Transcription → Chunks → Tree Actions → Markdown Files
 - **Before**: Tests took minutes due to API calls
 - **After**: Tests complete in ~2 seconds with mocks
 - **Batch Size**: 10 nodes (configurable)
-- **Embedding Model**: Google Gemini text-embedding-004 (768 dimensions)
+- **Embedding Model**: Google Gemini gemini-embedding-001 (3072 dimensions)
 - **Storage**: ChromaDB with HNSW index for fast similarity search
 
 ## Code Locations

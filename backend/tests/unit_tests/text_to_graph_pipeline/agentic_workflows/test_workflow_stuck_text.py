@@ -48,7 +48,6 @@ class TestWorkflowStuckTextRemoval:
         buffer_manager._buffer = "Uh, uh, some"
         await workflow.process_text_chunk(
             text_chunk="Uh, uh, some",
-            transcript_history_context="",
             tree_action_applier=tree_action_applier,
             buffer_manager=buffer_manager
         )
@@ -61,7 +60,6 @@ class TestWorkflowStuckTextRemoval:
         for i in range(4):
             await workflow.process_text_chunk(
                 text_chunk="Uh, uh, some",
-                transcript_history_context="",
                 tree_action_applier=tree_action_applier,
                 buffer_manager=buffer_manager
             )
@@ -95,7 +93,6 @@ class TestWorkflowStuckTextRemoval:
         buffer_manager._buffer = "Uh, some incomplete text"
         await workflow.process_text_chunk(
             text_chunk="Uh, some incomplete text",
-            transcript_history_context="",
             tree_action_applier=tree_action_applier,
             buffer_manager=buffer_manager
         )
@@ -109,7 +106,6 @@ class TestWorkflowStuckTextRemoval:
         for i in range(4):
             await workflow.process_text_chunk(
                 text_chunk="Uh, some incomplete text",
-                transcript_history_context="",
                 tree_action_applier=tree_action_applier,
                 buffer_manager=buffer_manager
             )

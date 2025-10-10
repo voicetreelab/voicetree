@@ -7,7 +7,6 @@ import logging
 import re
 from typing import Optional
 
-from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
 from backend.text_to_graph_pipeline.text_buffer_manager.fuzzy_text_matcher import (
     FuzzyTextMatcher,
 )
@@ -45,7 +44,6 @@ class TextBufferManager:
         Initialize the buffer manager.
         """
         self._buffer = ""
-        self._transcript_history = ""
         self._is_first_processing = True
         self._fuzzy_matcher = FuzzyTextMatcher(similarity_threshold=80)
         self.bufferFlushLength = 0  # Will be set by init() method, #TODO AWFUL
@@ -68,23 +66,13 @@ class TextBufferManager:
 
         # add space between phrases.
         # only if previous phrase ended in an alphabetical character AND new text starts with alphabetical character.
-        if self._buffer and self._transcript_history and not text[0] == " " and self._transcript_history[-1].isalpha() and self._buffer[-1].isalpha() and text[0].isalpha():
+        if self._buffer and not text[0] == " " and self._buffer[-1].isalpha() and text[0].isalpha():
             self._buffer += " "
-            self._transcript_history += " "
 
-        # Add to transcript history immediately
-        self._transcript_history += text
+        # Add to buffer only (history updated after successful flush)
         self._buffer += text
 
         logging.debug(f"Added '{text}' to buffer. Buffer size: {len(self._buffer)}")
-        logging.debug(f"[TRANSCRIPT_HISTORY] Added '{text}' - Total history length: {len(self._transcript_history)} chars")
-        logging.debug(f"[TRANSCRIPT_HISTORY] Current history preview: '{self._transcript_history[-100:]}'...")
-
-        # Maintain history window
-        max_history = self.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
-        if len(self._transcript_history) > max_history:
-            self._transcript_history = self._transcript_history[-max_history:]
-            logging.debug(f"[TRANSCRIPT_HISTORY] Trimmed to max {max_history} chars")
 
     def getBufferTextWhichShouldBeProcessed(self) -> str:
         """Get buffer text if it should be processed, otherwise empty string"""
@@ -156,19 +144,9 @@ class TextBufferManager:
         """Get current buffer content (new API)"""
         return self._buffer
 
-    def get_transcript_history(self, maxLength: Optional[int] = None) -> str:
-        """Get transcript history with optional length limit"""
-        if maxLength is None:
-            return self._transcript_history
-        if maxLength == 0:
-            return ""
-        # Return the last maxLength characters
-        return self._transcript_history[-maxLength:] if len(self._transcript_history) > maxLength else self._transcript_history
-
     def clear(self) -> None:
         """Clear all buffers and reset state"""
         self._buffer = ""
-        self._transcript_history = ""
         self._is_first_processing = True
         logging.info("Cleared all buffers")
 

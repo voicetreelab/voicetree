@@ -93,7 +93,6 @@ class TestTreeActionDeciderWorkflow:
         # When
         modified_nodes = await workflow.process_text_chunk(
             text_chunk="test transcript",
-            transcript_history_context="context",
             tree_action_applier=mock_tree_applier,
             buffer_manager=mock_buffer_manager
         )
@@ -123,7 +122,6 @@ class TestTreeActionDeciderWorkflow:
         # When
         modified_nodes = await workflow.process_text_chunk(
             text_chunk="test",
-            transcript_history_context="",
             tree_action_applier=mock_tree_applier,
             buffer_manager=mock_buffer_manager
         )
@@ -159,7 +157,6 @@ class TestTreeActionDeciderWorkflow:
         # When
         await workflow.process_text_chunk(
             text_chunk="test",
-            transcript_history_context="",
             tree_action_applier=mock_tree_applier,
             buffer_manager=mock_buffer_manager
         )

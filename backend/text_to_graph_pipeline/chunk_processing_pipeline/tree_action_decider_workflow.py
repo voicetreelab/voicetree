@@ -21,6 +21,7 @@ from backend.markdown_tree_manager.graph_search.tree_functions import (
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
+from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
 from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
     ConnectOrphansAgent,
@@ -37,6 +38,9 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.apply_tree_actions
     TreeActionApplier,
 )
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
+from backend.text_to_graph_pipeline.text_buffer_manager.history_manager import (
+    HistoryManager,
+)
 
 
 @dataclass
@@ -106,6 +110,9 @@ class TreeActionDeciderWorkflow:
         self.connect_orphans_agent: ConnectOrphansAgent = ConnectOrphansAgent()
         self.nodes_to_update: set[int] = set()
 
+        # Initialize history manager
+        self._history_manager = HistoryManager()
+
         # Track previous buffer remainder to detect stuck text
         self._prev_buffer_remainder: str = ""  # What was left in buffer after last processing
 
@@ -129,6 +136,12 @@ class TreeActionDeciderWorkflow:
         """Clear the workflow state"""
         # Clear stuck text tracking
         self._prev_buffer_remainder = ""
+        # Clear history
+        self._history_manager.clear()
+
+    def get_transcript_history(self, max_length: Optional[int] = None) -> str:
+        """Get transcript history with optional length limit"""
+        return self._history_manager.get(max_length)
 
     async def run(
         self,
@@ -163,7 +176,6 @@ class TreeActionDeciderWorkflow:
         # Process the chunk
         await self.process_text_chunk(
             text_chunk=transcript_text,
-            transcript_history_context=transcript_history,
             tree_action_applier=tree_action_applier,
             buffer_manager=buffer_manager
         )
@@ -174,7 +186,6 @@ class TreeActionDeciderWorkflow:
     async def process_text_chunk(
         self,
         text_chunk: str,
-        transcript_history_context: str,
         tree_action_applier: TreeActionApplier,
         buffer_manager: TextBufferManager
     ) -> set[int]:
@@ -185,7 +196,6 @@ class TreeActionDeciderWorkflow:
 
         Args:
             text_chunk: The chunk of text to process.
-            transcript_history_context: Historical context.
             tree_action_applier: The TreeActionApplier instance to use for applying actions.
             buffer_manager: The TextBufferManager instance for buffer operations.
 
@@ -210,22 +220,29 @@ class TreeActionDeciderWorkflow:
             raise ValueError("Decision tree is not initialized")
         relevant_nodes = get_most_relevant_nodes(self.decision_tree, MAX_NODES_FOR_LLM_CONTEXT, query=text_chunk)
         relevant_nodes_formatted = _format_nodes_for_prompt(relevant_nodes, self.decision_tree.tree)
+
+        # Get transcript history from our own history manager
+        transcript_history = self.get_transcript_history()
+
         # The append_agent now returns both actions and segment information
         append_agent_result: AppendAgentResult = await self.append_agent.run(
             transcript_text=text_chunk,
             existing_nodes_formatted=relevant_nodes_formatted,
-            transcript_history=transcript_history_context
+            transcript_history=transcript_history
         )
         logging.info(f"append_agent_results, {len(append_agent_result.actions)} "
                      f"actions: {append_agent_result}")
 
         append_or_create_actions: list[AppendAction | CreateAction] = append_agent_result.actions
 
-        # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER
+        # FOR EACH COMPLETED SEGMENT, REMOVE FROM BUFFER AND UPDATE HISTORY
         # note, you ABSOLUTELY HAVE TO do this per segment, not all at once for all completed text.
+        max_history = buffer_manager.bufferFlushLength * TRANSCRIPT_HISTORY_MULTIPLIER
         for segment in append_agent_result.segments:
             if segment.is_routable:
                 buffer_manager.flushCompletelyProcessedText(segment.raw_text)
+                # Update history with the routed segment
+                self._history_manager.append(segment.raw_text, max_history)
 
         # to avoid possible bugs with stuck text (never gets processed)
         await self.clear_text_that_has_been_not_cleared_for_multiple_iterations(buffer_manager)

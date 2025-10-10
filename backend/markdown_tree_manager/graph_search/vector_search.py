@@ -79,11 +79,11 @@ def get_node_embeddings(nodes: dict[int, Any]) -> dict[int, NDArray[np.float64]]
                 node_ids.append(node_id)
 
         if texts:
-            # Use Gemini's text-embedding-004 model (768 dimensions)
+            # Use Gemini's gemini-embedding-001 model (3072 dimensions)
             # Batch process for efficiency
             for text, node_id in zip(texts, node_ids):
                 result = genai.embed_content(
-                    model="models/text-embedding-004",
+                    model="models/gemini-embedding-001",
                     content=text,
                     task_type="retrieval_document",
                     title=f"Node {node_id}"  # Optional title for better context
@@ -132,7 +132,7 @@ def find_similar_by_embedding(
 
             # Generate embedding for query using Gemini
             result = genai.embed_content(
-                model="models/text-embedding-004",
+                model="models/gemini-embedding-001",
                 content=query,
                 task_type="retrieval_query"  # Use query task type for search
             )
