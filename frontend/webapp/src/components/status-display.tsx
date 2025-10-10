@@ -10,7 +10,7 @@ export default function StatusDisplay({ state }: StatusDisplayProps) {
       <div
         className={`w-2 h-2 rounded-full ${
           state === "Running"
-            ? "bg-green-500"
+            ? "bg-green-500 animate-pulse"
             : state === "FinishingProcessing"
             ? "bg-yellow-500"
             : state === "Error"

@@ -516,7 +516,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
   }, []);
 
   return (
-    <div className="h-screen bg-background overflow-hidden relative">
+    <div className="h-full bg-background overflow-hidden relative">
       {/* Hamburger Menu Button - Top Left */}
       <button
         onClick={() => {

@@ -22,7 +22,7 @@ export default function Sidebar({ children }: SidebarProps) {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       {/* Sidebar */}
       <div
         className={`fixed inset-y-0 left-0 z-50 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
