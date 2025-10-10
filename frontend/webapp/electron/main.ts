@@ -48,6 +48,20 @@ function createWindow() {
   // Set the main window reference
   fileWatchManager.setMainWindow(mainWindow);
 
+  // Auto-start watching last directory if it exists
+  // TODO: Handle edge cases:
+  // - Last directory no longer exists (deleted/moved)
+  // - Permission issues accessing last directory
+  // - Race condition with manual watch start
+  mainWindow.webContents.once('did-finish-load', async () => {
+    const lastDirectory = await fileWatchManager.loadLastDirectory();
+    if (lastDirectory) {
+      console.log(`[AutoWatch] Found last directory: ${lastDirectory}`);
+      console.log(`[AutoWatch] Auto-starting watch...`);
+      await fileWatchManager.startWatching(lastDirectory);
+    }
+  });
+
   // Pipe renderer console logs to electron terminal
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     // Filter out Electron security warnings in dev mode

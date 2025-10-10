@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs').promises;
 const chokidar = require('chokidar');
+const { app } = require('electron');
 
 class FileWatchManager {
   constructor() {
@@ -9,6 +10,42 @@ class FileWatchManager {
     this.mainWindow = null;
     this.initialScanFiles = [];
     this.isInitialScan = true;
+  }
+
+  // Get path to config file for storing last directory
+  getConfigPath() {
+    const userDataPath = app.getPath('userData');
+    return path.join(userDataPath, 'voicetree-config.json');
+  }
+
+  // Load last watched directory from config
+  async loadLastDirectory() {
+    try {
+      const configPath = this.getConfigPath();
+      const data = await fs.readFile(configPath, 'utf8');
+      const config = JSON.parse(data);
+      return config.lastDirectory || null;
+    } catch (error) {
+      // TODO: Handle edge cases:
+      // - Config file doesn't exist (first run)
+      // - JSON parse error (corrupted config)
+      // - Permission errors
+      return null;
+    }
+  }
+
+  // Save last watched directory to config
+  async saveLastDirectory(directoryPath) {
+    try {
+      const configPath = this.getConfigPath();
+      const config = { lastDirectory: directoryPath };
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8');
+    } catch (error) {
+      // TODO: Handle edge cases:
+      // - Permission errors
+      // - Disk full
+      console.error('Failed to save last directory:', error);
+    }
   }
 
   setMainWindow(window) {
@@ -75,6 +112,9 @@ class FileWatchManager {
         directory: directoryPath,
         timestamp: new Date().toISOString()
       });
+
+      // Save as last directory for auto-start on next launch
+      await this.saveLastDirectory(directoryPath);
 
       return { success: true, directory: directoryPath };
 
