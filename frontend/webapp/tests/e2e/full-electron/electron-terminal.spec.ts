@@ -438,4 +438,292 @@ test.describe('Terminal E2E Tests', () => {
     // Terminal should still be functional after resizing
     expect(finalContent).toContain('After resize');
   });
+
+  test('should position terminal shadow node with layout algorithm using parentId', async ({ appWindow, tempDir }) => {
+    // Create multiple markdown files to have a proper tree structure
+    await fs.writeFile(
+      path.join(tempDir, 'parent-node.md'),
+      `# Parent Node\n\nThis is the parent node.`
+    );
+    await fs.writeFile(
+      path.join(tempDir, 'child-node.md'),
+      `# Child Node\n\nThis is a child. Links to [[parent-node]].`
+    );
+
+    // Start file watching
+    await appWindow.evaluate(async (dir) => {
+      const window = globalThis as ExtendedWindow;
+      if (window.electronAPI) {
+        return window.electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for graph to load with multiple nodes
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const window = globalThis as ExtendedWindow;
+        const cy = window.cytoscapeInstance;
+        return cy && cy.nodes().length >= 2;
+      });
+    }, {
+      message: 'Waiting for graph nodes to load',
+      timeout: 10000
+    }).toBe(true);
+
+    // Get parent node
+    const parentNodeId = 'parent_node';
+    const nodeExists = await appWindow.evaluate((id) => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      const node = cy.getElementById(id);
+      return node.length > 0;
+    }, parentNodeId);
+
+    expect(nodeExists).toBe(true);
+
+    // Get parent node position and open terminal
+    const nodePosition = await appWindow.evaluate((id) => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      const node = cy.getElementById(id);
+      return node.renderedPosition();
+    }, parentNodeId);
+
+    // Right-click on the parent node to open context menu
+    await appWindow.mouse.click(nodePosition.x, nodePosition.y, { button: 'right' });
+    await appWindow.waitForTimeout(500);
+
+    // Click terminal option
+    const terminalMenuOption = await appWindow.evaluate(() => {
+      const menus = document.querySelectorAll('.cxtmenu-item');
+      for (const menu of menus) {
+        if (menu.getAttribute('title') === 'Terminal') {
+          return {
+            found: true,
+            element: menu.getBoundingClientRect()
+          };
+        }
+      }
+      return { found: false };
+    });
+
+    expect(terminalMenuOption.found).toBe(true);
+
+    await appWindow.mouse.click(
+      terminalMenuOption.element.x + terminalMenuOption.element.width / 2,
+      terminalMenuOption.element.y + terminalMenuOption.element.height / 2
+    );
+
+    // Wait for terminal window to open
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const terminals = document.querySelectorAll('.cy-floating-window');
+        for (const terminal of terminals) {
+          const title = terminal.querySelector('.cy-floating-window-title-text');
+          if (title && title.textContent?.includes('Terminal')) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }, {
+      message: 'Waiting for terminal window to open',
+      timeout: 5000
+    }).toBe(true);
+
+    // Check that the terminal shadow node has the correct parentId set
+    const shadowNodeData = await appWindow.evaluate((parentId) => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      const terminalId = `terminal-${parentId}`;
+      const shadowNode = cy.getElementById(terminalId);
+
+      if (shadowNode.length === 0) {
+        return { exists: false };
+      }
+
+      return {
+        exists: true,
+        id: shadowNode.id(),
+        parentId: shadowNode.data('parentId'),
+        parentNodeId: shadowNode.data('parentNodeId'),
+        isFloatingWindow: shadowNode.data('isFloatingWindow'),
+        position: shadowNode.position()
+      };
+    }, parentNodeId);
+
+    console.log('Shadow node data:', shadowNodeData);
+
+    // CRITICAL TEST: Shadow node should have parentId set (not just parentNodeId)
+    // This is what the layout algorithm looks for
+    expect(shadowNodeData.exists).toBe(true);
+    expect(shadowNodeData.id).toBe(`terminal-${parentNodeId}`);
+    expect(shadowNodeData.isFloatingWindow).toBe(true);
+
+    // THIS IS THE KEY ASSERTION THAT WILL FAIL:
+    // The shadow node should have 'parentId' set to the parent node
+    // Currently it only has 'parentNodeId', which the layout algorithm doesn't check
+    expect(shadowNodeData.parentId).toBe(parentNodeId);
+  });
+
+  test('should trigger incremental layout when terminal is spawned after initial load', async ({ appWindow, tempDir }) => {
+    // Create test markdown files
+    await fs.writeFile(
+      path.join(tempDir, 'root.md'),
+      `# Root Node\n\nThis is the root.`
+    );
+    await fs.writeFile(
+      path.join(tempDir, 'child.md'),
+      `# Child Node\n\nLinks to [[root]].`
+    );
+
+    // Start file watching
+    await appWindow.evaluate(async (dir) => {
+      const window = globalThis as ExtendedWindow;
+      if (window.electronAPI) {
+        return window.electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for graph to load
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const window = globalThis as ExtendedWindow;
+        const cy = window.cytoscapeInstance;
+        return cy && cy.nodes().length >= 2;
+      });
+    }, {
+      message: 'Waiting for graph nodes to load',
+      timeout: 10000
+    }).toBe(true);
+
+    // CRITICAL: Wait for initial load to complete
+    // This ensures isInitialLoad = false, which is required for layout triggering
+    await appWindow.waitForTimeout(2000);
+
+    // Capture console logs to verify layout was triggered
+    const consoleLogs: string[] = [];
+    appWindow.on('console', msg => {
+      consoleLogs.push(msg.text());
+    });
+
+    const parentNodeId = 'root';
+
+    // Get parent node position before spawning terminal
+    const initialParentPos = await appWindow.evaluate((id) => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      const node = cy.getElementById(id);
+      return node.position();
+    }, parentNodeId);
+
+    // Right-click on parent node to open context menu
+    const nodePosition = await appWindow.evaluate((id) => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      const node = cy.getElementById(id);
+      return node.renderedPosition();
+    }, parentNodeId);
+
+    await appWindow.mouse.click(nodePosition.x, nodePosition.y, { button: 'right' });
+    await appWindow.waitForTimeout(500);
+
+    // Click terminal option
+    const terminalMenuOption = await appWindow.evaluate(() => {
+      const menus = document.querySelectorAll('.cxtmenu-item');
+      for (const menu of menus) {
+        if (menu.getAttribute('title') === 'Terminal') {
+          return {
+            found: true,
+            element: menu.getBoundingClientRect()
+          };
+        }
+      }
+      return { found: false };
+    });
+
+    expect(terminalMenuOption.found).toBe(true);
+
+    await appWindow.mouse.click(
+      terminalMenuOption.element.x + terminalMenuOption.element.width / 2,
+      terminalMenuOption.element.y + terminalMenuOption.element.height / 2
+    );
+
+    // Wait for terminal to spawn
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const terminals = document.querySelectorAll('.cy-floating-window');
+        for (const terminal of terminals) {
+          const title = terminal.querySelector('.cy-floating-window-title-text');
+          if (title && title.textContent?.includes('Terminal')) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }, {
+      message: 'Waiting for terminal window to open',
+      timeout: 5000
+    }).toBe(true);
+
+    // Wait for layout to complete
+    await appWindow.waitForTimeout(1000);
+
+    // CRITICAL ASSERTIONS: Verify layout was triggered
+    const layoutTriggered = consoleLogs.some(log =>
+      log.includes('[createFloatingTerminal] Triggering incremental layout')
+    );
+
+    // Check that isInitialLoad was false (not blocking layout)
+    const wasNotInitialLoad = consoleLogs.some(log =>
+      log.includes('isInitialLoad: false')
+    );
+
+    console.log('Console logs:', consoleLogs.filter(log => log.includes('createFloatingTerminal')));
+
+    // KEY ASSERTIONS:
+    // 1. Layout should have been triggered
+    expect(layoutTriggered).toBe(true);
+
+    // 2. isInitialLoad should be false
+    expect(wasNotInitialLoad).toBe(true);
+
+    // 3. Verify shadow node position was updated by layout algorithm
+    const terminalNodeData = await appWindow.evaluate((parentId) => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      const terminalId = `terminal-${parentId}`;
+      const shadowNode = cy.getElementById(terminalId);
+
+      if (shadowNode.length === 0) {
+        return { exists: false };
+      }
+
+      return {
+        exists: true,
+        position: shadowNode.position(),
+        hasParentId: !!shadowNode.data('parentId')
+      };
+    }, parentNodeId);
+
+    expect(terminalNodeData.exists).toBe(true);
+    expect(terminalNodeData.hasParentId).toBe(true);
+
+    // The terminal shadow node should have been positioned by the layout algorithm
+    // It should NOT be at the manually set position (parent.x + 100, parent.y)
+    // Instead, it should be positioned according to the tree layout
+    console.log('Parent initial position:', initialParentPos);
+    console.log('Terminal shadow node position:', terminalNodeData.position);
+
+    // If layout ran, the position should be different from the manual offset
+    const manualOffsetX = initialParentPos.x + 100;
+    const manualOffsetY = initialParentPos.y;
+
+    // Layout should have changed the position
+    const positionWasChangedByLayout =
+      Math.abs(terminalNodeData.position.x - manualOffsetX) > 10 ||
+      Math.abs(terminalNodeData.position.y - manualOffsetY) > 10;
+
+    expect(positionWasChangedByLayout).toBe(true);
+  });
 });

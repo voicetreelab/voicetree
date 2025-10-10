@@ -94,7 +94,7 @@ describe("RecordButton", () => {
       );
 
       const button = screen.getByRole("button");
-      expect(button).toHaveTextContent("🎤");
+      expect(button.querySelector("svg")).toBeInTheDocument(); // SVG icon instead of emoji
       expect(button).toHaveClass("w-12", "h-12", "rounded-full");
     });
 
@@ -109,7 +109,7 @@ describe("RecordButton", () => {
       );
 
       const button = screen.getByRole("button");
-      expect(button).toHaveTextContent("⏹️");
+      expect(button.querySelector("svg")).toBeInTheDocument(); // SVG icon instead of emoji
       expect(button).toHaveClass("w-12", "h-12", "rounded-full");
     });
 
