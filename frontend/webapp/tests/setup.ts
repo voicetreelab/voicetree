@@ -173,5 +173,13 @@ Object.defineProperty(navigator, 'clipboard', {
   configurable: true
 });
 
+// Set navigator.webdriver to true to signal test environment
+// This makes LayoutManager use 0ms animation duration instead of 300ms
+Object.defineProperty(navigator, 'webdriver', {
+  value: true,
+  writable: true,
+  configurable: true
+});
+
 // Mock HTMLElement.scrollTo for useAutoScroll tests
 HTMLElement.prototype.scrollTo = vi.fn();

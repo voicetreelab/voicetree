@@ -8,6 +8,9 @@ describe('LayoutManager Integration Tests', () => {
   let layoutManager: LayoutManager;
 
   beforeEach(() => {
+    // Create fresh LayoutManager instance for each test
+    // (TidyLayoutStrategy is now stateful per instance, not a singleton)
+
     // Create a headless Cytoscape instance for testing
     cy = cytoscape({
       headless: true,

@@ -16,6 +16,9 @@ describe('Canonical Tree Layout Tests', () => {
   let layoutManager: LayoutManager;
 
   beforeEach(() => {
+    // Create fresh strategy instance for each test
+    // (TidyLayoutStrategy is now stateful per instance, not a singleton)
+
     cy = cytoscape({
       headless: true,
       styleEnabled: true,

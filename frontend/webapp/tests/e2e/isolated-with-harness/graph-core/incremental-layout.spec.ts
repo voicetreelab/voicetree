@@ -323,11 +323,11 @@ test.describe('Incremental Layout - Online Node Positioning', () => {
       if (!window.cy) throw new Error('Cytoscape not initialized');
 
       // Access strategy classes from window
-      const { IncrementalTidyLayoutStrategy, LayoutManager } = window;
+      const { TidyLayoutStrategy, LayoutManager } = window;
 
       // Phase 1: Add initial nodes with first strategy instance
       window.cy.elements().remove();
-      const strategy1 = new IncrementalTidyLayoutStrategy();
+      const strategy1 = new TidyLayoutStrategy();
       const layoutManager1 = new LayoutManager(strategy1);
 
       // Add 5 initial nodes
@@ -366,7 +366,7 @@ test.describe('Incremental Layout - Online Node Positioning', () => {
       }));
 
       // Phase 2: Recreate strategy (simulates production behavior)
-      const strategy2 = new IncrementalTidyLayoutStrategy();
+      const strategy2 = new TidyLayoutStrategy();
       const layoutManager2 = new LayoutManager(strategy2);
 
       // Add 5 more nodes with new strategy

@@ -15,12 +15,6 @@ interface ExtendedWindow extends Window {
 
 // Custom test fixture that provides tempDir
 const test = base.extend<{ tempDir: string; appWindow: Page; electronApp: ElectronApplication }>({
-  tempDir: async ({}, use) => {
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terminal-test-'));
-    await use(tempDir);
-    await fs.rm(tempDir, { recursive: true, force: true });
-  },
-
   electronApp: async ({}, use) => {
     // Launch Electron app with test environment
     const electronApp = await electron.launch({
@@ -30,7 +24,9 @@ const test = base.extend<{ tempDir: string; appWindow: Page; electronApp: Electr
       env: {
         ...process.env,
         NODE_ENV: 'test',
-        TEST_MODE: '1'
+        TEST_MODE: '1',
+        HEADLESS_TEST: '1',
+        MINIMIZE_TEST: '1'
       },
     });
     await use(electronApp);
@@ -48,25 +44,36 @@ const test = base.extend<{ tempDir: string; appWindow: Page; electronApp: Electr
 
     await use(appWindow);
   },
+
+  tempDir: async ({}, use) => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terminal-test-'));
+    await use(tempDir);
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch (error) {
+      console.error(`Failed to clean up temp directory: ${error}`);
+    }
+  },
 });
 
 test.describe('Terminal E2E Tests', () => {
-  test.beforeEach(async ({ tempDir }) => {
-    // Create test markdown files
-    await fs.writeFile(
-      path.join(tempDir, 'test-node.md'),
-      `# Test Node\n\nThis is a test node for terminal testing.`
-    );
-  });
-
   test('should open terminal from context menu and allow typing commands', async ({ appWindow, tempDir }) => {
-    // Start file watching
+    // Start file watching FIRST
     await appWindow.evaluate(async (dir) => {
       const window = globalThis as ExtendedWindow;
       if (window.electronAPI) {
         return window.electronAPI.startFileWatching(dir);
       }
     }, tempDir);
+
+    // Wait for initial scan
+    await appWindow.waitForTimeout(1000);
+
+    // Create test markdown file AFTER watching starts
+    await fs.writeFile(
+      path.join(tempDir, 'test-node.md'),
+      `# Test Node\n\nThis is a test node for terminal testing.`
+    );
 
     // Wait for graph to load
     await expect.poll(async () => {
@@ -80,53 +87,37 @@ test.describe('Terminal E2E Tests', () => {
       timeout: 10000
     }).toBe(true);
 
-    // Get first node position and right-click on it
-    const nodePosition = await appWindow.evaluate(() => {
+    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
+    await appWindow.evaluate(async () => {
       const window = globalThis as ExtendedWindow;
       const cy = window.cytoscapeInstance;
-      if (!cy) return null;
-      const node = cy.nodes().first();
-      return node.renderedPosition();
-    });
+      if (cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        // Trigger the cxttapstart event to open context menu
+        node.emit('cxttapstart');
 
-    expect(nodePosition).toBeTruthy();
-
-    // Right-click on the node to open context menu
-    await appWindow.mouse.click(nodePosition.x, nodePosition.y, { button: 'right' });
-
-    // Wait for context menu to appear
-    await appWindow.waitForTimeout(500);
-
-    // Find and click the terminal option in the context menu
-    const terminalMenuOption = await appWindow.evaluate(() => {
-      // Look for the terminal icon in the context menu
-      const menus = document.querySelectorAll('.cxtmenu-item');
-      for (const menu of menus) {
-        const svg = menu.querySelector('svg');
-        if (svg && menu.getAttribute('title') === 'Terminal') {
-          return {
-            found: true,
-            element: menu.getBoundingClientRect()
-          };
-        }
+        // Wait for menu to render, then click the terminal option
+        await new Promise<void>((resolve) => {
+          setTimeout(() => {
+            const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
+            if (terminalOption) {
+              terminalOption.click();
+            }
+            resolve();
+          }, 200);
+        });
       }
-      return { found: false };
     });
 
-    expect(terminalMenuOption.found).toBe(true);
-
-    // Click on terminal menu option
-    await appWindow.mouse.click(
-      terminalMenuOption.element.x + terminalMenuOption.element.width / 2,
-      terminalMenuOption.element.y + terminalMenuOption.element.height / 2
-    );
+    // Wait for terminal to open
+    await appWindow.waitForTimeout(500);
 
     // Wait for terminal window to open
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const terminals = document.querySelectorAll('.floating-window');
+        const terminals = document.querySelectorAll('.cy-floating-window');
         for (const terminal of terminals) {
-          const title = terminal.querySelector('.window-title-bar span');
+          const title = terminal.querySelector('.cy-floating-window-title-text');
           if (title && title.textContent?.includes('Terminal')) {
             return true;
           }
@@ -209,13 +200,22 @@ test.describe('Terminal E2E Tests', () => {
   });
 
   test('should handle terminal resize properly without visual artifacts or text loss', async ({ appWindow, tempDir }) => {
-    // Start file watching
+    // Start file watching FIRST
     await appWindow.evaluate(async (dir) => {
       const window = globalThis as ExtendedWindow;
       if (window.electronAPI) {
         return window.electronAPI.startFileWatching(dir);
       }
     }, tempDir);
+
+    // Wait for initial scan
+    await appWindow.waitForTimeout(1000);
+
+    // Create test markdown file AFTER watching starts
+    await fs.writeFile(
+      path.join(tempDir, 'test-node.md'),
+      `# Test Node\n\nThis is a test node for terminal testing.`
+    );
 
     // Wait for graph to load
     await expect.poll(async () => {
@@ -229,50 +229,37 @@ test.describe('Terminal E2E Tests', () => {
       timeout: 10000
     }).toBe(true);
 
-    // Get first node position and right-click on it
-    const nodePosition = await appWindow.evaluate(() => {
+    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
+    await appWindow.evaluate(async () => {
       const window = globalThis as ExtendedWindow;
       const cy = window.cytoscapeInstance;
-      if (!cy) return null;
-      const node = cy.nodes().first();
-      return node.renderedPosition();
-    });
+      if (cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        // Trigger the cxttapstart event to open context menu
+        node.emit('cxttapstart');
 
-    expect(nodePosition).toBeTruthy();
-
-    // Right-click on the node to open context menu
-    await appWindow.mouse.click(nodePosition.x, nodePosition.y, { button: 'right' });
-    await appWindow.waitForTimeout(500);
-
-    // Find and click the terminal option in the context menu
-    const terminalMenuOption = await appWindow.evaluate(() => {
-      const menus = document.querySelectorAll('.cxtmenu-item');
-      for (const menu of menus) {
-        const svg = menu.querySelector('svg');
-        if (svg && menu.getAttribute('title') === 'Terminal') {
-          return {
-            found: true,
-            element: menu.getBoundingClientRect()
-          };
-        }
+        // Wait for menu to render, then click the terminal option
+        await new Promise<void>((resolve) => {
+          setTimeout(() => {
+            const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
+            if (terminalOption) {
+              terminalOption.click();
+            }
+            resolve();
+          }, 200);
+        });
       }
-      return { found: false };
     });
 
-    expect(terminalMenuOption.found).toBe(true);
-
-    // Click on terminal menu option
-    await appWindow.mouse.click(
-      terminalMenuOption.element.x + terminalMenuOption.element.width / 2,
-      terminalMenuOption.element.y + terminalMenuOption.element.height / 2
-    );
+    // Wait for terminal to open
+    await appWindow.waitForTimeout(500);
 
     // Wait for terminal window to open
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
-        const terminals = document.querySelectorAll('.floating-window');
+        const terminals = document.querySelectorAll('.cy-floating-window');
         for (const terminal of terminals) {
-          const title = terminal.querySelector('.window-title-bar span');
+          const title = terminal.querySelector('.cy-floating-window-title-text');
           if (title && title.textContent?.includes('Terminal')) {
             return true;
           }
@@ -304,7 +291,7 @@ test.describe('Terminal E2E Tests', () => {
 
     // Get initial terminal state
     const initialState = await appWindow.evaluate(() => {
-      const terminalWindow = document.querySelector('.floating-window');
+      const terminalWindow = document.querySelector('.cy-floating-window');
       const xtermScreen = document.querySelector('.xterm-screen');
       const xtermViewport = document.querySelector('.xterm-viewport') as HTMLElement;
 
@@ -345,7 +332,7 @@ test.describe('Terminal E2E Tests', () => {
 
       // Check state after enlarging
       const enlargedState = await appWindow.evaluate(() => {
-        const terminalWindow = document.querySelector('.floating-window');
+        const terminalWindow = document.querySelector('.cy-floating-window');
         const xtermScreen = document.querySelector('.xterm-screen');
         const xtermViewport = document.querySelector('.xterm-viewport') as HTMLElement;
 
@@ -394,7 +381,7 @@ test.describe('Terminal E2E Tests', () => {
 
       // Check state after shrinking
       const shrunkState = await appWindow.evaluate(() => {
-        const terminalWindow = document.querySelector('.floating-window');
+        const terminalWindow = document.querySelector('.cy-floating-window');
         const xtermScreen = document.querySelector('.xterm-screen');
 
         if (!terminalWindow) return null;
@@ -440,7 +427,18 @@ test.describe('Terminal E2E Tests', () => {
   });
 
   test('should position terminal shadow node with layout algorithm using parentId', async ({ appWindow, tempDir }) => {
-    // Create multiple markdown files to have a proper tree structure
+    // Start file watching FIRST
+    await appWindow.evaluate(async (dir) => {
+      const window = globalThis as ExtendedWindow;
+      if (window.electronAPI) {
+        return window.electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for initial scan
+    await appWindow.waitForTimeout(1000);
+
+    // Create multiple markdown files AFTER watching starts
     await fs.writeFile(
       path.join(tempDir, 'parent-node.md'),
       `# Parent Node\n\nThis is the parent node.`
@@ -449,14 +447,6 @@ test.describe('Terminal E2E Tests', () => {
       path.join(tempDir, 'child-node.md'),
       `# Child Node\n\nThis is a child. Links to [[parent-node]].`
     );
-
-    // Start file watching
-    await appWindow.evaluate(async (dir) => {
-      const window = globalThis as ExtendedWindow;
-      if (window.electronAPI) {
-        return window.electronAPI.startFileWatching(dir);
-      }
-    }, tempDir);
 
     // Wait for graph to load with multiple nodes
     await expect.poll(async () => {
@@ -470,8 +460,8 @@ test.describe('Terminal E2E Tests', () => {
       timeout: 10000
     }).toBe(true);
 
-    // Get parent node
-    const parentNodeId = 'parent_node';
+    // Get parent node (note: markdown filenames become IDs with hyphens, not underscores)
+    const parentNodeId = 'parent-node';
     const nodeExists = await appWindow.evaluate((id) => {
       const window = globalThis as ExtendedWindow;
       const cy = window.cytoscapeInstance;
@@ -481,38 +471,32 @@ test.describe('Terminal E2E Tests', () => {
 
     expect(nodeExists).toBe(true);
 
-    // Get parent node position and open terminal
-    const nodePosition = await appWindow.evaluate((id) => {
+    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
+    await appWindow.evaluate(async (id) => {
       const window = globalThis as ExtendedWindow;
       const cy = window.cytoscapeInstance;
-      const node = cy.getElementById(id);
-      return node.renderedPosition();
-    }, parentNodeId);
+      if (cy) {
+        const node = cy.getElementById(id);
+        if (node.length > 0) {
+          // Trigger the cxttapstart event to open context menu
+          node.emit('cxttapstart');
 
-    // Right-click on the parent node to open context menu
-    await appWindow.mouse.click(nodePosition.x, nodePosition.y, { button: 'right' });
-    await appWindow.waitForTimeout(500);
-
-    // Click terminal option
-    const terminalMenuOption = await appWindow.evaluate(() => {
-      const menus = document.querySelectorAll('.cxtmenu-item');
-      for (const menu of menus) {
-        if (menu.getAttribute('title') === 'Terminal') {
-          return {
-            found: true,
-            element: menu.getBoundingClientRect()
-          };
+          // Wait for menu to render, then click the terminal option
+          await new Promise<void>((resolve) => {
+            setTimeout(() => {
+              const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
+              if (terminalOption) {
+                terminalOption.click();
+              }
+              resolve();
+            }, 200);
+          });
         }
       }
-      return { found: false };
-    });
+    }, parentNodeId);
 
-    expect(terminalMenuOption.found).toBe(true);
-
-    await appWindow.mouse.click(
-      terminalMenuOption.element.x + terminalMenuOption.element.width / 2,
-      terminalMenuOption.element.y + terminalMenuOption.element.height / 2
-    );
+    // Wait for terminal to open
+    await appWindow.waitForTimeout(500);
 
     // Wait for terminal window to open
     await expect.poll(async () => {
@@ -567,7 +551,18 @@ test.describe('Terminal E2E Tests', () => {
   });
 
   test('should trigger incremental layout when terminal is spawned after initial load', async ({ appWindow, tempDir }) => {
-    // Create test markdown files
+    // Start file watching FIRST
+    await appWindow.evaluate(async (dir) => {
+      const window = globalThis as ExtendedWindow;
+      if (window.electronAPI) {
+        return window.electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for initial scan
+    await appWindow.waitForTimeout(1000);
+
+    // Create test markdown files AFTER watching starts
     await fs.writeFile(
       path.join(tempDir, 'root.md'),
       `# Root Node\n\nThis is the root.`
@@ -576,14 +571,6 @@ test.describe('Terminal E2E Tests', () => {
       path.join(tempDir, 'child.md'),
       `# Child Node\n\nLinks to [[root]].`
     );
-
-    // Start file watching
-    await appWindow.evaluate(async (dir) => {
-      const window = globalThis as ExtendedWindow;
-      if (window.electronAPI) {
-        return window.electronAPI.startFileWatching(dir);
-      }
-    }, tempDir);
 
     // Wait for graph to load
     await expect.poll(async () => {
@@ -617,37 +604,32 @@ test.describe('Terminal E2E Tests', () => {
       return node.position();
     }, parentNodeId);
 
-    // Right-click on parent node to open context menu
-    const nodePosition = await appWindow.evaluate((id) => {
+    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
+    await appWindow.evaluate(async (id) => {
       const window = globalThis as ExtendedWindow;
       const cy = window.cytoscapeInstance;
-      const node = cy.getElementById(id);
-      return node.renderedPosition();
-    }, parentNodeId);
+      if (cy) {
+        const node = cy.getElementById(id);
+        if (node.length > 0) {
+          // Trigger the cxttapstart event to open context menu
+          node.emit('cxttapstart');
 
-    await appWindow.mouse.click(nodePosition.x, nodePosition.y, { button: 'right' });
-    await appWindow.waitForTimeout(500);
-
-    // Click terminal option
-    const terminalMenuOption = await appWindow.evaluate(() => {
-      const menus = document.querySelectorAll('.cxtmenu-item');
-      for (const menu of menus) {
-        if (menu.getAttribute('title') === 'Terminal') {
-          return {
-            found: true,
-            element: menu.getBoundingClientRect()
-          };
+          // Wait for menu to render, then click the terminal option
+          await new Promise<void>((resolve) => {
+            setTimeout(() => {
+              const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
+              if (terminalOption) {
+                terminalOption.click();
+              }
+              resolve();
+            }, 200);
+          });
         }
       }
-      return { found: false };
-    });
+    }, parentNodeId);
 
-    expect(terminalMenuOption.found).toBe(true);
-
-    await appWindow.mouse.click(
-      terminalMenuOption.element.x + terminalMenuOption.element.width / 2,
-      terminalMenuOption.element.y + terminalMenuOption.element.height / 2
-    );
+    // Wait for terminal to open
+    await appWindow.waitForTimeout(500);
 
     // Wait for terminal to spawn
     await expect.poll(async () => {
