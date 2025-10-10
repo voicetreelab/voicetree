@@ -69,7 +69,6 @@ class TestChunkProcessorWithNewActions:
         # Then
         mock_workflow.process_text_chunk.assert_called_once_with(
             text_chunk="test chunk",
-            transcript_history_context="history",
             tree_action_applier=mock_tree_applier,
             buffer_manager=chunk_processor_with_mocks.buffer_manager
         )

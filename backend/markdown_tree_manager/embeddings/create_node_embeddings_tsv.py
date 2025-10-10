@@ -102,7 +102,7 @@ def generate_embeddings(nodes: dict[Any, Any]) -> dict[str, NDArray[Any]]:
             if combined_text.strip():
                 # Generate embedding using Gemini
                 result = genai.embed_content(
-                    model="models/text-embedding-004",
+                    model="models/gemini-embedding-001",
                     content=combined_text,
                     task_type="retrieval_document",
                     title=f"Node {node_id}"

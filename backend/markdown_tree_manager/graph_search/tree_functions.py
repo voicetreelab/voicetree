@@ -4,10 +4,12 @@ API for common functions on top of tree ds
 e.g. get summareis
 """
 import logging
+from collections import defaultdict
 from copy import deepcopy
 from typing import Any
 from typing import Optional
 
+from rank_bm25 import BM25Okapi
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -245,9 +247,246 @@ def search_similar_nodes_tfidf(decision_tree: Any, query: str, top_k: int = 10, 
         return []
 
 
+def search_similar_nodes_bm25(
+    decision_tree: Any,
+    query: str,
+    top_k: int = 10,
+    already_selected: Optional[set[Any]] = None
+) -> list[tuple[int, float]]:
+    """
+    Search for similar nodes using BM25 with scores.
+
+    BM25 is the state-of-the-art (2024-2025) replacement for TF-IDF:
+    - Term frequency saturation (prevents over-weighting repeated terms)
+    - Document length normalization (fair comparison across doc sizes)
+    - Better handling of rare terms
+
+    Args:
+        decision_tree: DecisionTree instance
+        query: Search query string
+        top_k: Number of results to return
+        already_selected: Set of node IDs to exclude
+
+    Returns:
+        List of (node_id, bm25_score) tuples ordered by relevance
+    """
+    if already_selected is None:
+        already_selected = set()
+
+    # Get unselected nodes
+    unselected_nodes = [
+        (node_id, node) for node_id, node in decision_tree.tree.items()
+        if node_id not in already_selected
+    ]
+
+    if not unselected_nodes:
+        return []
+
+    # Build corpus with weighted text (title 3x, summary 2x, content 1x)
+    tokenized_corpus = []
+    node_ids = []
+    for node_id, node in unselected_nodes:
+        content_snippet = node.content[:500] if node.content else ""
+        # Weight title 3x, summary 2x
+        weighted_text = (
+            f"{node.title} {node.title} {node.title} "
+            f"{node.summary} {node.summary} "
+            f"{content_snippet}"
+        )
+        # Tokenize for BM25 (lowercase + split)
+        tokens = weighted_text.lower().split()
+        tokenized_corpus.append(tokens)
+        node_ids.append(node_id)
+
+    try:
+        # Create BM25 index
+        # k1=1.5 (term frequency saturation), b=0.75 (length normalization)
+        bm25 = BM25Okapi(tokenized_corpus)
+
+        # Tokenize query
+        query_tokens = query.lower().split()
+
+        # Get BM25 scores for all documents
+        scores = bm25.get_scores(query_tokens)
+
+        # Create (node_id, score) pairs and sort by score
+        scored_results = [
+            (node_ids[i], float(scores[i]))
+            for i in range(len(scores))
+        ]
+        scored_results.sort(key=lambda x: x[1], reverse=True)
+
+        # Filter by threshold and return top_k
+        threshold = 0.1  # BM25 scores are typically higher than TF-IDF
+        filtered_results = [
+            (node_id, score)
+            for node_id, score in scored_results
+            if score > threshold
+        ]
+
+        logging.info(f"BM25 search found {len(filtered_results)} nodes above threshold")
+        return filtered_results[:top_k]
+
+    except Exception as e:
+        logging.error(f"BM25 search failed: {e}")
+        return []
+
+
+def reciprocal_rank_fusion(
+    *ranked_lists: list[int],
+    k: int = 60
+) -> list[int]:
+    """
+    Combine multiple ranked retrieval results using Reciprocal Rank Fusion (RRF).
+
+    RRF is the state-of-the-art (2024-2025) method for combining heterogeneous
+    retrieval results. It's scale-invariant, requires no tuning, and consistently
+    outperforms weighted combinations.
+
+    Formula: RRF_score(doc) = Σ 1/(k + rank(doc)) across all rankings
+
+    The constant k=60 is empirically optimal across diverse datasets.
+
+    Args:
+        *ranked_lists: Variable number of ranked document ID lists
+        k: RRF constant (default 60 from research)
+
+    Returns:
+        Combined ranked list of document IDs
+
+    References:
+        - "Reciprocal Rank Fusion outperforms Condorcet" (Cormack et al.)
+        - Azure AI Search, OpenSearch 2.19+, Elasticsearch all use RRF
+    """
+    rrf_scores = defaultdict(float)
+
+    # For each retrieval method's results
+    for ranked_list in ranked_lists:
+        # For each document in this ranking
+        for rank, doc_id in enumerate(ranked_list, start=1):
+            # Add reciprocal rank score
+            rrf_scores[doc_id] += 1.0 / (rank + k)
+
+    # Sort by combined RRF score (descending)
+    sorted_docs = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
+    return [doc_id for doc_id, score in sorted_docs]
+
+
+def hybrid_search_for_relevant_nodes(
+    decision_tree: Any,
+    query: str,
+    max_return_nodes: int = 10,
+    already_selected: Optional[set[Any]] = None,
+    vector_score_threshold: float = 0.5,
+    bm25_score_threshold: float = 0.5
+) -> list[int]:
+    """
+    State-of-the-art (2024-2025) hybrid search combining:
+    1. Dense vector embeddings (semantic understanding)
+    2. BM25 sparse retrieval (keyword matching with better normalization than TF-IDF)
+    3. Reciprocal Rank Fusion (scale-invariant combination)
+
+    This implementation follows current best practices:
+    - BM25 > TF-IDF (industry standard 2024+)
+    - RRF > weighted combination (no tuning needed, more robust)
+    - Score thresholding (quality filtering before fusion)
+
+    Args:
+        decision_tree: DecisionTree instance with tree and search methods
+        query: Search query string
+        max_return_nodes: Maximum number of results to return
+        already_selected: Set of node IDs to exclude from results
+        vector_score_threshold: Minimum vector similarity score (0.0-1.0)
+            - 0.5 is reasonable (moderate similarity required)
+        bm25_score_threshold: Minimum BM25 relevance score
+            - 0.5 is reasonable (basic relevance required)
+
+    Returns:
+        List of node IDs ordered by RRF score (most relevant first)
+
+    Example:
+        >>> nodes = hybrid_search_for_relevant_nodes(
+        ...     tree,
+        ...     "machine learning algorithms",
+        ...     max_return_nodes=10
+        ... )
+    """
+    if already_selected is None:
+        already_selected = set()
+
+    # Retrieve candidates (more than needed for quality filtering)
+    retrieval_multiplier = 5
+    candidate_count = max_return_nodes * retrieval_multiplier
+
+    # 1. Dense vector search (semantic)
+    vector_results_raw = []
+    if hasattr(decision_tree, 'search_similar_nodes_vector'):
+        try:
+            vector_results_raw = decision_tree.search_similar_nodes_vector(
+                query,
+                top_k=candidate_count
+            )
+            logging.info(f"Vector search retrieved {len(vector_results_raw)} candidates")
+        except Exception as e:
+            logging.error(f"Vector search failed: {e}")
+
+    # 2. BM25 sparse search (keyword)
+    bm25_results_raw = search_similar_nodes_bm25(
+        decision_tree,
+        query,
+        top_k=candidate_count,
+        already_selected=already_selected
+    )
+    logging.info(f"BM25 search retrieved {len(bm25_results_raw)} candidates")
+
+    # 3. Quality filtering: Only keep results above thresholds
+    vector_filtered = [
+        node_id for node_id, score in vector_results_raw
+        if score >= vector_score_threshold and node_id not in already_selected
+    ]
+
+    bm25_filtered = [
+        node_id for node_id, score in bm25_results_raw
+        if score >= bm25_score_threshold
+    ]
+
+    logging.info(
+        f"After filtering: {len(vector_filtered)} vector results, "
+        f"{len(bm25_filtered)} BM25 results"
+    )
+
+    # 4. Reciprocal Rank Fusion: Combine the filtered rankings
+    # Limit each method to max_return_nodes to keep fusion balanced
+    vector_ranked = vector_filtered[:max_return_nodes]
+    bm25_ranked = bm25_filtered[:max_return_nodes]
+
+    if not vector_ranked and not bm25_ranked:
+        logging.warning("No results passed quality thresholds")
+        return []
+
+    combined = reciprocal_rank_fusion(vector_ranked, bm25_ranked, k=60)
+
+    # 5. Validate results exist in tree
+    valid_results = [
+        node_id for node_id in combined
+        if node_id in decision_tree.tree
+    ]
+
+    # Return top N results
+    final_results = valid_results[:max_return_nodes]
+
+    logging.info(
+        f"Hybrid search (RRF) returned {len(final_results)} nodes for query: '{query[:50]}...'"
+    )
+
+    return final_results
+
+
 def _get_semantically_related_nodes(decision_tree: Any, query: str, remaining_slots_count: int, already_selected: set[Any]) -> list[int]:
     """
-    Find semantically related nodes using combined TF-IDF and vector search
+    Find semantically related nodes using state-of-the-art hybrid search.
+
+    Uses BM25 + Vector Embeddings + RRF fusion (2024-2025 best practices).
 
     Args:
         decision_tree: DecisionTree instance
@@ -256,56 +495,16 @@ def _get_semantically_related_nodes(decision_tree: Any, query: str, remaining_sl
         already_selected: Set of node IDs already selected
 
     Returns:
-        List of node IDs ordered by combined relevance score
+        List of node IDs ordered by RRF combined relevance score
     """
-    combined_scores = {}
-
-    # Get vector search results with scores
-    vector_results = []
-    if hasattr(decision_tree, 'search_similar_nodes_vector'):
-        try:
-            vector_results = decision_tree.search_similar_nodes_vector(query, top_k=remaining_slots_count * 2)
-            logging.info(f"Vector search found {len(vector_results)} candidates")
-        except Exception as e:
-            logging.error(f"VECTOR SEARCH FAILURE: {e}")
-
-    # Get TF-IDF results with scores
-    tfidf_results = search_similar_nodes_tfidf(decision_tree, query, top_k=remaining_slots_count * 2, already_selected=already_selected)
-    logging.info(f"TF-IDF search found {len(tfidf_results)} candidates")
-
-    # Combine scores with simple weighting
-    VECTOR_WEIGHT = 0.7
-    TFIDF_WEIGHT = 0.3
-
-    # Add vector scores
-    for node_id, score in vector_results:
-        if node_id not in already_selected:
-            combined_scores[node_id] = VECTOR_WEIGHT * score
-
-    # Add TF-IDF scores
-    for node_id, score in tfidf_results:
-        if node_id not in already_selected:
-            if node_id in combined_scores:
-                combined_scores[node_id] += TFIDF_WEIGHT * score
-            else:
-                combined_scores[node_id] = TFIDF_WEIGHT * score
-
-    # Sort by combined score and return top results
-    sorted_results = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
-
-    # Filter to only include node IDs that exist in the tree
-    result_node_ids = []
-    for node_id, _score in sorted_results:
-        if node_id in decision_tree.tree:
-            result_node_ids.append(node_id)
-            if len(result_node_ids) >= remaining_slots_count:
-                break
-        else:
-            logging.warning(f"Node ID {node_id} from search results not found in tree, skipping")
-
-    if result_node_ids:
-        logging.info(f"Hybrid search returned {len(result_node_ids)} nodes (vector_weight={VECTOR_WEIGHT}, tfidf_weight={TFIDF_WEIGHT})")
-
-    return result_node_ids
+    # Use the new state-of-the-art hybrid search
+    return hybrid_search_for_relevant_nodes(
+        decision_tree=decision_tree,
+        query=query,
+        max_return_nodes=remaining_slots_count,
+        already_selected=already_selected,
+        vector_score_threshold=0.5,  # Moderate similarity required
+        bm25_score_threshold=0.5     # Basic relevance required
+    )
 
 

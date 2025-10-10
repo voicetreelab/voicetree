@@ -83,7 +83,7 @@ class TestEmbeddingSearchIntegration:
             # Each embedding should be a numpy array
             for node_id, embedding in embeddings.items():
                 assert isinstance(embedding, np.ndarray)
-                assert embedding.shape[0] == 768  # Gemini text-embedding-004 dimension
+                assert embedding.shape[0] == 3072  # Gemini gemini-embedding-001 dimension
 
     @pytest.mark.skipif(not os.getenv("GEMINI_API_KEY"), reason="GEMINI_API_KEY not set")
     def test_find_machine_learning_nodes(self, loaded_tree):

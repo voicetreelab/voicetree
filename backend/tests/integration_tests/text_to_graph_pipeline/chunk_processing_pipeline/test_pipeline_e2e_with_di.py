@@ -66,7 +66,6 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
     async def process_text_chunk(
         self,
         text_chunk: str,
-        transcript_history_context: str,
         tree_action_applier,
         buffer_manager
     ):
@@ -77,8 +76,7 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
         """
         self.call_count += 1
         self.calls.append({
-            "text_chunk": text_chunk,
-            "transcript_history_context": transcript_history_context
+            "text_chunk": text_chunk
         })
 
         # Get existing node IDs from decision tree

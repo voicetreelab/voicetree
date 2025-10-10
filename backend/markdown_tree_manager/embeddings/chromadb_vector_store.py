@@ -43,37 +43,67 @@ class ChromaDBVectorStore:
         Args:
             collection_name: Name of the ChromaDB collection
             persist_directory: Directory to persist ChromaDB data (default: backend/chromadb_data)
+                             If None, uses in-memory mode for tests or default location for production
             use_embeddings: Whether to use embeddings (can be disabled for testing)
         """
         self.collection_name = collection_name
         self.use_embeddings = use_embeddings
 
-        # Set default persist directory if not provided
-        # Consolidate all ChromaDB storage to markdown tree vault location
-        if persist_directory is None:
-            # Try to find markdown tree vault directory
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            markdown_vault_path = os.path.join(project_root, "markdownTreeVault", "chromadb_data")
+        # Check if we're in test mode - use in-memory ChromaDB for tests
+        is_test_mode = os.getenv('VOICETREE_TEST_MODE', '').lower() == 'true'
 
-            # Fall back to backend location if vault not found
-            if os.path.exists(os.path.join(project_root, "markdownTreeVault")):
-                persist_directory = markdown_vault_path
-            else:
-                persist_directory = os.path.join(
-                    os.path.dirname(os.path.dirname(__file__)),
-                    "chromadb_data"
+        # Detect if persist_directory is a temp directory (common patterns across platforms)
+        is_temp_dir = False
+        if persist_directory:
+            import tempfile
+            temp_base = tempfile.gettempdir()  # Gets /tmp on Linux, /var/folders/... on macOS
+            is_temp_dir = persist_directory.startswith(temp_base)
+
+        # For test mode OR temp directories, use in-memory ChromaDB to avoid SQLite locking issues
+        if is_test_mode or is_temp_dir:
+            # Use in-memory ChromaDB for tests - eliminates file I/O and SQLite locking issues
+            self.client = chromadb.Client(
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
                 )
-
-        self.persist_directory = persist_directory
-
-        # Initialize ChromaDB client with persistence
-        self.client = chromadb.PersistentClient(
-            path=persist_directory,
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True
             )
-        )
+            self.persist_directory = None  # No persistence
+            logger.info("Initialized ChromaDB in ephemeral (in-memory) mode for tests")
+        else:
+            # Production mode: Use persistent storage
+            # Set default persist directory if not provided
+            if persist_directory is None:
+                # Try to find markdown tree vault directory
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+                markdown_vault_path = os.path.join(project_root, "markdownTreeVault", "chromadb_data")
+
+                # Fall back to backend location if vault not found
+                if os.path.exists(os.path.join(project_root, "markdownTreeVault")):
+                    persist_directory = markdown_vault_path
+                else:
+                    persist_directory = os.path.join(
+                        os.path.dirname(os.path.dirname(__file__)),
+                        "chromadb_data"
+                    )
+
+            self.persist_directory = persist_directory
+
+            # Ensure the persist directory exists
+            from pathlib import Path
+            persist_path = Path(persist_directory)
+            persist_path.mkdir(parents=True, exist_ok=True)
+
+            # Initialize ChromaDB client with persistence
+            self.client = chromadb.PersistentClient(
+                path=persist_directory,
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True,
+                    is_persistent=True
+                )
+            )
+            logger.info(f"Initialized ChromaDB with persistence at {persist_directory}")
 
         # Initialize Gemini embedding function if embeddings are enabled
         self.embedding_function = None
@@ -175,7 +205,7 @@ class ChromaDBVectorStore:
                 metadatas.append(metadata)
 
         if ids:
-            # Upsert nodes (add or update)
+            # Upsert nodes to ChromaDB
             self.collection.upsert(
                 ids=ids,
                 documents=documents,

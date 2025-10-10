@@ -126,13 +126,9 @@ class ChunkProcessor:
         # Check if buffer is ready to be processed
         text_to_process = self.buffer_manager.getBufferTextWhichShouldBeProcessed()
         if text_to_process:
-            # Get transcript history for context
-            transcript_history = self.buffer_manager.get_transcript_history()
-
-            # Process the text chunk
+            # Process the text chunk (workflow now manages its own history)
             updated_nodes = await self.workflow.process_text_chunk(
                 text_chunk=text_to_process,
-                transcript_history_context=transcript_history,
                 tree_action_applier=self.tree_action_applier,
                 buffer_manager=self.buffer_manager
             )

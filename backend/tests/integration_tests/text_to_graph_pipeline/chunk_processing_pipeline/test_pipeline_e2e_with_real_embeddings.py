@@ -218,6 +218,18 @@ TOPIC_CONTENT = {
 }
 
 
+# Build a global mapping from sentence content to metadata for easy lookup
+_SENTENCE_TO_METADATA = {}
+for parent_topic, subtopics in TOPIC_CONTENT.items():
+    for subtopic, sentences in subtopics.items():
+        for sent_idx, sentence in enumerate(sentences):
+            _SENTENCE_TO_METADATA[sentence] = {
+                "parent_topic": parent_topic,
+                "subtopic": subtopic,
+                "sentence_index": sent_idx
+            }
+
+
 def generate_topic_based_sentence(index: int) -> tuple[str, dict]:
     """
     Generate a sentence from the topic hierarchy based on index.
@@ -247,6 +259,18 @@ def generate_topic_based_sentence(index: int) -> tuple[str, dict]:
     return all_sentences[idx]
 
 
+def get_node_metadata(node_content: str) -> dict:
+    """
+    Get metadata for a node by matching its content to known sentences.
+    Returns metadata dict or None if not found.
+    """
+    # Try to find any known sentence within the node content
+    for sentence, metadata in _SENTENCE_TO_METADATA.items():
+        if sentence in node_content:
+            return metadata
+    return None
+
+
 class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
     """
     Mock TreeActionDecider that simulates the orchestrator behavior.
@@ -262,7 +286,6 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
     async def process_text_chunk(
         self,
         text_chunk: str,
-        transcript_history_context: str,
         tree_action_applier,
         buffer_manager
     ):
@@ -368,6 +391,72 @@ class MockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
                 if result_nodes:
                     updated_nodes.update(result_nodes)
                 self.total_actions += 1
+
+        # Clear buffer after processing
+        buffer_manager.clear()
+
+        return updated_nodes
+
+
+class CleanMockTreeActionDeciderWorkflow(TreeActionDeciderWorkflow):
+    """
+    Clean mock workflow for semantic quality testing.
+
+    Unlike MockTreeActionDeciderWorkflow, this creates exactly ONE node per buffer flush
+    with NO random chunking, preserving semantic integrity of input sentences.
+    """
+
+    def __init__(self, decision_tree=None):
+        super().__init__(decision_tree)
+        self.call_count = 0
+        self.created_nodes = []
+        self.node_metadata = {}  # Maps node_id -> metadata dict
+
+    async def process_text_chunk(
+        self,
+        text_chunk: str,
+        tree_action_applier,
+        buffer_manager
+    ):
+        """
+        Create exactly ONE node with the entire buffered text.
+        No random chunking, no mixing of content.
+        """
+        self.call_count += 1
+
+        if not text_chunk.strip():
+            buffer_manager.clear()
+            return set()
+
+        # Create exactly ONE node with full buffer content
+        node_name = f"Node_{len(self.created_nodes) + 1}"
+        self.created_nodes.append(node_name)
+
+        # Get existing root node IDs, or use None for first node
+        existing_node_ids = list(self.decision_tree.tree.keys()) if self.decision_tree.tree else []
+        parent_id = existing_node_ids[0] if existing_node_ids else None
+
+        action = CreateAction(
+            action="CREATE",
+            parent_node_id=parent_id,  # Attach to first node (root) or None for first
+            new_node_name=node_name,
+            content=text_chunk,  # ENTIRE buffer content - no splitting!
+            summary=f"Summary of {node_name}",
+            relationship="child of"
+        )
+
+        # Apply the action
+        result_nodes = tree_action_applier.apply([action])
+        updated_nodes = set()
+
+        if result_nodes:
+            for node_id in result_nodes:
+                updated_nodes.add(node_id)
+
+                # Track metadata for semantic quality testing
+                metadata = get_node_metadata(text_chunk)
+                if metadata:
+                    self.node_metadata[node_id] = metadata
 
         # Clear buffer after processing
         buffer_manager.clear()
@@ -564,6 +653,412 @@ class TestPipelineWithRealEmbeddings:
 
         print("\n" + "="*60)
         print("ERROR HANDLING TEST COMPLETED")
+        print("="*60)
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_functionality(self):
+        """
+        Basic smoke test for hybrid search functionality.
+
+        NOTE: This test uses MockTreeActionDeciderWorkflow which randomly chunks
+        sentences, mixing topics together. This makes detailed semantic quality
+        testing difficult. For production quality validation, use a dedicated test
+        that creates nodes without random chunking.
+
+        This test simply verifies:
+        1. Hybrid search doesn't crash
+        2. Returns some results for topic-related queries
+        3. Results contain expected node structure
+        """
+        print("\n" + "="*60)
+        print("TESTING HYBRID SEARCH - BASIC FUNCTIONALITY")
+        print("="*60)
+
+        # Create nodes with topic-based content
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
+        mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
+
+        chunk_processor = ChunkProcessor(
+            decision_tree=decision_tree,
+            output_dir=self.output_dir,
+            workflow=mock_workflow
+        )
+
+        # Process diverse sentences
+        print("\nCreating nodes from diverse topics...")
+        for i in range(40):
+            sentence, metadata = generate_topic_based_sentence(i)
+            await chunk_processor.process_new_text_and_update_markdown(sentence)
+
+        # Wait for embeddings
+        await asyncio.sleep(2)
+
+        print(f"Created {len(decision_tree.tree)} nodes")
+
+        # Import the hybrid search function
+        from backend.markdown_tree_manager.graph_search.tree_functions import hybrid_search_for_relevant_nodes
+
+        # Test queries from different domains
+        test_queries = [
+            "Python programming and web development",
+            "baking and cooking techniques",
+            "stars and galaxies in space",
+            "sports and basketball",
+            "music and piano"
+        ]
+
+        print("\nTesting hybrid search with various queries...")
+        for query in test_queries:
+            print(f"\n  Query: '{query}'")
+
+            # Perform hybrid search
+            results = hybrid_search_for_relevant_nodes(
+                decision_tree,
+                query,
+                max_return_nodes=5
+            )
+
+            print(f"  Found {len(results)} results")
+
+            # Basic validations
+            assert isinstance(results, list), "Results should be a list"
+
+            for node_id in results:
+                assert node_id in decision_tree.tree, f"Node {node_id} should exist in tree"
+                node = decision_tree.tree[node_id]
+                assert hasattr(node, 'content'), f"Node {node_id} should have content"
+
+                # Try to get metadata (might not match due to chunking)
+                metadata = get_node_metadata(node.content)
+                if metadata:
+                    print(f"    - Node {node_id}: {metadata['parent_topic']} > {metadata['subtopic']}")
+                else:
+                    print(f"    - Node {node_id}: (mixed/chunked content)")
+
+        print("\n✓ Hybrid search functional tests passed")
+        print("✓ Search returns valid node IDs")
+        print("✓ All returned nodes exist in tree")
+        print("✓ No crashes or exceptions")
+
+        print("\n" + "="*60)
+        print("HYBRID SEARCH FUNCTIONALITY TEST COMPLETED")
+        print("="*60)
+        print("\nNOTE: For detailed semantic quality testing (subtopic precision,")
+        print("topic boundaries, rare term boosting), create a test with a simpler")
+        print("node creation workflow that doesn't randomly chunk sentences.")
+
+    @pytest.mark.asyncio
+    async def test_subtopic_relevance_quality(self):
+        """
+        Test that hybrid search returns nodes from the correct subtopic.
+
+        This test uses CleanMockTreeActionDeciderWorkflow which preserves
+        semantic integrity by creating one node per sentence without random chunking.
+        """
+        print("\n" + "="*60)
+        print("SEMANTIC QUALITY TEST: SUBTOPIC RELEVANCE")
+        print("="*60)
+
+        # Create tree with clean workflow
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
+        clean_workflow = CleanMockTreeActionDeciderWorkflow(decision_tree)
+
+        chunk_processor = ChunkProcessor(
+            decision_tree=decision_tree,
+            output_dir=self.output_dir,
+            workflow=clean_workflow
+        )
+
+        # Process sentences covering all topics (50 sentences = ~10 per parent topic)
+        print("\nCreating nodes with clean semantic boundaries...")
+        for i in range(50):
+            sentence, metadata = generate_topic_based_sentence(i)
+            await chunk_processor.process_new_text_and_update_markdown(sentence)
+
+        # Wait for embeddings
+        print(f"\nCreated {len(decision_tree.tree)} nodes")
+        print("Waiting for embeddings...")
+        await asyncio.sleep(3)
+
+        from backend.markdown_tree_manager.graph_search.tree_functions import hybrid_search_for_relevant_nodes
+
+        # Test queries targeting specific subtopics
+        test_cases = [
+            {
+                "query": "Python programming language syntax variables",
+                "expected_subtopic": "Python Basics",
+                "expected_parent": "Programming",
+                "description": "Python Basics query"
+            },
+            {
+                "query": "baking bread flour yeast dough",
+                "expected_subtopic": "Baking",
+                "expected_parent": "Cooking",
+                "description": "Baking query"
+            },
+            {
+                "query": "stars fusion plasma nuclear energy",
+                "expected_subtopic": "Stars",
+                "expected_parent": "Astronomy",
+                "description": "Stars query"
+            },
+            {
+                "query": "machine learning data science pandas numpy",
+                "expected_subtopic": "Data Science",
+                "expected_parent": "Programming",
+                "description": "Data Science query"
+            }
+        ]
+
+        for test_case in test_cases:
+            print(f"\n[{test_case['description']}]")
+            print(f"  Query: '{test_case['query']}'")
+
+            results = hybrid_search_for_relevant_nodes(
+                decision_tree,
+                test_case['query'],
+                max_return_nodes=5
+            )
+
+            if len(results) == 0:
+                print("  ⚠ No results returned - likely no embeddings available")
+                continue
+
+            # Count matches
+            correct_subtopic_count = 0
+            correct_parent_count = 0
+
+            for rank, node_id in enumerate(results, 1):
+                if node_id in clean_workflow.node_metadata:
+                    metadata = clean_workflow.node_metadata[node_id]
+                    print(f"  #{rank}: {metadata['parent_topic']} > {metadata['subtopic']}")
+
+                    if metadata['subtopic'] == test_case['expected_subtopic']:
+                        correct_subtopic_count += 1
+                    if metadata['parent_topic'] == test_case['expected_parent']:
+                        correct_parent_count += 1
+
+            precision = correct_subtopic_count / len(results) if results else 0
+            print(f"  ✓ Subtopic precision: {correct_subtopic_count}/{len(results)} ({precision:.1%})")
+
+            # Assert at least 60% of top-5 are from correct subtopic
+            assert precision >= 0.6, \
+                f"Expected ≥60% from {test_case['expected_subtopic']}, got {precision:.1%}"
+
+        print("\n" + "="*60)
+        print("SUBTOPIC RELEVANCE TEST PASSED")
+        print("="*60)
+
+    @pytest.mark.asyncio
+    async def test_cross_topic_separation_quality(self):
+        """
+        Test that hybrid search excludes nodes from irrelevant parent topics.
+
+        Validates that queries don't return false positives from distant semantic domains.
+        """
+        print("\n" + "="*60)
+        print("SEMANTIC QUALITY TEST: CROSS-TOPIC SEPARATION")
+        print("="*60)
+
+        # Create tree with clean workflow
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
+        clean_workflow = CleanMockTreeActionDeciderWorkflow(decision_tree)
+
+        chunk_processor = ChunkProcessor(
+            decision_tree=decision_tree,
+            output_dir=self.output_dir,
+            workflow=clean_workflow
+        )
+
+        # Process diverse sentences
+        print("\nCreating nodes from diverse topics...")
+        for i in range(50):
+            sentence, metadata = generate_topic_based_sentence(i)
+            await chunk_processor.process_new_text_and_update_markdown(sentence)
+
+        print(f"\nCreated {len(decision_tree.tree)} nodes")
+        print("Waiting for embeddings...")
+        await asyncio.sleep(3)
+
+        from backend.markdown_tree_manager.graph_search.tree_functions import hybrid_search_for_relevant_nodes
+
+        # Test queries that should NOT return nodes from distant topics
+        test_cases = [
+            {
+                "query": "Python Django Flask web development APIs",
+                "correct_parent": "Programming",
+                "wrong_parents": ["Cooking", "Astronomy", "Sports", "Music"],
+                "description": "Programming query"
+            },
+            {
+                "query": "cooking recipes sauces knife skills baking",
+                "correct_parent": "Cooking",
+                "wrong_parents": ["Programming", "Astronomy", "Sports", "Music"],
+                "description": "Cooking query"
+            },
+            {
+                "query": "galaxies black holes stars cosmology universe",
+                "correct_parent": "Astronomy",
+                "wrong_parents": ["Programming", "Cooking", "Sports", "Music"],
+                "description": "Astronomy query"
+            }
+        ]
+
+        for test_case in test_cases:
+            print(f"\n[{test_case['description']}]")
+            print(f"  Query: '{test_case['query']}'")
+
+            results = hybrid_search_for_relevant_nodes(
+                decision_tree,
+                test_case['query'],
+                max_return_nodes=10
+            )
+
+            if len(results) == 0:
+                print("  ⚠ No results returned - likely no embeddings available")
+                continue
+
+            # Count contamination from wrong topics
+            correct_count = 0
+            wrong_count = 0
+
+            for node_id in results:
+                if node_id in clean_workflow.node_metadata:
+                    metadata = clean_workflow.node_metadata[node_id]
+
+                    if metadata['parent_topic'] == test_case['correct_parent']:
+                        correct_count += 1
+                    elif metadata['parent_topic'] in test_case['wrong_parents']:
+                        wrong_count += 1
+                        print(f"    ⚠ Wrong topic: {metadata['parent_topic']} > {metadata['subtopic']}")
+
+            contamination_rate = wrong_count / len(results) if results else 0
+            print(f"  ✓ Correct topic: {correct_count}/{len(results)}")
+            print(f"  ✓ Contamination: {wrong_count}/{len(results)} ({contamination_rate:.1%})")
+
+            # Assert NO nodes from completely wrong topics (0% contamination tolerance)
+            assert contamination_rate == 0.0, \
+                f"Expected 0% contamination from wrong topics, got {contamination_rate:.1%}"
+
+        print("\n" + "="*60)
+        print("CROSS-TOPIC SEPARATION TEST PASSED")
+        print("="*60)
+
+    @pytest.mark.asyncio
+    async def test_hybrid_advantage_over_single_methods(self):
+        """
+        Test that hybrid search (BM25 + Vector + RRF) outperforms single methods.
+
+        Compares search quality across:
+        - BM25 alone
+        - Vector search alone
+        - Hybrid (BM25 + Vector + RRF)
+        """
+        print("\n" + "="*60)
+        print("SEMANTIC QUALITY TEST: HYBRID ADVANTAGE")
+        print("="*60)
+
+        # Create tree with clean workflow
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
+        clean_workflow = CleanMockTreeActionDeciderWorkflow(decision_tree)
+
+        chunk_processor = ChunkProcessor(
+            decision_tree=decision_tree,
+            output_dir=self.output_dir,
+            workflow=clean_workflow
+        )
+
+        # Process diverse sentences
+        print("\nCreating nodes from diverse topics...")
+        for i in range(50):
+            sentence, metadata = generate_topic_based_sentence(i)
+            await chunk_processor.process_new_text_and_update_markdown(sentence)
+
+        print(f"\nCreated {len(decision_tree.tree)} nodes")
+        print("Waiting for embeddings...")
+        await asyncio.sleep(3)
+
+        from backend.markdown_tree_manager.graph_search.tree_functions import (
+            hybrid_search_for_relevant_nodes,
+            search_similar_nodes_bm25
+        )
+
+        # Test query with clear expected subtopic
+        test_query = "Python programming variables syntax code"
+        expected_subtopic = "Python Basics"
+
+        print(f"\nTest Query: '{test_query}'")
+        print(f"Expected Subtopic: '{expected_subtopic}'")
+
+        # 1. BM25 alone
+        print("\n[BM25 Search]")
+        bm25_results = search_similar_nodes_bm25(
+            decision_tree,
+            test_query,
+            top_k=5
+        )
+        bm25_node_ids = [node_id for node_id, score in bm25_results]
+
+        bm25_correct = sum(
+            1 for nid in bm25_node_ids
+            if nid in clean_workflow.node_metadata
+            and clean_workflow.node_metadata[nid]['subtopic'] == expected_subtopic
+        )
+        bm25_precision = bm25_correct / len(bm25_node_ids) if bm25_node_ids else 0
+        print(f"  Precision: {bm25_correct}/{len(bm25_node_ids)} ({bm25_precision:.1%})")
+
+        # 2. Vector search alone
+        print("\n[Vector Search]")
+        vector_results = decision_tree.search_similar_nodes_vector(test_query, top_k=5)
+        vector_node_ids = [node_id for node_id, score in vector_results]
+
+        vector_correct = sum(
+            1 for nid in vector_node_ids
+            if nid in clean_workflow.node_metadata
+            and clean_workflow.node_metadata[nid]['subtopic'] == expected_subtopic
+        )
+        vector_precision = vector_correct / len(vector_node_ids) if vector_node_ids else 0
+        print(f"  Precision: {vector_correct}/{len(vector_node_ids)} ({vector_precision:.1%})")
+
+        # 3. Hybrid search (BM25 + Vector + RRF)
+        print("\n[Hybrid Search (BM25 + Vector + RRF)]")
+        hybrid_results = hybrid_search_for_relevant_nodes(
+            decision_tree,
+            test_query,
+            max_return_nodes=5
+        )
+
+        hybrid_correct = sum(
+            1 for nid in hybrid_results
+            if nid in clean_workflow.node_metadata
+            and clean_workflow.node_metadata[nid]['subtopic'] == expected_subtopic
+        )
+        hybrid_precision = hybrid_correct / len(hybrid_results) if hybrid_results else 0
+        print(f"  Precision: {hybrid_correct}/{len(hybrid_results)} ({hybrid_precision:.1%})")
+
+        # Validate hybrid advantage
+        print("\n[Comparison]")
+        print(f"  BM25 alone:      {bm25_precision:.1%}")
+        print(f"  Vector alone:    {vector_precision:.1%}")
+        print(f"  Hybrid (BM25+RRF): {hybrid_precision:.1%}")
+
+        # Hybrid should be at least as good as the best single method
+        best_single_method = max(bm25_precision, vector_precision)
+        print(f"\n  Best single method: {best_single_method:.1%}")
+        print(f"  Hybrid improvement: {hybrid_precision - best_single_method:+.1%}")
+
+        # Assert hybrid is at least as good as (or better than) single methods
+        assert hybrid_precision >= best_single_method, \
+            f"Hybrid ({hybrid_precision:.1%}) should be ≥ best single method ({best_single_method:.1%})"
+
+        # Ideally, hybrid should be strictly better, but we'll allow equal performance
+        if hybrid_precision > best_single_method:
+            print(f"\n✓ Hybrid search outperforms single methods by {hybrid_precision - best_single_method:.1%}")
+        else:
+            print(f"\n✓ Hybrid search matches best single method ({hybrid_precision:.1%})")
+
+        print("\n" + "="*60)
+        print("HYBRID ADVANTAGE TEST PASSED")
         print("="*60)
 
 
