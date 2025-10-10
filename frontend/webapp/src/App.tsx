@@ -93,9 +93,9 @@ function App() {
 
   // Always render the full app UI - no conditional rendering
   return (
-    <div className="min-h-screen bg-background">
-      <div className="grid grid-cols-1 p-4">
-        {/* Side by side layout - FileWatching (1/6) and VoiceTranscribe (5/6) */}
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
+      {/* Top Section: Transcribe UI (auto height) */}
+      <div className="flex-shrink-0 p-4">
         <div className="flex gap-4">
           {/* File Watching Panel - 1/6 width */}
           <div className="w-1/6">
@@ -107,21 +107,21 @@ function App() {
             <VoiceTreeTranscribe />
           </div>
         </div>
+      </div>
 
-        {/* Main Graph Visualization with Sidebar */}
-        <div className="border-r pr-4">
-          <Sidebar>
-            <VoiceTreeGraphVizLayout
-              isWatching={isWatching}
-              isLoading={isLoading}
-              watchDirectory={watchDirectory}
-              error={error}
-              startWatching={startWatching}
-              stopWatching={stopWatching}
-              clearError={clearError}
-            />
-          </Sidebar>
-        </div>
+      {/* Bottom Section: Graph (fills remaining space) */}
+      <div className="flex-1 min-h-0 border-r pr-4">
+        <Sidebar>
+          <VoiceTreeGraphVizLayout
+            isWatching={isWatching}
+            isLoading={isLoading}
+            watchDirectory={watchDirectory}
+            error={error}
+            startWatching={startWatching}
+            stopWatching={stopWatching}
+            clearError={clearError}
+          />
+        </Sidebar>
       </div>
     </div>
   );
