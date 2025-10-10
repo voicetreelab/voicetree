@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { TidyLayoutStrategy } from '@/graph-core/graphviz/layout/TidyLayoutStrategy';
 import type { NodeInfo } from '@/graph-core/graphviz/layout/types';
+import { Tidy } from '@/graph-core/wasm-tidy/wasm';
 
 describe('TidyLayoutStrategy', () => {
   let strategy: TidyLayoutStrategy;
@@ -190,6 +191,39 @@ describe('TidyLayoutStrategy', () => {
   });
 
   describe('Incremental Layout with addNodes', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should call partial_layout when adding nodes incrementally', () => {
+      // Setup: perform fullBuild on single root
+      const rootNode: NodeInfo = {
+        id: 'root',
+        position: { x: 0, y: 0 },
+        size: { width: 100, height: 50 }
+      };
+
+      strategy.fullBuild([rootNode]);
+
+      // Spy on Tidy methods
+      const partialLayoutSpy = vi.spyOn(Tidy.prototype, 'partial_layout');
+      const layoutSpy = vi.spyOn(Tidy.prototype, 'layout');
+
+      // Add one child node
+      const childNode: NodeInfo = {
+        id: 'child',
+        position: { x: 0, y: 0 },
+        size: { width: 80, height: 40 },
+        parentId: 'root'
+      };
+
+      strategy.addNodes([childNode]);
+
+      // Expect partial_layout to have been called once and layout not called
+      expect(partialLayoutSpy).toHaveBeenCalledOnce();
+      expect(layoutSpy).not.toHaveBeenCalled();
+    });
+
     it('should add a new child to existing tree', () => {
       const initialNodes: NodeInfo[] = [
         { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
