@@ -156,11 +156,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
   /**
    * Incremental add: adds new nodes to existing tree and recomputes layout
-   * Uses layout() for O(N) complexity (partial_layout has WASM stability issues)
-   *
-   * NOTE: While this is O(N) rather than O(depth), it's still efficient because:
-   * - The tree structure is already built in WASM, only positions are recomputed
-   * - It avoids the "recursive use of object" WASM panics from partial_layout()
+   * Uses partial_layout() for O(depth) updates against the persistent WASM tree.
    *
    * IMPORTANT: addNodes() only adds NEW nodes. It does not re-layout existing nodes.
    * Caller must ensure existing nodes were already added via fullBuild() or previous addNodes().
@@ -266,10 +262,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       return this.extractPositions();
     }
 
-    // Use full layout after adding nodes
-    // Note: partial_layout() causes WASM panics ("recursive use of object") in many cases
-    // This is still efficient since WASM only needs to recompute positions, not rebuild tree structure
-    this.tidy.layout();
+    // Deduplicate changedNodeIds and convert to Uint32Array for WASM
+    const uniqueChangedNodeIds = Array.from(new Set(changedNodeIds));
+    const changedIdsArray = new Uint32Array(uniqueChangedNodeIds);
+
+    // Perform partial layout (O(depth) incremental update)
+    this.tidy.partial_layout(changedIdsArray);
 
     // Extract all positions
     return this.extractPositions();
