@@ -229,8 +229,15 @@ export function useFileWatcher({
     }
 
     // Update counts
-    setNodeCount(cy.nodes().length);
+    const nodeCount = cy.nodes().length;
+    setNodeCount(nodeCount);
     setEdgeCount(cy.edges().length);
+
+    // Fit viewport when going from 0 to 1 node with generous padding
+    if (nodeCount === 1) {
+      console.log('[Layout] First node added, fitting viewport with padding');
+      cy.fit(undefined, 100); // 100px padding for comfortable zoom level
+    }
 
     // Apply layout using appropriate strategy
     // During initial load, skip individual layouts - we'll do bulk layout on scan complete
