@@ -26,13 +26,45 @@ import type {
   NodeInfo,
   Position
 } from '@/graph-core/graphviz/layout/types';
-import { Tidy } from '@/graph-core/wasm-tidy/wasm';
+import wasmInit, { Tidy } from '@/graph-core/wasm-tidy/wasm';
 
 const GHOST_ROOT_STRING_ID = '__GHOST_ROOT__';
 const GHOST_ROOT_NUMERIC_ID = 0;
 
+// Lazily initialize WASM once
+let wasmInitialized = false;
+async function ensureWasmInit() {
+  if (wasmInitialized) return;
+
+  try {
+    // In Node.js environment (tests), load WASM from file system using dynamic import
+    if (typeof process !== 'undefined' && process.versions?.node) {
+      const { readFile } = await import('fs/promises');
+      const { join } = await import('path');
+      const wasmPath = join(__dirname, '../../wasm-tidy/wasm_bg.wasm');
+      const wasmBytes = await readFile(wasmPath);
+      await wasmInit(wasmBytes);
+    } else {
+      // In browser environment, let it fetch from URL
+      await wasmInit();
+    }
+    wasmInitialized = true;
+  } catch (error) {
+    console.error('[TidyLayoutStrategy] Failed to initialize WASM:', error);
+    throw error;
+  }
+}
+
+export enum TreeOrientation {
+  TopDown = 'top-down',
+  LeftRight = 'left-right'
+}
+
 export class TidyLayoutStrategy implements PositioningStrategy {
   name = 'tidy-layout';
+
+  // Orientation: controls layout direction
+  private orientation: TreeOrientation = TreeOrientation.LeftRight;
 
   // ----------------------------------------------------
   // Public Interface (Simple and Narrow)
@@ -42,18 +74,18 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    * Position nodes based on context.
    * Automatically chooses between full build and incremental layout.
    */
-  position(context: PositioningContext): PositioningResult {
+  async position(context: PositioningContext): Promise<PositioningResult> {
     const { nodes, newNodes } = context;
 
     // Initial load: do full build
     if (this.isEmpty()) {
       const allNodes = [...nodes, ...newNodes];
-      return { positions: this.fullBuild(allNodes) };
+      return { positions: await this.fullBuild(allNodes) };
     }
 
     // Incremental update: add only new nodes
     if (newNodes.length > 0) {
-      return { positions: this.addNodes(newNodes) };
+      return { positions: await this.addNodes(newNodes) };
     }
 
     // No new nodes: return empty
@@ -64,8 +96,11 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   // Private Implementation (Complex and Deep)
   // ----------------------------------------------------
 
+  // Margins - semantic meaning depends on orientation:
+  // - LeftRight: PARENT_CHILD_MARGIN = horizontal spacing (depth), PEER_MARGIN = vertical spacing (siblings)
+  // - TopDown: PARENT_CHILD_MARGIN = vertical spacing (depth), PEER_MARGIN = horizontal spacing (siblings)
   private readonly PARENT_CHILD_MARGIN = 300;
-  private readonly PEER_MARGIN = 260;
+  private readonly PEER_MARGIN = 160;
 
   // Persistent WASM instance for incremental updates
   private tidy: Tidy | null = null;
@@ -94,12 +129,15 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    *
    * Public for advanced use cases and testing.
    */
-  fullBuild(nodes: NodeInfo[]): Map<string, Position> {
+  async fullBuild(nodes: NodeInfo[]): Promise<Map<string, Position>> {
     const positions = new Map<string, Position>();
 
     if (nodes.length === 0) {
       return positions;
     }
+
+    // Ensure WASM is initialized
+    await ensureWasmInit();
 
     // Reset state
     this.tidy = null;
@@ -143,7 +181,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
         ? this.stringToNum.get(parentStringId)!
         : GHOST_ROOT_NUMERIC_ID; // Orphans parent to ghost
 
-      this.tidy.add_node(numericId, node.size.width, node.size.height, parentNumericId);
+      this.tidy.add_node(
+        numericId,
+        this.toEngineWidth(node.size),
+        this.toEngineHeight(node.size),
+        parentNumericId
+      );
       this.wasmNodeIds.add(node.id);
     }
 
@@ -163,7 +206,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    *
    * Public for advanced use cases and testing.
    */
-  addNodes(newNodes: NodeInfo[]): Map<string, Position> {
+  async addNodes(newNodes: NodeInfo[]): Promise<Map<string, Position>> {
     if (newNodes.length === 0) {
       return new Map();
     }
@@ -174,7 +217,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       // Fallback: do full build with ONLY the new nodes
       // This is not ideal but handles the edge case
       console.warn('[TidyLayoutStrategy] addNodes called without prior fullBuild, doing full build of new nodes only');
-      return this.fullBuild(newNodes);
+      return await this.fullBuild(newNodes);
     }
 
     const changedNodeIds: number[] = [];
@@ -254,7 +297,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
         ? this.stringToNum.get(parentStringId)!
         : GHOST_ROOT_NUMERIC_ID;
 
-      this.tidy.add_node(numericId, node.size.width, node.size.height, parentNumericId);
+      this.tidy.add_node(
+        numericId,
+        this.toEngineWidth(node.size),
+        this.toEngineHeight(node.size),
+        parentNumericId
+      );
       this.wasmNodeIds.add(node.id);
     }
 
@@ -372,8 +420,8 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     for (let i = 0; i < posArray.length; i += 3) {
       const numId = posArray[i];
-      const x = posArray[i + 1];
-      const y = posArray[i + 2];
+      const engineX = posArray[i + 1];
+      const engineY = posArray[i + 2];
       const stringId = this.numToString.get(numId);
 
       if (!stringId) {
@@ -383,10 +431,38 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
       // Filter out ghost root
       if (stringId !== GHOST_ROOT_STRING_ID) {
-        positions.set(stringId, { x, y });
+        positions.set(stringId, this.toUIPosition(engineX, engineY));
       }
     }
 
     return positions;
+  }
+
+  /**
+   * Convert node size to engine width (swaps based on orientation)
+   * Engine uses dimensions for collision detection and spacing calculations.
+   */
+  private toEngineWidth(nodeSize: { width: number; height: number }): number {
+    return this.orientation === TreeOrientation.LeftRight
+      ? nodeSize.height  // swap: siblings stack vertically, so HEIGHT controls spacing
+      : nodeSize.width;
+  }
+
+  /**
+   * Convert node size to engine height (swaps based on orientation)
+   */
+  private toEngineHeight(nodeSize: { width: number; height: number }): number {
+    return this.orientation === TreeOrientation.LeftRight
+      ? nodeSize.width   // swap: depth grows horizontally, so WIDTH controls depth spacing
+      : nodeSize.height;
+  }
+
+  /**
+   * Convert engine position to UI position (transposes based on orientation)
+   */
+  private toUIPosition(engineX: number, engineY: number): Position {
+    return this.orientation === TreeOrientation.LeftRight
+      ? { x: engineY, y: engineX }  // transpose: engine Y becomes UI X, engine X becomes UI Y
+      : { x: engineX, y: engineY };
   }
 }

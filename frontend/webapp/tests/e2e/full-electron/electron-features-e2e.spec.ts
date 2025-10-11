@@ -11,7 +11,9 @@ import {
   createMarkdownFile,
   getThemeState,
   checkBreathingAnimation,
-  clearBreathingAnimation
+  clearBreathingAnimation,
+  focusTerminal,
+  getTerminalContent
 } from './test-utils';
 import { checkLayoutQuality } from './layout-utils';
 
@@ -74,8 +76,8 @@ test.describe('Electron Features E2E Tests', () => {
       }
     }, tempDir);
 
-    // Wait for initial scan
-    await appWindow.waitForTimeout(1000);
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
 
     // Create test markdown file AFTER watching starts
     const testFile = path.join(tempDir, 'test-node.md');
@@ -93,25 +95,16 @@ test.describe('Electron Features E2E Tests', () => {
       timeout: 10000
     }).toBe(true);
 
-    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
-    await appWindow.evaluate(async () => {
+    // Open terminal using test helper (more reliable than context menu)
+    await appWindow.evaluate(() => {
       const window = globalThis as ExtendedWindow;
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
       const cy = window.cytoscapeInstance;
-      if (cy && cy.nodes().length > 0) {
-        const node = cy.nodes().first();
-        // Trigger the cxttapstart event to open context menu
-        node.emit('cxttapstart');
 
-        // Wait for menu to render, then click the terminal option
-        await new Promise<void>((resolve) => {
-          setTimeout(() => {
-            const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
-            if (terminalOption) {
-              terminalOption.click();
-            }
-            resolve();
-          }, 200);
-        });
+      if (testHelpers && cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        const nodeId = node.id();
+        testHelpers.createTerminal(nodeId);
       }
     });
 
@@ -149,25 +142,14 @@ test.describe('Electron Features E2E Tests', () => {
     });
     expect(terminalReady).toBe(true);
 
-    // Focus on the terminal
-    await appWindow.evaluate(() => {
-      const xtermElement = document.querySelector('.xterm') as HTMLElement;
-      if (xtermElement) {
-        xtermElement.focus();
-        xtermElement.click();
-      }
-    });
-
-    // Type the command
+    // Focus terminal and type command
+    await focusTerminal(appWindow);
     await appWindow.keyboard.type('echo Hello Terminal');
     await appWindow.keyboard.press('Enter');
     await appWindow.waitForTimeout(1000);
 
     // Check if the command was executed and output appears
-    const terminalContent = await appWindow.evaluate(() => {
-      const xtermRows = document.querySelector('.xterm-rows');
-      return xtermRows?.textContent || '';
-    });
+    const terminalContent = await getTerminalContent(appWindow);
 
     // Verify that:
     // 1. The command we typed appears in the terminal
@@ -181,10 +163,7 @@ test.describe('Electron Features E2E Tests', () => {
     await appWindow.keyboard.press('Enter');
     await appWindow.waitForTimeout(1000);
 
-    const updatedContent = await appWindow.evaluate(() => {
-      const xtermRows = document.querySelector('.xterm-rows');
-      return xtermRows?.textContent || '';
-    });
+    const updatedContent = await getTerminalContent(appWindow);
     expect(updatedContent).toMatch(/\/.*|C:\\.*/);
 
     await appWindow.keyboard.type('exit');

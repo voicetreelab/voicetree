@@ -13,8 +13,10 @@ export default defineConfig({
   main: {
     // Configuration for electron main process
     plugins: [externalizeDepsPlugin()],
+    logLevel: 'error',
     build: {
       outDir: 'dist-electron/main',
+      logLevel: 'error',
       watch: {
         buildDelay: 500 // Debounce rebuilds by 500ms to reduce restart frequency
       },
@@ -28,8 +30,10 @@ export default defineConfig({
   preload: {
     // Configuration for preload script
     plugins: [externalizeDepsPlugin()],
+    logLevel: 'error',
     build: {
       outDir: 'dist-electron/preload',
+      logLevel: 'error',
       watch: {
         buildDelay: 500 // Debounce rebuilds by 500ms to reduce restart frequency
       },
@@ -47,6 +51,7 @@ export default defineConfig({
   renderer: {
     // Configuration for React renderer
     root: '.',
+    logLevel: 'error',
     plugins: [
       react(),
       tailwindcss(),
@@ -79,6 +84,7 @@ export default defineConfig({
     build: {
       outDir: 'dist',
       target: 'esnext',
+      logLevel: 'error',
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html')

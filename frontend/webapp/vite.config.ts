@@ -53,5 +53,15 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html"],
     },
+    // Prevent CPU spam by limiting concurrent test execution
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true, // Use single fork to prevent multiple Node processes
+      },
+    },
+    fileParallelism: false, // Run test files sequentially
+    testTimeout: 10000, // 10 second timeout per test
+    hookTimeout: 5000, // 5 second timeout for hooks
   },
 });
