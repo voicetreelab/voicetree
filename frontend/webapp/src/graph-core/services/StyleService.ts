@@ -115,7 +115,7 @@ export class StyleService {
           'border-color': '#666',
           'text-wrap': 'wrap',
           'text-max-width': `${DEFAULT_TEXT_WIDTH}px`,  // Default text width for wrapping
-          'min-zoomed-font-size': 8,
+          'min-zoomed-font-size': 10,
           'overlay-opacity': 0,
         }
       },
@@ -215,7 +215,7 @@ export class StyleService {
         selector: 'edge[label]',
         style: {
           'label': 'data(label)',
-          'text-rotation': 'autorotate',
+          'text-rotation': 'none',
         }
       },
 

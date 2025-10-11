@@ -167,7 +167,7 @@ ipcMain.handle('stop-file-watching', async () => {
 ipcMain.handle('get-watch-status', () => {
   const status = {
     isWatching: fileWatchManager.isWatching(),
-    watchedPath: fileWatchManager.watchedPath || null
+    directory: fileWatchManager.getWatchedDirectory()
   };
   console.log('Watch status:', status);
   return status;

@@ -316,6 +316,52 @@ export async function clearBreathingAnimation(appWindow: Page, nodeId: string): 
 }
 
 /**
+ * Focus terminal for keyboard input
+ *
+ * IMPORTANT: XTerm.js uses a hidden textarea element (.xterm-helper-textarea) to capture
+ * keyboard input, not the visible .xterm div. This function focuses that hidden textarea
+ * and waits for focus to settle before typing.
+ *
+ * Without this, keyboard input sent via Playwright will not be captured by the terminal.
+ */
+export async function focusTerminal(appWindow: Page): Promise<void> {
+  await appWindow.evaluate(() => {
+    const textarea = document.querySelector('.xterm-helper-textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+    }
+  });
+
+  // Wait for focus to settle - this is necessary for the terminal to be ready
+  await appWindow.waitForTimeout(500);
+}
+
+/**
+ * Type text into the focused terminal
+ *
+ * This is a convenience wrapper that focuses the terminal and types the text.
+ * Use this instead of directly calling appWindow.keyboard.type() to ensure
+ * the terminal is properly focused first.
+ */
+export async function typeInTerminal(appWindow: Page, text: string): Promise<void> {
+  await focusTerminal(appWindow);
+  await appWindow.keyboard.type(text);
+}
+
+/**
+ * Get terminal content
+ *
+ * IMPORTANT: Use .xterm-rows selector (not .xterm-screen) to get actual terminal text.
+ * The .xterm-screen selector includes <style> tags with CSS which will pollute the output.
+ */
+export async function getTerminalContent(appWindow: Page): Promise<string> {
+  return appWindow.evaluate(() => {
+    const xtermRows = document.querySelector('.xterm-rows');
+    return xtermRows?.textContent || '';
+  });
+}
+
+/**
  * Wait for nodes to have positions (layout applied)
  */
 export async function waitForLayout(appWindow: Page, timeout = 5000): Promise<void> {

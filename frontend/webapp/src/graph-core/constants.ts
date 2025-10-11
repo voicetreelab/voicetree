@@ -1,8 +1,8 @@
 // Core graph visualization constants
 export const MIN_NODE_SIZE = 30;
 export const MAX_NODE_SIZE = 80;
-export const MIN_FONT_SIZE = 8;
-export const MAX_FONT_SIZE = 16;
+export const MIN_FONT_SIZE = 12;
+export const MAX_FONT_SIZE = 20;
 export const MIN_TEXT_WIDTH = 60;
 export const MAX_TEXT_WIDTH = 180;
 export const DEFAULT_TEXT_WIDTH = 180;  // Default text-max-width for nodes without degree data

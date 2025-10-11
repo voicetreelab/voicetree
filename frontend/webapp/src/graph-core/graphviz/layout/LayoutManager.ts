@@ -25,30 +25,30 @@ export class LayoutManager {
   /**
    * Apply layout to new nodes in the graph
    */
-  applyLayout(cy: Core, newNodeIds: string[]): void {
+  async applyLayout(cy: Core, newNodeIds: string[]): Promise<void> {
     const context = this.extractContext(cy, newNodeIds);
-    const result = this.strategy.position(context);
+    const result = await this.strategy.position(context);
     this.applyPositions(cy, result.positions);
   }
 
   /**
    * Apply layout using canonical tree structure from MarkdownTree or Node map
    */
-  applyLayoutWithTree(
+  async applyLayoutWithTree(
     cy: Core,
     tree: MarkdownTree | Map<string, Node>,
     newNodeIds: string[]
-  ): void {
+  ): Promise<void> {
     const nodeMap = tree instanceof Map ? tree : tree.tree;
     const context = this.extractContextWithTree(cy, nodeMap, newNodeIds);
-    const result = this.strategy.position(context);
+    const result = await this.strategy.position(context);
     this.applyPositions(cy, result.positions);
   }
 
   /**
    * Position a single new node
    */
-  positionNode(cy: Core, nodeId: string, parentId?: string): void {
+  async positionNode(cy: Core, nodeId: string, parentId?: string): Promise<void> {
     const node = cy.$id(nodeId);
     if (node.length === 0) return;
 
@@ -63,20 +63,20 @@ export class LayoutManager {
       }
     }
 
-    const result = this.strategy.position(context);
+    const result = await this.strategy.position(context);
     this.applyPositions(cy, result.positions);
   }
 
   /**
    * Position multiple nodes incrementally (for online addition)
    */
-  positionNodesIncremental(cy: Core, nodeIds: string[]): void {
+  async positionNodesIncremental(cy: Core, nodeIds: string[]): Promise<void> {
     // Position nodes one at a time, treating previously positioned ones as existing
     const positioned = new Set<string>();
 
     for (const nodeId of nodeIds) {
       const context = this.extractContext(cy, [nodeId], positioned);
-      const result = this.strategy.position(context);
+      const result = await this.strategy.position(context);
       this.applyPositions(cy, result.positions);
       positioned.add(nodeId);
     }
@@ -241,7 +241,7 @@ export class LayoutManager {
   /**
    * Helper to position nodes in BFS order from a root
    */
-  positionGraphBFS(cy: Core, rootId?: string): void {
+  async positionGraphBFS(cy: Core, rootId?: string): Promise<void> {
     const nodes = cy.nodes();
     if (nodes.length === 0) return;
 
@@ -264,25 +264,25 @@ export class LayoutManager {
 
       // Get connected nodes
       const connected = current.neighborhood('node');
-      connected.forEach((neighbor: NodeSingular) => {
+      for (const neighbor of connected.toArray()) {
         const neighborId = neighbor.id();
 
         if (!positioned.has(neighborId)) {
           // Position this node relative to current
-          this.positionNode(cy, neighborId, currentId);
+          await this.positionNode(cy, neighborId, currentId);
           positioned.add(neighborId);
           queue.push(neighborId);
         }
-      });
+      }
     }
 
     // Position any orphaned nodes
-    nodes.forEach(node => {
+    for (const node of nodes.toArray()) {
       if (!positioned.has(node.id())) {
-        this.positionNode(cy, node.id());
+        await this.positionNode(cy, node.id());
         positioned.add(node.id());
       }
-    });
+    }
   }
 
   private findBestRoot(cy: Core): NodeSingular {

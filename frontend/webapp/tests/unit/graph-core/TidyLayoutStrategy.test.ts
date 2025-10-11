@@ -11,12 +11,12 @@ describe('TidyLayoutStrategy', () => {
   });
 
   describe('Ghost Root Behavior', () => {
-    it('should not return ghost root in position results', () => {
+    it('should not return ghost root in position results', async () => {
       const nodes: NodeInfo[] = [
         { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       // Ghost should never appear in returned positions
       expect(positions.has('__GHOST_ROOT__')).toBe(false);
@@ -24,7 +24,7 @@ describe('TidyLayoutStrategy', () => {
       expect(positions.has('node1')).toBe(true);
     });
 
-    it('should parent orphan nodes to ghost root', () => {
+    it('should parent orphan nodes to ghost root', async () => {
       const orphan1: NodeInfo = {
         id: 'orphan1',
         position: { x: 0, y: 0 },
@@ -36,7 +36,7 @@ describe('TidyLayoutStrategy', () => {
         size: { width: 100, height: 50 }
       };
 
-      const positions = strategy.fullBuild([orphan1, orphan2]);
+      const positions = await strategy.fullBuild([orphan1, orphan2]);
 
       // Both orphans should be positioned (implicitly parented to ghost)
       expect(positions.has('orphan1')).toBe(true);
@@ -45,14 +45,14 @@ describe('TidyLayoutStrategy', () => {
       expect(positions.has('__GHOST_ROOT__')).toBe(false);
     });
 
-    it('should handle mix of orphans and parented nodes', () => {
+    it('should handle mix of orphans and parented nodes', async () => {
       const nodes: NodeInfo[] = [
         { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         { id: 'child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
         { id: 'orphan', position: { x: 0, y: 0 }, size: { width: 90, height: 45 } }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       expect(positions.has('root')).toBe(true);
       expect(positions.has('child')).toBe(true);
@@ -62,7 +62,7 @@ describe('TidyLayoutStrategy', () => {
   });
 
   describe('ID Mapping Stability', () => {
-    it('should maintain stable string to numeric ID mappings across calls', () => {
+    it('should maintain stable string to numeric ID mappings across calls', async () => {
       const node1: NodeInfo = {
         id: 'stable-node',
         position: { x: 0, y: 0 },
@@ -70,11 +70,11 @@ describe('TidyLayoutStrategy', () => {
       };
 
       // First build
-      const positions1 = strategy.fullBuild([node1]);
+      const positions1 = await strategy.fullBuild([node1]);
       const pos1 = positions1.get('stable-node')!;
 
       // Second build with same node
-      const positions2 = strategy.fullBuild([node1]);
+      const positions2 = await strategy.fullBuild([node1]);
       const pos2 = positions2.get('stable-node')!;
 
       // Positions should be identical (same ID mapping used)
@@ -82,13 +82,13 @@ describe('TidyLayoutStrategy', () => {
       expect(pos1.y).toBe(pos2.y);
     });
 
-    it('should maintain mappings when adding new nodes incrementally', () => {
+    it('should maintain mappings when adding new nodes incrementally', async () => {
       const initialNodes: NodeInfo[] = [
         { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         { id: 'node2', position: { x: 0, y: 0 }, size: { width: 100, height: 50 }, parentId: 'node1' }
       ];
 
-      strategy.fullBuild(initialNodes);
+      await strategy.fullBuild(initialNodes);
 
       // Add new node
       const newNode: NodeInfo = {
@@ -98,7 +98,7 @@ describe('TidyLayoutStrategy', () => {
         parentId: 'node2'
       };
 
-      const positions = strategy.addNodes([newNode]);
+      const positions = await strategy.addNodes([newNode]);
 
       // All nodes should be present
       expect(positions.has('node1')).toBe(true);
@@ -108,14 +108,14 @@ describe('TidyLayoutStrategy', () => {
   });
 
   describe('Full Build', () => {
-    it('should position a single node', () => {
+    it('should position a single node', async () => {
       const node: NodeInfo = {
         id: 'single',
         position: { x: 0, y: 0 },
         size: { width: 100, height: 50 }
       };
 
-      const positions = strategy.fullBuild([node]);
+      const positions = await strategy.fullBuild([node]);
 
       expect(positions.size).toBe(1);
       expect(positions.has('single')).toBe(true);
@@ -124,54 +124,54 @@ describe('TidyLayoutStrategy', () => {
       expect(typeof pos.y).toBe('number');
     });
 
-    it('should position a simple parent-child tree', () => {
+    it('should position a simple parent-child tree', async () => {
       const nodes: NodeInfo[] = [
         { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' },
         { id: 'child2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       expect(positions.size).toBe(3);
       expect(positions.has('parent')).toBe(true);
       expect(positions.has('child1')).toBe(true);
       expect(positions.has('child2')).toBe(true);
 
-      // Parent should be above children (smaller y value)
-      const parentY = positions.get('parent')!.y;
-      const child1Y = positions.get('child1')!.y;
-      const child2Y = positions.get('child2')!.y;
-      expect(parentY).toBeLessThan(child1Y);
-      expect(parentY).toBeLessThan(child2Y);
+      // Parent should be left of children (smaller x value) in left-right orientation
+      const parentX = positions.get('parent')!.x;
+      const child1X = positions.get('child1')!.x;
+      const child2X = positions.get('child2')!.x;
+      expect(parentX).toBeLessThan(child1X);
+      expect(parentX).toBeLessThan(child2X);
     });
 
-    it('should handle multi-level hierarchy', () => {
+    it('should handle multi-level hierarchy', async () => {
       const nodes: NodeInfo[] = [
         { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         { id: 'child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
         { id: 'grandchild', position: { x: 0, y: 0 }, size: { width: 60, height: 30 }, parentId: 'child' }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       expect(positions.size).toBe(3);
 
-      const rootY = positions.get('root')!.y;
-      const childY = positions.get('child')!.y;
-      const grandchildY = positions.get('grandchild')!.y;
+      const rootX = positions.get('root')!.x;
+      const childX = positions.get('child')!.x;
+      const grandchildX = positions.get('grandchild')!.x;
 
-      // Should be vertically ordered
-      expect(rootY).toBeLessThan(childY);
-      expect(childY).toBeLessThan(grandchildY);
+      // Should be horizontally ordered in left-right orientation
+      expect(rootX).toBeLessThan(childX);
+      expect(childX).toBeLessThan(grandchildX);
     });
 
-    it('should return empty map for empty input', () => {
-      const positions = strategy.fullBuild([]);
+    it('should return empty map for empty input', async () => {
+      const positions = await strategy.fullBuild([]);
       expect(positions.size).toBe(0);
     });
 
-    it('should handle disconnected components', () => {
+    it('should handle disconnected components', async () => {
       const nodes: NodeInfo[] = [
         { id: 'tree1-root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         { id: 'tree1-child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'tree1-root' },
@@ -179,7 +179,7 @@ describe('TidyLayoutStrategy', () => {
         { id: 'tree2-child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'tree2-root' }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       expect(positions.size).toBe(4);
       // Both trees should be positioned
@@ -195,7 +195,7 @@ describe('TidyLayoutStrategy', () => {
       vi.restoreAllMocks();
     });
 
-    it('should call partial_layout when adding nodes incrementally', () => {
+    it('should call partial_layout when adding nodes incrementally', async () => {
       // Setup: perform fullBuild on single root
       const rootNode: NodeInfo = {
         id: 'root',
@@ -203,7 +203,7 @@ describe('TidyLayoutStrategy', () => {
         size: { width: 100, height: 50 }
       };
 
-      strategy.fullBuild([rootNode]);
+      await strategy.fullBuild([rootNode]);
 
       // Spy on Tidy methods
       const partialLayoutSpy = vi.spyOn(Tidy.prototype, 'partial_layout');
@@ -217,20 +217,20 @@ describe('TidyLayoutStrategy', () => {
         parentId: 'root'
       };
 
-      strategy.addNodes([childNode]);
+      await strategy.addNodes([childNode]);
 
       // Expect partial_layout to have been called once and layout not called
       expect(partialLayoutSpy).toHaveBeenCalledOnce();
       expect(layoutSpy).not.toHaveBeenCalled();
     });
 
-    it('should add a new child to existing tree', () => {
+    it('should add a new child to existing tree', async () => {
       const initialNodes: NodeInfo[] = [
         { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
       ];
 
-      strategy.fullBuild(initialNodes);
+      await strategy.fullBuild(initialNodes);
 
       const newNode: NodeInfo = {
         id: 'child2',
@@ -239,7 +239,7 @@ describe('TidyLayoutStrategy', () => {
         parentId: 'parent'
       };
 
-      const positions = strategy.addNodes([newNode]);
+      const positions = await strategy.addNodes([newNode]);
 
       // All nodes should be positioned
       expect(positions.size).toBeGreaterThanOrEqual(3);
@@ -248,31 +248,31 @@ describe('TidyLayoutStrategy', () => {
       expect(positions.has('child2')).toBe(true);
     });
 
-    it('should add multiple new nodes at once', () => {
+    it('should add multiple new nodes at once', async () => {
       const initialNodes: NodeInfo[] = [
         { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ];
 
-      strategy.fullBuild(initialNodes);
+      await strategy.fullBuild(initialNodes);
 
       const newNodes: NodeInfo[] = [
         { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
         { id: 'child2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' }
       ];
 
-      const positions = strategy.addNodes(newNodes);
+      const positions = await strategy.addNodes(newNodes);
 
       expect(positions.has('root')).toBe(true);
       expect(positions.has('child1')).toBe(true);
       expect(positions.has('child2')).toBe(true);
     });
 
-    it('should add orphan nodes incrementally', () => {
+    it('should add orphan nodes incrementally', async () => {
       const initialNodes: NodeInfo[] = [
         { id: 'existing', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ];
 
-      strategy.fullBuild(initialNodes);
+      await strategy.fullBuild(initialNodes);
 
       const newOrphan: NodeInfo = {
         id: 'orphan',
@@ -280,13 +280,13 @@ describe('TidyLayoutStrategy', () => {
         size: { width: 100, height: 50 }
       };
 
-      const positions = strategy.addNodes([newOrphan]);
+      const positions = await strategy.addNodes([newOrphan]);
 
       expect(positions.has('existing')).toBe(true);
       expect(positions.has('orphan')).toBe(true);
     });
 
-    it('should handle adding nodes without prior fullBuild', () => {
+    it('should handle adding nodes without prior fullBuild', async () => {
       // This tests resilience - strategy should handle this gracefully
       const newNode: NodeInfo = {
         id: 'first',
@@ -294,7 +294,7 @@ describe('TidyLayoutStrategy', () => {
         size: { width: 100, height: 50 }
       };
 
-      const positions = strategy.addNodes([newNode]);
+      const positions = await strategy.addNodes([newNode]);
 
       // Should position the node (may fall back to full build)
       expect(positions.has('first')).toBe(true);
@@ -302,7 +302,7 @@ describe('TidyLayoutStrategy', () => {
   });
 
   describe('Legacy Wikilink Support', () => {
-    it('should use linkedNodeIds as parent when no parentId specified', () => {
+    it('should use linkedNodeIds as parent when no parentId specified', async () => {
       const nodes: NodeInfo[] = [
         { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         {
@@ -313,17 +313,17 @@ describe('TidyLayoutStrategy', () => {
         }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       expect(positions.size).toBe(2);
 
-      // Child should be below parent
-      const parentY = positions.get('parent')!.y;
-      const childY = positions.get('child')!.y;
-      expect(childY).toBeGreaterThan(parentY);
+      // Child should be to the right of parent (left-right orientation)
+      const parentX = positions.get('parent')!.x;
+      const childX = positions.get('child')!.x;
+      expect(childX).toBeGreaterThan(parentX);
     });
 
-    it('should prefer parentId over linkedNodeIds', () => {
+    it('should prefer parentId over linkedNodeIds', async () => {
       const nodes: NodeInfo[] = [
         { id: 'actualParent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
         { id: 'linkedNode', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
@@ -336,24 +336,24 @@ describe('TidyLayoutStrategy', () => {
         }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       expect(positions.size).toBe(3);
 
-      // Child should be below actualParent, not linkedNode
-      const actualParentY = positions.get('actualParent')!.y;
-      const childY = positions.get('child')!.y;
-      expect(childY).toBeGreaterThan(actualParentY);
+      // Child should be to the right of actualParent, not linkedNode (left-right orientation)
+      const actualParentX = positions.get('actualParent')!.x;
+      const childX = positions.get('child')!.x;
+      expect(childX).toBeGreaterThan(actualParentX);
     });
   });
 
   describe('WASM Instance Persistence', () => {
-    it('should reuse same WASM instance across fullBuild and addNodes', () => {
+    it('should reuse same WASM instance across fullBuild and addNodes', async () => {
       const initialNodes: NodeInfo[] = [
         { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ];
 
-      strategy.fullBuild(initialNodes);
+      await strategy.fullBuild(initialNodes);
 
       const newNode: NodeInfo = {
         id: 'node2',
@@ -363,22 +363,22 @@ describe('TidyLayoutStrategy', () => {
       };
 
       // This should use partial_layout() on the same instance
-      const positions = strategy.addNodes([newNode]);
+      const positions = await strategy.addNodes([newNode]);
 
       expect(positions.has('node1')).toBe(true);
       expect(positions.has('node2')).toBe(true);
     });
 
-    it('should maintain state through multiple incremental updates', () => {
-      strategy.fullBuild([
+    it('should maintain state through multiple incremental updates', async () => {
+      await strategy.fullBuild([
         { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ]);
 
-      strategy.addNodes([
+      await strategy.addNodes([
         { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' }
       ]);
 
-      const positions = strategy.addNodes([
+      const positions = await strategy.addNodes([
         { id: 'child2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' }
       ]);
 
@@ -389,7 +389,7 @@ describe('TidyLayoutStrategy', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle node with reference to non-existent parent', () => {
+    it('should handle node with reference to non-existent parent', async () => {
       const nodes: NodeInfo[] = [
         {
           id: 'orphan',
@@ -399,14 +399,14 @@ describe('TidyLayoutStrategy', () => {
         }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       // Should treat as orphan (parent to ghost)
       expect(positions.has('orphan')).toBe(true);
       expect(positions.size).toBe(1);
     });
 
-    it('should handle self-referencing node', () => {
+    it('should handle self-referencing node', async () => {
       const nodes: NodeInfo[] = [
         {
           id: 'self-ref',
@@ -416,19 +416,19 @@ describe('TidyLayoutStrategy', () => {
         }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       // Should treat as orphan (ignore self-reference)
       expect(positions.has('self-ref')).toBe(true);
     });
 
-    it('should handle nodes with zero dimensions', () => {
+    it('should handle nodes with zero dimensions', async () => {
       const nodes: NodeInfo[] = [
         { id: 'zero-width', position: { x: 0, y: 0 }, size: { width: 0, height: 50 } },
         { id: 'zero-height', position: { x: 0, y: 0 }, size: { width: 100, height: 0 } }
       ];
 
-      const positions = strategy.fullBuild(nodes);
+      const positions = await strategy.fullBuild(nodes);
 
       expect(positions.has('zero-width')).toBe(true);
       expect(positions.has('zero-height')).toBe(true);
@@ -436,37 +436,37 @@ describe('TidyLayoutStrategy', () => {
   });
 
   describe('isEmpty() method', () => {
-    it('should return true for new instance', () => {
+    it('should return true for new instance', async () => {
       expect(strategy.isEmpty()).toBe(true);
     });
 
-    it('should return false after fullBuild', () => {
-      strategy.fullBuild([
+    it('should return false after fullBuild', async () => {
+      await strategy.fullBuild([
         { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ]);
       expect(strategy.isEmpty()).toBe(false);
     });
 
-    it('should return true after fullBuild with empty array', () => {
-      strategy.fullBuild([]);
+    it('should return true after fullBuild with empty array', async () => {
+      await strategy.fullBuild([]);
       expect(strategy.isEmpty()).toBe(true);
     });
   });
 
   describe('position() method (unified interface)', () => {
-    it('should use fullBuild for initial layout', () => {
+    it('should use fullBuild for initial layout', async () => {
       const nodes: NodeInfo[] = [
         { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ];
 
-      const result = strategy.position({ nodes, newNodes: [] });
+      const result = await strategy.position({ nodes, newNodes: [] });
 
       expect(result.positions.has('node1')).toBe(true);
     });
 
-    it('should use addNodes for incremental updates', () => {
+    it('should use addNodes for incremental updates', async () => {
       // Initial setup
-      strategy.fullBuild([
+      await strategy.fullBuild([
         { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ]);
 
@@ -478,13 +478,13 @@ describe('TidyLayoutStrategy', () => {
         parentId: 'root'
       };
 
-      const result = strategy.position({ nodes: [], newNodes: [newNode] });
+      const result = await strategy.position({ nodes: [], newNodes: [newNode] });
 
       expect(result.positions.has('root')).toBe(true);
       expect(result.positions.has('child')).toBe(true);
     });
 
-    it('should handle both nodes and newNodes together on initial load', () => {
+    it('should handle both nodes and newNodes together on initial load', async () => {
       const existingNodes: NodeInfo[] = [
         { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ];
@@ -492,10 +492,112 @@ describe('TidyLayoutStrategy', () => {
         { id: 'node2', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
       ];
 
-      const result = strategy.position({ nodes: existingNodes, newNodes });
+      const result = await strategy.position({ nodes: existingNodes, newNodes });
 
       expect(result.positions.has('node1')).toBe(true);
       expect(result.positions.has('node2')).toBe(true);
+    });
+  });
+
+  describe('Left-Right Orientation', () => {
+    it('should position children to the RIGHT of parent (not below)', async () => {
+      const nodes: NodeInfo[] = [
+        { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' },
+        { id: 'child2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
+      ];
+
+      const positions = await strategy.fullBuild(nodes);
+
+      // Parent should be LEFT of children (smaller x value)
+      const parentX = positions.get('parent')!.x;
+      const child1X = positions.get('child1')!.x;
+      const child2X = positions.get('child2')!.x;
+
+      expect(parentX).toBeLessThan(child1X);
+      expect(parentX).toBeLessThan(child2X);
+    });
+
+    it('should grow multi-level hierarchy horizontally (left to right)', async () => {
+      const nodes: NodeInfo[] = [
+        { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
+        { id: 'grandchild', position: { x: 0, y: 0 }, size: { width: 60, height: 30 }, parentId: 'child' }
+      ];
+
+      const positions = await strategy.fullBuild(nodes);
+
+      const rootX = positions.get('root')!.x;
+      const childX = positions.get('child')!.x;
+      const grandchildX = positions.get('grandchild')!.x;
+
+      // Should be horizontally ordered: root → child → grandchild
+      expect(rootX).toBeLessThan(childX);
+      expect(childX).toBeLessThan(grandchildX);
+    });
+
+    it('should separate siblings vertically at same depth level', async () => {
+      const nodes: NodeInfo[] = [
+        { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' },
+        { id: 'child2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
+      ];
+
+      const positions = await strategy.fullBuild(nodes);
+
+      const child1Pos = positions.get('child1')!;
+      const child2Pos = positions.get('child2')!;
+
+      // Siblings should have different Y (vertically separated)
+      expect(child1Pos.y).not.toBe(child2Pos.y);
+
+      // But similar X (same depth level, allowing for minor layout differences)
+      const xDiff = Math.abs(child1Pos.x - child2Pos.x);
+      expect(xDiff).toBeLessThan(50); // Allow small variance
+    });
+
+    it('should position disconnected trees side-by-side instead of stacked', async () => {
+      const nodes: NodeInfo[] = [
+        { id: 'tree1-root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'tree1-child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'tree1-root' },
+        { id: 'tree2-root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'tree2-child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'tree2-root' }
+      ];
+
+      const positions = await strategy.fullBuild(nodes);
+
+      const tree1RootPos = positions.get('tree1-root')!;
+      const tree2RootPos = positions.get('tree2-root')!;
+
+      // Trees should be separated vertically (different Y), not horizontally
+      const yDiff = Math.abs(tree1RootPos.y - tree2RootPos.y);
+      expect(yDiff).toBeGreaterThan(50);
+    });
+
+    it('should maintain left-right orientation in incremental updates', async () => {
+      const initialNodes: NodeInfo[] = [
+        { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' }
+      ];
+
+      await strategy.fullBuild(initialNodes);
+
+      const newNode: NodeInfo = {
+        id: 'child2',
+        position: { x: 0, y: 0 },
+        size: { width: 80, height: 40 },
+        parentId: 'root'
+      };
+
+      const positions = await strategy.addNodes([newNode]);
+
+      // Root should still be left of all children
+      const rootX = positions.get('root')!.x;
+      const child1X = positions.get('child1')!.x;
+      const child2X = positions.get('child2')!.x;
+
+      expect(rootX).toBeLessThan(child1X);
+      expect(rootX).toBeLessThan(child2X);
     });
   });
 });

@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import type { CytoscapeCore } from '@/graph-core';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
 import { parseForCytoscape } from '@/graph-core/data/load_markdown/MarkdownParser';
+import { GraphMutator } from '@/graph-core/mutation/GraphMutator';
 
 // Normalize a filename to a consistent ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -38,7 +39,7 @@ export function useFileWatcher({
   // Track last new node for animation timeout management
   const lastNewNodeIdRef = useRef<string | null>(null);
 
-  const handleBulkFilesAdded = useCallback((data: { files: Array<{ path: string; content?: string }>; directory: string }) => {
+  const handleBulkFilesAdded = useCallback(async (data: { files: Array<{ path: string; content?: string }>; directory: string }) => {
     console.log(`[Bulk Load] Processing ${data.files.length} files from initial scan`);
 
     const cy = cytoscapeRef.current?.getCore();
@@ -47,9 +48,20 @@ export function useFileWatcher({
       return;
     }
 
-    const allNodeIds: string[] = [];
+    // Create GraphMutator instance for this operation
+    const graphMutator = new GraphMutator(cy, layoutManagerRef.current);
 
-    // Process all files
+    // Prepare data for bulk addition
+    const nodesData: Array<{
+      nodeId: string;
+      label: string;
+      linkedNodeIds: string[];
+      edgeLabels: Map<string, string>;
+      parentId?: string;
+      color?: string;
+    }> = [];
+
+    // Process all files and prepare node data
     for (const file of data.files) {
       if (!file.path.endsWith('.md') || !file.content) {
         continue;
@@ -62,62 +74,24 @@ export function useFileWatcher({
       const parsed = parseForCytoscape(file.content, file.path);
       const linkedNodeIds = parsed.linkedNodeIds;
       const edgeLabels = parsed.edgeLabels;
-
-      // Add node if it doesn't exist
       const nodeId = normalizeFileId(file.path);
-      const isNewNode = !cy.getElementById(nodeId).length;
 
-      if (isNewNode) {
-        // Use first wikilink as parent for tree structure
-        const parentId = linkedNodeIds.length > 0 ? linkedNodeIds[0] : undefined;
+      // Use first wikilink as parent for tree structure
+      const parentId = linkedNodeIds.length > 0 ? linkedNodeIds[0] : undefined;
 
-        const color = parsed.color;
-        const label = parsed.label;
-
-        cy.add({
-          data: {
-            id: nodeId,
-            label,
-            linkedNodeIds,
-            parentId,
-            ...(color && { color }) // Only add color if it exists
-          }
-        });
-        allNodeIds.push(nodeId);
-      } else {
-        // Update linkedNodeIds for existing node
-        cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
-      }
-
-      // Create target nodes and edges
-      for (const targetId of linkedNodeIds) {
-        // Ensure target node exists (create placeholder if needed)
-        if (!cy.getElementById(targetId).length) {
-          cy.add({
-            data: {
-              id: targetId,
-              label: targetId.replace(/_/g, ' '),
-              linkedNodeIds: []
-            }
-          });
-        }
-
-        const edgeId = `${nodeId}->${targetId}`;
-
-        // Add edge if it doesn't exist
-        if (!cy.getElementById(edgeId).length) {
-          const label = (edgeLabels.get(targetId) || '').replace(/_/g, ' ');
-          cy.add({
-            data: {
-              id: edgeId,
-              source: nodeId,
-              target: targetId,
-              label: label
-            }
-          });
-        }
-      }
+      nodesData.push({
+        nodeId,
+        label: parsed.label,
+        linkedNodeIds,
+        edgeLabels,
+        parentId,
+        color: parsed.color
+      });
     }
+
+    // Use GraphMutator to bulk add nodes and edges
+    const createdNodes = graphMutator.bulkAddNodes(nodesData);
+    const allNodeIds = createdNodes.map(node => node.id());
 
     // Update counts
     setNodeCount(cy.nodes().length);
@@ -128,7 +102,7 @@ export function useFileWatcher({
     // Apply layout to all nodes at once
     if (layoutManagerRef.current && allNodeIds.length > 0) {
       console.log(`[Layout] Applying TidyLayout to ${allNodeIds.length} nodes from bulk load`);
-      layoutManagerRef.current.applyLayout(cy, allNodeIds);
+      await layoutManagerRef.current.applyLayout(cy, allNodeIds);
     }
 
     // Switch to incremental layout strategy
@@ -137,7 +111,7 @@ export function useFileWatcher({
 
   }, [cytoscapeRef, markdownFiles, layoutManagerRef, setNodeCount, setEdgeCount, setIsInitialLoad]);
 
-  const handleFileAdded = useCallback((data: { path: string; content?: string }) => {
+  const handleFileAdded = useCallback(async (data: { path: string; content?: string }) => {
     console.log('[DEBUG] handleFileAdded called with path:', data.path);
     if (!data.path.endsWith('.md') || !data.content) {
       console.log('[DEBUG] Skipping non-md file or no content');
@@ -150,6 +124,9 @@ export function useFileWatcher({
       console.log('[DEBUG] No cy instance, cannot add file');
       return;
     }
+
+    // Create GraphMutator instance for this operation
+    const graphMutator = new GraphMutator(cy, layoutManagerRef.current);
 
     // Store file content using fullPath (absolute path) for save operations
     markdownFiles.current.set(data.fullPath, data.content);
@@ -171,14 +148,13 @@ export function useFileWatcher({
       const color = parsed.color;
       const label = parsed.label;
 
-      const addedNode = cy.add({
-        data: {
-          id: nodeId,
-          label,
-          linkedNodeIds,
-          parentId,
-          ...(color && { color }) // Only add color if it exists
-        }
+      // Use GraphMutator to create node (handles positioning internally)
+      const addedNode = graphMutator.addNode({
+        nodeId,
+        label,
+        linkedNodeIds,
+        parentId,
+        color
       });
 
       // If there was a previous new node, add a 10s timeout to it
@@ -199,33 +175,10 @@ export function useFileWatcher({
       cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
     }
 
-    // Create target nodes and edges
+    // Create target nodes and edges using GraphMutator
     for (const targetId of linkedNodeIds) {
-      // Ensure target node exists (create placeholder if needed)
-      if (!cy.getElementById(targetId).length) {
-        cy.add({
-          data: {
-            id: targetId,
-            label: targetId.replace(/_/g, ' '),
-            linkedNodeIds: []
-          }
-        });
-      }
-
-      const edgeId = `${nodeId}->${targetId}`;
-
-      // Add edge if it doesn't exist
-      if (!cy.getElementById(edgeId).length) {
-        const label = (edgeLabels.get(targetId) || '').replace(/_/g, ' ');
-        cy.add({
-          data: {
-            id: edgeId,
-            source: nodeId,
-            target: targetId,
-            label: label
-          }
-        });
-      }
+      const label = edgeLabels.get(targetId) || '';
+      graphMutator.addEdge(nodeId, targetId, label);
     }
 
     // Update counts
@@ -242,15 +195,18 @@ export function useFileWatcher({
     // Apply layout using appropriate strategy
     // During initial load, skip individual layouts - we'll do bulk layout on scan complete
     if (layoutManagerRef.current && isNewNode && !isInitialLoad) {
-      layoutManagerRef.current.applyLayout(cy, [nodeId]);
+      await layoutManagerRef.current.applyLayout(cy, [nodeId]);
     }
   }, [cytoscapeRef, markdownFiles, layoutManagerRef, isInitialLoad, setNodeCount, setEdgeCount]);
 
-  const handleFileChanged = useCallback((data: { path: string; content?: string }) => {
+  const handleFileChanged = useCallback(async (data: { path: string; content?: string }) => {
     if (!data.path.endsWith('.md') || !data.content) return;
 
     const cy = cytoscapeRef.current?.getCore();
     if (!cy) return;
+
+    // Create GraphMutator instance for this operation
+    const graphMutator = new GraphMutator(cy, layoutManagerRef.current);
 
     // Update stored content using fullPath (absolute path) for save operations
     markdownFiles.current.set(data.fullPath, data.content);
@@ -262,59 +218,12 @@ export function useFileWatcher({
     const linkedNodeIds = parsed.linkedNodeIds;
     const edgeLabels = parsed.edgeLabels;
 
-    // IMPORTANT: Edge removal strategy for file changes
-    //
-    // When a markdown file changes, we need to update its edges to reflect the new wikilinks.
-    // We use a "clear and rebuild" pattern: remove old edges, then re-create based on current content.
-    //
-    // However, we must ONLY remove markdown-based edges, NOT programmatic edges!
-    //
-    // Two types of edges exist:
-    // 1. Markdown edges: Created from wikilinks like [[other-node]] in the file content
-    // 2. Programmatic edges: Created by features like floating windows (terminals, editors)
-    //    - These have ghost/shadow nodes with isFloatingWindow=true
-    //    - They persist independently of markdown file content
-    //
-    // If we removed ALL edges (the naive approach), floating window edges would disappear
-    // whenever the parent file is modified, breaking the ghost node mechanism.
-    //
-    // Solution: Filter edges before removal to preserve programmatic edges.
-    const edgesToRemove = cy.edges(`[source = "${nodeId}"]`).filter(edge => {
-      const targetNode = edge.target();
-      const isFloatingWindow = targetNode.data('isFloatingWindow');
-      return !isFloatingWindow; // Only remove non-floating-window edges
-    });
-    edgesToRemove.remove();
+    // Use GraphMutator to update node links
+    // This handles edge removal (preserving programmatic edges) and recreation
+    graphMutator.updateNodeLinks(nodeId, linkedNodeIds, edgeLabels);
 
-    // Create target nodes and edges from parsed wikilinks
-    for (const targetId of linkedNodeIds) {
-      // Ensure target node exists (create placeholder if needed)
-      if (!cy.getElementById(targetId).length) {
-        cy.add({
-          data: {
-            id: targetId,
-            label: targetId.replace(/_/g, ' '),
-            linkedNodeIds: []
-          }
-        });
-      }
-
-      const edgeId = `${nodeId}->${targetId}`;
-      const label = (edgeLabels.get(targetId) || '').replace(/_/g, ' ');
-
-      cy.add({
-        data: {
-          id: edgeId,
-          source: nodeId,
-          target: targetId,
-          label: label
-        }
-      });
-    }
-
-    // Update linkedNodeIds, color, and title for changed node
+    // Update color and label for changed node
     const changedNode = cy.getElementById(nodeId);
-    changedNode.data('linkedNodeIds', linkedNodeIds);
 
     // Update color from frontmatter
     if (parsed.color) {
@@ -340,7 +249,7 @@ export function useFileWatcher({
 
     // For file changes during incremental mode, apply layout
     if (layoutManagerRef.current && !isInitialLoad) {
-      layoutManagerRef.current.applyLayout(cy, [nodeId]);
+      await layoutManagerRef.current.applyLayout(cy, [nodeId]);
     }
 
     // TODO: Implement external file change sync to open editors

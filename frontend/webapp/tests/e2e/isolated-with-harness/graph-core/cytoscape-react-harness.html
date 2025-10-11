@@ -3,11 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>Cytoscape React Test Harness</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.33.1/cytoscape.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Load floating windows extension bundle -->
-  <script src="./dist/floating-windows-extension.iife.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -26,41 +21,65 @@
 </head>
 <body>
   <div id="cy"></div>
-  <script>
+  <script type="module">
     // This harness provides a clean environment for Cytoscape tests.
     // Test files can use page.evaluate() to interact with the 'cy' instance.
-    document.addEventListener('DOMContentLoaded', () => {
-      const cy = cytoscape({
-        container: document.getElementById('cy'),
-        // Tests can override these elements and styles as needed.
-        elements: [],
-        style: [
-          {
-            selector: 'node',
-            style: { 'background-color': '#0074D9', 'width': 30, 'height': 30 }
-          },
-          {
-            selector: 'edge',
-            style: { 'line-color': '#cccccc', 'width': 2 }
-          }
-        ]
-      });
-      window.cy = cy;
-      window.cytoscape = cytoscape;
-      window.React = React;
-      window.ReactDOM = ReactDOM;
+    import cytoscape from 'cytoscape';
+    import React from 'react';
+    import ReactDOM from 'react-dom/client';
+    // Import graph-core which auto-registers the floating windows extension
+    import '../../../../src/graph-core/index.ts';
+    // Import layout system
+    import { LayoutManager } from '../../../../src/graph-core/graphviz/layout/LayoutManager.ts';
+    import { TidyLayoutStrategy } from '../../../../src/graph-core/graphviz/layout/TidyLayoutStrategy.ts';
 
-      // Register the floating windows extension
-      if (window.FloatingWindowsExtension && window.FloatingWindowsExtension.registerFloatingWindows) {
-        window.FloatingWindowsExtension.registerFloatingWindows(cytoscape);
-        window.extensionLoaded = true;
-      } else {
-        console.error('FloatingWindowsExtension not loaded!');
+    const cy = cytoscape({
+      container: document.getElementById('cy'),
+      // Tests can override these elements and styles as needed.
+      elements: [],
+      style: [
+        {
+          selector: 'node',
+          style: { 'background-color': '#0074D9', 'width': 30, 'height': 30 }
+        },
+        {
+          selector: 'edge',
+          style: { 'line-color': '#cccccc', 'width': 2 }
+        }
+      ]
+    });
+
+    // Set up layout manager with TidyLayoutStrategy (partial relayout support)
+    const layoutManager = new LayoutManager(new TidyLayoutStrategy());
+    window.layoutManager = layoutManager;
+
+    // Track dimension changes and trigger partial relayout
+    const dimensionChangeMap = new Map();
+    cy.on('floatingwindow:resize', async (event, data) => {
+      const nodeId = data.nodeId;
+      console.log(`[Harness] Floating window resized: ${nodeId}`);
+
+      // Debounce dimension changes per node
+      if (dimensionChangeMap.has(nodeId)) {
+        clearTimeout(dimensionChangeMap.get(nodeId));
       }
 
-      // Signal that the harness is ready
-      document.body.setAttribute('data-harness-ready', 'true');
+      dimensionChangeMap.set(nodeId, setTimeout(async () => {
+        // Trigger partial layout for this node
+        console.log(`[Harness] Triggering partial layout for ${nodeId}`);
+        await layoutManager.applyLayout(cy, [nodeId]);
+        dimensionChangeMap.delete(nodeId);
+      }, 100));
     });
+
+    window.cy = cy;
+    window.cytoscape = cytoscape;
+    window.React = React;
+    window.ReactDOM = ReactDOM;
+    window.extensionLoaded = true;
+
+    // Signal that the harness is ready
+    document.body.setAttribute('data-harness-ready', 'true');
   </script>
 </body>
 </html>

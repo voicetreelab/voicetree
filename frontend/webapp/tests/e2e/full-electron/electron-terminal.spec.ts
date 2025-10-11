@@ -2,6 +2,7 @@ import { test as base, expect, _electron as electron, ElectronApplication, Page 
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import { focusTerminal, getTerminalContent } from './test-utils';
 
 // Use absolute path from project root
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -66,8 +67,8 @@ test.describe('Terminal E2E Tests', () => {
       }
     }, tempDir);
 
-    // Wait for initial scan
-    await appWindow.waitForTimeout(1000);
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
 
     // Create test markdown file AFTER watching starts
     await fs.writeFile(
@@ -87,30 +88,21 @@ test.describe('Terminal E2E Tests', () => {
       timeout: 10000
     }).toBe(true);
 
-    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
-    await appWindow.evaluate(async () => {
+    // Open terminal using test helper (more reliable than context menu)
+    await appWindow.evaluate(() => {
       const window = globalThis as ExtendedWindow;
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
       const cy = window.cytoscapeInstance;
-      if (cy && cy.nodes().length > 0) {
-        const node = cy.nodes().first();
-        // Trigger the cxttapstart event to open context menu
-        node.emit('cxttapstart');
 
-        // Wait for menu to render, then click the terminal option
-        await new Promise<void>((resolve) => {
-          setTimeout(() => {
-            const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
-            if (terminalOption) {
-              terminalOption.click();
-            }
-            resolve();
-          }, 200);
-        });
+      if (testHelpers && cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        const nodeId = node.id();
+        testHelpers.createTerminal(nodeId);
       }
     });
 
     // Wait for terminal to open
-    await appWindow.waitForTimeout(500);
+    await appWindow.waitForTimeout(1000);
 
     // Wait for terminal window to open
     await expect.poll(async () => {
@@ -139,30 +131,16 @@ test.describe('Terminal E2E Tests', () => {
     });
     expect(terminalReady).toBe(true);
 
-    // Try to type in the terminal
-    const testCommand = 'echo "Hello Terminal"';
-
-    // Focus on the terminal
-    await appWindow.evaluate(() => {
-      const xtermElement = document.querySelector('.xterm') as HTMLElement;
-      if (xtermElement) {
-        xtermElement.focus();
-        xtermElement.click();
-      }
-    });
-
-    // Type the command
-    await appWindow.keyboard.type(testCommand);
+    // Focus terminal and type command
+    await focusTerminal(appWindow);
+    await appWindow.keyboard.type('echo "Hello Terminal"');
     await appWindow.keyboard.press('Enter');
 
     // Wait for output
     await appWindow.waitForTimeout(1000);
 
-    // Check if the command was executed and output appears
-    const terminalContent = await appWindow.evaluate(() => {
-      const xtermScreen = document.querySelector('.xterm-screen');
-      return xtermScreen?.textContent || '';
-    });
+    // Get terminal content
+    const terminalContent = await getTerminalContent(appWindow);
 
     console.log('Terminal content:', terminalContent);
 
@@ -188,10 +166,7 @@ test.describe('Terminal E2E Tests', () => {
     await appWindow.waitForTimeout(1000);
 
     // Get terminal content after env check
-    const envCheckContent = await appWindow.evaluate(() => {
-      const xtermScreen = document.querySelector('.xterm-screen');
-      return xtermScreen?.textContent || '';
-    });
+    const envCheckContent = await getTerminalContent(appWindow);
 
     console.log('Terminal content after env check:', envCheckContent);
 
@@ -208,8 +183,8 @@ test.describe('Terminal E2E Tests', () => {
       }
     }, tempDir);
 
-    // Wait for initial scan
-    await appWindow.waitForTimeout(1000);
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
 
     // Create test markdown file AFTER watching starts
     await fs.writeFile(
@@ -229,30 +204,21 @@ test.describe('Terminal E2E Tests', () => {
       timeout: 10000
     }).toBe(true);
 
-    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
-    await appWindow.evaluate(async () => {
+    // Open terminal using test helper (more reliable than context menu)
+    await appWindow.evaluate(() => {
       const window = globalThis as ExtendedWindow;
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
       const cy = window.cytoscapeInstance;
-      if (cy && cy.nodes().length > 0) {
-        const node = cy.nodes().first();
-        // Trigger the cxttapstart event to open context menu
-        node.emit('cxttapstart');
 
-        // Wait for menu to render, then click the terminal option
-        await new Promise<void>((resolve) => {
-          setTimeout(() => {
-            const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
-            if (terminalOption) {
-              terminalOption.click();
-            }
-            resolve();
-          }, 200);
-        });
+      if (testHelpers && cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        const nodeId = node.id();
+        testHelpers.createTerminal(nodeId);
       }
     });
 
     // Wait for terminal to open
-    await appWindow.waitForTimeout(500);
+    await appWindow.waitForTimeout(1000);
 
     // Wait for terminal window to open
     await expect.poll(async () => {
@@ -274,16 +240,8 @@ test.describe('Terminal E2E Tests', () => {
     // Wait for xterm to initialize
     await appWindow.waitForTimeout(1000);
 
-    // Focus and add some test content to the terminal
-    await appWindow.evaluate(() => {
-      const xtermElement = document.querySelector('.xterm') as HTMLElement;
-      if (xtermElement) {
-        xtermElement.focus();
-        xtermElement.click();
-      }
-    });
-
-    // Type some test content that we can verify after resize
+    // Focus terminal and type test content
+    await focusTerminal(appWindow);
     const testText = 'echo "This is test content for resize verification"';
     await appWindow.keyboard.type(testText);
     await appWindow.keyboard.press('Enter');
@@ -292,13 +250,13 @@ test.describe('Terminal E2E Tests', () => {
     // Get initial terminal state
     const initialState = await appWindow.evaluate(() => {
       const terminalWindow = document.querySelector('.cy-floating-window');
-      const xtermScreen = document.querySelector('.xterm-screen');
+      const xtermRows = document.querySelector('.xterm-rows');
       const xtermViewport = document.querySelector('.xterm-viewport') as HTMLElement;
 
       if (!terminalWindow) return null;
 
       const rect = terminalWindow.getBoundingClientRect();
-      const content = xtermScreen?.textContent || '';
+      const content = xtermRows?.textContent || '';
       const viewportStyle = window.getComputedStyle(xtermViewport);
 
       return {
@@ -333,13 +291,13 @@ test.describe('Terminal E2E Tests', () => {
       // Check state after enlarging
       const enlargedState = await appWindow.evaluate(() => {
         const terminalWindow = document.querySelector('.cy-floating-window');
-        const xtermScreen = document.querySelector('.xterm-screen');
+        const xtermRows = document.querySelector('.xterm-rows');
         const xtermViewport = document.querySelector('.xterm-viewport') as HTMLElement;
 
         if (!terminalWindow) return null;
 
         const rect = terminalWindow.getBoundingClientRect();
-        const content = xtermScreen?.textContent || '';
+        const content = xtermRows?.textContent || '';
         const viewportStyle = window.getComputedStyle(xtermViewport);
 
         // Check for visual artifacts (white rectangles)
@@ -382,12 +340,12 @@ test.describe('Terminal E2E Tests', () => {
       // Check state after shrinking
       const shrunkState = await appWindow.evaluate(() => {
         const terminalWindow = document.querySelector('.cy-floating-window');
-        const xtermScreen = document.querySelector('.xterm-screen');
+        const xtermRows = document.querySelector('.xterm-rows');
 
         if (!terminalWindow) return null;
 
         const rect = terminalWindow.getBoundingClientRect();
-        const content = xtermScreen?.textContent || '';
+        const content = xtermRows?.textContent || '';
 
         return {
           width: rect.width,
@@ -404,23 +362,13 @@ test.describe('Terminal E2E Tests', () => {
     }
 
     // Test 3: Verify terminal remains functional after resizing
-    await appWindow.evaluate(() => {
-      const xtermElement = document.querySelector('.xterm') as HTMLElement;
-      if (xtermElement) {
-        xtermElement.focus();
-        xtermElement.click();
-      }
-    });
-
+    await focusTerminal(appWindow);
     const postResizeCommand = 'echo "After resize"';
     await appWindow.keyboard.type(postResizeCommand);
     await appWindow.keyboard.press('Enter');
     await appWindow.waitForTimeout(1000);
 
-    const finalContent = await appWindow.evaluate(() => {
-      const xtermScreen = document.querySelector('.xterm-screen');
-      return xtermScreen?.textContent || '';
-    });
+    const finalContent = await getTerminalContent(appWindow);
 
     // Terminal should still be functional after resizing
     expect(finalContent).toContain('After resize');
@@ -435,8 +383,8 @@ test.describe('Terminal E2E Tests', () => {
       }
     }, tempDir);
 
-    // Wait for initial scan
-    await appWindow.waitForTimeout(1000);
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
 
     // Create multiple markdown files AFTER watching starts
     await fs.writeFile(
@@ -471,32 +419,18 @@ test.describe('Terminal E2E Tests', () => {
 
     expect(nodeExists).toBe(true);
 
-    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
-    await appWindow.evaluate(async (id) => {
+    // Open terminal using test helper (more reliable than context menu)
+    await appWindow.evaluate((id) => {
       const window = globalThis as ExtendedWindow;
-      const cy = window.cytoscapeInstance;
-      if (cy) {
-        const node = cy.getElementById(id);
-        if (node.length > 0) {
-          // Trigger the cxttapstart event to open context menu
-          node.emit('cxttapstart');
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
 
-          // Wait for menu to render, then click the terminal option
-          await new Promise<void>((resolve) => {
-            setTimeout(() => {
-              const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
-              if (terminalOption) {
-                terminalOption.click();
-              }
-              resolve();
-            }, 200);
-          });
-        }
+      if (testHelpers) {
+        testHelpers.createTerminal(id);
       }
     }, parentNodeId);
 
     // Wait for terminal to open
-    await appWindow.waitForTimeout(500);
+    await appWindow.waitForTimeout(1000);
 
     // Wait for terminal window to open
     await expect.poll(async () => {
@@ -559,8 +493,8 @@ test.describe('Terminal E2E Tests', () => {
       }
     }, tempDir);
 
-    // Wait for initial scan
-    await appWindow.waitForTimeout(1000);
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
 
     // Create test markdown files AFTER watching starts
     await fs.writeFile(
@@ -604,32 +538,18 @@ test.describe('Terminal E2E Tests', () => {
       return node.position();
     }, parentNodeId);
 
-    // Open terminal by clicking on the menu item via evaluate (avoids viewport issues)
-    await appWindow.evaluate(async (id) => {
+    // Open terminal using test helper (more reliable than context menu)
+    await appWindow.evaluate((id) => {
       const window = globalThis as ExtendedWindow;
-      const cy = window.cytoscapeInstance;
-      if (cy) {
-        const node = cy.getElementById(id);
-        if (node.length > 0) {
-          // Trigger the cxttapstart event to open context menu
-          node.emit('cxttapstart');
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
 
-          // Wait for menu to render, then click the terminal option
-          await new Promise<void>((resolve) => {
-            setTimeout(() => {
-              const terminalOption = document.querySelector('[title="Terminal"]') as HTMLElement;
-              if (terminalOption) {
-                terminalOption.click();
-              }
-              resolve();
-            }, 200);
-          });
-        }
+      if (testHelpers) {
+        testHelpers.createTerminal(id);
       }
     }, parentNodeId);
 
     // Wait for terminal to open
-    await appWindow.waitForTimeout(500);
+    await appWindow.waitForTimeout(1000);
 
     // Wait for terminal to spawn
     await expect.poll(async () => {

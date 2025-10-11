@@ -2,6 +2,7 @@ import { test as base, expect, _electron as electron, ElectronApplication, Page 
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import { focusTerminal } from './test-utils';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -62,8 +63,8 @@ test.describe('Terminal Dimensions Synchronization', () => {
       }
     }, tempDir);
 
-    // Wait for initial scan
-    await appWindow.waitForTimeout(1000);
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
 
     // Create test file AFTER watching starts
     await fs.writeFile(
@@ -117,12 +118,8 @@ test.describe('Terminal Dimensions Synchronization', () => {
 
     await appWindow.waitForTimeout(1000);
 
-    // Focus terminal
-    await appWindow.evaluate(() => {
-      const xtermElement = document.querySelector('.xterm') as HTMLElement;
-      xtermElement?.focus();
-      xtermElement?.click();
-    });
+    // Focus terminal and type command
+    await focusTerminal(appWindow);
 
     // Type a command that will produce output longer than typical terminal width
     // This tests that text wrapping happens at the correct column boundary
@@ -136,8 +133,8 @@ test.describe('Terminal Dimensions Synchronization', () => {
     // BEHAVIOR TEST: Verify that typed characters appear on the SAME line,
     // not on separate lines (which was the bug)
     const commandEchoCheck = await appWindow.evaluate((cmd: string) => {
-      const xtermScreen = document.querySelector('.xterm-screen');
-      const content = xtermScreen?.textContent || '';
+      const xtermRows = document.querySelector('.xterm-rows');
+      const content = xtermRows?.textContent || '';
 
       // Count how many lines contain individual characters from our command
       // If dimensions are wrong, each character appears on a new line
@@ -194,8 +191,8 @@ test.describe('Terminal Dimensions Synchronization', () => {
       }
     }, tempDir);
 
-    // Wait for initial scan
-    await appWindow.waitForTimeout(1000);
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
 
     // Create test file AFTER watching starts
     await fs.writeFile(
@@ -267,11 +264,7 @@ test.describe('Terminal Dimensions Synchronization', () => {
     }
 
     // Focus and type after resize
-    await appWindow.evaluate(() => {
-      const xtermElement = document.querySelector('.xterm') as HTMLElement;
-      xtermElement?.focus();
-      xtermElement?.click();
-    });
+    await focusTerminal(appWindow);
 
     // Type a very long string to test wrapping at new dimensions
     const veryLongCommand = 'echo "' + 'A'.repeat(150) + '"';
@@ -281,8 +274,8 @@ test.describe('Terminal Dimensions Synchronization', () => {
     // BEHAVIOR TEST: Characters should appear on same line up to terminal width,
     // then wrap to next line - not appear character-by-character on separate lines
     const wrappingCheck = await appWindow.evaluate(() => {
-      const xtermScreen = document.querySelector('.xterm-screen');
-      const content = xtermScreen?.textContent || '';
+      const xtermRows = document.querySelector('.xterm-rows');
+      const content = xtermRows?.textContent || '';
       const lines = content.split('\n').filter(line => line.trim().length > 0);
 
       // Get the last few lines (where our typing appears)

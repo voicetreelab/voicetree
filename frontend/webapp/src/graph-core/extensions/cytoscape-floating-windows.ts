@@ -93,21 +93,45 @@ function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElem
 }
 
 /**
+ * Update shadow node dimensions based on window DOM element dimensions
+ * Dimensions flow: DOM element (source of truth) → shadow node (for layout)
+ */
+function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domElement: HTMLElement) {
+  // Use offsetWidth/Height to get full rendered size including borders
+  const width = domElement.offsetWidth;
+  const height = domElement.offsetHeight;
+
+  // Update shadow node dimensions for layout algorithm
+  shadowNode.style({
+    'width': width,
+    'height': height
+  });
+}
+
+/**
  * Create the window chrome (frame) synchronously with vanilla DOM
  * This includes: window container, title bar, close button, and content container
  * Returns the main window element and the content container for React mounting
  */
 function createWindowChrome(
   cy: cytoscape.Core,
-  config: FloatingWindowConfig
+  config: FloatingWindowConfig,
+  shadowNode: cytoscape.NodeSingular
 ): { windowElement: HTMLElement; contentContainer: HTMLElement } {
-  const { id, title, resizable = false } = config;
+  const { id, title, resizable = false, component } = config;
+
+  // Get initial dimensions for this component type
+  const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
 
   // Create main window container
   const windowElement = document.createElement('div');
   windowElement.id = `window-${id}`;
   windowElement.className = 'cy-floating-window';
   windowElement.setAttribute('data-shadow-node-id', id);
+
+  // Set initial dimensions
+  windowElement.style.width = `${dimensions.width}px`;
+  windowElement.style.height = `${dimensions.height}px`;
 
   if (resizable) {
     windowElement.classList.add('resizable');
@@ -165,6 +189,23 @@ function createWindowChrome(
 
   // Attach drag handlers to title bar
   attachDragHandlers(cy, titleBar, windowElement);
+
+  // Set up ResizeObserver to sync window size to shadow node
+  // This ensures layout algorithm knows the real window dimensions
+  if (typeof ResizeObserver !== 'undefined') {
+    const resizeObserver = new ResizeObserver(() => {
+      // Sync dimensions from DOM element to shadow node
+      updateShadowNodeDimensions(shadowNode, windowElement);
+
+      // Emit custom event for layout manager to listen to
+      cy.trigger('floatingwindow:resize', { nodeId: shadowNode.id() });
+    });
+
+    resizeObserver.observe(windowElement);
+
+    // Store observer for cleanup
+    windowElement.setAttribute('data-resize-observer', 'attached');
+  }
 
   return { windowElement, contentContainer };
 }
@@ -386,7 +427,7 @@ export function registerFloatingWindows(
 
     // 2. Create shadow node (invisible anchor in graph space)
     // Ensure parentId is set if parentNodeId exists (for layout algorithm compatibility)
-    const shadowNodeData = { id, ...nodeData };
+    const shadowNodeData: Record<string, unknown> = { id, ...nodeData };
     if (nodeData.parentNodeId && !shadowNodeData.parentId) {
       shadowNodeData.parentId = nodeData.parentNodeId;
     }
@@ -421,7 +462,7 @@ export function registerFloatingWindows(
 
     // 5. Create window chrome SYNCHRONOUSLY with vanilla DOM
     // This is the key fix - chrome exists immediately in DOM
-    const { windowElement, contentContainer } = createWindowChrome(this, config);
+    const { windowElement, contentContainer } = createWindowChrome(this, config, shadowNode);
 
     // 6. Add window to overlay (must be in DOM before React mount)
     overlay.appendChild(windowElement);
@@ -434,7 +475,13 @@ export function registerFloatingWindows(
       updateWindowPosition(shadowNode, windowElement);
     });
 
-    // 9. Mount React component ASYNCHRONOUSLY to content container
+    // 9. Initial dimension sync (DOM element is source of truth)
+    // Use requestAnimationFrame to ensure browser has calculated layout first
+    requestAnimationFrame(() => {
+      updateShadowNodeDimensions(shadowNode, windowElement);
+    });
+
+    // 10. Mount React component ASYNCHRONOUSLY to content container
     // This happens after the chrome is already in the DOM and testable
     mountComponent(contentContainer, component, id, config);
 
