@@ -2,21 +2,11 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useGraphManager } from '@/hooks/useGraphManager';
 
-// Mock Electron API
+// Mock Electron API - only the IPC methods useGraphManager actually uses
 const mockElectronAPI = {
   startFileWatching: vi.fn(),
   stopFileWatching: vi.fn(),
   getWatchStatus: vi.fn(),
-  onFileAdded: vi.fn(),
-  onFileChanged: vi.fn(),
-  onFileDeleted: vi.fn(),
-  onDirectoryAdded: vi.fn(),
-  onDirectoryDeleted: vi.fn(),
-  onInitialScanComplete: vi.fn(),
-  onFileWatchError: vi.fn(),
-  onFileWatchInfo: vi.fn(),
-  onFileWatchingStopped: vi.fn(),
-  removeAllListeners: vi.fn(),
 };
 
 // Mock window.electronAPI
@@ -50,7 +40,6 @@ describe('useGraphManager (Electron version)', () => {
     expect(result.current.isElectron).toBe(true);
     expect(typeof result.current.startWatching).toBe('function');
     expect(typeof result.current.stopWatching).toBe('function');
-    expect(result.current.fileEvents).toEqual([]);
   });
 
   it('should clear graph data when stopping watching', async () => {
@@ -73,31 +62,8 @@ describe('useGraphManager (Electron version)', () => {
     expect(mockElectronAPI.stopFileWatching).toHaveBeenCalled();
   });
 
-  it('should clear graph data when watching stops via handleWatchingStopped', async () => {
-    const { result } = renderHook(() => useGraphManager());
-
-    // Wait for the async initialization in useEffect to complete
-    await act(async () => {
-      // Give time for the checkStatus async call to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-    // Initial state
-    expect(result.current.isWatching).toBe(false);
-
-    // The handleWatchingStopped callback should be registered
-    expect(mockElectronAPI.onFileWatchingStopped).toHaveBeenCalled();
-
-    // Get the callback that was registered
-    const watchingStoppedCallback = mockElectronAPI.onFileWatchingStopped.mock.calls[0][0];
-
-    // Simulate watching stopped event
-    act(() => {
-      watchingStoppedCallback();
-    });
-
-    expect(result.current.isWatching).toBe(false);
-  });
+  // Removed test - useGraphManager no longer listens to IPC events
+  // VoiceTreeGraphVizLayout handles IPC events directly
 
   it('should handle stopWatching errors gracefully', async () => {
     const { result } = renderHook(() => useGraphManager());

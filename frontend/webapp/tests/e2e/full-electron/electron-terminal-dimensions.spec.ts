@@ -1,3 +1,11 @@
+/**
+ * BEHAVIORAL SPEC:
+ * 1. When user types in terminal, characters appear on the same line and wrap correctly at terminal width
+ * 2. When user resizes terminal window, text continues to wrap correctly at the new width
+ *
+ * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
+ */
+
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';

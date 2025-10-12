@@ -600,4 +600,411 @@ describe('TidyLayoutStrategy', () => {
       expect(rootX).toBeLessThan(child2X);
     });
   });
+
+  describe('updateNodeDimensions (Resize Flow)', () => {
+    let mockCy: import('cytoscape').Core;
+
+    beforeEach(() => {
+      // Create mock Cytoscape instance
+      mockCy = {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        $id: vi.fn((_id: string) => ({
+          length: 1,
+          boundingBox: vi.fn(() => ({
+            w: 100,
+            h: 50,
+            x1: 0,
+            y1: 0,
+            x2: 100,
+            y2: 50
+          }))
+        }))
+      } as unknown as import('cytoscape').Core;
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should call partial_layout, not full layout when dimensions change', async () => {
+      // Setup: create initial tree
+      const initialNodes: NodeInfo[] = [
+        { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
+      ];
+
+      await strategy.fullBuild(initialNodes);
+
+      // Spy on WASM methods
+      const partialLayoutSpy = vi.spyOn(Tidy.prototype, 'partial_layout');
+      const layoutSpy = vi.spyOn(Tidy.prototype, 'layout');
+      const updateNodeSizeSpy = vi.spyOn(Tidy.prototype, 'update_node_size');
+
+      // Change child dimensions
+      const positions = await strategy.updateNodeDimensions(mockCy, ['child']);
+
+      // Should call update_node_size and partial_layout, not full layout
+      expect(updateNodeSizeSpy).toHaveBeenCalled();
+      expect(partialLayoutSpy).toHaveBeenCalledOnce();
+      expect(layoutSpy).not.toHaveBeenCalled();
+
+      // Should return positions for all nodes
+      expect(positions.has('parent')).toBe(true);
+      expect(positions.has('child')).toBe(true);
+    });
+
+    it('should return empty map when no nodes provided', async () => {
+      const initialNodes: NodeInfo[] = [
+        { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
+      ];
+
+      await strategy.fullBuild(initialNodes);
+
+      const positions = await strategy.updateNodeDimensions(mockCy, []);
+      expect(positions.size).toBe(0);
+    });
+
+    it('should handle non-existent nodes gracefully', async () => {
+      const initialNodes: NodeInfo[] = [
+        { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
+      ];
+
+      await strategy.fullBuild(initialNodes);
+
+      const positions = await strategy.updateNodeDimensions(mockCy, ['non-existent']);
+
+      // Should not crash, may return empty or existing positions
+      expect(positions).toBeDefined();
+    });
+
+    it('CRITICAL: when a node grows 3x, its sibling MUST move to avoid overlap', async () => {
+      // This is the CRITICAL test - partial_layout MUST reposition siblings
+      const initialNodes: NodeInfo[] = [
+        { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' },
+        { id: 'child2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
+      ];
+
+      const initialPositions = await strategy.fullBuild(initialNodes);
+      const child1InitialY = initialPositions.get('child1')!.y;
+      const child2InitialY = initialPositions.get('child2')!.y;
+
+      // Verify initial separation (siblings are vertically separated)
+      const initialYGap = Math.abs(child2InitialY - child1InitialY);
+      expect(initialYGap).toBeGreaterThan(0);
+
+      // Mock child1 growing 3x in height (from 40 to 120)
+      mockCy.$id = vi.fn((id: string) => {
+        if (id === 'child1') {
+          return {
+            length: 1,
+            boundingBox: vi.fn(() => ({
+              w: 80,
+              h: 120, // 3x the original height
+              x1: 0,
+              y1: 0,
+              x2: 80,
+              y2: 120
+            }))
+          };
+        }
+        return {
+          length: 1,
+          boundingBox: vi.fn(() => ({
+            w: 80,
+            h: 40,
+            x1: 0,
+            y1: 0,
+            x2: 80,
+            y2: 40
+          }))
+        };
+      }) as unknown as typeof mockCy.$id;
+
+      // Update dimensions for child1
+      const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['child1']);
+
+      // Get new positions
+      const child1NewY = updatedPositions.get('child1')!.y;
+      const child2NewY = updatedPositions.get('child2')!.y;
+
+      // CRITICAL ASSERTION: child2 MUST have moved to avoid overlap with the now-larger child1
+      const newYGap = Math.abs(child2NewY - child1NewY);
+
+      // The gap should have increased to accommodate the larger child1
+      // Since child1 grew from 40 to 120 (increase of 80), and there's peer margin,
+      // the gap should be significantly larger than initial
+      expect(newYGap).toBeGreaterThan(initialYGap);
+
+      // More specifically: the new gap should account for the increased size
+      // With peer margin of 160 and child1 height of 120, minimum gap should be ~140
+      expect(newYGap).toBeGreaterThan(100);
+    });
+
+    it('should NOT move single child when it resizes (no siblings to collide with)', async () => {
+      // This test verifies the insight: resizing a node WITHOUT siblings doesn't cause position change
+      // Only the bounding box grows - the node stays in the same location
+      const initialNodes: NodeInfo[] = [
+        { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'only-child', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
+      ];
+
+      const initialPositions = await strategy.fullBuild(initialNodes);
+      const childInitialX = initialPositions.get('only-child')!.x;
+      const childInitialY = initialPositions.get('only-child')!.y;
+
+      // Mock child growing 3x in height (from 40 to 120)
+      mockCy.$id = vi.fn((id: string) => {
+        if (id === 'only-child') {
+          return {
+            length: 1,
+            boundingBox: vi.fn(() => ({
+              w: 80,
+              h: 120, // 3x the original height
+              x1: 0,
+              y1: 0,
+              x2: 80,
+              y2: 120
+            }))
+          };
+        }
+        return {
+          length: 1,
+          boundingBox: vi.fn(() => ({
+            w: 100,
+            h: 50,
+            x1: 0,
+            y1: 0,
+            x2: 100,
+            y2: 50
+          }))
+        };
+      }) as unknown as typeof mockCy.$id;
+
+      // Update dimensions for only-child
+      const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['only-child']);
+
+      // Get new position
+      const childNewX = updatedPositions.get('only-child')!.x;
+      const childNewY = updatedPositions.get('only-child')!.y;
+
+      // KEY ASSERTION: Position should NOT change significantly
+      // Since there's no sibling to collide with, the node stays in the same spot
+      // (Allow small floating point variance)
+      expect(Math.abs(childNewX - childInitialX)).toBeLessThan(1);
+      expect(Math.abs(childNewY - childInitialY)).toBeLessThan(1);
+    });
+
+    it('should handle multiple nodes resizing simultaneously', async () => {
+      const initialNodes: NodeInfo[] = [
+        { id: 'parent', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'child1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' },
+        { id: 'child2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'parent' }
+      ];
+
+      await strategy.fullBuild(initialNodes);
+
+      // Mock both children growing
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      mockCy.$id = vi.fn((_id: string) => ({
+        length: 1,
+        boundingBox: vi.fn(() => ({
+          w: 100, // Both grow
+          h: 60,
+          x1: 0,
+          y1: 0,
+          x2: 100,
+          y2: 60
+        }))
+      })) as unknown as typeof mockCy.$id;
+
+      const positions = await strategy.updateNodeDimensions(mockCy, ['child1', 'child2']);
+
+      // All nodes should be repositioned
+      expect(positions.has('parent')).toBe(true);
+      expect(positions.has('child1')).toBe(true);
+      expect(positions.has('child2')).toBe(true);
+    });
+
+    it('should call update_node_size with correctly transformed dimensions', async () => {
+      // In left-right orientation, width/height are swapped for the engine
+      const initialNodes: NodeInfo[] = [
+        { id: 'node1', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } }
+      ];
+
+      await strategy.fullBuild(initialNodes);
+
+      const updateNodeSizeSpy = vi.spyOn(Tidy.prototype, 'update_node_size');
+
+      // Mock node with specific dimensions
+      mockCy.$id = vi.fn(() => ({
+        length: 1,
+        boundingBox: vi.fn(() => ({
+          w: 200, // width
+          h: 80,  // height
+          x1: 0,
+          y1: 0,
+          x2: 200,
+          y2: 80
+        }))
+      })) as unknown as typeof mockCy.$id;
+
+      await strategy.updateNodeDimensions(mockCy, ['node1']);
+
+      // For left-right orientation:
+      // - engine width = UI height (80)
+      // - engine height = UI width (200)
+      expect(updateNodeSizeSpy).toHaveBeenCalledWith(
+        expect.any(Number), // numeric node ID
+        80,  // engine width = UI height
+        200  // engine height = UI width
+      );
+    });
+
+    it('should move parent\'s siblings when deeply nested child resizes (multi-level impact)', async () => {
+      // Test that partial_layout propagates changes up the tree
+      // When a deeply nested node grows, it can push its ancestors which may push their siblings
+      const initialNodes: NodeInfo[] = [
+        { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'parent1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
+        { id: 'parent2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
+        { id: 'child1-1', position: { x: 0, y: 0 }, size: { width: 60, height: 30 }, parentId: 'parent1' },
+        { id: 'child2-1', position: { x: 0, y: 0 }, size: { width: 60, height: 30 }, parentId: 'parent2' }
+      ];
+
+      const initialPositions = await strategy.fullBuild(initialNodes);
+      const parent1InitialY = initialPositions.get('parent1')!.y;
+      const parent2InitialY = initialPositions.get('parent2')!.y;
+
+      // Verify parent1 and parent2 are separated vertically (siblings)
+      const initialParentGap = Math.abs(parent2InitialY - parent1InitialY);
+      expect(initialParentGap).toBeGreaterThan(0);
+
+      // Mock child1-1 growing 5x in height
+      mockCy.$id = vi.fn((id: string) => {
+        if (id === 'child1-1') {
+          return {
+            length: 1,
+            boundingBox: vi.fn(() => ({
+              w: 60,
+              h: 150, // 5x the original height
+              x1: 0,
+              y1: 0,
+              x2: 60,
+              y2: 150
+            }))
+          };
+        }
+        // Return default for other nodes
+        return {
+          length: 1,
+          boundingBox: vi.fn(() => ({
+            w: 80,
+            h: 40,
+            x1: 0,
+            y1: 0,
+            x2: 80,
+            y2: 40
+          }))
+        };
+      }) as unknown as typeof mockCy.$id;
+
+      // Update dimensions for child1-1
+      const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['child1-1']);
+
+      // Get new positions
+      const parent1NewY = updatedPositions.get('parent1')!.y;
+      const parent2NewY = updatedPositions.get('parent2')!.y;
+
+      // CRITICAL ASSERTION: parent2 MUST have moved
+      // Even though we only resized child1-1, the layout algorithm should:
+      // 1. Grow child1-1's bounding box
+      // 2. This increases parent1's subtree height
+      // 3. parent1 and parent2 are siblings, so parent2 must move to avoid overlap
+      const newParentGap = Math.abs(parent2NewY - parent1NewY);
+
+      // The gap between parent1 and parent2 should have increased
+      expect(newParentGap).toBeGreaterThan(initialParentGap);
+
+      // More specifically: parent2 should have moved down (increased Y)
+      // to accommodate the larger subtree under parent1
+      expect(Math.abs(parent2NewY - parent2InitialY)).toBeGreaterThan(5);
+    });
+
+    it('should handle complex tree with multiple levels and verify all affected nodes move', async () => {
+      // Complex tree:
+      //        root
+      //       /    \
+      //    parent1  parent2
+      //    /    \      \
+      // child1 child2  child3
+      const initialNodes: NodeInfo[] = [
+        { id: 'root', position: { x: 0, y: 0 }, size: { width: 100, height: 50 } },
+        { id: 'parent1', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
+        { id: 'parent2', position: { x: 0, y: 0 }, size: { width: 80, height: 40 }, parentId: 'root' },
+        { id: 'child1', position: { x: 0, y: 0 }, size: { width: 60, height: 30 }, parentId: 'parent1' },
+        { id: 'child2', position: { x: 0, y: 0 }, size: { width: 60, height: 30 }, parentId: 'parent1' },
+        { id: 'child3', position: { x: 0, y: 0 }, size: { width: 60, height: 30 }, parentId: 'parent2' }
+      ];
+
+      const initialPositions = await strategy.fullBuild(initialNodes);
+
+      // Track initial positions
+      const initial = {
+        child1: initialPositions.get('child1')!.y,
+        child2: initialPositions.get('child2')!.y,
+        parent2: initialPositions.get('parent2')!.y,
+        child3: initialPositions.get('child3')!.y
+      };
+
+      // Verify child1 and child2 are siblings (different Y positions)
+      expect(Math.abs(initial.child2 - initial.child1)).toBeGreaterThan(0);
+
+      // Mock child1 growing 4x
+      mockCy.$id = vi.fn((id: string) => {
+        if (id === 'child1') {
+          return {
+            length: 1,
+            boundingBox: vi.fn(() => ({
+              w: 60,
+              h: 120, // 4x the original height
+              x1: 0,
+              y1: 0,
+              x2: 60,
+              y2: 120
+            }))
+          };
+        }
+        return {
+          length: 1,
+          boundingBox: vi.fn(() => ({
+            w: 60,
+            h: 30,
+            x1: 0,
+            y1: 0,
+            x2: 60,
+            y2: 30
+          }))
+        };
+      }) as unknown as typeof mockCy.$id;
+
+      const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['child1']);
+
+      const updated = {
+        child1: updatedPositions.get('child1')!.y,
+        child2: updatedPositions.get('child2')!.y,
+        parent2: updatedPositions.get('parent2')!.y,
+        child3: updatedPositions.get('child3')!.y
+      };
+
+      // child2 (sibling of child1) MUST move
+      expect(Math.abs(updated.child2 - initial.child2)).toBeGreaterThan(5);
+
+      // parent2 (sibling of parent1, which contains the resized child1) MUST move
+      expect(Math.abs(updated.parent2 - initial.parent2)).toBeGreaterThan(5);
+
+      // child3 (under parent2) should also move with its parent
+      expect(Math.abs(updated.child3 - initial.child3)).toBeGreaterThan(5);
+    });
+  });
 });

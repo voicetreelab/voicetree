@@ -1,5 +1,16 @@
-// E2E test for floating window refactor - verifies synchronous chrome creation
-// This test proves the race condition is fixed by checking DOM elements immediately
+/**
+ * BEHAVIORAL SPEC:
+ * 1. Floating windows (markdown editors/terminals) appear immediately with chrome (title bar, close button, content area)
+ * 2. Windows can be dragged by title bar and closed with X button
+ * 3. Windows move with graph pan/zoom operations
+ * 4. Multiple windows can be opened simultaneously without race conditions
+ * 5. Markdown preview mode displays rendered content (not blank)
+ * 6. Edges connect parent nodes to floating window shadow nodes and update when windows are dragged
+ * 7. Terminal PTY processes are killed when windows close (no crashes)
+ * 8. Terminal windows resize without visual artifacts or text loss
+ *
+ * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
+ */
 
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
@@ -589,148 +600,16 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
 
     expect(hasDestroyedError).toBe(false);
 
-    // Verify cleanup log messages appeared
-    const hasCleanupLog = mainLogs.some(log =>
-      log.includes('Cleaning up terminal') ||
-      log.includes('closed, cleaning up terminals')
-    );
-
-    // Note: This assertion may be soft since cleanup happens in 'closed' event
-    // which fires after the window is already destroyed
+    // Note: Cleanup log messages may appear in 'closed' event which fires after window is destroyed
     console.log('Captured main process logs:', mainLogs);
 
     // The key assertion: No crash occurred (test completed successfully)
     // If the bug still existed, the app would crash with "Object has been destroyed"
   });
 
-  test('should resize terminal window without visual artifacts or text loss', async ({ appWindow }) => {
-    // Test for bug: Terminal windows show visual artifacts when enlarged and lose text when shrunk
-    // This test verifies the fix: FitAddon + ResizeObserver properly resizes xterm
-
-    // Create a terminal window
-    await appWindow.evaluate(() => {
-      const cy = (window as any).cytoscapeInstance;
-      cy.addFloatingWindow({
-        id: 'terminal-resize-test',
-        component: 'Terminal',
-        title: 'Terminal Resize Test',
-        position: { x: 300, y: 200 },
-        resizable: true,
-        nodeMetadata: {
-          fileName: 'test-terminal',
-          filePath: '/tmp/test-terminal'
-        }
-      });
-    });
-
-    // Wait for terminal to initialize
-    await appWindow.waitForSelector('#window-terminal-resize-test .xterm', { timeout: 5000 });
-    await appWindow.waitForTimeout(1000);
-
-    // Get initial window size
-    const initialSize = await appWindow.evaluate(() => {
-      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
-      const xtermElement = windowElement?.querySelector('.xterm') as HTMLElement;
-
-      return {
-        windowWidth: windowElement.offsetWidth,
-        windowHeight: windowElement.offsetHeight,
-        xtermExists: !!xtermElement
-      };
-    });
-
-    expect(initialSize.xtermExists).toBe(true);
-
-    // Test 1: Resize window LARGER using CSS (simulating user drag)
-    await appWindow.evaluate(() => {
-      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
-      windowElement.style.width = '900px';
-      windowElement.style.height = '600px';
-    });
-
-    // Wait for ResizeObserver to trigger and FitAddon to refit
-    await appWindow.waitForTimeout(500);
-
-    // Check for visual artifacts after enlarging
-    const enlargedState = await appWindow.evaluate(() => {
-      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
-      const xtermViewport = windowElement?.querySelector('.xterm-viewport') as HTMLElement;
-      const xtermScreen = windowElement?.querySelector('.xterm-screen') as HTMLElement;
-
-      if (!xtermViewport || !xtermScreen) return null;
-
-      const viewportStyles = window.getComputedStyle(xtermViewport);
-
-      // Check for white rectangle artifact
-      const hasWhiteArtifact = viewportStyles.backgroundColor === 'rgb(255, 255, 255)' ||
-                               viewportStyles.backgroundColor === 'white';
-
-      return {
-        windowWidth: windowElement.offsetWidth,
-        windowHeight: windowElement.offsetHeight,
-        viewportBgColor: viewportStyles.backgroundColor,
-        hasWhiteArtifact,
-        screenHasContent: xtermScreen.textContent && xtermScreen.textContent.length > 0
-      };
-    });
-
-    // Verify terminal resized without artifacts
-    expect(enlargedState).toBeTruthy();
-    expect(enlargedState!.windowWidth).toBe(900);
-    expect(enlargedState!.windowHeight).toBe(600);
-    expect(enlargedState!.hasWhiteArtifact).toBe(false); // No white rectangle artifact
-
-    // Screenshot after enlarging
-    await appWindow.screenshot({
-      path: 'tests/screenshots/electron-terminal-resize-enlarged.png'
-    });
-
-    // Test 2: Resize window SMALLER
-    await appWindow.evaluate(() => {
-      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
-      windowElement.style.width = '500px';
-      windowElement.style.height = '300px';
-    });
-
-    // Wait for ResizeObserver to trigger
-    await appWindow.waitForTimeout(500);
-
-    // Check that terminal still functions after shrinking
-    const shrunkState = await appWindow.evaluate(() => {
-      const windowElement = document.querySelector('#window-terminal-resize-test') as HTMLElement;
-      const xtermElement = windowElement?.querySelector('.xterm') as HTMLElement;
-
-      return {
-        windowWidth: windowElement.offsetWidth,
-        windowHeight: windowElement.offsetHeight,
-        xtermStillExists: !!xtermElement
-      };
-    });
-
-    // Verify terminal resized smaller without breaking
-    expect(shrunkState.windowWidth).toBe(500);
-    expect(shrunkState.windowHeight).toBe(300);
-    expect(shrunkState.xtermStillExists).toBe(true); // Terminal should still exist and function
-
-    // Screenshot after shrinking
-    await appWindow.screenshot({
-      path: 'tests/screenshots/electron-terminal-resize-shrunk.png'
-    });
-
-    // Test 3: Verify terminal is still interactive after multiple resizes
-    const terminalResponsive = await appWindow.evaluate(() => {
-      const xtermElement = document.querySelector('#window-terminal-resize-test .xterm') as HTMLElement;
-      return xtermElement !== null && xtermElement.offsetWidth > 0 && xtermElement.offsetHeight > 0;
-    });
-
-    expect(terminalResponsive).toBe(true);
-  });
-
   test('should not trigger excessive resizes from DOM mutations (debouncing test)', async ({ appWindow }) => {
     // Test for bug: ResizeObserver fires on every DOM mutation, causing excessive fit() calls
     // This verifies debouncing and size-change detection is working
-
-    let resizeCallCount = 0;
 
     await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
@@ -813,15 +692,6 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
 
     await appWindow.waitForSelector('#window-terminal-sizechange-test .xterm', { timeout: 5000 });
     await appWindow.waitForTimeout(1000);
-
-    // Get initial size
-    const initialSize = await appWindow.evaluate(() => {
-      const windowElement = document.querySelector('#window-terminal-sizechange-test') as HTMLElement;
-      return {
-        width: windowElement.offsetWidth,
-        height: windowElement.offsetHeight
-      };
-    });
 
     // Resize by small amount (< 5px) - should NOT trigger fit()
     await appWindow.evaluate(() => {

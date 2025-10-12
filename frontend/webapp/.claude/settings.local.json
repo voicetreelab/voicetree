@@ -53,11 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/file-check-runner.sh"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/test-runner.sh"
+            "command": "python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/combined-hook.py"
           }
         ]
       }
