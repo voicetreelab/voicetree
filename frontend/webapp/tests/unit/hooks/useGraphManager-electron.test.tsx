@@ -3,10 +3,33 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useGraphManager } from '@/hooks/useGraphManager';
 
 // Mock Electron API - only the IPC methods useGraphManager actually uses
+const eventListeners: Record<string, ((data?: unknown) => void)[]> = {};
+
 const mockElectronAPI = {
   startFileWatching: vi.fn(),
   stopFileWatching: vi.fn(),
   getWatchStatus: vi.fn(),
+  onWatchingStarted: vi.fn((callback) => {
+    if (!eventListeners['watching-started']) {
+      eventListeners['watching-started'] = [];
+    }
+    eventListeners['watching-started'].push(callback);
+  }),
+  onFileWatchingStopped: vi.fn((callback) => {
+    if (!eventListeners['file-watching-stopped']) {
+      eventListeners['file-watching-stopped'] = [];
+    }
+    eventListeners['file-watching-stopped'].push(callback);
+  }),
+  removeAllListeners: vi.fn((eventName: string) => {
+    eventListeners[eventName] = [];
+  }),
+};
+
+// Helper to trigger events
+const triggerEvent = (eventName: string, data?: unknown) => {
+  const listeners = eventListeners[eventName] || [];
+  listeners.forEach(callback => callback(data));
 };
 
 // Mock window.electronAPI
@@ -18,6 +41,10 @@ Object.defineProperty(window, 'electronAPI', {
 describe('useGraphManager (Electron version)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear event listeners between tests
+    Object.keys(eventListeners).forEach(key => {
+      eventListeners[key] = [];
+    });
 
     // Reset default mock implementations
     mockElectronAPI.getWatchStatus.mockResolvedValue({ isWatching: false });
@@ -42,35 +69,88 @@ describe('useGraphManager (Electron version)', () => {
     expect(typeof result.current.stopWatching).toBe('function');
   });
 
+  it('should update state when watching-started event is received', async () => {
+    const { result } = renderHook(() => useGraphManager());
+
+    // Wait for initialization
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.isWatching).toBe(false);
+
+    // Trigger watching-started event
+    await act(async () => {
+      triggerEvent('watching-started', {
+        directory: '/test/dir',
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    expect(result.current.isWatching).toBe(true);
+    expect(result.current.watchDirectory).toBe('/test/dir');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('should update state when file-watching-stopped event is received', async () => {
+    const { result } = renderHook(() => useGraphManager());
+
+    // Wait for initialization and set to watching state
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      triggerEvent('watching-started', {
+        directory: '/test/dir',
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    expect(result.current.isWatching).toBe(true);
+
+    // Trigger file-watching-stopped event
+    await act(async () => {
+      triggerEvent('file-watching-stopped');
+    });
+
+    expect(result.current.isWatching).toBe(false);
+    expect(result.current.watchDirectory).toBeUndefined();
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it('should clear graph data when stopping watching', async () => {
     const { result } = renderHook(() => useGraphManager());
 
-    // Start watching first
+    // Start watching first - trigger the event to simulate success
     await act(async () => {
       await result.current.startWatching();
+      triggerEvent('watching-started', {
+        directory: '/test/directory',
+        timestamp: new Date().toISOString()
+      });
     });
 
     expect(result.current.isWatching).toBe(true);
     expect(mockElectronAPI.startFileWatching).toHaveBeenCalled();
 
-    // Stop watching and verify graph data is cleared
+    // Stop watching and trigger the event
     await act(async () => {
       await result.current.stopWatching();
+      triggerEvent('file-watching-stopped');
     });
 
     expect(result.current.isWatching).toBe(false);
     expect(mockElectronAPI.stopFileWatching).toHaveBeenCalled();
   });
 
-  // Removed test - useGraphManager no longer listens to IPC events
-  // VoiceTreeGraphVizLayout handles IPC events directly
-
   it('should handle stopWatching errors gracefully', async () => {
     const { result } = renderHook(() => useGraphManager());
 
-    // Start watching first
+    // Start watching first - trigger the event to simulate success
     await act(async () => {
       await result.current.startWatching();
+      triggerEvent('watching-started', {
+        directory: '/test/directory',
+        timestamp: new Date().toISOString()
+      });
     });
 
     // Mock stopFileWatching to fail
@@ -90,9 +170,13 @@ describe('useGraphManager (Electron version)', () => {
   it('should handle stopWatching exception gracefully', async () => {
     const { result } = renderHook(() => useGraphManager());
 
-    // Start watching first
+    // Start watching first - trigger the event to simulate success
     await act(async () => {
       await result.current.startWatching();
+      triggerEvent('watching-started', {
+        directory: '/test/directory',
+        timestamp: new Date().toISOString()
+      });
     });
 
     // Mock stopFileWatching to throw

@@ -349,4 +349,142 @@ test.describe('Layout Integration - Bulk Load + Incremental Updates', () => {
 
     console.log('✓ Rapid additions after bulk load completed successfully');
   });
+
+  test('should layout children in radial/circular pattern with both left and right hemispheres', async ({ page }) => {
+    await page.goto('/tests/e2e/isolated-with-harness/graph-core/incremental-layout-harness.html');
+    await page.waitForSelector('#root canvas', { timeout: 5000 });
+
+    console.log('=== TESTING RADIAL LAYOUT ===');
+
+    const radialTest = await page.evaluate(async () => {
+      if (!window.cy || !window.layoutManager) {
+        throw new Error('Required objects not available');
+      }
+
+      // Clear graph
+      window.cy.elements().remove();
+
+      // Create a parent with 10 children (enough to trigger radial spread)
+      const parentId = 'parent-0';
+      window.cy.add({
+        group: 'nodes',
+        data: {
+          id: parentId,
+          label: 'Parent',
+          parentId: null,
+          linkedNodeIds: []
+        }
+      });
+
+      const childIds: string[] = [];
+      for (let i = 0; i < 10; i++) {
+        const childId = `child-${i}`;
+        childIds.push(childId);
+
+        window.cy.add({
+          group: 'nodes',
+          data: {
+            id: childId,
+            label: `Child ${i}`,
+            parentId: parentId,
+            linkedNodeIds: [parentId]
+          }
+        });
+
+        window.cy.add({
+          group: 'edges',
+          data: {
+            id: `${childId}-${parentId}`,
+            source: childId,
+            target: parentId
+          }
+        });
+      }
+
+      // Apply layout (await the async call!)
+      await window.layoutManager.applyLayout(window.cy, [parentId, ...childIds]);
+
+      // Get parent position
+      const parentPos = window.cy.$id(parentId).position();
+
+      // Get all children positions
+      const childPositions = childIds.map(id => {
+        const pos = window.cy.$id(id).position();
+        return {
+          id,
+          x: pos.x,
+          y: pos.y,
+          relativeX: pos.x - parentPos.x,
+          relativeY: pos.y - parentPos.y
+        };
+      });
+
+      // Calculate hemispheres
+      const leftHemisphere = childPositions.filter(p => p.relativeX < 0);
+      const rightHemisphere = childPositions.filter(p => p.relativeX > 0);
+
+      // Calculate vertical spread
+      const yCoords = childPositions.map(p => p.y);
+      const minY = Math.min(...yCoords);
+      const maxY = Math.max(...yCoords);
+      const verticalSpread = maxY - minY;
+
+      // Calculate if children are on an arc
+      const distances = childPositions.map(p =>
+        Math.sqrt(p.relativeX * p.relativeX + p.relativeY * p.relativeY)
+      );
+      const avgDistance = distances.reduce((a, b) => a + b, 0) / distances.length;
+      const distanceVariance = distances.reduce((acc, d) => acc + Math.pow(d - avgDistance, 2), 0) / distances.length;
+
+      return {
+        parentPos,
+        childPositions,
+        leftCount: leftHemisphere.length,
+        rightCount: rightHemisphere.length,
+        verticalSpread,
+        avgDistance,
+        distanceVariance,
+        leftHemisphere: leftHemisphere.map(p => ({ id: p.id, x: p.x.toFixed(1), y: p.y.toFixed(1) })),
+        rightHemisphere: rightHemisphere.map(p => ({ id: p.id, x: p.x.toFixed(1), y: p.y.toFixed(1) }))
+      };
+    });
+
+    console.log(`Parent position: (${radialTest.parentPos.x.toFixed(1)}, ${radialTest.parentPos.y.toFixed(1)})`);
+    console.log(`Left hemisphere: ${radialTest.leftCount} children`);
+    console.log(`Right hemisphere: ${radialTest.rightCount} children`);
+    console.log(`Vertical spread: ${radialTest.verticalSpread.toFixed(1)}px`);
+    console.log(`Average distance from parent: ${radialTest.avgDistance.toFixed(1)}px`);
+    console.log('Left hemisphere children:', radialTest.leftHemisphere);
+    console.log('Right hemisphere children:', radialTest.rightHemisphere);
+
+    // CRITICAL: Check that children appear on BOTH sides (radial layout splits left/right)
+    expect(radialTest.leftCount).toBeGreaterThan(0);
+    expect(radialTest.rightCount).toBeGreaterThan(0);
+    // Note: The split may not be exactly 5-5 due to tidy's collision detection
+    // placing some children slightly off-center before the radial transform
+    expect(radialTest.leftCount).toBeGreaterThanOrEqual(1); // At least 1 on left
+    expect(radialTest.rightCount).toBeGreaterThanOrEqual(1); // At least 1 on right
+
+    // Check vertical spread (radial layout should bend children vertically)
+    expect(radialTest.verticalSpread).toBeGreaterThan(50); // Should have significant vertical spread
+
+    // Check that children are roughly on an arc (distance variance should be low)
+    const stdDev = Math.sqrt(radialTest.distanceVariance);
+    const coefficientOfVariation = stdDev / radialTest.avgDistance;
+    console.log(`Distance coefficient of variation: ${coefficientOfVariation.toFixed(3)}`);
+    expect(coefficientOfVariation).toBeLessThan(0.3); // Distances should be relatively consistent (on an arc)
+
+    // Take screenshot
+    await page.evaluate(() => {
+      if (window.cy) {
+        window.cy.fit(100);
+      }
+    });
+    await page.screenshot({
+      path: 'tests/screenshots/radial-layout-hemispheres.png',
+      fullPage: true
+    });
+
+    console.log('✓ Radial layout test completed - children distributed on both hemispheres');
+  });
 });

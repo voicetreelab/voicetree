@@ -56,7 +56,28 @@ class FileWatchManager {
   }
 
   async startWatching(directoryPath: string): Promise<{ success: boolean; directory?: string; error?: string }> {
-    // Stop any existing watcher
+    // If already watching the same directory, just return success and re-emit events
+    // This prevents unnecessary restart on page reload while keeping renderer in sync
+    if (this.watcher && this.watchedDirectory === directoryPath) {
+      console.log(`[FileWatchManager] Already watching ${directoryPath}, skipping restart`);
+
+      // Re-emit watching-started event for new renderer instance after reload
+      this.sendToRenderer('watching-started', {
+        directory: directoryPath,
+        timestamp: new Date().toISOString()
+      });
+
+      // Delay file resend to ensure renderer has set up event listeners
+      // After page reload, the renderer needs time to mount and register handlers
+      setTimeout(async () => {
+        console.log(`[FileWatchManager] Resending files after renderer initialization delay`);
+        await this.resendCurrentFiles();
+      }, 100); // 100ms should be enough for React to mount and register listeners
+
+      return { success: true, directory: directoryPath };
+    }
+
+    // Stop any existing watcher (watching different directory)
     await this.stopWatching();
 
     console.log(`[FileWatchManager] Starting to watch: ${directoryPath}`);
@@ -309,6 +330,88 @@ class FileWatchManager {
         directory: this.watchedDirectory
       });
     });
+  }
+
+  // Re-scan and send all currently watched files
+  // Used when renderer reloads while watcher is still active
+  private async resendCurrentFiles(): Promise<void> {
+    if (!this.watchedDirectory) {
+      console.log('[FileWatchManager] No directory being watched, skipping resend');
+      return;
+    }
+
+    console.log(`[FileWatchManager] Re-scanning directory: ${this.watchedDirectory}`);
+
+    try {
+      // Recursively find all .md files in the directory
+      const files: FileInfo[] = [];
+      await this.scanDirectory(this.watchedDirectory, files);
+
+      console.log(`[FileWatchManager] Found ${files.length} files to resend`);
+
+      // Read all files in parallel
+      const filePromises = files.map(async ({ filePath, relativePath }) => {
+        try {
+          const content = await this.readFileWithRetry(filePath);
+          const stats = await fs.stat(filePath);
+          return {
+            path: relativePath,
+            fullPath: filePath,
+            content: content,
+            size: stats.size,
+            modified: stats.mtime.toISOString()
+          };
+        } catch (error) {
+          console.error(`Error reading file ${relativePath}:`, error);
+          return null;
+        }
+      });
+
+      const fileData = (await Promise.all(filePromises)).filter(f => f !== null);
+
+      console.log(`[FileWatchManager] Sending bulk load with ${fileData.length} files`);
+      this.sendToRenderer('initial-files-loaded', {
+        files: fileData,
+        directory: this.watchedDirectory
+      });
+    } catch (error) {
+      console.error('Error during file resend:', error);
+      this.sendToRenderer('file-watch-error', {
+        type: 'resend_error',
+        message: `Failed to resend files: ${(error as Error).message}`,
+        directory: this.watchedDirectory
+      });
+    }
+  }
+
+  // Recursively scan directory for markdown files
+  private async scanDirectory(dirPath: string, files: FileInfo[]): Promise<void> {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+
+        // Skip hidden files, node_modules, .git, etc.
+        if (entry.name.startsWith('.') ||
+            entry.name === 'node_modules' ||
+            entry.name.endsWith('.tmp') ||
+            entry.name.endsWith('.temp')) {
+          continue;
+        }
+
+        if (entry.isDirectory()) {
+          // Recursively scan subdirectories
+          await this.scanDirectory(fullPath, files);
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          // Add markdown file
+          const relativePath = path.relative(this.watchedDirectory!, fullPath);
+          files.push({ filePath: fullPath, relativePath });
+        }
+      }
+    } catch (error) {
+      console.error(`Error scanning directory ${dirPath}:`, error);
+    }
   }
 
   private async readFileWithRetry(filePath: string, maxRetries = 3, delay = 100): Promise<string> {

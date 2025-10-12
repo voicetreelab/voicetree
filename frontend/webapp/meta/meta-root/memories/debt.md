@@ -446,7 +446,7 @@ tests/e2e/full-electron/electron-terminal-dimensions.spec.ts
 tests/e2e/isolated-with-harness/editor-file-graph-integration.spec.ts
 tests/e2e/isolated-with-harness/file-to-graph-pipeline-behavioral.spec.ts
 
-⏺ Read(file_path: "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tests/e2e/full-electron/electron-sys-e2e.spec.ts")
+⏺ Read(file_path: "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tests/e2e/full-electron/electron-real-folder.spec.ts")
 ⎿  Error: File does not exist.
 
 ⏺ Bash(grep -r "handleFileAdded\|handleFileChanged\|handleBulkFilesAdded" tests/ --include="*.spec.ts" --include="*.test.ts" -l)
@@ -470,7 +470,7 @@ tests/e2e/full-electron/electron-features-e2e.spec.ts
 ⎿  No matches found
 
 ⏺ Bash(grep '"test"' package.json)
-⎿      "test": "vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts",
+⎿      "test": "vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-real-folder.spec.ts --config=playwright-electron.config.ts",
 
 ⏺ Perfect! Now I can give you a concrete plan.
 
@@ -1281,7 +1281,7 @@ Perfect! I've successfully added the position() method to all mock nodes in the 
 
 ⏺ Bash(npm run test 2>&1 | tee /tmp/baseline-test-output.txt) timeout: 2m 0s
 ⎿ > voicetree-webapp@0.0.0 test                                                                                                                        
-> vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts
+> vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-real-folder.spec.ts --config=playwright-electron.config.ts
 
 
      RUN  v3.2.4 /Users/bobbobby/repos/VoiceTree/frontend/webapp
@@ -3988,7 +3988,7 @@ tests/e2e/full-electron/electron-terminal-dimensions.spec.ts
 tests/e2e/isolated-with-harness/editor-file-graph-integration.spec.ts
 tests/e2e/isolated-with-harness/file-to-graph-pipeline-behavioral.spec.ts
 
-⏺ Read(file_path: "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tests/e2e/full-electron/electron-sys-e2e.spec.ts")
+⏺ Read(file_path: "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tests/e2e/full-electron/electron-real-folder.spec.ts")
 ⎿  Error: File does not exist.
 
 ⏺ Bash(grep -r "handleFileAdded\|handleFileChanged\|handleBulkFilesAdded" tests/ --include="*.spec.ts" --include="*.test.ts" -l)
@@ -4012,7 +4012,7 @@ tests/e2e/full-electron/electron-features-e2e.spec.ts
 ⎿  No matches found
 
 ⏺ Bash(grep '"test"' package.json)
-⎿      "test": "vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts",
+⎿      "test": "vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-real-folder.spec.ts --config=playwright-electron.config.ts",
 
 ⏺ Perfect! Now I can give you a concrete plan.
 
@@ -4823,7 +4823,7 @@ Perfect! I've successfully added the position() method to all mock nodes in the 
 
 ⏺ Bash(npm run test 2>&1 | tee /tmp/baseline-test-output.txt) timeout: 2m 0s
 ⎿ > voicetree-webapp@0.0.0 test                                                                                                                        
-> vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-sys-e2e.spec.ts --config=playwright-electron.config.ts
+> vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-real-folder.spec.ts --config=playwright-electron.config.ts
 
 
      RUN  v3.2.4 /Users/bobbobby/repos/VoiceTree/frontend/webapp

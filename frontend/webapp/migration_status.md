@@ -237,7 +237,7 @@ npm run dev           # Browser-only dev
 
 ### Testing
 ```bash
-npm run test          # Unit tests + electron-sys-e2e
+npm run test          # Unit tests + electron-real-folder
 npx playwright test tests/e2e/isolated-with-harness/graph-core/layout-integration.spec.ts  # ✅ PASSING
 ```
 

@@ -44,6 +44,34 @@ export function useGraphManager(): UseGraphManagerReturn {
     checkStatus();
   }, [isElectron]);
 
+  // Listen to watching-started and file-watching-stopped events to stay in sync
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI?.onWatchingStarted) return;
+
+    const handleWatchingStarted = (data: { directory: string; timestamp: string }) => {
+      console.log('[useGraphManager] watching-started event received:', data.directory);
+      setWatchStatus({ isWatching: true, directory: data.directory });
+      setIsLoading(false);
+      setError(null);
+    };
+
+    const handleWatchingStopped = () => {
+      console.log('[useGraphManager] file-watching-stopped event received');
+      setWatchStatus({ isWatching: false });
+      setIsLoading(false);
+    };
+
+    // Register event listeners
+    window.electronAPI.onWatchingStarted(handleWatchingStarted);
+    window.electronAPI.onFileWatchingStopped(handleWatchingStopped);
+
+    // Cleanup
+    return () => {
+      window.electronAPI?.removeAllListeners?.('watching-started');
+      window.electronAPI?.removeAllListeners?.('file-watching-stopped');
+    };
+  }, [isElectron]);
+
   // Start watching function
   const startWatching = useCallback(async () => {
     if (!isElectron) return;
@@ -56,7 +84,8 @@ export function useGraphManager(): UseGraphManagerReturn {
       const result = await window.electronAPI!.startFileWatching();
       console.log('[DEBUG] startFileWatching result:', result);
       if (result.success) {
-        setWatchStatus({ isWatching: true, directory: result.directory });
+        // Don't set watchStatus or isLoading here - the watching-started event will handle it
+        // This prevents race conditions and ensures state is in sync with main process
       } else {
         setError(result.error || 'Failed to start watching');
         setIsLoading(false);
@@ -80,14 +109,15 @@ export function useGraphManager(): UseGraphManagerReturn {
       const result = await window.electronAPI!.stopFileWatching();
       console.log('[DEBUG] stopFileWatching result:', result);
       if (result.success) {
-        setWatchStatus({ isWatching: false });
+        // Don't set watchStatus or isLoading here - the file-watching-stopped event will handle it
+        // This prevents race conditions and ensures state is in sync with main process
       } else {
         setError(result.error || 'Failed to stop watching');
+        setIsLoading(false);
       }
     } catch (err) {
       console.log('[DEBUG] stopWatching error:', err);
       setError('Failed to stop file watching');
-    } finally {
       setIsLoading(false);
     }
   }, [isElectron, watchStatus]);
