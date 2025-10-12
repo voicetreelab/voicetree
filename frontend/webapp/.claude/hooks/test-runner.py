@@ -85,7 +85,7 @@ def run_e2e_test():
 
         # Run the specific e2e test
         result = subprocess.run(
-            ["npx", "playwright", "test", "tests/e2e/full-app/electron-sys-e2e.spec.ts", "--config=playwright-electron.config.ts"],
+            ["npx", "playwright", "test", "tests/e2e/full-app/electron-real-folder.spec.ts", "--config=playwright-electron.config.ts"],
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
@@ -160,7 +160,7 @@ def main():
             print(f"  • {line}", file=sys.stderr)
 
     # Run e2e test (temporarily disabled - known failure being investigated)
-    # TODO: Re-enable once electron-sys-e2e test is fixed
+    # TODO: Re-enable once electron-real-folder test is fixed
     # e2e_exit_code, e2e_stdout, e2e_stderr, e2e_elapsed = run_e2e_test()
     # total_time += e2e_elapsed
     e2e_exit_code = 0  # Temporarily skip e2e test

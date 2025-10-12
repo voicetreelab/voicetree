@@ -57,14 +57,28 @@ async function ensureWasmInit() {
 
 export enum TreeOrientation {
   TopDown = 'top-down',
-  LeftRight = 'left-right'
+  LeftRight = 'left-right',
+  Diagonal45 = 'diagonal-45'
 }
 
 export class TidyLayoutStrategy implements PositioningStrategy {
   name = 'tidy-layout';
 
   // Orientation: controls layout direction
-  private orientation: TreeOrientation = TreeOrientation.LeftRight;
+  private orientation: TreeOrientation;
+
+  // Micro-relax configuration: force-directed refinement after Tidy
+  private readonly RELAX_ENABLED = true;  // Disabled for now - needs tuning
+  private readonly RELAX_ITERS = 600
+  private readonly LEAF_ATTRACTION_K = 0.1;  // Pull leaf nodes toward parent
+  private readonly LEAF_TARGET_DISTANCE = 200; // Ideal distance for leaf from parent
+  private readonly REPEL_K = 0.1;
+  private readonly STEP_SIZE = 100;
+  private readonly LOCAL_RADIUS_MULT = 50;
+
+  constructor(orientation: TreeOrientation = TreeOrientation.Diagonal45) {
+    this.orientation = orientation;
+  }
 
   // ----------------------------------------------------
   // Public Interface (Simple and Narrow)
@@ -210,8 +224,14 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     // Compute layout
     this.tidy.layout();
 
-    // Extract positions (excluding ghost root)
-    return this.extractPositions();
+    // Extract positions in engine space (before rotation)
+    const enginePositions = this.extractEnginePositions();
+
+    // Apply micro-relax in engine space (before rotation)
+    const relaxedEnginePositions = this.microRelax(enginePositions, nodes);
+
+    // Convert to UI positions (apply rotation)
+    return this.engineToUIPositions(relaxedEnginePositions);
   }
 
   /**
@@ -475,6 +495,57 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   }
 
   /**
+   * Extract positions from WASM in engine space (no rotation applied)
+   * Returns raw positions before orientation transformation
+   */
+  private extractEnginePositions(): Map<string, Position> {
+    const positions = new Map<string, Position>();
+
+    if (!this.tidy) {
+      console.log('[TidyLayoutStrategy] extractEnginePositions: no tidy instance');
+      return positions;
+    }
+
+    const posArray = this.tidy.get_pos();
+    console.log('[TidyLayoutStrategy] extractEnginePositions: got', posArray.length / 3, 'positions from WASM');
+
+    for (let i = 0; i < posArray.length; i += 3) {
+      const numId = posArray[i];
+      const engineX = posArray[i + 1];
+      const engineY = posArray[i + 2];
+      const stringId = this.numToString.get(numId);
+
+      if (!stringId) {
+        console.warn(`[TidyLayoutStrategy] No string ID for numeric ID ${numId}`);
+        continue;
+      }
+
+      // Filter out ghost root
+      if (stringId !== GHOST_ROOT_STRING_ID) {
+        // Return raw engine positions (no rotation)
+        positions.set(stringId, { x: engineX, y: engineY });
+      }
+    }
+
+    return positions;
+  }
+
+  /**
+   * Convert engine positions to UI positions (apply rotation)
+   */
+  private engineToUIPositions(enginePositions: Map<string, Position>): Map<string, Position> {
+    const uiPositions = new Map<string, Position>();
+
+    for (const [nodeId, enginePos] of enginePositions) {
+      const uiPos = this.toUIPosition(enginePos.x, enginePos.y);
+      console.log(`[TidyLayoutStrategy] ${nodeId}: engine(${enginePos.x.toFixed(1)}, ${enginePos.y.toFixed(1)}) -> UI(${uiPos.x.toFixed(1)}, ${uiPos.y.toFixed(1)})`);
+      uiPositions.set(nodeId, uiPos);
+    }
+
+    return uiPositions;
+  }
+
+  /**
    * Extract positions from WASM, filtering out ghost root
    */
   private extractPositions(): Map<string, Position> {
@@ -501,7 +572,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
       // Filter out ghost root
       if (stringId !== GHOST_ROOT_STRING_ID) {
-        positions.set(stringId, this.toUIPosition(engineX, engineY));
+        const uiPos = this.toUIPosition(engineX, engineY);
+        console.log(`[TidyLayoutStrategy] ${stringId}: engine(${engineX.toFixed(1)}, ${engineY.toFixed(1)}) -> UI(${uiPos.x.toFixed(1)}, ${uiPos.y.toFixed(1)})`);
+        positions.set(stringId, uiPos);
       }
     }
 
@@ -509,30 +582,205 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   }
 
   /**
+   * Apply micro-relax: force-directed physics to refine Tidy positions
+   * Improves edge uniformity and spacing while preserving tree structure
+   */
+  private microRelax(
+    positions: Map<string, Position>,
+    allNodes: NodeInfo[]
+  ): Map<string, Position> {
+    if (!this.RELAX_ENABLED || positions.size === 0) {
+      return positions;
+    }
+
+    console.log('[TidyLayoutStrategy] Applying micro-relax with', this.RELAX_ITERS, 'iterations');
+
+    // Build node lookup
+    const nodeMap = new Map<string, NodeInfo>();
+    for (const node of allNodes) {
+      nodeMap.set(node.id, node);
+    }
+
+    // Clone positions for mutation
+    const currentPositions = new Map<string, Position>();
+    for (const [id, pos] of positions) {
+      currentPositions.set(id, { ...pos });
+    }
+
+    // Build parent map to identify leaf nodes
+    const childrenMap = new Map<string, string[]>();
+    for (const node of allNodes) {
+      const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
+      if (parentId) {
+        if (!childrenMap.has(parentId)) {
+          childrenMap.set(parentId, []);
+        }
+        childrenMap.get(parentId)!.push(node.id);
+      }
+    }
+
+    // Pre-distribute leaf nodes into full circle (alternating hemispheres)
+    // This seeds them around the parent so forces can refine into radial pattern
+    for (const node of allNodes) {
+      const isLeaf = !childrenMap.has(node.id) || childrenMap.get(node.id)!.length === 0;
+      if (!isLeaf) continue;
+
+      const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
+      if (!parentId) continue;
+
+      const parentPos = currentPositions.get(parentId);
+      if (!parentPos) continue;
+
+      const nodePos = currentPositions.get(node.id);
+      if (!nodePos) continue;
+
+      // Get siblings (other leaves of same parent)
+      const siblings = childrenMap.get(parentId) || [];
+      const leafSiblings = siblings.filter(sibId => {
+        const sib = nodeMap.get(sibId);
+        return sib && (!childrenMap.has(sibId) || childrenMap.get(sibId)!.length === 0);
+      });
+
+      const siblingIndex = leafSiblings.indexOf(node.id);
+      if (siblingIndex === -1) continue;
+
+      // Distribute evenly around circle
+      const angle = (siblingIndex / leafSiblings.length) * 2 * Math.PI;
+      const targetX = parentPos.x + this.LEAF_TARGET_DISTANCE * Math.cos(angle);
+      const targetY = parentPos.y + this.LEAF_TARGET_DISTANCE * Math.sin(angle);
+
+      // Blend current position with target (30/70) to seed hemisphere distribution
+      nodePos.x = 0.3 * nodePos.x + 0.7 * targetX;
+      nodePos.y = 0.3 * nodePos.y + 0.7 * targetY;
+    }
+
+    // Run relaxation iterations
+    for (let iter = 0; iter < this.RELAX_ITERS; iter++) {
+      const forces = new Map<string, { fx: number; fy: number }>();
+
+      // Calculate forces for each node
+      for (const [nodeId, nodePos] of currentPositions) {
+        const node = nodeMap.get(nodeId);
+        if (!node) continue;
+
+        const nodeRadius = Math.max(node.size.width, node.size.height) / 2 + 20;
+        const localRadius = this.LOCAL_RADIUS_MULT * nodeRadius * 2;
+
+        let fx = 0, fy = 0;
+
+        // LEAF NODE ATTRACTION: Pull leaf nodes toward parent in a radial pattern
+        const isLeaf = !childrenMap.has(nodeId) || childrenMap.get(nodeId)!.length === 0;
+        if (isLeaf) {
+          const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
+          if (parentId) {
+            const parentPos = currentPositions.get(parentId);
+            if (parentPos) {
+              const dx = nodePos.x - parentPos.x;
+              const dy = nodePos.y - parentPos.y;
+              const dist = Math.hypot(dx, dy) || 1;
+              const delta = dist - this.LEAF_TARGET_DISTANCE;
+
+              // Attractive force toward parent (pull in if too far, push out if too close)
+              fx -= this.LEAF_ATTRACTION_K * delta * (dx / dist);
+              fy -= this.LEAF_ATTRACTION_K * delta * (dy / dist);
+            }
+          }
+        }
+
+        // Repulsion forces from nearby nodes
+        for (const [otherId, otherPos] of currentPositions) {
+          if (otherId === nodeId) continue;
+
+          const otherNode = nodeMap.get(otherId);
+          if (!otherNode) continue;
+
+          const dx = nodePos.x - otherPos.x;
+          const dy = nodePos.y - otherPos.y;
+          const dist2 = dx * dx + dy * dy + 1e-6;
+          const dist = Math.sqrt(dist2);
+
+          if (dist < localRadius) {
+            const otherRadius = Math.max(otherNode.size.width, otherNode.size.height) / 2 + 20;
+            const minDist = nodeRadius + otherRadius;
+
+            if (dist < minDist) {
+              // Strong repulsion when overlapping
+              const factor = this.REPEL_K * 5;
+              const pushDist = minDist - dist + 5;
+              fx += factor * pushDist * (dx / dist);
+              fy += factor * pushDist * (dy / dist);
+            } else {
+              // Normal repulsion
+              fx += this.REPEL_K * dx / dist2;
+              fy += this.REPEL_K * dy / dist2;
+            }
+          }
+        }
+
+        forces.set(nodeId, { fx, fy });
+      }
+
+      // Apply forces
+      for (const [nodeId, nodePos] of currentPositions) {
+        const force = forces.get(nodeId);
+        if (!force) continue;
+
+        const node = nodeMap.get(nodeId);
+        if (!node) continue;
+
+        const nodeRadius = Math.max(node.size.width, node.size.height) / 2 + 20;
+        const forceMag = Math.hypot(force.fx, force.fy);
+        const maxStep = nodeRadius * 0.5;
+        const step = Math.min(this.STEP_SIZE, maxStep / Math.max(forceMag, 1e-6));
+
+        nodePos.x += step * force.fx;
+        nodePos.y += step * force.fy;
+      }
+    }
+
+    console.log('[TidyLayoutStrategy] Micro-relax complete');
+    return currentPositions;
+  }
+
+  /**
    * Convert node size to engine width (swaps based on orientation)
    * Engine uses dimensions for collision detection and spacing calculations.
    */
   private toEngineWidth(nodeSize: { width: number; height: number }): number {
-    return this.orientation === TreeOrientation.LeftRight
-      ? nodeSize.height  // swap: siblings stack vertically, so HEIGHT controls spacing
-      : nodeSize.width;
+    if (this.orientation === TreeOrientation.LeftRight || this.orientation === TreeOrientation.Diagonal45) {
+      return nodeSize.height;  // swap: siblings stack vertically, so HEIGHT controls spacing
+    }
+    return nodeSize.width;
   }
 
   /**
    * Convert node size to engine height (swaps based on orientation)
    */
   private toEngineHeight(nodeSize: { width: number; height: number }): number {
-    return this.orientation === TreeOrientation.LeftRight
-      ? nodeSize.width   // swap: depth grows horizontally, so WIDTH controls depth spacing
-      : nodeSize.height;
+    if (this.orientation === TreeOrientation.LeftRight || this.orientation === TreeOrientation.Diagonal45) {
+      return nodeSize.width;   // swap: depth grows horizontally, so WIDTH controls depth spacing
+    }
+    return nodeSize.height;
   }
 
   /**
-   * Convert engine position to UI position (transposes based on orientation)
+   * Convert engine position to UI position (transposes/rotates based on orientation)
    */
   private toUIPosition(engineX: number, engineY: number): Position {
-    return this.orientation === TreeOrientation.LeftRight
-      ? { x: engineY, y: engineX }  // transpose: engine Y becomes UI X, engine X becomes UI Y
-      : { x: engineX, y: engineY };
+    if (this.orientation === TreeOrientation.Diagonal45) {
+      // Apply 45-degree rotation: top-left to bottom-right
+      // Standard rotation matrix: x_new = cos45*x + sin45*y, y_new = -sin45*x + cos45*y
+      // For 45°: cos(45°) = sin(45°) = √2/2 ≈ 0.7071
+      const cos45 = Math.SQRT1_2; // JavaScript constant for 1/√2
+      const x = cos45 * (engineX + engineY);  // Preserves sign of engineX
+      const y = cos45 * (engineY - engineX);  // Creates diagonal
+      return { x, y };
+    }
+
+    if (this.orientation === TreeOrientation.LeftRight) {
+      return { x: engineY, y: engineX };  // transpose: engine Y becomes UI X, engine X becomes UI Y
+    }
+
+    return { x: engineX, y: engineY };
   }
 }
