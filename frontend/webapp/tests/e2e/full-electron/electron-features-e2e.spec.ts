@@ -1,3 +1,14 @@
+/**
+ * BEHAVIORAL SPEC:
+ * 1. Terminals open and accept commands with visible output
+ * 2. Graph lays out multiple disconnected node islands with proper spacing and no overlaps
+ * 3. New nodes animate with a "breathing" border effect that stops on hover
+ * 4. Updated nodes animate with a different "breathing" effect
+ * 5. Dark/light mode toggle updates graph colors and text colors appropriately
+ *
+ * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
+ */
+
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';

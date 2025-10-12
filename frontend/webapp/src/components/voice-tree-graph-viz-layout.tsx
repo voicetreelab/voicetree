@@ -36,8 +36,8 @@ function normalizeFileId(filename: string): string {
 }
 
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutProps) {
+export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutProps) {
+  const { isLoading, error } = props;
   const [isDarkMode, setIsDarkMode] = useState(false);
   const cytoscapeRef = useRef<CytoscapeCore | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -447,6 +447,27 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
         }
       });
 
+      // Listen to floating window resize events and trigger layout
+      const dimensionChangeMap = new Map<string, ReturnType<typeof setTimeout>>();
+      core.on('floatingwindow:resize', async (_event, data) => {
+        const nodeId = data.nodeId;
+        console.log(`[VoiceTreeGraphVizLayout] Floating window resized: ${nodeId}`);
+
+        // Debounce dimension changes per node
+        if (dimensionChangeMap.has(nodeId)) {
+          clearTimeout(dimensionChangeMap.get(nodeId)!);
+        }
+
+        dimensionChangeMap.set(nodeId, setTimeout(async () => {
+          // Trigger partial layout for this node using dimension update
+          if (layoutManagerRef.current) {
+            console.log(`[VoiceTreeGraphVizLayout] Triggering partial layout via updateNodeDimensions for ${nodeId}`);
+            await layoutManagerRef.current.updateNodeDimensions(core, [nodeId]);
+          }
+          dimensionChangeMap.delete(nodeId);
+        }, 100));
+      });
+
       // Add event listener for tapping on a node
       console.log('[VoiceTreeGraphVizLayout] Registering tap handler for floating windows');
       core.on('tap', 'node', (event) => {
@@ -496,14 +517,16 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
     if (!window.electronAPI) return;
 
     // Set up event listeners
-    console.log('VoiceTreeGraphVizLayout: Setting up file event listeners');
-    console.log('VoiceTreeGraphVizLayout: Setting up onInitialFilesLoaded listener');
     window.electronAPI.onInitialFilesLoaded(handleBulkFilesAdded);
-    console.log('VoiceTreeGraphVizLayout: onInitialFilesLoaded listener registered');
     window.electronAPI.onFileAdded(handleFileAdded);
     window.electronAPI.onFileChanged(handleFileChanged);
     window.electronAPI.onFileDeleted(handleFileDeleted);
     window.electronAPI.onFileWatchingStopped(handleWatchingStopped);
+
+    // Set up layout strategy event listeners
+    if (window.electronAPI.onWatchingStarted) {
+      window.electronAPI.onWatchingStarted(handleWatchingStarted);
+    }
 
     // Expose handlers for testing
     (window as unknown as { testHandlers: { handleFileAdded: typeof handleFileAdded; handleFileChanged: typeof handleFileChanged; handleFileDeleted: typeof handleFileDeleted } }).testHandlers = {
@@ -512,14 +535,7 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
       handleFileDeleted
     };
 
-    // Set up layout strategy event listeners
-    if (window.electronAPI.onWatchingStarted) {
-      window.electronAPI.onWatchingStarted(handleWatchingStarted);
-    }
-
     return () => {
-      // Cleanup listeners
-      console.log('[DEBUG] VoiceTreeGraphVizLayout: Cleaning up file event listeners');
       window.electronAPI!.removeAllListeners('initial-files-loaded');
       window.electronAPI!.removeAllListeners('file-added');
       window.electronAPI!.removeAllListeners('file-changed');
@@ -565,6 +581,20 @@ export default function VoiceTreeGraphVizLayout(_props: VoiceTreeGraphVizLayoutP
 
       {/* Main Canvas Area with Cytoscape.js Graph */}
       <div className="h-full relative">
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1.5 rounded-md shadow-lg text-sm font-medium">
+            Loading graph...
+          </div>
+        )}
+
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1.5 rounded-md shadow-lg text-sm font-medium">
+            Error: {error}
+          </div>
+        )}
+
         {/* Graph container */}
         <div
           ref={containerRef}

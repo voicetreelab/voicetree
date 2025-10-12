@@ -1,3 +1,14 @@
+/**
+ * BEHAVIORAL SPEC:
+ * 1. When user points app at a folder, it watches markdown files and displays them as graph nodes
+ * 2. Creating/modifying/deleting markdown files updates the graph automatically
+ * 3. Wiki-links [[filename]] create edges between nodes
+ * 4. Graph handles rapid file changes without corruption
+ * 5. Stopping file watching clears the graph
+ *
+ * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
+ */
+
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';

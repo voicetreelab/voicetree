@@ -203,6 +203,11 @@ test.describe('Floating Window Dimension Synchronization Debug', () => {
   });
 
   test('should trigger layout when resizing changes dimensions', async ({ page }) => {
+    // Listen to browser console
+    page.on('console', msg => {
+      console.log(`Browser: ${msg.text()}`);
+    });
+
     await page.goto('/tests/e2e/isolated-with-harness/graph-core/cytoscape-react-harness.html');
     await page.waitForSelector('[data-harness-ready="true"]');
 
@@ -246,7 +251,7 @@ test.describe('Floating Window Dimension Synchronization Debug', () => {
             windowElement.style.width = `${initialWidth * 3}px`;
             windowElement.style.height = `${initialHeight * 3}px`;
 
-            // Wait for ResizeObserver to sync dimensions
+            // Wait for ResizeObserver to sync dimensions AND debounced layout to complete (100ms debounce + layout time)
             setTimeout(() => {
               const afterResizePos = shadowNode.position();
               results.push({
@@ -282,7 +287,7 @@ test.describe('Floating Window Dimension Synchronization Debug', () => {
                   resolve(results);
                 }, 300);
               });
-            }, 300);
+            }, 500);
           }, 500);
         });
       });
@@ -305,14 +310,17 @@ test.describe('Floating Window Dimension Synchronization Debug', () => {
       }
     }
 
-    // Verify layout actually ran - positions should change
+    // Verify layout behavior
     const afterResize = layoutTest.find(r => r.step === 'after-resize-3x');
     const afterSibling = layoutTest.find(r => r.step === 'after-sibling-added');
 
-    // After resize 3x, layout should update and position should change
-    expect(afterResize.positionChanged).toBe(true);
+    // CRITICAL: After resize 3x WITHOUT siblings, position should NOT change
+    // Only the bounding box grows - the node stays in the same location
+    // This is because there's nothing to collide with
+    expect(afterResize.positionChanged).toBe(false);
 
-    // After adding sibling, layout should run and move the large terminal
+    // CRITICAL: After adding sibling, layout MUST move terminal-1 to avoid overlap
+    // Now that terminal-1 has grown 3x AND has a sibling, they need to be separated
     expect(afterSibling.terminal1Moved).toBe(true);
   });
 

@@ -3,6 +3,21 @@ import { renderHook } from '@testing-library/react';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
 import { CytoscapeCore } from '@/graph-core';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
+import type { Core as CytoscapeCoreMock } from 'cytoscape';
+
+// Mock types for Cytoscape collections and elements
+interface MockEdge {
+  id: () => string;
+  data: (key?: string) => unknown;
+  target: () => unknown;
+}
+
+interface MockEdgeCollection {
+  length: number;
+  forEach: (callback: (edge: MockEdge) => void) => void;
+  filter: (predicate: (edge: MockEdge) => boolean) => MockEdgeCollection;
+  remove: () => void;
+}
 
 describe('useFileWatcher', () => {
   let mockCytoscapeRef: React.RefObject<CytoscapeCore | null>;
@@ -11,7 +26,7 @@ describe('useFileWatcher', () => {
   let mockSetNodeCount: ReturnType<typeof vi.fn>;
   let mockSetEdgeCount: ReturnType<typeof vi.fn>;
   let mockSetIsInitialLoad: ReturnType<typeof vi.fn>;
-  let mockCyCore: any;
+  let mockCyCore: Partial<CytoscapeCoreMock>;
 
   beforeEach(() => {
     // Create a mock Cytoscape core with necessary methods
@@ -35,10 +50,11 @@ describe('useFileWatcher', () => {
       getElementById: vi.fn((id: string) => ({
         length: 0, // By default, nodes don't exist
         id: () => id,
-        data: vi.fn((key?: string) => undefined),
-        removeData: vi.fn()
+        data: vi.fn(() => undefined),
+        removeData: vi.fn(),
+        position: () => ({ x: 100, y: 100 })
       })),
-      edges: vi.fn((selector?: string) => {
+      edges: vi.fn(() => {
         // Return mock edge collection with remove method
         return {
           length: 0,
@@ -53,7 +69,10 @@ describe('useFileWatcher', () => {
       elements: vi.fn(() => ({
         length: 0,
         remove: vi.fn()
-      }))
+      })),
+      width: vi.fn(() => 800),
+      height: vi.fn(() => 600),
+      fit: vi.fn()
     };
 
     // Mock CytoscapeCore instance
@@ -79,9 +98,6 @@ describe('useFileWatcher', () => {
       const ghostNodeId = 'terminal-test-node';
       const edgeId = `edge-${nodeId}-${ghostNodeId}`;
 
-      // Track created edges for assertion
-      const createdEdges = new Map<string, any>();
-
       // Mock getElementById to return existing nodes
       mockCyCore.getElementById = vi.fn((id: string) => {
         if (id === nodeId) {
@@ -96,7 +112,8 @@ describe('useFileWatcher', () => {
               if (key === 'linkedNodeIds') return ['other-node'];
               return undefined;
             }),
-            removeData: vi.fn()
+            removeData: vi.fn(),
+            position: () => ({ x: 100, y: 100 })
           };
         }
         if (id === ghostNodeId) {
@@ -108,7 +125,8 @@ describe('useFileWatcher', () => {
               if (key === 'parentNodeId') return nodeId;
               return undefined;
             }),
-            removeData: vi.fn()
+            removeData: vi.fn(),
+            position: () => ({ x: 100, y: 100 })
           };
         }
         if (id === 'other-node') {
@@ -119,10 +137,11 @@ describe('useFileWatcher', () => {
               if (key === 'isFloatingWindow') return false;
               return undefined;
             }),
-            removeData: vi.fn()
+            removeData: vi.fn(),
+            position: () => ({ x: 100, y: 100 })
           };
         }
-        return { length: 0, data: vi.fn(), removeData: vi.fn() };
+        return { length: 0, data: vi.fn(), removeData: vi.fn(), position: () => ({ x: 100, y: 100 }) };
       });
 
       // Mock edges selector to track which edges get removed
@@ -154,26 +173,26 @@ describe('useFileWatcher', () => {
 
           return {
             length: 2,
-            forEach: (callback: (edge: any) => void) => {
+            forEach: (callback: (edge: MockEdge) => void) => {
               allEdges.forEach(callback);
             },
-            filter: (predicate: (edge: any) => boolean) => {
+            filter: (predicate: (edge: MockEdge) => boolean) => {
               const filtered = allEdges.filter(predicate);
               return {
                 length: filtered.length,
-                forEach: (callback: (edge: any) => void) => {
+                forEach: (callback: (edge: MockEdge) => void) => {
                   filtered.forEach(callback);
                 },
-                remove: vi.fn(function(this: any) {
-                  this.forEach((edge: any) => {
+                remove: vi.fn(function(this: MockEdgeCollection) {
+                  this.forEach((edge: MockEdge) => {
                     removedEdges.push(edge.id());
                   });
                 })
               };
             },
-            remove: vi.fn(function(this: any) {
+            remove: vi.fn(function(this: MockEdgeCollection) {
               // Track all edges that would be removed
-              this.forEach((edge: any) => {
+              this.forEach((edge: MockEdge) => {
                 removedEdges.push(edge.id());
               });
             })
@@ -227,7 +246,8 @@ describe('useFileWatcher', () => {
               if (key === 'linkedNodeIds') return [];
               return undefined;
             }),
-            removeData: vi.fn()
+            removeData: vi.fn(),
+            position: () => ({ x: 100, y: 100 })
           };
         }
         if (id === editorId) {
@@ -239,10 +259,11 @@ describe('useFileWatcher', () => {
               if (key === 'parentNodeId') return nodeId;
               return undefined;
             }),
-            removeData: vi.fn()
+            removeData: vi.fn(),
+            position: () => ({ x: 100, y: 100 })
           };
         }
-        return { length: 0, data: vi.fn(), removeData: vi.fn() };
+        return { length: 0, data: vi.fn(), removeData: vi.fn(), position: () => ({ x: 100, y: 100 }) };
       });
 
       // Mock edges to return an editor edge
@@ -263,25 +284,25 @@ describe('useFileWatcher', () => {
 
           return {
             length: 1,
-            forEach: (callback: (edge: any) => void) => {
+            forEach: (callback: (edge: MockEdge) => void) => {
               allEdges.forEach(callback);
             },
-            filter: (predicate: (edge: any) => boolean) => {
+            filter: (predicate: (edge: MockEdge) => boolean) => {
               const filtered = allEdges.filter(predicate);
               return {
                 length: filtered.length,
-                forEach: (callback: (edge: any) => void) => {
+                forEach: (callback: (edge: MockEdge) => void) => {
                   filtered.forEach(callback);
                 },
-                remove: vi.fn(function(this: any) {
-                  this.forEach((edge: any) => {
+                remove: vi.fn(function(this: MockEdgeCollection) {
+                  this.forEach((edge: MockEdge) => {
                     removedEdges.push(edge.id());
                   });
                 })
               };
             },
-            remove: vi.fn(function(this: any) {
-              this.forEach((edge: any) => {
+            remove: vi.fn(function(this: MockEdgeCollection) {
+              this.forEach((edge: MockEdge) => {
                 removedEdges.push(edge.id());
               });
             })
@@ -330,7 +351,8 @@ describe('useFileWatcher', () => {
               if (key === 'linkedNodeIds') return [targetId];
               return undefined;
             }),
-            removeData: vi.fn()
+            removeData: vi.fn(),
+            position: () => ({ x: 100, y: 100 })
           };
         }
         if (id === targetId) {
@@ -341,10 +363,11 @@ describe('useFileWatcher', () => {
               if (key === 'isFloatingWindow') return false;
               return undefined;
             }),
-            removeData: vi.fn()
+            removeData: vi.fn(),
+            position: () => ({ x: 100, y: 100 })
           };
         }
-        return { length: 0, data: vi.fn(), removeData: vi.fn() };
+        return { length: 0, data: vi.fn(), removeData: vi.fn(), position: () => ({ x: 100, y: 100 }) };
       });
 
       const removedEdges: string[] = [];
@@ -364,25 +387,25 @@ describe('useFileWatcher', () => {
 
           return {
             length: 1,
-            forEach: (callback: (edge: any) => void) => {
+            forEach: (callback: (edge: MockEdge) => void) => {
               allEdges.forEach(callback);
             },
-            filter: (predicate: (edge: any) => boolean) => {
+            filter: (predicate: (edge: MockEdge) => boolean) => {
               const filtered = allEdges.filter(predicate);
               return {
                 length: filtered.length,
-                forEach: (callback: (edge: any) => void) => {
+                forEach: (callback: (edge: MockEdge) => void) => {
                   filtered.forEach(callback);
                 },
-                remove: vi.fn(function(this: any) {
-                  this.forEach((edge: any) => {
+                remove: vi.fn(function(this: MockEdgeCollection) {
+                  this.forEach((edge: MockEdge) => {
                     removedEdges.push(edge.id());
                   });
                 })
               };
             },
-            remove: vi.fn(function(this: any) {
-              this.forEach((edge: any) => {
+            remove: vi.fn(function(this: MockEdgeCollection) {
+              this.forEach((edge: MockEdge) => {
                 removedEdges.push(edge.id());
               });
             })

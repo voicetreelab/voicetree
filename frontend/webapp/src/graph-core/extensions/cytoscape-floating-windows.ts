@@ -194,11 +194,52 @@ function createWindowChrome(
   // This ensures layout algorithm knows the real window dimensions
   if (typeof ResizeObserver !== 'undefined') {
     const resizeObserver = new ResizeObserver(() => {
+      console.log('[FloatingWindow] ResizeObserver callback fired!');
+
       // Sync dimensions from DOM element to shadow node
       updateShadowNodeDimensions(shadowNode, windowElement);
 
+      // DEBUG: Log dimensions and positions after resize
+      const shadowNodePos = shadowNode.position();
+      const shadowNodeStyle = shadowNode.style();
+      const windowRect = windowElement.getBoundingClientRect();
+      const pan = cy.pan();
+      const zoom = cy.zoom();
+
+      const windowAbsolutePos = { x: windowRect.left, y: windowRect.top };
+      const windowRelativePos = {
+        x: parseFloat(windowElement.style.left) || 0,
+        y: parseFloat(windowElement.style.top) || 0
+      };
+
+      console.log('[FloatingWindow Resize Debug]', {
+        shadowNode: {
+          id: shadowNode.id(),
+          dimensions: { width: shadowNodeStyle['width'], height: shadowNodeStyle['height'] },
+          position: { graph: shadowNodePos }
+        },
+        floatingWindow: {
+          dimensions: {
+            width: windowElement.offsetWidth,
+            height: windowElement.offsetHeight,
+            clientWidth: windowElement.clientWidth,
+            clientHeight: windowElement.clientHeight
+          },
+          position: {
+            absolute: windowAbsolutePos,
+            relative: windowRelativePos,
+            computed: {
+              left: windowElement.style.left,
+              top: windowElement.style.top,
+              transform: windowElement.style.transform
+            }
+          }
+        },
+        viewport: { pan, zoom }
+      });
+
       // Emit custom event for layout manager to listen to
-      cy.trigger('floatingwindow:resize', { nodeId: shadowNode.id() });
+      cy.trigger('floatingwindow:resize', [{ nodeId: shadowNode.id() }]);
     });
 
     resizeObserver.observe(windowElement);

@@ -1,16 +1,13 @@
-
 /**
- * REAL FOLDER E2E TEST
+ * BEHAVIORAL SPEC:
+ * 1. App loads and visualizes a folder of markdown files as a graph with visible, labeled edges
+ * 2. Creating/deleting markdown files adds/removes nodes from the graph
+ * 3. Clicking nodes opens floating markdown editors that save changes to disk
+ * 4. Adding wiki-links in editors creates new edges in the graph
+ * 5. Bulk loads use tree layout; incremental nodes are positioned without overlap
+ * 6. External file changes sync to open editors (bidirectional sync)
  *
- * This test uses a pre-populated vault of markdown files to test the complete
- * file-to-graph pipeline without needing to create temporary files or mock anything.
- *
- * Key features:
- * - Uses real markdown files from /tests/fixtures/test-markdown-vault
- * - Bypasses the native folder picker by providing path directly via IPC
- * - Tests real file watching with Chokidar
- * - Verifies graph visualization updates with actual wiki-links
- * - tests the bulk initial layout, and incremental (on new node add) layouts
+ * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
 
 import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';

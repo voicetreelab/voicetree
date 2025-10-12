@@ -65,9 +65,9 @@
       }
 
       dimensionChangeMap.set(nodeId, setTimeout(async () => {
-        // Trigger partial layout for this node
-        console.log(`[Harness] Triggering partial layout for ${nodeId}`);
-        await layoutManager.applyLayout(cy, [nodeId]);
+        // Trigger partial layout for this node using dimension update
+        console.log(`[Harness] Triggering partial layout via updateNodeDimensions for ${nodeId}`);
+        await layoutManager.updateNodeDimensions(cy, [nodeId]);
         dimensionChangeMap.delete(nodeId);
       }, 100));
     });

@@ -32,6 +32,25 @@ export class LayoutManager {
   }
 
   /**
+   * Update dimensions of existing nodes and trigger partial relayout
+   * Used when floating windows resize
+   */
+  async updateNodeDimensions(cy: Core, nodeIds: string[]): Promise<void> {
+    // Check if strategy supports dimension updates
+    const strategyWithDimensionUpdate = this.strategy as PositioningStrategy & {
+      updateNodeDimensions?: (cy: Core, nodeIds: string[]) => Promise<Map<string, Position>>;
+    };
+
+    if (strategyWithDimensionUpdate.updateNodeDimensions) {
+      const positions = await strategyWithDimensionUpdate.updateNodeDimensions(cy, nodeIds);
+      this.applyPositions(cy, positions);
+    } else {
+      // Fallback to regular layout
+      await this.applyLayout(cy, nodeIds);
+    }
+  }
+
+  /**
    * Apply layout using canonical tree structure from MarkdownTree or Node map
    */
   async applyLayoutWithTree(

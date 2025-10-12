@@ -77,18 +77,28 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   async position(context: PositioningContext): Promise<PositioningResult> {
     const { nodes, newNodes } = context;
 
+    console.log('[TidyLayoutStrategy] position called', {
+      isEmpty: this.isEmpty(),
+      nodesCount: nodes.length,
+      newNodesCount: newNodes.length,
+      wasmNodeIdsSize: this.wasmNodeIds.size
+    });
+
     // Initial load: do full build
     if (this.isEmpty()) {
       const allNodes = [...nodes, ...newNodes];
+      console.log('[TidyLayoutStrategy] Doing fullBuild with', allNodes.length, 'nodes');
       return { positions: await this.fullBuild(allNodes) };
     }
 
     // Incremental update: add only new nodes
     if (newNodes.length > 0) {
+      console.log('[TidyLayoutStrategy] Doing addNodes with', newNodes.length, 'new nodes');
       return { positions: await this.addNodes(newNodes) };
     }
 
     // No new nodes: return empty
+    console.log('[TidyLayoutStrategy] No new nodes, returning empty');
     return { positions: new Map() };
   }
 
@@ -100,7 +110,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   // - LeftRight: PARENT_CHILD_MARGIN = horizontal spacing (depth), PEER_MARGIN = vertical spacing (siblings)
   // - TopDown: PARENT_CHILD_MARGIN = vertical spacing (depth), PEER_MARGIN = horizontal spacing (siblings)
   private readonly PARENT_CHILD_MARGIN = 300;
-  private readonly PEER_MARGIN = 160;
+  private readonly PEER_MARGIN = 60;
 
   // Persistent WASM instance for incremental updates
   private tidy: Tidy | null = null;
@@ -130,9 +140,11 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    * Public for advanced use cases and testing.
    */
   async fullBuild(nodes: NodeInfo[]): Promise<Map<string, Position>> {
+    console.log('[TidyLayoutStrategy] fullBuild called with nodes:', nodes.map(n => n.id));
     const positions = new Map<string, Position>();
 
     if (nodes.length === 0) {
+      console.log('[TidyLayoutStrategy] fullBuild: nodes array is empty, returning');
       return positions;
     }
 
@@ -169,11 +181,14 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     // Build parent map
     const parentMap = this.buildParentMap(nodes);
+    console.log('[TidyLayoutStrategy] parentMap:', Object.fromEntries(parentMap));
 
     // Topologically sort nodes (parents before children)
     const sortedNodes = this.topologicalSort(nodes, parentMap);
+    console.log('[TidyLayoutStrategy] sortedNodes:', sortedNodes.map(n => n.id));
 
     // Add nodes to WASM
+    console.log('[TidyLayoutStrategy] Adding', sortedNodes.length, 'nodes to WASM');
     for (const node of sortedNodes) {
       const numericId = this.stringToNum.get(node.id)!;
       const parentStringId = parentMap.get(node.id);
@@ -181,6 +196,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
         ? this.stringToNum.get(parentStringId)!
         : GHOST_ROOT_NUMERIC_ID; // Orphans parent to ghost
 
+      console.log('[TidyLayoutStrategy] Adding node', node.id, 'numericId:', numericId, 'parentId:', parentNumericId);
       this.tidy.add_node(
         numericId,
         this.toEngineWidth(node.size),
@@ -189,11 +205,45 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       );
       this.wasmNodeIds.add(node.id);
     }
+    console.log('[TidyLayoutStrategy] After adding, wasmNodeIds size:', this.wasmNodeIds.size);
 
     // Compute layout
     this.tidy.layout();
 
     // Extract positions (excluding ghost root)
+    return this.extractPositions();
+  }
+
+  /**
+   * Update dimensions of existing nodes and trigger partial relayout
+   * Uses update_node_size() + partial_layout() for O(depth) updates
+   *
+   * Public for dimension change handling
+   */
+  async updateNodeDimensions(cy: import('cytoscape').Core, nodeIds: string[]): Promise<Map<string, Position>> {
+    if (nodeIds.length === 0 || !this.tidy || this.isEmpty()) {
+      return new Map();
+    }
+
+    const changedNumericIds: number[] = [];
+
+    for (const nodeId of nodeIds) {
+      const numericId = this.stringToNum.get(nodeId);
+      if (numericId === undefined) continue;
+
+      const node = cy.$id(nodeId);
+      if (!node.length) continue;
+
+      const bb = node.boundingBox({ includeLabels: false });
+      const size = { width: bb.w || 40, height: bb.h || 40 };
+
+      this.tidy.update_node_size(numericId, this.toEngineWidth(size), this.toEngineHeight(size));
+      changedNumericIds.push(numericId);
+    }
+
+    if (changedNumericIds.length === 0) return new Map();
+
+    this.tidy.partial_layout(new Uint32Array(changedNumericIds));
     return this.extractPositions();
   }
 
@@ -323,25 +373,43 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
   /**
    * Build parent map from node metadata
-   * Handles both parentId and legacy linkedNodeIds
-   * Filters out invalid parents (non-existent, self-references)
+   * Uses explicit parentId first, falls back to linkedNodeIds with cycle prevention
+   * Filters out invalid parents (non-existent, self-references, cycles)
    */
   private buildParentMap(nodes: NodeInfo[]): Map<string, string> {
     const parentMap = new Map<string, string>();
     const nodeIds = new Set(nodes.map(n => n.id));
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
+    // First pass: collect all explicit parentId relationships
     for (const node of nodes) {
-      // Prefer explicit parentId
       if (node.parentId && nodeIds.has(node.parentId) && node.parentId !== node.id) {
         parentMap.set(node.id, node.parentId);
       }
-      // Fall back to first valid wikilink
-      else if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
+    }
+
+    // Second pass: for nodes without explicit parentId, try linkedNodeIds (with cycle check)
+    for (const node of nodes) {
+      if (parentMap.has(node.id)) {
+        continue; // Already has explicit parent
+      }
+
+      // Try to use first valid linkedNode as parent (if it doesn't create cycle)
+      if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
         for (const linkedId of node.linkedNodeIds) {
-          if (linkedId !== node.id && nodeIds.has(linkedId)) {
-            parentMap.set(node.id, linkedId);
-            break;
+          if (linkedId === node.id || !nodeIds.has(linkedId)) {
+            continue; // Skip self-reference or non-existent nodes
           }
+
+          // Check if linkedNode has this node as its parent (would create cycle)
+          const linkedNode = nodeMap.get(linkedId);
+          if (linkedNode?.parentId === node.id || parentMap.get(linkedId) === node.id) {
+            continue; // Skip - would create cycle
+          }
+
+          // Valid parent found
+          parentMap.set(node.id, linkedId);
+          break;
         }
       }
       // Otherwise, node is an orphan (will parent to ghost root)
@@ -413,10 +481,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     const positions = new Map<string, Position>();
 
     if (!this.tidy) {
+      console.log('[TidyLayoutStrategy] extractPositions: no tidy instance');
       return positions;
     }
 
     const posArray = this.tidy.get_pos();
+    console.log('[TidyLayoutStrategy] extractPositions: got', posArray.length / 3, 'positions from WASM');
 
     for (let i = 0; i < posArray.length; i += 3) {
       const numId = posArray[i];

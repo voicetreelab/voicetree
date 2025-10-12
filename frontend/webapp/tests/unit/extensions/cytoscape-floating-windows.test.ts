@@ -241,3 +241,232 @@ describe('Cytoscape Floating Windows Extension - Config API', () => {
     }
   });
 });
+
+describe('Cytoscape Floating Windows Extension - Resize Flow', () => {
+  let mockCore: cytoscape.Core;
+  let mockContainer: HTMLElement;
+  let mockCytoscape: typeof cytoscape;
+
+  beforeEach(() => {
+    // Setup DOM
+    mockContainer = document.createElement('div');
+    mockContainer.style.width = '800px';
+    mockContainer.style.height = '600px';
+    const mockParent = document.createElement('div');
+    mockParent.appendChild(mockContainer);
+    document.body.appendChild(mockParent);
+
+    // Mock node with style tracking
+    const nodeStyleStorage = new Map<string, unknown>();
+    const mockNode = {
+      id: vi.fn(() => 'test-window'),
+      position: vi.fn(() => ({ x: 100, y: 100 })),
+      style: vi.fn((updates?: Record<string, unknown>) => {
+        if (updates) {
+          Object.entries(updates).forEach(([key, value]) => {
+            nodeStyleStorage.set(key, value);
+          });
+          return mockNode;
+        }
+        // Return current style values for reading
+        return (key: string) => nodeStyleStorage.get(key);
+      }),
+      on: vi.fn(),
+      length: 1
+    };
+
+    // Mock trigger to capture events
+    const eventListeners = new Map<string, Array<(event: unknown, data: unknown) => void>>();
+
+    mockCore = {
+      container: vi.fn(() => mockContainer),
+      add: vi.fn(() => mockNode as unknown as cytoscape.NodeSingular),
+      on: vi.fn((eventName: string, callback: (event: unknown, data: unknown) => void) => {
+        if (!eventListeners.has(eventName)) {
+          eventListeners.set(eventName, []);
+        }
+        eventListeners.get(eventName)!.push(callback);
+      }),
+      trigger: vi.fn((eventName: string, data: unknown[]) => {
+        const listeners = eventListeners.get(eventName) || [];
+        listeners.forEach(listener => listener({}, data[0]));
+      }),
+      pan: vi.fn(() => ({ x: 0, y: 0 })),
+      zoom: vi.fn(() => 1),
+      $: vi.fn(() => mockNode as unknown as cytoscape.NodeSingular)
+    } as unknown as cytoscape.Core;
+
+    mockCytoscape = vi.fn((type: string, name: string, extension: unknown) => {
+      if (type === 'core' && name === 'addFloatingWindow') {
+        (mockCore as unknown as Record<string, unknown>).addFloatingWindow = extension;
+      }
+    }) as unknown as typeof cytoscape;
+  });
+
+  it('should create ResizeObserver when addFloatingWindow is called', () => {
+    const config = {
+      React,
+      ReactDOM,
+      components: {
+        TestComponent
+      }
+    };
+
+    registerFloatingWindows(mockCytoscape, config);
+
+    const addFloatingWindow = (mockCore as unknown as Record<string, unknown>).addFloatingWindow as (
+      config: unknown
+    ) => cytoscape.NodeSingular;
+
+    const node = addFloatingWindow.call(mockCore, {
+      id: 'resizable-window',
+      component: 'TestComponent',
+      position: { x: 100, y: 100 },
+      resizable: true
+    });
+
+    expect(node).toBeDefined();
+
+    // Check that window element was created
+    const windowElement = document.getElementById('window-resizable-window');
+    expect(windowElement).not.toBeNull();
+
+    // Check that ResizeObserver was attached
+    expect(windowElement?.hasAttribute('data-resize-observer')).toBe(true);
+  });
+
+  it('should update shadow node dimensions when ResizeObserver fires', (done) => {
+    const config = {
+      React,
+      ReactDOM,
+      components: {
+        TestComponent
+      }
+    };
+
+    registerFloatingWindows(mockCytoscape, config);
+
+    const addFloatingWindow = (mockCore as unknown as Record<string, unknown>).addFloatingWindow as (
+      config: unknown
+    ) => cytoscape.NodeSingular;
+
+    const mockNode = addFloatingWindow.call(mockCore, {
+      id: 'resizable-window',
+      component: 'TestComponent',
+      position: { x: 100, y: 100 },
+      shadowNodeDimensions: { width: 200, height: 150 }
+    });
+
+    const windowElement = document.getElementById('window-resizable-window');
+    expect(windowElement).not.toBeNull();
+
+    // Mock node.style() to track style updates
+    const styleUpdates = new Map<string, unknown>();
+    mockNode.style = vi.fn((updates?: Record<string, unknown>) => {
+      if (updates) {
+        Object.entries(updates).forEach(([key, value]) => {
+          styleUpdates.set(key, value);
+        });
+      }
+      return mockNode;
+    });
+
+    // Resize the window element
+    windowElement!.style.width = '400px';
+    windowElement!.style.height = '300px';
+
+    // Force layout reflow (void prevents unused expression error)
+    void windowElement!.offsetHeight;
+
+    // ResizeObserver should fire asynchronously
+    setTimeout(() => {
+      // Check that shadow node dimensions were updated
+      expect(styleUpdates.get('width')).toBe(400);
+      expect(styleUpdates.get('height')).toBe(300);
+      done();
+    }, 100);
+  });
+
+  it('should emit floatingwindow:resize event when ResizeObserver fires', (done) => {
+    const config = {
+      React,
+      ReactDOM,
+      components: {
+        TestComponent
+      }
+    };
+
+    registerFloatingWindows(mockCytoscape, config);
+
+    const addFloatingWindow = (mockCore as unknown as Record<string, unknown>).addFloatingWindow as (
+      config: unknown
+    ) => cytoscape.NodeSingular;
+
+    // Set up event listener before creating window
+    const eventSpy = vi.fn();
+    mockCore.on('floatingwindow:resize', eventSpy);
+
+    addFloatingWindow.call(mockCore, {
+      id: 'resizable-window',
+      component: 'TestComponent',
+      position: { x: 100, y: 100 }
+    });
+
+    const windowElement = document.getElementById('window-resizable-window');
+    expect(windowElement).not.toBeNull();
+
+    // Trigger resize
+    windowElement!.style.width = '500px';
+    windowElement!.style.height = '400px';
+
+    // Force layout reflow (void prevents unused expression error)
+    void windowElement!.offsetHeight;
+
+    // Wait for ResizeObserver callback
+    setTimeout(() => {
+      expect(mockCore.trigger).toHaveBeenCalledWith(
+        'floatingwindow:resize',
+        expect.arrayContaining([
+          expect.objectContaining({
+            nodeId: 'resizable-window'
+          })
+        ])
+      );
+      done();
+    }, 100);
+  });
+
+  it('should sync dimensions from DOM element to shadow node correctly', () => {
+    const config = {
+      React,
+      ReactDOM,
+      components: {
+        TestComponent
+      }
+    };
+
+    registerFloatingWindows(mockCytoscape, config);
+
+    const addFloatingWindow = (mockCore as unknown as Record<string, unknown>).addFloatingWindow as (
+      config: unknown
+    ) => cytoscape.NodeSingular;
+
+    const mockNode = addFloatingWindow.call(mockCore, {
+      id: 'dimension-test',
+      component: 'TestComponent',
+      position: { x: 100, y: 100 },
+      shadowNodeDimensions: { width: 300, height: 200 }
+    });
+
+    const windowElement = document.getElementById('window-dimension-test');
+    expect(windowElement).not.toBeNull();
+
+    // Initial dimensions should match shadowNodeDimensions
+    expect(windowElement!.offsetWidth).toBe(300);
+    expect(windowElement!.offsetHeight).toBe(200);
+
+    // Verify initial sync happened
+    // Note: The initial sync uses requestAnimationFrame, so we can't easily test it synchronously
+    expect(mockNode.style).toHaveBeenCalled();
+  });
+});
