@@ -14,7 +14,11 @@
  *   const positions = await applyColaRefinement(cy, initialPositions, options);
  */
 
-import type { Core, NodeSingular, EdgeSingular } from 'cytoscape';
+import cytoscape, { type Core, type NodeSingular, type EdgeSingular } from 'cytoscape';
+import cola from 'cytoscape-cola';
+
+// Register the cola layout extension with cytoscape
+cytoscape.use(cola);
 
 export interface Position {
   x: number;
@@ -73,14 +77,14 @@ export async function applyColaRefinement(
 
   // Apply default options
   const opts = {
-    maxSimulationTime: options.maxSimulationTime ?? 4000,
-    convergenceThreshold: options.convergenceThreshold ?? 0.01,
+    maxSimulationTime: options.maxSimulationTime ?? 1000,
+    convergenceThreshold: options.convergenceThreshold ?? 0.1,
     avoidOverlap: options.avoidOverlap ?? true,
     nodeSpacing: options.nodeSpacing ?? 30,
-    parentChildEdgeLength: options.parentChildEdgeLength ?? 300,
-    defaultEdgeLength: options.defaultEdgeLength ?? 100,
-    centerGraph: options.centerGraph ?? true,
-    handleDisconnected: options.handleDisconnected ?? true,
+    parentChildEdgeLength: options.parentChildEdgeLength ?? undefined,
+    defaultEdgeLength: options.defaultEdgeLength ?? undefined,
+    centerGraph: options.centerGraph ?? false,
+    handleDisconnected: options.handleDisconnected ?? false,
     flow: options.flow
   };
 

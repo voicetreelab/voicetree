@@ -203,13 +203,8 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     }
   };
 
-  // Initialize layout manager once with incremental strategy (persists state)
-  // The same strategy instance is reused for all layouts - cache persists
-  useEffect(() => {
-    const strategy = new TidyLayoutStrategy();
-    layoutManagerRef.current = new LayoutManager(strategy);
-    console.log('[Layout] LayoutManager initialized with persistent TidyLayoutStrategy');
-  }, []); // Empty deps - run once only
+  // Layout manager will be initialized after Cytoscape instance is created
+  // (moved to the Cytoscape initialization useEffect)
 
   // File watching event handlers
   const {
@@ -316,6 +311,11 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
 
       // Expose Cytoscape instance for testing
       const core = cytoscapeRef.current.getCore();
+
+      // Initialize layout manager with TidyLayoutStrategy (needs cy instance)
+      const strategy = new TidyLayoutStrategy(core);
+      layoutManagerRef.current = new LayoutManager(strategy);
+      console.log('[Layout] LayoutManager initialized with persistent TidyLayoutStrategy');
       console.log('[VoiceTreeGraphVizLayout] Got core from CytoscapeCore');
       if (typeof window !== 'undefined') {
         console.log('VoiceTreeGraphVizLayout: Initial cytoscapeInstance set on window');

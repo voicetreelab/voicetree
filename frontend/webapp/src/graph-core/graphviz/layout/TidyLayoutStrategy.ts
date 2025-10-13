@@ -26,7 +26,9 @@ import type {
   NodeInfo,
   Position
 } from '@/graph-core/graphviz/layout/types';
+import type { Core } from 'cytoscape';
 import wasmInit, { Tidy } from '@wasm/wasm';
+import { applyColaRefinement, type ColaRefinementOptions } from './ColaRefinement';
 
 const GHOST_ROOT_STRING_ID = '__GHOST_ROOT__';
 const GHOST_ROOT_NUMERIC_ID = 0;
@@ -67,6 +69,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   // Orientation: controls layout direction
   private orientation: TreeOrientation;
 
+  // Cytoscape instance for Cola refinement
+  private cy: Core;
+
   // Micro-relax configuration: force-directed refinement after Tidy
   private readonly RELAX_ENABLED = true;  // Disabled for now - needs tuning
   private readonly RELAX_ITERS = 60
@@ -76,7 +81,8 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   private readonly STEP_SIZE = 100;
   private readonly LOCAL_RADIUS_MULT = 10;
 
-  constructor(orientation: TreeOrientation = TreeOrientation.Diagonal45) {
+  constructor(cy: Core, orientation: TreeOrientation = TreeOrientation.Diagonal45) {
+    this.cy = cy;
     this.orientation = orientation;
   }
 
@@ -231,7 +237,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     const enginePositions = this.extractEnginePositions();
 
     // Apply micro-relax with warm-start (stores deltas for incremental updates)
-    const relaxedEnginePositions = this.microRelaxWithWarmStart(
+    const relaxedEnginePositions = await this.microRelaxWithWarmStart(
       enginePositions,
       nodes,
       iterations  // Use full 600 iterations for fullBuild
@@ -357,7 +363,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       }
 
       // Run physics to refine the new Tidy positions
-      const relaxedEnginePositions = this.microRelaxWithWarmStart(
+      const relaxedEnginePositions = await this.microRelaxWithWarmStart(
         newTidyPositions,
         allNodes,
         100  // Fewer iterations than fullBuild (600)
@@ -604,11 +610,11 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    * 3. Apply physics simulation
    * 4. Write back new deltas: delta = relaxed - tidy
    */
-  private microRelaxWithWarmStart(
+  private async microRelaxWithWarmStart(
     tidyPositions: Map<string, Position>,
     allNodes: NodeInfo[],
     iterations: number
-  ): Map<string, Position> {
+  ): Promise<Map<string, Position>> {
     if (!this.RELAX_ENABLED || tidyPositions.size === 0) {
       return tidyPositions;
     }
@@ -626,7 +632,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     }
 
     // Run the physics simulation
-    const relaxedPositions = this.microRelaxInternal(
+    const relaxedPositions = await this.microRelaxInternal(
       currentPositions,
       allNodes,
       iterations
@@ -650,11 +656,11 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    * Internal micro-relax implementation: the actual physics simulation
    * Takes starting positions and returns relaxed positions after N iterations.
    */
-  private microRelaxInternal(
+  private async microRelaxInternal(
     startPositions: Map<string, Position>,
     allNodes: NodeInfo[],
     iterations: number
-  ): Map<string, Position> {
+  ): Promise<Map<string, Position>> {
 
     // Build node lookup
     const nodeMap = new Map<string, NodeInfo>();
@@ -722,92 +728,18 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       }
     }
 
-    // Run relaxation iterations
-    for (let iter = 0; iter < iterations; iter++) {
-      const forces = new Map<string, { fx: number; fy: number }>();
+    // Apply Cola refinement with the seeded positions
+    const colaOptions: ColaRefinementOptions = {
+      maxSimulationTime: iterations * 10,  // Convert iterations to milliseconds
+      convergenceThreshold: 0.1,
+      avoidOverlap: true,
+      nodeSpacing: 30,
+      centerGraph: false,
+      handleDisconnected: false,
+    };
 
-      // Calculate forces for each node
-      for (const [nodeId, nodePos] of currentPositions) {
-        const node = nodeMap.get(nodeId);
-        if (!node) continue;
-
-        const nodeRadius = Math.max(node.size.width, node.size.height) / 2 + 20;
-        const localRadius = this.LOCAL_RADIUS_MULT * nodeRadius * 2;
-
-        let fx = 0, fy = 0;
-
-        // LEAF NODE ATTRACTION: Pull leaf nodes toward parent in a radial pattern
-        // Shadow nodes (floating windows) are never treated as leaves - they don't participate in leaf physics
-        const isLeaf = (!childrenMap.has(nodeId) || childrenMap.get(nodeId)!.length === 0) && !node.isShadowNode;
-        if (isLeaf) {
-            // console.log("L_IMP", isLeaf, node.isShadowNode)
-
-          const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
-          if (parentId) {
-            const parentPos = currentPositions.get(parentId);
-            if (parentPos) {
-              const dx = nodePos.x - parentPos.x;
-              const dy = nodePos.y - parentPos.y;
-              const dist = Math.hypot(dx, dy) || 1;
-              const delta = dist - this.LEAF_TARGET_DISTANCE;
-
-              // Attractive force toward parent (pull in if too far, push out if too close)
-              fx -= this.LEAF_ATTRACTION_K * delta * (dx / dist);
-              fy -= this.LEAF_ATTRACTION_K * delta * (dy / dist);
-            }
-          }
-        }
-
-        // Repulsion forces from nearby nodes
-        for (const [otherId, otherPos] of currentPositions) {
-          if (otherId === nodeId) continue;
-
-          const otherNode = nodeMap.get(otherId);
-          if (!otherNode) continue;
-
-          const dx = nodePos.x - otherPos.x;
-          const dy = nodePos.y - otherPos.y;
-          const dist2 = dx * dx + dy * dy + 1e-6;
-          const dist = Math.sqrt(dist2);
-
-          if (dist < localRadius) {
-            const otherRadius = Math.max(otherNode.size.width, otherNode.size.height) / 2 + 20;
-            const minDist = nodeRadius + otherRadius;
-
-            if (dist < minDist) {
-              // Strong repulsion when overlapping
-              const factor = this.REPEL_K * 5;
-              const pushDist = minDist - dist + 5;
-              fx += factor * pushDist * (dx / dist);
-              fy += factor * pushDist * (dy / dist);
-            } else {
-              // Normal repulsion
-              fx += this.REPEL_K * dx / dist2;
-              fy += this.REPEL_K * dy / dist2;
-            }
-          }
-        }
-
-        forces.set(nodeId, { fx, fy });
-      }
-
-      // Apply forces
-      for (const [nodeId, nodePos] of currentPositions) {
-        const force = forces.get(nodeId);
-        if (!force) continue;
-
-        const node = nodeMap.get(nodeId);
-        if (!node) continue;
-
-        const nodeRadius = Math.max(node.size.width, node.size.height) / 2 + 20;
-        const forceMag = Math.hypot(force.fx, force.fy);
-        const maxStep = nodeRadius * 0.5;
-        const step = Math.min(this.STEP_SIZE, maxStep / Math.max(forceMag, 1e-6));
-
-        nodePos.x += step * force.fx;
-        nodePos.y += step * force.fy;
-      }
-    }
+    console.log('[TidyLayoutStrategy] Applying Cola refinement with seeded positions');
+    // const refinedPositions = await applyColaRefinement(this.cy, currentPositions, allNodes, colaOptions);
 
     console.log('[TidyLayoutStrategy] Micro-relax complete');
     return currentPositions;
