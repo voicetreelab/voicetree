@@ -14,11 +14,8 @@
  *   const positions = await applyColaRefinement(cy, initialPositions, options);
  */
 
-import cytoscape, { type Core } from 'cytoscape';
-import cola from 'cytoscape-cola';
-
-// Register the cola layout extension with cytoscape
-cytoscape.use(cola);
+import cytoscape, { type Core, type EdgeSingular } from 'cytoscape';
+import ColaLayout from './cola';
 
 export interface Position {
   x: number;
@@ -87,38 +84,43 @@ export async function applyColaRefinement(
   }
 
   const colaOptions = {
-    name: 'cola',
+    cy: cy,
+    eles: cy.elements(),
     animate: true, // Critical: spreads iterations across frames, respects maxSimulationTime
     randomize: false,
     avoidOverlap: options.avoidOverlap ?? true,
-    handleDisconnected: options.handleDisconnected ?? false,
-    convergenceThreshold: options.convergenceThreshold ?? 10,
-    maxSimulationTime: options.maxSimulationTime ?? 10,
+    handleDisconnected: options.handleDisconnected ?? true,
+    convergenceThreshold: options.convergenceThreshold ?? 1,
+    maxSimulationTime: options.maxSimulationTime ?? 9000,
 
     // Iteration limits - directly control force strength
     unconstrIter: options.unconstrIter ?? 5,     // Few unconstrained iterations
-    userConstIter: options.userConstIter ?? 0,   // No user constraint iterations
+    userConstIter: options.userConstIter ?? 5,   // No user constraint iterations
     allConstIter: options.allConstIter ?? 5,     // Few overlap prevention iterations
 
-    // Spacing - more space = weaker collision forces
-    nodeSpacing: options.nodeSpacing ?? 50,
+    nodeSpacing: options.nodeSpacing ?? 10,
 
-    // Edge forces - if specified
-    edgeLength: options.edgeLength,
+    edgeLength: options.edgeLength ?? ((edge: EdgeSingular) => {
+        const source = edge.source().position();
+        const target = edge.target().position();
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }),
 
-    flow: options.flow,
+    flow: options.flow ?? undefined,
     centerGraph: options.centerGraph ?? false,
     fit: false,
-    padding: 0,
+    padding: 30,
     nodeDimensionsIncludeLabels: true,
   };
 
-  // Run layout
-  const layout = cy.layout(colaOptions);
+  // Run layout using local ColaLayout
+  const layout = new ColaLayout(colaOptions);
 
   // Wait for completion
   await new Promise<void>((resolve) => {
-    layout.on('layoutstop', () => {
+    layout.one('layoutstop', () => {
       console.log('[ColaRefinement] Cola layout complete');
       resolve();
     });
