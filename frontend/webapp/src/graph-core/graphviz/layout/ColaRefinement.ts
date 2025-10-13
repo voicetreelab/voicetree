@@ -38,13 +38,17 @@ export interface ColaRefinementOptions {
   maxSimulationTime?: number;         // Max time in ms (default: 100)
   convergenceThreshold?: number;      // Stop when energy below this (default: 0.01)
 
-  // Iteration limits (optional - mainly for testing)
-  unconstrIter?: number;              // Unconstrained initial layout iterations
-  userConstIter?: number;             // Initial layout iterations with user-specified constraints
-  allConstIter?: number;              // Initial layout iterations with all constraints
+  // Iteration limits (directly control how many iterations)
+  unconstrIter?: number;              // Unconstrained initial layout iterations (default: 5)
+  userConstIter?: number;             // Initial layout iterations with user-specified constraints (default: 0)
+  allConstIter?: number;              // Initial layout iterations with all constraints (default: 5)
 
   // Spacing
   avoidOverlap?: boolean;             // Prevent node overlaps (default: true)
+  nodeSpacing?: number;               // Extra spacing around nodes (default: 50)
+
+  // Edge forces
+  edgeLength?: number;                // Edge length for connected nodes (default: undefined = disabled)
 
   // Tree structure
   flow?: {                            // DAG/tree flow layout
@@ -88,11 +92,20 @@ export async function applyColaRefinement(
     randomize: false,
     avoidOverlap: options.avoidOverlap ?? true,
     handleDisconnected: options.handleDisconnected ?? false,
-    convergenceThreshold: options.convergenceThreshold ?? 1,
-    maxSimulationTime: options.maxSimulationTime ?? 100, // Now this actually works!
-    unconstrIter: options.unconstrIter ?? undefined,
-    userConstIter: options.userConstIter ?? undefined,
-    allConstIter: options.allConstIter ?? undefined,
+    convergenceThreshold: options.convergenceThreshold ?? 10,
+    maxSimulationTime: options.maxSimulationTime ?? 10,
+
+    // Iteration limits - directly control force strength
+    unconstrIter: options.unconstrIter ?? 5,     // Few unconstrained iterations
+    userConstIter: options.userConstIter ?? 0,   // No user constraint iterations
+    allConstIter: options.allConstIter ?? 5,     // Few overlap prevention iterations
+
+    // Spacing - more space = weaker collision forces
+    nodeSpacing: options.nodeSpacing ?? 50,
+
+    // Edge forces - if specified
+    edgeLength: options.edgeLength,
+
     flow: options.flow,
     centerGraph: options.centerGraph ?? false,
     fit: false,
@@ -112,7 +125,7 @@ export async function applyColaRefinement(
     layout.run();
   });
 
-  // Step 5: Extract final positions
+  //  Extract final positions
   const finalPositions = new Map<string, Position>();
   for (const nodeId of Array.from(initialPositions.keys())) {
     const node = cy.getElementById(nodeId);

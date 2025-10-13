@@ -141,7 +141,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   // Track which nodes exist in WASM
   private wasmNodeIds = new Set<string>();
 
-  // Persistent physics state: offsets from tidy targets and velocities
+  // Persistent physics state: offsets from tidy targets and velocities (in UI space)
   private physDelta = new Map<string, { x: number; y: number }>();
   private physVel = new Map<string, { x: number; y: number }>();
 
@@ -236,12 +236,24 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     // Extract positions in engine space (before rotation)
     const enginePositions = this.extractEnginePositions();
 
-    // Apply micro-relax with warm-start (stores deltas for incremental updates)
-    const relaxedEnginePositions = await this.microRelaxWithWarmStart(
-      enginePositions,
+    // NEW: Transform to UI space for Cola refinement
+    const uiPositions = this.engineToUIPositions(enginePositions);
+    console.log('[TidyLayoutStrategy] fullBuild: Transformed', uiPositions.size, 'positions to UI space for Cola');
+
+    // Apply micro-relax with warm-start in UI space (stores deltas in UI space)
+    const relaxedUIPositions = await this.microRelaxWithWarmStart(
+      uiPositions,  // Now passing UI positions to Cola
       nodes,
-      iterations  // Use full 600 iterations for fullBuild
+      iterations
     );
+
+    // NEW: Transform back to engine space for committing to Tidy
+    const relaxedEnginePositions = new Map<string, Position>();
+    for (const [nodeId, uiPos] of relaxedUIPositions) {
+      const enginePos = this.uiToEnginePosition(uiPos.x, uiPos.y);
+      relaxedEnginePositions.set(nodeId, enginePos);
+    }
+    console.log('[TidyLayoutStrategy] fullBuild: Inverse transformed', relaxedEnginePositions.size, 'positions back to engine space');
 
     // =============================================================
     // COMMIT (NO CLEAR): Sync Tidy's state with visual reality
@@ -253,19 +265,20 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     // IMPORTANT: We do NOT clear deltas here! The deltas will be recalculated
     // by microRelaxWithWarmStart in the next operation, and they provide the
     // warm-start continuity that prevents jarring visual jumps.
-    console.log('[TidyLayoutStrategy] fullBuild: Committing physics-relaxed positions to Tidy...');
-    for (const [nodeId, relaxedPos] of relaxedEnginePositions) {
+    // Note: Deltas are now stored in UI space, relative to UI-transformed Tidy positions.
+    console.log('[TidyLayoutStrategy] fullBuild: Committing physics-relaxed positions to Tidy (engine space)...');
+    for (const [nodeId, enginePos] of relaxedEnginePositions) {
       if (nodeId === GHOST_ROOT_STRING_ID) continue;
 
       const numericId = this.stringToNum.get(nodeId);
       if (numericId !== undefined) {
-        this.tidy.set_position(numericId, relaxedPos.x, relaxedPos.y);
+        this.tidy.set_position(numericId, enginePos.x, enginePos.y);
       }
     }
     console.log('[TidyLayoutStrategy] fullBuild: Commit complete. Tidy state = visual state.');
 
-    // Convert to UI positions (apply rotation)
-    return this.engineToUIPositions(relaxedEnginePositions);
+    // Return UI positions (already in UI space from Cola)
+    return relaxedUIPositions;
   }
 
   /**
@@ -281,8 +294,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   //   core.on('floatingwindow:resize', async (_event, data) => {
  // is what calls this in voice-tree-graph-viz-layout.tsx
     async updateNodeDimensions(cy: import('cytoscape').Core, nodeIds: string[]): Promise<Map<string, Position>> {
-    // @ts-expect-error - temp disable
-    //   return new Map(); //temp disable
       if (!this.tidy || nodeIds.length === 0) {
       return new Map();
     }
@@ -344,8 +355,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
       console.log(`[TidyLayoutStrategy] partial_layout affected ${affectedIds.length} nodes (vs ${this.wasmNodeIds.size} total)`);
 
-      // Extract new Tidy positions in engine space (for all nodes, needed for physics)
-      const newTidyPositions = this.extractEnginePositions();
+      // Extract new Tidy positions in engine space
+      const newTidyEnginePositions = this.extractEnginePositions();
+
+      // NEW: Transform to UI space
+      const newTidyUIPositions = this.engineToUIPositions(newTidyEnginePositions);
+      console.log('[TidyLayoutStrategy] updateNodeDimensions: Transformed', newTidyUIPositions.size, 'positions to UI space for Cola');
 
       // Collect all nodes for physics
       const allNodes: NodeInfo[] = [];
@@ -358,34 +373,42 @@ export class TidyLayoutStrategy implements PositioningStrategy {
           id: nodeId,
           size: { width: 200, height: 100 }, // Default size
           parentId: undefined,
-          linkedNodeIds: []
+          linkedNodeIds: [],
+          position: { x: 0, y: 0 }  // Placeholder, not used
         });
       }
 
-      // Run physics to refine the new Tidy positions
-      const relaxedEnginePositions = await this.microRelaxWithWarmStart(
-        newTidyPositions,
+      // Run physics in UI space
+      const relaxedUIPositions = await this.microRelaxWithWarmStart(
+        newTidyUIPositions,
         allNodes,
-        100  // Fewer iterations than fullBuild (600)
+        100  // Fewer iterations than fullBuild
       );
+
+      // NEW: Transform back to engine space for committing to Tidy
+      const relaxedEnginePositions = new Map<string, Position>();
+      for (const [nodeId, uiPos] of relaxedUIPositions) {
+        const enginePos = this.uiToEnginePosition(uiPos.x, uiPos.y);
+        relaxedEnginePositions.set(nodeId, enginePos);
+      }
+      console.log('[TidyLayoutStrategy] updateNodeDimensions: Inverse transformed', relaxedEnginePositions.size, 'positions back to engine space');
 
       // =============================================================
       // COMMIT (NO CLEAR): Sync Tidy's state with visual reality
       // =============================================================
-      console.log('[TidyLayoutStrategy] updateNodeDimensions: Committing physics-relaxed positions to Tidy...');
-      for (const [nodeId, relaxedPos] of relaxedEnginePositions) {
+      console.log('[TidyLayoutStrategy] updateNodeDimensions: Committing physics-relaxed positions to Tidy (engine space)...');
+      for (const [nodeId, enginePos] of relaxedEnginePositions) {
         if (nodeId === GHOST_ROOT_STRING_ID) continue;
 
         const numericId = this.stringToNum.get(nodeId);
         if (numericId !== undefined) {
-          this.tidy.set_position(numericId, relaxedPos.x, relaxedPos.y);
+          this.tidy.set_position(numericId, enginePos.x, enginePos.y);
         }
       }
       console.log('[TidyLayoutStrategy] updateNodeDimensions: Commit complete. Tidy state = visual state.');
 
-      // Convert to UI positions and return ALL positions (not just affected)
-      // This maintains consistency with addNodes() behavior
-      return this.engineToUIPositions(relaxedEnginePositions);
+      // Return UI positions (already in UI space from Cola)
+      return relaxedUIPositions;
     }
 
     return new Map();
@@ -634,8 +657,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     // Run the physics simulation
     const relaxedPositions = await this.microRelaxInternal(
       currentPositions,
-      allNodes,
-      iterations
+      allNodes
     );
 
     // Write back deltas: delta = relaxed - tidy
@@ -775,5 +797,30 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     }
 
     return { x: engineX, y: engineY };
+  }
+
+  /**
+   * Convert UI position back to engine position (inverse transform)
+   */
+  private uiToEnginePosition(x: number, y: number): Position {
+    if (this.orientation === TreeOrientation.Diagonal45) {
+      // Inverse 45-degree rotation
+      // Forward: x_ui = cos45*(ex + ey), y_ui = cos45*(ey - ex)
+      // Solve for ex, ey:
+      // x_ui/cos45 = ex + ey  ... (1)
+      // y_ui/cos45 = ey - ex  ... (2)
+      // Adding (1) and (2): x_ui/cos45 + y_ui/cos45 = 2*ey => ey = (x_ui + y_ui)/(2*cos45)
+      // Subtracting (2) from (1): x_ui/cos45 - y_ui/cos45 = 2*ex => ex = (x_ui - y_ui)/(2*cos45)
+      const cos45 = Math.SQRT1_2;
+      const engineX = (x - y) / (2 * cos45);
+      const engineY = (x + y) / (2 * cos45);
+      return { x: engineX, y: engineY };
+    }
+
+    if (this.orientation === TreeOrientation.LeftRight) {
+      return { x: y, y: x };  // Inverse transpose
+    }
+
+    return { x, y };
   }
 }
