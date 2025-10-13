@@ -14,7 +14,7 @@
  *   const positions = await applyColaRefinement(cy, initialPositions, options);
  */
 
-import cytoscape, { type Core, type EdgeSingular } from 'cytoscape';
+import { type Core, type EdgeSingular } from 'cytoscape';
 import ColaLayout from './cola';
 
 export interface Position {
@@ -82,7 +82,7 @@ export async function applyColaRefinement(
       node.position({ x: pos.x, y: pos.y });
     }
   }
-
+  //todo make sure cola is actually starting from these.
   const colaOptions = {
     cy: cy,
     eles: cy.elements(),
@@ -90,22 +90,23 @@ export async function applyColaRefinement(
     randomize: false,
     avoidOverlap: options.avoidOverlap ?? true,
     handleDisconnected: options.handleDisconnected ?? true,
-    convergenceThreshold: options.convergenceThreshold ?? 1,
-    maxSimulationTime: options.maxSimulationTime ?? 9000,
+    convergenceThreshold: options.convergenceThreshold ?? 0.01,
+    maxSimulationTime: options.maxSimulationTime ?? 1000,
 
     // Iteration limits - directly control force strength
     unconstrIter: options.unconstrIter ?? 5,     // Few unconstrained iterations
     userConstIter: options.userConstIter ?? 5,   // No user constraint iterations
     allConstIter: options.allConstIter ?? 5,     // Few overlap prevention iterations
 
-    nodeSpacing: options.nodeSpacing ?? 10,
+    nodeSpacing: options.nodeSpacing ?? 30,
 
     edgeLength: options.edgeLength ?? ((edge: EdgeSingular) => {
         const source = edge.source().position();
+        //todo maybe scale by target node degree
         const target = edge.target().position();
         const dx = target.x - source.x;
         const dy = target.y - source.y;
-        return Math.sqrt(dx * dx + dy * dy);
+        return Math.sqrt(dx * dx + dy * dy) / 3;
     }),
 
     flow: options.flow ?? undefined,
@@ -114,6 +115,16 @@ export async function applyColaRefinement(
     padding: 30,
     nodeDimensionsIncludeLabels: true,
   };
+
+  console.log('[ColaRefinement] Running Cola with options:', {
+    randomize: colaOptions.randomize,
+    maxSimulationTime: colaOptions.maxSimulationTime,
+    iterations: {
+      unconstr: colaOptions.unconstrIter,
+      userConst: colaOptions.userConstIter,
+      allConst: colaOptions.allConstIter
+    }
+  });
 
   // Run layout using local ColaLayout
   const layout = new ColaLayout(colaOptions);
