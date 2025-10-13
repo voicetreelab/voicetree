@@ -25,25 +25,31 @@ declare global {
   }
 }
 
-// Generate test tree
+// Generate test tree with ~100 nodes
 function generateTestTree(): NodeInfo[] {
-  // Create a tree structure:
-  //        root
-  //       /  |  \
-  //      A   B   C
-  //     /|   |   |\
-  //    D E   F   G H
-  return [
-    { id: 'root', size: { width: 200, height: 100 }, linkedNodeIds: [] },
-    { id: 'A', size: { width: 180, height: 90 }, linkedNodeIds: ['root'] },
-    { id: 'B', size: { width: 180, height: 90 }, linkedNodeIds: ['root'] },
-    { id: 'C', size: { width: 180, height: 90 }, linkedNodeIds: ['root'] },
-    { id: 'D', size: { width: 160, height: 80 }, linkedNodeIds: ['A'] },
-    { id: 'E', size: { width: 160, height: 80 }, linkedNodeIds: ['A'] },
-    { id: 'F', size: { width: 160, height: 80 }, linkedNodeIds: ['B'] },
-    { id: 'G', size: { width: 160, height: 80 }, linkedNodeIds: ['C'] },
-    { id: 'H', size: { width: 160, height: 80 }, linkedNodeIds: ['C'] },
-  ];
+  const nodes: NodeInfo[] = [];
+  const nodeCount = 100;
+
+  // Create root
+  nodes.push({
+    id: 'node-0',
+    size: { width: 150, height: 80 },
+    linkedNodeIds: []
+  });
+
+  // Generate remaining nodes - each randomly picks a parent from existing nodes
+  for (let i = 1; i < nodeCount; i++) {
+    // Randomly choose any existing node as parent
+    const parentId = `node-${Math.floor(Math.random() * i)}`;
+
+    nodes.push({
+      id: `node-${i}`,
+      size: { width: 150, height: 80 },
+      linkedNodeIds: [parentId]
+    });
+  }
+
+  return nodes;
 }
 
 export function ColaRefinementTestHarness() {
