@@ -577,6 +577,55 @@ describe('TidyLayoutStrategy', () => {
     });
   });
 
+  describe('Visual Continuity (Incremental Adds)', () => {
+    it('should maintain visual continuity when adding nodes incrementally', async () => {
+      // Setup: Create a parent node with realistic dimensions
+      const parent: NodeInfo = {
+        id: 'parent',
+        position: { x: 0, y: 0 },
+        size: { width: 200, height: 100 } // Realistic node size
+      };
+
+      // Step 1: Do fullBuild with just the parent and get its position
+      const initialPositions = await strategy.fullBuild([parent]);
+      const parentInitialPos = initialPositions.get('parent')!;
+
+      console.log('[Visual Continuity Test] Parent initial position:', parentInitialPos);
+
+      // Step 2: Add a child node incrementally using addNodes()
+      const child: NodeInfo = {
+        id: 'child',
+        position: { x: 0, y: 0 },
+        size: { width: 150, height: 80 }, // Realistic child size
+        parentId: 'parent'
+      };
+
+      const updatedPositions = await strategy.addNodes([child]);
+      const parentNewPos = updatedPositions.get('parent')!;
+
+      console.log('[Visual Continuity Test] Parent new position:', parentNewPos);
+
+      // Step 3: Calculate how much the parent moved
+      const deltaX = Math.abs(parentNewPos.x - parentInitialPos.x);
+      const deltaY = Math.abs(parentNewPos.y - parentInitialPos.y);
+      const totalDelta = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      // Log the delta for debugging and monitoring
+      console.log('[Visual Continuity Test] Parent movement delta:', {
+        deltaX: deltaX.toFixed(2),
+        deltaY: deltaY.toFixed(2),
+        totalDelta: totalDelta.toFixed(2)
+      });
+
+      // Step 4: Assert that parent moved less than 5px (visual continuity threshold)
+      // This is the key assertion - incremental adds should not cause jarring jumps
+      expect(totalDelta).toBeLessThan(5);
+
+      // Also verify the child was actually positioned
+      expect(updatedPositions.has('child')).toBe(true);
+    });
+  });
+
   describe('updateNodeDimensions (Resize Flow)', () => {
     let mockCy: import('cytoscape').Core;
 
@@ -584,16 +633,10 @@ describe('TidyLayoutStrategy', () => {
       // Create mock Cytoscape instance
       mockCy = {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        $id: vi.fn((_id: string) => ({
+        getElementById: vi.fn((_id: string) => ({
           length: 1,
-          boundingBox: vi.fn(() => ({
-            w: 100,
-            h: 50,
-            x1: 0,
-            y1: 0,
-            x2: 100,
-            y2: 50
-          }))
+          width: () => 100,
+          height: () => 50
         }))
       } as unknown as import('cytoscape').Core;
     });
@@ -648,32 +691,20 @@ describe('TidyLayoutStrategy', () => {
       expect(initialYGap).toBeGreaterThan(0);
 
       // Mock child1 growing 3x in height (from 40 to 120)
-      mockCy.$id = vi.fn((id: string) => {
+      mockCy.getElementById = vi.fn((id: string) => {
         if (id === 'child1') {
           return {
             length: 1,
-            boundingBox: vi.fn(() => ({
-              w: 80,
-              h: 120, // 3x the original height
-              x1: 0,
-              y1: 0,
-              x2: 80,
-              y2: 120
-            }))
+            width: () => 80,
+            height: () => 120 // 3x the original height
           };
         }
         return {
           length: 1,
-          boundingBox: vi.fn(() => ({
-            w: 80,
-            h: 40,
-            x1: 0,
-            y1: 0,
-            x2: 80,
-            y2: 40
-          }))
+          width: () => 80,
+          height: () => 40
         };
-      }) as unknown as typeof mockCy.$id;
+      }) as unknown as typeof mockCy.getElementById;
 
       // Update dimensions for child1
       const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['child1']);
@@ -708,32 +739,20 @@ describe('TidyLayoutStrategy', () => {
       const childInitialY = initialPositions.get('only-child')!.y;
 
       // Mock child growing 3x in height (from 40 to 120)
-      mockCy.$id = vi.fn((id: string) => {
+      mockCy.getElementById = vi.fn((id: string) => {
         if (id === 'only-child') {
           return {
             length: 1,
-            boundingBox: vi.fn(() => ({
-              w: 80,
-              h: 120, // 3x the original height
-              x1: 0,
-              y1: 0,
-              x2: 80,
-              y2: 120
-            }))
+            width: () => 80,
+            height: () => 120 // 3x the original height
           };
         }
         return {
           length: 1,
-          boundingBox: vi.fn(() => ({
-            w: 100,
-            h: 50,
-            x1: 0,
-            y1: 0,
-            x2: 100,
-            y2: 50
-          }))
+          width: () => 100,
+          height: () => 50
         };
-      }) as unknown as typeof mockCy.$id;
+      }) as unknown as typeof mockCy.getElementById;
 
       // Update dimensions for only-child
       const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['only-child']);
@@ -761,17 +780,11 @@ describe('TidyLayoutStrategy', () => {
 
       // Mock both children growing
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      mockCy.$id = vi.fn((_id: string) => ({
+      mockCy.getElementById = vi.fn((_id: string) => ({
         length: 1,
-        boundingBox: vi.fn(() => ({
-          w: 100, // Both grow
-          h: 60,
-          x1: 0,
-          y1: 0,
-          x2: 100,
-          y2: 60
-        }))
-      })) as unknown as typeof mockCy.$id;
+        width: () => 100, // Both grow
+        height: () => 60
+      })) as unknown as typeof mockCy.getElementById;
 
       const positions = await strategy.updateNodeDimensions(mockCy, ['child1', 'child2']);
 
@@ -806,33 +819,21 @@ describe('TidyLayoutStrategy', () => {
       expect(initialParentGap).toBeGreaterThan(0);
 
       // Mock child1-1 growing 5x in height
-      mockCy.$id = vi.fn((id: string) => {
+      mockCy.getElementById = vi.fn((id: string) => {
         if (id === 'child1-1') {
           return {
             length: 1,
-            boundingBox: vi.fn(() => ({
-              w: 60,
-              h: 150, // 5x the original height
-              x1: 0,
-              y1: 0,
-              x2: 60,
-              y2: 150
-            }))
+            width: () => 60,
+            height: () => 150 // 5x the original height
           };
         }
         // Return default for other nodes
         return {
           length: 1,
-          boundingBox: vi.fn(() => ({
-            w: 80,
-            h: 40,
-            x1: 0,
-            y1: 0,
-            x2: 80,
-            y2: 40
-          }))
+          width: () => 80,
+          height: () => 40
         };
-      }) as unknown as typeof mockCy.$id;
+      }) as unknown as typeof mockCy.getElementById;
 
       // Update dimensions for child1-1
       const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['child1-1']);
@@ -886,32 +887,20 @@ describe('TidyLayoutStrategy', () => {
       expect(Math.abs(initial.child2 - initial.child1)).toBeGreaterThan(0);
 
       // Mock child1 growing 4x
-      mockCy.$id = vi.fn((id: string) => {
+      mockCy.getElementById = vi.fn((id: string) => {
         if (id === 'child1') {
           return {
             length: 1,
-            boundingBox: vi.fn(() => ({
-              w: 60,
-              h: 120, // 4x the original height
-              x1: 0,
-              y1: 0,
-              x2: 60,
-              y2: 120
-            }))
+            width: () => 60,
+            height: () => 120 // 4x the original height
           };
         }
         return {
           length: 1,
-          boundingBox: vi.fn(() => ({
-            w: 60,
-            h: 30,
-            x1: 0,
-            y1: 0,
-            x2: 60,
-            y2: 30
-          }))
+          width: () => 60,
+          height: () => 30
         };
-      }) as unknown as typeof mockCy.$id;
+      }) as unknown as typeof mockCy.getElementById;
 
       const updatedPositions = await strategy.updateNodeDimensions(mockCy, ['child1']);
 

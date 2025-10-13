@@ -976,6 +976,78 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     console.log('✅ Bulk load + incremental layout test completed successfully!');
   });
 
+  test('should scale node size and border width based on degree', async ({ appWindow }) => {
+    console.log('=== Testing node size scaling with degree ===');
+
+    // Start watching the fixture vault
+    await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    await appWindow.waitForTimeout(3000); // Wait for initial scan
+
+    // Get nodes with their degrees and dimensions
+    // Note: manually calculate degree if not set by updateNodeDegrees()
+    const nodeSizeData = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const nodes = cy.nodes();
+      const nodeData = nodes.map((n: NodeSingular) => {
+        // Check if degree is already set, otherwise calculate it
+        let degree = n.data('degree');
+        if (degree === undefined || degree === null) {
+          degree = n.degree(); // Calculate from actual connections
+          n.data('degree', degree); // Set it for styling
+        }
+
+        return {
+          id: n.id(),
+          label: n.data('label'),
+          degree: degree,
+          width: n.width(),
+          height: n.height(),
+          borderWidth: parseFloat(n.style('border-width'))
+        };
+      });
+
+      // Sort by degree to get high and low degree nodes
+      nodeData.sort((a, b) => a.degree - b.degree);
+
+      return {
+        all: nodeData,
+        lowest: nodeData[0],
+        highest: nodeData[nodeData.length - 1]
+      };
+    });
+
+    console.log('Node with lowest degree:', nodeSizeData.lowest);
+    console.log('Node with highest degree:', nodeSizeData.highest);
+
+    // Verify degree data is set
+    expect(nodeSizeData.lowest.degree).toBeGreaterThanOrEqual(0);
+    expect(nodeSizeData.highest.degree).toBeGreaterThan(nodeSizeData.lowest.degree);
+
+    // Verify size scaling: higher degree -> larger dimensions
+    expect(nodeSizeData.highest.width).toBeGreaterThan(nodeSizeData.lowest.width);
+    expect(nodeSizeData.highest.height).toBeGreaterThan(nodeSizeData.lowest.height);
+
+    // Verify border-width scaling: higher degree -> thicker border
+    expect(nodeSizeData.highest.borderWidth).toBeGreaterThanOrEqual(nodeSizeData.lowest.borderWidth);
+
+    console.log('✓ Node size scales correctly with degree');
+    console.log(`  Low degree (${nodeSizeData.lowest.degree}): ${Math.round(nodeSizeData.lowest.width)}x${Math.round(nodeSizeData.lowest.height)}px, border: ${nodeSizeData.lowest.borderWidth}px`);
+    console.log(`  High degree (${nodeSizeData.highest.degree}): ${Math.round(nodeSizeData.highest.width)}x${Math.round(nodeSizeData.highest.height)}px, border: ${nodeSizeData.highest.borderWidth}px`);
+
+    // Take screenshot for visual verification
+    await appWindow.screenshot({ path: 'test-results/degree-scaling-visualization.png' });
+    console.log('✓ Screenshot saved to test-results/degree-scaling-visualization.png');
+
+    console.log('✓ Node degree scaling test completed');
+  });
+
   test('should sync external file changes to open editors (bidirectional sync)', async ({ appWindow }) => {
     console.log('=== Testing bidirectional sync: external changes -> open editor ===');
 

@@ -30,7 +30,21 @@ export class CytoscapeCore {
 
     this.viz = cytoscape(cytoscapeOptions);
 
+    // Update node degrees after initial elements are added
+    this.updateNodeDegrees();
+
     this.setupEventListeners();
+  }
+
+  /**
+   * Update the degree data attribute for all nodes based on their connections.
+   * This is used by the StyleService to apply degree-based sizing and styling.
+   */
+  private updateNodeDegrees(): void {
+    if (!this.viz) return;
+    this.viz.nodes().forEach(node => {
+      node.data('degree', node.degree());
+    });
   }
 
   private setupEventListeners(): void {
@@ -76,17 +90,23 @@ export class CytoscapeCore {
 
   // Add nodes to the graph
   addNodes(nodes: NodeDefinition[]): NodeCollection {
-    return this.viz.add(nodes).nodes();
+    const addedNodes = this.viz.add(nodes).nodes();
+    this.updateNodeDegrees();
+    return addedNodes;
   }
 
   // Add edges to the graph
   addEdges(edges: EdgeDefinition[]): EdgeCollection {
-    return this.viz.add(edges).edges();
+    const addedEdges = this.viz.add(edges).edges();
+    // Update degrees for all nodes since edges affect node degrees
+    this.updateNodeDegrees();
+    return addedEdges;
   }
 
   // Add elements (nodes and edges) to the graph
   addElements(elements: (NodeDefinition | EdgeDefinition)[]): void {
     this.viz.add(elements);
+    this.updateNodeDegrees();
   }
 
   // Get all nodes

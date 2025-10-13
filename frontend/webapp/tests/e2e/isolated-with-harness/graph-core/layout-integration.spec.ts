@@ -16,7 +16,7 @@ test.describe('Layout Integration - Bulk Load + Incremental Updates', () => {
     console.log('=== PHASE 1: BULK LOAD 50 NODES ===');
 
     // Bulk load 50 nodes at once
-    const bulkLoadResult = await page.evaluate(() => {
+    const bulkLoadResult = await page.evaluate(async () => {
       if (!window.cy || !window.layoutManager) {
         throw new Error('Required objects not available');
       }
@@ -59,7 +59,7 @@ test.describe('Layout Integration - Bulk Load + Incremental Updates', () => {
       }
 
       // Apply bulk layout (this should trigger fullLayout)
-      window.layoutManager.applyLayout(window.cy, allNodeIds);
+      await window.layoutManager.applyLayout(window.cy, allNodeIds);
 
       const positions = window.cy.nodes().map(n => ({
         id: n.id(),
@@ -141,7 +141,7 @@ test.describe('Layout Integration - Bulk Load + Incremental Updates', () => {
         });
 
         // Position incrementally
-        window.layoutManager.positionNode(window.cy, nodeId, parentId);
+        await window.layoutManager.positionNode(window.cy, nodeId, parentId);
 
         const pos = window.cy.$id(nodeId).position();
         results.push({
@@ -250,7 +250,7 @@ test.describe('Layout Integration - Bulk Load + Incremental Updates', () => {
     await page.waitForSelector('#root canvas', { timeout: 5000 });
 
     // Bulk load 30 nodes
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       if (!window.cy || !window.layoutManager) {
         throw new Error('Required objects not available');
       }
@@ -286,13 +286,13 @@ test.describe('Layout Integration - Bulk Load + Incremental Updates', () => {
         allNodeIds.push(nodeId);
       }
 
-      window.layoutManager.applyLayout(window.cy, allNodeIds);
+      await window.layoutManager.applyLayout(window.cy, allNodeIds);
     });
 
     console.log('✓ Bulk loaded 30 base nodes');
 
     // Rapidly add 10 more nodes
-    const rapidResult = await page.evaluate(() => {
+    const rapidResult = await page.evaluate(async () => {
       if (!window.cy || !window.layoutManager) {
         throw new Error('Required objects not available');
       }
@@ -323,7 +323,7 @@ test.describe('Layout Integration - Bulk Load + Incremental Updates', () => {
           }
         });
 
-        window.layoutManager.positionNode(window.cy, nodeId, parentId);
+        await window.layoutManager.positionNode(window.cy, nodeId, parentId);
         positions.push(window.cy.$id(nodeId).position());
       }
 

@@ -1,37 +1,74 @@
 #!/usr/bin/env python3
 import subprocess
 import sys
+import fcntl
+import os
+import time
+
+# Define lock file path
+LOCK_FILE = '/tmp/claude-hook-combined.lock'
 
 # Read stdin once
 stdin_data = sys.stdin.read()
 
-# Run test-runner.sh
-result1 = subprocess.run(
-    ['.claude/hooks/test-runner.sh'],
-    input=stdin_data,
-    text=True,
-    capture_output=True
-)
+# Try to acquire lock with timeout
+lock_fd = None
+lock_acquired = False
+timeout = 180  # 3 minutes max wait
+start_time = time.time()
 
-# Print output from first hook
-if result1.stdout:
-    print(result1.stdout, end='')
-if result1.stderr:
-    print(result1.stderr, end='', file=sys.stderr)
+try:
+    # Open/create lock file
+    lock_fd = open(LOCK_FILE, 'w')
 
-# Run file-check-runner.sh
-result2 = subprocess.run(
-    ['.claude/hooks/file-check-runner.sh'],
-    input=stdin_data,
-    text=True,
-    capture_output=True
-)
+    # Try to acquire exclusive lock with timeout
+    while time.time() - start_time < timeout:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock_acquired = True
+            break
+        except BlockingIOError:
+            # Lock held by another process, wait a bit
+            time.sleep(0.5)
 
-# Print output from second hook
-if result2.stdout:
-    print(result2.stdout, end='')
-if result2.stderr:
-    print(result2.stderr, end='', file=sys.stderr)
+    if not lock_acquired:
+        print("Hook timeout: another hook held lock for too long", file=sys.stderr)
+        sys.exit(2)
 
-# Return 0 if both succeeded, 2 otherwise
-sys.exit(0 if (result1.returncode == 0 and result2.returncode == 0) else 2)
+    # Run test-runner.sh
+    result1 = subprocess.run(
+        ['.claude/hooks/test-runner.sh'],
+        input=stdin_data,
+        text=True,
+        capture_output=True
+    )
+
+    # Print output from first hook
+    if result1.stdout:
+        print(result1.stdout, end='')
+    if result1.stderr:
+        print(result1.stderr, end='', file=sys.stderr)
+
+    # Run file-check-runner.sh
+    result2 = subprocess.run(
+        ['.claude/hooks/file-check-runner.sh'],
+        input=stdin_data,
+        text=True,
+        capture_output=True
+    )
+
+    # Print output from second hook
+    if result2.stdout:
+        print(result2.stdout, end='')
+    if result2.stderr:
+        print(result2.stderr, end='', file=sys.stderr)
+
+    # Return 0 if both succeeded, 2 otherwise
+    sys.exit(0 if (result1.returncode == 0 and result2.returncode == 0) else 2)
+
+finally:
+    # Release lock and cleanup
+    if lock_fd:
+        if lock_acquired:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        lock_fd.close()
