@@ -28,7 +28,7 @@ import type {
 } from '@/graph-core/graphviz/layout/types';
 import type { Core } from 'cytoscape';
 import wasmInit, { Tidy } from '@wasm/wasm';
-import { applyColaRefinement, type ColaRefinementOptions } from './ColaRefinement';
+import { applyColaRefinement } from './ColaRefinement';
 
 const GHOST_ROOT_STRING_ID = '__GHOST_ROOT__';
 const GHOST_ROOT_NUMERIC_ID = 0;
@@ -654,12 +654,11 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
   /**
    * Internal micro-relax implementation: the actual physics simulation
-   * Takes starting positions and returns relaxed positions after N iterations.
+   * Takes starting positions and returns relaxed positions.
    */
   private async microRelaxInternal(
     startPositions: Map<string, Position>,
-    allNodes: NodeInfo[],
-    iterations: number
+    allNodes: NodeInfo[]
   ): Promise<Map<string, Position>> {
 
     // Build node lookup
@@ -729,17 +728,8 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     }
 
     // Apply Cola refinement with the seeded positions
-    const colaOptions: ColaRefinementOptions = {
-      maxSimulationTime: iterations * 10,  // Convert iterations to milliseconds
-      convergenceThreshold: 0.1,
-      avoidOverlap: true,
-      nodeSpacing: 30,
-      centerGraph: false,
-      handleDisconnected: false,
-    };
-
     console.log('[TidyLayoutStrategy] Applying Cola refinement with seeded positions');
-    const refinedPositions = await applyColaRefinement(this.cy, currentPositions, allNodes, colaOptions);
+    const refinedPositions = await applyColaRefinement(this.cy, currentPositions);
 
     console.log('[TidyLayoutStrategy] Micro-relax complete');
     return refinedPositions;
