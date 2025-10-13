@@ -99,12 +99,17 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     });
 
     // Initial load: do full build
-    // if (this.isEmpty()) {
+    if (this.isEmpty()) {
       const allNodes = [...nodes, ...newNodes];
       console.log('[TidyLayoutStrategy] Doing fullBuild with', allNodes.length, 'nodes');
-      return { positions: await this.fullBuild(allNodes) };
-    // }
+      return { positions: await this.fullBuild(allNodes, 200) };
+    }
 
+    else {
+        const allNodes = [...nodes, ...newNodes];
+        console.log('[TidyLayoutStrategy] Doing fullBuild with', allNodes.length, 'nodes');
+        return { positions: await this.fullBuild(allNodes, 10) };
+      }
     // Incremental update: add only new nodes
     if (newNodes.length > 0) {
       console.log('[TidyLayoutStrategy] Doing addNodes with', newNodes.length, 'new nodes');
@@ -157,7 +162,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    *
    * Public for advanced use cases and testing.
    */
-  async fullBuild(nodes: NodeInfo[]): Promise<Map<string, Position>> {
+  async fullBuild(nodes: NodeInfo[], iterations: number): Promise<Map<string, Position>> {
     console.log('[TidyLayoutStrategy] fullBuild called with nodes:', nodes.map(n => n.id));
     const positions = new Map<string, Position>();
 
@@ -237,7 +242,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     const relaxedEnginePositions = this.microRelaxWithWarmStart(
       enginePositions,
       nodes,
-      10  // Use full 600 iterations for fullBuild
+      iterations  // Use full 600 iterations for fullBuild
     );
 
     // =============================================================
@@ -972,8 +977,10 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     // Pre-distribute leaf nodes into full circle (alternating hemispheres)
     // This seeds them around the parent so forces can refine into radial pattern
     for (const node of allNodes) {
-      const isLeaf = !childrenMap.has(node.id) || childrenMap.get(node.id)!.length === 0;
-      if (!isLeaf) continue;
+      const isLeaf = !childrenMap.has(node.id) || childrenMap.get(node.id)!.length === 0 && childrenMap.get(node.isShadowNode);
+        console.log("IMP2", isLeaf, node.isShadowNode)
+
+        if (!isLeaf) continue;
 
       const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
       if (!parentId) continue;
@@ -1019,8 +1026,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
         let fx = 0, fy = 0;
 
         // LEAF NODE ATTRACTION: Pull leaf nodes toward parent in a radial pattern
-        const isLeaf = !childrenMap.has(nodeId) || childrenMap.get(nodeId)!.length === 0;
-        // todo: must isLeaf false for ghost nodes (nodes representing floating windows)
+        // Shadow nodes (floating windows) are never treated as leaves - they don't participate in leaf physics
+        const isLeaf = (!childrenMap.has(nodeId) || childrenMap.get(nodeId)!.length === 0) && !node.isShadowNode;
+        console.log("L_IMP", isLeaf, node.isShadowNode)
         if (isLeaf) {
           const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
           if (parentId) {

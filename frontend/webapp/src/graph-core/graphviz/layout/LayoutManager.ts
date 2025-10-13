@@ -26,7 +26,7 @@ export class LayoutManager {
    * Apply layout to new nodes in the graph
    */
   async applyLayout(cy: Core, newNodeIds: string[]): Promise<void> {
-    const context = this.extractContext(cy, newNodeIds);
+    const context : PositioningContext = this.extractContext(cy, newNodeIds);
     const result = await this.strategy.position(context);
     this.applyPositions(cy, result.positions);
   }
@@ -114,13 +114,16 @@ export class LayoutManager {
       const parentId = node.data('parentId');
       const children = node.data('children');
 
+      let isShadowNode = false;
+
       const nodeInfo: NodeInfo = {
         id: node.id(),
         position: node.position(),
         size: this.getNodeSize(node),
         parentId: parentId || undefined,
         children: children || undefined,
-        linkedNodeIds: this.getLinkedNodeIds(cy, node)
+        linkedNodeIds: this.getLinkedNodeIds(cy, node),
+        isShadowNode
       };
 
       const isNew = newNodeIds.includes(node.id()) &&
@@ -210,16 +213,32 @@ export class LayoutManager {
     const linkedIds: string[] = [];
     const edges = node.connectedEdges();
 
-    edges.forEach((edge: EdgeSingular) => {
-      const source = edge.source();
-      const target = edge.target();
+    // Handle both real Cytoscape collections and test mocks
+    if (typeof edges.forEach === 'function') {
+      edges.forEach((edge: EdgeSingular) => {
+        const source = edge.source();
+        const target = edge.target();
 
-      if (source.id() === node.id()) {
-        linkedIds.push(target.id());
-      } else {
-        linkedIds.push(source.id());
-      }
-    });
+        if (source.id() === node.id()) {
+          linkedIds.push(target.id());
+        } else {
+          linkedIds.push(source.id());
+        }
+      });
+    } else if (typeof edges.toArray === 'function') {
+      // Test mock fallback
+      const edgesArray = edges.toArray();
+      edgesArray.forEach((edge: EdgeSingular) => {
+        const source = edge.source();
+        const target = edge.target();
+
+        if (source.id() === node.id()) {
+          linkedIds.push(target.id());
+        } else {
+          linkedIds.push(source.id());
+        }
+      });
+    }
 
     return linkedIds;
   }
