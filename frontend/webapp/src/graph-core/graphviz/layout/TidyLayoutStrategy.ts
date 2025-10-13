@@ -977,8 +977,8 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     // Pre-distribute leaf nodes into full circle (alternating hemispheres)
     // This seeds them around the parent so forces can refine into radial pattern
     for (const node of allNodes) {
-      const isLeaf = !childrenMap.has(node.id) || childrenMap.get(node.id)!.length === 0 && childrenMap.get(node.isShadowNode);
-        console.log("IMP2", isLeaf, node.isShadowNode)
+      const isLeaf = (!childrenMap.has(node.id) || childrenMap.get(node.id)!.length === 0) && !node.isShadowNode;
+        // console.log("IMP2", isLeaf, node.isShadowNode)
 
         if (!isLeaf) continue;
 
@@ -1028,8 +1028,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
         // LEAF NODE ATTRACTION: Pull leaf nodes toward parent in a radial pattern
         // Shadow nodes (floating windows) are never treated as leaves - they don't participate in leaf physics
         const isLeaf = (!childrenMap.has(nodeId) || childrenMap.get(nodeId)!.length === 0) && !node.isShadowNode;
-        console.log("L_IMP", isLeaf, node.isShadowNode)
         if (isLeaf) {
+            // console.log("L_IMP", isLeaf, node.isShadowNode)
+
           const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
           if (parentId) {
             const parentPos = currentPositions.get(parentId);
