@@ -108,17 +108,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     else {
         const allNodes = [...nodes, ...newNodes];
         console.log('[TidyLayoutStrategy] Doing fullBuild with', allNodes.length, 'nodes');
-        return { positions: await this.fullBuild(allNodes, 10) };
+        return { positions: await this.fullBuild(allNodes, 50) };
       }
-    // Incremental update: add only new nodes
-    if (newNodes.length > 0) {
-      console.log('[TidyLayoutStrategy] Doing addNodes with', newNodes.length, 'new nodes');
-      return { positions: await this.addNodes(newNodes) };
-    }
-
-    // No new nodes: return empty
-    console.log('[TidyLayoutStrategy] No new nodes, returning empty');
-    return { positions: new Map() };
+        //temp just do full build as well. todo optimise with partial_layout later.
   }
 
   // ----------------------------------------------------
@@ -277,7 +269,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    *
    * Public for dimension change handling
    */
-  async updateNodeDimensions(cy: import('cytoscape').Core, nodeIds: string[]): Promise<Map<string, Position>> {
+  //todo
+      // Listen to floating window resize events and trigger layout
+  // const dimensionChangeMap = new Map<string, ReturnType<typeof setTimeout>>();
+  //   core.on('floatingwindow:resize', async (_event, data) => {
+ // is what calls this in voice-tree-graph-viz-layout.tsx
+    async updateNodeDimensions(cy: import('cytoscape').Core, nodeIds: string[]): Promise<Map<string, Position>> {
     // @ts-ignore
     //   return new Map(); //temp disable
       if (!this.tidy || nodeIds.length === 0) {
@@ -451,196 +448,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    *
    * Public for advanced use cases and testing.
    */
-  async addNodes(newNodes: NodeInfo[]): Promise<Map<string, Position>> {
-    if (newNodes.length === 0) {
-      return new Map();
-    }
-
-    // If no existing state, we can't do incremental - caller error
-    // Check against 1 because ghost root is always present
-    if (true) {
-      // Fallback: do full build with ONLY the new nodes
-      // This is not ideal but handles the edge case
-      console.warn('[TidyLayoutStrategy] addNodes called without prior fullBuild, doing full build of new nodes only');
-      return await this.fullBuild(newNodes);
-    }
-
-    // =============================================================
-    // STEP 1: ADD NEW NODES TO WASM
-    // =============================================================
-    // Since fullBuild committed physics back to Tidy, Tidy's internal state
-    // is already at the visual positions. We can directly add new nodes and
-    // run partial_layout from this correct base.
-    const changedNodeIds: number[] = [];
-
-    // Assign numeric IDs to new nodes
-    for (const node of newNodes) {
-      if (!this.stringToNum.has(node.id)) {
-        this.stringToNum.set(node.id, this.nextId);
-        this.numToString.set(this.nextId, node.id);
-        this.nextId++;
-      }
-    }
-
-    // Build parent map for new nodes
-    // IMPORTANT: Only include parent relationships where BOTH parent and child are new nodes
-    // If parent is already in WASM, don't include it in parentMap for topological sort
-    const parentMap = new Map<string, string>();
-    const newNodeIds = new Set(newNodes.map(n => n.id));
-
-    for (const node of newNodes) {
-      let parentId: string | undefined;
-
-      // Prefer explicit parentId
-      if (node.parentId && this.stringToNum.has(node.parentId) && node.parentId !== node.id) {
-        parentId = node.parentId;
-      }
-      // Fall back to first valid wikilink
-      else if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
-        for (const linkedId of node.linkedNodeIds) {
-          if (linkedId !== node.id && this.stringToNum.has(linkedId)) {
-            parentId = linkedId;
-            break;
-          }
-        }
-      }
-
-      // Only add to parentMap if the parent is ALSO a new node
-      // If parent already exists in WASM, the child can be added directly
-      if (parentId && newNodeIds.has(parentId)) {
-        parentMap.set(node.id, parentId);
-      }
-    }
-
-    // Topologically sort new nodes (parents before children)
-    // This is critical to avoid WASM panics when adding nodes
-    const sortedNewNodes = this.topologicalSort(newNodes, parentMap);
-
-    // Add nodes to WASM in topological order
-    for (const node of sortedNewNodes) {
-      // Skip if already in WASM
-      if (this.wasmNodeIds.has(node.id)) {
-        continue;
-      }
-
-      const numericId = this.stringToNum.get(node.id)!;
-      changedNodeIds.push(numericId);
-
-      // Determine parent - check actual node metadata, not just parentMap
-      // parentMap only contains parent relationships between NEW nodes
-      let parentStringId: string | undefined;
-
-      // Prefer explicit parentId
-      if (node.parentId && this.stringToNum.has(node.parentId) && node.parentId !== node.id) {
-        parentStringId = node.parentId;
-      }
-      // Fall back to first valid wikilink
-      else if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
-        for (const linkedId of node.linkedNodeIds) {
-          if (linkedId !== node.id && this.stringToNum.has(linkedId)) {
-            parentStringId = linkedId;
-            break;
-          }
-        }
-      }
-
-      const parentNumericId = parentStringId !== undefined
-        ? this.stringToNum.get(parentStringId)!
-        : GHOST_ROOT_NUMERIC_ID;
-
-      this.tidy.add_node(
-        numericId,
-        this.toEngineWidth(node.size),
-        this.toEngineHeight(node.size),
-        parentNumericId
-      );
-      this.wasmNodeIds.add(node.id);
-    }
-
-    // Use partial_layout for O(depth) incremental updates
-    // KNOWN LIMITATION: partial_layout can panic when adding multiple new siblings at once
-    // For now, use full layout() as a safe fallback when adding multiple nodes
-    // TODO: Fix Rust partial_layout to handle multiple new siblings, or call it once per node
-    if (changedNodeIds.length > 1) {
-      console.warn('[TidyLayoutStrategy] Adding multiple nodes at once, using full layout instead of partial_layout');
-      this.tidy.layout();
-    } else if (changedNodeIds.length === 1) {
-      const changedIdsArray = new Uint32Array(changedNodeIds);
-      // TODO BUG: partial_layout returns affectedIds but we're not capturing it!
-      // We should: const affectedIds = this.tidy.partial_layout(changedIdsArray);
-      // Then use extractPositionsForNodes(affectedIds) to only extract changed positions (O(affected) vs O(N))
-      // AND only run physics on the affected/dirty set, not all nodes
-      // this.tidy.partial_layout(changedIdsArray);
-        this.tidy.layout();
-
-    }
-
-    // Extract positions in engine space (before rotation)
-    // TODO BUG: This extracts ALL positions (O(N)), but we should only extract affected positions
-    const enginePositions = this.extractEnginePositions();
-
-    // Collect all nodes (existing + new) for microRelax
-    const allNodes: NodeInfo[] = [];
-    const allNodesMap = new Map<string, NodeInfo>();
-
-    // Add new nodes to map
-    for (const node of newNodes) {
-      allNodesMap.set(node.id, node);
-    }
-
-    // Reconstruct existing nodes from WASM state
-    // We need size info for physics calculations
-    for (const nodeId of this.wasmNodeIds) {
-      if (nodeId === GHOST_ROOT_STRING_ID) continue;
-      if (!allNodesMap.has(nodeId)) {
-        // For existing nodes, we don't have size info stored
-        // Use a reasonable default - this is a limitation of current architecture
-        // In practice, this shouldn't affect physics much since they already have deltas
-        allNodesMap.set(nodeId, {
-          id: nodeId,
-          size: { width: 200, height: 100 }, // Default size
-          parentId: undefined,
-          linkedNodeIds: []
-        });
-      }
-    }
-
-    // Convert map to array
-    for (const node of allNodesMap.values()) {
-      allNodes.push(node);
-    }
-
-    // Apply physics with warm-start: Option A (simple re-run with fewer iterations)
-    // Use 100 iterations vs 600 in fullBuild for faster incremental updates
-    const relaxedEnginePositions = this.microRelaxWithWarmStart(
-      enginePositions,
-      allNodes,
-      100  // Fewer iterations than fullBuild (600)
-    );
-    //todo , we probs don't want to run this on all nodes??????
-
-    // =============================================================
-    // COMMIT (NO CLEAR): Sync Tidy's state with visual reality
-    // =============================================================
-    // After physics, commit the relaxed positions back to Tidy to maintain
-    // consistency for the next incremental operation.
-    //
-    // IMPORTANT: We do NOT clear deltas here! The deltas provide warm-start
-    // continuity for the next incremental update.
-    console.log('[TidyLayoutStrategy] addNodes: Committing physics-relaxed positions to Tidy...');
-    for (const [nodeId, relaxedPos] of relaxedEnginePositions) {
-      if (nodeId === GHOST_ROOT_STRING_ID) continue;
-
-      const numericId = this.stringToNum.get(nodeId);
-      if (numericId !== undefined) {
-        this.tidy.set_position(numericId, relaxedPos.x, relaxedPos.y);
-      }
-    }
-    console.log('[TidyLayoutStrategy] addNodes: Commit complete. Tidy state = visual state.');
-
-    // Convert to UI positions (apply rotation)
-    return this.engineToUIPositions(enginePositions);
-  }
 
   /**
    * Build parent map from node metadata
@@ -796,77 +603,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     return uiPositions;
   }
 
-  /**
-   * Extract positions from WASM for specific nodes only (optimization)
-   */
-  private extractPositionsForNodes(affectedIds: Uint32Array): Map<string, Position> {
-    const positions = new Map<string, Position>();
-
-    if (!this.tidy) {
-      console.log('[TidyLayoutStrategy] extractPositionsForNodes: no tidy instance');
-      return positions;
-    }
-
-    // Use optimized get_pos_for_nodes method to fetch only affected positions
-    const posArray = this.tidy.get_pos_for_nodes(affectedIds);
-    console.log('[TidyLayoutStrategy] extractPositionsForNodes: got', posArray.length / 3, 'positions from WASM');
-
-    for (let i = 0; i < posArray.length; i += 3) {
-      const numId = posArray[i];
-      const engineX = posArray[i + 1];
-      const engineY = posArray[i + 2];
-      const stringId = this.numToString.get(numId);
-
-      if (!stringId) {
-        console.warn(`[TidyLayoutStrategy] No string ID for numeric ID ${numId}`);
-        continue;
-      }
-
-      // Filter out ghost root
-      if (stringId !== GHOST_ROOT_STRING_ID) {
-        const uiPos = this.toUIPosition(engineX, engineY);
-        positions.set(stringId, uiPos);
-      }
-    }
-
-    return positions;
-  }
-
-  /**
-   * Extract positions from WASM, filtering out ghost root
-   */
-  private extractPositions(): Map<string, Position> {
-    const positions = new Map<string, Position>();
-
-    if (!this.tidy) {
-      console.log('[TidyLayoutStrategy] extractPositions: no tidy instance');
-      return positions;
-    }
-
-    const posArray = this.tidy.get_pos();
-    console.log('[TidyLayoutStrategy] extractPositions: got', posArray.length / 3, 'positions from WASM');
-
-    for (let i = 0; i < posArray.length; i += 3) {
-      const numId = posArray[i];
-      const engineX = posArray[i + 1];
-      const engineY = posArray[i + 2];
-      const stringId = this.numToString.get(numId);
-
-      if (!stringId) {
-        console.warn(`[TidyLayoutStrategy] No string ID for numeric ID ${numId}`);
-        continue;
-      }
-
-      // Filter out ghost root
-      if (stringId !== GHOST_ROOT_STRING_ID) {
-        const uiPos = this.toUIPosition(engineX, engineY);
-        // console.log(`[TidyLayoutStrategy] ${stringId}: engine(${engineX.toFixed(1)}, ${engineY.toFixed(1)}) -> UI(${uiPos.x.toFixed(1)}, ${uiPos.y.toFixed(1)})`);
-        positions.set(stringId, uiPos);
-      }
-    }
-
-    return positions;
-  }
 
   /**
    * Apply micro-relax with warm-start: force-directed physics to refine Tidy positions
@@ -918,26 +654,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     }
 
     return relaxedPositions;
-  }
-
-  /**
-   * Apply micro-relax: force-directed physics to refine Tidy positions
-   * Improves edge uniformity and spacing while preserving tree structure
-   *
-   * This is the main entry point used by fullBuild() for backward compatibility.
-   */
-  private microRelax(
-    positions: Map<string, Position>,
-    allNodes: NodeInfo[]
-  ): Map<string, Position> {
-    if (!this.RELAX_ENABLED || positions.size === 0) {
-      return positions;
-    }
-
-    console.log('[TidyLayoutStrategy] Applying micro-relax with', this.RELAX_ITERS, 'iterations');
-
-    // fullBuild doesn't use warm-start - just run physics directly
-    return this.microRelaxInternal(positions, allNodes, this.RELAX_ITERS);
   }
 
   /**
