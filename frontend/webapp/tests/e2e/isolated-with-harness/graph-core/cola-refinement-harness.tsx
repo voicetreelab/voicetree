@@ -8,6 +8,15 @@ import { TidyLayoutStrategy, TreeOrientation } from '@/graph-core/graphviz/layou
 // Register Cola extension
 cytoscape.use(cola);
 
+// Seeded random number generator for deterministic tests
+function createSeededRandom(seed: number) {
+  let state = seed;
+  return function() {
+    state = (state * 1103515245 + 12345) & 0x7fffffff;
+    return state / 0x7fffffff;
+  };
+}
+
 // Extend window interface for test API
 declare global {
   interface Window {
@@ -16,17 +25,19 @@ declare global {
     lastTidyPositions?: Map<string, { x: number; y: number }>;
     lastColaPositions?: Map<string, { x: number; y: number }>;
     testAPI?: {
-      loadFixture: () => void;
+      loadFixture: (seed?: number) => void;
       applyTidyLayout: () => Promise<void>;
       applyColaRefinement: () => Promise<void>;
       getCytoscape: () => Core | null;
       getNodes: () => NodeInfo[];
+      seededRandom: (seed: number) => () => number;
     };
   }
 }
 
 // Generate test tree with ~100 nodes
-function generateTestTree(): NodeInfo[] {
+function generateTestTree(seed: number = 42): NodeInfo[] {
+  const random = createSeededRandom(seed);
   const nodes: NodeInfo[] = [];
   const nodeCount = 100;
 
@@ -40,7 +51,7 @@ function generateTestTree(): NodeInfo[] {
   // Generate remaining nodes - each randomly picks a parent from existing nodes
   for (let i = 1; i < nodeCount; i++) {
     // Randomly choose any existing node as parent
-    const parentId = `node-${Math.floor(Math.random() * i)}`;
+    const parentId = `node-${Math.floor(random() * i)}`;
 
     nodes.push({
       id: `node-${i}`,
@@ -110,13 +121,13 @@ export function ColaRefinementTestHarness() {
     console.log(`[${type.toUpperCase()}] ${message}`);
   };
 
-  const loadFixture = useCallback(() => {
+  const loadFixture = useCallback((seed: number = 42) => {
     if (!cyRef.current) return;
 
     updateStatus('Loading fixture...', 'info');
 
     try {
-      const testNodes = generateTestTree();
+      const testNodes = generateTestTree(seed);
       setNodes(testNodes);
 
       // Add nodes to Cytoscape
@@ -224,7 +235,7 @@ export function ColaRefinementTestHarness() {
         initialPositions,
         nodes,
         {
-          maxSimulationTime: 3000,
+          maxSimulationTime: 500,
           avoidOverlap: true,
           nodeSpacing: 40,
           flow: { axis: 'y', minSeparation: 150 },
@@ -261,7 +272,8 @@ export function ColaRefinementTestHarness() {
       applyTidyLayout,
       applyColaRefinement: applyColRefinement,
       getCytoscape: () => cyRef.current,
-      getNodes: () => nodes
+      getNodes: () => nodes,
+      seededRandom: createSeededRandom
     };
   }, [nodes, loadFixture, applyTidyLayout, applyColRefinement]);
 

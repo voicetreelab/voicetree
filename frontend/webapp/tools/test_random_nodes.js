@@ -22,11 +22,11 @@
   console.log('[TestScript] Initial node count:', cy.nodes().length);
 
   let nodesAdded = 0;
-  const totalNodes = 10;
+  const totalNodes = 100;
   let nodeCounter = cy.nodes().length;
 
   const interval = setInterval(async () => {
-    // Get all existing nodes
+    // Get all existing nodes (includes both original nodes and test nodes added so far)
     const existingNodes = cy.nodes().toArray();
 
     if (existingNodes.length === 0) {
@@ -46,9 +46,12 @@
       return;
     }
 
-    // Pick random parent from existing nodes
+    // Pick random parent from all existing nodes (can be original or previously added test node)
     const randomParent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
     const parentId = randomParent.id();
+    const isTestNode = parentId.startsWith('test-node-');
+
+    console.log(`[TestScript] Selected parent: ${parentId}${isTestNode ? ' (test node)' : ' (original node)'}, available nodes: ${existingNodes.length}`);
 
     // Create new node ID
     const newNodeId = `test-node-${nodeCounter}`;
