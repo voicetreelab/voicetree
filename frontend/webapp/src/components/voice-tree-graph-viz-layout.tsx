@@ -90,7 +90,8 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         },
         nodeData: {
           isFloatingWindow: true,
-          parentNodeId: nodeId
+          parentNodeId: nodeId,
+          laidOut: false // TODO: cleanup - temporary workaround to skip resize events during initial layout
         },
         resizable: true,
         initialContent: content,
@@ -121,6 +122,14 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         }
       });
       console.log('[createFloatingEditor] Shadow node created:', shadowNode);
+
+      // Set laidOut flag after initial layout completes
+      setTimeout(() => {
+        const node = cy.getCore().getElementById(editorId);
+        if (node.length > 0) {
+          node.data('laidOut', true);
+        }
+      }, 500);
 
       // Trigger incremental layout for the new shadow node
       if (layoutManagerRef.current && !isInitialLoadRef.current) {
@@ -162,13 +171,22 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         },
         nodeData: {
           isFloatingWindow: true,
-          parentNodeId: nodeId
+          parentNodeId: nodeId,
+          laidOut: false // TODO: cleanup - temporary workaround to skip resize events during initial layout
         },
         resizable: true,
         nodeMetadata: nodeMetadata
       });
 
       console.log('[createFloatingTerminal] Shadow node created:', shadowNode);
+
+      // Set laidOut flag after initial layout completes
+      setTimeout(() => {
+        const node = cy.getCore().getElementById(terminalId);
+        if (node.length > 0) {
+          node.data('laidOut', true);
+        }
+      }, 500);
 
       // Trigger incremental layout for the new shadow node
       console.log('[createFloatingTerminal] Layout check - layoutManagerRef.current:', !!layoutManagerRef.current, 'isInitialLoad:', isInitialLoadRef.current);
@@ -452,6 +470,13 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
       core.on('floatingwindow:resize', async (_event, data) => {
         const nodeId = data.nodeId;
         console.log(`[VoiceTreeGraphVizLayout] Floating window resized: ${nodeId}`);
+
+        // Skip resize events for nodes that haven't been laid out yet
+        const node = core.getElementById(nodeId);
+        if (node.length > 0 && node.data('laidOut') === false) {
+          console.log(`[VoiceTreeGraphVizLayout] Skipping resize for newly added node: ${nodeId}`);
+          return;
+        }
 
         // Debounce dimension changes per node
         if (dimensionChangeMap.has(nodeId)) {
