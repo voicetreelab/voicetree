@@ -1,13 +1,37 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TidyLayoutStrategy, TreeOrientation } from '@/graph-core/graphviz/layout/TidyLayoutStrategy';
 import type { NodeInfo } from '@/graph-core/graphviz/layout/types';
+import type { Core } from 'cytoscape';
 
 describe('TidyLayoutStrategy', () => {
   let strategy: TidyLayoutStrategy;
+  let mockCy: Core;
 
   beforeEach(() => {
+    // Create mock Cytoscape instance with layout method for Cola
+    mockCy = {
+      layout: vi.fn(() => {
+        // Mock layout object that Cola expects
+        const mockLayout = {
+          on: vi.fn((event: string, callback: () => void) => {
+            // Call the callback immediately to resolve the layout
+            if (event === 'layoutstop') {
+              setTimeout(callback, 0);
+            }
+            return mockLayout;
+          }),
+          run: vi.fn()
+        };
+        return mockLayout;
+      }),
+      getElementById: vi.fn(() => ({
+        length: 1,
+        position: () => ({ x: 100, y: 200 })
+      }))
+    } as unknown as Core;
+
     // Use LeftRight orientation for all existing tests since they were designed for that
-    strategy = new TidyLayoutStrategy(TreeOrientation.LeftRight);
+    strategy = new TidyLayoutStrategy(mockCy, TreeOrientation.LeftRight);
   });
 
   describe('Ghost Root Behavior', () => {
