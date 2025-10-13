@@ -61,7 +61,8 @@ export default defineConfig({
     base: './',
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src')
+        '@': path.resolve(__dirname, './src'),
+        '@wasm': path.resolve(__dirname, './tidy/wasm_dist')
       }
     },
     optimizeDeps: {
