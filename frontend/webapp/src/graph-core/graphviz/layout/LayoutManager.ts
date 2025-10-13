@@ -236,7 +236,7 @@ export class LayoutManager {
         if (LAYOUT_ANIMATION_DURATION === 0) {
           node.position(pos);
         } else {
-          console.log(`[LayoutManager] Animating node ${nodeId} with duration ${LAYOUT_ANIMATION_DURATION}ms to (${pos.x}, ${pos.y})`);
+          // console.log(`[LayoutManager] Animating node ${nodeId} with duration ${LAYOUT_ANIMATION_DURATION}ms to (${pos.x}, ${pos.y})`);
           node.animate({
             position: pos,
             duration: LAYOUT_ANIMATION_DURATION,

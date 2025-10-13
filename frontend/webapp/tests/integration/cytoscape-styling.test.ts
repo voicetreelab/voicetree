@@ -80,21 +80,52 @@ describe('CytoscapeCore Styling Integration', () => {
     });
 
     it('should apply degree-based sizing', () => {
-      const elements = [
-        { data: { id: 'small', label: 'Small', degree: 1 } },
-        { data: { id: 'large', label: 'Large', degree: 30 } }
+      // Create nodes with different degrees by adding appropriate edges
+      // Small node: 1 edge (degree = 1)
+      // Large node: 30 edges (degree = 30)
+      const nodes = [
+        { data: { id: 'small', label: 'Small' } },
+        { data: { id: 'large', label: 'Large' } }
       ];
 
-      cytoscapeCore = new CytoscapeCore(container, elements, true);
+      // Create helper nodes to give 'large' a high degree
+      const helperNodes = Array.from({ length: 30 }, (_, i) => ({
+        data: { id: `helper${i}`, label: `Helper ${i}` }
+      }));
+
+      // Create edges: 1 edge for small, 30 edges for large
+      const edges = [
+        { data: { id: 'e0', source: 'small', target: 'helper0' } },
+        ...Array.from({ length: 30 }, (_, i) => ({
+          data: { id: `e${i+1}`, source: 'large', target: `helper${i}` }
+        }))
+      ];
+
+      cytoscapeCore = new CytoscapeCore(container, [...nodes, ...helperNodes, ...edges], true);
       const cy = cytoscapeCore.getCore();
 
       const smallNode = cy.getElementById('small');
       const largeNode = cy.getElementById('large');
 
-      // Nodes should have different effective sizes based on degree
-      // Note: In headless mode, computed styles might not be fully calculated
+      // Verify degree data is set correctly based on actual connections
+      // This is the key functionality we're testing - that degrees are automatically calculated and set
       expect(smallNode.data('degree')).toBe(1);
       expect(largeNode.data('degree')).toBe(30);
+
+      // Verify that the stylesheet has degree-based sizing rules configured
+      // In headless JSDOM mode, style computations don't work properly, so we check the stylesheet
+      const styleService = cytoscapeCore['styleService'];
+      const stylesheet = styleService.getDefaultStylesheet();
+      const degreeStyle = stylesheet.find(s => s.selector === 'node[degree]');
+
+      expect(degreeStyle).toBeDefined();
+      expect(degreeStyle?.style.width).toContain('mapData(degree');
+      expect(degreeStyle?.style.height).toContain('mapData(degree');
+      expect(degreeStyle?.style['border-width']).toContain('mapData(degree');
+
+      // Verify the degree data will cause the correct selector to match
+      // In real (non-headless) environments, cytoscape will apply these styles
+      expect(smallNode.data('degree')).toBeLessThan(largeNode.data('degree'));
     });
 
     it('should support frontmatter-based styling', () => {
