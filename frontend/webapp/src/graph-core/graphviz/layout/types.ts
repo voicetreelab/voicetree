@@ -19,6 +19,8 @@ export interface NodeInfo {
   children?: string[];
   // Legacy wikilinks (kept for backward compatibility)
   linkedNodeIds?: string[];
+  // Shadow nodes are invisible anchors for floating windows (terminals, editors)
+  isShadowNode?: boolean;
 }
 
 export interface PositioningContext {

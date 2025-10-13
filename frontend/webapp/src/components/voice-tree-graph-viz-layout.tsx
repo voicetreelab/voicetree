@@ -90,6 +90,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         },
         nodeData: {
           isFloatingWindow: true,
+          isShadowNode: true,
           parentNodeId: nodeId,
           laidOut: false // TODO: cleanup - temporary workaround to skip resize events during initial layout
         },
@@ -171,6 +172,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         },
         nodeData: {
           isFloatingWindow: true,
+          isShadowNode: true,
           parentNodeId: nodeId,
           laidOut: false // TODO: cleanup - temporary workaround to skip resize events during initial layout
         },
