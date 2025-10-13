@@ -1020,6 +1020,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
         // LEAF NODE ATTRACTION: Pull leaf nodes toward parent in a radial pattern
         const isLeaf = !childrenMap.has(nodeId) || childrenMap.get(nodeId)!.length === 0;
+        // todo: must isLeaf false for ghost nodes (nodes representing floating windows)
         if (isLeaf) {
           const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
           if (parentId) {
