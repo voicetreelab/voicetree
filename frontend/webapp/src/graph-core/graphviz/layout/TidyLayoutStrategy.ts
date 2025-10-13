@@ -69,7 +69,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
   // Micro-relax configuration: force-directed refinement after Tidy
   private readonly RELAX_ENABLED = true;  // Disabled for now - needs tuning
-  private readonly RELAX_ITERS = 600
+  private readonly RELAX_ITERS = 60
   private readonly LEAF_ATTRACTION_K = 0.1;  // Pull leaf nodes toward parent
   private readonly LEAF_TARGET_DISTANCE = 200; // Ideal distance for leaf from parent
   private readonly REPEL_K = 0.1;
@@ -99,11 +99,11 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     });
 
     // Initial load: do full build
-    if (this.isEmpty()) {
+    // if (this.isEmpty()) {
       const allNodes = [...nodes, ...newNodes];
       console.log('[TidyLayoutStrategy] Doing fullBuild with', allNodes.length, 'nodes');
       return { positions: await this.fullBuild(allNodes) };
-    }
+    // }
 
     // Incremental update: add only new nodes
     if (newNodes.length > 0) {
@@ -216,7 +216,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
         ? this.stringToNum.get(parentStringId)!
         : GHOST_ROOT_NUMERIC_ID; // Orphans parent to ghost
 
-      console.log('[TidyLayoutStrategy] Adding node', node.id, 'numericId:', numericId, 'parentId:', parentNumericId);
+      // console.log('[TidyLayoutStrategy] Adding node', node.id, 'numericId:', numericId, 'parentId:', parentNumericId);
       this.tidy.add_node(
         numericId,
         this.toEngineWidth(node.size),
@@ -237,7 +237,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     const relaxedEnginePositions = this.microRelaxWithWarmStart(
       enginePositions,
       nodes,
-      this.RELAX_ITERS  // Use full 600 iterations for fullBuild
+      10  // Use full 600 iterations for fullBuild
     );
 
     // =============================================================
@@ -274,7 +274,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
    */
   async updateNodeDimensions(cy: import('cytoscape').Core, nodeIds: string[]): Promise<Map<string, Position>> {
     // @ts-ignore
-      return new Map(); //temp disable
+    //   return new Map(); //temp disable
       if (!this.tidy || nodeIds.length === 0) {
       return new Map();
     }
@@ -453,7 +453,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     // If no existing state, we can't do incremental - caller error
     // Check against 1 because ghost root is always present
-    if (!this.tidy || this.wasmNodeIds.size <= 1) {
+    if (true) {
       // Fallback: do full build with ONLY the new nodes
       // This is not ideal but handles the edge case
       console.warn('[TidyLayoutStrategy] addNodes called without prior fullBuild, doing full build of new nodes only');
@@ -565,7 +565,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       // We should: const affectedIds = this.tidy.partial_layout(changedIdsArray);
       // Then use extractPositionsForNodes(affectedIds) to only extract changed positions (O(affected) vs O(N))
       // AND only run physics on the affected/dirty set, not all nodes
-      this.tidy.partial_layout(changedIdsArray);
+      // this.tidy.partial_layout(changedIdsArray);
+        this.tidy.layout();
+
     }
 
     // Extract positions in engine space (before rotation)
@@ -632,7 +634,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     console.log('[TidyLayoutStrategy] addNodes: Commit complete. Tidy state = visual state.');
 
     // Convert to UI positions (apply rotation)
-    return this.engineToUIPositions(relaxedEnginePositions);
+    return this.engineToUIPositions(enginePositions);
   }
 
   /**
