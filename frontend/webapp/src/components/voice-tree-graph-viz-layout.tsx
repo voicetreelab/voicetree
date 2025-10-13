@@ -322,6 +322,8 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         (window as unknown as { cytoscapeInstance: cytoscape.Core }).cytoscapeInstance = core;
         // Also expose CytoscapeCore for testing
         (window as unknown as { cytoscapeCore: CytoscapeCore | null }).cytoscapeCore = cytoscapeRef.current;
+        // Expose layoutManager for testing
+        (window as unknown as { layoutManager: LayoutManager | null }).layoutManager = layoutManagerRef.current;
 
         // Expose test helper for creating terminal windows (for e2e tests)
         (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers = {
