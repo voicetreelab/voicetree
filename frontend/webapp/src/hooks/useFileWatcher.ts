@@ -189,7 +189,9 @@ export function useFileWatcher({
     // Fit viewport when going from 0 to 1 node with generous padding
     if (nodeCount === 1) {
       console.log('[Layout] First node added, fitting viewport with padding');
-      cy.fit(undefined, 100); // 100px padding for comfortable zoom level
+      setTimeout(() => {
+        cy.fit(undefined, 100); // 100px padding for comfortable zoom level
+      }, 300); // 300ms delay to avoid race condition with positioning
     }
 
     // Apply layout using appropriate strategy
