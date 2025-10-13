@@ -138,6 +138,10 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   // Track which nodes exist in WASM
   private wasmNodeIds = new Set<string>();
 
+  // Persistent physics state: offsets from tidy targets and velocities
+  private physDelta = new Map<string, { x: number; y: number }>();
+  private physVel = new Map<string, { x: number; y: number }>();
+
   /**
    * Check if coordinator is empty (no real nodes, only ghost root or nothing)
    */
@@ -170,6 +174,8 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     this.stringToNum.clear();
     this.numToString.clear();
     this.wasmNodeIds.clear();
+    this.physDelta.clear();
+    this.physVel.clear();
     this.nextId = 1;
 
     // Create fresh WASM instance
@@ -227,8 +233,33 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     // Extract positions in engine space (before rotation)
     const enginePositions = this.extractEnginePositions();
 
-    // Apply micro-relax in engine space (before rotation)
-    const relaxedEnginePositions = this.microRelax(enginePositions, nodes);
+    // Apply micro-relax with warm-start (stores deltas for incremental updates)
+    const relaxedEnginePositions = this.microRelaxWithWarmStart(
+      enginePositions,
+      nodes,
+      this.RELAX_ITERS  // Use full 600 iterations for fullBuild
+    );
+
+    // =============================================================
+    // COMMIT (NO CLEAR): Sync Tidy's state with visual reality
+    // =============================================================
+    // After physics, commit the relaxed positions back to Tidy so that Tidy's
+    // internal state matches the visual reality. This ensures partial_layout()
+    // starts from the correct base (visual positions P', not structural positions P).
+    //
+    // IMPORTANT: We do NOT clear deltas here! The deltas will be recalculated
+    // by microRelaxWithWarmStart in the next operation, and they provide the
+    // warm-start continuity that prevents jarring visual jumps.
+    console.log('[TidyLayoutStrategy] fullBuild: Committing physics-relaxed positions to Tidy...');
+    for (const [nodeId, relaxedPos] of relaxedEnginePositions) {
+      if (nodeId === GHOST_ROOT_STRING_ID) continue;
+
+      const numericId = this.stringToNum.get(nodeId);
+      if (numericId !== undefined) {
+        this.tidy.set_position(numericId, relaxedPos.x, relaxedPos.y);
+      }
+    }
+    console.log('[TidyLayoutStrategy] fullBuild: Commit complete. Tidy state = visual state.');
 
     // Convert to UI positions (apply rotation)
     return this.engineToUIPositions(relaxedEnginePositions);
@@ -236,20 +267,174 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
   /**
    * Update dimensions of existing nodes and trigger partial relayout
-   * Currently falls back to full layout (baseline tidy doesn't have update_node_size/partial_layout)
+   *
+   * Updates node dimensions in WASM and performs incremental layout update.
    *
    * Public for dimension change handling
    */
   async updateNodeDimensions(cy: import('cytoscape').Core, nodeIds: string[]): Promise<Map<string, Position>> {
-    if (nodeIds.length === 0 || !this.tidy || this.isEmpty()) {
+    // @ts-ignore
+      return new Map(); //temp disable
+      if (!this.tidy || nodeIds.length === 0) {
       return new Map();
     }
 
-    // Baseline tidy doesn't have update_node_size/partial_layout, so we fall back to full relayout
-    // TODO: Add these methods to Rust tidy library for O(depth) updates
-    console.warn('[TidyLayoutStrategy] update_node_size/partial_layout not available, falling back to full layout');
-    this.tidy.layout();
-    return this.extractPositions();
+    // =============================================================
+    // STEP 0: VERIFY NODES EXIST IN WASM
+    // =============================================================
+    // Filter out nodes that haven't been added to WASM yet (e.g., ghost nodes)
+    // This prevents WASM panic when ResizeObserver fires before addNodes completes
+    const existingNodeIds = nodeIds.filter(id => this.wasmNodeIds.has(id));
+
+    if (existingNodeIds.length === 0) {
+      console.log('[TidyLayoutStrategy] updateNodeDimensions: No existing nodes found, skipping');
+      return new Map();
+    }
+
+    if (existingNodeIds.length < nodeIds.length) {
+      const missing = nodeIds.filter(id => !this.wasmNodeIds.has(id));
+      console.warn('[TidyLayoutStrategy] updateNodeDimensions: Skipping non-existent nodes:', missing);
+    }
+
+    // Continue with only existing nodes
+    nodeIds = existingNodeIds;
+
+    // Since fullBuild/addNodes committed at the end, Tidy's internal state
+    // is already at the visual positions. We can directly update dimensions
+    // and run partial_layout from this correct base.
+    const changedNumericIds: number[] = [];
+
+    // Update dimensions in WASM
+    for (const nodeId of nodeIds) {
+      const numericId = this.stringToNum.get(nodeId);
+      if (numericId === undefined) {
+        console.warn(`[TidyLayoutStrategy] Node ${nodeId} not found in WASM, skipping dimension update`);
+        continue;
+      }
+
+      const cyNode = cy.getElementById(nodeId);
+      if (!cyNode || cyNode.length === 0) {
+        console.warn(`[TidyLayoutStrategy] Node ${nodeId} not found in Cytoscape, skipping`);
+        continue;
+      }
+
+      const width = cyNode.width();
+      const height = cyNode.height();
+
+      this.tidy.update_node_dimensions(
+        numericId,
+        this.toEngineWidth({ width, height }),
+        this.toEngineHeight({ width, height })
+      );
+      changedNumericIds.push(numericId);
+    }
+
+    // Trigger partial layout for changed nodes
+    if (changedNumericIds.length > 0) {
+      const changedIdsArray = new Uint32Array(changedNumericIds);
+      const affectedIds = this.tidy.partial_layout(changedIdsArray);
+
+      console.log(`[TidyLayoutStrategy] partial_layout affected ${affectedIds.length} nodes (vs ${this.wasmNodeIds.size} total)`);
+
+      // Extract new Tidy positions in engine space (for all nodes, needed for physics)
+      const newTidyPositions = this.extractEnginePositions();
+
+      // Collect all nodes for physics
+      const allNodes: NodeInfo[] = [];
+      for (const nodeId of this.wasmNodeIds) {
+        if (nodeId === GHOST_ROOT_STRING_ID) continue;
+
+        // For existing nodes, use default size (limitation of current architecture)
+        // In production, size info should be tracked separately
+        allNodes.push({
+          id: nodeId,
+          size: { width: 200, height: 100 }, // Default size
+          parentId: undefined,
+          linkedNodeIds: []
+        });
+      }
+
+      // Run physics to refine the new Tidy positions
+      const relaxedEnginePositions = this.microRelaxWithWarmStart(
+        newTidyPositions,
+        allNodes,
+        100  // Fewer iterations than fullBuild (600)
+      );
+
+      // =============================================================
+      // COMMIT (NO CLEAR): Sync Tidy's state with visual reality
+      // =============================================================
+      console.log('[TidyLayoutStrategy] updateNodeDimensions: Committing physics-relaxed positions to Tidy...');
+      for (const [nodeId, relaxedPos] of relaxedEnginePositions) {
+        if (nodeId === GHOST_ROOT_STRING_ID) continue;
+
+        const numericId = this.stringToNum.get(nodeId);
+        if (numericId !== undefined) {
+          this.tidy.set_position(numericId, relaxedPos.x, relaxedPos.y);
+        }
+      }
+      console.log('[TidyLayoutStrategy] updateNodeDimensions: Commit complete. Tidy state = visual state.');
+
+      // Convert to UI positions and return ALL positions (not just affected)
+      // This maintains consistency with addNodes() behavior
+      return this.engineToUIPositions(relaxedEnginePositions);
+    }
+
+    return new Map();
+  }
+
+  /**
+   * Remove nodes from WASM layout and clean up all internal state
+   *
+   * This should be called when nodes are deleted from the graph to prevent memory leaks.
+   * Cleans up:
+   * - WASM layout state (via remove_node)
+   * - wasmNodeIds tracking set
+   * - physDelta map (physics offset state)
+   * - physVel map (physics velocity state)
+   *
+   * Public for node deletion handling
+   */
+  removeNodes(nodeIds: string[]): void {
+    if (!this.tidy || nodeIds.length === 0) {
+      return;
+    }
+
+    console.log('[TidyLayoutStrategy] Removing', nodeIds.length, 'nodes:', nodeIds);
+
+    for (const nodeId of nodeIds) {
+      // Skip ghost root - it should never be removed
+      if (nodeId === GHOST_ROOT_STRING_ID) {
+        console.warn('[TidyLayoutStrategy] Attempted to remove ghost root, skipping');
+        continue;
+      }
+
+      const numericId = this.stringToNum.get(nodeId);
+      if (numericId === undefined) {
+        console.warn(`[TidyLayoutStrategy] Node ${nodeId} not found in ID mappings, skipping removal`);
+        continue;
+      }
+
+      // Only remove if node exists in WASM
+      if (!this.wasmNodeIds.has(nodeId)) {
+        console.warn(`[TidyLayoutStrategy] Node ${nodeId} not tracked in wasmNodeIds, skipping WASM removal`);
+        continue;
+      }
+
+      // Remove from WASM
+      this.tidy.remove_node(numericId);
+
+      // Clean up tracking state
+      this.wasmNodeIds.delete(nodeId);
+
+      // Clean up physics state (prevent memory leaks)
+      this.physDelta.delete(nodeId);
+      this.physVel.delete(nodeId);
+
+      console.log(`[TidyLayoutStrategy] Removed node ${nodeId} (numeric ID: ${numericId})`);
+    }
+
+    console.log('[TidyLayoutStrategy] After removal, wasmNodeIds size:', this.wasmNodeIds.size);
   }
 
   /**
@@ -275,6 +460,12 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       return await this.fullBuild(newNodes);
     }
 
+    // =============================================================
+    // STEP 1: ADD NEW NODES TO WASM
+    // =============================================================
+    // Since fullBuild committed physics back to Tidy, Tidy's internal state
+    // is already at the visual positions. We can directly add new nodes and
+    // run partial_layout from this correct base.
     const changedNodeIds: number[] = [];
 
     // Assign numeric IDs to new nodes
@@ -361,17 +552,87 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       this.wasmNodeIds.add(node.id);
     }
 
-    if (changedNodeIds.length === 0) {
-      return this.extractPositions();
+    // Use partial_layout for O(depth) incremental updates
+    // KNOWN LIMITATION: partial_layout can panic when adding multiple new siblings at once
+    // For now, use full layout() as a safe fallback when adding multiple nodes
+    // TODO: Fix Rust partial_layout to handle multiple new siblings, or call it once per node
+    if (changedNodeIds.length > 1) {
+      console.warn('[TidyLayoutStrategy] Adding multiple nodes at once, using full layout instead of partial_layout');
+      this.tidy.layout();
+    } else if (changedNodeIds.length === 1) {
+      const changedIdsArray = new Uint32Array(changedNodeIds);
+      // TODO BUG: partial_layout returns affectedIds but we're not capturing it!
+      // We should: const affectedIds = this.tidy.partial_layout(changedIdsArray);
+      // Then use extractPositionsForNodes(affectedIds) to only extract changed positions (O(affected) vs O(N))
+      // AND only run physics on the affected/dirty set, not all nodes
+      this.tidy.partial_layout(changedIdsArray);
     }
 
-    // Baseline tidy doesn't have partial_layout, so we fall back to full relayout
-    // TODO: Add partial_layout to Rust tidy library for O(depth) updates
-    console.warn('[TidyLayoutStrategy] partial_layout not available, falling back to full layout');
-    this.tidy.layout();
+    // Extract positions in engine space (before rotation)
+    // TODO BUG: This extracts ALL positions (O(N)), but we should only extract affected positions
+    const enginePositions = this.extractEnginePositions();
 
-    // Extract all positions
-    return this.extractPositions();
+    // Collect all nodes (existing + new) for microRelax
+    const allNodes: NodeInfo[] = [];
+    const allNodesMap = new Map<string, NodeInfo>();
+
+    // Add new nodes to map
+    for (const node of newNodes) {
+      allNodesMap.set(node.id, node);
+    }
+
+    // Reconstruct existing nodes from WASM state
+    // We need size info for physics calculations
+    for (const nodeId of this.wasmNodeIds) {
+      if (nodeId === GHOST_ROOT_STRING_ID) continue;
+      if (!allNodesMap.has(nodeId)) {
+        // For existing nodes, we don't have size info stored
+        // Use a reasonable default - this is a limitation of current architecture
+        // In practice, this shouldn't affect physics much since they already have deltas
+        allNodesMap.set(nodeId, {
+          id: nodeId,
+          size: { width: 200, height: 100 }, // Default size
+          parentId: undefined,
+          linkedNodeIds: []
+        });
+      }
+    }
+
+    // Convert map to array
+    for (const node of allNodesMap.values()) {
+      allNodes.push(node);
+    }
+
+    // Apply physics with warm-start: Option A (simple re-run with fewer iterations)
+    // Use 100 iterations vs 600 in fullBuild for faster incremental updates
+    const relaxedEnginePositions = this.microRelaxWithWarmStart(
+      enginePositions,
+      allNodes,
+      100  // Fewer iterations than fullBuild (600)
+    );
+    //todo , we probs don't want to run this on all nodes??????
+
+    // =============================================================
+    // COMMIT (NO CLEAR): Sync Tidy's state with visual reality
+    // =============================================================
+    // After physics, commit the relaxed positions back to Tidy to maintain
+    // consistency for the next incremental operation.
+    //
+    // IMPORTANT: We do NOT clear deltas here! The deltas provide warm-start
+    // continuity for the next incremental update.
+    console.log('[TidyLayoutStrategy] addNodes: Committing physics-relaxed positions to Tidy...');
+    for (const [nodeId, relaxedPos] of relaxedEnginePositions) {
+      if (nodeId === GHOST_ROOT_STRING_ID) continue;
+
+      const numericId = this.stringToNum.get(nodeId);
+      if (numericId !== undefined) {
+        this.tidy.set_position(numericId, relaxedPos.x, relaxedPos.y);
+      }
+    }
+    console.log('[TidyLayoutStrategy] addNodes: Commit complete. Tidy state = visual state.');
+
+    // Convert to UI positions (apply rotation)
+    return this.engineToUIPositions(relaxedEnginePositions);
   }
 
   /**
@@ -521,11 +782,47 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     for (const [nodeId, enginePos] of enginePositions) {
       const uiPos = this.toUIPosition(enginePos.x, enginePos.y);
-      console.log(`[TidyLayoutStrategy] ${nodeId}: engine(${enginePos.x.toFixed(1)}, ${enginePos.y.toFixed(1)}) -> UI(${uiPos.x.toFixed(1)}, ${uiPos.y.toFixed(1)})`);
+      // console.log(`[TidyLayoutStrategy] ${nodeId}: engine(${enginePos.x.toFixed(1)}, ${enginePos.y.toFixed(1)}) -> UI(${uiPos.x.toFixed(1)}, ${uiPos.y.toFixed(1)})`);
       uiPositions.set(nodeId, uiPos);
     }
 
     return uiPositions;
+  }
+
+  /**
+   * Extract positions from WASM for specific nodes only (optimization)
+   */
+  private extractPositionsForNodes(affectedIds: Uint32Array): Map<string, Position> {
+    const positions = new Map<string, Position>();
+
+    if (!this.tidy) {
+      console.log('[TidyLayoutStrategy] extractPositionsForNodes: no tidy instance');
+      return positions;
+    }
+
+    // Use optimized get_pos_for_nodes method to fetch only affected positions
+    const posArray = this.tidy.get_pos_for_nodes(affectedIds);
+    console.log('[TidyLayoutStrategy] extractPositionsForNodes: got', posArray.length / 3, 'positions from WASM');
+
+    for (let i = 0; i < posArray.length; i += 3) {
+      const numId = posArray[i];
+      const engineX = posArray[i + 1];
+      const engineY = posArray[i + 2];
+      const stringId = this.numToString.get(numId);
+
+      if (!stringId) {
+        console.warn(`[TidyLayoutStrategy] No string ID for numeric ID ${numId}`);
+        continue;
+      }
+
+      // Filter out ghost root
+      if (stringId !== GHOST_ROOT_STRING_ID) {
+        const uiPos = this.toUIPosition(engineX, engineY);
+        positions.set(stringId, uiPos);
+      }
+    }
+
+    return positions;
   }
 
   /**
@@ -556,7 +853,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       // Filter out ghost root
       if (stringId !== GHOST_ROOT_STRING_ID) {
         const uiPos = this.toUIPosition(engineX, engineY);
-        console.log(`[TidyLayoutStrategy] ${stringId}: engine(${engineX.toFixed(1)}, ${engineY.toFixed(1)}) -> UI(${uiPos.x.toFixed(1)}, ${uiPos.y.toFixed(1)})`);
+        // console.log(`[TidyLayoutStrategy] ${stringId}: engine(${engineX.toFixed(1)}, ${engineY.toFixed(1)}) -> UI(${uiPos.x.toFixed(1)}, ${uiPos.y.toFixed(1)})`);
         positions.set(stringId, uiPos);
       }
     }
@@ -565,8 +862,62 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   }
 
   /**
+   * Apply micro-relax with warm-start: force-directed physics to refine Tidy positions
+   * with support for persisting deltas and velocities across incremental updates.
+   *
+   * Warm-start logic:
+   * 1. Load existing deltas/velocities from previous run (if any)
+   * 2. Initialize new nodes with delta=0, vel=0
+   * 3. Apply physics simulation
+   * 4. Write back new deltas: delta = relaxed - tidy
+   */
+  private microRelaxWithWarmStart(
+    tidyPositions: Map<string, Position>,
+    allNodes: NodeInfo[],
+    iterations: number
+  ): Map<string, Position> {
+    if (!this.RELAX_ENABLED || tidyPositions.size === 0) {
+      return tidyPositions;
+    }
+
+    console.log('[TidyLayoutStrategy] Applying micro-relax with warm-start,', iterations, 'iterations');
+
+    // Warm-start: initialize positions from tidy + existing deltas
+    const currentPositions = new Map<string, Position>();
+    for (const [id, tidyPos] of tidyPositions) {
+      const delta = this.physDelta.get(id) || { x: 0, y: 0 };
+      currentPositions.set(id, {
+        x: tidyPos.x + delta.x,
+        y: tidyPos.y + delta.y
+      });
+    }
+
+    // Run the physics simulation
+    const relaxedPositions = this.microRelaxInternal(
+      currentPositions,
+      allNodes,
+      iterations
+    );
+
+    // Write back deltas: delta = relaxed - tidy
+    for (const [id, relaxedPos] of relaxedPositions) {
+      const tidyPos = tidyPositions.get(id);
+      if (tidyPos) {
+        this.physDelta.set(id, {
+          x: relaxedPos.x - tidyPos.x,
+          y: relaxedPos.y - tidyPos.y
+        });
+      }
+    }
+
+    return relaxedPositions;
+  }
+
+  /**
    * Apply micro-relax: force-directed physics to refine Tidy positions
    * Improves edge uniformity and spacing while preserving tree structure
+   *
+   * This is the main entry point used by fullBuild() for backward compatibility.
    */
   private microRelax(
     positions: Map<string, Position>,
@@ -578,6 +929,20 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     console.log('[TidyLayoutStrategy] Applying micro-relax with', this.RELAX_ITERS, 'iterations');
 
+    // fullBuild doesn't use warm-start - just run physics directly
+    return this.microRelaxInternal(positions, allNodes, this.RELAX_ITERS);
+  }
+
+  /**
+   * Internal micro-relax implementation: the actual physics simulation
+   * Takes starting positions and returns relaxed positions after N iterations.
+   */
+  private microRelaxInternal(
+    startPositions: Map<string, Position>,
+    allNodes: NodeInfo[],
+    iterations: number
+  ): Map<string, Position> {
+
     // Build node lookup
     const nodeMap = new Map<string, NodeInfo>();
     for (const node of allNodes) {
@@ -586,7 +951,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     // Clone positions for mutation
     const currentPositions = new Map<string, Position>();
-    for (const [id, pos] of positions) {
+    for (const [id, pos] of startPositions) {
       currentPositions.set(id, { ...pos });
     }
 
@@ -638,7 +1003,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     }
 
     // Run relaxation iterations
-    for (let iter = 0; iter < this.RELAX_ITERS; iter++) {
+    for (let iter = 0; iter < iterations; iter++) {
       const forces = new Map<string, { fx: number; fy: number }>();
 
       // Calculate forces for each node
