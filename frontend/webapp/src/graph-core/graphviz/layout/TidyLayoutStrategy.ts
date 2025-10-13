@@ -739,10 +739,10 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     };
 
     console.log('[TidyLayoutStrategy] Applying Cola refinement with seeded positions');
-    // const refinedPositions = await applyColaRefinement(this.cy, currentPositions, allNodes, colaOptions);
+    const refinedPositions = await applyColaRefinement(this.cy, currentPositions, allNodes, colaOptions);
 
     console.log('[TidyLayoutStrategy] Micro-relax complete');
-    return currentPositions;
+    return refinedPositions;
   }
 
   /**

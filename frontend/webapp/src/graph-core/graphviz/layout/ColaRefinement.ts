@@ -77,8 +77,8 @@ export async function applyColaRefinement(
 
   // Apply default options
   const opts = {
-    maxSimulationTime: options.maxSimulationTime ?? 1000,
-    convergenceThreshold: options.convergenceThreshold ?? 0.1,
+    maxSimulationTime: options.maxSimulationTime ?? 10,
+    convergenceThreshold: options.convergenceThreshold ?? 1,
     avoidOverlap: options.avoidOverlap ?? true,
     nodeSpacing: options.nodeSpacing ?? 30,
     parentChildEdgeLength: options.parentChildEdgeLength ?? undefined,
@@ -88,36 +88,36 @@ export async function applyColaRefinement(
     flow: options.flow
   };
 
-  // Step 1: Set initial positions from input
-  for (const [nodeId, pos] of Array.from(initialPositions.entries())) {
-    const node = cy.getElementById(nodeId);
-    if (node.length > 0) {
-      node.position({ x: pos.x, y: pos.y });
-    }
-  }
-
-  // Step 2: Build parent map for edge length configuration
-  const parentMap = buildParentMap(allNodes);
-
-  // Step 3: Determine if node is a leaf (for spacing)
-  const childrenMap = new Map<string, string[]>();
-  for (const node of allNodes) {
-    const parentId = parentMap.get(node.id);
-    if (parentId) {
-      if (!childrenMap.has(parentId)) {
-        childrenMap.set(parentId, []);
-      }
-      childrenMap.get(parentId)!.push(node.id);
-    }
-  }
-
-  const isLeafNode = (nodeId: string): boolean => {
-    const node = allNodes.find(n => n.id === nodeId);
-    if (!node) return false;
-
-    const hasChildren = childrenMap.has(nodeId) && childrenMap.get(nodeId)!.length > 0;
-    return !hasChildren && !node.isShadowNode;
-  };
+  // // Step 1: Set initial positions from input
+  // for (const [nodeId, pos] of Array.from(initialPositions.entries())) {
+  //   const node = cy.getElementById(nodeId);
+  //   if (node.length > 0) {
+  //     node.position({ x: pos.x, y: pos.y });
+  //   }
+  // }
+  //
+  // // Step 2: Build parent map for edge length configuration
+  // const parentMap = buildParentMap(allNodes);
+  //
+  // // Step 3: Determine if node is a leaf (for spacing)
+  // const childrenMap = new Map<string, string[]>();
+  // for (const node of allNodes) {
+  //   const parentId = parentMap.get(node.id);
+  //   if (parentId) {
+  //     if (!childrenMap.has(parentId)) {
+  //       childrenMap.set(parentId, []);
+  //     }
+  //     childrenMap.get(parentId)!.push(node.id);
+  //   }
+  // }
+  //
+  // const isLeafNode = (nodeId: string): boolean => {
+  //   const node = allNodes.find(n => n.id === nodeId);
+  //   if (!node) return false;
+  //
+  //   const hasChildren = childrenMap.has(nodeId) && childrenMap.get(nodeId)!.length > 0;
+  //   return !hasChildren && !node.isShadowNode;
+  // };
 
   // Step 4: Configure and run Cola layout
   const colaOptions = {
@@ -129,27 +129,27 @@ export async function applyColaRefinement(
     convergenceThreshold: opts.convergenceThreshold,
     maxSimulationTime: opts.maxSimulationTime,
 
-    // Spacing configuration
-    nodeSpacing: typeof opts.nodeSpacing === 'function'
-      ? opts.nodeSpacing
-      : (node: NodeSingular) => {
-          // Larger spacing for parent nodes, smaller for leaves
-          const isLeaf = isLeafNode(node.id());
-          return isLeaf ? opts.nodeSpacing as number : (opts.nodeSpacing as number) * 2;
-        },
+    // // Spacing configuration
+    // nodeSpacing: typeof opts.nodeSpacing === 'function'
+    //   ? opts.nodeSpacing
+    //   : (node: NodeSingular) => {
+    //       // Larger spacing for parent nodes, smaller for leaves
+    //       const isLeaf = isLeafNode(node.id());
+    //       return isLeaf ? opts.nodeSpacing as number : (opts.nodeSpacing as number) * 2;
+    //     },
 
     // Edge length based on parent-child relationship
-    edgeLength: (edge: EdgeSingular) => {
-      const sourceId = edge.source().id();
-      const targetId = edge.target().id();
-      const parentId = parentMap.get(targetId);
-
-      // Parent-child edges should be longer
-      if (parentId === sourceId) {
-        return opts.parentChildEdgeLength;
-      }
-      return opts.defaultEdgeLength;
-    },
+    // edgeLength: (edge: EdgeSingular) => {
+    //   const sourceId = edge.source().id();
+    //   const targetId = edge.target().id();
+    //   const parentId = parentMap.get(targetId);
+    //
+    //   // Parent-child edges should be longer
+    //   if (parentId === sourceId) {
+    //     return opts.parentChildEdgeLength;
+    //   }
+    //   return opts.defaultEdgeLength;
+    // },
 
     // Flow layout for tree structure (if specified)
     flow: opts.flow,
@@ -163,11 +163,11 @@ export async function applyColaRefinement(
     nodeDimensionsIncludeLabels: false,
   };
 
-  console.log('[ColaRefinement] Running Cola layout with options:', {
-    avoidOverlap: colaOptions.avoidOverlap,
-    maxTime: colaOptions.maxSimulationTime,
-    flow: colaOptions.flow
-  });
+  // console.log('[ColaRefinement] Running Cola layout with options:', {
+  //   avoidOverlap: colaOptions.avoidOverlap,
+  //   maxTime: colaOptions.maxSimulationTime,
+  //   flow: colaOptions.flow
+  // });
 
   // Run layout
   const layout = cy.layout(colaOptions);
