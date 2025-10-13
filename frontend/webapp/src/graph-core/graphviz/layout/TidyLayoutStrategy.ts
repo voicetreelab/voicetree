@@ -72,9 +72,9 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   private readonly RELAX_ITERS = 60
   private readonly LEAF_ATTRACTION_K = 0.1;  // Pull leaf nodes toward parent
   private readonly LEAF_TARGET_DISTANCE = 200; // Ideal distance for leaf from parent
-  private readonly REPEL_K = 0.1;
+  private readonly REPEL_K = 1;
   private readonly STEP_SIZE = 100;
-  private readonly LOCAL_RADIUS_MULT = 50;
+  private readonly LOCAL_RADIUS_MULT = 10;
 
   constructor(orientation: TreeOrientation = TreeOrientation.Diagonal45) {
     this.orientation = orientation;
@@ -102,13 +102,13 @@ export class TidyLayoutStrategy implements PositioningStrategy {
     if (this.isEmpty()) {
       const allNodes = [...nodes, ...newNodes];
       console.log('[TidyLayoutStrategy] Doing fullBuild with', allNodes.length, 'nodes');
-      return { positions: await this.fullBuild(allNodes, 200) };
+      return { positions: await this.fullBuild(allNodes, 10) };
     }
 
     else {
         const allNodes = [...nodes, ...newNodes];
         console.log('[TidyLayoutStrategy] Doing fullBuild with', allNodes.length, 'nodes');
-        return { positions: await this.fullBuild(allNodes, 50) };
+        return { positions: await this.fullBuild(allNodes, 0) };
       }
         //temp just do full build as well. todo optimise with partial_layout later.
   }
@@ -120,8 +120,8 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   // Margins - semantic meaning depends on orientation:
   // - LeftRight: PARENT_CHILD_MARGIN = horizontal spacing (depth), PEER_MARGIN = vertical spacing (siblings)
   // - TopDown: PARENT_CHILD_MARGIN = vertical spacing (depth), PEER_MARGIN = horizontal spacing (siblings)
-  private readonly PARENT_CHILD_MARGIN = 300;
-  private readonly PEER_MARGIN = 60;
+  private readonly PARENT_CHILD_MARGIN = 260;
+  private readonly PEER_MARGIN = 140;
 
   // Persistent WASM instance for incremental updates
   private tidy: Tidy | null = null;
@@ -275,7 +275,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
   //   core.on('floatingwindow:resize', async (_event, data) => {
  // is what calls this in voice-tree-graph-viz-layout.tsx
     async updateNodeDimensions(cy: import('cytoscape').Core, nodeIds: string[]): Promise<Map<string, Position>> {
-    // @ts-ignore
+    // @ts-expect-error - temp disable
     //   return new Map(); //temp disable
       if (!this.tidy || nodeIds.length === 0) {
       return new Map();
@@ -438,16 +438,6 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     console.log('[TidyLayoutStrategy] After removal, wasmNodeIds size:', this.wasmNodeIds.size);
   }
-
-  /**
-   * Incremental add: adds new nodes to existing tree and recomputes layout
-   * Uses partial_layout() for O(depth) updates against the persistent WASM tree.
-   *
-   * IMPORTANT: addNodes() only adds NEW nodes. It does not re-layout existing nodes.
-   * Caller must ensure existing nodes were already added via fullBuild() or previous addNodes().
-   *
-   * Public for advanced use cases and testing.
-   */
 
   /**
    * Build parent map from node metadata
@@ -692,39 +682,44 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
     // Pre-distribute leaf nodes into full circle (alternating hemispheres)
     // This seeds them around the parent so forces can refine into radial pattern
+
+    // Group leaves by parent first
+    const parentToLeaves = new Map<string, string[]>();
     for (const node of allNodes) {
       const isLeaf = (!childrenMap.has(node.id) || childrenMap.get(node.id)!.length === 0) && !node.isShadowNode;
-        // console.log("IMP2", isLeaf, node.isShadowNode)
-
-        if (!isLeaf) continue;
+      if (!isLeaf) continue;
 
       const parentId = node.parentId || (node.linkedNodeIds && node.linkedNodeIds.length > 0 ? node.linkedNodeIds[0] : null);
       if (!parentId) continue;
 
+      if (!parentToLeaves.has(parentId)) {
+        parentToLeaves.set(parentId, []);
+      }
+      parentToLeaves.get(parentId)!.push(node.id);
+    }
+
+    // Then iterate siblings in order
+    for (const [parentId, leafSiblings] of parentToLeaves) {
+      if (leafSiblings.length < 3) continue;
+
       const parentPos = currentPositions.get(parentId);
       if (!parentPos) continue;
 
-      const nodePos = currentPositions.get(node.id);
-      if (!nodePos) continue;
+      for (let siblingIndex = 0; siblingIndex < leafSiblings.length; siblingIndex++) {
+        const nodeId = leafSiblings[siblingIndex];
+        const nodePos = currentPositions.get(nodeId);
+        if (!nodePos) continue;
 
-      // Get siblings (other leaves of same parent)
-      const siblings = childrenMap.get(parentId) || [];
-      const leafSiblings = siblings.filter(sibId => {
-        const sib = nodeMap.get(sibId);
-        return sib && (!childrenMap.has(sibId) || childrenMap.get(sibId)!.length === 0);
-      });
+        // Distribute evenly around opposite semi-circle
+        const angle = Math.PI + (siblingIndex) * (Math.PI) / (leafSiblings.length);
+        const targetX = parentPos.x + this.LEAF_TARGET_DISTANCE * Math.cos(angle);
+        const targetY = parentPos.y + this.LEAF_TARGET_DISTANCE * Math.sin(angle);
 
-      const siblingIndex = leafSiblings.indexOf(node.id);
-      if (siblingIndex === -1) continue;
-
-      // Distribute evenly around circle
-      const angle = (siblingIndex / leafSiblings.length) * 2 * Math.PI;
-      const targetX = parentPos.x + this.LEAF_TARGET_DISTANCE * Math.cos(angle);
-      const targetY = parentPos.y + this.LEAF_TARGET_DISTANCE * Math.sin(angle);
-
-      // Blend current position with target (30/70) to seed hemisphere distribution
-      nodePos.x = 0.3 * nodePos.x + 0.7 * targetX;
-      nodePos.y = 0.3 * nodePos.y + 0.7 * targetY;
+        // Blend current position with target (30/70) to seed hemisphere distribution
+        nodePos.x = targetX;
+        nodePos.y = targetY;
+        console.log("AAANGLE", angle, leafSiblings, siblingIndex);
+      }
     }
 
     // Run relaxation iterations

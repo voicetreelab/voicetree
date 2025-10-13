@@ -250,7 +250,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         setTimeout(() => {
           cy.fit(undefined, 50);
           console.log('[Layout] Initial fit complete');
-        }, 350); // 300ms layout animation + 50ms buffer
+        }, 750); // 300ms layout animation + 50ms buffer
       }
     }
   }, [isInitialLoad]); // Only run when isInitialLoad changes
