@@ -26,7 +26,7 @@ import type {
   NodeInfo,
   Position
 } from '@/graph-core/graphviz/layout/types';
-import wasmInit, { Tidy } from '@/graph-core/wasm-tidy/wasm';
+import wasmInit, { Tidy } from '@wasm/wasm';
 
 const GHOST_ROOT_STRING_ID = '__GHOST_ROOT__';
 const GHOST_ROOT_NUMERIC_ID = 0;
@@ -41,7 +41,7 @@ async function ensureWasmInit() {
     if (typeof process !== 'undefined' && process.versions?.node) {
       const { readFile } = await import('fs/promises');
       const { join } = await import('path');
-      const wasmPath = join(__dirname, '../../wasm-tidy/wasm_bg.wasm');
+      const wasmPath = join(__dirname, '../../../../tidy/wasm_dist/wasm_bg.wasm');
       const wasmBytes = await readFile(wasmPath);
       await wasmInit(wasmBytes);
     } else {
@@ -236,7 +236,7 @@ export class TidyLayoutStrategy implements PositioningStrategy {
 
   /**
    * Update dimensions of existing nodes and trigger partial relayout
-   * Uses update_node_size() + partial_layout() for O(depth) updates
+   * Currently falls back to full layout (baseline tidy doesn't have update_node_size/partial_layout)
    *
    * Public for dimension change handling
    */
@@ -245,25 +245,10 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       return new Map();
     }
 
-    const changedNumericIds: number[] = [];
-
-    for (const nodeId of nodeIds) {
-      const numericId = this.stringToNum.get(nodeId);
-      if (numericId === undefined) continue;
-
-      const node = cy.$id(nodeId);
-      if (!node.length) continue;
-
-      const bb = node.boundingBox({ includeLabels: false });
-      const size = { width: bb.w || 40, height: bb.h || 40 };
-
-      this.tidy.update_node_size(numericId, this.toEngineWidth(size), this.toEngineHeight(size));
-      changedNumericIds.push(numericId);
-    }
-
-    if (changedNumericIds.length === 0) return new Map();
-
-    this.tidy.partial_layout(new Uint32Array(changedNumericIds));
+    // Baseline tidy doesn't have update_node_size/partial_layout, so we fall back to full relayout
+    // TODO: Add these methods to Rust tidy library for O(depth) updates
+    console.warn('[TidyLayoutStrategy] update_node_size/partial_layout not available, falling back to full layout');
+    this.tidy.layout();
     return this.extractPositions();
   }
 
@@ -380,12 +365,10 @@ export class TidyLayoutStrategy implements PositioningStrategy {
       return this.extractPositions();
     }
 
-    // Deduplicate changedNodeIds and convert to Uint32Array for WASM
-    const uniqueChangedNodeIds = Array.from(new Set(changedNodeIds));
-    const changedIdsArray = new Uint32Array(uniqueChangedNodeIds);
-
-    // Perform partial layout (O(depth) incremental update)
-    this.tidy.partial_layout(changedIdsArray);
+    // Baseline tidy doesn't have partial_layout, so we fall back to full relayout
+    // TODO: Add partial_layout to Rust tidy library for O(depth) updates
+    console.warn('[TidyLayoutStrategy] partial_layout not available, falling back to full layout');
+    this.tidy.layout();
 
     // Extract all positions
     return this.extractPositions();

@@ -29,7 +29,8 @@
     /* Paths */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@wasm/*": ["./tidy/wasm_dist/*"]
     }
   },
   "include": ["src"]
