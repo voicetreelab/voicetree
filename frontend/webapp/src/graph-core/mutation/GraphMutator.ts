@@ -1,5 +1,4 @@
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
-import type { LayoutManager } from '../graphviz/layout';
 
 /**
  * GraphMutator - Deep module for all graph mutations
@@ -8,11 +7,15 @@ import type { LayoutManager } from '../graphviz/layout';
  * Includes positioning calculations to minimize animation thrashing.
  *
  * Philosophy: Single responsibility for graph mutations with minimal public API
+ *
+ * Note: Layout is now handled by auto-layout system (see autoLayout.ts)
  */
 export class GraphMutator {
   constructor(
     private cy: CytoscapeCore,
-    private layoutManager: LayoutManager | null
+    // TODO: Remove this parameter in future cleanup (kept for backwards compatibility)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _unusedLayoutManager: null
   ) {}
 
   /**

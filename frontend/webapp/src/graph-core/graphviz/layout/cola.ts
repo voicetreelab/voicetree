@@ -173,6 +173,7 @@ ColaLayout.prototype.run = function(){
 
                 case 'end':
                 case END:
+                    console.log('[Cola] Layout ended due to CONVERGENCE');
                     updateNodePositions();
                     if( !options.infinite ){ onDone(); }
                     break;
@@ -195,6 +196,11 @@ ColaLayout.prototype.run = function(){
 
                 if( !options.infinite && !firstTick ){
                     adaptor.convergenceThreshold(options.convergenceThreshold);
+                }
+
+                // Log convergence status every 50 ticks
+                if( !options.infinite && adaptor.alpha && Math.random() < 0.02 ){
+                    console.log('[Cola] Energy (alpha):', adaptor.alpha(), 'threshold:', options.convergenceThreshold);
                 }
 
                 firstTick = false;
@@ -515,6 +521,7 @@ ColaLayout.prototype.run = function(){
     if( !options.infinite ){
         setTimeout(function(){
             if( !layout.manuallyStopped ){
+                console.log('[Cola] Layout ended due to TIMEOUT after', options.maxSimulationTime, 'ms');
                 adaptor.stop();
             }
         }, options.maxSimulationTime);

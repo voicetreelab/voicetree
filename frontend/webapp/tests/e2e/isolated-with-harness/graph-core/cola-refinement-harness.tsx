@@ -222,25 +222,15 @@ export function ColaRefinementTestHarness() {
     updateStatus('Applying Cola refinement...', 'info');
 
     try {
-      // Get current positions from Cytoscape
-      const initialPositions = new Map<string, { x: number; y: number }>();
-      cyRef.current.nodes().forEach(node => {
-        const pos = node.position();
-        initialPositions.set(node.id(), { x: pos.x, y: pos.y });
-      });
-
       // Apply Cola refinement
+      // Note: initialPositions are already set on Cytoscape nodes
       const refinedPositions = await applyColaRefinement(
         cyRef.current,
-        initialPositions,
-        nodes,
         {
           maxSimulationTime: 500,
           avoidOverlap: true,
           nodeSpacing: 40,
-          flow: { axis: 'y', minSeparation: 150 },
-          parentChildEdgeLength: 250,
-          defaultEdgeLength: 100
+          flow: { axis: 'y', minSeparation: 150 }
         }
       );
 

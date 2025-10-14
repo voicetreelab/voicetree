@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
 import { CytoscapeCore } from '@/graph-core';
-import type { LayoutManager } from '@/graph-core/graphviz/layout';
 import type { Core as CytoscapeCoreMock } from 'cytoscape';
 
 // Mock types for Cytoscape collections and elements
@@ -22,7 +21,6 @@ interface MockEdgeCollection {
 describe('useFileWatcher', () => {
   let mockCytoscapeRef: React.RefObject<CytoscapeCore | null>;
   let mockMarkdownFiles: React.MutableRefObject<Map<string, string>>;
-  let mockLayoutManagerRef: React.MutableRefObject<LayoutManager | null>;
   let mockSetNodeCount: ReturnType<typeof vi.fn>;
   let mockSetEdgeCount: ReturnType<typeof vi.fn>;
   let mockSetIsInitialLoad: ReturnType<typeof vi.fn>;
@@ -85,7 +83,6 @@ describe('useFileWatcher', () => {
 
     mockCytoscapeRef = { current: mockCytoscapeCore };
     mockMarkdownFiles = { current: new Map() };
-    mockLayoutManagerRef = { current: null };
     mockSetNodeCount = vi.fn();
     mockSetEdgeCount = vi.fn();
     mockSetIsInitialLoad = vi.fn();
@@ -206,7 +203,6 @@ describe('useFileWatcher', () => {
         useFileWatcher({
           cytoscapeRef: mockCytoscapeRef,
           markdownFiles: mockMarkdownFiles,
-          layoutManagerRef: mockLayoutManagerRef,
           isInitialLoad: false,
           setNodeCount: mockSetNodeCount,
           setEdgeCount: mockSetEdgeCount,
@@ -315,7 +311,6 @@ describe('useFileWatcher', () => {
         useFileWatcher({
           cytoscapeRef: mockCytoscapeRef,
           markdownFiles: mockMarkdownFiles,
-          layoutManagerRef: mockLayoutManagerRef,
           isInitialLoad: false,
           setNodeCount: mockSetNodeCount,
           setEdgeCount: mockSetEdgeCount,
@@ -418,7 +413,6 @@ describe('useFileWatcher', () => {
         useFileWatcher({
           cytoscapeRef: mockCytoscapeRef,
           markdownFiles: mockMarkdownFiles,
-          layoutManagerRef: mockLayoutManagerRef,
           isInitialLoad: false,
           setNodeCount: mockSetNodeCount,
           setEdgeCount: mockSetEdgeCount,
@@ -453,7 +447,6 @@ describe('useFileWatcher', () => {
         useFileWatcher({
           cytoscapeRef: mockCytoscapeRef,
           markdownFiles: mockMarkdownFiles,
-          layoutManagerRef: mockLayoutManagerRef,
           isInitialLoad: false,
           setNodeCount: mockSetNodeCount,
           setEdgeCount: mockSetEdgeCount,
@@ -487,7 +480,6 @@ describe('useFileWatcher', () => {
         useFileWatcher({
           cytoscapeRef: mockCytoscapeRef,
           markdownFiles: mockMarkdownFiles,
-          layoutManagerRef: mockLayoutManagerRef,
           isInitialLoad: false,
           setNodeCount: mockSetNodeCount,
           setEdgeCount: mockSetEdgeCount,

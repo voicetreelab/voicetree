@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react';
 import type { CytoscapeCore } from '@/graph-core';
-import type { LayoutManager } from '@/graph-core/graphviz/layout';
 import { parseForCytoscape } from '@/graph-core/data/load_markdown/MarkdownParser';
 import { GraphMutator } from '@/graph-core/mutation/GraphMutator';
 
@@ -20,7 +19,6 @@ function normalizeFileId(filename: string): string {
 interface UseFileWatcherParams {
   cytoscapeRef: React.RefObject<CytoscapeCore | null>;
   markdownFiles: React.MutableRefObject<Map<string, string>>;
-  layoutManagerRef: React.MutableRefObject<LayoutManager | null>;
   isInitialLoad: boolean;
   setNodeCount: (count: number) => void;
   setEdgeCount: (count: number) => void;
@@ -30,7 +28,6 @@ interface UseFileWatcherParams {
 export function useFileWatcher({
   cytoscapeRef,
   markdownFiles,
-  layoutManagerRef,
   isInitialLoad,
   setNodeCount,
   setEdgeCount,
@@ -49,7 +46,7 @@ export function useFileWatcher({
     }
 
     // Create GraphMutator instance for this operation
-    const graphMutator = new GraphMutator(cy, layoutManagerRef.current);
+    const graphMutator = new GraphMutator(cy, null);
 
     // Prepare data for bulk addition
     const nodesData: Array<{
@@ -99,17 +96,13 @@ export function useFileWatcher({
 
     console.log(`[DEBUG] Bulk load complete: ${allNodeIds.length} nodes added`);
 
-    // Apply layout to all nodes at once
-    if (layoutManagerRef.current && allNodeIds.length > 0) {
-      console.log(`[Layout] Applying TidyLayout to ${allNodeIds.length} nodes from bulk load`);
-      await layoutManagerRef.current.applyLayout(cy, allNodeIds);
-    }
+    // Auto-layout will handle layout automatically via event listeners
 
     // Switch to incremental layout strategy
     console.log('[Layout] Switching to incremental layout strategy after bulk load');
     setIsInitialLoad(false);
 
-  }, [cytoscapeRef, markdownFiles, layoutManagerRef, setNodeCount, setEdgeCount, setIsInitialLoad]);
+  }, [cytoscapeRef, markdownFiles, setNodeCount, setEdgeCount, setIsInitialLoad]);
 
   const handleFileAdded = useCallback(async (data: { path: string; content?: string }) => {
     console.log('[DEBUG] handleFileAdded called with path:', data.path);
@@ -126,7 +119,7 @@ export function useFileWatcher({
     }
 
     // Create GraphMutator instance for this operation
-    const graphMutator = new GraphMutator(cy, layoutManagerRef.current);
+    const graphMutator = new GraphMutator(cy, null);
 
     // Store file content using fullPath (absolute path) for save operations
     markdownFiles.current.set(data.fullPath, data.content);
@@ -194,12 +187,8 @@ export function useFileWatcher({
       }, 300); // 300ms delay to avoid race condition with positioning
     }
 
-    // Apply layout using appropriate strategy
-    // During initial load, skip individual layouts - we'll do bulk layout on scan complete
-    if (layoutManagerRef.current && isNewNode && !isInitialLoad) {
-      await layoutManagerRef.current.applyLayout(cy, [nodeId]);
-    }
-  }, [cytoscapeRef, markdownFiles, layoutManagerRef, isInitialLoad, setNodeCount, setEdgeCount]);
+    // Auto-layout will handle layout automatically via event listeners
+  }, [cytoscapeRef, markdownFiles, isInitialLoad, setNodeCount, setEdgeCount]);
 
   const handleFileChanged = useCallback(async (data: { path: string; content?: string }) => {
     if (!data.path.endsWith('.md') || !data.content) return;
@@ -208,7 +197,7 @@ export function useFileWatcher({
     if (!cy) return;
 
     // Create GraphMutator instance for this operation
-    const graphMutator = new GraphMutator(cy, layoutManagerRef.current);
+    const graphMutator = new GraphMutator(cy, null);
 
     // Update stored content using fullPath (absolute path) for save operations
     markdownFiles.current.set(data.fullPath, data.content);
@@ -249,15 +238,12 @@ export function useFileWatcher({
     setNodeCount(cy.nodes().length);
     setEdgeCount(cy.edges().length);
 
-    // For file changes during incremental mode, apply layout
-    if (layoutManagerRef.current && !isInitialLoad) {
-      await layoutManagerRef.current.applyLayout(cy, [nodeId]);
-    }
+    // Auto-layout will handle layout automatically via event listeners
 
     // TODO: Implement external file change sync to open editors
     // The old React Context-based system has been removed.
     // Need to implement sync via the Cytoscape extension system.
-  }, [cytoscapeRef, markdownFiles, layoutManagerRef, isInitialLoad, setNodeCount, setEdgeCount]);
+  }, [cytoscapeRef, markdownFiles, isInitialLoad, setNodeCount, setEdgeCount]);
 
   const handleFileDeleted = useCallback((data: { path: string }) => {
     if (!data.path.endsWith('.md')) return;
