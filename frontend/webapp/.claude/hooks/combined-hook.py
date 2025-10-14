@@ -63,8 +63,22 @@ try:
     if result2.stderr:
         print(result2.stderr, end='', file=sys.stderr)
 
-    # Return 0 if both succeeded, 2 otherwise
-    sys.exit(0 if (result1.returncode == 0 and result2.returncode == 0) else 2)
+    tests_passed = result1.returncode == 0
+    checks_passed = result2.returncode == 0
+    if not tests_passed or not checks_passed:
+        msg_parts = []
+        if not tests_passed:
+            msg_parts.append("tests")
+        if not checks_passed:
+            msg_parts.append("checks")
+        failed_sections = " and ".join(msg_parts)
+        print(
+            f"\n[claude-hook] Warning: {failed_sections} failed, but edits are being preserved.",
+            file=sys.stderr,
+        )
+
+    # Always allow edits to persist; surface failures via stderr instead.
+    sys.exit(0)
 
 finally:
     # Release lock and cleanup

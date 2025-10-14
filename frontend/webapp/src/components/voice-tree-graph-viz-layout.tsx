@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 // Removed Token import - not needed for graph visualization
 import SpeedDialMenu from "./speed-dial-menu";
 import { CytoscapeCore } from "@/graph-core";
-import { LayoutManager, TidyLayoutStrategy } from '@/graph-core/graphviz/layout';
+import { enableAutoLayout } from '@/graph-core/graphviz/layout/autoLayout';
 import { useFileWatcher } from '@/hooks/useFileWatcher';
 import { StyleService } from '@/graph-core/services/StyleService';
 // Import graph styles
@@ -49,13 +49,8 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
   const handleFileChangedRef = useRef<((data: { path: string; fullPath: string; content: string }) => void) | null>(null);
 
   // Track whether we're in initial bulk load phase or incremental phase
-  // During initial scan: use TidyLayoutStrategy for hierarchical layout
-  // After initial scan: use IncrementalTidyLayoutStrategy for incremental additions
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isInitialLoadRef = useRef(true);
-
-  // Layout manager for positioning nodes
-  const layoutManagerRef = useRef<LayoutManager | null>(null);
 
   // Helper function to create floating editor window
   const createFloatingEditor = (
@@ -132,11 +127,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         }
       }, 500);
 
-      // Trigger incremental layout for the new shadow node
-      if (layoutManagerRef.current && !isInitialLoadRef.current) {
-        console.log('[createFloatingEditor] Triggering incremental layout for:', editorId);
-        layoutManagerRef.current.applyLayout(cy.getCore(), [editorId]);
-      }
+      // Layout will be triggered automatically by auto-layout system
     } catch (error) {
       console.error('[createFloatingEditor] Error calling addFloatingWindow:', error);
     }
@@ -190,21 +181,11 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         }
       }, 500);
 
-      // Trigger incremental layout for the new shadow node
-      console.log('[createFloatingTerminal] Layout check - layoutManagerRef.current:', !!layoutManagerRef.current, 'isInitialLoad:', isInitialLoadRef.current);
-      if (layoutManagerRef.current && !isInitialLoadRef.current) {
-        console.log('[createFloatingTerminal] Triggering incremental layout for:', terminalId);
-        layoutManagerRef.current.applyLayout(cy.getCore(), [terminalId]);
-      } else {
-        console.log('[createFloatingTerminal] Skipping layout - layoutManagerRef:', !!layoutManagerRef.current, 'isInitialLoad:', isInitialLoadRef.current);
-      }
+      // Layout will be triggered automatically by auto-layout system
     } catch (error) {
       console.error('[createFloatingTerminal] Error calling addFloatingWindow:', error);
     }
   };
-
-  // Layout manager will be initialized after Cytoscape instance is created
-  // (moved to the Cytoscape initialization useEffect)
 
   // File watching event handlers
   const {
@@ -217,7 +198,6 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
   } = useFileWatcher({
     cytoscapeRef,
     markdownFiles,
-    layoutManagerRef,
     isInitialLoad,
     setNodeCount,
     setEdgeCount,
@@ -312,18 +292,15 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
       // Expose Cytoscape instance for testing
       const core = cytoscapeRef.current.getCore();
 
-      // Initialize layout manager with TidyLayoutStrategy (needs cy instance)
-      const strategy = new TidyLayoutStrategy(core);
-      layoutManagerRef.current = new LayoutManager(strategy);
-      console.log('[Layout] LayoutManager initialized with persistent TidyLayoutStrategy');
+      // Enable auto-layout: automatically runs Cola on graph changes
+      enableAutoLayout(core);
+      console.log('[Layout] Auto-layout enabled with Cola');
       console.log('[VoiceTreeGraphVizLayout] Got core from CytoscapeCore');
       if (typeof window !== 'undefined') {
         console.log('VoiceTreeGraphVizLayout: Initial cytoscapeInstance set on window');
         (window as unknown as { cytoscapeInstance: cytoscape.Core }).cytoscapeInstance = core;
         // Also expose CytoscapeCore for testing
         (window as unknown as { cytoscapeCore: CytoscapeCore | null }).cytoscapeCore = cytoscapeRef.current;
-        // Expose layoutManager for testing
-        (window as unknown as { layoutManager: LayoutManager | null }).layoutManager = layoutManagerRef.current;
 
         // Expose test helper for creating terminal windows (for e2e tests)
         (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers = {
@@ -469,33 +446,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         }
       });
 
-      // Listen to floating window resize events and trigger layout
-      const dimensionChangeMap = new Map<string, ReturnType<typeof setTimeout>>();
-      core.on('floatingwindow:resize', async (_event, data) => {
-        const nodeId = data.nodeId;
-        console.log(`[VoiceTreeGraphVizLayout] Floating window resized: ${nodeId}`);
-
-        // Skip resize events for nodes that haven't been laid out yet
-        const node = core.getElementById(nodeId);
-        if (node.length > 0 && node.data('laidOut') === false) {
-          console.log(`[VoiceTreeGraphVizLayout] Skipping resize for newly added node: ${nodeId}`);
-          return;
-        }
-
-        // Debounce dimension changes per node
-        if (dimensionChangeMap.has(nodeId)) {
-          clearTimeout(dimensionChangeMap.get(nodeId)!);
-        }
-
-        dimensionChangeMap.set(nodeId, setTimeout(async () => {
-          // Trigger partial layout for this node using dimension update
-          if (layoutManagerRef.current) {
-            console.log(`[VoiceTreeGraphVizLayout] Triggering partial layout via updateNodeDimensions for ${nodeId}`);
-            await layoutManagerRef.current.updateNodeDimensions(core, [nodeId]);
-          }
-          dimensionChangeMap.delete(nodeId);
-        }, 100));
-      });
+      // Note: floatingwindow:resize is handled by auto-layout system
 
       // Add event listener for tapping on a node
       console.log('[VoiceTreeGraphVizLayout] Registering tap handler for floating windows');
