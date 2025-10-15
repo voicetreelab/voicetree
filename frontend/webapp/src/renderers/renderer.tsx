@@ -6,19 +6,23 @@ import React from "react";
 interface RendererProps {
   tokens: Token[];
   placeholder: string;
+  onPlaceholderClick?: () => void;
 }
 
 // Component for pretty displaying tokens. It adds label for different speakers
 // and label for different languages. It also visually displays difference
 // between final and non-final tokens.
-export default function Renderer({ tokens, placeholder }: RendererProps) {
+export default function Renderer({ tokens, placeholder, onPlaceholderClick }: RendererProps) {
   let lastSpeaker: string | undefined;
   let lastLanguage: string | undefined;
 
   return (
     <>
       {tokens.length === 0 ? (
-        <div className="text-gray-500 text-center flex items-center justify-center h-1/4">
+        <div
+          className="text-gray-500 text-center flex items-center justify-center h-1/4 cursor-pointer hover:text-gray-700 hover:bg-gray-50 transition-colors"
+          onClick={onPlaceholderClick}
+        >
           {placeholder}
         </div>
       ) : (

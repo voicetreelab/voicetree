@@ -204,7 +204,8 @@ export default function VoiceTreeTranscribe() {
       >
         <Renderer
           tokens={allTokens}
-          placeholder="Click here to begin transcribing for VoiceTree" // TODO MAKE CLICKING ON THIS START RECORDING
+          placeholder="Click here to begin transcribing for VoiceTree"
+          onPlaceholderClick={startTranscription}
         />
       </div>
 
