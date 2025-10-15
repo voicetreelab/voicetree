@@ -2,6 +2,7 @@
 Pydantic models for VoiceTree agentic workflow structured output
 """
 
+from abc import ABC
 from typing import Any
 from typing import Literal
 from typing import Optional
@@ -11,9 +12,13 @@ from pydantic import BaseModel
 from pydantic import Field
 
 
-class BaseTreeAction(BaseModel):
-    """Base class for all tree actions"""
-    action: str = Field(description="Action type")
+class BaseTreeAction(BaseModel, ABC):
+    """Abstract base class for all tree actions - cannot be instantiated directly.
+
+    Each concrete action type must define its own action field with a Literal type
+    to ensure type safety and prevent invalid action values.
+    """
+    pass  # No generic action field - each concrete class defines its own Literal
 
 
 class SegmentModel(BaseModel):

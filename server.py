@@ -16,6 +16,7 @@ from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
     TreeToMarkdownConverter,
 )
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
+from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
 from backend.text_to_graph_pipeline.agentic_workflows.core.debug_logger import (
     clear_debug_logs,
 )
@@ -33,10 +34,16 @@ logger = setup_logging('voicetree_server.log', console_level=logging.INFO)
 temp_dir = tempfile.mkdtemp()
 workflow_state_file = os.path.join(temp_dir, "voicetree_workflow_state.json")
 
-# Initialize decision tree with output directory override
-# MarkdownTree now automatically loads existing markdown files from the output directory
+# Initialize decision tree - load existing markdown files or create empty tree
 markdown_dir = os.environ.get("VOICETREE_MARKDOWN_DIR", "markdownTreeVault")
-decision_tree = MarkdownTree(output_dir=markdown_dir)
+if os.path.exists(markdown_dir):
+    # Load existing tree from markdown files
+    logger.info(f"Loading existing markdown tree from {markdown_dir}")
+    decision_tree = load_markdown_tree(markdown_dir)
+else:
+    # Create empty tree
+    logger.info(f"Creating new empty tree for {markdown_dir}")
+    decision_tree = MarkdownTree(output_dir=markdown_dir)
 
 converter = TreeToMarkdownConverter(decision_tree.tree)
 processor = ChunkProcessor(decision_tree,

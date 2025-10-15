@@ -70,8 +70,8 @@ class MarkdownTree:
             # Create default based on environment
             self._embedding_manager = self._create_default_embedding_manager()
 
-        # Load existing markdown files from output_dir
-        self._load_existing_markdown_files()
+        # NOTE: We don't auto-load existing markdown files anymore.
+        # Use load_markdown_tree() from markdown_to_tree.py to load existing files.
 
     @property
     def markdown_converter(self) -> Any:
@@ -123,45 +123,7 @@ class MarkdownTree:
 
         return MockEmbeddingManager()
 
-    def _load_existing_markdown_files(self) -> None:
-        """
-        Load all existing markdown files recursively from output_dir.
-        """
-        if not os.path.exists(self.output_dir):
-            logging.info(f"Markdown directory {self.output_dir} does not exist, starting with empty tree")
-            return
-
-        # Find all .md files recursively
-        md_files = []
-        for root, _, files in os.walk(self.output_dir):
-            for file in files:
-                if file.endswith('.md'):
-                    md_files.append(os.path.join(root, file))
-
-        if not md_files:
-            logging.info(f"No markdown files found in {self.output_dir}, starting with empty tree")
-            return
-
-        try:
-            logging.info(f"Loading {len(md_files)} markdown files from {self.output_dir}")
-
-            # Import here to avoid circular dependency
-            from backend.markdown_tree_manager.markdown_to_tree.markdown_to_tree import load_markdown_tree
-
-            # Load the tree from markdown files
-            loaded_tree = load_markdown_tree(self.output_dir)
-            self.tree = loaded_tree.tree
-
-            # Update next_node_id to be higher than any existing node ID
-            if self.tree:
-                self.next_node_id = max(self.tree.keys()) + 1
-                logging.info(f"Loaded {len(self.tree)} nodes from markdown")
-            else:
-                logging.info("No nodes found in markdown files")
-
-        except Exception as e:
-            logging.error(f"Failed to load tree from markdown: {e}")
-            logging.info("Starting with empty tree")
+    # Method removed - use load_markdown_tree() from markdown_to_tree.py instead
 
     def _update_embedding_async(self, node_id: int) -> None:
         """Fire-and-forget embedding update for a single node.
