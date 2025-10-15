@@ -142,7 +142,7 @@ def main():
                 "reason": f"📌 NEW FILES DETECTED - Review these before stopping:\n" +
                          "\n".join([f"  • {node}" for node in new_nodes[:5]]) +
                          "\n\nRead these files if they could be relevant to the work you have done. If they are not relevant to your work, then you can stop."
-                         " Otherwise, please consider whether you need to change your approach given the information contained within the markdown files."
+                         " Otherwise, please consider whether you need to change your approach given the information contained within the markdown files. Make sure to also create your own update files"
             }))
             # Save state after blocking
             save_seen_files(get_agent_state_file(agent_name), new_nodes)

@@ -8,14 +8,20 @@ history used by the agentic workflow prompts.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 
 
 class HistoryManager:
     """Tracks processed transcript history with simple spacing and trimming."""
 
-    def __init__(self) -> None:
+    def __init__(self, file_path: Optional[str] = None) -> None:
         self._history = ""
+        self._file_path = file_path
+
+        # Auto-load on initialization if file exists
+        if self._file_path:
+            self.load_from_file(self._file_path)
 
     def append(self, text: str, max_length: int) -> None:
         """
@@ -65,6 +71,10 @@ class HistoryManager:
             len(self._history),
         )
 
+        # Auto-save after each append if file path is set
+        if self._file_path:
+            self.save_to_file(self._file_path, text)
+
     def get(self, max_length: Optional[int] = None) -> str:
         """
         Return the most recent history, optionally capped to the provided length.
@@ -86,3 +96,45 @@ class HistoryManager:
     def clear(self) -> None:
         """Reset recorded history."""
         self._history = ""
+    def save_to_file(self, file_path: str, content: str) -> None:
+        """
+        Append content to the transcript history file.
+
+        Args:
+            file_path: Path where the transcript history should be saved
+            content: The text content to append to the file
+        """
+        # IMPORTANT: The directory MUST already exist - if it doesn't, that's a bug
+        # The output_dir should be created/managed by MarkdownTree or the calling code
+        dir_path = os.path.dirname(file_path)
+        if dir_path and not os.path.exists(dir_path):
+            raise FileNotFoundError(f"Directory does not exist: {dir_path}. This is a bug - the directory should already exist.")
+
+        # Append content to file
+        with open(file_path, 'a', encoding='utf-8') as f:
+            f.write(content)
+
+    def load_from_file(self, file_path: str) -> bool:
+        """
+        Load transcript history from a file.
+
+        Args:
+            file_path: Path to the transcript history file
+
+        Returns:
+            True if successfully loaded, False otherwise
+        """
+        if not os.path.exists(file_path):
+            logging.debug(f"[TRANSCRIPT_HISTORY] File not found: {file_path}")
+            return False
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                self._history = f.read()
+
+            logging.info(f"[TRANSCRIPT_HISTORY] Loaded {len(self._history)} chars from {file_path}")
+            return True
+
+        except Exception as e:
+            logging.error(f"[TRANSCRIPT_HISTORY] Error loading from {file_path}: {e}")
+            return False

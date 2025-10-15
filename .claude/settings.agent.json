@@ -32,7 +32,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "echo '🌳 Remember to review the nodes you created, and new possibly relevant nodes. Use \"ls -la $OBSIDIAN_VAULT_PATH\" to see all files.'"
+          "command": "echo 'YOU MUST NOW CREATE OR UPDATE A MARKDOWN FILE IN THE TREE VAULT, $OBSIDIAN_VAULT_PATH, TO KEEP TRACK OF YOUR PROGRESS."
         },
         {
           "type": "command",
