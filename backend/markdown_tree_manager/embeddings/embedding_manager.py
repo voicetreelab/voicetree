@@ -57,7 +57,7 @@ class EmbeddingManager:
                 persist_directory=persist_directory,
                 use_embeddings=True
             )
-            logger.info(f"EmbeddingManager initialized with ChromaDB at {persist_directory}")
+            logger.info(f"EmbeddingManager initialized with {self.vector_store.get_collection_stats().get('count', 0)} nodes with ChromaDB at {persist_directory}")
         else:
             self.vector_store = None
             logger.info("EmbeddingManager initialized but disabled")
