@@ -153,6 +153,31 @@ class TreeActionApplier:
             self.nodes_to_update.add(parent_id)
             logging.info(f"Added parent node (ID {parent_id}) to update set to refresh child links")
 
+        # Handle linking existing nodes as children if specified
+        if hasattr(action, 'children_to_link') and action.children_to_link:
+            # Get the newly created node
+            new_parent_node = self.decision_tree.tree[new_node_id]
+
+            # Initialize children list if needed
+            if not hasattr(new_parent_node, 'children'):
+                new_parent_node.children = []
+
+            # Link each specified child to the new parent
+            for child_id in action.children_to_link:
+                if child_id in self.decision_tree.tree:
+                    # Update child's parent_id
+                    self.decision_tree.tree[child_id].parent_id = new_node_id
+
+                    # Add child to parent's children list
+                    if child_id not in new_parent_node.children:
+                        new_parent_node.children.append(child_id)
+
+                    # Mark child for update
+                    self.nodes_to_update.add(child_id)
+                    logging.info(f"Linked child {child_id} to new parent {new_node_id}")
+                else:
+                    logging.warning(f"Child node {child_id} not found in tree when linking to parent {new_node_id}")
+
     def apply(self, actions: list[BaseTreeAction]) -> set[int]:
         """
         Apply a list of tree actions

@@ -199,8 +199,8 @@ class ConnectOrphansAgent(Agent):
 
         Returns:
             Tuple of:
-            - List of CreateAction for new parent nodes
-            - Dict mapping parent node names to child node IDs
+            - List of CreateAction for new parent nodes with children_to_link populated
+            - Dict mapping parent node names to child node IDs (for backwards compatibility)
         """
         actions: list[BaseTreeAction] = []
         parent_child_mapping = {}
@@ -210,18 +210,19 @@ class ConnectOrphansAgent(Agent):
             child_titles = [child.child_title for child in grouping.children]
             root_ids = self._map_titles_to_ids(child_titles, roots)
 
-            # Create action for new synthetic parent node
+            # Create action for new synthetic parent node with children_to_link
             parent_action = CreateAction(
                 action="CREATE",
                 parent_node_id=None,  # New parent is also a root (for MVP)
                 new_node_name=grouping.synthetic_parent_title,
                 content=f"# {grouping.synthetic_parent_title}\n\n{grouping.synthetic_parent_summary}",
                 summary=grouping.synthetic_parent_summary,
-                relationship=""
+                relationship="",
+                children_to_link=root_ids  # Link orphans directly in the action
             )
             actions.append(parent_action)
 
-            # Store the mapping of parent name to child IDs
+            # Store the mapping for backwards compatibility (can be removed later)
             parent_child_mapping[grouping.synthetic_parent_title] = root_ids
 
             self.logger.info(
