@@ -114,7 +114,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
 
     for (let i = 0; i < expectedSends.length; i++) {
       expect(networkRequests[i].body.text).toBe(expectedSends[i]);
-      expect(networkRequests[i].url).toBe('http://localhost:8000/send-text');
+      expect(networkRequests[i].url).toBe('http://localhost:8001/send-text');
     }
 
     // Verify we never sent accumulated text

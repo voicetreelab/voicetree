@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
-import { promises as fs } from 'fs';
+import { promises as fs, createWriteStream } from 'fs';
+import { spawn, ChildProcess } from 'child_process';
 import pty from 'node-pty';
 import FileWatchManager from './file-watch-manager';
 
@@ -20,10 +21,167 @@ if (process.env.MINIMIZE_TEST === '1') {
 // Global file watch manager instance
 const fileWatchManager = new FileWatchManager();
 
+// Server process management
+let serverProcess: ChildProcess | null = null;
+
 // Terminal process management with node-pty ONLY
 const terminals = new Map();
 // Track which window owns which terminal for cleanup
 const terminalToWindow = new Map(); // terminalId -> webContents.id
+
+async function startServer() {
+  // Create a debug log file to capture environment differences
+  const debugLogPath = path.join(app.getPath('userData'), 'server-debug.log');
+  const logStream = createWriteStream(debugLogPath, { flags: 'a' });
+
+  function debugLog(message: string) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${message}\n`;
+    logStream.write(logMessage);
+    console.log(message);
+  }
+
+  try {
+    debugLog('=== VoiceTree Server Startup ===');
+    debugLog(`App launched from: ${process.argv0}`);
+    debugLog(`App packaged: ${app.isPackaged}`);
+    debugLog(`Process CWD: ${process.cwd()}`);
+    debugLog(`Process Platform: ${process.platform}`);
+    debugLog(`Node version: ${process.version}`);
+    debugLog(`Electron version: ${process.versions.electron}`);
+
+    // Log critical environment variables
+    debugLog('--- Environment Variables ---');
+    debugLog(`PATH: ${process.env.PATH || 'UNDEFINED'}`);
+    debugLog(`HOME: ${process.env.HOME || 'UNDEFINED'}`);
+    debugLog(`USER: ${process.env.USER || 'UNDEFINED'}`);
+    debugLog(`SHELL: ${process.env.SHELL || 'UNDEFINED'}`);
+    debugLog(`PYTHONPATH: ${process.env.PYTHONPATH || 'NOT SET'}`);
+    debugLog(`PYTHONHOME: ${process.env.PYTHONHOME || 'NOT SET'}`);
+    debugLog(`Total env vars count: ${Object.keys(process.env).length}`);
+
+    // Log all environment variables to file (not console to avoid clutter)
+    logStream.write(`Full environment:\n${JSON.stringify(process.env, null, 2)}\n`);
+
+    // Determine server path based on whether app is packaged
+    let serverPath: string;
+
+    if (app.isPackaged) {
+      // Packaged app: Use process.resourcesPath
+      serverPath = path.join(process.resourcesPath, 'server', 'voicetree-server');
+      debugLog(`[Server] Packaged app - using server at: ${serverPath}`);
+    } else {
+      // Unpackaged (development/test): Use app path to find project root
+      // app.getAppPath() returns frontend/webapp in dev mode
+      const appPath = app.getAppPath();
+      const projectRoot = path.resolve(appPath, '../..');
+      serverPath = path.join(projectRoot, 'dist', 'resources', 'server', 'voicetree-server');
+      debugLog(`[Server] Unpackaged app - using server at: ${serverPath}`);
+
+      // Verify the server exists in development
+      try {
+        await fs.access(serverPath);
+        const stats = await fs.stat(serverPath);
+        debugLog(`[Server] Server file exists, size: ${stats.size} bytes`);
+      } catch (error) {
+        debugLog('[Server] Server executable not found at: ' + serverPath);
+        debugLog('[Server] Run build_server.sh first to build the server');
+        logStream.end();
+        return;
+      }
+    }
+
+    // Make server executable on Unix systems
+    if (process.platform !== 'win32') {
+      try {
+        await fs.chmod(serverPath, 0o755);
+        debugLog('[Server] Made server executable');
+      } catch (error) {
+        debugLog(`[Server] Could not set executable permissions: ${error}`);
+      }
+    }
+
+    // Get the directory where the server is located
+    const serverDir = path.dirname(serverPath);
+    debugLog(`[Server] Server directory: ${serverDir}`);
+
+    // Spawn the server process with port 8001 and explicit working directory
+    debugLog('[Server] Starting VoiceTree server on port 8001...');
+    debugLog(`[Server] Spawn command: ${serverPath} 8001`);
+
+    // Create environment with explicit paths for the server
+    const serverEnv = {
+      ...process.env,
+      // Ensure the server knows where to create files
+      VOICETREE_DATA_DIR: serverDir,
+      VOICETREE_VAULT_DIR: path.join(serverDir, 'markdownTreeVault'),
+      // Add minimal PATH if it's missing critical directories
+      PATH: process.env.PATH?.includes('/usr/local/bin')
+        ? process.env.PATH
+        : `/usr/local/bin:/opt/homebrew/bin:${process.env.PATH || '/usr/bin:/bin:/usr/sbin:/sbin'}`
+    };
+
+    serverProcess = spawn(serverPath, ['8000'], { //todo temp until we fix
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: serverEnv,
+      cwd: serverDir,  // Set working directory explicitly
+      detached: false  // Ensure process is attached to parent
+    });
+
+    // Check if the process actually started
+    if (!serverProcess || !serverProcess.pid) {
+      debugLog('[Server] ERROR: Failed to get process ID - server may not have started');
+    } else {
+      debugLog(`[Server] Started with PID: ${serverProcess.pid}`);
+    }
+
+    // Log server stdout
+    serverProcess.stdout?.on('data', (data) => {
+      const output = data.toString().trim();
+      debugLog(`[Server stdout] ${output}`);
+    });
+
+    // Log server stderr
+    serverProcess.stderr?.on('data', (data) => {
+      const output = data.toString().trim();
+      debugLog(`[Server stderr] ${output}`);
+    });
+
+    // Handle server exit
+    serverProcess.on('exit', (code, signal) => {
+      debugLog(`[Server] Process exited with code ${code} and signal ${signal}`);
+      serverProcess = null;
+    });
+
+    // Handle server errors
+    serverProcess.on('error', (error) => {
+      debugLog(`[Server] Failed to start: ${error.message}`);
+      debugLog(`[Server] Error details: ${JSON.stringify(error)}`);
+      serverProcess = null;
+    });
+
+    // Test if the server is accessible after a short delay
+    setTimeout(async () => {
+      try {
+        const http = require('http');
+        http.get('http://localhost:8001/health', (res) => {
+          debugLog(`[Server] Health check response code: ${res.statusCode}`);
+        }).on('error', (err) => {
+          debugLog(`[Server] Health check failed: ${err.message}`);
+        });
+      } catch (error) {
+        debugLog(`[Server] Health check error: ${error}`);
+      }
+    }, 2000);
+
+  } catch (error) {
+    debugLog(`[Server] Error during server startup: ${error}`);
+    debugLog(`[Server] Stack trace: ${error.stack}`);
+  }
+
+  // Keep log open for a moment then close
+  setTimeout(() => logStream.end(), 5000);
+}
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -362,15 +520,30 @@ ipcMain.handle('terminal:kill', async (event, terminalId) => {
 });
 
 // App event handlers
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Hide dock icon on macOS when running tests to prevent focus stealing
   if (process.env.MINIMIZE_TEST === '1' && process.platform === 'darwin' && app.dock) {
     app.dock.hide();
   }
+
+  // Start the Python server before creating window
+  await startServer();
+
   createWindow();
 });
 
 app.on('window-all-closed', () => {
+  // Clean up server process
+  if (serverProcess) {
+    console.log('[Server] Shutting down server...');
+    try {
+      serverProcess.kill('SIGTERM');
+      serverProcess = null;
+    } catch (error) {
+      console.error('[Server] Error killing server:', error);
+    }
+  }
+
   // Clean up all terminals
   for (const [id, ptyProcess] of terminals) {
     console.log(`Cleaning up terminal ${id}`);
@@ -389,8 +562,13 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('activate', () => {
+app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
+    // Restart server if it's not running (macOS dock click after window close)
+    if (!serverProcess) {
+      console.log('[App] Reactivating - restarting server...');
+      await startServer();
+    }
     createWindow();
   }
 });

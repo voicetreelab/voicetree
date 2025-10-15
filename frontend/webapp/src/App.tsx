@@ -20,10 +20,10 @@ function App() {
 
   // File Watching Control Panel Component
   const FileWatchingPanel = () => (
-    <div className="border rounded-lg p-4 mt-11 bg-white shadow-sm">
+    <div className="border rounded-lg p-2 mt-2 bg-white shadow-sm">
 
       {/* Status Display */}
-      <div className="mb-3 text-sm">
+      <div className="mb-2 text-sm">
         <div className="flex items-center gap-2">
           <span className={`px-2 py-1 rounded text-xs ${
             isWatching
@@ -41,7 +41,7 @@ function App() {
 
         {watchDirectory && (
           <div className="mt-1">
-            <span className="font-medium">Directory:</span>
+            {/*<span className="font-medium">Directory:</span>*/}
             <span className="text-xs text-gray-600 ml-1 font-mono">
               {watchDirectory}
             </span>
@@ -52,7 +52,7 @@ function App() {
       </div>
 
       {/* Control Button */}
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-2">
         {isElectron ? (
           <Button
             onClick={isWatching ? stopWatching : startWatching}
@@ -74,7 +74,7 @@ function App() {
 
       {/* Error Display */}
       {error && (
-        <Alert variant="destructive" className="mb-3">
+        <Alert variant="destructive" className="mb-2">
           <AlertDescription className="flex justify-between items-center">
             <span>{error}</span>
             <Button
@@ -95,7 +95,7 @@ function App() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Top Section: Transcribe UI (auto height) */}
-      <div className="flex-shrink-0 p-4">
+      <div className="flex-shrink-0 py-2 px-4">
         <div className="flex gap-4">
           {/* File Watching Panel - 1/6 width */}
           <div className="w-1/6">

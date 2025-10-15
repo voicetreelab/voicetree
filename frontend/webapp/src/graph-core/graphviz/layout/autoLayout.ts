@@ -26,11 +26,11 @@ export interface AutoLayoutOptions {
 
 const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
-  maxSimulationTime: 30000,
+  maxSimulationTime: 3000,
   avoidOverlap: true,
   nodeSpacing: 30,
   handleDisconnected: true,
-  convergenceThreshold: 0.01,
+  convergenceThreshold: 1,
   unconstrIter: 3,
   userConstIter: 50,
   allConstIter: 30,
@@ -114,7 +114,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     debounceTimeout = setTimeout(() => {
       runLayout();
       debounceTimeout = null;
-    }, 300); // 50ms debounce
+    }, 30); // 50ms debounce
   };
 
   // Listen to graph modification events

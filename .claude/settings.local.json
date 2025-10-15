@@ -9,7 +9,9 @@
       "Bash(brew install:*)",
       "Bash(timeout 300 uv run:*)",
       "Bash(rg:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(./build_and_package_all.sh)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
