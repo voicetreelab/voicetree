@@ -82,7 +82,8 @@ class TreeActionDeciderWorkflow:
     def __init__(
         self,
         decision_tree: Optional[MarkdownTree] = None,
-        cloud_function_url: str | None = None
+        cloud_function_url: str | None = None,
+        output_dir: Optional[str] = None
     ) -> None:
         """
         Initialize the workflow
@@ -90,9 +91,11 @@ class TreeActionDeciderWorkflow:
         Args:
             decision_tree: Optional decision tree instance (can be set later)
             cloud_function_url: URL of the Cloud Function (default: localhost:8080)
+            output_dir: Output directory for saving transcript history
         """
         import os
         self.decision_tree: Optional[MarkdownTree] = decision_tree
+        self.output_dir = output_dir
 
         # Use provided URL, env var, or default to localhost
         if cloud_function_url is None:
@@ -110,8 +113,11 @@ class TreeActionDeciderWorkflow:
         self.connect_orphans_agent: ConnectOrphansAgent = ConnectOrphansAgent()
         self.nodes_to_update: set[int] = set()
 
-        # Initialize history manager
-        self._history_manager = HistoryManager()
+        # Initialize history manager with file path for auto-save/load
+        transcript_file_path = None
+        if self.output_dir:
+            transcript_file_path = os.path.join(self.output_dir, "transcript_history.txt")
+        self._history_manager = HistoryManager(transcript_file_path)
 
         # Track previous buffer remainder to detect stuck text
         self._prev_buffer_remainder: str = ""  # What was left in buffer after last processing
@@ -403,6 +409,30 @@ class TreeActionDeciderWorkflow:
                     # Apply the connection actions
                     connection_modified_nodes = tree_action_applier.apply(connection_actions)
                     all_optimization_modified_nodes.update(connection_modified_nodes)
+
+                    # Update children's parent relationships using the mapping
+                    for parent_title, child_ids in parent_child_mapping.items():
+                        # Find the newly created parent node by title
+                        parent_id = None
+                        for node_id in connection_modified_nodes:
+                            if self.decision_tree.tree[node_id].title == parent_title:
+                                parent_id = node_id
+                                break
+
+                        # Update each child's parent_id and parent's children list
+                        if parent_id:
+                            parent_node = self.decision_tree.tree[parent_id]
+                            if not hasattr(parent_node, 'children'):
+                                parent_node.children = []
+
+                            for child_id in child_ids:
+                                if child_id in self.decision_tree.tree:
+                                    # Update child's parent_id
+                                    self.decision_tree.tree[child_id].parent_id = parent_id
+                                    # Add child to parent's children list
+                                    if child_id not in parent_node.children:
+                                        parent_node.children.append(child_id)
+                                    logging.info(f"Updated child {child_id} to have parent {parent_id}")
 
                     logging.info(f"Connected orphan subtrees with new parent nodes: {connection_modified_nodes}")
                 else:

@@ -30,6 +30,7 @@ date_str = datetime.now().strftime("%Y-%m-%d")
 output_dir_default = os.path.join(output_dir_base, date_str)
 
 
+# TODO, THIS WHOLE CLASS IS TECHNICALLY UNNECESSARY LAYER OF INDIRECTION TO TREE ACTION DECIDER WORKFLOW
 class ChunkProcessor:
     """
     Processes text chunks through the agentic workflow pipeline.
@@ -73,8 +74,11 @@ class ChunkProcessor:
         # Initialize tree action applier
         self.tree_action_applier = TreeActionApplier(decision_tree)
 
-        # Initialize workflow
-        self.workflow = workflow or TreeActionDeciderWorkflow(decision_tree=decision_tree)
+        # Initialize workflow with output_dir for auto-save/load
+        self.workflow = workflow or TreeActionDeciderWorkflow(
+            decision_tree=decision_tree,
+            output_dir=output_dir
+        )
 
         logging.info("ChunkProcessor initialized with adaptive buffering and agentic workflow")
 
