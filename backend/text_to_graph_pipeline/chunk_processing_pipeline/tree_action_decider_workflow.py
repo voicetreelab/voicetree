@@ -406,33 +406,9 @@ class TreeActionDeciderWorkflow:
                 if connection_actions:
                     logging.info(f"Connect Orphans Agent created {len(connection_actions)} parent nodes")
 
-                    # Apply the connection actions
+                    # Apply the connection actions (children will be linked automatically via children_to_link)
                     connection_modified_nodes = tree_action_applier.apply(connection_actions)
                     all_optimization_modified_nodes.update(connection_modified_nodes)
-
-                    # Update children's parent relationships using the mapping
-                    for parent_title, child_ids in parent_child_mapping.items():
-                        # Find the newly created parent node by title
-                        parent_id = None
-                        for node_id in connection_modified_nodes:
-                            if self.decision_tree.tree[node_id].title == parent_title:
-                                parent_id = node_id
-                                break
-
-                        # Update each child's parent_id and parent's children list
-                        if parent_id:
-                            parent_node = self.decision_tree.tree[parent_id]
-                            if not hasattr(parent_node, 'children'):
-                                parent_node.children = []
-
-                            for child_id in child_ids:
-                                if child_id in self.decision_tree.tree:
-                                    # Update child's parent_id
-                                    self.decision_tree.tree[child_id].parent_id = parent_id
-                                    # Add child to parent's children list
-                                    if child_id not in parent_node.children:
-                                        parent_node.children.append(child_id)
-                                    logging.info(f"Updated child {child_id} to have parent {parent_id}")
 
                     logging.info(f"Connected orphan subtrees with new parent nodes: {connection_modified_nodes}")
                 else:

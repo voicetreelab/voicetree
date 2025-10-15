@@ -74,6 +74,7 @@ class CreateAction(BaseTreeAction):
     content: str = Field(description="Content for the new node")
     summary: str = Field(description="Summary for the new node")
     relationship: str = Field(description="Relationship to parent (e.g., 'subtask of')")
+    children_to_link: Optional[list[int]] = Field(default=None, description="IDs of existing nodes to become children of this node")
 
 
 class AppendAction(BaseTreeAction):
