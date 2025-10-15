@@ -135,7 +135,7 @@ describe('VoiceTreeTranscribe', () => {
     });
 
     // Should show the placeholder text in the Renderer component
-    expect(screen.getByText('Click start to begin transcribing for VoiceTree')).toBeInTheDocument();
+    expect(screen.getByText('Click here to begin transcribing for VoiceTree')).toBeInTheDocument();
 
     // Input should have the appropriate placeholder
     const input = screen.getByPlaceholderText('Or type text here and press Enter...');

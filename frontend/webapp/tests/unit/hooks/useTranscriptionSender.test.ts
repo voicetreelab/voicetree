@@ -8,7 +8,7 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('useTranscriptionSender - Behavioral Tests', () => {
-  const endpoint = 'http://localhost:8000/send-text';
+  const endpoint = 'http://localhost:8001/send-text';
 
   beforeEach(() => {
     vi.clearAllMocks();

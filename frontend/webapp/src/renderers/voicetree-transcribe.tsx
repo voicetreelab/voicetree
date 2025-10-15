@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AnimatedMicIcon from "@/components/animated-mic-icon";
 import StatusDisplay from "@/components/status-display";
 import useVoiceTreeClient from "@/hooks/useVoiceTreeClient";
 import { useTranscriptionSender } from "@/hooks/useTranscriptionSender";
@@ -33,7 +33,7 @@ export default function VoiceTreeTranscribe() {
     connectionError,
     reset: resetSender,
   } = useTranscriptionSender({
-    endpoint: "http://localhost:8000/send-text",
+    endpoint: "http://localhost:8001/send-text",
   });
 
   // Track how many voice tokens we've seen to append new ones only
@@ -173,7 +173,7 @@ export default function VoiceTreeTranscribe() {
       {/* Header with Status Bar */}
       <div className="border-b bg-background/95 backdrop-blur-sm relative z-20">
         {/* Status Bar */}
-        <div className="flex items-center justify-between px-4 py-2 text-xs bg-muted/30">
+        <div className="flex items-center justify-between px-4 py-1 text-xs bg-muted/30">
           <div className="flex items-center gap-4">
             <StatusDisplay state={state} />
             {bufferLength > 0 && (
@@ -200,11 +200,11 @@ export default function VoiceTreeTranscribe() {
       {/* Transcription Display - Always visible */}
       <div
         ref={autoScrollRef}
-        className="h-32 overflow-y-auto border rounded-lg bg-white/95 backdrop-blur-sm mb-4 relative z-20"
+        className="h-20 overflow-y-auto border rounded-lg bg-white/95 backdrop-blur-sm mb-2 relative z-20"
       >
         <Renderer
           tokens={allTokens}
-          placeholder="Click start to begin transcribing for VoiceTree"
+          placeholder="Click here to begin transcribing for VoiceTree" // TODO MAKE CLICKING ON THIS START RECORDING
         />
       </div>
 
@@ -222,7 +222,7 @@ export default function VoiceTreeTranscribe() {
                   : "bg-primary text-primary-foreground hover:bg-primary/90"
               )}
             >
-              {state === 'Running' ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+              <AnimatedMicIcon isRecording={state === 'Running'} size={20} />
             </button>
 
             {/* Text Input */}

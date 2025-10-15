@@ -233,7 +233,7 @@ if __name__ == "__main__":
     import sys
 
     # Allow port to be specified via environment variable or command line
-    port = int(os.environ.get("VOICETREE_PORT", 8000))
+    port = int(os.environ.get("VOICETREE_PORT", 8001))
     if len(sys.argv) > 1:
         try:
             port = int(sys.argv[1])

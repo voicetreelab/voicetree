@@ -24,10 +24,10 @@
     "test:e2e:debug": "playwright test --debug",
     "test:electron": "electron-vite build --logLevel silent && playwright test --config=playwright-electron.config.ts",
     "test:browser": "playwright test tests/e2e/isolated-with-harness/file-to-graph-pipeline-behavioral.spec.ts",
-    "electron": "npx kill-port 3000 2>/dev/null || true && PATH=\"$HOME/.cargo/bin:$PATH\" make -C tidy/rust build && electron-vite dev --watch",
+    "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
     "electron:prod": "electron-vite build && electron .",
     "electron:test": "NODE_ENV=development TEST_FILE_WATCHER=1 electron-vite build --logLevel silent && electron .",
-    "electron:build": "electron-vite build && electron .",
+    "electron:build": "electron-vite build",
     "electron:pack": "electron-vite build && electron-builder",
     "electron:dist": "electron-vite build && electron-builder --publish=never"
   },
@@ -98,8 +98,7 @@
     },
     "files": [
       "dist/**/*",
-      "electron.cjs",
-      "preload.js",
+      "dist-electron/**/*",
       "package.json",
       "node_modules/**/*"
     ],
