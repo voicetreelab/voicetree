@@ -43,6 +43,8 @@ class TestTreeActionDeciderWorkflow:
         """Create mock TextBufferManager"""
         buffer_manager = Mock(spec=TextBufferManager)
         buffer_manager.flushCompletelyProcessedText = Mock()
+        buffer_manager.getBuffer = Mock(return_value="")
+        buffer_manager.bufferFlushLength = 500  # Add the missing attribute
         return buffer_manager
 
     @pytest.fixture
