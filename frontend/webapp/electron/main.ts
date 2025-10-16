@@ -188,6 +188,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     show: false,
+    titleBarStyle: 'hiddenInset',
     ...(process.env.MINIMIZE_TEST === '1' && {
       focusable: false,
       skipTaskbar: true
