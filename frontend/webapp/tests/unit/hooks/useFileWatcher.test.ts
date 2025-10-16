@@ -40,6 +40,7 @@ describe('useFileWatcher', () => {
               return key ? config.data[key] : config.data;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             length: 1
           };
         }
@@ -50,6 +51,7 @@ describe('useFileWatcher', () => {
         id: () => id,
         data: vi.fn(() => undefined),
         removeData: vi.fn(),
+        emit: vi.fn(),
         position: () => ({ x: 100, y: 100 })
       })),
       edges: vi.fn(() => {
@@ -75,10 +77,7 @@ describe('useFileWatcher', () => {
 
     // Mock CytoscapeCore instance
     const mockCytoscapeCore = {
-      getCore: () => mockCyCore,
-      animateAppendedContent: vi.fn(),
-      animateNewNode: vi.fn(),
-      setAnimationTimeout: vi.fn()
+      getCore: () => mockCyCore
     } as unknown as CytoscapeCore;
 
     mockCytoscapeRef = { current: mockCytoscapeCore };
@@ -110,6 +109,7 @@ describe('useFileWatcher', () => {
               return undefined;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             position: () => ({ x: 100, y: 100 })
           };
         }
@@ -123,6 +123,7 @@ describe('useFileWatcher', () => {
               return undefined;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             position: () => ({ x: 100, y: 100 })
           };
         }
@@ -135,10 +136,11 @@ describe('useFileWatcher', () => {
               return undefined;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             position: () => ({ x: 100, y: 100 })
           };
         }
-        return { length: 0, data: vi.fn(), removeData: vi.fn(), position: () => ({ x: 100, y: 100 }) };
+        return { length: 0, data: vi.fn(), removeData: vi.fn(), emit: vi.fn(), position: () => ({ x: 100, y: 100 }) };
       });
 
       // Mock edges selector to track which edges get removed
@@ -243,6 +245,7 @@ describe('useFileWatcher', () => {
               return undefined;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             position: () => ({ x: 100, y: 100 })
           };
         }
@@ -256,10 +259,11 @@ describe('useFileWatcher', () => {
               return undefined;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             position: () => ({ x: 100, y: 100 })
           };
         }
-        return { length: 0, data: vi.fn(), removeData: vi.fn(), position: () => ({ x: 100, y: 100 }) };
+        return { length: 0, data: vi.fn(), removeData: vi.fn(), emit: vi.fn(), position: () => ({ x: 100, y: 100 }) };
       });
 
       // Mock edges to return an editor edge
@@ -347,6 +351,7 @@ describe('useFileWatcher', () => {
               return undefined;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             position: () => ({ x: 100, y: 100 })
           };
         }
@@ -359,10 +364,11 @@ describe('useFileWatcher', () => {
               return undefined;
             }),
             removeData: vi.fn(),
+            emit: vi.fn(),
             position: () => ({ x: 100, y: 100 })
           };
         }
-        return { length: 0, data: vi.fn(), removeData: vi.fn(), position: () => ({ x: 100, y: 100 }) };
+        return { length: 0, data: vi.fn(), removeData: vi.fn(), emit: vi.fn(), position: () => ({ x: 100, y: 100 }) };
       });
 
       const removedEdges: string[] = [];

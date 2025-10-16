@@ -33,8 +33,6 @@ export function useFileWatcher({
   setEdgeCount,
   setIsInitialLoad
 }: UseFileWatcherParams) {
-  // Track last new node for animation timeout management
-  const lastNewNodeIdRef = useRef<string | null>(null);
 
   const handleBulkFilesAdded = useCallback(async (data: { files: Array<{ path: string; content?: string }>; directory: string }) => {
     console.log(`[Bulk Load] Processing ${data.files.length} files from initial scan`);
@@ -142,27 +140,14 @@ export function useFileWatcher({
       const label = parsed.label;
 
       // Use GraphMutator to create node (handles positioning internally)
-      const addedNode = graphMutator.addNode({
+      // The BreathingAnimationService will automatically animate new nodes via event listener
+      graphMutator.addNode({
         nodeId,
         label,
         linkedNodeIds,
         parentId,
         color
       });
-
-      // If there was a previous new node, add a 10s timeout to it
-      if (lastNewNodeIdRef.current) {
-        const prevNode = cy.getElementById(lastNewNodeIdRef.current);
-        if (prevNode.length > 0 && prevNode.data('breathingActive')) {
-          cytoscapeRef.current?.setAnimationTimeout(prevNode, 10000);
-        }
-      }
-
-      // Trigger breathing animation for new node (no timeout)
-      cytoscapeRef.current?.animateNewNode(addedNode);
-
-      // Track this as the last new node
-      lastNewNodeIdRef.current = nodeId;
     } else {
       // Update linkedNodeIds for existing node
       cy.getElementById(nodeId).data('linkedNodeIds', linkedNodeIds);
@@ -227,12 +212,8 @@ export function useFileWatcher({
     // Update label from frontmatter
     changedNode.data('label', parsed.label);
 
-    // Trigger breathing animation for appended content (only once per node)
-    // Only trigger if not already triggered to prevent re-triggering on every file change
-    if (!changedNode.data('appendAnimationTriggered')) {
-      changedNode.data('appendAnimationTriggered', true);
-      cytoscapeRef.current?.animateAppendedContent(changedNode);
-    }
+    // Emit content-changed event for BreathingAnimationService to handle
+    changedNode.emit('content-changed');
 
     // Update counts
     setNodeCount(cy.nodes().length);

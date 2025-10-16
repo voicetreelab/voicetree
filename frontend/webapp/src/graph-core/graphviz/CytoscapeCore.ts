@@ -17,7 +17,6 @@ export class CytoscapeCore {
   constructor(container: HTMLElement, elements: (NodeDefinition | EdgeDefinition)[] = [], headless = false) {
     this.container = container;
     this.styleService = new StyleService();
-    this.animationService = new BreathingAnimationService();
 
     // Initialize cytoscape with styling
     const cytoscapeOptions: CytoscapeOptions = {
@@ -29,6 +28,9 @@ export class CytoscapeCore {
     };
 
     this.viz = cytoscape(cytoscapeOptions);
+
+    // Initialize animation service with cy instance (sets up event listeners)
+    this.animationService = new BreathingAnimationService(this.viz);
 
     // Update node degrees after initial elements are added
     this.updateNodeDegrees();

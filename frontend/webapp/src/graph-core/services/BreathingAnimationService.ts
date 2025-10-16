@@ -1,4 +1,4 @@
-import type { NodeSingular, NodeCollection } from 'cytoscape';
+import type { Core, NodeSingular } from 'cytoscape';
 
 export enum AnimationType {
   PINNED = 'pinned',
@@ -13,12 +13,25 @@ interface AnimationConfig {
   contractClass: string;
 }
 
+/**
+ * Simplified breathing animation service using event-driven approach.
+ * Listens to cytoscape events and manages animations automatically.
+ *
+ * Rules:
+ * - New nodes: green breathing, no initial timeout
+ * - When another new node is added, previous new node gets 15s timeout
+ * - Content updates: blue breathing, 15s timeout
+ * - Pinned nodes: orange breathing, no timeout
+ */
 export class BreathingAnimationService {
-  private activeAnimations: Map<string, NodeJS.Timeout> = new Map();
-  private animationIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private configs!: Map<AnimationType, AnimationConfig>;
+  private cy: Core;
+  private configs: Map<AnimationType, AnimationConfig>;
+  private prevNewNode: NodeSingular | null = null;
+  private readonly PREV_NODE_TIMEOUT = 15000; // 15 seconds
 
-  constructor() {
+  constructor(cy: Core) {
+    this.cy = cy;
+
     this.configs = new Map([
       [AnimationType.PINNED, {
         duration: 800,
@@ -34,36 +47,70 @@ export class BreathingAnimationService {
       }],
       [AnimationType.APPENDED_CONTENT, {
         duration: 1200,
-        timeout: 10000, // 10 seconds
+        timeout: 15000, // 15 seconds
         expandClass: 'breathing-appended-expand',
         contractClass: 'breathing-appended-contract',
       }],
     ]);
+
+    this.setupEventListeners();
   }
 
-  addBreathingAnimation(nodes: NodeCollection, type: AnimationType = AnimationType.NEW_NODE): void {
+  private setupEventListeners(): void {
+    // Listen for new nodes
+    this.cy.on('add', 'node', (evt) => {
+      const node = evt.target;
+
+      // Skip if this is a floating window (has floatingWindow data)
+      if (node.data('floatingWindow')) {
+        return;
+      }
+
+      // If there was a previous new node, give it a timeout
+      if (this.prevNewNode && this.prevNewNode.data('breathingActive')) {
+        this.setAnimationTimeout(this.prevNewNode, this.PREV_NODE_TIMEOUT);
+      }
+
+      // Start green breathing animation on new node
+      this.startBreathingAnimation(node, AnimationType.NEW_NODE);
+
+      // Track this as the new prevNewNode
+      this.prevNewNode = node;
+    });
+
+    // Listen for content updates (custom event emitted by file watcher)
+    this.cy.on('content-changed', 'node', (evt) => {
+      const node = evt.target;
+      this.startBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
+    });
+  }
+
+  /**
+   * Start breathing animation on a node.
+   * Used internally by event listeners and externally for pinned nodes.
+   */
+  startBreathingAnimation(node: NodeSingular, type: AnimationType): void {
     const config = this.configs.get(type)!;
 
-    nodes.forEach((node) => {
-      const nodeId = node.id();
+    // Stop any existing animation first
+    this.stopAnimationForNode(node);
 
-      // Stop any existing animation
-      this.stopAnimation(nodeId);
+    // Mark node as breathing
+    node.data('breathingActive', true);
+    node.data('animationType', type);
 
-      node.data('breathingActive', true);
-      node.data('animationType', type);
+    // Start animation by toggling CSS classes
+    this.animateNode(node, config);
 
-      // Start animation
-      this.animateNode(node, config);
+    // Set timeout if configured
+    if (config.timeout > 0) {
+      const timeout = setTimeout(() => {
+        this.stopAnimationForNode(node);
+      }, config.timeout);
 
-      // Set timeout if needed
-      if (config.timeout > 0) {
-        const timeout = setTimeout(() => {
-          this.stopAnimationForNode(node);
-        }, config.timeout);
-        this.activeAnimations.set(nodeId, timeout);
-      }
-    });
+      // Store timeout on the node itself
+      node.data('_breathingTimeout', timeout);
+    }
   }
 
   private animateNode(node: NodeSingular, config: AnimationConfig): void {
@@ -71,7 +118,6 @@ export class BreathingAnimationService {
       return;
     }
 
-    const nodeId = node.id();
     let isExpanded = false;
 
     const toggle = () => {
@@ -96,41 +142,31 @@ export class BreathingAnimationService {
 
     // Set up interval to toggle states
     const interval = setInterval(toggle, config.duration);
-    this.animationIntervals.set(nodeId, interval);
-  }
 
-  stopAnimation(nodeId: string): void {
-    // Clear timeout
-    const timeout = this.activeAnimations.get(nodeId);
-    if (timeout) {
-      clearTimeout(timeout);
-      this.activeAnimations.delete(nodeId);
-    }
-
-    // Clear interval
-    const interval = this.animationIntervals.get(nodeId);
-    if (interval) {
-      clearInterval(interval);
-      this.animationIntervals.delete(nodeId);
-    }
+    // Store interval on the node itself
+    node.data('_breathingInterval', interval);
   }
 
   stopAnimationForNode(node: NodeSingular): void {
-    const nodeId = node.id();
-
-    // Mark as inactive FIRST - this stops new animation cycles from starting
+    // Mark as inactive FIRST
     node.data('breathingActive', false);
 
     // Get animation type to know which classes to remove
     const animationType = node.data('animationType') as AnimationType | undefined;
 
-    // Clear append animation trigger flag if this was an appended content animation
-    if (animationType === AnimationType.APPENDED_CONTENT) {
-      node.data('appendAnimationTriggered', false);
+    // Clear timeout if exists
+    const timeout = node.data('_breathingTimeout');
+    if (timeout) {
+      clearTimeout(timeout);
+      node.removeData('_breathingTimeout');
     }
 
-    // Stop timers
-    this.stopAnimation(nodeId);
+    // Clear interval if exists
+    const interval = node.data('_breathingInterval');
+    if (interval) {
+      clearInterval(interval);
+      node.removeData('_breathingInterval');
+    }
 
     // Remove all breathing animation classes
     if (animationType) {
@@ -141,34 +177,24 @@ export class BreathingAnimationService {
     }
 
     // Reset border to default by removing inline style overrides
-    // This allows the stylesheet cascade to take over (degree-based border, pinned class, etc.)
     node.removeStyle('border-width border-color border-opacity border-style');
 
     // Clean up data
     node.removeData('animationType');
   }
 
-  stopAllAnimations(nodes: NodeCollection): void {
-    nodes.forEach((node) => {
-      this.stopAnimationForNode(node);
-    });
-  }
-
   /**
-   * Sets or updates the timeout for an active animation
-   * @param node - The node with an active animation
-   * @param timeout - Timeout in milliseconds (0 = no timeout, runs indefinitely)
+   * Sets or updates the timeout for an active animation.
+   * Used to add timeout to previous new node when a newer node is added.
    */
   setAnimationTimeout(node: NodeSingular, timeout: number): void {
-    const nodeId = node.id();
-
     // Only set timeout if animation is active
     if (!node.data('breathingActive')) {
       return;
     }
 
     // Clear existing timeout if any
-    const existingTimeout = this.activeAnimations.get(nodeId);
+    const existingTimeout = node.data('_breathingTimeout');
     if (existingTimeout) {
       clearTimeout(existingTimeout);
     }
@@ -178,10 +204,10 @@ export class BreathingAnimationService {
       const newTimeout = setTimeout(() => {
         this.stopAnimationForNode(node);
       }, timeout);
-      this.activeAnimations.set(nodeId, newTimeout);
+      node.data('_breathingTimeout', newTimeout);
     } else {
       // Remove timeout (animation runs indefinitely)
-      this.activeAnimations.delete(nodeId);
+      node.removeData('_breathingTimeout');
     }
   }
 
@@ -190,10 +216,41 @@ export class BreathingAnimationService {
   }
 
   destroy(): void {
-    // Clear all timeouts and intervals
-    this.activeAnimations.forEach((timeout) => clearTimeout(timeout));
-    this.activeAnimations.clear();
-    this.animationIntervals.forEach((interval) => clearInterval(interval));
-    this.animationIntervals.clear();
+    // Stop all animations
+    this.cy.nodes().forEach((node) => {
+      this.stopAnimationForNode(node);
+    });
+
+    // Remove event listeners
+    this.cy.off('add', 'node');
+    this.cy.off('content-changed', 'node');
+
+    this.prevNewNode = null;
+  }
+
+  /**
+   * Legacy methods for backward compatibility (used by tests and pinned nodes).
+   * These wrap the new event-driven approach.
+   */
+  addBreathingAnimation(nodes: NodeSingular | import('cytoscape').NodeCollection, type: AnimationType = AnimationType.NEW_NODE): void {
+    const nodeArray = 'forEach' in nodes ? Array.from(nodes) : [nodes];
+
+    nodeArray.forEach((node) => {
+      this.startBreathingAnimation(node, type);
+    });
+  }
+
+  stopAllAnimations(nodes: import('cytoscape').NodeCollection): void {
+    nodes.forEach((node) => {
+      this.stopAnimationForNode(node);
+    });
+  }
+
+  // Not used anymore, but kept for backward compatibility
+  stopAnimation(nodeId: string): void {
+    const node = this.cy.getElementById(nodeId);
+    if (node.length > 0) {
+      this.stopAnimationForNode(node);
+    }
   }
 }
