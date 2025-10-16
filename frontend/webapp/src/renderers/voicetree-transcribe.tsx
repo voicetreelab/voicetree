@@ -217,13 +217,13 @@ export default function VoiceTreeTranscribe() {
             <button
               onClick={state === 'Running' ? stopTranscription : startTranscription}
               className={cn(
-                "p-3 rounded-lg transition-all",
+                "p-1 rounded-lg transition-all",
                 state === 'Running'
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   : "bg-primary text-primary-foreground hover:bg-primary/90"
               )}
             >
-              <AnimatedMicIcon isRecording={state === 'Running'} size={20} />
+              <AnimatedMicIcon isRecording={state === 'Running'} size={28} />
             </button>
 
             {/* Text Input */}

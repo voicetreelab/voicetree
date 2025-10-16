@@ -19,12 +19,12 @@ export default function AnimatedMicIcon({
       {isRecording ? (
         // Recording state: smaller red square (iPhone-style)
         <rect
-          x="4"
-          y="4"
-          width="16"
-          height="16"
+          x="5"
+          y="5"
+          width="14"
+          height="14"
           fill="currentColor"
-          rx="4"
+          rx="5"
           className="transition-all duration-300 ease-in-out"
         >
           <animate
@@ -39,7 +39,7 @@ export default function AnimatedMicIcon({
         <circle
           cx="12"
           cy="12"
-          r="12"
+          r="11"
           fill="currentColor"
           className="transition-all duration-300 ease-in-out"
         />
