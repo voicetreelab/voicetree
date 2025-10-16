@@ -111,35 +111,30 @@ class TestConnectOrphansE2E:
                 print(f"  - {action.new_node_name}")
                 print(f"    Summary: {action.summary}")
 
-            # Apply actions to the tree
+            # Apply actions to the tree - TreeActionApplier handles everything
+            # including connecting children via children_to_link field
             applier = TreeActionApplier(tree)
-            new_node_ids = applier.apply(actions)
-
-            # Connect the orphans to their new parents
-            for action in actions:
-                parent_name = action.new_node_name
-                # Find the newly created parent node by name
-                parent_id = None
-                for node_id, node in tree.tree.items():
-                    if node.title == parent_name and node_id in new_node_ids:
-                        parent_id = node_id
-                        break
-
-                if parent_id and parent_name in parent_child_mapping:
-                    child_ids = parent_child_mapping[parent_name]
-                    for child_id in child_ids:
-                        if child_id in tree.tree:
-                            # Update the child's parent_id
-                            tree.tree[child_id].parent_id = parent_id
-                            # Add the child to parent's children list
-                            if child_id not in tree.tree[parent_id].children:
-                                tree.tree[parent_id].children.append(child_id)
-                            new_node_ids.add(child_id)
-
-            modified_nodes = new_node_ids
+            modified_nodes = applier.apply(actions)
 
             print("\n=== After Applying Actions ===")
             print(f"Modified/created {len(modified_nodes)} nodes")
+
+            # Verify relationships are properly set by trying to format nodes
+            # This would have caught the bug where relationships dict wasn't updated
+            from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (
+                format_nodes_for_prompt,
+            )
+            connected_children = [
+                tree.tree[node_id] for node_id in modified_nodes
+                if node_id in tree.tree and tree.tree[node_id].parent_id is not None
+            ]
+            if connected_children:
+                try:
+                    # This call will fail if relationships dict is not properly set
+                    formatted = format_nodes_for_prompt(connected_children, tree.tree, include_full_content=False)
+                    print(f"Successfully formatted {len(connected_children)} connected children for prompt")
+                except KeyError as e:
+                    raise AssertionError(f"Relationships not properly set: {e}")
 
             # Count final orphans
             final_orphans = [
@@ -170,19 +165,13 @@ class TestConnectOrphansE2E:
         assert len(initial_orphans) > 0, "Should have orphan nodes to start with"
 
         if actions:
-            # Verify that the orphans were actually connected
-            connected_count = 0
-            for action in actions:
-                parent_name = action.new_node_name
-                if parent_name in parent_child_mapping:
-                    child_ids = parent_child_mapping[parent_name]
-                    for child_id in child_ids:
-                        if child_id in tree.tree and tree.tree[child_id].parent_id is not None:
-                            connected_count += 1
+            # Verify that orphan count decreased
+            assert len(final_orphans) < len(initial_orphans), \
+                f"Orphan count should decrease: was {len(initial_orphans)}, now {len(final_orphans)}"
 
-            assert connected_count > 0, f"Should have connected at least some orphans, but connected {connected_count}"
+            orphans_connected = len(initial_orphans) - len(final_orphans)
             print("\n=== Test Verification ===")
-            print(f"Successfully connected {connected_count} orphan nodes to new parent nodes")
+            print(f"Successfully connected {orphans_connected} orphan nodes to new parent nodes")
 
     @pytest.mark.asyncio
     async def test_workflow_triggers_orphan_connection_with_qa_data(self):

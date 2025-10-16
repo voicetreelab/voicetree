@@ -490,6 +490,42 @@ class MarkdownTree:
                 logging.error(f"Vector search failed: {e}")
         return []
 
+    def set_parent_child_connection(self, parent_id: int, child_id: int, relationship: str = "child_of") -> None:
+        """
+        Establish a parent-child relationship between two nodes.
+
+        This helper ensures all necessary data structures are updated consistently:
+        - Child's parent_id is set
+        - Child's relationships dictionary is updated
+        - Parent's children list includes the child
+
+        Args:
+            parent_id: The ID of the parent node
+            child_id: The ID of the child node
+            relationship: The relationship type (e.g., "child_of", "implements", etc.)
+
+        Raises:
+            KeyError: If either node doesn't exist in the tree
+        """
+        if parent_id not in self.tree:
+            raise KeyError(f"Parent node {parent_id} not found in tree")
+        if child_id not in self.tree:
+            raise KeyError(f"Child node {child_id} not found in tree")
+
+        child_node = self.tree[child_id]
+        parent_node = self.tree[parent_id]
+
+        # TODO: This doesn't handle removing child from old parent if it has one.
+        # Currently only used for orphan connection where nodes don't have parents yet.
+
+        # Set new parent-child relationship
+        child_node.parent_id = parent_id
+        child_node.relationships[parent_id] = relationship
+
+        # Add child to parent's children list if not already present
+        if child_id not in parent_node.children:
+            parent_node.children.append(child_id)
+
     def remove_node(self, node_id: int) -> bool:
         """
         Remove node from tree and delete its markdown file.
