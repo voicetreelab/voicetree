@@ -5,11 +5,9 @@ import { MermaidRenderer } from './MermaidRenderer';
 interface MarkdownEditorProps {
   windowId: string;
   content: string;
-  onSave: (newContent: string) => void;
+  onSave: (newContent: string) => Promise<void>;
   previewMode?: 'edit' | 'live' | 'preview';
 }
-
-type SaveStatus = 'idle' | 'saving' | 'success' | 'error';
 
 const components = {
   code: ({ children = '', className = '' }) => {
@@ -22,9 +20,8 @@ const components = {
   },
 };
 
-export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, content, onSave, previewMode = 'edit' }) => {
+export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ content, onSave, previewMode = 'edit' }) => {
   const [value, setValue] = useState(content);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Check for dark mode on mount and when it changes
@@ -49,55 +46,20 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ windowId, conten
   const handleChange = (newValue: string | undefined) => {
     const content = newValue || '';
     setValue(content);
-    setSaveStatus('idle'); // Reset save status on edit
-  };
-
-  const handleSave = async () => {
-    console.log('[MarkdownEditor] handleSave called, value length:', value.length, 'first 50 chars:', value.substring(0, 50));
-    setSaveStatus('saving');
-    try {
-      await onSave(value);
-      setSaveStatus('success');
-    } catch (error) {
-      setSaveStatus('error');
-      console.error('Error saving content:', error);
-    }
-    // Reset status after a delay
-    setTimeout(() => setSaveStatus('idle'), 2000);
-  };
-
-  const getSaveButtonText = () => {
-    switch (saveStatus) {
-      case 'saving': return 'Saving...';
-      case 'success': return 'Saved!';
-      case 'error': return 'Error!';
-      default: return 'Save';
-    }
+    // Auto-save on every content change
+    onSave(content).catch((error) => {
+      console.error('[MarkdownEditor] Auto-save failed:', error);
+    });
   };
 
   return (
     <div data-color-mode={isDarkMode ? 'dark' : 'light'} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '4px 8px', background: '#f7f7f7', borderBottom: '1px solid #e1e1e1', display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          onClick={handleSave}
-          disabled={saveStatus === 'saving'}
-          style={{
-            padding: '4px 8px',
-            fontSize: '12px',
-            background: saveStatus === 'success' ? '#28a745' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          {getSaveButtonText()}
-        </button>
-      </div>
       <MDEditor
         value={value}
         onChange={handleChange}
-        components={components}
+        previewOptions={{
+          components: components
+        }}
         height="100%"
         preview={previewMode}
         style={{ flex: 1, borderRadius: 0, border: 'none' }}

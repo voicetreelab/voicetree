@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
 import type { NodeMetadata } from '@/components/floating-windows/types';
 
@@ -25,21 +26,34 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
     // Create terminal instance
     const term = new XTerm({
       cursorBlink: true,
-      fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      theme: {
-        background: '#1e1e1e',
-        foreground: '#cccccc',
-      },
+      // fontSize: 12, TODO: DO NOT UNCOMMENT THIS
+      // fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      // theme: {
+      //   background: '#1e1e1e',
+      //   foreground: '#cccccc',
+      // },
       // Don't set fixed cols/rows - let FitAddon handle it dynamically
-      scrollback: 10000, // Keep scrollback history
-      scrollOnUserInput: false, // Don't force scroll to bottom on user input
+      // scrollback: 10000, // Keep scrollback history
+      // scrollOnUserInput: false, // Don't force scroll to bottom on user input
     });
 
     // Create and load FitAddon for automatic resizing
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     fitAddonRef.current = fitAddon;
+
+    // Create and load WebGL addon for GPU-accelerated rendering
+    try {
+      const webglAddon = new WebglAddon();
+      webglAddon.onContextLoss(() => {
+        console.log('[Terminal] WebGL context lost, falling back to canvas renderer');
+        webglAddon.dispose();
+      });
+      term.loadAddon(webglAddon);
+      console.log('[Terminal] WebGL renderer enabled');
+    } catch (e) {
+      console.warn('[Terminal] WebGL not supported, using canvas renderer:', e);
+    }
 
     xtermRef.current = term;
     term.open(terminalRef.current);

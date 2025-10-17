@@ -13,81 +13,43 @@ test.describe('Floating Window - Real MarkdownEditor Integration', () => {
 
     // Set up MarkdownEditor component in test environment
     await page.evaluate(() => {
-      // Create MarkdownEditor component for testing
-      function MarkdownEditor({ windowId, content, onSave }: any) {
+      // Create MarkdownEditor component for testing (now with forwardRef and auto-save)
+      const MarkdownEditor = (window as any).React.forwardRef(({ windowId, content, onSave }: any, ref: any) => {
         const [value, setValue] = (window as any).React.useState(content);
-        const [saveStatus, setSaveStatus] = (window as any).React.useState('idle');
+
+        // Expose save method via ref for auto-save on close
+        (window as any).React.useImperativeHandle(ref, () => ({
+          save: async () => {
+            console.log('[MarkdownEditor] save called via ref');
+            await onSave(value);
+          },
+          getValue: () => value
+        }));
 
         const handleChange = (newValue: string | undefined) => {
-          setValue(newValue || '');
-          setSaveStatus('idle');
+          const content = newValue || '';
+          setValue(content);
+          // Auto-save on every content change
+          onSave(content);
         };
 
-        const handleSave = async () => {
-          setSaveStatus('saving');
-          try {
-            await onSave(value);
-            setSaveStatus('success');
-          } catch (error) {
-            setSaveStatus('error');
-            console.error('Error saving content:', error);
-          }
-          setTimeout(() => setSaveStatus('idle'), 2000);
-        };
-
-        const getSaveButtonText = () => {
-          switch (saveStatus) {
-            case 'saving': return 'Saving...';
-            case 'success': return 'Saved!';
-            case 'error': return 'Error!';
-            default: return 'Save';
-          }
-        };
-
+        // No save button - saves automatically on close
         return (window as any).React.createElement('div',
           { style: { height: '100%', display: 'flex', flexDirection: 'column' } },
-          [
-            (window as any).React.createElement('div',
-              {
-                key: 'toolbar',
-                style: {
-                  padding: '4px 8px',
-                  background: '#f7f7f7',
-                  borderBottom: '1px solid #e1e1e1',
-                  display: 'flex',
-                  justifyContent: 'flex-end'
-                }
-              },
-              (window as any).React.createElement('button', {
-                onClick: handleSave,
-                disabled: saveStatus === 'saving',
-                style: {
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  background: saveStatus === 'success' ? '#28a745' : '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }
-              }, getSaveButtonText())
-            ),
-            (window as any).React.createElement('textarea', {
-              key: 'editor',
-              value: value,
-              onChange: (e: any) => handleChange(e.target.value),
-              style: {
-                flex: 1,
-                padding: '10px',
-                border: 'none',
-                resize: 'none',
-                fontFamily: 'monospace',
-                fontSize: '14px'
-              }
-            })
-          ]
+          (window as any).React.createElement('textarea', {
+            value: value,
+            onChange: (e: any) => handleChange(e.target.value),
+            style: {
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              resize: 'none',
+              fontFamily: 'monospace',
+              fontSize: '14px'
+            }
+          })
         );
-      }
+      });
 
       // Register component for use with extension
       (window as any).componentRegistry = {
@@ -137,148 +99,263 @@ test.describe('Floating Window - Real MarkdownEditor Integration', () => {
     });
     expect(editorContent).toContain('Added via test!');
 
-    // ✅ Test 3: Click save button
+    // ✅ Test 3: Verify no save button exists (auto-save on close)
     const saveButtonExists = await page.evaluate(() => {
       const windowElement = document.querySelector('#window-markdown-editor-window');
-      const saveButton = Array.from(windowElement?.querySelectorAll('button') || [])
-        .find(btn => btn.textContent?.includes('Save'));
-      return saveButton !== undefined;
+      const contentArea = windowElement?.querySelector('.cy-floating-window-content');
+      const saveButton = contentArea?.querySelector('button');
+      return saveButton !== null;
     });
-    expect(saveButtonExists).toBe(true);
+    expect(saveButtonExists).toBe(false);
 
-    // Click save button
+    // ✅ Test 4: Test auto-save on close
+    let savedContent = '';
     await page.evaluate(() => {
-      const windowElement = document.querySelector('#window-markdown-editor-window');
-      const saveButton = Array.from(windowElement?.querySelectorAll('button') || [])
-        .find(btn => btn.textContent?.includes('Save')) as HTMLButtonElement;
-      saveButton?.click();
+      // Set up onSave spy
+      (window as any).lastSavedContent = null;
+      const cy = window.cy;
+      // Re-add window with onSave callback that stores content
+      const existingWindow = cy.$('#markdown-editor-window');
+      if (existingWindow.length > 0) {
+        existingWindow.remove();
+      }
+      document.querySelector('#window-markdown-editor-window')?.remove();
+
+      cy.addFloatingWindow({
+        id: 'markdown-editor-window',
+        component: 'MarkdownEditor',
+        position: { x: 400, y: 300 },
+        resizable: true,
+        initialContent: 'Initial content',
+        onSave: async (content: string) => {
+          (window as any).lastSavedContent = content;
+          console.log('Content saved:', content);
+        }
+      });
     });
 
-    // Verify button state changed
-    const buttonText = await page.evaluate(() => {
-      const windowElement = document.querySelector('#window-markdown-editor-window');
-      const saveButton = Array.from(windowElement?.querySelectorAll('button') || [])
-        .find(btn => btn.textContent?.includes('Sav')) as HTMLButtonElement;
-      return saveButton?.textContent || '';
-    });
-    expect(['Saving...', 'Saved!', 'Save']).toContain(buttonText);
+    // Type new content
+    await page.click('#window-markdown-editor-window textarea');
+    await page.keyboard.type('\n\nAuto-save test!');
 
-    // ✅ Test 4: Verify editor still works after pan
+    // Click close button (should trigger auto-save)
+    await page.click('#window-markdown-editor-window .cy-floating-window-close');
+
+    // Wait a moment for async save
+    await page.waitForTimeout(100);
+
+    savedContent = await page.evaluate(() => (window as any).lastSavedContent || '');
+    expect(savedContent).toContain('Auto-save test!');
+
+    // ✅ Test 5: Verify editor still works after pan
+    // Re-create window since we closed it in the previous test
+    await page.evaluate(() => {
+      const cy = window.cy;
+      cy.addFloatingWindow({
+        id: 'markdown-editor-window-2',
+        component: 'MarkdownEditor',
+        position: { x: 400, y: 300 },
+        resizable: true,
+        initialContent: 'Test content'
+      });
+    });
+
     await page.evaluate(() => {
       window.cy.pan({ x: 100, y: 100 });
     });
 
     // Should still be able to type
-    await page.click('#window-markdown-editor-window textarea');
+    await page.click('#window-markdown-editor-window-2 textarea');
     await page.keyboard.type(' After pan!');
 
     const contentAfterPan = await page.evaluate(() => {
-      const textarea = document.querySelector('#window-markdown-editor-window textarea') as HTMLTextAreaElement;
+      const textarea = document.querySelector('#window-markdown-editor-window-2 textarea') as HTMLTextAreaElement;
       return textarea?.value || '';
     });
     expect(contentAfterPan).toContain('After pan!');
 
-    // ✅ Test 5: Verify editor still works after zoom
+    // ✅ Test 6: Verify editor still works after zoom
     await page.evaluate(() => {
       window.cy.zoom(1.5);
     });
 
-    await page.click('#window-markdown-editor-window textarea');
+    await page.click('#window-markdown-editor-window-2 textarea');
     await page.keyboard.type(' After zoom!');
 
     const contentAfterZoom = await page.evaluate(() => {
-      const textarea = document.querySelector('#window-markdown-editor-window textarea') as HTMLTextAreaElement;
+      const textarea = document.querySelector('#window-markdown-editor-window-2 textarea') as HTMLTextAreaElement;
       return textarea?.value || '';
     });
     expect(contentAfterZoom).toContain('After zoom!');
 
-    // ✅ Test 6: Screenshot
+    // ✅ Test 7: Screenshot
     await page.screenshot({
       path: 'tests/screenshots/floating-window-markdown-editor.png',
       clip: { x: 0, y: 0, width: 800, height: 600 }
     });
   });
 
-  test('should handle text selection in editor without triggering graph interactions', async ({ page }) => {
+  test('should persist edited content when closing and reopening editor', async ({ page }) => {
     await page.goto('/tests/e2e/isolated-with-harness/graph-core/cytoscape-react-harness.html');
     await page.waitForSelector('[data-harness-ready="true"]');
 
     // Set up MarkdownEditor component
     await page.evaluate(() => {
-      function MarkdownEditor({ windowId, content, onSave }: any) {
+      const MarkdownEditor = (window as any).React.forwardRef(({ windowId, content, onSave }: any, ref: any) => {
         const [value, setValue] = (window as any).React.useState(content);
-        const [saveStatus, setSaveStatus] = (window as any).React.useState('idle');
+
+        (window as any).React.useImperativeHandle(ref, () => ({
+          save: async () => {
+            console.log('[MarkdownEditor] save called via ref');
+            await onSave(value);
+          },
+          getValue: () => value
+        }));
 
         const handleChange = (newValue: string | undefined) => {
-          setValue(newValue || '');
-          setSaveStatus('idle');
-        };
-
-        const handleSave = async () => {
-          setSaveStatus('saving');
-          try {
-            await onSave(value);
-            setSaveStatus('success');
-          } catch (error) {
-            setSaveStatus('error');
-            console.error('Error saving content:', error);
-          }
-          setTimeout(() => setSaveStatus('idle'), 2000);
-        };
-
-        const getSaveButtonText = () => {
-          switch (saveStatus) {
-            case 'saving': return 'Saving...';
-            case 'success': return 'Saved!';
-            case 'error': return 'Error!';
-            default: return 'Save';
-          }
+          const content = newValue || '';
+          setValue(content);
+          // Auto-save on every content change
+          onSave(content);
         };
 
         return (window as any).React.createElement('div',
           { style: { height: '100%', display: 'flex', flexDirection: 'column' } },
-          [
-            (window as any).React.createElement('div',
-              {
-                key: 'toolbar',
-                style: {
-                  padding: '4px 8px',
-                  background: '#f7f7f7',
-                  borderBottom: '1px solid #e1e1e1',
-                  display: 'flex',
-                  justifyContent: 'flex-end'
-                }
-              },
-              (window as any).React.createElement('button', {
-                onClick: handleSave,
-                disabled: saveStatus === 'saving',
-                style: {
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  background: saveStatus === 'success' ? '#28a745' : '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }
-              }, getSaveButtonText())
-            ),
-            (window as any).React.createElement('textarea', {
-              key: 'editor',
-              value: value,
-              onChange: (e: any) => handleChange(e.target.value),
-              style: {
-                flex: 1,
-                padding: '10px',
-                border: 'none',
-                resize: 'none',
-                fontFamily: 'monospace',
-                fontSize: '14px'
-              }
-            })
-          ]
+          (window as any).React.createElement('textarea', {
+            value: value,
+            onChange: (e: any) => handleChange(e.target.value),
+            style: {
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              resize: 'none',
+              fontFamily: 'monospace',
+              fontSize: '14px'
+            }
+          })
         );
-      }
+      });
+
+      (window as any).componentRegistry = {
+        MarkdownEditor: MarkdownEditor
+      };
+    });
+
+    // Set up a persistent content store to simulate real backend
+    await page.evaluate(() => {
+      (window as any).contentStore = new Map();
+      (window as any).contentStore.set('test-node-1', 'Initial content');
+    });
+
+    // Create editor with initial content
+    await page.evaluate(() => {
+      const cy = window.cy;
+      const nodeId = 'test-node-1';
+      const initialContent = (window as any).contentStore.get(nodeId);
+
+      cy.addFloatingWindow({
+        id: 'editor-persist-test',
+        component: 'MarkdownEditor',
+        position: { x: 400, y: 300 },
+        resizable: true,
+        initialContent: initialContent,
+        onSave: async (content: string) => {
+          console.log('Saving content for', nodeId, ':', content);
+          (window as any).contentStore.set(nodeId, content);
+        }
+      });
+    });
+
+    // Edit the content
+    await page.click('#window-editor-persist-test textarea');
+    await page.keyboard.press('End'); // Go to end of text
+    await page.keyboard.type('\n\nEdited content!');
+
+    // Verify content in editor
+    const editedContent = await page.evaluate(() => {
+      const textarea = document.querySelector('#window-editor-persist-test textarea') as HTMLTextAreaElement;
+      return textarea?.value || '';
+    });
+    expect(editedContent).toContain('Edited content!');
+
+    // Close the editor (should trigger save)
+    await page.click('#window-editor-persist-test .cy-floating-window-close');
+    await page.waitForTimeout(100); // Wait for async save
+
+    // Verify content was saved to our store
+    const savedContent = await page.evaluate(() => {
+      return (window as any).contentStore.get('test-node-1');
+    });
+    expect(savedContent).toContain('Edited content!');
+
+    // Reopen the editor with the saved content
+    await page.evaluate(() => {
+      const cy = window.cy;
+      const nodeId = 'test-node-1';
+      const savedContent = (window as any).contentStore.get(nodeId);
+
+      cy.addFloatingWindow({
+        id: 'editor-persist-test-2',
+        component: 'MarkdownEditor',
+        position: { x: 400, y: 300 },
+        resizable: true,
+        initialContent: savedContent,
+        onSave: async (content: string) => {
+          (window as any).contentStore.set(nodeId, content);
+        }
+      });
+    });
+
+    // Verify reopened editor has the edited content
+    const reopenedContent = await page.evaluate(() => {
+      const textarea = document.querySelector('#window-editor-persist-test-2 textarea') as HTMLTextAreaElement;
+      return textarea?.value || '';
+    });
+    expect(reopenedContent).toContain('Edited content!');
+  });
+
+  test('should handle text selection in editor without triggering graph interactions', async ({ page }) => {
+    await page.goto('/tests/e2e/isolated-with-harness/graph-core/cytoscape-react-harness.html');
+    await page.waitForSelector('[data-harness-ready="true"]');
+
+    // Set up MarkdownEditor component (now with forwardRef and auto-save)
+    await page.evaluate(() => {
+      const MarkdownEditor = (window as any).React.forwardRef(({ windowId, content, onSave }: any, ref: any) => {
+        const [value, setValue] = (window as any).React.useState(content);
+
+        // Expose save method via ref for auto-save on close
+        (window as any).React.useImperativeHandle(ref, () => ({
+          save: async () => {
+            console.log('[MarkdownEditor] save called via ref');
+            await onSave(value);
+          },
+          getValue: () => value
+        }));
+
+        const handleChange = (newValue: string | undefined) => {
+          const content = newValue || '';
+          setValue(content);
+          // Auto-save on every content change
+          onSave(content);
+        };
+
+        // No save button - saves automatically on close
+        return (window as any).React.createElement('div',
+          { style: { height: '100%', display: 'flex', flexDirection: 'column' } },
+          (window as any).React.createElement('textarea', {
+            value: value,
+            onChange: (e: any) => handleChange(e.target.value),
+            style: {
+              flex: 1,
+              padding: '10px',
+              border: 'none',
+              resize: 'none',
+              fontFamily: 'monospace',
+              fontSize: '14px'
+            }
+          })
+        );
+      });
 
       (window as any).componentRegistry = {
         MarkdownEditor: MarkdownEditor

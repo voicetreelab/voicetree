@@ -4,6 +4,7 @@ import { promises as fs, createWriteStream } from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 import pty from 'node-pty';
 import FileWatchManager from './file-watch-manager';
+import { BACKEND_PORT } from './shared-config';
 
 // Suppress Electron security warnings in development and test environments
 // These warnings are only shown in dev mode and don't appear in production
@@ -105,9 +106,9 @@ async function startServer() {
     const serverDir = path.dirname(serverPath);
     debugLog(`[Server] Server directory: ${serverDir}`);
 
-    // Spawn the server process with port 8001 and explicit working directory
-    debugLog('[Server] Starting VoiceTree server on port 8001...');
-    debugLog(`[Server] Spawn command: ${serverPath} 8001`);
+    // Spawn the server process with explicit working directory
+    debugLog(`[Server] Starting VoiceTree server on port ${BACKEND_PORT}...`);
+    debugLog(`[Server] Spawn command: ${serverPath} ${BACKEND_PORT}`);
 
     // Create environment with explicit paths for the server
     const serverEnv = {
@@ -121,7 +122,7 @@ async function startServer() {
         : `/usr/local/bin:/opt/homebrew/bin:${process.env.PATH || '/usr/bin:/bin:/usr/sbin:/sbin'}`
     };
 
-    serverProcess = spawn(serverPath, ['8000'], { //todo temp until we fix
+    serverProcess = spawn(serverPath, [BACKEND_PORT.toString()], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: serverEnv,
       cwd: serverDir,  // Set working directory explicitly
@@ -164,7 +165,7 @@ async function startServer() {
     setTimeout(async () => {
       try {
         const http = require('http');
-        http.get('http://localhost:8001/health', (res) => {
+        http.get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
           debugLog(`[Server] Health check response code: ${res.statusCode}`);
         }).on('error', (err) => {
           debugLog(`[Server] Health check failed: ${err.message}`);
@@ -188,7 +189,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     show: false,
-    titleBarStyle: 'hiddenInset',
+    // titleBarStyle: 'hiddenInset', //todo enable this later, but we need soemthing to be able to drag the window by and double click to maximize.
     ...(process.env.MINIMIZE_TEST === '1' && {
       focusable: false,
       skipTaskbar: true
@@ -377,20 +378,28 @@ ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
     if (nodeMetadata) {
       // Set node-based environment variables
       if (nodeMetadata.filePath) {
-        // OBSIDIAN_SOURCE_NOTE is the relative path from vault root (e.g., "2025-10-03/23_Commitment.md")
-        customEnv.OBSIDIAN_SOURCE_NOTE = nodeMetadata.filePath;
+        const vaultPath = "/Users/bobbobby/repos/VoiceTree/markdownTreeVault"; // todo-hardcoded
+        customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
 
-        // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03")
-        customEnv.OBSIDIAN_SOURCE_DIR = path.dirname(nodeMetadata.filePath);
+        // Convert absolute path to relative path from vault root if needed
+        let relativePath = nodeMetadata.filePath;
+        if (path.isAbsolute(nodeMetadata.filePath)) {
+          // If filePath is absolute, make it relative to vault path
+          relativePath = path.relative(vaultPath, nodeMetadata.filePath);
+        }
+
+        // OBSIDIAN_SOURCE_NOTE is the relative path from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
+        customEnv.OBSIDIAN_SOURCE_NOTE = relativePath;
+
+        // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03" or ".")
+        customEnv.OBSIDIAN_SOURCE_DIR = path.dirname(relativePath);
 
         // OBSIDIAN_SOURCE_NAME is the filename with extension (e.g., "23_Commitment.md")
-        customEnv.OBSIDIAN_SOURCE_NAME = path.basename(nodeMetadata.filePath);
-
-        customEnv.OBSIDIAN_VAULT_PATH = "/Users/bobbobby/repos/VoiceTree/markdownTreeVault" // todo-hardcoded
+        customEnv.OBSIDIAN_SOURCE_NAME = path.basename(relativePath);
 
         // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
-        const ext = path.extname(nodeMetadata.filePath);
-        customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(nodeMetadata.filePath, ext);
+        const ext = path.extname(relativePath);
+        customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
       }
 
       // Extra env vars (e.g., agent info)

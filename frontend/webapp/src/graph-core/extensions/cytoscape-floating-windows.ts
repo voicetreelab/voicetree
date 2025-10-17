@@ -380,6 +380,7 @@ function mountComponent(
       }));
 
       reactRoots.set(windowId, root);
+
       console.log('[FloatingWindows] Component mounted successfully');
     } catch (error) {
       console.error('[FloatingWindows] Error mounting component:', error);
@@ -401,11 +402,11 @@ function getDefaultDimensions(component: string | React.ReactElement): { width: 
   if (typeof component === 'string') {
     switch (component) {
       case 'Terminal':
-        // Terminals are visually large - typical size ~600x400
-        return { width: 600, height: 400 };
+        // Terminals are visually large - increased height from 400 to 600
+        return { width: 400, height: 600 };
       case 'MarkdownEditor':
         // Editors are medium - typical size ~500x300
-        return { width: 500, height: 300 };
+        return { width: 400, height: 400 };
       default:
         // Default for unknown components
         return { width: 200, height: 150 };
