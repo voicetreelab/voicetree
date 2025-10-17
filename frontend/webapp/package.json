@@ -41,6 +41,7 @@
     "@types/lodash.debounce": "^4.0.9",
     "@uiw/react-md-editor": "^4.0.8",
     "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

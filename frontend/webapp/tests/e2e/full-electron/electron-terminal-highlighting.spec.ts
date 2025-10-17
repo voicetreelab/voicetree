@@ -152,6 +152,12 @@ test.describe('Terminal Highlighting Offset Bug', () => {
       // Get overlay transform to check if CSS transforms are affecting coordinates
       const overlay = document.querySelector('.cy-floating-overlay') as HTMLElement;
       const overlayTransform = overlay?.style?.transform || 'none';
+      const overlayRect = overlay?.getBoundingClientRect();
+
+      // Get cytoscape zoom/pan
+      const window = globalThis as { cytoscapeInstance?: { zoom: () => number; pan: () => { x: number; y: number } } };
+      const zoom = window.cytoscapeInstance?.zoom() || 1;
+      const pan = window.cytoscapeInstance?.pan() || { x: 0, y: 0 };
 
       return {
         window: { top: windowRect.top, left: windowRect.left, height: windowRect.height, width: windowRect.width },
@@ -159,11 +165,14 @@ test.describe('Terminal Highlighting Offset Bug', () => {
         content: { top: contentRect.top, left: contentRect.left, height: contentRect.height, width: contentRect.width },
         viewport: { top: viewportRect.top, left: viewportRect.left, height: viewportRect.height, width: viewportRect.width },
         screen: { top: screenRect.top, left: screenRect.left, height: screenRect.height, width: screenRect.width },
+        overlay: overlayRect ? { top: overlayRect.top, left: overlayRect.left } : null,
         cellHeight,
         cellWidth,
         titleBarOffset: contentRect.top - windowRect.top,
         screenViewportOffset: screenRect.top - viewportRect.top,
         overlayTransform: overlayTransform,
+        cytoscapeZoom: zoom,
+        cytoscapePan: pan,
       };
     });
 

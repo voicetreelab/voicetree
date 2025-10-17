@@ -13,20 +13,21 @@ from contextlib import asynccontextmanager
 
 class TestServerSystem:
     @pytest.fixture(autouse=True)
-    def setup_method(self, tmp_path):
+    def setup_method(self):
         """Set up test environment with temporary directories and server process"""
-        # Use pytest's tmp_path for test output
-        self.test_output_dir = str(tmp_path / "test_server_output")
+        # Use hardcoded test vault (absolute path)
+        self.test_output_dir = os.path.abspath("backend/tests/system_test/testVault")
         self.server_process = None
         self.server_port = 8001  # Use different port to avoid conflicts
         self.server_url = f"http://localhost:{self.server_port}"
 
-        # Set environment variables for server
+        # Clean and create test output directory
+        shutil.rmtree(self.test_output_dir, ignore_errors=True)
+        os.makedirs(self.test_output_dir, exist_ok=True)
+
+        # Set environment variables for server (after creating directory)
         os.environ["VOICETREE_MARKDOWN_DIR"] = self.test_output_dir
         os.environ["VOICETREE_PORT"] = str(self.server_port)
-
-        # Create test output directory
-        os.makedirs(self.test_output_dir, exist_ok=True)
 
         # Clear any existing log files
         log_file_path = "voicetree.log"

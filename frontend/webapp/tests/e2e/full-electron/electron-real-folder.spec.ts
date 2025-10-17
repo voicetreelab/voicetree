@@ -525,7 +525,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
       return await api.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
-    await appWindow.waitForTimeout(3000); // Wait for initial scan
+    await appWindow.waitForTimeout(300); // Wait for initial scan
 
     // Read original file content for restoration later
     const testFilePath = path.join(FIXTURE_VAULT_PATH, 'concepts', 'architecture.md');
@@ -583,42 +583,40 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     console.log('✓ Content modified in editor');
 
-    await appWindow.waitForTimeout(1000); // Let editor update
+    // Wait for auto-save to complete (no button click needed!)
+    // Auto-save triggers immediately on content change
+    await appWindow.waitForTimeout(200);
 
-    // Click the save button
-    const saveClicked = await appWindow.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const saveButton = buttons.find(btn => btn.textContent?.includes('Save'));
-      if (saveButton) {
-        saveButton.click();
-        return true;
-      }
-      return false;
-    });
+    // Verify file content changed on disk BEFORE closing
+    const savedContentBeforeClose = await fs.readFile(testFilePath, 'utf-8');
+    console.log('Saved file content length (before close):', savedContentBeforeClose.length);
+    expect(savedContentBeforeClose).toBe(testContent);
+    console.log('✓ File content saved correctly to disk BEFORE close');
 
-    expect(saveClicked).toBe(true);
-    console.log('✓ Save button clicked');
-
-    // Wait for save to complete
-    await appWindow.waitForTimeout(2000);
-
-    // Verify file content changed on disk
-    const savedContent = await fs.readFile(testFilePath, 'utf-8');
-    console.log('Saved file content length:', savedContent.length);
-    expect(savedContent).toBe(testContent);
-    console.log('✓ File content saved correctly to disk');
-
-    // Close the editor by removing the shadow node
+    // CRITICAL TEST: Click the ACTUAL close button (not just remove shadow node)
+    // This is where the bug happens - close button might save stale content
+    console.log('Clicking close button...');
     await appWindow.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) return;
-      const shadowNode = cy.getElementById('editor-architecture');
-      if (shadowNode.length > 0) {
-        shadowNode.remove();
-      }
+      const closeButton = document.querySelector('#window-editor-architecture .cy-floating-window-close') as HTMLButtonElement;
+      if (!closeButton) throw new Error('Close button not found!');
+      closeButton.click();
     });
 
-    await appWindow.waitForTimeout(500);
+    await appWindow.waitForTimeout(200); // Wait for close and any save operations
+
+    // CRITICAL VERIFICATION: File should STILL have the saved content after close
+    const savedContentAfterClose = await fs.readFile(testFilePath, 'utf-8');
+    console.log('Saved file content length (after close):', savedContentAfterClose.length);
+    console.log('Content matches?', savedContentAfterClose === testContent);
+
+    if (savedContentAfterClose !== testContent) {
+      console.error('❌ BUG REPRODUCED: File was reverted after close!');
+      console.error('Expected:', testContent.substring(0, 100));
+      console.error('Got:', savedContentAfterClose.substring(0, 100));
+    }
+
+    expect(savedContentAfterClose).toBe(testContent);
+    console.log('✓ File content STILL correct after clicking close button');
 
     // Re-open the editor to verify content persisted
     await appWindow.evaluate(() => {
@@ -637,11 +635,11 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
       });
     }, {
       message: 'Waiting for editor to re-open',
-      timeout: 5000
+      timeout: 500
     }).toBe(true);
 
     // Wait for editor React content to render again
-    await appWindow.waitForSelector('#window-editor-architecture .w-md-editor', { timeout: 5000 });
+    await appWindow.waitForSelector('#window-editor-architecture .w-md-editor', { timeout: 500 });
 
     // Verify the editor shows the saved content
     const editorContent = await appWindow.evaluate(() => {
@@ -657,7 +655,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     console.log('✓ Original file content restored');
 
     // Wait for file change to be detected
-    await appWindow.waitForTimeout(2000);
+    await appWindow.waitForTimeout(200);
 
     console.log('✓ Markdown file save test completed');
   });
@@ -746,17 +744,10 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     }, newContent);
 
     console.log('✓ Added wikilink to README');
-    await appWindow.waitForTimeout(1000); // Longer wait for state update
 
-    // Click save button
-    await appWindow.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const saveButton = buttons.find(btn => btn.textContent?.includes('Save'));
-      if (saveButton) saveButton.click();
-    });
-
-    console.log('✓ Save button clicked');
-    await appWindow.waitForTimeout(2000); // Wait for save and file change detection
+    // Wait for auto-save to complete (no button click needed!)
+    // Auto-save triggers immediately on content change
+    await appWindow.waitForTimeout(2000);
 
     // Verify new edge was created
     const updatedEdges = await appWindow.evaluate(() => {

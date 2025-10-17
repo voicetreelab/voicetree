@@ -32,10 +32,6 @@
       "hooks": [
         {
           "type": "command",
-          "command": "echo 'YOU MUST NOW CREATE OR UPDATE A MARKDOWN FILE IN THE TREE VAULT, $OBSIDIAN_VAULT_PATH, TO KEEP TRACK OF YOUR PROGRESS."
-        },
-        {
-          "type": "command",
           "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
         }
       ]
