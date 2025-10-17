@@ -392,3 +392,55 @@ export async function waitForLayout(appWindow: Page, timeout = 5000): Promise<vo
   }
   throw new Error('Timeout waiting for layout to be applied');
 }
+
+/**
+ * Trigger expand node action via context menu (mimics user clicking expand/+ icon)
+ * This simulates the exact user workflow: tap-hold to open menu, then click expand
+ */
+export async function triggerExpandNode(appWindow: Page, nodeId: string): Promise<void> {
+  await appWindow.evaluate((id) => {
+    const w = window as ExtendedWindow;
+    const cy = w.cytoscapeInstance;
+    if (!cy) throw new Error('Cytoscape not initialized');
+
+    const node = cy.getElementById(id);
+    if (!node || node.length === 0) throw new Error(`Node ${id} not found`);
+
+    // Trigger cxttapstart event (context menu trigger) as if user long-pressed/right-clicked
+    node.emit('cxttapstart');
+
+    // The context menu should now be open. The expand action is registered in the menu.
+    // To simulate clicking the expand button, we need to trigger the onExpandNode callback
+    // that was registered when the context menu was set up.
+
+    // The menu is set up in voice-tree-graph-viz-layout.tsx with an onExpandNode handler
+    // We can access it through the cytoscapeCore reference
+    const cytoscapeCore = (window as any).cytoscapeCore;
+    if (cytoscapeCore && cytoscapeCore.contextMenuService) {
+      // Access the config and call onExpandNode directly
+      const config = cytoscapeCore.contextMenuService.config;
+      if (config && config.onExpandNode) {
+        config.onExpandNode(node);
+      }
+    }
+  }, nodeId);
+}
+
+/**
+ * Get all markdown files in a directory (recursively)
+ */
+export async function getMarkdownFiles(dir: string): Promise<string[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return getMarkdownFiles(fullPath);
+      } else if (entry.name.endsWith('.md')) {
+        return [fullPath];
+      }
+      return [];
+    })
+  );
+  return files.flat();
+}

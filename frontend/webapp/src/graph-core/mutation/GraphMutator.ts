@@ -1,4 +1,5 @@
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
+import { GHOST_ROOT_ID } from '@/graph-core/constants';
 
 /**
  * GraphMutator - Deep module for all graph mutations
@@ -37,19 +38,37 @@ export class GraphMutator {
       ? { x: 0, y: 0 }
       : this.calculateInitialPosition(parentId);
 
-    // Create node with all data
-    const node = this.cy.add({
-      data: {
-        id: nodeId,
-        label,
-        linkedNodeIds,
-        parentId,
-        ...(color && { color })
-      },
-      position: initialPosition
+    // Use batch to ensure node and ghost edge are added atomically
+    // This prevents layout from running before ghost edge exists
+    let node: NodeSingular;
+    this.cy.batch(() => {
+      // Create node with all data
+      node = this.cy.add({
+        data: {
+          id: nodeId,
+          label,
+          linkedNodeIds,
+          parentId,
+          ...(color && { color })
+        },
+        position: initialPosition
+      });
+
+      // Connect to ghost root if this is an orphan node (no parent)
+      // This ensures all nodes are part of a single connected component for layout
+      if (!parentId) {
+        this.cy.add({
+          data: {
+            id: `${GHOST_ROOT_ID}->${nodeId}`,
+            source: GHOST_ROOT_ID,
+            target: nodeId,
+            isGhostEdge: true
+          }
+        });
+      }
     });
 
-    return node;
+    return node!;
   }
 
   /**
@@ -131,39 +150,43 @@ export class GraphMutator {
   }>): NodeSingular[] {
     const createdNodes: NodeSingular[] = [];
 
-    // PHASE 1: Create all nodes first (so parents exist when children reference them)
-    for (const data of nodesData) {
-      const { nodeId, label, linkedNodeIds, parentId, color } = data;
+    // Wrap entire bulk operation in a single batch for performance
+    // This fires only ONE 'add' event instead of N events
+    this.cy.batch(() => {
+      // PHASE 1: Create all nodes first (so parents exist when children reference them)
+      for (const data of nodesData) {
+        const { nodeId, label, linkedNodeIds, parentId, color } = data;
 
-      // Check if node already exists
-      const existingNode = this.cy.getElementById(nodeId);
-      if (existingNode.length > 0) {
-        // Update existing node
-        existingNode.data('linkedNodeIds', linkedNodeIds);
-        continue;
+        // Check if node already exists
+        const existingNode = this.cy.getElementById(nodeId);
+        if (existingNode.length > 0) {
+          // Update existing node
+          existingNode.data('linkedNodeIds', linkedNodeIds);
+          continue;
+        }
+
+        // Add new node with skip positioning (layout will position them)
+        const node = this.addNode({
+          nodeId,
+          label,
+          linkedNodeIds,
+          parentId,
+          color,
+          skipPositioning: true
+        });
+        createdNodes.push(node);
       }
 
-      // Add new node with skip positioning (layout will position them)
-      const node = this.addNode({
-        nodeId,
-        label,
-        linkedNodeIds,
-        parentId,
-        color,
-        skipPositioning: true
-      });
-      createdNodes.push(node);
-    }
+      // PHASE 2: Create all edges after all nodes exist
+      for (const data of nodesData) {
+        const { nodeId, linkedNodeIds, edgeLabels } = data;
 
-    // PHASE 2: Create all edges after all nodes exist
-    for (const data of nodesData) {
-      const { nodeId, linkedNodeIds, edgeLabels } = data;
-
-      for (const targetId of linkedNodeIds) {
-        const label = edgeLabels.get(targetId) || '';
-        this.addEdge(nodeId, targetId, label);
+        for (const targetId of linkedNodeIds) {
+          const label = edgeLabels.get(targetId) || '';
+          this.addEdge(nodeId, targetId, label);
+        }
       }
-    }
+    });
 
     return createdNodes;
   }

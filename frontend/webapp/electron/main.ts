@@ -355,6 +355,93 @@ ipcMain.handle('delete-file', async (event, filePath) => {
   }
 });
 
+// Create child node handler
+ipcMain.handle('create-child-node', async (event, parentNodeId) => {
+  try {
+    // Get watched directory
+    const watchDirectory = fileWatchManager.getWatchedDirectory();
+    if (!watchDirectory) {
+      return { success: false, error: 'No directory is being watched' };
+    }
+
+    console.log(`[create-child-node] Looking for parent: ${parentNodeId} in ${watchDirectory}`);
+
+    // Read all markdown files in the directory
+    const files = await fs.readdir(watchDirectory);
+    const markdownFiles = files.filter(f => f.endsWith('.md'));
+    console.log(`[create-child-node] Found ${markdownFiles.length} markdown files:`, markdownFiles);
+
+    // Find parent file by scanning for matching node_id in frontmatter
+    let parentFilePath: string | undefined;
+    let parentFileName: string | undefined;
+    let maxNodeId = 0;
+
+    for (const file of markdownFiles) {
+      const filePath = path.join(watchDirectory, file);
+      const content = await fs.readFile(filePath, 'utf-8');
+
+      // Extract node_id from frontmatter
+      const nodeIdMatch = content.match(/^node_id:\s*(\d+)/m);
+      if (nodeIdMatch) {
+        const nodeId = parseInt(nodeIdMatch[1], 10);
+
+        // Track max node_id
+        if (nodeId > maxNodeId) {
+          maxNodeId = nodeId;
+        }
+
+        // Check if this is the parent node (match by node_id number)
+        if (nodeId.toString() === parentNodeId || file.replace('.md', '') === parentNodeId) {
+          parentFilePath = filePath;
+          parentFileName = file;
+        }
+      } else {
+        // No node_id in frontmatter, try matching by filename
+        const fileNameWithoutExt = file.replace(/\.md$/i, '');
+        console.log(`[create-child-node] Checking file ${file}: fileNameWithoutExt="${fileNameWithoutExt}" vs parentNodeId="${parentNodeId}"`);
+        if (fileNameWithoutExt === parentNodeId) {
+          parentFilePath = filePath;
+          parentFileName = file;
+          console.log(`[create-child-node] Matched by filename!`);
+        }
+      }
+    }
+
+    if (!parentFilePath || !parentFileName) {
+      return { success: false, error: `Parent node ${parentNodeId} not found` };
+    }
+
+    // Generate new node ID and filename
+    const newNodeId = maxNodeId + 1;
+    const newFileName = `_${newNodeId}.md`;
+    const newFilePath = path.join(watchDirectory, newFileName);
+
+    // Create markdown content
+    const content = `---
+node_id: ${newNodeId}
+title:  (${newNodeId})
+---
+###
+
+
+
+-----------------
+_Links:_
+Parent:
+- relationshipToParent [[${parentFileName}]]
+`;
+
+    // Write the file
+    await fs.writeFile(newFilePath, content, 'utf-8');
+
+    console.log(`[create-child-node] Created ${newFileName} as child of ${parentFileName}`);
+    return { success: true, nodeId: newNodeId, filePath: newFilePath };
+  } catch (error) {
+    console.error('Error creating child node:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Terminal IPC handlers using node-pty ONLY - No fallbacks!
 ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
   try {

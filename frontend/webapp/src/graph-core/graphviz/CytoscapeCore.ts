@@ -1,6 +1,6 @@
 import cytoscape, { type Core, type NodeCollection, type EdgeCollection, type NodeSingular, type CytoscapeOptions } from 'cytoscape';
 import { type NodeDefinition, type EdgeDefinition } from '@/graph-core/types';
-import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, CLASS_PINNED, CLASS_EXPANDED, MIN_ZOOM, MAX_ZOOM } from '@/graph-core/constants';
+import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, CLASS_PINNED, CLASS_EXPANDED, MIN_ZOOM, MAX_ZOOM, GHOST_ROOT_ID } from '@/graph-core/constants';
 import { ContextMenuService, type ContextMenuConfig } from '@/graph-core/services/ContextMenuService';
 import { StyleService } from '@/graph-core/services/StyleService';
 import { BreathingAnimationService, AnimationType } from '@/graph-core/services/BreathingAnimationService';
@@ -28,6 +28,18 @@ export class CytoscapeCore {
     };
 
     this.viz = cytoscape(cytoscapeOptions);
+
+    // Add invisible ghost root node for layout algorithm
+    // This connects orphaned nodes to prevent disconnected components
+    this.viz.add({
+      data: {
+        id: GHOST_ROOT_ID,
+        label: '',
+        linkedNodeIds: [],
+        isGhostRoot: true
+      },
+      position: { x: 0, y: 0 }
+    });
 
     // Initialize animation service with cy instance (sets up event listeners)
     this.animationService = new BreathingAnimationService(this.viz);

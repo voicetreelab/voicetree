@@ -65,9 +65,9 @@ describe('CytoscapeCore Styling Integration', () => {
       cytoscapeCore = new CytoscapeCore(container, elements, true);
       const cy = cytoscapeCore.getCore();
 
-      // Check that nodes exist
-      expect(cy.nodes().length).toBe(2);
-      expect(cy.edges().length).toBe(1);
+      // Check that nodes exist (includes ghost root node added in constructor)
+      expect(cy.nodes().length).toBe(3); // n1, n2, and ghost root
+      expect(cy.edges().length).toBe(1); // e1 (ghost edges only added via GraphMutator)
 
       // Check that styles are applied (style function exists)
       const node1 = cy.getElementById('n1');

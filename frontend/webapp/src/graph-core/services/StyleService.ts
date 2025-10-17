@@ -7,6 +7,7 @@ import {
   MIN_TEXT_WIDTH,
   MAX_TEXT_WIDTH,
   DEFAULT_TEXT_WIDTH,
+  GHOST_ROOT_ID,
 } from '@/graph-core/constants';
 
 export class StyleService {
@@ -254,6 +255,29 @@ export class StyleService {
         selector: 'node.filtered',
         style: {
           'display': 'none',
+        }
+      },
+
+      // Ghost root node - invisible for layout purposes only
+      {
+        selector: `node[id = "${GHOST_ROOT_ID}"]`,
+        style: {
+          'opacity': 0,
+          'width': 0,
+          'height': 0,
+          'events': 'no',
+          'display': 'element', // Keep in layout calculations but invisible
+        }
+      },
+
+      // Ghost edges - invisible connections to ghost root
+      {
+        selector: 'edge[isGhostEdge]',
+        style: {
+          'opacity': 0,
+          'width': 0,
+          'events': 'no',
+          'display': 'element', // Keep in layout calculations but invisible
         }
       },
 
