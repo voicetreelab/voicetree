@@ -1,0 +1,117 @@
+2025-10-17 12:00:01,273 - root - INFO - [RECEIVED] Text (79 chars): 'First concurrent request about machine learning algorithms and neural networks.'
+[API] Received text (79 chars): 'First concurrent request about machine learning algorithms and neural networks.'
+2025-10-17 12:00:01,273 - root - INFO - [BUFFERED] Added to buffer. Buffer now at 243 chars
+[API] Buffer length: 243 chars
+2025-10-17 12:00:01,273 - root - INFO - [RESPONSE] /send-text completed in 0.001s with status 200
+INFO:     127.0.0.1:57561 - "POST /send-text HTTP/1.1" 200 OK
+2025-10-17 12:00:01,273 - root - INFO - [RECEIVED] Text (88 chars): 'Third concurrent request about mobile application development and user interface design.'
+[API] Received text (88 chars): 'Third concurrent request about mobile application development and user interface design.'
+2025-10-17 12:00:01,273 - root - INFO - [BUFFERED] Added to buffer. Buffer now at 331 chars
+[API] Buffer length: 331 chars
+2025-10-17 12:00:01,274 - root - INFO - [RESPONSE] /send-text completed in 0.001s with status 200
+INFO:     127.0.0.1:57564 - "POST /send-text HTTP/1.1" 200 OK
+2025-10-17 12:00:01,274 - root - INFO - [RECEIVED] Text (79 chars): 'Second concurrent request about web development frameworks and database design.'
+[API] Received text (79 chars): 'Second concurrent request about web development frameworks and database design.'
+2025-10-17 12:00:01,274 - root - INFO - [BUFFERED] Added to buffer. Buffer now at 410 chars
+[API] Buffer length: 410 chars
+2025-10-17 12:00:01,274 - root - INFO - [RESPONSE] /send-text completed in 0.001s with status 200
+INFO:     127.0.0.1:57565 - "POST /send-text HTTP/1.1" 200 OK
+2025-10-17 12:00:01,276 - root - INFO - [REQUEST] 127.0.0.1 - GET /health
+2025-10-17 12:00:01,277 - root - INFO - [RESPONSE] /health completed in 0.000s with status 200
+INFO:     127.0.0.1:57567 - "GET /health HTTP/1.1" 200 OK
+2025-10-17 12:00:01,313 - root - INFO - [REQUEST] 127.0.0.1 - GET /health
+2025-10-17 12:00:01,313 - root - INFO - [RESPONSE] /health completed in 0.000s with status 200
+INFO:     127.0.0.1:57569 - "GET /health HTTP/1.1" 200 OK
+2025-10-17 12:00:01,315 - root - INFO - [REQUEST] 127.0.0.1 - GET /buffer-status
+2025-10-17 12:00:01,315 - root - INFO - [RESPONSE] /buffer-status completed in 0.000s with status 200
+INFO:     127.0.0.1:57571 - "GET /buffer-status HTTP/1.1" 200 OK
+2025-10-17 12:00:06,002 - httpx - INFO - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-10-17 12:00:06,007 - google_genai.models - INFO - AFC remote call 1 is done.
+2025-10-17 12:00:06,013 - root - INFO - Create actions for nodes: ['Artificial Intelligence Project for Text Analysis', 'Web Application Software Development Project']
+2025-10-17 12:00:06,013 - root - INFO - Append actions for nodes: []
+2025-10-17 12:00:06,013 - root - INFO - append_agent_results, 2 actions: actions=[CreateAction(action='CREATE', target_node_name=None, parent_node_id=None, new_node_name='Artificial Intelligence Project for Text Analysis', content="I'm working on a new artificial intelligence project. The project involves building a machine learning model for text analysis. We need to implement natural language processing capabilities.", summary='', relationship='', children_to_link=None), CreateAction(action='CREATE', target_node_name=None, parent_node_id=None, new_node_name='Web Application Software Development Project', content="I'm starting a new software development project focused on web applications.", summary='', relationship='', children_to_link=None)] segments=[SegmentModel(reasoning='This segment introduces a new AI project, detailing its focus on machine learning for text analysis and NLP. This is a complete and self-contained thought.', edited_text="I'm working on a new artificial intelligence project. The project involves building a machine learning model for text analysis. We need to implement natural language processing capabilities.", raw_text="I'm working on a new artificial intelligence project. The project involves building a machine learning model for text analysis. We need to implement natural language processing capabilities.", is_routable=True), SegmentModel(reasoning='This segment introduces a completely new and unrelated software development project focused on web applications. This represents a distinct shift in topic and intent, forming a new coherent thought unit.', edited_text="I'm starting a new software development project focused on web applications.", raw_text="I'm starting a new software development project focused on web applications.", is_routable=True)]
+2025-10-17 12:00:06,013 - root - INFO - current buffer before flushing: > INVESTIGATE THIS BUG I'm working on a new artificial intelligence project. The project involves building a machine learning model for text analysis. We need to implement natural language processing capabilities.I'm starting a new software development project focused on web applications.
+2025-10-17 12:00:06,014 - root - INFO - current buffer before flushing: > INVESTIGATE THIS BUG I'm starting a new software development project focused on web applications.
+CREATING new node:'Artificial Intelligence Project for Text Analysis'
+2025-10-17 12:00:06,014 - root - INFO - CREATING new node:'Artificial Intelligence Project for Text Analysis'
+CREATING new node:'Web Application Software Development Project'
+2025-10-17 12:00:06,014 - root - INFO - CREATING new node:'Web Application Software Development Project'
+2025-10-17 12:00:06,014 - root - INFO - Applying 2 tree actions
+2025-10-17 12:00:06,014 - root - INFO - DEBUG TreeActionApplier: Creating orphan node 'Artificial Intelligence Project for Text Analysis'
+DEBUG: TreeToMarkdownConverter.convert_nodes called with output_dir='markdownTreeVault'
+2025-10-17 12:00:06,014 - root - INFO - updating/writing markdown for nodes {1621}
+2025-10-17 12:00:06,014 - root - INFO - Wrote markdown for nodes: [1621]
+2025-10-17 12:00:06,014 - root - INFO - Created new node 'Artificial Intelligence Project for Text Analysis' with ID 1621
+2025-10-17 12:00:06,015 - root - INFO - DEBUG TreeActionApplier: Added node 1621 to nodes_to_update. Current set: {1621}
+2025-10-17 12:00:06,015 - root - INFO - DEBUG TreeActionApplier: Creating orphan node 'Web Application Software Development Project'
+DEBUG: TreeToMarkdownConverter.convert_nodes called with output_dir='markdownTreeVault'
+2025-10-17 12:00:06,015 - root - INFO - updating/writing markdown for nodes {1622}
+2025-10-17 12:00:06,015 - root - INFO - Wrote markdown for nodes: [1622]
+2025-10-17 12:00:06,015 - root - INFO - Created new node 'Web Application Software Development Project' with ID 1622
+2025-10-17 12:00:06,016 - root - INFO - DEBUG TreeActionApplier: Added node 1622 to nodes_to_update. Current set: {1621, 1622}
+2025-10-17 12:00:06,016 - root - INFO - DEBUG TreeActionApplier: Returning modified nodes: {1621, 1622}
+2025-10-17 12:00:06,016 - root - INFO - Phase 1 Complete. Nodes affected: {1621, 1622}
+2025-10-17 12:00:06,016 - root - INFO - Phase 1 Complete. Newly created nodes: {1621, 1622}, Modified nodes: set(), Merged orphan nodes: set()
+2025-10-17 12:00:06,016 - root - INFO - Running Phase 2: Optimization Agent...
+2025-10-17 12:00:06,016 - root - INFO - Optimizing 0 modified nodes and 0 merged orphan nodes
+2025-10-17 12:00:06,017 - root - INFO - Buffer processing completed
+2025-10-17 12:00:06,118 - root - INFO - Processing buffer text (410 chars)...
+Buffer full, processing 410 chars
+2025-10-17 12:00:06,121 - root - INFO - Buffer full, Starting stateful workflow for text chunk ( > INVESTIGATE THIS BUG The project will use React for the frontend and Node.js for the backend services.We need to implement user authentication, data persistence, and real-time features.First concurrent request about machine learning algorithms and neural networks.Third concurrent request about mobile application development and user interface design.Second concurrent request about web development frameworks and database design., of length 433)
+Buffer full, sending to agentic workflow, text: > INVESTIGATE THIS BUG The project will use React for the frontend and Node.js for the backend services.We need to implement user authentication, data persistence, and real-time features.First concurrent request about machine learning algorithms and neural networks.Third concurrent request about mobile application development and user interface design.Second concurrent request about web development frameworks and database design.
+
+2025-10-17 12:00:06,122 - root - INFO - Running Phase 1: Placement Agent...
+2025-10-17 12:00:06,440 - backend.markdown_tree_manager.embeddings.chromadb_vector_store - INFO - Added/updated 1 nodes to ChromaDB
+2025-10-17 12:00:06,994 - backend.markdown_tree_manager.embeddings.chromadb_vector_store - INFO - Added/updated 1 nodes to ChromaDB
+2025-10-17 12:00:06,998 - backend.markdown_tree_manager.embeddings.chromadb_vector_store - INFO - Found 26 similar nodes for query: '> INVESTIGATE THIS BUG The project will use React ...'
+2025-10-17 12:00:06,998 - root - INFO - Vector search retrieved 26 candidates
+2025-10-17 12:00:06,999 - root - INFO - BM25 search found 25 nodes above threshold
+2025-10-17 12:00:07,000 - root - INFO - BM25 search retrieved 25 candidates
+2025-10-17 12:00:07,000 - root - INFO - After filtering: 21 vector results, 25 BM25 results
+2025-10-17 12:00:07,000 - root - INFO - Hybrid search (RRF) returned 10 nodes for query: '> INVESTIGATE THIS BUG The project will use React ...'
+2025-10-17 12:00:07,000 - root - INFO - Semantically related nodes are: ['Load Directory Feature Implementation', 'Debugging Backend Load Directory Endpoint', 'VoiceTree Terminal Display Enhancements', 'Markdown Editor Save Functionality Development', 'Backend Load Directory Endpoint (6)', 'Discussion about Past Development Actions', 'Integration Test for Directory Loading (9)', 'Frontend Call to Load Directory Endpoint (8)', 'Refactor Directory Loading to API Endpoint (7)', '(Maya) Frontend Load Directory Integration Complete (8_1)']
+[DEBUG] Returning 15 nodes from selection logic
+2025-10-17 12:00:07,005 - root - INFO - Using model 'gemini-2.5-flash-lite' for prompt 'segmentation'
+Running segmentation with model: gemini-2.5-flash-lite
+2025-10-17 12:00:07,005 - root - INFO - Running segmentation LLM with model: gemini-2.5-flash-lite
+2025-10-17 12:00:07,005 - google_genai.models - INFO - AFC is enabled with max remote calls: 10.
+2025-10-17 12:00:09,699 - httpx - INFO - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2025-10-17 12:00:09,702 - google_genai.models - INFO - AFC remote call 1 is done.
+2025-10-17 12:00:09,703 - root - INFO - Segmentation post-processor: 5 routable segments out of 5 total
+2025-10-17 12:00:09,703 - root - INFO - Found 5 routable segments, proceeding to target identification
+2025-10-17 12:00:09,704 - root - INFO - Using model 'gemini-2.5-flash' for prompt 'identify_target_node'
+Running identify_target_node with model: gemini-2.5-flash
+2025-10-17 12:00:09,704 - root - INFO - Running identify_target_node LLM with model: gemini-2.5-flash
+2025-10-17 12:00:09,704 - google_genai.models - INFO - AFC is enabled with max remote calls: 10.
+2025-10-17 12:00:18,888 - httpx - INFO - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-10-17 12:00:18,891 - google_genai.models - INFO - AFC remote call 1 is done.
+2025-10-17 12:00:18,893 - root - INFO - Create actions for nodes: []
+2025-10-17 12:00:18,893 - root - INFO - Append actions for nodes: ['Web Application Software Development Project', 'Web Application Software Development Project', 'Artificial Intelligence Project for Text Analysis', 'Web Application Software Development Project', 'Web Application Software Development Project']
+2025-10-17 12:00:18,893 - root - INFO - append_agent_results, 5 actions: actions=[AppendAction(action='APPEND', target_node_id=1622, target_node_name='Web Application Software Development Project', content='\n+++\nThe project will use React for the frontend and Node.js for the backend services.We need to implement user authentication, data persistence, and real-time features.'), AppendAction(action='APPEND', target_node_id=1622, target_node_name='Web Application Software Development Project', content="\n+++\nI'm starting a new software development project focused on web applications."), AppendAction(action='APPEND', target_node_id=1621, target_node_name='Artificial Intelligence Project for Text Analysis', content='\n+++\nFirst concurrent request about machine learning algorithms and neural networks.'), AppendAction(action='APPEND', target_node_id=1622, target_node_name='Web Application Software Development Project', content='\n+++\nThird concurrent request about mobile application development and user interface design.'), AppendAction(action='APPEND', target_node_id=1622, target_node_name='Web Application Software Development Project', content='\n+++\nSecond concurrent request about web development frameworks and database design.')] segments=[SegmentModel(reasoning="This segment introduces the first project, focusing on AI and text analysis, including NLP capabilities. It's a complete thought unit.", edited_text='The project will use React for the frontend and Node.js for the backend services.We need to implement user authentication, data persistence, and real-time features.', raw_text='The project will use React for the frontend and Node.js for the backend services.We need to implement user authentication, data persistence, and real-time features.', is_routable=True), SegmentModel(reasoning="This segment introduces the second, distinct project focused on web application development. It's a complete thought unit.", edited_text="I'm starting a new software development project focused on web applications.", raw_text="I'm starting a new software development project focused on web applications.", is_routable=True), SegmentModel(reasoning="This segment introduces a concurrent request related to machine learning algorithms and neural networks. It's a distinct topic.", edited_text='First concurrent request about machine learning algorithms and neural networks.', raw_text='First concurrent request about machine learning algorithms and neural networks.', is_routable=True), SegmentModel(reasoning="This segment introduces a third concurrent request related to mobile application development and UI design. It's a distinct topic.", edited_text='Third concurrent request about mobile application development and user interface design.', raw_text='Third concurrent request about mobile application development and user interface design.', is_routable=True), SegmentModel(reasoning="This segment introduces a second concurrent request related to web development frameworks and database design. It's a distinct topic.", edited_text='Second concurrent request about web development frameworks and database design.', raw_text='Second concurrent request about web development frameworks and database design.', is_routable=True)]
+2025-10-17 12:00:18,894 - root - INFO - current buffer before flushing: > INVESTIGATE THIS BUG The project will use React for the frontend and Node.js for the backend services.We need to implement user authentication, data persistence, and real-time features.First concurrent request about machine learning algorithms and neural networks.Third concurrent request about mobile application development and user interface design.Second concurrent request about web development frameworks and database design.
+2025-10-17 12:00:18,894 - root - INFO - current buffer before flushing: > INVESTIGATE THIS BUG First concurrent request about machine learning algorithms and neural networks.Third concurrent request about mobile application development and user interface design.Second concurrent request about web development frameworks and database design.
+2025-10-17 12:00:18,894 - root - WARNING - No match found above 80% threshold
+2025-10-17 12:00:18,894 - root - ERROR - Failed to find completed text in buffer. Best similarity was only 0%. This indicates a system issue.
+Completed text (76 chars): 'I'm starting a new software development project focused on web applications.'
+Buffer content (269 chars): '> INVESTIGATE THIS BUG First concurrent request about machine learning algorithms and neural networks.Third concurrent request about mobile application development and user interface design.Second con...'
+2025-10-17 12:00:18,896 - root - ERROR - Error in process_and_convert: Failed to find completed text in buffer. Best similarity was only 0%. This indicates a system issue.
+Completed text (76 chars): 'I'm starting a new software development project focused on web applications.'
+Buffer content (269 chars): '> INVESTIGATE THIS BUG First concurrent request about machine learning algorithms and neural networks.Third concurrent request about mobile application development and user interface design.Second con...' - Type: <class 'RuntimeError'> - Traceback: Traceback (most recent call last):
+  File "/Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/chunk_processing_pipeline/chunk_processor.py", line 104, in process_new_text_and_update_markdown
+    await self.process_new_text(text)
+  File "/Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/chunk_processing_pipeline/chunk_processor.py", line 134, in process_new_text
+    updated_nodes = await self.workflow.process_text_chunk(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/chunk_processing_pipeline/tree_action_decider_workflow.py", line 249, in process_text_chunk
+    buffer_manager.flushCompletelyProcessedText(segment.raw_text)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/Users/bobbobby/repos/VoiceTree/backend/text_to_graph_pipeline/text_buffer_manager/buffer_manager.py", line 139, in flushCompletelyProcessedText
+    raise RuntimeError(error_msg)
+RuntimeError: Failed to find completed text in buffer. Best similarity was only 0%. This indicates a system issue.
+Completed text (76 chars): 'I'm starting a new software development project focused on web applications.'
+Buffer content (269 chars): '> INVESTIGATE THIS BUG First concurrent request about machine learning algorithms and neural networks.Third concurrent request about mobile application development and user interface design.Second con...'
+
+2025-10-17 12:00:18,897 - root - INFO - Buffer processing completed

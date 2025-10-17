@@ -32,23 +32,33 @@ logger = setup_logging('voicetree_server.log', console_level=logging.INFO)
 
 # Create temp directory for workflow state
 temp_dir = tempfile.mkdtemp()
-workflow_state_file = os.path.join(temp_dir, "voicetree_workflow_state.json")
+
+def initialize_tree_state(directory_path: str) -> tuple:
+    """
+    Initialize or load a markdown tree from the specified directory.
+
+    Args:
+        directory_path: Path to the markdown tree directory
+
+    Returns:
+        Tuple of (decision_tree, converter, processor, markdown_dir)
+    """
+    if os.path.exists(directory_path):
+        logger.info(f"Loading existing markdown tree from {directory_path}")
+        tree = load_markdown_tree(directory_path)
+    else:
+        logger.info(f"Creating new empty tree for {directory_path}")
+        os.makedirs(directory_path, exist_ok=True)
+        tree = MarkdownTree(output_dir=directory_path)
+
+    converter = TreeToMarkdownConverter(tree.tree)
+    processor = ChunkProcessor(tree, converter=converter, output_dir=directory_path)
+
+    return tree, converter, processor, directory_path
 
 # Initialize decision tree - load existing markdown files or create empty tree
 markdown_dir = os.environ.get("VOICETREE_MARKDOWN_DIR", "markdownTreeVault")
-if os.path.exists(markdown_dir):
-    # Load existing tree from markdown files
-    logger.info(f"Loading existing markdown tree from {markdown_dir}")
-    decision_tree = load_markdown_tree(markdown_dir)
-else:
-    # Create empty tree
-    logger.info(f"Creating new empty tree for {markdown_dir}")
-    decision_tree = MarkdownTree(output_dir=markdown_dir)
-
-converter = TreeToMarkdownConverter(decision_tree.tree)
-processor = ChunkProcessor(decision_tree,
-                          converter=converter,
-                          output_dir=markdown_dir)
+decision_tree, converter, processor, markdown_dir = initialize_tree_state(markdown_dir)
 
 # Clear debug logs at startup
 clear_debug_logs()
@@ -148,9 +158,12 @@ async def log_requests(request: Request, call_next):
 
     return response
 
-# Request model
+# Request models
 class TextRequest(BaseModel):
     text: str
+
+class LoadDirectoryRequest(BaseModel):
+    directory_path: str
 
 
 # API endpoint
@@ -197,6 +210,48 @@ async def buffer_status():
     global simple_buffer
     buffer_length = len(simple_buffer)
     return {"buffer_length": buffer_length}
+
+@app.post("/load-directory")
+async def load_directory(request: LoadDirectoryRequest):
+    """
+    Load or switch to a different markdown tree directory.
+    This updates the global tree, converter, and processor to use the specified directory.
+
+    Args:
+        request: Contains directory_path to load
+
+    Returns:
+        Status of the operation including number of nodes loaded
+    """
+    global decision_tree, converter, processor, markdown_dir
+
+    try:
+        new_dir = request.directory_path
+
+        # Validate directory path
+        if not new_dir or not new_dir.strip():
+            raise HTTPException(status_code=400, detail="Directory path cannot be empty")
+
+        logger.info(f"Loading markdown tree from directory: {new_dir}")
+
+        # Initialize tree state using the shared function
+        decision_tree, converter, processor, markdown_dir = initialize_tree_state(new_dir)
+
+        node_count = len(decision_tree.tree)
+        logger.info(f"Successfully loaded directory {new_dir} with {node_count} nodes")
+
+        return {
+            "status": "success",
+            "message": f"Loaded directory: {new_dir}",
+            "directory": new_dir,
+            "nodes_loaded": node_count
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error loading directory: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error loading directory: {str(e)}")
 
 
 if __name__ == "__main__":
