@@ -1,5 +1,6 @@
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
 import { GHOST_ROOT_ID } from '@/graph-core/constants';
+import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS } from '@/graph-core/graphviz/layout/angularPositionSeeding';
 
 /**
  * GraphMutator - Deep module for all graph mutations
@@ -38,6 +39,21 @@ export class GraphMutator {
       ? { x: 0, y: 0 }
       : this.calculateInitialPosition(parentId);
 
+    // Calculate spawn angle for this node (used by its children)
+    let spawnAngle: number | undefined;
+    if (!skipPositioning && parentId) {
+      const parentNode = this.cy.getElementById(parentId);
+      if (parentNode.length > 0) {
+        const parentAngle = parentNode.data('spawnAngle');
+        const siblingCount = this.cy.nodes().filter(n => n.data('parentId') === parentId).length;
+        spawnAngle = calculateChildAngle(siblingCount, parentAngle);
+      }
+    } else if (!skipPositioning && !parentId) {
+      // Root node - calculate angle among other roots
+      const rootCount = this.cy.nodes().filter(n => !n.data('parentId') && n.id() !== GHOST_ROOT_ID).length;
+      spawnAngle = calculateChildAngle(rootCount, undefined);
+    }
+
     // Use batch to ensure node and ghost edge are added atomically
     // This prevents layout from running before ghost edge exists
     let node: NodeSingular;
@@ -49,7 +65,8 @@ export class GraphMutator {
           label,
           linkedNodeIds,
           parentId,
-          ...(color && { color })
+          ...(color && { color }),
+          ...(spawnAngle !== undefined && { spawnAngle })
         },
         position: initialPosition
       });
@@ -192,27 +209,34 @@ export class GraphMutator {
   }
 
   /**
-   * Calculate initial position for a new node to minimize animation distance
-   * Position near parent if available, otherwise at viewport center
+   * Calculate initial position for a new node using angular positioning
+   * Position at calculated angle relative to parent
    */
   private calculateInitialPosition(parentId?: string): { x: number; y: number } {
     if (parentId) {
       const parentNode = this.cy.getElementById(parentId);
       if (parentNode.length > 0) {
         const parentPos = parentNode.position();
-        // Place nodes next to parent at same y height
+        const parentAngle = parentNode.data('spawnAngle'); // may be undefined
+
+        // Count existing siblings (children with same parentId)
+        const siblingCount = this.cy.nodes().filter(n => n.data('parentId') === parentId).length;
+
+        // Calculate angle for this child (will be the Nth child, 0-indexed)
+        const angle = calculateChildAngle(siblingCount, parentAngle);
+
+        // Convert to cartesian offset
+        const offset = polarToCartesian(angle, SPAWN_RADIUS);
+
         return {
-          x: parentPos.x + 100,
-          y: parentPos.y
+          x: parentPos.x + offset.x,
+          y: parentPos.y + offset.y
         };
       }
     }
 
-    // No parent - position at viewport center
-    return {
-      x: this.cy.width() / 2,
-      y: this.cy.height() / 2
-    };
+    // No parent - root node at origin
+    return { x: 0, y: 0 };
   }
 
   /**
