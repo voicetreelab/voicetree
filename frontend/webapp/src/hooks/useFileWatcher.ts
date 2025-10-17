@@ -1,7 +1,10 @@
 import { useCallback, useRef } from 'react';
+import type { Core, NodeSingular } from 'cytoscape';
 import type { CytoscapeCore } from '@/graph-core';
 import { parseForCytoscape } from '@/graph-core/data/load_markdown/MarkdownParser';
 import { GraphMutator } from '@/graph-core/mutation/GraphMutator';
+import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS } from '@/graph-core/graphviz/layout/angularPositionSeeding';
+import { GHOST_ROOT_ID } from '@/graph-core/constants';
 
 // Normalize a filename to a consistent ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -14,6 +17,70 @@ function normalizeFileId(filename: string): string {
     id = id.substring(lastSlash + 1);
   }
   return id;
+}
+
+/**
+ * Seed positions for all nodes in a bulk load using angular positioning
+ * Performs pre-order traversal from root nodes
+ */
+function seedBulkPositions(cy: Core, nodes: NodeSingular[]): void {
+  // Build parent -> children map
+  const childrenMap = new Map<string, NodeSingular[]>();
+
+  nodes.forEach(node => {
+    const parentId = node.data('parentId');
+    if (parentId) {
+      if (!childrenMap.has(parentId)) {
+        childrenMap.set(parentId, []);
+      }
+      childrenMap.get(parentId)!.push(node);
+    }
+  });
+
+  // Find roots (nodes with no parentId)
+  const roots = nodes.filter(n => !n.data('parentId'));
+
+  // Position root nodes around origin
+  roots.forEach((root, index) => {
+    const angle = calculateChildAngle(index, undefined);
+    const pos = polarToCartesian(angle, SPAWN_RADIUS);
+    root.position({ x: pos.x, y: pos.y });
+    root.data('spawnAngle', angle);
+
+    // Recursively position children
+    positionChildren(root, childrenMap);
+  });
+}
+
+/**
+ * Recursively position children of a node
+ */
+function positionChildren(parent: NodeSingular, childrenMap: Map<string, NodeSingular[]>): void {
+  const parentId = parent.id();
+  const children = childrenMap.get(parentId) || [];
+
+  if (children.length === 0) return;
+
+  const parentPos = parent.position();
+  const parentAngle = parent.data('spawnAngle');
+
+  children.forEach((child, index) => {
+    // Calculate angle for this child
+    const angle = calculateChildAngle(index, parentAngle);
+
+    // Calculate position relative to parent
+    const offset = polarToCartesian(angle, SPAWN_RADIUS);
+    child.position({
+      x: parentPos.x + offset.x,
+      y: parentPos.y + offset.y
+    });
+
+    // Store angle on child
+    child.data('spawnAngle', angle);
+
+    // Recursively position this child's children
+    positionChildren(child, childrenMap);
+  });
 }
 
 interface UseFileWatcherParams {
@@ -86,6 +153,11 @@ export function useFileWatcher({
 
     // Use GraphMutator to bulk add nodes and edges
     const createdNodes = graphMutator.bulkAddNodes(nodesData);
+
+    // PHASE 3: Seed positions via tree traversal
+    console.log('[BulkLoad] Seeding initial positions for', createdNodes.length, 'nodes');
+    seedBulkPositions(cy, createdNodes);
+
     const allNodeIds = createdNodes.map(node => node.id());
 
     // Update counts
