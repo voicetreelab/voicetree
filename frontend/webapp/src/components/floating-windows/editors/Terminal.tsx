@@ -33,9 +33,10 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
       //   foreground: '#cccccc',
       // },
       // Don't set fixed cols/rows - let FitAddon handle it dynamically
-      // scrollback: 10000, // Keep scrollback history
+      scrollback: 9999999, // Keep scrollback history
       // scrollOnUserInput: false, // Don't force scroll to bottom on user input
     });
+
 
     // Create and load FitAddon for automatic resizing
     const fitAddon = new FitAddon();

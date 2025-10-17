@@ -92,6 +92,10 @@ class FileWatchManager {
       this.initialScanFiles = [];
       this.isInitialScan = true;
 
+      // Notify backend about the directory we're watching
+      // This happens asynchronously - file watching continues even if it fails
+      await this.notifyBackendLoadDirectory(directoryPath);
+
       // Configure chokidar watcher with optimized settings
       console.log(`[FileWatchManager] Creating chokidar watcher for *.md files`);
       // IMPORTANT: Watch the directory itself, not a glob pattern
@@ -473,6 +477,66 @@ class FileWatchManager {
 
   getWatchedDirectory(): string | null {
     return this.watchedDirectory;
+  }
+
+  /**
+   * Wait for the backend server to be ready before making API calls
+   * Polls the /health endpoint with exponential backoff
+   * @returns true if backend is ready, false if timeout
+   */
+  private async waitForBackendReady(): Promise<boolean> {
+    const maxAttempts = 20;
+    const delayMs = 500;
+
+    console.log('[FileWatchManager] Waiting for backend to be ready...');
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const isHealthy = await checkBackendHealth();
+        if (isHealthy) {
+          console.log(`[FileWatchManager] Backend is ready (attempt ${attempt}/${maxAttempts})`);
+          return true;
+        }
+      } catch (error) {
+        console.log(`[FileWatchManager] Backend health check failed (attempt ${attempt}/${maxAttempts}):`, error);
+      }
+
+      // Wait before next attempt
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+
+    console.warn('[FileWatchManager] Backend did not become ready within timeout period');
+    return false;
+  }
+
+  /**
+   * Notify the backend server about the directory being watched
+   * This tells the backend which directory to use for markdown tree operations
+   * @param directoryPath - Absolute path to the markdown tree directory
+   */
+  private async notifyBackendLoadDirectory(directoryPath: string): Promise<void> {
+    try {
+      console.log(`[FileWatchManager] Notifying backend to load directory: ${directoryPath}`);
+
+      // Wait for backend to be ready first
+      const isReady = await this.waitForBackendReady();
+      if (!isReady) {
+        console.warn('[FileWatchManager] Backend not ready, skipping load-directory notification');
+        return;
+      }
+
+      // Call the backend API
+      const response = await loadDirectory(directoryPath);
+      console.log(`[FileWatchManager] Backend loaded directory successfully:`, response);
+      console.log(`[FileWatchManager] Backend loaded ${response.nodes_loaded} nodes from ${response.directory}`);
+    } catch (error) {
+      console.error('[FileWatchManager] Failed to notify backend of directory:', error);
+      console.warn('[FileWatchManager] Continuing with file watching despite backend error');
+      // Note: We continue with file watching even if backend notification fails
+      // This allows the frontend to work independently
+    }
   }
 }
 
