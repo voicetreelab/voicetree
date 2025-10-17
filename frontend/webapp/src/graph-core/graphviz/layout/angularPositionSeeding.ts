@@ -6,6 +6,9 @@
  * then midpoints (45°, 135°, etc.), recursively subdividing as needed.
  */
 
+import type { Core, NodeSingular } from 'cytoscape';
+import { GHOST_ROOT_ID } from '@/graph-core/constants';
+
 export const SPAWN_RADIUS = 200; // pixels from parent
 export const CHILD_ANGLE_CONE = 90; // degrees (± 45° from parent)
 
@@ -126,4 +129,45 @@ export function polarToCartesian(
     x: radius * Math.cos(radians),
     y: radius * Math.sin(radians)
   };
+}
+
+/**
+ * Calculate angle of parent node based on grandparent->parent vector
+ *
+ * This dynamically determines the parent's angle from its position relative
+ * to its parent (the grandparent), rather than storing it as state.
+ *
+ * @param parentNode - The parent node whose angle we want to calculate
+ * @param cy - Cytoscape core instance
+ * @returns Angle in degrees (0-360), or undefined if parent is root
+ */
+export function calculateParentAngle(
+  parentNode: NodeSingular,
+  cy: Core
+): number | undefined {
+  const grandparentId = parentNode.data('parentId');
+
+  // If no grandparent or grandparent is ghost root, parent is a root node
+  if (!grandparentId || grandparentId === GHOST_ROOT_ID) {
+    return undefined; // No angle constraint
+  }
+
+  const grandparent = cy.getElementById(grandparentId);
+  if (grandparent.length === 0) {
+    return undefined;
+  }
+
+  // Calculate vector from grandparent to parent
+  const grandparentPos = grandparent.position();
+  const parentPos = parentNode.position();
+
+  const dx = parentPos.x - grandparentPos.x;
+  const dy = parentPos.y - grandparentPos.y;
+
+  // Convert to angle in degrees (atan2 returns radians)
+  const radians = Math.atan2(dy, dx);
+  const degrees = (radians * 180) / Math.PI;
+
+  // Normalize to [0, 360)
+  return degrees < 0 ? degrees + 360 : degrees;
 }
