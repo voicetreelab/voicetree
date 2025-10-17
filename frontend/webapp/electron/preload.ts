@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File content management
   saveFileContent: (filePath, content) => ipcRenderer.invoke('save-file-content', filePath, content),
   deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
+  createChildNode: (parentNodeId) => ipcRenderer.invoke('create-child-node', parentNodeId),
 
   // Terminal API
   terminal: {

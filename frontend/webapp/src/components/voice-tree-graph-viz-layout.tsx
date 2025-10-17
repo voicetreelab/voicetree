@@ -187,6 +187,25 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     }
   };
 
+  // Helper function to create a new child node
+  const createNewChildNode = async (parentNodeId: string) => {
+    try {
+      if (!window.electronAPI?.createChildNode) {
+        console.error('[createNewChildNode] Electron API not available');
+        return;
+      }
+
+      const result = await window.electronAPI.createChildNode(parentNodeId);
+      if (result.success) {
+        console.log('[createNewChildNode] Successfully created node:', result.nodeId, 'at', result.filePath);
+      } else {
+        console.error('[createNewChildNode] Failed:', result.error);
+      }
+    } catch (error) {
+      console.error('[createNewChildNode] Error:', error);
+    }
+  };
+
   // File watching event handlers
   const {
     handleBulkFilesAdded,
@@ -357,10 +376,9 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
           }
         },
         onExpandNode: (node) => {
-            console.log("EXPAND DISABLED", node);
-            // cytoscapeRef.current?.xpandNode(node);
-          // // Trigger layout update
-          // core.layout({ name: 'cola', animate: true }).run();
+            const nodeId = node.id();
+            console.log("[onExpandNode] Creating child node for:", nodeId);
+            createNewChildNode(nodeId);
         },
         onCollapseNode: (node) => {
             console.log("COLLAPSE DISABLED", node);

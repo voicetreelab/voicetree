@@ -33,6 +33,7 @@ export interface ElectronAPI {
   // File operations
   saveFileContent: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+  createChildNode: (parentNodeId: string) => Promise<{ success: boolean; nodeId?: number; filePath?: string; error?: string }>;
 
   // File watching methods
   startFileWatching: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;

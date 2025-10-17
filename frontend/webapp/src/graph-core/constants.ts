@@ -10,6 +10,9 @@ export const DEFAULT_TEXT_WIDTH = 180;  // Default text-max-width for nodes with
 // Layout constants
 export const DEFAULT_DISTANCE = 143;
 
+// Ghost root node (invisible root for orphaned nodes in layout)
+export const GHOST_ROOT_ID = '__GHOST_ROOT__';
+
 // Zoom constants
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 3;

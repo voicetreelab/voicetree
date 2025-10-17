@@ -641,6 +641,158 @@ test.describe('Terminal E2E Tests', () => {
     expect(positionWasChangedByLayout).toBe(true);
   });
 
+  test('should initialize terminal with reasonable dimensions (not 88x25)', async ({ appWindow, tempDir }) => {
+    // BUG REPRODUCTION TEST: Terminal initial size is set way too small (88x25)
+    // This test verifies that the terminal backend is spawned with reasonable dimensions
+    // that match the actual floating window size, not a tiny default.
+
+    // Capture console logs to check the "Initial size after fit" message
+    const consoleLogs: string[] = [];
+    appWindow.on('console', msg => {
+      consoleLogs.push(msg.text());
+    });
+
+    // Start file watching FIRST
+    await appWindow.evaluate(async (dir) => {
+      const window = globalThis as ExtendedWindow;
+      if (window.electronAPI) {
+        return window.electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
+
+    // Create test file AFTER watching starts
+    await fs.writeFile(
+      path.join(tempDir, 'test-node.md'),
+      `# Test Node\n\nTerminal dimension test node.`
+    );
+
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const window = globalThis as ExtendedWindow;
+        const cy = window.cytoscapeInstance;
+        return cy && cy.nodes().length > 0;
+      });
+    }, { timeout: 10000 }).toBe(true);
+
+    // Open terminal using test helper (more reliable than context menu)
+    await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
+      const cy = window.cytoscapeInstance;
+
+      if (testHelpers && cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        const nodeId = node.id();
+        testHelpers.createTerminal(nodeId);
+      }
+    });
+
+    // Wait for terminal to open and initialize
+    await appWindow.waitForTimeout(1000);
+
+    // Wait for terminal window to open
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const terminals = document.querySelectorAll('.cy-floating-window');
+        for (const terminal of Array.from(terminals)) {
+          const title = terminal.querySelector('.cy-floating-window-title-text');
+          if (title && title.textContent?.includes('Terminal')) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }, {
+      message: 'Waiting for terminal window to open',
+      timeout: 5000
+    }).toBe(true);
+
+    // Wait for xterm to initialize and fit
+    await appWindow.waitForTimeout(2000);
+
+    // Get the terminal dimensions from the frontend (xterm)
+    const frontendDimensions = await appWindow.evaluate(() => {
+      const xtermElement = document.querySelector('.xterm');
+      if (!xtermElement) return null;
+
+      // Get actual terminal dimensions by checking the rows
+      const xtermScreen = document.querySelector('.xterm-screen');
+      const xtermRows = document.querySelectorAll('.xterm-rows > div');
+
+      // Try to infer cols from the viewport and character cell width
+      const viewport = document.querySelector('.xterm-viewport') as HTMLElement;
+      const floatingWindow = document.querySelector('.cy-floating-window');
+
+      return {
+        // We'll read these from console logs instead
+        cols: 0,
+        rows: 0,
+        containerWidth: xtermElement.clientWidth,
+        containerHeight: xtermElement.clientHeight,
+        floatingWindowWidth: floatingWindow?.clientWidth || 0,
+        floatingWindowHeight: floatingWindow?.clientHeight || 0,
+        viewportWidth: viewport?.clientWidth || 0,
+        viewportHeight: viewport?.clientHeight || 0,
+        hasXtermScreen: !!xtermScreen,
+        rowCount: xtermRows.length
+      };
+    });
+
+    console.log('Frontend terminal dimensions:', frontendDimensions);
+    const terminalLogs = consoleLogs.filter(log =>
+      log.includes('[Terminal]') || log.includes('size')
+    );
+    console.log('Console logs:', terminalLogs);
+
+    // CRITICAL ASSERTIONS:
+    // 1. Container should have reasonable pixel dimensions
+    expect(frontendDimensions).toBeTruthy();
+    expect(frontendDimensions.containerWidth).toBeGreaterThan(600); // Should be wider than 600px
+    expect(frontendDimensions.containerHeight).toBeGreaterThan(400); // Should be taller than 400px
+    expect(frontendDimensions.floatingWindowWidth).toBeGreaterThan(600); // Window should be reasonably sized
+    expect(frontendDimensions.floatingWindowHeight).toBeGreaterThan(400);
+
+    // 2. Check console logs for the "Initial size after fit" message
+    const initialSizeLog = consoleLogs.find(log => log.includes('[Terminal] Initial size after fit:'));
+    console.log('Initial size log:', initialSizeLog);
+
+    expect(initialSizeLog).toBeTruthy(); // Log should exist
+
+    // Parse and verify the dimensions from the log
+    const match = initialSizeLog!.match(/(\d+)x(\d+)/);
+    expect(match).toBeTruthy(); // Should match the pattern
+
+    const loggedCols = parseInt(match![1]);
+    const loggedRows = parseInt(match![2]);
+    console.log(`Logged dimensions from console: ${loggedCols}x${loggedRows}`);
+
+    // BUG REPRODUCTION: This will likely fail with 88x25 being too small
+    // The terminal should have reasonable dimensions matching the container size
+    expect(loggedCols).toBeGreaterThan(90); // Should be at least 90+ columns
+    expect(loggedRows).toBeGreaterThan(25); // Should be at least 25+ rows
+
+    // 3. Check that backend was spawned with correct dimensions
+    const backendSyncLog = consoleLogs.find(log => log.includes('[Terminal] Syncing backend size to'));
+    console.log('Backend sync log:', backendSyncLog);
+
+    expect(backendSyncLog).toBeTruthy(); // Backend should have been synced
+
+    const backendMatch = backendSyncLog!.match(/(\d+)x(\d+)/);
+    expect(backendMatch).toBeTruthy();
+
+    const backendCols = parseInt(backendMatch![1]);
+    const backendRows = parseInt(backendMatch![2]);
+    console.log(`Backend dimensions: ${backendCols}x${backendRows}`);
+
+    // Backend should be spawned with reasonable dimensions
+    // BUG: If the initial fit didn't work properly, backend will be spawned with 88x25
+    expect(backendCols).toBeGreaterThan(90);
+    expect(backendRows).toBeGreaterThan(25);
+  });
+
   test('should wrap text correctly at terminal width boundaries', async ({ appWindow, tempDir }) => {
     // Start file watching FIRST
     await appWindow.evaluate(async (dir) => {

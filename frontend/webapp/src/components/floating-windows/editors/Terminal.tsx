@@ -59,23 +59,75 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
     xtermRef.current = term;
     term.open(terminalRef.current);
 
-    // Initial fit to container
-    try {
-      fitAddon.fit();
-      // Store initial size
-      if (terminalRef.current) {
-        lastSizeRef.current = {
-          width: terminalRef.current.offsetWidth,
-          height: terminalRef.current.offsetHeight
-        };
+    // Initialize terminal backend connection
+    const initTerminal = async () => {
+      if (typeof window !== 'undefined' && window.electronAPI?.terminal) {
+        // Running in Electron - pass node metadata to spawn terminal
+        console.log('[Terminal Component] Spawning with nodeMetadata:', nodeMetadata);
+        const result = await window.electronAPI.terminal.spawn(nodeMetadata);
+
+        if (result.success && result.terminalId) {
+          terminalIdRef.current = result.terminalId;  // Store in ref for immediate access
+
+          // Resize backend PTY to match frontend dimensions
+          if (typeof window !== 'undefined' && window.electronAPI?.terminal && fitAddonRef.current) {
+            const cols = term.cols;
+            const rows = term.rows;
+            console.log(`[Terminal] Syncing backend size to ${cols}x${rows}`);
+            window.electronAPI.terminal.resize(result.terminalId, cols, rows);
+          }
+
+          // Set up data listener
+          if (typeof window !== 'undefined' && window.electronAPI?.terminal) {
+            window.electronAPI.terminal.onData((id, data) => {
+              if (id === result.terminalId) {
+                term.write(data);
+              }
+            });
+
+            // Set up exit listener
+            window.electronAPI.terminal.onExit((id, code) => {
+              if (id === result.terminalId) {
+                term.writeln(`\r\nProcess exited with code ${code}`);
+                terminalIdRef.current = null;
+              }
+            });
+          }
+        } else {
+          term.writeln('Failed to spawn terminal: ' + (result.error || 'Unknown error'));
+        }
+      } else {
+        // Running in browser - show placeholder
+        term.writeln('Terminal is only available in Electron mode.');
+        term.writeln('Run the app with: npm run electron:dev');
       }
-      // Notify backend of terminal dimensions
-      const cols = term.cols;
-      const rows = term.rows;
-      console.log(`[Terminal] Initial size: ${cols}x${rows}`);
-    } catch (e) {
-      console.error('[Terminal] Initial fit failed:', e);
-    }
+    };
+
+    // Initial fit to container - delay until browser calculates layout
+    // Use requestAnimationFrame to ensure container has final dimensions
+    // IMPORTANT: Initialize backend AFTER fitting to avoid spawning with wrong size
+    // The floating window is now sized properly (920x550) to accommodate 100+ columns
+    requestAnimationFrame(() => {
+      try {
+        fitAddon.fit();
+        // Store initial size
+        if (terminalRef.current) {
+          lastSizeRef.current = {
+            width: terminalRef.current.offsetWidth,
+            height: terminalRef.current.offsetHeight
+          };
+        }
+        // Log terminal dimensions
+        const cols = term.cols;
+        const rows = term.rows;
+        console.log(`[Terminal] Initial size after fit: ${cols}x${rows}`);
+
+        // Now spawn backend terminal with correct dimensions
+        initTerminal();
+      } catch (e) {
+        console.error('[Terminal] Initial fit failed:', e);
+      }
+    });
 
     // Set up ResizeObserver to handle window resizing
     // Standard pattern: debounce + size change detection to avoid excessive fit() calls
@@ -122,52 +174,6 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
 
     // Observe the terminal container for size changes
     resizeObserver.observe(terminalRef.current);
-
-    // Initialize terminal backend connection
-    const initTerminal = async () => {
-      if (typeof window !== 'undefined' && window.electronAPI?.terminal) {
-        // Running in Electron - pass node metadata to spawn terminal
-        console.log('[Terminal Component] Spawning with nodeMetadata:', nodeMetadata);
-        const result = await window.electronAPI.terminal.spawn(nodeMetadata);
-
-        if (result.success && result.terminalId) {
-          terminalIdRef.current = result.terminalId;  // Store in ref for immediate access
-
-          // Resize backend PTY to match frontend dimensions
-          if (typeof window !== 'undefined' && window.electronAPI?.terminal && fitAddonRef.current) {
-            const cols = term.cols;
-            const rows = term.rows;
-            console.log(`[Terminal] Syncing backend size to ${cols}x${rows}`);
-            window.electronAPI.terminal.resize(result.terminalId, cols, rows);
-          }
-
-          // Set up data listener
-          if (typeof window !== 'undefined' && window.electronAPI?.terminal) {
-            window.electronAPI.terminal.onData((id, data) => {
-              if (id === result.terminalId) {
-                term.write(data);
-              }
-            });
-
-            // Set up exit listener
-            window.electronAPI.terminal.onExit((id, code) => {
-              if (id === result.terminalId) {
-                term.writeln(`\r\nProcess exited with code ${code}`);
-                terminalIdRef.current = null;
-              }
-            });
-          }
-        } else {
-          term.writeln('Failed to spawn terminal: ' + (result.error || 'Unknown error'));
-        }
-      } else {
-        // Running in browser - show placeholder
-        term.writeln('Terminal is only available in Electron mode.');
-        term.writeln('Run the app with: npm run electron:dev');
-      }
-    };
-
-    initTerminal();
 
     // Handle terminal input - use ref to get current terminalId
     term.onData(data => {

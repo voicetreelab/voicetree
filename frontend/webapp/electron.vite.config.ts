@@ -69,7 +69,7 @@ export default defineConfig({
       exclude: ['mermaid']
     },
     server: {
-      port: 3000,
+      port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
       strictPort: true,
       host: true,
       watch: {
