@@ -3,7 +3,7 @@ import type { Core, NodeSingular } from 'cytoscape';
 import type { CytoscapeCore } from '@/graph-core';
 import { parseForCytoscape } from '@/graph-core/data/load_markdown/MarkdownParser';
 import { GraphMutator } from '@/graph-core/mutation/GraphMutator';
-import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS } from '@/graph-core/graphviz/layout/angularPositionSeeding';
+import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS, calculateParentAngle } from '@/graph-core/graphviz/layout/angularPositionSeeding';
 import { GHOST_ROOT_ID } from '@/graph-core/constants';
 
 // Normalize a filename to a consistent ID
@@ -45,24 +45,23 @@ function seedBulkPositions(cy: Core, nodes: NodeSingular[]): void {
     const angle = calculateChildAngle(index, undefined);
     const pos = polarToCartesian(angle, SPAWN_RADIUS);
     root.position({ x: pos.x, y: pos.y });
-    root.data('spawnAngle', angle);
 
     // Recursively position children
-    positionChildren(root, childrenMap);
+    positionChildren(root, childrenMap, cy);
   });
 }
 
 /**
  * Recursively position children of a node
  */
-function positionChildren(parent: NodeSingular, childrenMap: Map<string, NodeSingular[]>): void {
+function positionChildren(parent: NodeSingular, childrenMap: Map<string, NodeSingular[]>, cy: Core): void {
   const parentId = parent.id();
   const children = childrenMap.get(parentId) || [];
 
   if (children.length === 0) return;
 
   const parentPos = parent.position();
-  const parentAngle = parent.data('spawnAngle');
+  const parentAngle = calculateParentAngle(parent, cy);
 
   children.forEach((child, index) => {
     // Calculate angle for this child
@@ -75,11 +74,8 @@ function positionChildren(parent: NodeSingular, childrenMap: Map<string, NodeSin
       y: parentPos.y + offset.y
     });
 
-    // Store angle on child
-    child.data('spawnAngle', angle);
-
     // Recursively position this child's children
-    positionChildren(child, childrenMap);
+    positionChildren(child, childrenMap, cy);
   });
 }
 

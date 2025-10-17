@@ -1,6 +1,6 @@
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
 import { GHOST_ROOT_ID } from '@/graph-core/constants';
-import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS } from '@/graph-core/graphviz/layout/angularPositionSeeding';
+import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS, calculateParentAngle } from '@/graph-core/graphviz/layout/angularPositionSeeding';
 
 /**
  * GraphMutator - Deep module for all graph mutations
@@ -39,21 +39,6 @@ export class GraphMutator {
       ? { x: 0, y: 0 }
       : this.calculateInitialPosition(parentId);
 
-    // Calculate spawn angle for this node (used by its children)
-    let spawnAngle: number | undefined;
-    if (!skipPositioning && parentId) {
-      const parentNode = this.cy.getElementById(parentId);
-      if (parentNode.length > 0) {
-        const parentAngle = parentNode.data('spawnAngle');
-        const siblingCount = this.cy.nodes().filter(n => n.data('parentId') === parentId).length;
-        spawnAngle = calculateChildAngle(siblingCount, parentAngle);
-      }
-    } else if (!skipPositioning && !parentId) {
-      // Root node - calculate angle among other roots
-      const rootCount = this.cy.nodes().filter(n => !n.data('parentId') && n.id() !== GHOST_ROOT_ID).length;
-      spawnAngle = calculateChildAngle(rootCount, undefined);
-    }
-
     // Use batch to ensure node and ghost edge are added atomically
     // This prevents layout from running before ghost edge exists
     let node: NodeSingular;
@@ -65,8 +50,7 @@ export class GraphMutator {
           label,
           linkedNodeIds,
           parentId,
-          ...(color && { color }),
-          ...(spawnAngle !== undefined && { spawnAngle })
+          ...(color && { color })
         },
         position: initialPosition
       });
@@ -217,7 +201,7 @@ export class GraphMutator {
       const parentNode = this.cy.getElementById(parentId);
       if (parentNode.length > 0) {
         const parentPos = parentNode.position();
-        const parentAngle = parentNode.data('spawnAngle'); // may be undefined
+        const parentAngle = calculateParentAngle(parentNode, this.cy);
 
         // Count existing siblings (children with same parentId)
         const siblingCount = this.cy.nodes().filter(n => n.data('parentId') === parentId).length;
