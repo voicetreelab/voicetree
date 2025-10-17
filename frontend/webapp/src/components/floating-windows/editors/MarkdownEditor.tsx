@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import { MermaidRenderer } from './MermaidRenderer';
 
@@ -20,12 +20,15 @@ const components = {
   },
 };
 
+const AUTOSAVE_DELAY_MS = 100;
+
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ content, onSave, previewMode = 'edit' }) => {
   const [value, setValue] = useState(content);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check for dark mode on mount and when it changes
-  React.useEffect(() => {
+  useEffect(() => {
     const checkDarkMode = () => {
       const isDark = document.documentElement.classList.contains('dark');
       setIsDarkMode(isDark);
@@ -43,13 +46,29 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ content, onSave,
     return () => observer.disconnect();
   }, []);
 
+  // Cleanup pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleChange = (newValue: string | undefined) => {
     const content = newValue || '';
     setValue(content);
-    // Auto-save on every content change
-    onSave(content).catch((error) => {
-      console.error('[MarkdownEditor] Auto-save failed:', error);
-    });
+
+    // Debounced auto-save: clear previous timeout and set new one
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      onSave(content).catch((error) => {
+        console.error('[MarkdownEditor] Auto-save failed:', error);
+      });
+    }, AUTOSAVE_DELAY_MS);
   };
 
   return (
