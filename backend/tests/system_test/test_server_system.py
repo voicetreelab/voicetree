@@ -18,7 +18,7 @@ class TestServerSystem:
         # Use hardcoded test vault (absolute path)
         self.test_output_dir = os.path.abspath("backend/tests/system_test/testVault")
         self.server_process = None
-        self.server_port = 8001  # Use different port to avoid conflicts
+        self.server_port = 8002  # Use different port to avoid conflicts
         self.server_url = f"http://localhost:{self.server_port}"
 
         # Clean and create test output directory
@@ -52,8 +52,10 @@ class TestServerSystem:
         import subprocess
         import sys
 
-        # Start server process
-        server_script = os.path.join(os.getcwd(), "server.py")
+        # Start server process from project root
+        # Get project root (3 levels up from this test file)
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        server_script = os.path.join(project_root, "server.py")
         if not os.path.exists(server_script):
             pytest.skip(f"Server script not found at {server_script}")
 
@@ -72,6 +74,11 @@ class TestServerSystem:
                 response = requests.get(f"{self.server_url}/health", timeout=1)
                 if response.status_code == 200:
                     print(f"✅ Server started successfully on port {self.server_port}")
+
+                    # Explicitly load the test directory to ensure server uses correct tree
+                    load_response = self._load_directory(self.test_output_dir)
+                    print(f"✅ Server loaded directory: {load_response}")
+
                     return True
             except requests.exceptions.RequestException:
                 pass
@@ -128,6 +135,76 @@ class TestServerSystem:
         except requests.exceptions.RequestException as e:
             pytest.fail(f"Failed to get buffer status: {e}")
 
+    def _load_directory(self, directory_path: str) -> dict:
+        """Tell server to load a specific directory"""
+        try:
+            response = requests.post(
+                f"{self.server_url}/load-directory",
+                json={"directory_path": directory_path},
+                timeout=10
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            pytest.fail(f"Failed to load directory: {e}")
+
+    def _wait_for_processing_complete(self, timeout: int = 60, expect_nodes: bool = True) -> bool:
+        """
+        Wait for background processing to complete by polling health endpoint.
+        Processing is considered complete when node count is stable for multiple checks.
+
+        Note: We cannot rely on buffer status because the server clears the buffer
+        immediately when processing starts, not when it completes.
+
+        Args:
+            timeout: Maximum time to wait in seconds
+            expect_nodes: If True, wait for at least one node to be created
+
+        Returns:
+            True if processing completed successfully, False if timeout
+        """
+        start_time = time.time()
+        last_node_count = -1
+        stable_count = 0
+        required_stable_checks = 6  # Need 3 seconds of stability (6 * 0.5s)
+
+        while time.time() - start_time < timeout:
+            try:
+                # Check node count
+                health_status = self._get_health_status()
+                node_count = health_status["nodes"]
+
+                # If we expect nodes and node count is stable at > 0, we're done
+                # If we don't expect nodes (or they failed to create), wait for stability at 0
+                if node_count == last_node_count:
+                    stable_count += 1
+                    print(f"🔄 Node count stable at {node_count} ({stable_count}/{required_stable_checks} checks)")
+
+                    # If expecting nodes, need at least 1 node created
+                    if expect_nodes and node_count >= 1 and stable_count >= required_stable_checks:
+                        print(f"✅ Processing complete: {node_count} nodes created")
+                        return True
+                    # If not expecting nodes, just wait for stability
+                    elif not expect_nodes and stable_count >= required_stable_checks:
+                        print(f"✅ Processing stable: {node_count} nodes")
+                        return True
+                else:
+                    # Node count changed, reset stability counter
+                    if stable_count > 0:
+                        print(f"🔄 Node count changed: {last_node_count} → {node_count}")
+                    stable_count = 0
+
+                last_node_count = node_count
+                time.sleep(0.5)
+
+            except Exception as e:
+                print(f"⚠️ Error while waiting for processing: {e}")
+                time.sleep(0.5)
+
+        print(f"⚠️ Timeout waiting for processing to complete after {timeout}s")
+        print(f"   Final node count: {last_node_count}, stable checks: {stable_count}/{required_stable_checks}")
+        return False
+
     def test_server_startup_and_health(self):
         """Test that the server starts up correctly and responds to health checks"""
         print("\n🧪 Testing server startup and health check...")
@@ -168,6 +245,11 @@ class TestServerSystem:
         assert response["status"] == "success"
         assert "message" in response
         assert "buffer_length" in response
+
+        # Wait for background processing to complete
+        print("⏳ Waiting for background processing to complete...")
+        processing_success = self._wait_for_processing_complete(timeout=60)
+        assert processing_success, "Processing should complete within timeout"
 
         # Check health status after processing
         health_response = self._get_health_status()
@@ -237,6 +319,11 @@ class TestServerSystem:
 
             # Small delay between chunks to avoid overwhelming the system
             time.sleep(1)
+
+        # Wait for all background processing to complete
+        print("⏳ Waiting for all background processing to complete...")
+        processing_success = self._wait_for_processing_complete(timeout=60)
+        assert processing_success, "Processing should complete within timeout"
 
         # Check final health status
         final_health = self._get_health_status()
@@ -377,6 +464,11 @@ class TestServerSystem:
         # At least 2 out of 3 requests should succeed (allowing for some LLM variability)
         assert successful_requests >= 2, f"At least 2 concurrent requests should succeed, but only {successful_requests} succeeded"
 
+        # Wait for all background processing to complete
+        print("⏳ Waiting for all background processing to complete...")
+        processing_success = self._wait_for_processing_complete(timeout=60)
+        assert processing_success, "Processing should complete within timeout"
+
         # Check final state
         final_health = self._get_health_status()
         print(f"📊 Final health after concurrent requests: {final_health}")
@@ -424,6 +516,11 @@ class TestServerSystem:
         # Check buffer status after long text
         buffer_after_long = self._get_buffer_status()
         print(f"📊 Buffer after long text: {buffer_after_long}")
+
+        # Wait for background processing to complete
+        print("⏳ Waiting for background processing to complete...")
+        processing_success = self._wait_for_processing_complete(timeout=60)
+        assert processing_success, "Processing should complete within timeout"
 
         # Check that processing occurred (nodes were created)
         final_health = self._get_health_status()

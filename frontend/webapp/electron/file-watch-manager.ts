@@ -2,6 +2,7 @@ import path from 'path';
 import { promises as fs, statSync } from 'fs';
 import chokidar, { FSWatcher } from 'chokidar';
 import { app, BrowserWindow } from 'electron';
+import { checkBackendHealth, loadDirectory } from '../src/utils/backend-api';
 
 interface FileInfo {
   filePath: string;

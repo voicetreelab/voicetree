@@ -170,19 +170,9 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
 
     // Handle terminal input - use ref to get current terminalId
     term.onData(data => {
-      console.log('Terminal onData:', data, 'terminalId:', terminalIdRef.current);
       if (terminalIdRef.current && typeof window !== 'undefined' && window.electronAPI?.terminal) {
-        // Send input to backend
-        console.log('Sending to backend:', data);
-        window.electronAPI.terminal.write(terminalIdRef.current, data).then(result => {
-          console.log('Write result:', result);
-        }).catch(err => {
-          console.error('Write error:', err);
-        });
-      } else {
-        console.log('No terminalId or electronAPI:', {
-          terminalId: terminalIdRef.current,
-          hasAPI: typeof window !== 'undefined' && !!window.electronAPI?.terminal
+        window.electronAPI.terminal.write(terminalIdRef.current, data).catch(err => {
+          console.error('Terminal write error:', err);
         });
       }
     });
