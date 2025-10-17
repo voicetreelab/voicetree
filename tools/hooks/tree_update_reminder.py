@@ -131,7 +131,7 @@ def main():
         print("\n".join(messages))
         # Also output to stderr for user visibility
         print("\n".join(messages), file=sys.stderr)
-        sys.exit(0)
+        sys.exit(1)
 
     elif hook_event == "Stop":
         # For Stop events, block if there are new relevant files
@@ -141,8 +141,10 @@ def main():
                 "decision": "block",
                 "reason": f"📌 NEW FILES DETECTED - Review these before stopping:\n" +
                          "\n".join([f"  • {node}" for node in new_nodes[:5]]) +
-                         "\n\nRead these files if they could be relevant to the work you have done. If they are not relevant to your work, then you can stop."
-                         " Otherwise, please consider whether you need to change your approach given the information contained within the markdown files. Make sure to also create your own update files"
+                         "\n\n"
+                         "1. Read these files if they could be relevant to the work you have done. If they are not relevant to your work, then you can stop."
+                         " Otherwise, please consider whether you need to change your approach given the information contained within the markdown files. "
+                         "2. IMPORTANT Reminder. Have you made your own markdown note update for your work? Answer yes or no. If you haven't why not?"
             }))
             # Save state after blocking
             save_seen_files(get_agent_state_file(agent_name), new_nodes)
@@ -152,10 +154,10 @@ def main():
                 "decision": "approve",
                 "reason": "Session complete."
             }))
-        sys.exit(0)
+        sys.exit(1)
 
     # Default: no output
-    sys.exit(0)
+    sys.exit(1)
 
 if __name__ == "__main__":
     main()
