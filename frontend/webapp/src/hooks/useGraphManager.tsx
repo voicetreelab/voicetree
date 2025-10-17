@@ -84,8 +84,12 @@ export function useGraphManager(): UseGraphManagerReturn {
       const result = await window.electronAPI!.startFileWatching();
       console.log('[DEBUG] startFileWatching result:', result);
       if (result.success) {
-        // Don't set watchStatus or isLoading here - the watching-started event will handle it
-        // This prevents race conditions and ensures state is in sync with main process
+        // Reset state immediately after successful IPC call
+        // Event will also sync state with directory info, but we do it here for UI responsiveness
+        if (result.directory) {
+          setWatchStatus({ isWatching: true, directory: result.directory });
+        }
+        setIsLoading(false);
       } else {
         setError(result.error || 'Failed to start watching');
         setIsLoading(false);
@@ -109,8 +113,10 @@ export function useGraphManager(): UseGraphManagerReturn {
       const result = await window.electronAPI!.stopFileWatching();
       console.log('[DEBUG] stopFileWatching result:', result);
       if (result.success) {
-        // Don't set watchStatus or isLoading here - the file-watching-stopped event will handle it
-        // This prevents race conditions and ensures state is in sync with main process
+        // Reset state immediately after successful IPC call
+        // Event will also sync state, but we do it here to ensure UI responsiveness
+        setWatchStatus({ isWatching: false });
+        setIsLoading(false);
       } else {
         setError(result.error || 'Failed to stop watching');
         setIsLoading(false);
