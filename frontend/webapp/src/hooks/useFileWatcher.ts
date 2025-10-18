@@ -106,6 +106,20 @@ export function useFileWatcher({
       return;
     }
 
+    // Ensure ghost root exists (may have been removed during previous unload)
+    if (!cy.getElementById(GHOST_ROOT_ID).length) {
+      console.log('[Bulk Load] Re-creating ghost root node');
+      cy.add({
+        data: {
+          id: GHOST_ROOT_ID,
+          label: '',
+          linkedNodeIds: [],
+          isGhostRoot: true
+        },
+        position: { x: 0, y: 0 }
+      });
+    }
+
     // Create GraphMutator instance for this operation
     const graphMutator = new GraphMutator(cy, null);
 
@@ -339,6 +353,7 @@ export function useFileWatcher({
     const cy = cytoscapeRef.current?.getCore();
     if (cy) {
       console.log('[DEBUG] Removing', cy.elements().length, 'elements from graph');
+      // Remove ALL elements (including ghost root) for clean state
       cy.elements().remove();
       setNodeCount(0);
       setEdgeCount(0);

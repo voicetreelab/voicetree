@@ -105,19 +105,26 @@ class ChromaDBVectorStore:
             )
             logger.info(f"Initialized ChromaDB with persistence at {persist_directory}")
 
-        # Initialize Gemini embedding function if embeddings are enabled
         self.embedding_function = None
-        if use_embeddings:
-            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set")
 
-            self.embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-                api_key=api_key,
-                model_name="models/gemini-embedding-001",
-                task_type="SEMANTIC_SIMILARITY"
-            )
-            logger.info("Initialized ChromaDB with Gemini embeddings")
+        if use_embeddings:
+            use_local = os.getenv("VOICETREE_USE_LOCAL_EMBEDDINGS", "true").lower() == "true"
+
+            if use_local:
+                # Chroma's DefaultEmbeddingFunction wraps an ONNX MiniLM model and auto-downloads it on first use.
+                self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
+                logger.info("Configured Chroma DefaultEmbeddingFunction (ONNX MiniLM local embeddings)")
+            else:
+                api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+                if not api_key:
+                    raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set")
+
+                self.embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
+                    api_key=api_key,
+                    model_name="models/gemini-embedding-001",
+                    task_type="SEMANTIC_SIMILARITY"
+                )
+                logger.info("Configured Gemini API embeddings")
 
         # Get or create collection
         self._initialize_collection()
@@ -248,6 +255,13 @@ class ChromaDBVectorStore:
             results_typed = cast(ChromaQueryResult, results)
             if not results_typed['ids'] or not results_typed['ids'][0]:
                 return []
+
+            # DEBUG LOGGING: Log raw ChromaDB results
+            logger.info(f"[DEBUG] Raw ChromaDB query results for '{query[:50]}...':")
+            for i, (id_str, distance) in enumerate(zip(results_typed['ids'][0], results_typed['distances'][0])):
+                node_id = int(id_str.replace('node_', ''))
+                similarity = 1.0 - (distance / 2.0)
+                logger.info(f"  {i+1}. Node {node_id}: distance={distance:.4f}, similarity={similarity:.4f}")
 
             # Extract node IDs and scores
             if include_scores:

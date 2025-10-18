@@ -30,3 +30,17 @@ if BACKGROUND_REWRITE_EVERY_N_APPEND < 1:
     raise ValueError("BACKGROUND_REWRITE_EVERY_N_APPEND must be at least 1")
 if MAX_NODES_FOR_LLM_CONTEXT < 1:
     raise ValueError("MAX_NODES_FOR_LLM_CONTEXT must be at least 1")
+
+# Cloud function URLs
+APPEND_AGENT_URL = os.getenv(
+    "APPEND_AGENT_URL",
+    "https://us-central1-vocetree-alpha.cloudfunctions.net/append-agent"
+)
+OPTIMIZER_AGENT_URL = os.getenv(
+    "OPTIMIZER_AGENT_URL",
+    "https://us-central1-vocetree-alpha.cloudfunctions.net/optimizer-agent"
+)
+ORPHAN_AGENT_URL = os.getenv(
+    "ORPHAN_AGENT_URL",
+    "https://us-central1-vocetree-alpha.cloudfunctions.net/orphan-agent"
+)

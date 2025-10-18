@@ -1,10 +1,16 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
-import { promises as fs, createWriteStream } from 'fs';
-import { spawn, ChildProcess } from 'child_process';
-import pty from 'node-pty';
+import fixPath from 'fix-path';
 import FileWatchManager from './file-watch-manager';
-import { BACKEND_PORT } from './shared-config';
+import ServerManager from './server-manager';
+import TerminalManager from './terminal-manager';
+import MarkdownNodeManager from './markdown-node-manager';
+import { setupToolsDirectory, getToolsDirectory } from './tools-setup';
+
+// Fix PATH for macOS/Linux GUI apps
+// This ensures the Electron process and all child processes have access to
+// binaries installed via Homebrew, npm, etc. that are in the user's shell PATH
+fixPath();
 
 // Suppress Electron security warnings in development and test environments
 // These warnings are only shown in dev mode and don't appear in production
@@ -19,170 +25,11 @@ if (process.env.MINIMIZE_TEST === '1') {
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
 }
 
-// Global file watch manager instance
+// Global manager instances
 const fileWatchManager = new FileWatchManager();
-
-// Server process management
-let serverProcess: ChildProcess | null = null;
-
-// Terminal process management with node-pty ONLY
-const terminals = new Map();
-// Track which window owns which terminal for cleanup
-const terminalToWindow = new Map(); // terminalId -> webContents.id
-
-async function startServer() {
-  // Create a debug log file to capture environment differences
-  const debugLogPath = path.join(app.getPath('userData'), 'server-debug.log');
-  const logStream = createWriteStream(debugLogPath, { flags: 'a' });
-
-  function debugLog(message: string) {
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] ${message}\n`;
-    logStream.write(logMessage);
-    console.log(message);
-  }
-
-  try {
-    debugLog('=== VoiceTree Server Startup ===');
-    debugLog(`App launched from: ${process.argv0}`);
-    debugLog(`App packaged: ${app.isPackaged}`);
-    debugLog(`Process CWD: ${process.cwd()}`);
-    debugLog(`Process Platform: ${process.platform}`);
-    debugLog(`Node version: ${process.version}`);
-    debugLog(`Electron version: ${process.versions.electron}`);
-
-    // Log critical environment variables
-    debugLog('--- Environment Variables ---');
-    debugLog(`PATH: ${process.env.PATH || 'UNDEFINED'}`);
-    debugLog(`HOME: ${process.env.HOME || 'UNDEFINED'}`);
-    debugLog(`USER: ${process.env.USER || 'UNDEFINED'}`);
-    debugLog(`SHELL: ${process.env.SHELL || 'UNDEFINED'}`);
-    debugLog(`PYTHONPATH: ${process.env.PYTHONPATH || 'NOT SET'}`);
-    debugLog(`PYTHONHOME: ${process.env.PYTHONHOME || 'NOT SET'}`);
-    debugLog(`Total env vars count: ${Object.keys(process.env).length}`);
-
-    // Log all environment variables to file (not console to avoid clutter)
-    logStream.write(`Full environment:\n${JSON.stringify(process.env, null, 2)}\n`);
-
-    // Determine server path based on whether app is packaged
-    let serverPath: string;
-
-    if (app.isPackaged) {
-      // Packaged app: Use process.resourcesPath
-      serverPath = path.join(process.resourcesPath, 'server', 'voicetree-server');
-      debugLog(`[Server] Packaged app - using server at: ${serverPath}`);
-    } else {
-      // Unpackaged (development/test): Use app path to find project root
-      // app.getAppPath() returns frontend/webapp in dev mode
-      const appPath = app.getAppPath();
-      const projectRoot = path.resolve(appPath, '../..');
-      serverPath = path.join(projectRoot, 'dist', 'resources', 'server', 'voicetree-server');
-      debugLog(`[Server] Unpackaged app - using server at: ${serverPath}`);
-
-      // Verify the server exists in development
-      try {
-        await fs.access(serverPath);
-        const stats = await fs.stat(serverPath);
-        debugLog(`[Server] Server file exists, size: ${stats.size} bytes`);
-      } catch (error) {
-        debugLog('[Server] Server executable not found at: ' + serverPath);
-        debugLog('[Server] Run build_server.sh first to build the server');
-        logStream.end();
-        return;
-      }
-    }
-
-    // Make server executable on Unix systems
-    if (process.platform !== 'win32') {
-      try {
-        await fs.chmod(serverPath, 0o755);
-        debugLog('[Server] Made server executable');
-      } catch (error) {
-        debugLog(`[Server] Could not set executable permissions: ${error}`);
-      }
-    }
-
-    // Get the directory where the server is located
-    const serverDir = path.dirname(serverPath);
-    debugLog(`[Server] Server directory: ${serverDir}`);
-
-    // Spawn the server process with explicit working directory
-    debugLog(`[Server] Starting VoiceTree server on port ${BACKEND_PORT}...`);
-    debugLog(`[Server] Spawn command: ${serverPath} ${BACKEND_PORT}`);
-
-    // Create environment with explicit paths for the server
-    const serverEnv = {
-      ...process.env,
-      // Ensure the server knows where to create files
-      VOICETREE_DATA_DIR: serverDir,
-      VOICETREE_VAULT_DIR: path.join(serverDir, 'markdownTreeVault'),
-      // Add minimal PATH if it's missing critical directories
-      PATH: process.env.PATH?.includes('/usr/local/bin')
-        ? process.env.PATH
-        : `/usr/local/bin:/opt/homebrew/bin:${process.env.PATH || '/usr/bin:/bin:/usr/sbin:/sbin'}`
-    };
-
-    serverProcess = spawn(serverPath, [BACKEND_PORT.toString()], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: serverEnv,
-      cwd: serverDir,  // Set working directory explicitly
-      detached: false  // Ensure process is attached to parent
-    });
-
-    // Check if the process actually started
-    if (!serverProcess || !serverProcess.pid) {
-      debugLog('[Server] ERROR: Failed to get process ID - server may not have started');
-    } else {
-      debugLog(`[Server] Started with PID: ${serverProcess.pid}`);
-    }
-
-    // Log server stdout
-    serverProcess.stdout?.on('data', (data) => {
-      const output = data.toString().trim();
-      debugLog(`[Server stdout] ${output}`);
-    });
-
-    // Log server stderr
-    serverProcess.stderr?.on('data', (data) => {
-      const output = data.toString().trim();
-      debugLog(`[Server stderr] ${output}`);
-    });
-
-    // Handle server exit
-    serverProcess.on('exit', (code, signal) => {
-      debugLog(`[Server] Process exited with code ${code} and signal ${signal}`);
-      serverProcess = null;
-    });
-
-    // Handle server errors
-    serverProcess.on('error', (error) => {
-      debugLog(`[Server] Failed to start: ${error.message}`);
-      debugLog(`[Server] Error details: ${JSON.stringify(error)}`);
-      serverProcess = null;
-    });
-
-    // Test if the server is accessible after a short delay
-    setTimeout(async () => {
-      try {
-        const http = require('http');
-        http.get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
-          debugLog(`[Server] Health check response code: ${res.statusCode}`);
-        }).on('error', (err) => {
-          debugLog(`[Server] Health check failed: ${err.message}`);
-        });
-      } catch (error) {
-        debugLog(`[Server] Health check error: ${error}`);
-      }
-    }, 2000);
-
-  } catch (error) {
-    debugLog(`[Server] Error during server startup: ${error}`);
-    debugLog(`[Server] Stack trace: ${error.stack}`);
-  }
-
-  // Keep log open for a moment then close
-  setTimeout(() => logStream.end(), 5000);
-}
+const serverManager = new ServerManager();
+const terminalManager = new TerminalManager();
+const nodeManager = new MarkdownNodeManager();
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -262,24 +109,7 @@ function createWindow() {
 
   // Clean up terminals when window closes
   mainWindow.on('closed', () => {
-    console.log(`Window ${windowId} closed, cleaning up terminals`);
-
-    // Find and kill all terminals owned by this window
-    for (const [terminalId, webContentsId] of terminalToWindow.entries()) {
-      if (webContentsId === windowId) {
-        console.log(`Cleaning up terminal ${terminalId} for window ${windowId}`);
-        const ptyProcess = terminals.get(terminalId);
-        if (ptyProcess && ptyProcess.kill) {
-          try {
-            ptyProcess.kill();
-          } catch (error) {
-            console.error(`Error killing terminal ${terminalId}:`, error);
-          }
-        }
-        terminals.delete(terminalId);
-        terminalToWindow.delete(terminalId);
-      }
-    }
+    terminalManager.cleanupForWindow(windowId);
   });
 }
 
@@ -303,7 +133,7 @@ ipcMain.handle('start-file-watching', async (event, directoryPath) => {
     }
 
     return await fileWatchManager.startWatching(selectedDirectory);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in start-file-watching handler:', error);
     return {
       success: false,
@@ -316,7 +146,7 @@ ipcMain.handle('stop-file-watching', async () => {
   try {
     await fileWatchManager.stopWatching();
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in stop-file-watching handler:', error);
     return {
       success: false,
@@ -336,285 +166,44 @@ ipcMain.handle('get-watch-status', () => {
 
 // File content handlers
 ipcMain.handle('save-file-content', async (event, filePath, content) => {
-  try {
-    await fs.writeFile(filePath, content, 'utf8');
-    return { success: true };
-  } catch (error) {
-    console.error('Error saving file:', error);
-    return { success: false, error: error.message };
-  }
+  return await nodeManager.saveContent(filePath, content);
 });
 
 ipcMain.handle('delete-file', async (event, filePath) => {
-  try {
-    await fs.unlink(filePath);
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting file:', error);
-    return { success: false, error: error.message };
-  }
+  return await nodeManager.delete(filePath);
 });
 
 // Create child node handler
 ipcMain.handle('create-child-node', async (event, parentNodeId) => {
-  try {
-    // Get watched directory
-    const watchDirectory = fileWatchManager.getWatchedDirectory();
-    if (!watchDirectory) {
-      return { success: false, error: 'No directory is being watched' };
-    }
-
-    console.log(`[create-child-node] Looking for parent: ${parentNodeId} in ${watchDirectory}`);
-
-    // Read all markdown files in the directory
-    const files = await fs.readdir(watchDirectory);
-    const markdownFiles = files.filter(f => f.endsWith('.md'));
-    console.log(`[create-child-node] Found ${markdownFiles.length} markdown files:`, markdownFiles);
-
-    // Find parent file by scanning for matching node_id in frontmatter
-    let parentFilePath: string | undefined;
-    let parentFileName: string | undefined;
-    let maxNodeId = 0;
-
-    for (const file of markdownFiles) {
-      const filePath = path.join(watchDirectory, file);
-      const content = await fs.readFile(filePath, 'utf-8');
-
-      // Extract node_id from frontmatter
-      const nodeIdMatch = content.match(/^node_id:\s*(\d+)/m);
-      if (nodeIdMatch) {
-        const nodeId = parseInt(nodeIdMatch[1], 10);
-
-        // Track max node_id
-        if (nodeId > maxNodeId) {
-          maxNodeId = nodeId;
-        }
-
-        // Check if this is the parent node (match by node_id number)
-        if (nodeId.toString() === parentNodeId || file.replace('.md', '') === parentNodeId) {
-          parentFilePath = filePath;
-          parentFileName = file;
-        }
-      } else {
-        // No node_id in frontmatter, try matching by filename
-        const fileNameWithoutExt = file.replace(/\.md$/i, '');
-        console.log(`[create-child-node] Checking file ${file}: fileNameWithoutExt="${fileNameWithoutExt}" vs parentNodeId="${parentNodeId}"`);
-        if (fileNameWithoutExt === parentNodeId) {
-          parentFilePath = filePath;
-          parentFileName = file;
-          console.log(`[create-child-node] Matched by filename!`);
-        }
-      }
-    }
-
-    if (!parentFilePath || !parentFileName) {
-      return { success: false, error: `Parent node ${parentNodeId} not found` };
-    }
-
-    // Generate new node ID and filename
-    const newNodeId = maxNodeId + 1;
-    const newFileName = `_${newNodeId}.md`;
-    const newFilePath = path.join(watchDirectory, newFileName);
-
-    // Create markdown content
-    const content = `---
-node_id: ${newNodeId}
-title:  (${newNodeId})
----
-###
-
-
-
------------------
-_Links:_
-Parent:
-- relationshipToParent [[${parentFileName}]]
-`;
-
-    // Write the file
-    await fs.writeFile(newFilePath, content, 'utf-8');
-
-    console.log(`[create-child-node] Created ${newFileName} as child of ${parentFileName}`);
-    return { success: true, nodeId: newNodeId, filePath: newFilePath };
-  } catch (error) {
-    console.error('Error creating child node:', error);
-    return { success: false, error: error.message };
-  }
+  return await nodeManager.createChild(
+    parentNodeId,
+    fileWatchManager.getWatchedDirectory()
+  );
 });
 
-// Terminal IPC handlers using node-pty ONLY - No fallbacks!
+// Terminal IPC handlers
 ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
-  try {
-    const terminalId = `term-${Date.now()}`;
-
-    // Determine shell based on platform
-    const shell = process.platform === 'win32'
-      ? 'powershell.exe'
-      : process.env.SHELL || '/bin/bash';
-
-    // TODO: WILL NEED TO MAKE THE TOOLS DISTRIBUTED WITH APP, and this path customizable
-    const homeDir = process.platform === 'win32'
-      ? process.env.USERPROFILE
-      : process.env.HOME;
-    const cwd = homeDir
-      ? path.join(homeDir, 'repos', 'VoiceTree', 'tools')
-      : process.cwd();
-
-    // Build custom environment with node metadata
-    const customEnv = { ...process.env };
-
-    if (nodeMetadata) {
-      // Set node-based environment variables
-      if (nodeMetadata.filePath) {
-        const vaultPath = "/Users/bobbobby/repos/VoiceTree/markdownTreeVault"; // todo-hardcoded
-        customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
-
-        // Convert absolute path to relative path from vault root if needed
-        let relativePath = nodeMetadata.filePath;
-        if (path.isAbsolute(nodeMetadata.filePath)) {
-          // If filePath is absolute, make it relative to vault path
-          relativePath = path.relative(vaultPath, nodeMetadata.filePath);
-        }
-
-        // OBSIDIAN_SOURCE_NOTE is the relative path from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
-        customEnv.OBSIDIAN_SOURCE_NOTE = relativePath;
-
-        // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03" or ".")
-        customEnv.OBSIDIAN_SOURCE_DIR = path.dirname(relativePath);
-
-        // OBSIDIAN_SOURCE_NAME is the filename with extension (e.g., "23_Commitment.md")
-        customEnv.OBSIDIAN_SOURCE_NAME = path.basename(relativePath);
-
-        // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
-        const ext = path.extname(relativePath);
-        customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
-      }
-
-      // Extra env vars (e.g., agent info)
-      if (nodeMetadata.extraEnv) {
-        Object.assign(customEnv, nodeMetadata.extraEnv);
-      }
-    }
-
-    console.log(`Spawning env PTY with shell: ${shell} in directory: ${cwd}`);
-    if (nodeMetadata) {
-      console.log(`Node metadata:`, nodeMetadata);
-    }
-
-    // Create PTY instance - THIS IS THE ONLY WAY, NO FALLBACKS
-    const ptyProcess = pty.spawn(shell, [], {
-      name: 'xterm-256color',
-      cols: 80,
-      rows: 24,
-      cwd: cwd,
-      env: customEnv
-    });
-
-    // Store the PTY process
-    terminals.set(terminalId, ptyProcess);
-
-    // Track terminal ownership for cleanup when window closes
-    terminalToWindow.set(terminalId, event.sender.id);
-
-    // Handle PTY data
-    ptyProcess.onData((data) => {
-      try {
-        event.sender.send('terminal:data', terminalId, data);
-      } catch (error) {
-        console.error(`Failed to send terminal data for ${terminalId}:`, error);
-      }
-    });
-
-    // Handle PTY exit
-    ptyProcess.onExit((exitInfo) => {
-      try {
-        event.sender.send('terminal:exit', terminalId, exitInfo.exitCode);
-      } catch (error) {
-        console.error(`Failed to send terminal exit for ${terminalId}:`, error);
-      }
-      terminals.delete(terminalId);
-      terminalToWindow.delete(terminalId);
-    });
-
-    console.log(`Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);
-    return { success: true, terminalId };
-  } catch (error) {
-    console.error('Failed to spawn terminal:', error);
-
-    // Send error message to display in terminal
-    const errorMessage = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error.message}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
-
-    // Create a fake terminal ID for error display
-    const terminalId = `error-${Date.now()}`;
-    setTimeout(() => {
-      event.sender.send('terminal:data', terminalId, errorMessage);
-    }, 100);
-
-    return { success: true, terminalId }; // Return success with error terminal
-  }
+  console.log('[MAIN] terminal:spawn IPC called, event.sender.id:', event.sender.id);
+  const result = await terminalManager.spawn(
+    event.sender,
+    nodeMetadata,
+    () => fileWatchManager.getWatchedDirectory(),
+    getToolsDirectory
+  );
+  console.log('[MAIN] terminal:spawn result:', result);
+  return result;
 });
 
 ipcMain.handle('terminal:write', async (event, terminalId, data) => {
-  try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
-      // Check if it's an error terminal
-      if (terminalId.startsWith('error-')) {
-        return { success: true }; // Ignore writes to error terminals
-      }
-      return { success: false, error: 'Terminal not found' };
-    }
-
-    // Write to PTY
-    ptyProcess.write(data);
-    return { success: true };
-  } catch (error) {
-    console.error(`Failed to write to terminal ${terminalId}:`, error);
-    return { success: false, error: error.message };
-  }
+  return terminalManager.write(terminalId, data);
 });
 
 ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
-  try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
-      // Ignore resize for error terminals
-      if (terminalId.startsWith('error-')) {
-        return { success: true };
-      }
-      return { success: false, error: 'Terminal not found' };
-    }
-
-    // Resize PTY
-    ptyProcess.resize(cols, rows);
-    console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
-    return { success: true };
-  } catch (error) {
-    console.error(`Failed to resize terminal ${terminalId}:`, error);
-    return { success: false, error: error.message };
-  }
+  return terminalManager.resize(terminalId, cols, rows);
 });
 
 ipcMain.handle('terminal:kill', async (event, terminalId) => {
-  try {
-    const ptyProcess = terminals.get(terminalId);
-    if (!ptyProcess) {
-      // Clean up error terminals too
-      if (terminalId.startsWith('error-')) {
-        terminals.delete(terminalId);
-        return { success: true };
-      }
-      return { success: false, error: 'Terminal not found' };
-    }
-
-    // Kill the PTY process
-    ptyProcess.kill();
-    terminals.delete(terminalId);
-    return { success: true };
-  } catch (error) {
-    console.error(`Failed to kill terminal ${terminalId}:`, error);
-    return { success: false, error: error.message };
-  }
+  return terminalManager.kill(terminalId);
 });
 
 // App event handlers
@@ -624,36 +213,21 @@ app.whenReady().then(async () => {
     app.dock.hide();
   }
 
+  // Set up agent tools directory on first launch
+  await setupToolsDirectory();
+
   // Start the Python server before creating window
-  await startServer();
+  await serverManager.start();
 
   createWindow();
 });
 
 app.on('window-all-closed', () => {
   // Clean up server process
-  if (serverProcess) {
-    console.log('[Server] Shutting down server...');
-    try {
-      serverProcess.kill('SIGTERM');
-      serverProcess = null;
-    } catch (error) {
-      console.error('[Server] Error killing server:', error);
-    }
-  }
+  serverManager.stop();
 
   // Clean up all terminals
-  for (const [id, ptyProcess] of terminals) {
-    console.log(`Cleaning up terminal ${id}`);
-    try {
-      if (!id.startsWith('error-') && ptyProcess.kill) {
-        ptyProcess.kill();
-      }
-    } catch (e) {
-      console.error(`Error killing terminal ${id}:`, e);
-    }
-  }
-  terminals.clear();
+  terminalManager.cleanup();
 
   if (process.platform !== 'darwin') {
     app.quit();
@@ -663,9 +237,9 @@ app.on('window-all-closed', () => {
 app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     // Restart server if it's not running (macOS dock click after window close)
-    if (!serverProcess) {
+    if (!serverManager.isRunning()) {
       console.log('[App] Reactivating - restarting server...');
-      await startServer();
+      await serverManager.start();
     }
     createWindow();
   }

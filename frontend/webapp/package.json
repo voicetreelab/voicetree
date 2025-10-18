@@ -48,6 +48,7 @@
     "cytoscape": "^3.33.1",
     "cytoscape-cola": "^2.5.1",
     "cytoscape-cxtmenu": "^3.5.0",
+    "fix-path": "^5.0.0",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.544.0",
     "mermaid": "^11.12.0",
@@ -107,6 +108,10 @@
       {
         "from": "../../dist/resources/server",
         "to": "server"
+      },
+      {
+        "from": "../../dist/resources/tools",
+        "to": "tools"
       }
     ],
     "mac": {

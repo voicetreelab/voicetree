@@ -38,49 +38,47 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     else:
         agent_name = os.environ.get('AGENT_NAME', 'default')
     
-    # Get the base vault directory
-    script_dir = Path(__file__).parent.parent  # Go up from tools/ to VoiceTree/
-    vault_dir = script_dir / "markdownTreeVault"
-    
-    # Convert parent_file to Path and make it relative to vault if needed
+    # Convert parent_file to Path
     parent_path = Path(parent_file)
-    
-    # If parent_file is absolute and contains markdownTreeVault, make it relative
+
+    # Determine vault directory
     if parent_path.is_absolute():
-        if "markdownTreeVault" in str(parent_path):
-            # Extract the path relative to markdownTreeVault
-            parts = parent_path.parts
-            vault_idx = parts.index("markdownTreeVault")
-            parent_path = Path(*parts[vault_idx + 1:])
+        # Use the directory containing the parent file as the working directory
+        full_parent_path = parent_path
+        # Find vault directory by traversing up to find a directory containing .md files
+        # or use parent's parent if it looks like a vault subdirectory
+        if parent_path.parent.name.startswith("20"):  # Date-based folder like "2025-08-08"
+            vault_dir = parent_path.parent.parent
         else:
-            # If absolute but not in vault, just use the filename
-            parent_path = Path(parent_path.name)
-    
-    # Now parent_path is relative to vault, resolve it
-    full_parent_path = vault_dir / parent_path
+            vault_dir = parent_path.parent
+    else:
+        # Use default vault directory for relative paths
+        script_dir = Path(__file__).parent.parent  # Go up from tools/ to VoiceTree/
+        vault_dir = script_dir / "markdownTreeVault"
+        full_parent_path = vault_dir / parent_path
     
     # Get parent directory and parent filename
     parent_dir = full_parent_path.parent
     parent_filename = full_parent_path.name
-    
-    # Extract parent node ID from filename, or use a default
-    parent_id_match = re.match(r'^(\d+(?:_\d+)*)', parent_filename)
-    if parent_id_match:
-        parent_id = parent_id_match.group(1)
-    else:
-        # If no ID in parent, use "1" as default parent ID
-        parent_id = "1"
-    
-    # Find the next available child ID
-    existing_children = []
-    for file in parent_dir.glob(f"{parent_id}_*.md"):
-        if file.name != parent_filename:
-            child_match = re.match(rf'^{re.escape(parent_id)}_(\d+)', file.name)
-            if child_match:
-                existing_children.append(int(child_match.group(1)))
-    
-    next_child_num = max(existing_children, default=0) + 1
-    new_node_id = f"{parent_id}_{next_child_num}"
+
+    # Find max node_id across all files in the vault
+    max_node_id = 0
+    for md_file in vault_dir.rglob("*.md"):
+        # Read frontmatter to get node_id
+        try:
+            with open(md_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Extract node_id from frontmatter
+                node_id_match = re.search(r'^node_id:\s*(\d+)', content, re.MULTILINE)
+                if node_id_match:
+                    node_id = int(node_id_match.group(1))
+                    max_node_id = max(max_node_id, node_id)
+        except Exception:
+            # Skip files that can't be read
+            continue
+
+    # Use max_node_id + 1 for the new node
+    new_node_id = str(max_node_id + 1)
     
     # Create safe filename from name
     safe_name = re.sub(r'[^\w\s-]', '', name)

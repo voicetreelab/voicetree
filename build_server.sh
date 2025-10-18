@@ -8,7 +8,7 @@ echo "======================================="
 
 # Step 1: Create isolated UV environment
 echo "Step 1: Creating isolated UV environment..."
-uv venv .venv-server --python 3.13
+uv venv .venv-server --python 3.13 --clear
 
 # Step 2: Install server dependencies
 echo "Step 2: Installing server dependencies..."

@@ -20,7 +20,10 @@ from backend.markdown_tree_manager.graph_search.tree_functions import (
 )
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree
 from backend.markdown_tree_manager.sync_markdown_to_tree import sync_nodes_from_markdown
+from backend.settings import APPEND_AGENT_URL
 from backend.settings import MAX_NODES_FOR_LLM_CONTEXT
+from backend.settings import OPTIMIZER_AGENT_URL
+from backend.settings import ORPHAN_AGENT_URL
 from backend.settings import TRANSCRIPT_HISTORY_MULTIPLIER
 from backend.text_to_graph_pipeline.agentic_workflows.agents.append_to_relevant_node_agent import AppendToRelevantNodeAgent
 from backend.text_to_graph_pipeline.agentic_workflows.agents.connect_orphans_agent import (
@@ -82,35 +85,52 @@ class TreeActionDeciderWorkflow:
     def __init__(
         self,
         decision_tree: Optional[MarkdownTree] = None,
-        cloud_function_url: str | None = None,
-        output_dir: Optional[str] = None
+        cloud_function_url: Optional[str] = None,
+        optimizer_url: Optional[str] = None,
+        orphan_url: Optional[str] = None,
+        output_dir: Optional[str] = None,
+        use_cloud_functions: Optional[bool] = None
     ) -> None:
         """
         Initialize the workflow
 
         Args:
             decision_tree: Optional decision tree instance (can be set later)
-            cloud_function_url: URL of the Cloud Function (default: localhost:8080)
+            cloud_function_url: URL of the Append Agent Cloud Function
+            optimizer_url: URL of the Optimizer Agent Cloud Function
+            orphan_url: URL of the Orphan Connection Agent Cloud Function
             output_dir: Output directory for saving transcript history
+            use_cloud_functions: If True, use HTTP clients; if False, use local agents; if None, read from env (default: False)
         """
         import os
         self.decision_tree: Optional[MarkdownTree] = decision_tree
         self.output_dir = output_dir
 
-        # Use provided URL, env var, or default to localhost
+        # Determine whether to use cloud functions
+        if use_cloud_functions is None:
+            use_cloud_functions = os.environ.get("USE_CLOUD_FUNCTIONS", "false").lower() == "true"
+
+        # Determine URLs from args or settings
         if cloud_function_url is None:
-            cloud_function_url = os.environ.get(
-                "CLOUD_FUNCTION_URL",
-                "http://localhost:8080"
-            )
+            cloud_function_url = APPEND_AGENT_URL
 
-        from cloud_functions.agentic_workflows.http_client import AppendToRelevantNodeAgentHTTPClient
-        # self.append_agent = AppendToRelevantNodeAgentHTTPClient(cloud_function_url)
+        if optimizer_url is None:
+            optimizer_url = OPTIMIZER_AGENT_URL
 
-        self.append_agent: AppendToRelevantNodeAgent = AppendToRelevantNodeAgent()
+        if orphan_url is None:
+            orphan_url = ORPHAN_AGENT_URL
 
-        self.optimizer_agent: SingleAbstractionOptimizerAgent = SingleAbstractionOptimizerAgent()
-        self.connect_orphans_agent: ConnectOrphansAgent = ConnectOrphansAgent()
+        # Initialize agents based on configuration
+        from cloud_functions.agentic_workflows.http_client import (
+            AppendToRelevantNodeAgentHTTPClient,
+            SingleAbstractionOptimizerAgentHTTPClient,
+            ConnectOrphansAgentHTTPClient,
+        )
+
+        self.append_agent = AppendToRelevantNodeAgentHTTPClient(cloud_function_url)
+        self.optimizer_agent = SingleAbstractionOptimizerAgentHTTPClient(optimizer_url)
+        self.connect_orphans_agent = ConnectOrphansAgentHTTPClient(orphan_url)
+
         self.nodes_to_update: set[int] = set()
 
         # Initialize history manager with file path for auto-save/load
