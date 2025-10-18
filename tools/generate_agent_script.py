@@ -3,7 +3,7 @@
 Generate agent launch scripts from templates.
 
 Usage:
-    python generate_agent_script.py --agent-name BOB --color green --task-file AGENT_BOB.md
+    python3 generate_agent_script.py --agent-name BOB --color green --task-file AGENT_BOB.md
 """
 
 import argparse

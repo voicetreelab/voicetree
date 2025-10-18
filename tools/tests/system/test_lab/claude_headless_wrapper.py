@@ -115,7 +115,7 @@ The task will be given after these initial instructions.
 As you make progress on the task, create detailed visual updates by adding nodes to our markdown tree using:
 
 ```bash
-python tools/add_new_node.py "{env.get('OBSIDIAN_VAULT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
+python3 tools/add_new_node.py "{env.get('OBSIDIAN_VAULT_PATH')}/{env.get('OBSIDIAN_SOURCE_NOTE')}" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
 ```
 
 ## ENHANCED NODE CONTENT REQUIREMENTS:
@@ -176,7 +176,7 @@ This allows you to access the following repos:
 - ./voicetree-UI/juggl-main for juggl UI
 
 As you complete any actions, REMEMBER to grow the tree by using:
-python tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>
+python3 tools/add_new_node.py <parent_file> "Node Name" "Rich Content with Summary, Technical Details, Mermaid Diagram, and Impact" <relationship>
 
 ALWAYS include Mermaid diagrams showing the changes you made!
 
@@ -195,7 +195,7 @@ Please execute this task now.
 def main():
     """CLI interface for headless wrapper"""
     if len(sys.argv) < 4:
-        print("Usage: python claude_headless_wrapper.py <vault_path> <source_note_relative_path> <prompt>")
+        print("Usage: python3 claude_headless_wrapper.py <vault_path> <source_note_relative_path> <prompt>")
         sys.exit(1)
         
     vault_path = Path(sys.argv[1])

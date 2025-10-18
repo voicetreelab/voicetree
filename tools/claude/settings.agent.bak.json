@@ -7,7 +7,7 @@
       "Bash(chmod:*)",
       "Bash(rm:*)",
       "Bash(./tools/test_color_flow.sh:*)",
-      "Bash(python tools/add_new_node.py:*)",
+      "Bash(python3 tools/add_new_node.py:*)",
       "Bash(python*/tools/add_new_node.py:*)"
     ]
   },
@@ -20,7 +20,7 @@
     "hooks": [
       {
         "type": "command",
-        "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+        "command": "python3 ~/Library/Application\\ Support/voicetree-webapp/tools/hooks/tree_update_reminder.py"
       }
     ]
   }
@@ -31,7 +31,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+          "command": "python3 ~/Library/Application\\ Support/voicetree-webapp/tools/hooks/tree_update_reminder.py"
         }
       ]
     }

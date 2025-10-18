@@ -15,7 +15,7 @@ from typing import Set
 
 
 def get_import_paths(file_path: Path) -> Set[str]:
-    """Extract all import paths from a Python file."""
+    """Extract all import paths from a python3 file."""
     imports = set()
 
     try:
@@ -42,7 +42,7 @@ def get_import_paths(file_path: Path) -> Set[str]:
 
 
 def file_to_module_path(file_path: Path, root_dir: Path) -> str:
-    """Convert a file path to a Python module path."""
+    """Convert a file path to a python3 module path."""
     relative_path = file_path.relative_to(root_dir)
 
     # Remove .py extension
@@ -121,8 +121,8 @@ def find_tests_for_files(production_files: List[str]) -> Dict[str, List[str]]:
 def main():
     """Main entry point."""
     if len(sys.argv) < 2:
-        print("Usage: python find_relevant_tests.py <file1> [file2] [file3] ...")
-        print("Example: python find_relevant_tests.py backend/context_retrieval/dependency_traversal.py")
+        print("Usage: python3 find_relevant_tests.py <file1> [file2] [file3] ...")
+        print("Example: python3 find_relevant_tests.py backend/context_retrieval/dependency_traversal.py")
         sys.exit(1)
 
     production_files = sys.argv[1:]

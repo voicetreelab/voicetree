@@ -470,7 +470,7 @@ Here's how it works (see also [Agno's documentation](https://docs.agno.com/intro
 
 4. Start the agno agent app with
    ```shell
-   uv run python scripts/agno_agent.py
+   uv run python3 scripts/agno_agent.py
    ```
    By default, the script uses Claude as the model, but you can choose any model
    supported by Agno (which is essentially any existing model).
@@ -723,7 +723,7 @@ platform and from client to client. We recommend always using absolute paths, as
 errors. The language server is running in a separate sub-process and is called with asyncio – sometimes
 a client may make it crash. If you have Serena's log window enabled, and it disappears, you'll know what happened.
 
-Some clients may not properly terminate MCP servers, look out for hanging python processes and terminate them manually, if needed.
+Some clients may not properly terminate MCP servers, look out for hanging python3 processes and terminate them manually, if needed.
 
 ## Comparison with Other Coding Agents
 
@@ -797,7 +797,7 @@ We built Serena on top of multiple existing open-source technologies, the most i
    and which provided the basis for our library Solid-LSP (src/solidlsp). 
    Solid-LSP provides pure synchronous LSP calls and extends the original library with the symbolic logic 
    that Serena required.
-2. [Python MCP SDK](https://github.com/modelcontextprotocol/python-sdk)
+2. [python3 MCP SDK](https://github.com/modelcontextprotocol/python-sdk)
 3. [Agno](https://github.com/agno-agi/agno) and
    the associated [agent-ui](https://github.com/agno-agi/agent-ui),
    which we use to allow Serena to work with any model, beyond the ones

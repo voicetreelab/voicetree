@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Check for potentially problematic Path(__file__) usage in Python files.
+Check for potentially problematic Path(__file__) usage in python3 files.
 
 This script detects patterns like Path(__file__).parent which can break
 in packaged/frozen environments (e.g., Electron dist builds).
@@ -36,7 +36,7 @@ class PathFileChecker(ast.NodeVisitor):
 
 
 def check_file(filepath: Path) -> list[tuple[str, int, int, str]]:
-    """Check a single Python file for Path(__file__) usage."""
+    """Check a single python3 file for Path(__file__) usage."""
     try:
         content = filepath.read_text()
         tree = ast.parse(content, filename=str(filepath))

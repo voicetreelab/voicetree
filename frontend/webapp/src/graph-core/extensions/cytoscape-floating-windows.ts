@@ -405,7 +405,7 @@ function getDefaultDimensions(component: string | React.ReactElement): { width: 
         // Terminals need more width for 100+ cols and height for ~30+ rows
         // Target: 100 cols × ~9px ≈ 900px + margins (~20px) = 920px
         // Target: 30 rows × ~17px ≈ 510px + title bar (~40px) = 550px
-        return { width: 920, height: 550 };
+        return { width: 400, height: 600 };
       case 'MarkdownEditor':
         // Editors are medium - typical size ~500x300
         return { width: 400, height: 400 };

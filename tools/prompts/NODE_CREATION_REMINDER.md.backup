@@ -7,7 +7,7 @@
 ### For Regular Agents:
 ```bash
 # Add progress nodes (color automatically inherited)
-python tools/add_new_node.py <parent_file> "Node Name" "Content/Description" <relationship>
+python3 tools/add_new_node.py <parent_file> "Node Name" "Content/Description" <relationship>
 
 # Example relationships: is_progress_of, implements, tests, documents, etc.
 ```
@@ -15,7 +15,7 @@ python tools/add_new_node.py <parent_file> "Node Name" "Content/Description" <re
 ### For Orchestrator Agents:
 ```bash
 # Create subtask nodes with specific colors
-python tools/add_new_node.py <parent> "Agent Name Task" "Task description" is_subtask_of --color <color>
+python3 tools/add_new_node.py <parent> "Agent Name Task" "Task description" is_subtask_of --color <color>
 
 # Available colors: green, blue, purple, red, orange, pink, cyan, magenta, indigo, teal, brown, navy, olive
 ```

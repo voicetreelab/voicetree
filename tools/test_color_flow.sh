@@ -22,7 +22,7 @@ EOF
 # Step 2: Orchestrator creates subtask with specific color (green)
 echo "2. Orchestrator creating subtask with green color..."
 export AGENT_COLOR="orchestrator_default"  # Orchestrator's own color
-python add_new_node.py \
+python3 add_new_node.py \
     "$OBSIDIAN_VAULT_PATH/1_parent_task.md" \
     "Bob implement feature" \
     "Task: Implement the feature X with requirements Y" \
@@ -55,7 +55,7 @@ echo
 
 # Step 5: Verify subagent creates nodes with inherited color
 echo "5. Subagent creating progress node with inherited color..."
-python add_new_node.py \
+python3 add_new_node.py \
     "$OBSIDIAN_VAULT_PATH/$SUBTASK_FILE" \
     "Progress Update 1" \
     "Completed initial setup" \

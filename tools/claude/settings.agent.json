@@ -7,7 +7,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "python /Users/bobbobby/repos/VoiceTree/tools/hooks/tree_update_reminder.py"
+          "command": "python3 ~/Library/Application\\ Support/voicetree-webapp/tools/hooks/tree_update_reminder.py"
         }
       ]
     }

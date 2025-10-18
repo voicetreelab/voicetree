@@ -36,7 +36,7 @@ def package_project(project_dir, file_extension=".py"):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python PackageProjectForLLM.py FOLDER")
+        print("Usage: python3 PackageProjectForLLM.py FOLDER")
         sys.exit(1)
     
     folder_path = sys.argv[1]

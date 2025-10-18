@@ -12,22 +12,22 @@ export function getToolsDirectory(): string {
 }
 
 /**
- * Set up agent tools directory on first launch
- * Copies tools from app Resources to Application Support if not already present
+ * Set up agent tools directory
+ * Copies tools from app Resources to Application Support, overwriting existing tools
  */
 export async function setupToolsDirectory(): Promise<void> {
   try {
     const toolsDestPath = getToolsDirectory();
 
-    // Check if tools directory already exists
+    // Remove existing tools directory if it exists to ensure fresh copy
     try {
-      await fs.access(toolsDestPath);
-      console.log('[Tools] Tools directory already exists at:', toolsDestPath);
-      return;
+      await fs.rm(toolsDestPath, { recursive: true, force: true });
+      console.log('[Tools] Removed existing tools directory');
     } catch {
-      // Tools directory doesn't exist, need to copy it
-      console.log('[Tools] First launch - setting up tools directory...');
+      // Directory doesn't exist, which is fine
     }
+
+    console.log('[Tools] Setting up tools directory...');
 
     // Determine source path based on whether app is packaged
     let toolsSourcePath: string;

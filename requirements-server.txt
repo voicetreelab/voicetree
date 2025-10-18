@@ -18,9 +18,7 @@ rank-bm25
 
 # Vector Store (required for core flow)
 chromadb[fastembed]>=0.4.24
-
-# NOTE: sentence-transformers and torch are NOT included here
-# They are installed dynamically at runtime on first use to keep the bundle small
+onnxruntime>=1.16.0
 
 # Utilities
 python-dotenv
