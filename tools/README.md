@@ -48,8 +48,8 @@ flowchart TD
     Y -->|Orchestrator| Z[Creates subtasks using SUBAGENT_PROMPT.md template]
     Y -->|Subtask Agent| AA[Executes specific task]
     
-    Z --> BB[python add_new_node.py for subtask creation]
-    AA --> BB[python add_new_node.py for progress updates]
+    Z --> BB[python3 add_new_node.py for subtask creation]
+    AA --> BB[python3 add_new_node.py for progress updates]
     
     BB --> CC[Markdown Tree Update]
     CC --> DD[YAML frontmatter with node_id, title, color]
@@ -147,7 +147,7 @@ export OBSIDIAN_VAULT_PATH="$USER_ROOT_DIR/repos/VoiceTree/markdownTreeVault"
 ### Creating Progress Nodes
 ```bash
 # From within an agent
-python tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" \
+python3 tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" \
   "Progress Update Title" \
   "## Summary\n[Accomplishment]\n\n## Technical Details\n...\n\n## Mermaid Diagram\n..." \
   is_progress_of

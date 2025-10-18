@@ -7,7 +7,7 @@ Managing your agents.
 
 Use @$USER_ROOT_DIR/repos/VoiceTree/CREATE_SUBAGENTS_COMMAND.md as a guide for creating the subtask files, and then afterwards, for creating the .sh files which will launch the subagents.
 
-After creating each subtask file, make sure you also generate the .sh command with the python tool outlined in the CREATE_SUBAGENTS_COMMAND.md file.
+After creating each subtask file, make sure you also generate the .sh command with the python3 tool outlined in the CREATE_SUBAGENTS_COMMAND.md file.
 
 Start with creating a blue bob agent, an example subtask md file is at @AGENT_BOB.md, you can reuse this format.
 But make sure to create the file in our directory, and with a concise name for the task, starting with AGENT_BOB_...

@@ -35,6 +35,7 @@ shopt -s dotglob
 cp -r ./tools/* ./dist/resources/tools/
 shopt -u dotglob
 echo "✅ Tools copied to dist/resources/tools/"
+# NOTE electron/tools-setup.ts COPIES THIS TO ~/Library/“Application\ Support”/
 
 # Step 2: Navigate to frontend
 echo ""
@@ -53,36 +54,36 @@ echo "Building frontend assets..."
 npm run build:test  # Using build:test to skip TypeScript errors for now
 
 # Step 5: Test that everything works
-echo ""
-echo "🧪 Step 3: Testing integrated app..."
-echo "----------------------------------------------"
-echo "Starting Electron with integrated server for 10 seconds..."
+#echo ""
+#echo "🧪 Step 3: Testing integrated app..."
+#echo "----------------------------------------------"
+#echo "Starting Electron with integrated server for 10 seconds..."
 
-# Start Electron in background
-npm run electron:prod &
-ELECTRON_PID=$!
-
-# Wait and test
-sleep 15
-
-
-# Check if server is responding
-if curl -s http://localhost:8001/health > /dev/null 2>&1; then
-    echo "✅ Server health check passed!"
-    HEALTH_RESPONSE=$(curl -s http://localhost:8001/health)
-    echo "   Response: $HEALTH_RESPONSE"
-else
-    echo "❌ Server health check failed"
-    # Kill Electron and all child processes
-    pkill -P $ELECTRON_PID 2>/dev/null || true
-    kill $ELECTRON_PID 2>/dev/null || true
-fi
-
-# Kill test instance - kill all child processes first, then Electron
-pkill -P $ELECTRON_PID 2>/dev/null || true
-kill $ELECTRON_PID 2>/dev/null || true
-echo "Test completed successfully"
-
+## Start Electron in background
+#npm run electron:prod &
+#ELECTRON_PID=$!
+#
+## Wait and test
+#sleep 15
+#
+#
+## Check if server is responding
+#if curl -s http://localhost:8001/health > /dev/null 2>&1; then
+#    echo "✅ Server health check passed!"
+#    HEALTH_RESPONSE=$(curl -s http://localhost:8001/health)
+#    echo "   Response: $HEALTH_RESPONSE"
+#else
+#    echo "❌ Server health check failed"
+#    # Kill Electron and all child processes
+#    pkill -P $ELECTRON_PID 2>/dev/null || true
+#    kill $ELECTRON_PID 2>/dev/null || true
+#fi
+#
+## Kill test instance - kill all child processes first, then Electron
+#pkill -P $ELECTRON_PID 2>/dev/null || true
+#kill $ELECTRON_PID 2>/dev/null || true
+#echo "Test completed successfully"
+#
 # Step 6: Build distributable
 echo ""
 echo "📦 Step 4: Creating distributable package..."

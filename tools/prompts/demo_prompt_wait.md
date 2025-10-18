@@ -4,7 +4,7 @@ As you make progress on the task, create visual updates by adding nodes to our m
 
 ## Usage:
 ```bash
-python add_new_node.py <parent_file> "<name>" "<content>" <relationship> [--color <color>]
+python3 add_new_node.py <parent_file> "<name>" "<content>" <relationship> [--color <color>]
 ```
 
 ### Arguments:
@@ -21,14 +21,14 @@ Please use this color when creating nodes with add_new_node.py by adding `--colo
 ### Examples:
 ```bash
 # Create a component node with this agent's color
-python add_new_node.py yc_demo/3_1_Agent_Module.md "Task Manager" "Manages task queues" is_a_component_of --color $AGENT_COLOR
+python3 add_new_node.py yc_demo/3_1_Agent_Module.md "Task Manager" "Manages task queues" is_a_component_of --color $AGENT_COLOR
 
 # Create a feature node with a specific color
-python add_new_node.py yc_demo/3_1_Agent_Module.md "Error Handler" "Handles exceptions" is_a_feature_of --color red
+python3 add_new_node.py yc_demo/3_1_Agent_Module.md "Error Handler" "Handles exceptions" is_a_feature_of --color red
 
 # For complex content (mermaid diagrams, code blocks with special characters):
 # Write to temp file first, then use $(cat) to avoid shell parsing issues
-echo "complex content here" > /tmp/content.md && python add_new_node.py parent.md "Title" "$(cat /tmp/content.md)" relationship --color $AGENT_COLOR
+echo "complex content here" > /tmp/content.md && python3 add_new_node.py parent.md "Title" "$(cat /tmp/content.md)" relationship --color $AGENT_COLOR
 ```
 
 ### Important Note:

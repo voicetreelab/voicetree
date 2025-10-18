@@ -6,7 +6,7 @@ The task will be given after these initial instructions.
 As you make progress on the task, create visual updates by adding nodes to our markdown tree using:
 
 ```bash
-python tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" "Progress Name" "What you accomplished" is_progress_of
+python3 tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" "Progress Name" "What you accomplished" is_progress_of
 ```
 
 This tool will automatically:
@@ -31,7 +31,7 @@ The source markdown file you've been opened from is $OBSIDIAN_SOURCE_NOTE in $OB
 The CWD you are in is $USER_ROOT_DIR/repos
 
 As you complete any actions, REMEMBER to grow the tree by using:
-python tools/add_new_node.py <parent_file> "Node Name" "Content" <relationship>
+python3 tools/add_new_node.py <parent_file> "Node Name" "Content" <relationship>
 
 
 To emphasize, YOUR specific task, or most relevant context (i.e. the source note you were spawned from) is:

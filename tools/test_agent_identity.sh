@@ -73,7 +73,7 @@ EOF
 
 # Test add_new_node with environment variables
 echo "Creating node with AGENT_NAME=$AGENT_NAME and AGENT_COLOR=$AGENT_COLOR"
-python add_new_node.py "$OBSIDIAN_VAULT_PATH/1_parent.md" "Test Progress" "Testing agent identity system" is_progress_of
+python3 add_new_node.py "$OBSIDIAN_VAULT_PATH/1_parent.md" "Test Progress" "Testing agent identity system" is_progress_of
 
 # Check if the created file has agent_name in frontmatter
 if [ -f "$OBSIDIAN_VAULT_PATH/1_1_Test_Progress.md" ]; then
@@ -83,7 +83,7 @@ fi
 
 # Test 4: Override with CLI parameters
 echo -e "\nTest 4: Creating node with --agent-name override..."
-python add_new_node.py "$OBSIDIAN_VAULT_PATH/1_parent.md" "Bob Task" "Task for Bob" is_subtask_of --color green --agent-name Bob
+python3 add_new_node.py "$OBSIDIAN_VAULT_PATH/1_parent.md" "Bob Task" "Task for Bob" is_subtask_of --color green --agent-name Bob
 
 if [ -f "$OBSIDIAN_VAULT_PATH/1_2_Bob_Task.md" ]; then
     echo -e "\nCreated node with override:"

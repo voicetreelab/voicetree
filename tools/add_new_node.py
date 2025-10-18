@@ -191,10 +191,10 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   # Regular agent use (color and name from env vars):
-  python add_new_node.py parent.md "Task Manager" "Manages tasks" is_a_component_of
+  python3 add_new_node.py parent.md "Task Manager" "Manages tasks" is_a_component_of
   
   # Orchestrator creating subtask with specific color and name:
-  python add_new_node.py parent.md "Bob Subtask" "Implement feature X" is_subtask_of --color green --agent-name Bob
+  python3 add_new_node.py parent.md "Bob Subtask" "Implement feature X" is_subtask_of --color green --agent-name Bob
   
 Note: Color/name taken from AGENT_COLOR/AGENT_NAME env vars unless overridden
         """

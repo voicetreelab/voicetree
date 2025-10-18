@@ -77,16 +77,21 @@ export default class TerminalManager {
       const customEnv = this.buildEnvironment(nodeMetadata, getWatchedDirectory);
 
       console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
+      console.log(`[TerminalManager] OBSIDIAN_VAULT_PATH in customEnv: ${customEnv.OBSIDIAN_VAULT_PATH}`);
+      console.log(`[TerminalManager] OBSIDIAN_SOURCE_NOTE in customEnv: ${customEnv.OBSIDIAN_SOURCE_NOTE}`);
       if (nodeMetadata) {
         console.log(`Node metadata:`, nodeMetadata);
       }
 
       // Create PTY instance
       // PATH is already fixed by fix-path in main.ts
+      // Use standard terminal dimensions (80×24) - close to actual frontend size
+      // Frontend will resize to actual dimensions after FitAddon calculates them
+      // CRITICAL: Don't use massive dimensions (800×1600) as resize triggers clear screen
       const ptyProcess = pty.spawn(shell, shellArgs, {
         name: 'xterm-256color',
         cols: 80,
-        rows: 24,
+        rows: 160,
         cwd: cwd,
         env: customEnv
       });
@@ -99,11 +104,11 @@ export default class TerminalManager {
 
       // Handle PTY data
       ptyProcess.onData((data: string) => {
-        console.log(`[TerminalManager] onData called for ${terminalId}, data length: ${data.length}`);
-        console.log(`[TerminalManager] sender.id: ${sender.id}, sender.isDestroyed: ${sender.isDestroyed()}`);
+        // console.log(`[TerminalManager] onData called for ${terminalId}, data length: ${data.length}`);
+        // console.log(`[TerminalManager] sender.id: ${sender.id}, sender.isDestroyed: ${sender.isDestroyed()}`);
         try {
           sender.send('terminal:data', terminalId, data);
-          console.log(`[TerminalManager] Successfully sent data to renderer`);
+          // console.log(`[TerminalManager] Successfully sent data to renderer`);
         } catch (error) {
           console.error(`Failed to send terminal data for ${terminalId}:`, error);
         }
@@ -262,13 +267,28 @@ export default class TerminalManager {
     nodeMetadata: NodeMetadata | undefined,
     getWatchedDirectory: () => string | null
   ): NodeJS.ProcessEnv {
+    console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
     const customEnv = { ...process.env };
+
+    // Extra env vars (e.g., agent info)
+    if (nodeMetadata.extraEnv) {
+    console.log(`[TerminalManager] extraEnv:`, nodeMetadata.extraEnv);
+    if (nodeMetadata.extraEnv.OBSIDIAN_VAULT_PATH) {
+      console.log(`[TerminalManager] WARNING: extraEnv contains OBSIDIAN_VAULT_PATH: ${nodeMetadata.extraEnv.OBSIDIAN_VAULT_PATH}`);
+    }
+    Object.assign(customEnv, nodeMetadata.extraEnv);
+    }
+
+    // Always set vault path from watched directory
+    const watchedDir = getWatchedDirectory();
+    const vaultPath = watchedDir || process.cwd();
+    console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
+    console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
+    customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
 
     if (nodeMetadata) {
       // Set node-based environment variables
       if (nodeMetadata.filePath) {
-        const vaultPath = getWatchedDirectory() || process.cwd();
-        customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
 
         // Convert absolute path to relative path from vault root if needed
         let relativePath = nodeMetadata.filePath;
@@ -291,10 +311,7 @@ export default class TerminalManager {
         customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
       }
 
-      // Extra env vars (e.g., agent info)
-      if (nodeMetadata.extraEnv) {
-        Object.assign(customEnv, nodeMetadata.extraEnv);
-      }
+
     }
 
     return customEnv;

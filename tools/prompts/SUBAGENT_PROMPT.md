@@ -81,7 +81,7 @@ Also keep the checkboxes in your main task file up to date as you progress.
 
 ```bash
 # Creating detailed progress nodes with Mermaid diagrams (color automatically inherited from AGENT_COLOR)
-python VoiceTree/tools/add_new_node.py <parent_file> "Progress Update" "## Summary\n[What was accomplished]\n\n## Technical Details\n- **Files Modified**: [list]\n- **Key Changes**: [changes]\n\n## Architecture Diagram\n```mermaid\nflowchart TD\n    A[Input] --> B[Process]\n    B --> C[Output]\n```\n\n## Impact\n[System effects]" is_progress_of
+python3 VoiceTree/tools/add_new_node.py <parent_file> "Progress Update" "## Summary\n[What was accomplished]\n\n## Technical Details\n- **Files Modified**: [list]\n- **Key Changes**: [changes]\n\n## Architecture Diagram\n```mermaid\nflowchart TD\n    A[Input] --> B[Process]\n    B --> C[Output]\n```\n\n## Impact\n[System effects]" is_progress_of
 ```
 
 The tool will automatically:

@@ -98,3 +98,12 @@
 .floating-window-node {
   opacity: 0;
 }
+
+/* Terminal-specific fixes (Oren's scroll anchoring fix) */
+.fw-terminal,
+.fw-terminal .xterm,
+.fw-terminal .xterm-viewport,
+.fw-terminal .xterm-screen {
+  overflow-anchor: none !important;
+  overscroll-behavior: contain !important;
+}

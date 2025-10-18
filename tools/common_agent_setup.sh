@@ -3,9 +3,9 @@
 # Common setup functions for agent scripts
 
 # Load VoiceTree configuration if available
-if [ -f "$HOME/.config/voicetree/config" ]; then
-    source "$HOME/.config/voicetree/config"
-fi
+#if [ -f "$HOME/.config/voicetree/config" ]; then
+#    source "$HOME/.config/voicetree/config"
+#fi
 
 # Function to check required environment variables
 check_obsidian_env() {
@@ -118,7 +118,7 @@ generate_dependency_graph() {
     # Run the graph traversal tool, capturing stderr for error reporting
     # Get the directory where this script is located
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    ERROR_OUTPUT=$(python "$SCRIPT_DIR/graph_dependency_traversal_and_accumulate_graph_content.py" "$OBSIDIAN_VAULT_PATH" "$OBSIDIAN_SOURCE_NOTE" 2>&1)
+    ERROR_OUTPUT=$(python3 "$SCRIPT_DIR/graph_dependency_traversal_and_accumulate_graph_content.py" "$OBSIDIAN_VAULT_PATH" "$OBSIDIAN_SOURCE_NOTE" 2>&1)
     EXIT_CODE=$?
     
     # Check if accumulated.md was created successfully in /tmp/

@@ -13,30 +13,30 @@ The End-to-End Test Lab provides:
 ## Quick Start
 
 ### Prerequisites
-- Python 3.8+
+- python3 3.8+
 - Claude CLI installed and configured
 - VoiceTree repository setup
 - Access to `$USER_ROOT_DIR/repos/VoiceTree` (or update paths in configuration)
 
 ### Installation
-No additional installation required. The test lab uses only standard Python libraries and the existing VoiceTree environment.
+No additional installation required. The test lab uses only standard python3 libraries and the existing VoiceTree environment.
 
 ### Basic Usage
 
 Run all test scenarios:
 ```bash
 cd $USER_ROOT_DIR/repos/VoiceTree/tools/test_lab
-python run_tests.py
+python3 run_tests.py
 ```
 
 Run a specific scenario:
 ```bash
-python run_tests.py --scenario "Simple Progress Node Creation"
+python3 run_tests.py --scenario "Simple Progress Node Creation"
 ```
 
 List available scenarios:
 ```bash
-python run_tests.py --list
+python3 run_tests.py --list
 ```
 
 ## Configuration
@@ -74,7 +74,7 @@ Default validation includes:
 ### run_tests.py Options
 
 ```bash
-python run_tests.py [OPTIONS]
+python3 run_tests.py [OPTIONS]
 
 Options:
   --scenario TEXT     Run specific test scenario by name
@@ -88,17 +88,17 @@ Options:
 
 Run with verbose output:
 ```bash
-python run_tests.py --verbose
+python3 run_tests.py --verbose
 ```
 
 Use custom configuration:
 ```bash
-python run_tests.py --config my_scenarios.json
+python3 run_tests.py --config my_scenarios.json
 ```
 
 Run specific scenario with verbose output:
 ```bash
-python run_tests.py --scenario "Agent Subtask Creation" --verbose
+python3 run_tests.py --scenario "Agent Subtask Creation" --verbose
 ```
 
 ## Test Scenarios
@@ -298,5 +298,5 @@ For issues with the test lab:
 
 - **Test Lab Version**: 1.0
 - **Compatible with**: VoiceTree Agent System v2.0+
-- **Python Requirements**: 3.8+
+- **python3 Requirements**: 3.8+
 - **Claude CLI**: Latest version recommended

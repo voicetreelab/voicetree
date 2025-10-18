@@ -12,8 +12,6 @@ from typing import Dict
 from typing import List
 from typing import Set
 
-import nltk
-from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -28,24 +26,11 @@ from backend.markdown_tree_manager.markdown_to_tree.file_operations import (
 
 # --- Setup and Text Preprocessing ---
 
-def setup_nltk_stopwords():
-    """Ensure NLTK stopwords are downloaded."""
-    try:
-        nltk.data.find('corpora/stopwords')
-    except nltk.downloader.DownloadError:
-        print("Downloading NLTK stopwords...")
-        nltk.download('stopwords', quiet=True)
-
-setup_nltk_stopwords()
-STOP_WORDS = set(stopwords.words('english'))
-
 def preprocess_text(text: str) -> str:
     """Cleans and tokenizes text for TF-IDF."""
     text = text.lower()
     text = re.sub(r'[^a-z\s]', '', text)  # Remove punctuation and numbers
-    tokens = text.split()
-    tokens = [word for word in tokens if word not in STOP_WORDS]
-    return ' '.join(tokens)
+    return text
 
 # --- TF-IDF Search ---
 
@@ -77,7 +62,7 @@ def find_top_relevant_nodes(
         print("No content in candidate files for inverse search.")
         return []
 
-    vectorizer = TfidfVectorizer(preprocessor=preprocess_text)
+    vectorizer = TfidfVectorizer(preprocessor=preprocess_text, stop_words='english')
     tfidf_matrix = vectorizer.fit_transform(corpus_contents)
     
     # Transform the single aggregated document of traversed content
