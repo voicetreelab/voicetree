@@ -246,12 +246,12 @@ export function useFileWatcher({
     setNodeCount(nodeCount);
     setEdgeCount(cy.edges().length);
 
-    // Fit viewport when going from 0 to 1 node with generous padding
-    if (nodeCount === 1) {
+    // Fit viewport when going from ghost root to ghost root + first real node
+    if (nodeCount <= 3) { // Ghost root + first real node
       console.log('[Layout] First node added, fitting viewport with padding');
       setTimeout(() => {
         cy.fit(undefined, 100); // 100px padding for comfortable zoom level
-      }, 300); // 300ms delay to avoid race condition with positioning
+      }, 50); // 50ms delay to avoid race condition with positioning
     }
 
     // Auto-layout will handle layout automatically via event listeners
