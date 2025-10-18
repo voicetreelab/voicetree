@@ -431,7 +431,17 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
           }
         },
         onCopyNodeName: (nodeId: string) => {
-          navigator.clipboard.writeText(nodeId);
+          // TODO: This O(n) linear search is terrible!
+          // Find the absolute file path for this node
+          let absolutePath: string | undefined;
+          for (const [path] of markdownFiles.current) {
+            if (normalizeFileId(path) === nodeId) {
+              absolutePath = path;
+              break;
+            }
+          }
+          // Copy absolute path if found, fallback to nodeId
+          navigator.clipboard.writeText(absolutePath || nodeId);
         },
         onOpenTerminal: (nodeId: string) => {
           // Find the file path for this node
