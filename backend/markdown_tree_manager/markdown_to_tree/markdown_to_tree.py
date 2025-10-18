@@ -174,10 +174,24 @@ def load_markdown_tree(markdown_dir: str) -> MarkdownTree:
 
     # Set the next_node_id based on the highest existing ID
     if tree_dict:
-        markdown_tree.next_node_id = max(tree_dict.keys()) + 1
+        # Filter for valid integer IDs only
+        int_keys = []
+        for k in tree_dict.keys():
+            try:
+                int_keys.append(int(k))
+            except (ValueError, TypeError):
+                logging.warning(f"Skipping non-integer node ID: {k}")
 
-    # Clean up stale embeddings in ChromaDB
-    # _cleanup_stale_embeddings(markdown_tree)  # TODO: Function needs to be implemented
+        if int_keys:
+            markdown_tree.next_node_id = max(int_keys) + 1
+        else:
+            markdown_tree.next_node_id = 1
+
+    # Sync loaded nodes to embeddings
+    if markdown_tree._embedding_manager and markdown_tree.tree:
+        logging.info(f"Syncing {len(markdown_tree.tree)} loaded nodes to embeddings...")
+        markdown_tree._embedding_manager.sync_all_embeddings()
+        logging.info("Embedding sync complete")
 
     return markdown_tree
 

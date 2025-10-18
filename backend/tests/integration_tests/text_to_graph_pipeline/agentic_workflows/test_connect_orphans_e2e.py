@@ -251,7 +251,8 @@ class TestConnectOrphansE2E:
 
         def enhanced_create_actions(response, roots):
             """Enhanced version that includes UpdateActions to set parent_id"""
-            actions = original_create_actions(response, roots)
+            # Unpack the tuple returned by original_create_actions
+            actions, parent_child_mapping = original_create_actions(response, roots)
 
             # For each CreateAction (parent node), add UpdateActions for children
             enhanced_actions = []
@@ -281,13 +282,13 @@ class TestConnectOrphansE2E:
                                 )
                                 enhanced_actions.append(update_action)
 
-            return enhanced_actions
+            return enhanced_actions, parent_child_mapping
 
         # Temporarily replace the method
         agent.create_connection_actions = enhanced_create_actions
 
         # Run the agent
-        actions = await agent.run(tree, max_roots_to_process=15)
+        actions, _ = await agent.run(tree, max_roots_to_process=15)
 
         print(f"Generated {len(actions)} actions")
 

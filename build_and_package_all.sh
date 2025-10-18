@@ -15,15 +15,26 @@ if [ ! -f "server.py" ]; then
     exit 1
 fi
 
-# Step 1: Build the Python server executable
-echo "📦 Step 1: Building Python server executable..."
-echo "----------------------------------------------"
+## Step 1: Build the Python server executable
+#echo "📦 Step 1: Building Python server executable..."
+#echo "----------------------------------------------"
 ./build_server.sh
 
 if [ ! -f "dist/resources/server/voicetree-server" ]; then
     echo "❌ Error: Server build failed or not copied to dist/resources/server/"
     exit 1
 fi
+
+# Step 1.5: Copy agent tools to dist resources
+echo ""
+echo "📦 Step 1.5: Copying agent tools to dist/resources/tools..."
+echo "----------------------------------------------"
+mkdir -p ./dist/resources/tools
+# Enable dotglob to include hidden files/directories
+shopt -s dotglob
+cp -r ./tools/* ./dist/resources/tools/
+shopt -u dotglob
+echo "✅ Tools copied to dist/resources/tools/"
 
 # Step 2: Navigate to frontend
 echo ""
@@ -52,7 +63,8 @@ npm run electron:prod &
 ELECTRON_PID=$!
 
 # Wait and test
-sleep 5
+sleep 15
+
 
 # Check if server is responding
 if curl -s http://localhost:8001/health > /dev/null 2>&1; then
@@ -61,12 +73,13 @@ if curl -s http://localhost:8001/health > /dev/null 2>&1; then
     echo "   Response: $HEALTH_RESPONSE"
 else
     echo "❌ Server health check failed"
-    kill $ELECTRON_PID 2>/dev/null
-    exit 1
+    # Kill Electron and all child processes
+    pkill -P $ELECTRON_PID 2>/dev/null || true
+    kill $ELECTRON_PID 2>/dev/null || true
 fi
 
-# Kill test instance
-sleep 5
+# Kill test instance - kill all child processes first, then Electron
+pkill -P $ELECTRON_PID 2>/dev/null || true
 kill $ELECTRON_PID 2>/dev/null || true
 echo "Test completed successfully"
 

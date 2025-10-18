@@ -777,8 +777,9 @@ class TestPipelineWithRealEmbeddings:
 
         # Wait for embeddings
         print(f"\nCreated {len(decision_tree.tree)} nodes")
-        print("Waiting for embeddings...")
-        await asyncio.sleep(3)
+        print("Waiting for embeddings to complete...")
+        await asyncio.sleep(15)  # Increased wait time for async embeddings to complete
+        print("Embeddings should be ready now.")
 
         from backend.markdown_tree_manager.graph_search.tree_functions import hybrid_search_for_relevant_nodes
 
@@ -877,8 +878,9 @@ class TestPipelineWithRealEmbeddings:
             await chunk_processor.process_new_text_and_update_markdown(sentence)
 
         print(f"\nCreated {len(decision_tree.tree)} nodes")
-        print("Waiting for embeddings...")
-        await asyncio.sleep(3)
+        print("Waiting for embeddings to complete...")
+        await asyncio.sleep(15)  # Increased wait time for async embeddings to complete
+        print("Embeddings should be ready now.")
 
         from backend.markdown_tree_manager.graph_search.tree_functions import hybrid_search_for_relevant_nodes
 

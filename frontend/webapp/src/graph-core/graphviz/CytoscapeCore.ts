@@ -18,20 +18,8 @@ export class CytoscapeCore {
     this.container = container;
     this.styleService = new StyleService();
 
-    // Initialize cytoscape with styling
-    const cytoscapeOptions: CytoscapeOptions = {
-      elements: elements,
-      style: this.styleService.getCombinedStylesheet(),
-      minZoom: MIN_ZOOM,
-      maxZoom: MAX_ZOOM,
-      ...(headless ? { headless: true } : { container: container })
-    };
-
-    this.viz = cytoscape(cytoscapeOptions);
-
-    // Add invisible ghost root node for layout algorithm
-    // This connects orphaned nodes to prevent disconnected components
-    this.viz.add({
+    // Add ghost root node as the first element to ensure it exists before any edges reference it
+    const ghostRootNode: NodeDefinition = {
       data: {
         id: GHOST_ROOT_ID,
         label: '',
@@ -39,7 +27,18 @@ export class CytoscapeCore {
         isGhostRoot: true
       },
       position: { x: 0, y: 0 }
-    });
+    };
+
+    // Initialize cytoscape with ghost root first, then user elements
+    const cytoscapeOptions: CytoscapeOptions = {
+      elements: [ghostRootNode, ...elements],
+      style: this.styleService.getCombinedStylesheet(),
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+      ...(headless ? { headless: true } : { container: container })
+    };
+
+    this.viz = cytoscape(cytoscapeOptions);
 
     // Initialize animation service with cy instance (sets up event listeners)
     this.animationService = new BreathingAnimationService(this.viz);

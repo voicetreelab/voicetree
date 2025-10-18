@@ -1,0 +1,6 @@
+Collecting rapidfuzz
+  Downloading rapidfuzz-3.13.0-cp39-cp39-macosx_10_9_x86_64.whl.metadata (12 kB)
+Downloading rapidfuzz-3.13.0-cp39-cp39-macosx_10_9_x86_64.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 30.3 MB/s eta 0:00:00
+Installing collected packages: rapidfuzz
+Successfully installed rapidfuzz-3.13.0

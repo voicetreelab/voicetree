@@ -23,7 +23,7 @@ class Node:
         self.transcript_history = ""
         self.id: int = node_id
         self.content: str = content
-        self.parent_id: int | None = parent_id
+        self.parent_id: Optional[int] = parent_id
         self.children: list[int] = []
         self.relationships: dict[int, str] = {}
         self.created_at: datetime = datetime.now()
@@ -121,6 +121,14 @@ class MarkdownTree:
             def add_nodes(self, nodes: dict[int, 'Node']) -> None:
                 pass  # No-op
 
+            def get_stats(self) -> dict[str, Any]:
+                """Provide minimal stats interface expected by tests."""
+                return {
+                    "status": "mock",
+                    "pending_tasks": 0,
+                    "processed_nodes": 0
+                }
+
         return MockEmbeddingManager()
 
     # Method removed - use load_markdown_tree() from markdown_to_tree.py instead
@@ -131,7 +139,12 @@ class MarkdownTree:
         Args:
             node_id: The node ID to update embeddings for
         """
-        if not self._embedding_manager or node_id not in self.tree:
+        if not self._embedding_manager:
+            logging.debug(f"Skipping embedding update for node {node_id}: no embedding manager")
+            return
+
+        if node_id not in self.tree:
+            logging.warning(f"Cannot update embedding for node {node_id}: not in tree")
             return
 
         node = self.tree[node_id]
@@ -163,7 +176,7 @@ class MarkdownTree:
             except Exception as e:
                 logging.error(f"Failed to write markdown for nodes {node_ids}: {e}")
 
-    def create_new_node(self, name: str, parent_node_id: int | None, content: str, summary : str, relationship_to_parent: str = "child of") -> int:
+    def create_new_node(self, name: str, parent_node_id: Optional[int], content: str, summary : str, relationship_to_parent: str = "child of") -> int:
         if parent_node_id is not None and parent_node_id not in self.tree:
             logging.error(f"Warning: Trying to create a node with non-existent parent ID: {parent_node_id}")
             parent_node_id = None
@@ -304,7 +317,7 @@ class MarkdownTree:
 
         return None
 
-    def _find_similar_child(self, name: str, parent_node_id: int | None, similarity_threshold: float = 0.8) -> Optional[int]:
+    def _find_similar_child(self, name: str, parent_node_id: Optional[int], similarity_threshold: float = 0.8) -> Optional[int]:
         """
         Check if a similar node already exists as a child of the given parent.
 
@@ -580,4 +593,3 @@ class MarkdownTree:
         logging.info(f"Removed node {node_id}: {node.title}")
 
         return True
-

@@ -16,6 +16,13 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.chunk_processor im
 nest_asyncio.apply()
 
 
+# Test marker for cloud function tests
+pytestmark_cloud = pytest.mark.skipif(
+    os.environ.get("USE_CLOUD_FUNCTIONS", "false").lower() != "true",
+    reason="Cloud function tests require USE_CLOUD_FUNCTIONS=true"
+)
+
+
 class TestIntegration:
     @pytest.fixture(autouse=True)
     def setup_method(self, tmp_path):
@@ -351,4 +358,55 @@ class TestIntegration:
         except Exception as e:
             print(f"⚠️ Error clearing workflow state: {e}")
             # This might fail if LangGraph is not available, which is okay
+
+
+@pytest.mark.cloud_functions
+class TestIntegrationWithCloudFunctions(TestIntegration):
+    """
+    Test variant that uses deployed cloud functions instead of local agents.
+
+    Run with: pytest backend/tests/integration_tests/live_system/test_system_llm_live.py::TestIntegrationWithCloudFunctions -v -m cloud_functions
+
+    This ensures that:
+    1. Cloud functions are correctly deployed
+    2. HTTP clients work properly
+    3. Request/response serialization is correct
+    4. End-to-end integration works with remote functions
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_method(self, tmp_path):
+        """Override setup to enable cloud functions"""
+        # Set environment variable to use cloud functions
+        original_env = os.environ.get("USE_CLOUD_FUNCTIONS")
+        os.environ["USE_CLOUD_FUNCTIONS"] = "true"
+
+        # Initialize test setup
+        self.decision_tree = MarkdownTree()
+        self.output_dir = str(tmp_path / "test_output")
+        self.cleanUp()
+        self.converter = TreeToMarkdownConverter(self.decision_tree.tree)
+        self.processor = ChunkProcessor(
+            self.decision_tree,
+            converter=self.converter,
+            output_dir=self.output_dir
+        )
+        os.makedirs(self.output_dir, exist_ok=True)
+        log_file_path = "voicetree.log"
+        if os.path.exists(log_file_path):
+            with open(log_file_path, 'w') as f:
+                f.truncate()
+
+        print("🌩️  Running test with CLOUD FUNCTIONS enabled")
+
+        yield
+
+        # Cleanup
+        self.processor.clear_workflow_state()
+
+        # Restore original environment
+        if original_env is None:
+            os.environ.pop("USE_CLOUD_FUNCTIONS", None)
+        else:
+            os.environ["USE_CLOUD_FUNCTIONS"] = original_env
 

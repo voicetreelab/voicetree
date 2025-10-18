@@ -6,6 +6,7 @@
  * 4. Terminals resize without visual artifacts or text loss
  * 5. Terminal shadow nodes have correct parent relationships for layout
  * 6. Creating terminals after initial load triggers incremental layout
+ * 7. Terminals spawn in Application Support tools directory with accessible tools
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -1041,5 +1042,133 @@ test.describe('Terminal E2E Tests', () => {
     // BEHAVIOR ASSERTION: Should see characters accumulating on same line
     // The test might be too strict - if we typed characters they should appear somewhere
     expect(wrappingCheck.foundProgressiveLine).toBe(true);
+  });
+
+  test('should spawn terminal in Application Support tools directory with accessible tools', async ({ appWindow, tempDir }) => {
+    // This test verifies the tools directory bundling implementation:
+    // - Terminal spawns in Application Support tools directory (not hardcoded ~/repos path)
+    // - Tools are accessible from the spawned terminal
+    // - setupToolsDirectory() successfully copied tools on first launch
+
+    // Start file watching FIRST
+    await appWindow.evaluate(async (dir) => {
+      const window = globalThis as ExtendedWindow;
+      if (window.electronAPI) {
+        return window.electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for initial scan to complete
+    await appWindow.waitForTimeout(2000);
+
+    // Create test markdown file
+    await fs.writeFile(
+      path.join(tempDir, 'test-node.md'),
+      `# Test Node\n\nTest node for tools directory verification.`
+    );
+
+    // Wait for graph to load
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const window = globalThis as ExtendedWindow;
+        const cy = window.cytoscapeInstance;
+        return cy && cy.nodes().length > 0;
+      });
+    }, {
+      message: 'Waiting for graph nodes to load',
+      timeout: 10000
+    }).toBe(true);
+
+    // Open terminal using test helper
+    await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
+      const cy = window.cytoscapeInstance;
+
+      if (testHelpers && cy && cy.nodes().length > 0) {
+        const node = cy.nodes().first();
+        const nodeId = node.id();
+        testHelpers.createTerminal(nodeId);
+      }
+    });
+
+    // Wait for terminal to open
+    await appWindow.waitForTimeout(1000);
+
+    // Wait for terminal window to open
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const terminals = document.querySelectorAll('.cy-floating-window');
+        for (const terminal of terminals) {
+          const title = terminal.querySelector('.cy-floating-window-title-text');
+          if (title && title.textContent?.includes('Terminal')) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }, {
+      message: 'Waiting for terminal window to open',
+      timeout: 5000
+    }).toBe(true);
+
+    // Wait for xterm to initialize
+    await appWindow.waitForTimeout(1000);
+
+    // Wait for terminal to be ready (check for prompt or any content)
+    await expect.poll(async () => {
+      const content = await getTerminalContent(appWindow);
+      return content.length > 0;
+    }, {
+      message: 'Waiting for terminal to show prompt',
+      timeout: 10000
+    }).toBe(true);
+
+    // Focus terminal and check working directory
+    await focusTerminal(appWindow);
+    await appWindow.keyboard.type('pwd');
+    await appWindow.keyboard.press('Enter');
+
+    // Wait for output
+    await appWindow.waitForTimeout(1000);
+
+    // Get terminal content
+    const pwdContent = await getTerminalContent(appWindow);
+    console.log('Terminal pwd output:', pwdContent);
+
+    // CRITICAL ASSERTION 1: Working directory should be Application Support tools path
+    // Should contain "Application Support/VoiceTree/tools" or "Application Support/Electron/tools"
+    expect(pwdContent).toMatch(/Application Support.*tools/i);
+
+    // Wait before next command
+    await appWindow.waitForTimeout(500);
+
+    // CRITICAL ASSERTION 2: Verify tools are accessible
+    // Check for add_new_node.py which should exist in the tools directory
+    await appWindow.keyboard.type('ls add_new_node.py');
+    await appWindow.keyboard.press('Enter');
+
+    // Wait for output
+    await appWindow.waitForTimeout(1000);
+
+    const lsContent = await getTerminalContent(appWindow);
+    console.log('Terminal ls output:', lsContent);
+
+    // Tool file should be found
+    expect(lsContent).toContain('add_new_node.py');
+
+    // CRITICAL ASSERTION 3: Verify multiple tools exist
+    await appWindow.waitForTimeout(500);
+    await appWindow.keyboard.type('ls *.py | wc -l');
+    await appWindow.keyboard.press('Enter');
+
+    await appWindow.waitForTimeout(1000);
+
+    const toolCountContent = await getTerminalContent(appWindow);
+    console.log('Terminal tool count:', toolCountContent);
+
+    // Should have multiple Python files (add_new_node.py, generate_agent_script.py, etc.)
+    // Expecting at least 5+ Python tool files
+    expect(toolCountContent).toMatch(/[5-9]|[1-9]\d+/); // Match 5 or higher
   });
 });

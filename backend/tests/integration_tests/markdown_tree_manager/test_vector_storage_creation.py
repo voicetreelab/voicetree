@@ -68,6 +68,9 @@ class TestVectorStorageCreation:
                 assert tree._embedding_manager.enabled
                 assert tree._embedding_manager.vector_store is not None
 
+                # Ensure we start with an empty collection (test isolation)
+                tree._embedding_manager.clear_all_embeddings()
+
                 # Create test nodes with different content
                 node1 = tree.create_new_node(
                     "Python Programming",
@@ -104,7 +107,7 @@ class TestVectorStorageCreation:
                 assert len(search_results) > 0
 
                 # search_similar_nodes returns node IDs directly
-                assert node1.id in search_results
+                assert node1 in search_results
 
         finally:
             # Restore original test mode
@@ -124,6 +127,10 @@ class TestVectorStorageCreation:
             with tempfile.TemporaryDirectory() as temp_dir:
                 # First session: create tree and add nodes
                 tree1 = MarkdownTree(output_dir=temp_dir)
+
+                # Ensure we start with an empty collection
+                if tree1._embedding_manager:
+                    tree1._embedding_manager.clear_all_embeddings()
                 tree1.create_new_node(
                     "Data Science",
                     None,

@@ -171,8 +171,9 @@ def get_most_relevant_nodes(decision_tree: Any, limit: int, query: Optional[str]
                 logging.info(f"Semantically related nodes are: {node_names}")
 
     # Return Node objects (copies) in consistent order
+    # Sort by string representation to handle mixed int/str node IDs
     result = []
-    for node_id in sorted(selected):
+    for node_id in sorted(selected, key=str):
         # Only add nodes that actually exist in the tree
         if node_id in decision_tree.tree:
             result.append(deepcopy(decision_tree.tree[node_id]))
