@@ -168,6 +168,7 @@ class MarkdownTree:
         """Write markdown files for the specified nodes"""
         if node_ids:
             try:
+                logging.info(f"MarkdownTree._write_markdown_for_nodes: self.output_dir='{self.output_dir}' (absolute: {os.path.abspath(self.output_dir)})")
                 self.markdown_converter.convert_nodes(
                     output_dir=self.output_dir,
                     nodes_to_update=set(node_ids)

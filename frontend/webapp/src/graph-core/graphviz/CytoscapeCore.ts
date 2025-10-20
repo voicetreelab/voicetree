@@ -29,9 +29,25 @@ export class CytoscapeCore {
       position: { x: 0, y: 0 }
     };
 
-    // Initialize cytoscape with ghost root first, then user elements
+    // Filter out any ghost edges from initial elements to prevent "nonexistent source" errors
+    // Ghost edges should only be created by GraphMutator when adding orphan nodes
+    const filteredElements = elements.filter(el => {
+      // Keep all nodes and non-ghost edges
+      if ('source' in el.data && 'target' in el.data) {
+        // It's an edge - filter out ghost edges
+        const edgeData = el.data as any;
+        const isGhostEdge = edgeData.isGhostEdge || edgeData.id?.startsWith(`${GHOST_ROOT_ID}->`);
+        if (isGhostEdge) {
+          console.warn(`[CytoscapeCore] Filtering out ghost edge from initial elements: ${edgeData.id}`);
+        }
+        return !isGhostEdge;
+      }
+      return true; // Keep all nodes
+    });
+
+    // Initialize cytoscape with ghost root first, then filtered user elements
     const cytoscapeOptions: CytoscapeOptions = {
-      elements: [ghostRootNode, ...elements],
+      elements: [ghostRootNode, ...filteredElements],
       style: this.styleService.getCombinedStylesheet(),
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,

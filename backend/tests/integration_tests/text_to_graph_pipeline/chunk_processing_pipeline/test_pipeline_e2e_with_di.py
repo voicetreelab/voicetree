@@ -199,13 +199,12 @@ class TestPipelineE2EWithDI:
     async def test_pipeline_with_mock_agent(self):
         """Test the full pipeline with a mock agent"""
         # Create components
-        decision_tree = MarkdownTree()
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
 
         # Create ChunkProcessor with injected mock workflow
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
-            output_dir=self.output_dir,
             workflow=mock_workflow
         )
 
@@ -271,12 +270,11 @@ class TestPipelineE2EWithDI:
     @pytest.mark.asyncio
     async def test_text_preservation(self):
         """Test that all completed text is preserved through the pipeline"""
-        decision_tree = MarkdownTree()
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
 
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
-            output_dir=self.output_dir,
             workflow=mock_workflow
         )
 
@@ -322,12 +320,11 @@ class TestPipelineE2EWithDI:
     @pytest.mark.asyncio
     async def test_tree_structure_integrity(self):
         """Test that the tree structure maintains integrity"""
-        decision_tree = MarkdownTree()
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
 
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
-            output_dir=self.output_dir,
             workflow=mock_workflow
         )
 
@@ -361,12 +358,11 @@ class TestPipelineE2EWithDI:
     @pytest.mark.asyncio
     async def test_100_random_sentences_with_invariants(self):
         """Test with 100 random sentences and verify invariants."""
-        decision_tree = MarkdownTree()
+        decision_tree = MarkdownTree(output_dir=self.output_dir)
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
 
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
-            output_dir=self.output_dir,
             workflow=mock_workflow
         )
 
@@ -448,12 +444,11 @@ async def test_empty_text_handling():
     """Test handling of empty text input"""
     # Use temporary directory for test output
     with tempfile.TemporaryDirectory(prefix="test_empty_") as temp_dir:
-        decision_tree = MarkdownTree()
+        decision_tree = MarkdownTree(output_dir=temp_dir)
         mock_workflow = MockTreeActionDeciderWorkflow(decision_tree)
 
         chunk_processor = ChunkProcessor(
             decision_tree=decision_tree,
-            output_dir=temp_dir,
             workflow=mock_workflow
         )
 

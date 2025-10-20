@@ -411,14 +411,14 @@ export const Terminal: React.FC<TerminalProps> = ({ nodeMetadata }) => {
   return (
     <div
       ref={terminalRef}
-      className="fw-terminal"
+      // className="fw-terminal"
       style={{
         height: '100%',
         width: '100%',
-        overflow: 'hidden',
-        // CRITICAL: Oren's CSS fix - kill browser scroll anchoring
-        overflowAnchor: 'none',
-        overscrollBehavior: 'contain'
+        // overflow: 'hidden',
+        // // CRITICAL: Oren's CSS fix - kill browser scroll anchoring
+        // overflowAnchor: 'none',
+        // overscrollBehavior: 'contain'
       }}
     />
   );

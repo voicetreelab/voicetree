@@ -52,13 +52,15 @@ def initialize_tree_state(directory_path: str) -> tuple:
         tree = MarkdownTree(output_dir=directory_path)
 
     converter = TreeToMarkdownConverter(tree.tree)
-    processor = ChunkProcessor(tree, converter=converter, output_dir=directory_path)
+    processor = ChunkProcessor(tree, converter=converter)
 
     return tree, converter, processor, directory_path
 
-# Initialize decision tree - load existing markdown files or create empty tree
-markdown_dir = os.environ.get("VOICETREE_MARKDOWN_DIR", "markdownTreeVault")
-decision_tree, converter, processor, markdown_dir = initialize_tree_state(markdown_dir)
+# Initialize decision tree - will be set when /load-directory is called
+decision_tree = None
+converter = None
+processor = None
+markdown_dir = None
 
 # Clear debug logs at startup
 clear_debug_logs()
@@ -99,13 +101,17 @@ async def buffer_processing_loop():
                     simple_buffer = ""
 
                 if text_to_process:
-                    logger.info(f"Processing buffer text ({len(text_to_process)} chars)...")
-                    print(f"Buffer full, processing {len(text_to_process)} chars")
+                    if processor is None:
+                        logger.warning("Skipping buffer processing - no directory loaded yet. Text will be lost.")
+                        # Don't restore text to buffer - it will be lost
+                    else:
+                        logger.info(f"Processing buffer text ({len(text_to_process)} chars)...")
+                        print(f"Buffer full, processing {len(text_to_process)} chars")
 
-                    # Offload LLM work so new HTTP requests can be served concurrently.
-                    await loop.run_in_executor(executor, run_llm_in_thread, text_to_process)
+                        # Offload LLM work so new HTTP requests can be served concurrently.
+                        await loop.run_in_executor(executor, run_llm_in_thread, text_to_process)
 
-                    logger.info("Buffer processing completed")
+                        logger.info("Buffer processing completed")
 
                 # Small delay to prevent CPU spinning
                 await asyncio.sleep(0.1)
@@ -202,7 +208,8 @@ async def send_text(request: TextRequest):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "nodes": len(decision_tree.tree)}
+    node_count = len(decision_tree.tree) if decision_tree else 0
+    return {"status": "healthy", "nodes": node_count}
 
 @app.get("/buffer-status")
 async def buffer_status():

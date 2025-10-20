@@ -107,24 +107,10 @@ class ChromaDBVectorStore:
 
         self.embedding_function = None
 
-        if use_embeddings:
-            use_local = os.getenv("VOICETREE_USE_LOCAL_EMBEDDINGS", "true").lower() == "true"
 
-            if use_local:
                 # Chroma's DefaultEmbeddingFunction wraps an ONNX MiniLM model and auto-downloads it on first use.
-                self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
-                logger.info("Configured Chroma DefaultEmbeddingFunction (ONNX MiniLM local embeddings)")
-            else:
-                api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-                if not api_key:
-                    raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set")
-
-                self.embedding_function = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-                    api_key=api_key,
-                    model_name="models/gemini-embedding-001",
-                    task_type="SEMANTIC_SIMILARITY"
-                )
-                logger.info("Configured Gemini API embeddings")
+        self.embedding_function = embedding_functions.DefaultEmbeddingFunction()
+        logger.info("Configured Chroma DefaultEmbeddingFunction (ONNX MiniLM local embeddings)")
 
         # Get or create collection
         self._initialize_collection()

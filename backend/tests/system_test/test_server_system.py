@@ -20,6 +20,8 @@ class TestServerSystem:
         self.server_process = None
         self.server_port = 8002  # Use different port to avoid conflicts
         self.server_url = f"http://localhost:{self.server_port}"
+        self.server_stdout_file = None
+        self.server_stderr_file = None
 
         # Clean and create test output directory
         shutil.rmtree(self.test_output_dir, ignore_errors=True)
@@ -46,6 +48,8 @@ class TestServerSystem:
             del os.environ["VOICETREE_PORT"]
         # Clean up test output directory
         shutil.rmtree(self.test_output_dir, ignore_errors=True)
+        # Clean up server log files
+        self._cleanup_log_files()
 
     def _start_server(self):
         """Start the VoiceTree server in a subprocess"""
@@ -59,14 +63,18 @@ class TestServerSystem:
         if not os.path.exists(server_script):
             pytest.skip(f"Server script not found at {server_script}")
 
-        # Start server with custom port
+        # Create log files for server output
+        self.server_stdout_file = tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='_server_stdout.log')
+        self.server_stderr_file = tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='_server_stderr.log')
+
+        # Start server with custom port, redirect output to files
         self.server_process = subprocess.Popen([
             sys.executable, server_script
         ], env={
             **os.environ,
             "VOICETREE_MARKDOWN_DIR": self.test_output_dir,
             "VOICETREE_PORT": str(self.server_port)
-        }, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        }, stdout=self.server_stdout_file, stderr=self.server_stderr_file)
 
         # Wait for server to start (max 10 seconds)
         for i in range(20):
@@ -84,11 +92,9 @@ class TestServerSystem:
                 pass
             time.sleep(0.5)
 
-        # If we get here, server didn't start
-        stdout, stderr = self.server_process.communicate(timeout=1)
-        print(f"❌ Server failed to start")
-        print(f"stdout: {stdout.decode()}")
-        print(f"stderr: {stderr.decode()}")
+        # If we get here, server didn't start - print the logs
+        print(f"❌ Server failed to start within 10 seconds")
+        self._print_server_logs()
         pytest.fail("Server failed to start within 10 seconds")
 
     def _stop_server(self):
@@ -103,6 +109,48 @@ class TestServerSystem:
                 self.server_process.wait()
                 print("⚠️ Server forcibly killed")
             self.server_process = None
+
+    def _print_server_logs(self):
+        """Print server stdout and stderr logs"""
+        if self.server_stdout_file:
+            self.server_stdout_file.flush()
+            self.server_stdout_file.seek(0)
+            stdout_content = self.server_stdout_file.read()
+            if stdout_content:
+                print("\n" + "="*80)
+                print("SERVER STDOUT:")
+                print("="*80)
+                print(stdout_content)
+                print("="*80 + "\n")
+
+        if self.server_stderr_file:
+            self.server_stderr_file.flush()
+            self.server_stderr_file.seek(0)
+            stderr_content = self.server_stderr_file.read()
+            if stderr_content:
+                print("\n" + "="*80)
+                print("SERVER STDERR:")
+                print("="*80)
+                print(stderr_content)
+                print("="*80 + "\n")
+
+    def _cleanup_log_files(self):
+        """Clean up temporary log files"""
+        if self.server_stdout_file:
+            try:
+                self.server_stdout_file.close()
+                os.unlink(self.server_stdout_file.name)
+            except Exception:
+                pass
+            self.server_stdout_file = None
+
+        if self.server_stderr_file:
+            try:
+                self.server_stderr_file.close()
+                os.unlink(self.server_stderr_file.name)
+            except Exception:
+                pass
+            self.server_stderr_file = None
 
     def _send_text_to_server(self, text: str) -> dict:
         """Send text to the server's /send-text endpoint"""
@@ -146,6 +194,8 @@ class TestServerSystem:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
+            print(f"\n❌ Failed to load directory: {e}")
+            self._print_server_logs()
             pytest.fail(f"Failed to load directory: {e}")
 
     def _wait_for_processing_complete(self, timeout: int = 60, expect_nodes: bool = True) -> bool:
@@ -228,6 +278,11 @@ class TestServerSystem:
 
         self._start_server()
 
+        # Count markdown files before processing
+        initial_markdown_files = [f for f in os.listdir(self.test_output_dir) if f.endswith('.md')]
+        initial_file_count = len(initial_markdown_files)
+        print(f"📁 Initial markdown files: {initial_file_count}")
+
         # Test text that should create a meaningful node
         test_text = (
             "I'm working on a new artificial intelligence project. "
@@ -259,12 +314,14 @@ class TestServerSystem:
         assert health_response["nodes"] >= 1, "Should have created at least one node"
 
         # Check that markdown files were created
-        markdown_files = [f for f in os.listdir(self.test_output_dir) if f.endswith('.md')]
-        print(f"📁 Markdown files created: {len(markdown_files)}")
-        assert len(markdown_files) >= 1, "Should have created at least one markdown file"
+        final_markdown_files = [f for f in os.listdir(self.test_output_dir) if f.endswith('.md')]
+        final_file_count = len(final_markdown_files)
+        files_created = final_file_count - initial_file_count
+        print(f"📁 Markdown files: {initial_file_count} → {final_file_count} (+{files_created})")
+        assert files_created >= 1, f"Should have created at least 1 markdown file, but created {files_created}"
 
         # Verify file content contains relevant information
-        first_file_path = os.path.join(self.test_output_dir, markdown_files[0])
+        first_file_path = os.path.join(self.test_output_dir, final_markdown_files[0])
         with open(first_file_path, 'r') as f:
             content = f.read()
             print(f"📄 First file content preview: {content[:200]}...")
@@ -294,6 +351,11 @@ class TestServerSystem:
         print("\n🧪 Testing multiple text chunk processing...")
 
         self._start_server()
+
+        # Count markdown files before processing
+        initial_markdown_files = [f for f in os.listdir(self.test_output_dir) if f.endswith('.md')]
+        initial_file_count = len(initial_markdown_files)
+        print(f"📁 Initial markdown files: {initial_file_count}")
 
         # Test chunks that build on each other
         chunks = [
@@ -336,13 +398,15 @@ class TestServerSystem:
         assert nodes_created >= 1, f"Should have created at least 1 node, but created {nodes_created}"
 
         # Check markdown files
-        markdown_files = [f for f in os.listdir(self.test_output_dir) if f.endswith('.md')]
-        print(f"📁 Total markdown files: {len(markdown_files)}")
-        assert len(markdown_files) >= 1, "Should have created at least one markdown file"
+        final_markdown_files = [f for f in os.listdir(self.test_output_dir) if f.endswith('.md')]
+        final_file_count = len(final_markdown_files)
+        files_created = final_file_count - initial_file_count
+        print(f"📁 Markdown files: {initial_file_count} → {final_file_count} (+{files_created})")
+        assert files_created >= 1, f"Should have created at least 1 markdown file, but created {files_created}"
 
         # Verify content quality across files
         all_content = ""
-        for filename in markdown_files:
+        for filename in final_markdown_files:
             with open(os.path.join(self.test_output_dir, filename), 'r') as f:
                 all_content += f.read() + " "
 

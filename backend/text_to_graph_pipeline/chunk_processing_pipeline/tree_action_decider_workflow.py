@@ -88,7 +88,6 @@ class TreeActionDeciderWorkflow:
         cloud_function_url: Optional[str] = None,
         optimizer_url: Optional[str] = None,
         orphan_url: Optional[str] = None,
-        output_dir: Optional[str] = None,
         use_cloud_functions: Optional[bool] = None
     ) -> None:
         """
@@ -99,16 +98,10 @@ class TreeActionDeciderWorkflow:
             cloud_function_url: URL of the Append Agent Cloud Function
             optimizer_url: URL of the Optimizer Agent Cloud Function
             orphan_url: URL of the Orphan Connection Agent Cloud Function
-            output_dir: Output directory for saving transcript history
             use_cloud_functions: If True, use HTTP clients; if False, use local agents; if None, read from env (default: False)
         """
         import os
         self.decision_tree: Optional[MarkdownTree] = decision_tree
-        self.output_dir = output_dir
-
-        # Determine whether to use cloud functions
-        if use_cloud_functions is None:
-            use_cloud_functions = os.environ.get("USE_CLOUD_FUNCTIONS", "false").lower() == "true"
 
         # Determine URLs from args or settings
         if cloud_function_url is None:
@@ -135,8 +128,8 @@ class TreeActionDeciderWorkflow:
 
         # Initialize history manager with file path for auto-save/load
         transcript_file_path = None
-        if self.output_dir:
-            transcript_file_path = os.path.join(self.output_dir, "transcript_history.txt")
+        if self.decision_tree and self.decision_tree.output_dir:
+            transcript_file_path = os.path.join(self.decision_tree.output_dir, "transcript_history.txt")
         self._history_manager = HistoryManager(transcript_file_path)
 
         # Track previous buffer remainder to detect stuck text
