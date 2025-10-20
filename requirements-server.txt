@@ -18,7 +18,13 @@ rank-bm25
 
 # Vector Store (required for core flow)
 chromadb[fastembed]>=0.4.24
+# ChromaDB ONNX embedding dependencies (must be explicit for PyInstaller)
 onnxruntime>=1.16.0
+tokenizers>=0.13.0
+tqdm>=4.0.0
+numpy>=1.20.0
+httpx>=0.23.0
+tenacity>=8.0.0
 
 # Utilities
 python-dotenv

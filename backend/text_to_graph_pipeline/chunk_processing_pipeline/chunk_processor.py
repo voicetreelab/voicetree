@@ -24,11 +24,6 @@ from backend.text_to_graph_pipeline.chunk_processing_pipeline.tree_action_decide
 )
 from backend.text_to_graph_pipeline.text_buffer_manager import TextBufferManager
 
-# Output directory configuration - can be overridden via environment or constructor
-output_dir_base = os.environ.get("VOICETREE_MARKDOWN_DIR", "markdownTreeVault")
-date_str = datetime.now().strftime("%Y-%m-%d")
-output_dir_default = os.path.join(output_dir_base, date_str)
-
 
 # TODO, THIS WHOLE CLASS IS TECHNICALLY UNNECESSARY LAYER OF INDIRECTION TO TREE ACTION DECIDER WORKFLOW
 class ChunkProcessor:
@@ -46,7 +41,6 @@ class ChunkProcessor:
         self,
         decision_tree: MarkdownTree,
         converter: Optional[TreeToMarkdownConverter] = None,
-        output_dir: str = output_dir_default,
         workflow: Optional[TreeActionDeciderWorkflow] = None
     ):
         """
@@ -55,17 +49,11 @@ class ChunkProcessor:
         Args:
             decision_tree: The decision tree instance
             converter: Optional markdown converter (will create one if not provided)
-            output_dir: Directory for markdown output
             workflow: Optional workflow instance (will create one if not provided)
         """
         self.decision_tree = decision_tree
         self.nodes_to_update: set[int] = set()
         self.converter = converter or TreeToMarkdownConverter(decision_tree.tree)
-        self.output_dir = output_dir
-
-        # Set the output_dir on the decision tree for automatic markdown writing
-        if hasattr(decision_tree, 'output_dir'):
-            decision_tree.output_dir = output_dir
 
         # Initialize text buffer manager with configuration
         self.buffer_manager = TextBufferManager()
@@ -74,10 +62,9 @@ class ChunkProcessor:
         # Initialize tree action applier
         self.tree_action_applier = TreeActionApplier(decision_tree)
 
-        # Initialize workflow with output_dir for auto-save/load
+        # Initialize workflow
         self.workflow = workflow or TreeActionDeciderWorkflow(
-            decision_tree=decision_tree,
-            output_dir=output_dir
+            decision_tree=decision_tree
         )
 
         logging.info("ChunkProcessor initialized with adaptive buffering and agentic workflow")

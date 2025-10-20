@@ -114,20 +114,69 @@ export class GraphMutator {
     const node = this.cy.getElementById(nodeId);
     node.data('linkedNodeIds', linkedNodeIds);
 
-    // IMPORTANT: Remove old markdown-based edges, but preserve programmatic edges
-    // (e.g., floating window edges with isFloatingWindow=true)
-    const edgesToRemove = this.cy.edges(`[source = "${nodeId}"]`).filter(edge => {
+    // Get current markdown-based edges (exclude programmatic edges like floating windows)
+    const currentEdges = this.cy.edges(`[source = "${nodeId}"]`).filter(edge => {
       const targetNode = edge.target();
       const isFloatingWindow = targetNode.data('isFloatingWindow');
       return !isFloatingWindow;
     });
-    edgesToRemove.remove();
 
-    // Recreate edges from current wikilinks
-    for (const targetId of linkedNodeIds) {
+    // Build map of current edge targets and labels
+    const currentEdgeMap = new Map<string, string>();
+    currentEdges.forEach(edge => {
+      const targetId = edge.target().id();
+      const label = edge.data('label') || '';
+      currentEdgeMap.set(targetId, label);
+    });
+
+    // Build map of new edge targets and labels
+    const newEdgeMap = new Map<string, string>();
+    linkedNodeIds.forEach(targetId => {
       const label = edgeLabels.get(targetId) || '';
-      this.addEdge(nodeId, targetId, label);
+      newEdgeMap.set(targetId, label);
+    });
+
+    // Check if edges actually changed
+    const edgesChanged = this.edgeMapsAreDifferent(currentEdgeMap, newEdgeMap);
+
+    // Only update edges if they actually changed (prevents unnecessary layout triggers)
+    if (edgesChanged) {
+      console.log(`[GraphMutator] Edges changed for node ${nodeId}, updating...`);
+
+      // Remove old markdown-based edges
+      currentEdges.remove();
+
+      // Recreate edges from current wikilinks
+      for (const targetId of linkedNodeIds) {
+        const label = edgeLabels.get(targetId) || '';
+        this.addEdge(nodeId, targetId, label);
+      }
+    } else {
+      console.log(`[GraphMutator] Edges unchanged for node ${nodeId}, skipping update`);
     }
+  }
+
+  /**
+   * Compare two edge maps to detect changes
+   * Returns true if maps are different (different targets or different labels)
+   */
+  private edgeMapsAreDifferent(
+    map1: Map<string, string>,
+    map2: Map<string, string>
+  ): boolean {
+    // Different number of edges
+    if (map1.size !== map2.size) {
+      return true;
+    }
+
+    // Check if all edges match (both target and label)
+    for (const [targetId, label] of map1) {
+      if (!map2.has(targetId) || map2.get(targetId) !== label) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

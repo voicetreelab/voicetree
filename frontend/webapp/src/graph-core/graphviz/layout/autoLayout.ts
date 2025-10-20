@@ -106,6 +106,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
   };
 
   // Debounce helper to avoid rapid-fire layouts
+  // Set to 300ms to prevent flickering during markdown editing (editor autosave is 100ms)
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
   const debouncedRunLayout = () => {
     if (debounceTimeout) {
@@ -114,7 +115,7 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     debounceTimeout = setTimeout(() => {
       runLayout();
       debounceTimeout = null;
-    }, 30); // 50ms debounce
+    }, 300); // 300ms debounce - prevents flickering during markdown typing
   };
 
   // Listen to graph modification events

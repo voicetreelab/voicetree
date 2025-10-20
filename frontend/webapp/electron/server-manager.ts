@@ -188,7 +188,6 @@ export default class ServerManager {
       ...process.env,
       // Ensure the server knows where to create files
       VOICETREE_DATA_DIR: serverDir,
-      VOICETREE_VAULT_DIR: path.join(serverDir, 'markdownTreeVault'),
       // Add minimal PATH if it's missing critical directories
       PATH: process.env.PATH?.includes('/usr/local/bin')
         ? process.env.PATH
