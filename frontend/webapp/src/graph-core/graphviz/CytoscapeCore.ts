@@ -4,6 +4,7 @@ import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, CLASS_PINNED, CLASS_
 import { ContextMenuService, type ContextMenuConfig } from '@/graph-core/services/ContextMenuService';
 import { StyleService } from '@/graph-core/services/StyleService';
 import { BreathingAnimationService, AnimationType } from '@/graph-core/services/BreathingAnimationService';
+import { ZoomCollapseService } from '@/graph-core/services/ZoomCollapseService';
 
 export { AnimationType };
 
@@ -13,6 +14,7 @@ export class CytoscapeCore {
   private contextMenuService: ContextMenuService | null = null;
   private styleService: StyleService;
   private animationService: BreathingAnimationService;
+  private zoomCollapseService: ZoomCollapseService | null = null;
 
   constructor(container: HTMLElement, elements: (NodeDefinition | EdgeDefinition)[] = [], headless = false) {
     this.container = container;
@@ -197,6 +199,22 @@ export class CytoscapeCore {
     }
   }
 
+  // SPIKE: Enable zoom-based auto-collapse
+  enableZoomCollapse(edgeLengthThreshold = 50): void {
+    if (!this.zoomCollapseService) {
+      this.zoomCollapseService = new ZoomCollapseService(this.viz, edgeLengthThreshold);
+      this.zoomCollapseService.initialize();
+    }
+  }
+
+  // SPIKE: Disable zoom-based auto-collapse
+  disableZoomCollapse(): void {
+    if (this.zoomCollapseService) {
+      this.zoomCollapseService.destroy();
+      this.zoomCollapseService = null;
+    }
+  }
+
   // Pin a node to its current position
   pinNode(node: NodeSingular): void {
     node.addClass(CLASS_PINNED);
@@ -282,6 +300,10 @@ export class CytoscapeCore {
     if (this.contextMenuService) {
       this.contextMenuService.destroy();
       this.contextMenuService = null;
+    }
+    if (this.zoomCollapseService) {
+      this.zoomCollapseService.destroy();
+      this.zoomCollapseService = null;
     }
     if (this.viz) {
       this.viz.destroy();

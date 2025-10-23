@@ -45,9 +45,6 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
 
-  // Store file change handler ref for manual graph updates after save
-  const handleFileChangedRef = useRef<((data: { path: string; fullPath: string; content: string }) => void) | null>(null);
-
   // Track whether we're in initial bulk load phase or incremental phase
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isInitialLoadRef = useRef(true);
@@ -100,17 +97,8 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
             if (!result.success) {
               throw new Error(result.error || 'Failed to save file');
             }
-
-            // Manually trigger graph update since file watcher doesn't detect editor saves
-            // Call handleFileChanged directly to update the graph
-            if (handleFileChangedRef.current) {
-              console.log('[onSave] Manually triggering graph update');
-              handleFileChangedRef.current({
-                path: filePath,
-                fullPath: filePath,
-                content: newContent
-              });
-            }
+            // File watcher will detect the save and update the graph automatically
+            // No manual trigger needed
           } else {
             console.error('[onSave] electronAPI.saveFileContent not available!');
             throw new Error('Save functionality not available');
@@ -223,11 +211,6 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     setIsInitialLoad
   });
 
-  // Store handleFileChanged ref for manual updates after editor saves
-  useEffect(() => {
-    handleFileChangedRef.current = handleFileChanged;
-  }, [handleFileChanged]);
-
   // Keep isInitialLoadRef in sync with isInitialLoad state
   useEffect(() => {
     isInitialLoadRef.current = isInitialLoad;
@@ -307,6 +290,10 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
       console.log('[VoiceTreeGraphVizLayout] Creating CytoscapeCore instance');
       cytoscapeRef.current = new CytoscapeCore(container);
       console.log('[VoiceTreeGraphVizLayout] CytoscapeCore created successfully');
+
+      // SPIKE: Enable zoom-ibased auto-collapse
+      // cytoscapeRef.current.enableZoomCollapse(50); // 50px threshold
+      // console.log('[VoiceTreeGraphVizLayout] Zoom collapse enabled');
 
       // Expose Cytoscape instance for testing
       const core = cytoscapeRef.current.getCore();
