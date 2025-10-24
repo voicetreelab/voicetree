@@ -8,6 +8,7 @@ export interface NodeMetadata {
   name: string;
   filePath?: string;
   extraEnv?: Record<string, string>;
+  initialCommand?: string;
 }
 
 export interface FloatingWindow {

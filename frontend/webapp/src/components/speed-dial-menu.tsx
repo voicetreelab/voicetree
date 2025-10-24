@@ -5,11 +5,13 @@ import "./speed-dial-menu.css";
 interface SpeedDialMenuProps {
   onToggleDarkMode: () => void;
   isDarkMode: boolean;
+  onExport?: () => void;
 }
 
 export default function SpeedDialMenu({
   onToggleDarkMode,
-  isDarkMode
+  isDarkMode,
+  onExport
 }: SpeedDialMenuProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const menuItems = [
@@ -27,8 +29,8 @@ export default function SpeedDialMenu({
     },
     {
       icon: Download,
-      label: "Export",
-      onClick: () => console.log("Export"),
+      label: "Backup & Reset",
+      onClick: () => onExport?.(),
       className: ""
     },
     {
