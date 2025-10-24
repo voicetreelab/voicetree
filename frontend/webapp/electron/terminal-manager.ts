@@ -6,6 +6,7 @@ import pty from 'node-pty';
 interface NodeMetadata {
   filePath?: string;
   extraEnv?: Record<string, string>;
+  initialCommand?: string;
 }
 
 interface TerminalSpawnResult {
@@ -101,6 +102,15 @@ export default class TerminalManager {
 
       // Track terminal ownership for cleanup when window closes
       this.terminalToWindow.set(terminalId, sender.id);
+
+      // Write initial command if provided (without newline, so it's not executed)
+      if (nodeMetadata?.initialCommand) {
+        console.log(`[TerminalManager] Writing initial command: ${nodeMetadata.initialCommand}`);
+        // Wait a bit for shell prompt to appear before writing
+        setTimeout(() => {
+          ptyProcess.write(nodeMetadata.initialCommand);
+        }, 200);
+      }
 
       // Handle PTY data
       ptyProcess.onData((data: string) => {

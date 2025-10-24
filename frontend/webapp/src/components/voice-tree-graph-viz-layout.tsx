@@ -140,6 +140,22 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
 
     console.log('[createFloatingTerminal] Calling cy.addFloatingWindow for:', terminalId);
     try {
+      // Check if parent node exists in graph (for standalone terminals like export, it won't)
+      const parentNodeExists = cy.getCore().getElementById(nodeId).length > 0;
+      console.log('[createFloatingTerminal] Parent node exists:', parentNodeExists, 'nodeId:', nodeId);
+
+      // Only set parentNodeId if the parent node actually exists in the graph
+      // This prevents errors when creating standalone terminals (e.g., export terminal)
+      const nodeData: Record<string, unknown> = {
+        isFloatingWindow: true,
+        isShadowNode: true,
+        laidOut: false // TODO: cleanup - temporary workaround to skip resize events during initial layout
+      };
+
+      if (parentNodeExists) {
+        nodeData.parentNodeId = nodeId;
+      }
+
       // Use the new extension API
       const shadowNode = cy.addFloatingWindow({
         id: terminalId,
@@ -149,12 +165,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
           x: nodePos.x + 100, // Offset to the right
           y: nodePos.y
         },
-        nodeData: {
-          isFloatingWindow: true,
-          isShadowNode: true,
-          parentNodeId: nodeId,
-          laidOut: false // TODO: cleanup - temporary workaround to skip resize events during initial layout
-        },
+        nodeData,
         resizable: true,
         nodeMetadata: nodeMetadata
       });
@@ -556,6 +567,42 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Handle export button click
+  const handleExport = () => {
+    if (!props.watchDirectory || !cytoscapeRef.current) {
+      console.warn('[Export] No watched directory or Cytoscape instance not ready');
+      return;
+    }
+
+    const watchDir = props.watchDirectory;
+    // Generate the move command with mkdir to ensure backups directory exists
+    const exportCommand = `mkdir -p "${watchDir}/../backups" && mv "${watchDir}" "${watchDir}/../backups/"`;
+
+    // Create metadata for terminal with pre-pasted command
+    const terminalMetadata = {
+      id: 'export-terminal',
+      name: 'Export Terminal',
+      initialCommand: exportCommand
+    };
+
+    // Get a position in the center of the viewport
+    const cy = cytoscapeRef.current.getCore();
+    const extent = cy.extent();
+    const centerX = (extent.x1 + extent.x2) / 2;
+    const centerY = (extent.y1 + extent.y2) / 2;
+
+    // Create floating terminal with pre-pasted command
+    createFloatingTerminal('export', terminalMetadata, { x: centerX, y: centerY }, cytoscapeRef.current);
+
+    // Fit the graph to include the newly spawned terminal
+    setTimeout(() => {
+      const terminalNode = cy.$('#terminal-export');
+      if (terminalNode.length > 0) {
+        cy.fit(terminalNode, 50); // 50px padding
+      }
+    }, 100); // Small delay to ensure node is fully rendered
+  };
+
   return (
     <div className="h-full bg-background overflow-hidden relative">
       {/* Hamburger Menu Button - Top Left */}
@@ -642,6 +689,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
       <SpeedDialMenu
         onToggleDarkMode={toggleDarkMode}
         isDarkMode={isDarkMode}
+        onExport={handleExport}
       />
     </div>
   );

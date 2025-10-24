@@ -5,6 +5,7 @@
  * 3. New nodes animate with a "breathing" border effect that stops on hover
  * 4. Updated nodes animate with a different "breathing" effect
  * 5. Dark/light mode toggle updates graph colors and text colors appropriately
+ * 6. Export button in speed dial opens a terminal successfully
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -398,6 +399,60 @@ test.describe('Electron Features E2E Tests', () => {
     expect(afterLight.edgeColor).toBe('rgb(42,42,42)');
 
     console.log('✓ Dark/light mode toggle working correctly!');
+  });
+
+  test('should open export terminal when clicking Export button in speed dial', async ({ appWindow, tempDir }) => {
+    console.log('=== Testing Export Button Functionality ===');
+
+    await startWatching(appWindow, tempDir);
+    await createMarkdownFile(tempDir, 'node1.md', '# Node 1\n\nTest node for export.');
+
+    // Just wait for at least one node to appear
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const w = (window as ExtendedWindow);
+        return w.cytoscapeInstance && w.cytoscapeInstance.nodes().length > 0;
+      });
+    }, { timeout: 10000 }).toBe(true);
+
+    console.log('=== Step 1: Verify speed dial is visible ===');
+    const speedDialContainer = await appWindow.locator('[data-testid="speed-dial-container"]');
+    await expect(speedDialContainer).toBeVisible({ timeout: 3000 });
+
+    console.log('=== Step 2: Click Export button (item-2 in speed dial) ===');
+    const exportButton = await appWindow.locator('[data-testid="speed-dial-item-2"]');
+    await expect(exportButton).toBeVisible({ timeout: 3000 });
+    await exportButton.click({ force: true });
+
+    console.log('=== Step 3: Wait for terminal to open ===');
+    await appWindow.waitForTimeout(1000);
+
+    // Verify terminal window opened
+    const terminalOpened = await appWindow.evaluate(() => {
+      const terminals = document.querySelectorAll('.cy-floating-window');
+      for (const terminal of terminals) {
+        const title = terminal.querySelector('.cy-floating-window-title-text');
+        if (title && title.textContent?.includes('Terminal')) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    expect(terminalOpened).toBe(true);
+    console.log('✓ Export terminal opened successfully');
+
+    // Verify terminal has xterm initialized
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        return document.querySelectorAll('.xterm').length > 0;
+      });
+    }, {
+      message: 'Waiting for xterm to initialize',
+      timeout: 5000
+    }).toBe(true);
+
+    console.log('✓ Export button test completed successfully');
   });
 
   // NOTE: OS preference override is tested at unit level (StyleService.test.ts:105-134)

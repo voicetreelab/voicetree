@@ -5,10 +5,6 @@
     {
       "description": "Summary reminder to check created nodes",
       "hooks": [
-        {
-          "type": "command",
-          "command": "python3 ~/Library/Application\\ Support/voicetree-webapp/tools/hooks/tree_update_reminder.py"
-        }
       ]
     }
   ]
