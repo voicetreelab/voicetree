@@ -1,7 +1,7 @@
 import path from 'path';
 import { promises as fs, statSync } from 'fs';
 import chokidar, { FSWatcher } from 'chokidar';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import { checkBackendHealth, loadDirectory } from '../src/utils/backend-api';
 
 interface FileInfo {
@@ -10,11 +10,13 @@ interface FileInfo {
 }
 
 class FileWatchManager {
+  private static readonly MAX_FILES = 300;
   private watcher: FSWatcher | null = null;
   private watchedDirectory: string | null = null;
   private mainWindow: BrowserWindow | null = null;
   private initialScanFiles: FileInfo[] = [];
   private isInitialScan: boolean = true;
+  private fileLimitExceeded: boolean = false;
 
   // Get path to config file for storing last directory
   getConfigPath(): string {
@@ -91,6 +93,7 @@ class FileWatchManager {
       this.watchedDirectory = directoryPath;
       this.initialScanFiles = [];
       this.isInitialScan = true;
+      this.fileLimitExceeded = false;
 
       // Notify backend about the directory we're watching
       // This happens asynchronously - file watching continues even if it fails
@@ -179,6 +182,11 @@ class FileWatchManager {
 
     // File added
     this.watcher.on('add', async (filePath: string) => {
+      // Skip if file limit already exceeded
+      if (this.fileLimitExceeded) {
+        return;
+      }
+
       console.log(`File detected: ${filePath} in directory: ${this.watchedDirectory}`);
       try {
         // filePath is already absolute when watching a directory
@@ -186,6 +194,35 @@ class FileWatchManager {
         const relativePath = path.relative(this.watchedDirectory!, filePath);
 
         if (this.isInitialScan) {
+          // Check file limit before collecting
+          if (this.initialScanFiles.length >= FileWatchManager.MAX_FILES) {
+            this.fileLimitExceeded = true;
+            console.error(`[FileWatchManager] File limit exceeded: ${this.initialScanFiles.length} files (max: ${FileWatchManager.MAX_FILES})`);
+
+            // Stop the watcher
+            await this.stopWatching();
+
+            // Show dialog to user
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+              dialog.showErrorBox(
+                'Too Many Files',
+                `Cannot load directory: found more than ${FileWatchManager.MAX_FILES} markdown files.\n\n` +
+                `VoiceTree can only handle directories with up to ${FileWatchManager.MAX_FILES} markdown files.\n\n` +
+                `Please select a smaller directory.`
+              );
+            }
+
+            // Send error to renderer
+            this.sendToRenderer('file-watch-error', {
+              type: 'file_limit_exceeded',
+              message: `Directory contains more than ${FileWatchManager.MAX_FILES} files. Please select a smaller directory.`,
+              directory: this.watchedDirectory,
+              fileCount: this.initialScanFiles.length
+            });
+
+            return;
+          }
+
           // Collect files during initial scan
           console.log(`[FileWatchManager] Collecting file for bulk load: ${relativePath} (total now: ${this.initialScanFiles.length + 1})`);
           this.initialScanFiles.push({
@@ -354,6 +391,17 @@ class FileWatchManager {
 
       console.log(`[FileWatchManager] Found ${files.length} files to resend`);
 
+      // Check if we hit the file limit
+      if (files.length >= FileWatchManager.MAX_FILES) {
+        console.warn(`[FileWatchManager] File limit reached during resend: ${files.length} files (max: ${FileWatchManager.MAX_FILES})`);
+        this.sendToRenderer('file-watch-error', {
+          type: 'file_limit_warning',
+          message: `Directory contains ${files.length}+ files. Only loading first ${FileWatchManager.MAX_FILES} files.`,
+          directory: this.watchedDirectory,
+          fileCount: files.length
+        });
+      }
+
       // Read all files in parallel
       const filePromises = files.map(async ({ filePath, relativePath }) => {
         try {
@@ -395,6 +443,12 @@ class FileWatchManager {
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
       for (const entry of entries) {
+        // Check file limit
+        if (files.length >= FileWatchManager.MAX_FILES) {
+          console.log(`[FileWatchManager] Reached file limit during scan: ${files.length}`);
+          return;
+        }
+
         const fullPath = path.join(dirPath, entry.name);
 
         // Skip hidden files, node_modules, .git, etc.
@@ -460,6 +514,7 @@ class FileWatchManager {
       this.watchedDirectory = null;
       this.initialScanFiles = [];
       this.isInitialScan = true;
+      this.fileLimitExceeded = false;
 
       this.sendToRenderer('file-watching-stopped');
     }
