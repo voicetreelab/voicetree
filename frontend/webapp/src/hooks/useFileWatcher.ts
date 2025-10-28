@@ -100,7 +100,6 @@ interface UseFileWatcherParams {
   setNodeCount: (count: number) => void;
   setEdgeCount: (count: number) => void;
   setIsInitialLoad: (value: boolean) => void;
-  pendingNodePositions?: React.MutableRefObject<Map<string, { x: number; y: number }>>;
 }
 
 export function useFileWatcher({
@@ -109,8 +108,7 @@ export function useFileWatcher({
   isInitialLoad,
   setNodeCount,
   setEdgeCount,
-  setIsInitialLoad,
-  pendingNodePositions
+  setIsInitialLoad
 }: UseFileWatcherParams) {
   // Store loaded positions for restoring nodes
   const savedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
@@ -245,12 +243,10 @@ export function useFileWatcher({
       const color = parsed.color;
       const label = parsed.label;
 
-      // Check if there's a pending position for this node (e.g., from right-click)
-      const pendingPosition = pendingNodePositions?.current.get(nodeId);
-      if (pendingPosition && pendingNodePositions) {
-        console.log('[handleFileAdded] Using pending position for node:', nodeId, pendingPosition);
-        // Remove from pending positions map
-        pendingNodePositions.current.delete(nodeId);
+      // Check if there's a saved position for this node (from right-click or previous session)
+      const savedPosition = savedPositionsRef.current[data.path];
+      if (savedPosition) {
+        console.log('[handleFileAdded] Using saved position for node:', nodeId, savedPosition);
       }
 
       // Use GraphMutator to create node (handles positioning internally)
@@ -261,7 +257,7 @@ export function useFileWatcher({
         linkedNodeIds,
         parentId,
         color,
-        explicitPosition: pendingPosition
+        explicitPosition: savedPosition
       });
     } else {
       // Update linkedNodeIds for existing node
@@ -309,12 +305,25 @@ export function useFileWatcher({
     const linkedNodeIds = parsed.linkedNodeIds;
     const edgeLabels = parsed.edgeLabels;
 
+    // Check if node exists in the graph
+    const existingNode = cy.getElementById(nodeId);
+
+    if (existingNode.length === 0) {
+      // Node doesn't exist - treat this as an add event instead of change
+      // This prevents race condition where file change arrives before node creation
+      console.log(`[handleFileChanged] Node ${nodeId} doesn't exist, treating as add event`);
+
+      // Delegate to handleFileAdded to properly create the node
+      await handleFileAdded(data);
+      return;
+    }
+
     // Use GraphMutator to update node links
     // This handles edge removal (preserving programmatic edges) and recreation
     graphMutator.updateNodeLinks(nodeId, linkedNodeIds, edgeLabels);
 
     // Update color and label for changed node
-    const changedNode = cy.getElementById(nodeId);
+    const changedNode = existingNode;
 
     // Update color from frontmatter
     if (parsed.color) {

@@ -321,8 +321,8 @@ export class TerminalVanilla {
           window.electronAPI.terminal.onData((id, data) => {
             if (id === result.terminalId && this.term) {
               if (typeof data === 'string' && data.includes('\x1b[2J')) {
-                console.log('[Terminal] Claude is clearing screen. Data sample:',
-                  data.slice(0, 100).replace(/\x1b/g, 'ESC'));
+                // console.log('[Terminal] Claude is clearing screen. Data sample:',
+                  data = data.slice(0, 100).replace(/\x1b/g, 'ESC');
               }
 
               this.buffer += data;

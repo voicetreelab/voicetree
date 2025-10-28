@@ -16,3 +16,6 @@ The system is built around several [[core-principles]] that guide its design.
 
 - [[../projects/main-project]] - The main implementation
 - [[../daily/2024-01-01]] - Initial planning notes
+
+
+New section linking to [[README]] for testing.

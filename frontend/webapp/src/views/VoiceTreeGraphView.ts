@@ -24,8 +24,7 @@ import type {
   BulkFileEvent,
   WatchingStartedEvent,
   Position,
-  VoiceTreeGraphViewOptions,
-  FileWatcherService
+  VoiceTreeGraphViewOptions
 } from './IVoiceTreeGraphView';
 import { CytoscapeCore, AnimationType } from '@/graph-core/graphviz/CytoscapeCore';
 import { GraphMutator } from '@/graph-core/mutation/GraphMutator';
@@ -52,12 +51,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // Core instances
   private cy: CytoscapeCore;
   private container: HTMLElement;
-  private fileWatcher: FileWatcherService;
   private options: VoiceTreeGraphViewOptions;
 
   // Data storage
   private markdownFiles = new Map<string, string>();
-  private pendingNodePositions = new Map<string, Position>();
   private savedPositions: Record<string, Position> = {};
 
   // State
@@ -85,12 +82,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   constructor(
     container: HTMLElement,
-    fileWatcher: FileWatcherService,
     options: VoiceTreeGraphViewOptions = {}
   ) {
     super();
     this.container = container;
-    this.fileWatcher = fileWatcher;
     this.options = options;
 
     // Initialize dark mode
@@ -333,13 +328,27 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   private setupFileListeners(): void {
-    // Subscribe to all file watcher events
-    this.fileWatcher.onBulkFilesAdded(this.handleBulkFilesAdded.bind(this));
-    this.fileWatcher.onFileAdded(this.handleFileAdded.bind(this));
-    this.fileWatcher.onFileChanged(this.handleFileChanged.bind(this));
-    this.fileWatcher.onFileDeleted(this.handleFileDeleted.bind(this));
-    this.fileWatcher.onWatchingStopped(this.handleWatchingStopped.bind(this));
-    this.fileWatcher.onWatchingStarted(this.handleWatchingStarted.bind(this));
+    // Subscribe to all file watcher events via window.electronAPI
+    if (!window.electronAPI) {
+      console.warn('[VoiceTreeGraphView] electronAPI not available');
+      return;
+    }
+
+    window.electronAPI.onInitialFilesLoaded((data) => {
+      this.handleBulkFilesAdded({ files: data.files });
+    });
+    window.electronAPI.onFileAdded(this.handleFileAdded.bind(this));
+    window.electronAPI.onFileChanged(this.handleFileChanged.bind(this));
+    window.electronAPI.onFileDeleted((data) => {
+      this.handleFileDeleted({ fullPath: data.fullPath });
+    });
+    window.electronAPI.onFileWatchingStopped(this.handleWatchingStopped.bind(this));
+
+    if (window.electronAPI.onWatchingStarted) {
+      window.electronAPI.onWatchingStarted((data) => {
+        this.handleWatchingStarted({ directory: data.directory });
+      });
+    }
   }
 
   // ============================================================================
@@ -410,20 +419,22 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       return;
     }
 
+    // Check for saved position (from right-click creation or previous session)
+    const filename = data.fullPath.split('/').pop() || data.fullPath;
+    const savedPos = this.savedPositions[filename];
+
     // Parse and add node
     const parsed = parseForCytoscape(data.content, nodeId);
     const mutator = new GraphMutator(cy, null);
-    mutator.addNode({ nodeId, label: parsed.label, linkedNodeIds: parsed.linkedNodeIds });
+    mutator.addNode({
+      nodeId,
+      label: parsed.label,
+      linkedNodeIds: parsed.linkedNodeIds,
+      explicitPosition: savedPos
+    });
 
-    // Check for pending position
-    const pendingPos = this.pendingNodePositions.get(nodeId);
-    if (pendingPos) {
-      const node = cy.getElementById(nodeId);
-      if (node.length > 0) {
-        node.position(pendingPos);
-      }
-      this.pendingNodePositions.delete(nodeId);
-    } else if (!this.isInitialLoad) {
+    // Only trigger layout if no saved position exists
+    if (!savedPos && !this.isInitialLoad) {
       // Trigger incremental layout
       cy.layout({
         name: 'cola',
@@ -656,13 +667,16 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         return;
       }
 
-      const result = await (window as any).electronAPI.createStandaloneNode();
+      // Pass position directly to Electron - it will save it immediately
+      const result = await (window as any).electronAPI.createStandaloneNode(position);
       if (result.success && result.nodeId && result.filePath) {
         console.log('[VoiceTreeGraphView] Successfully created standalone node:', result.nodeId);
 
-        // Store pending position
+        // Store position in local cache so handleFileAdded can use it
+        const filename = result.filePath.split('/').pop() || result.filePath;
+        this.savedPositions[filename] = position;
+
         const newNodeId = normalizeFileId(result.filePath);
-        this.pendingNodePositions.set(newNodeId, position);
 
         // Wait for node to be added by file watcher
         const waitForNode = (attempts = 0, maxAttempts = 100): void => {
@@ -933,15 +947,21 @@ Edit this node to add content.
     window.removeEventListener('resize', this.handleResize);
     this.container.removeEventListener('keydown', this.handleKeyDown);
 
-    // Dispose file watcher
-    this.fileWatcher.dispose();
+    // Remove electron API listeners
+    if (window.electronAPI) {
+      window.electronAPI.removeAllListeners('initial-files-loaded');
+      window.electronAPI.removeAllListeners('file-added');
+      window.electronAPI.removeAllListeners('file-changed');
+      window.electronAPI.removeAllListeners('file-deleted');
+      window.electronAPI.removeAllListeners('file-watching-stopped');
+      window.electronAPI.removeAllListeners('watching-started');
+    }
 
     // Destroy Cytoscape
     this.cy.destroy();
 
     // Clear maps
     this.markdownFiles.clear();
-    this.pendingNodePositions.clear();
     this.savedPositions = {};
 
     // Clear event emitters

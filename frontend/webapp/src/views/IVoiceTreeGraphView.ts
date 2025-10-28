@@ -61,34 +61,7 @@ export interface VoiceTreeGraphViewOptions {
   headless?: boolean;
 }
 
-/**
- * File watcher service interface
- *
- * This service wraps Electron IPC file watching events.
- * Implementation should use window.electronAPI to subscribe to file events.
- */
-export interface FileWatcherService {
-  /** Subscribe to bulk files added event (initial scan) */
-  onBulkFilesAdded(handler: (data: BulkFileEvent) => void): void;
-
-  /** Subscribe to single file added event */
-  onFileAdded(handler: (data: FileEvent) => void): void;
-
-  /** Subscribe to file changed event */
-  onFileChanged(handler: (data: FileEvent) => void): void;
-
-  /** Subscribe to file deleted event */
-  onFileDeleted(handler: (data: { fullPath: string }) => void): void;
-
-  /** Subscribe to watching stopped event */
-  onWatchingStopped(handler: () => void): void;
-
-  /** Subscribe to watching started event */
-  onWatchingStarted(handler: (data: WatchingStartedEvent) => void): void;
-
-  /** Cleanup all listeners */
-  dispose(): void;
-}
+// FileWatcherService interface removed - VoiceTreeGraphView uses window.electronAPI directly
 
 /**
  * Event emitter for typed events
@@ -306,28 +279,26 @@ export interface IVoiceTreeGraphView {
  * Constructor signature for VoiceTreeGraphView
  *
  * @param container - HTMLElement where graph will be rendered
- * @param fileWatcher - Service that provides file change events
  * @param options - Optional configuration
  *
  * Behavior:
- * 1. Stores container and fileWatcher references
+ * 1. Stores container reference
  * 2. Sets up dark mode from localStorage or options.initialDarkMode
- * 3. Renders DOM structure (cytoscape container, overlays, speed dial)
+ * 3. Renders DOM structure (cytoscape container, overlays, hamburger menu)
  * 4. Initializes Cytoscape instance with extensions
  * 5. Sets up event listeners (window resize, keyboard shortcuts)
- * 6. Sets up file watcher event handlers
+ * 6. Sets up file event handlers via window.electronAPI
  * 7. Sets up context menu with callbacks
  *
  * Side effects:
  * - Clears and populates container.innerHTML
  * - Reads from localStorage ('darkMode')
  * - Adds window event listeners
- * - Subscribes to file watcher events
+ * - Subscribes to window.electronAPI file events
  *
  * @example
  * const container = document.getElementById('graph-container');
- * const fileWatcher = new FileWatcherService();
- * const graphView = new VoiceTreeGraphView(container, fileWatcher, {
+ * const graphView = new VoiceTreeGraphView(container, {
  *   onError: (err) => console.error(err),
  *   initialDarkMode: true
  * });
