@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFileContent: (filePath, content) => ipcRenderer.invoke('save-file-content', filePath, content),
   deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
   createChildNode: (parentNodeId) => ipcRenderer.invoke('create-child-node', parentNodeId),
+  createStandaloneNode: () => ipcRenderer.invoke('create-standalone-node'),
 
   // Terminal API
   terminal: {
@@ -65,5 +66,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onExit: (callback) => {
       ipcRenderer.on('terminal:exit', (event, terminalId, code) => callback(terminalId, code));
     }
+  },
+
+  // Position management API
+  positions: {
+    save: (directoryPath, positions) => ipcRenderer.invoke('positions:save', directoryPath, positions),
+    load: (directoryPath) => ipcRenderer.invoke('positions:load', directoryPath)
   }
 });
