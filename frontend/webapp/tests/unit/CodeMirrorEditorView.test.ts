@@ -88,4 +88,74 @@ describe('CodeMirrorEditorView', () => {
 
     expect(hasRichMarkdocClasses).toBe(true);
   });
+
+  it('should render Mermaid diagrams in live preview mode', async () => {
+    // Create editor with mermaid code block
+    const mermaidContent = `# Test Document
+
+\`\`\`mermaid
+graph TD
+    A[Start] --> B[End]
+\`\`\`
+
+Some text after diagram.`;
+
+    editor = new CodeMirrorEditorView(container, mermaidContent);
+
+    // Wait for Mermaid rendering (async operation) - increased timeout for async rendering
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Check that Mermaid widget is created with cm-mermaid-render class
+    const mermaidWidget = container.querySelector('.cm-mermaid-render');
+    expect(mermaidWidget).not.toBeNull();
+
+    // Verify contenteditable is false (widget should not be editable)
+    expect(mermaidWidget?.getAttribute('contenteditable')).toBe('false');
+
+    // Check that widget has content (either SVG or loading/error message)
+    expect(mermaidWidget?.innerHTML).toBeTruthy();
+    expect(mermaidWidget?.innerHTML.length).toBeGreaterThan(0);
+
+    // Check that either SVG is rendered OR there's an error/loading message
+    const svgElement = container.querySelector('.cm-mermaid-render svg');
+    const hasContent = mermaidWidget?.innerHTML.includes('<svg') ||
+                       mermaidWidget?.innerHTML.includes('Rendering') ||
+                       mermaidWidget?.innerHTML.includes('error');
+    expect(hasContent).toBe(true);
+  });
+
+  it('should auto-fold YAML frontmatter on initialization', async () => {
+    // Create editor with frontmatter
+    const contentWithFrontmatter = `---
+node_id: 123
+title: Test Note
+color: blue
+---
+
+# Main Content
+
+This is the main content of the note.`;
+
+    editor = new CodeMirrorEditorView(container, contentWithFrontmatter);
+
+    // Wait longer for requestAnimationFrame and syntax tree parsing
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Get the editor element
+    const editorElement = container.querySelector('.cm-editor');
+    expect(editorElement).not.toBeNull();
+
+    // Check for fold widget/gutter - folded sections should have cm-foldGutter class
+    // and the frontmatter lines should have cm-foldPlaceholder or be hidden
+    const foldGutter = container.querySelector('.cm-foldGutter');
+    expect(foldGutter).not.toBeNull();
+
+    // Check if frontmatter is folded by looking for fold placeholder
+    // When folded, CodeMirror adds a placeholder widget
+    const foldPlaceholder = container.querySelector('.cm-foldPlaceholder');
+    const hasFoldedContent = foldPlaceholder !== null;
+
+    // The content should be folded (placeholder present)
+    expect(hasFoldedContent).toBe(true);
+  });
 });

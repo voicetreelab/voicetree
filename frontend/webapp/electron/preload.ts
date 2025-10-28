@@ -52,7 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFileContent: (filePath, content) => ipcRenderer.invoke('save-file-content', filePath, content),
   deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
   createChildNode: (parentNodeId) => ipcRenderer.invoke('create-child-node', parentNodeId),
-  createStandaloneNode: () => ipcRenderer.invoke('create-standalone-node'),
+  createStandaloneNode: (position?: { x: number; y: number }) => ipcRenderer.invoke('create-standalone-node', position),
 
   // Terminal API
   terminal: {

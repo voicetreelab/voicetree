@@ -52,10 +52,6 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
   // Track current terminal index for cycling
   const currentTerminalIndexRef = useRef(0);
 
-  // Track pending node positions (for nodes created via right-click)
-  // Key: nodeId (string), Value: {x, y} position in graph coordinates
-  const pendingNodePositions = useRef<Map<string, { x: number; y: number }>>(new Map());
-
   // Helper function to create floating editor window
   const createFloatingEditor = (
     nodeId: string,
@@ -281,8 +277,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     isInitialLoad,
     setNodeCount,
     setEdgeCount,
-    setIsInitialLoad,
-    pendingNodePositions
+    setIsInitialLoad
   });
 
   // Keep isInitialLoadRef in sync with isInitialLoad state
@@ -396,7 +391,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
 
         // Fit to the selected terminal with extra padding to show surrounding nodes
         const targetTerminal = sortedTerminals[currentTerminalIndexRef.current];
-        cy.fit(targetTerminal, 600); // 600px padding to show context
+        cy.fit(targetTerminal, 200); // padding to show context
 
         console.log(`[Hotkey] Fitted to terminal ${currentTerminalIndexRef.current + 1}/${sortedTerminals.length}: ${targetTerminal.id()}`);
       }
@@ -436,6 +431,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         (window as unknown as { testHelpers?: {
           createTerminal: (nodeId: string) => void;
           addNodeAtPosition?: (position: { x: number; y: number }) => Promise<void>;
+          getEditorInstance?: (windowId: string) => { getValue: () => string; setValue: (content: string) => void } | undefined;
         } }).testHelpers = {
           createTerminal: (nodeId: string) => {
             // Find the file path for this node
@@ -465,8 +461,20 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
           },
           // Test helper to trigger the full add-node-at-position workflow
           // This will be set after the onAddNodeAtPosition callback is defined below
-          addNodeAtPosition: undefined
+          addNodeAtPosition: undefined,
+          // Test helper to get editor instance for testing
+          getEditorInstance: undefined // Will be set below
         };
+
+        // Import and expose getVanillaInstance for testing
+        // Note: This must be done with dynamic import since we're in the browser
+        import('@/graph-core/extensions/cytoscape-floating-windows').then(({ getVanillaInstance }) => {
+          if ((window as unknown as { testHelpers?: { getEditorInstance?: (windowId: string) => { getValue: () => string; setValue: (content: string) => void } | undefined } }).testHelpers) {
+            (window as unknown as { testHelpers: { getEditorInstance: (windowId: string) => { getValue: () => string; setValue: (content: string) => void } | undefined } }).testHelpers.getEditorInstance = (windowId: string) => {
+              return getVanillaInstance(windowId) as { getValue: () => string; setValue: (content: string) => void } | undefined;
+            };
+          }
+        });
       }
 
       // Enable context menu
@@ -598,18 +606,15 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
               return;
             }
 
-            const result = await window.electronAPI.createStandaloneNode();
+            // Pass position directly to Electron - it will save it immediately
+            const result = await window.electronAPI.createStandaloneNode(position);
             if (result.success && result.nodeId && result.filePath) {
-              console.log('[onAddNodeAtPosition] Successfully created node:', result.nodeId, 'at', result.filePath);
+              console.log('[onAddNodeAtPosition] Successfully created node:', result.nodeId, 'at', result.filePath, 'with position:', position);
 
               // IMPORTANT: Use the normalized filename as node ID (e.g., "_2" not "2")
               // because file watcher will create node with normalizeFileId(filename)
               const newNodeId = normalizeFileId(result.filePath!);
               console.log('[onAddNodeAtPosition] Normalized node ID from path:', newNodeId);
-
-              // Store the desired position for when the file watcher adds the node
-              pendingNodePositions.current.set(newNodeId, position);
-              console.log('[onAddNodeAtPosition] Stored pending position for node:', newNodeId, position);
 
               const content = `---
 node_id: ${result.nodeId}
@@ -680,18 +685,15 @@ Edit this node to add content.
             return;
           }
 
-          const result = await window.electronAPI.createStandaloneNode();
+          // Pass position directly to Electron - it will save it immediately
+          const result = await window.electronAPI.createStandaloneNode(position);
           if (result.success && result.nodeId && result.filePath) {
-            console.log('[onAddNodeAtPosition] Successfully created node:', result.nodeId, 'at', result.filePath);
+            console.log('[onAddNodeAtPosition] Successfully created node:', result.nodeId, 'at', result.filePath, 'with position:', position);
 
             // IMPORTANT: Use the normalized filename as node ID (e.g., "_2" not "2")
             // because file watcher will create node with normalizeFileId(filename)
             const newNodeId = normalizeFileId(result.filePath!);
             console.log('[onAddNodeAtPosition] Normalized node ID from path:', newNodeId);
-
-            // Store the desired position for when the file watcher adds the node
-            pendingNodePositions.current.set(newNodeId, position);
-            console.log('[onAddNodeAtPosition] Stored pending position for node:', newNodeId, position);
 
             const content = `---
 node_id: ${result.nodeId}
@@ -863,13 +865,13 @@ Edit this node to add content.
     setTimeout(() => {
       const terminalNode = cy.$('#terminal-backup');
       if (terminalNode.length > 0) {
-        cy.fit(terminalNode, 600); // 600px padding to show context
+        cy.fit(terminalNode, 150); // 600px padding to show context
       }
     }, 50);
     setTimeout(() => {
       const terminalNode = cy.$('#terminal-backup');
       if (terminalNode.length > 0) {
-        cy.fit(terminalNode, 600); // 600px padding to show context
+        cy.fit(terminalNode, 100); // 600px padding to show context
       }
     }, 800); // also after auto layout
   };

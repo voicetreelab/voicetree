@@ -184,10 +184,24 @@ ipcMain.handle('create-child-node', async (event, parentNodeId) => {
 });
 
 // Create standalone node handler
-ipcMain.handle('create-standalone-node', async () => {
-  return await nodeManager.createStandaloneNode(
-    fileWatchManager.getWatchedDirectory()
-  );
+ipcMain.handle('create-standalone-node', async (_event, position?: { x: number; y: number }) => {
+  const watchDirectory = fileWatchManager.getWatchedDirectory();
+  const result = await nodeManager.createStandaloneNode(watchDirectory);
+
+  // If node creation succeeded and position was provided, save it immediately
+  if (result.success && result.filePath && position && watchDirectory) {
+    try {
+      // Extract relative filename from full path
+      const filename = path.basename(result.filePath);
+      await positionManager.updatePosition(watchDirectory, filename, position);
+      console.log(`[create-standalone-node] Saved position (${position.x}, ${position.y}) for ${filename}`);
+    } catch (error) {
+      console.error('[create-standalone-node] Failed to save position:', error);
+      // Don't fail the whole operation if position save fails
+    }
+  }
+
+  return result;
 });
 
 // Terminal IPC handlers

@@ -1,9 +1,21 @@
 import { EditorState, type Extension } from '@codemirror/state';
-import { EditorView, ViewUpdate } from '@codemirror/view';
+import { EditorView, ViewUpdate, ViewPlugin } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
-import richEditor from 'codemirror-rich-markdoc/src/index';
+import { foldGutter, foldCode, syntaxHighlighting, codeFolding, foldEffect, foldable, foldService, LanguageDescription, defaultHighlightStyle } from '@codemirror/language';
+import { syntaxTree } from '@codemirror/language';
+import { markdown } from '@codemirror/lang-markdown';
+import { yamlFrontmatter } from '@codemirror/lang-yaml';
+import { javascript } from '@codemirror/lang-javascript';
+import { python } from '@codemirror/lang-python';
+import { json } from '@codemirror/lang-json';
+import { java } from '@codemirror/lang-java';
+import tagParser from 'codemirror-rich-markdoc/src/tagParser';
+import highlightStyle from 'codemirror-rich-markdoc/src/highlightStyle';
+import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
+import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
 import { Disposable } from '@/views/Disposable';
 import { EventEmitter } from '@/utils/EventEmitter';
+import { mermaidRender } from '@/views/extensions/mermaidRender';
 
 /**
  * Configuration options for CodeMirrorEditorView
@@ -66,6 +78,9 @@ export class CodeMirrorEditorView extends Disposable {
       parent: container
     });
 
+    // Auto-fold frontmatter on initialization
+    this.autoFoldFrontmatter();
+
     // Setup dark mode observer if needed
     this.setupDarkModeObserver();
   }
@@ -74,9 +89,74 @@ export class CodeMirrorEditorView extends Disposable {
    * Create CodeMirror extensions array
    */
   private createExtensions(): Extension[] {
+    // Manually compose rich-markdoc extensions with yamlFrontmatter support
+    // We can't use the richEditor() function because it always calls markdown() internally
+    // Instead, we need to build the extensions ourselves:
+
+    // 1. Create markdown config with tagParser extension (for Markdoc {% %} tags)
+    // and codeLanguages for syntax highlighting in code blocks
+    const markdownConfig = {
+      extensions: [tagParser],
+      codeLanguages: [
+        LanguageDescription.of({ name: 'javascript', alias: ['js'], support: javascript() }),
+        LanguageDescription.of({ name: 'typescript', alias: ['ts'], support: javascript({ typescript: true }) }),
+        LanguageDescription.of({ name: 'python', alias: ['py'], support: python() }),
+        LanguageDescription.of({ name: 'json', alias: [], support: json() }),
+        LanguageDescription.of({ name: 'java', alias: [], support: java() })
+      ]
+    };
+
+    // 2. Wrap markdown with yamlFrontmatter support
+    const markdownWithFrontmatter = yamlFrontmatter({
+      content: markdown(markdownConfig)
+    });
+
+    // 3. Build the rich-markdoc plugin manually
+    const richMarkdocPlugin = ViewPlugin.fromClass(RichEditPlugin, {
+      decorations: v => v.decorations,
+      provide: () => [
+        renderBlock({}), // Markdoc config
+        syntaxHighlighting(highlightStyle) // Use rich-markdoc highlightStyle for live preview
+      ],
+      eventHandlers: {
+        mousedown({ target }, view) {
+          if (target instanceof Element && target.matches('.cm-markdoc-renderBlock *'))
+            view.dispatch({ selection: { anchor: view.posAtDOM(target) } });
+        }
+      }
+    });
+
+    // Add custom fold service for YAML frontmatter
+    const frontmatterFoldService = foldService.of((state, from, to) => {
+      const tree = syntaxTree(state);
+      let foldRange: { from: number; to: number } | null = null;
+
+      // Check if we're at the start of a Frontmatter node
+      tree.iterate({
+        from,
+        to: Math.min(to, from + 1000),
+        enter: (node) => {
+          if (node.name === 'Frontmatter' && node.from === from) {
+            // Fold from the opening --- to the closing ---
+            // We want to keep the first line visible (opening ---) and fold the rest
+            const firstLine = state.doc.lineAt(node.from);
+            foldRange = { from: firstLine.to, to: node.to-1 };
+            return false; // Stop iterating
+          }
+        }
+      });
+
+      return foldRange;
+    });
+
     const extensions: Extension[] = [
       basicSetup,
-      richEditor({ markdoc: {} }), // Use rich-markdoc for live preview
+      markdownWithFrontmatter, // Markdown with YAML frontmatter support
+      richMarkdocPlugin, // Rich markdown editing decorations (includes syntax highlighting)
+      syntaxHighlighting(defaultHighlightStyle), // Code block syntax highlighting
+      mermaidRender(), // Render Mermaid diagrams in live preview
+      frontmatterFoldService, // Custom fold service for frontmatter
+      foldGutter(), // Add fold gutter for collapsing sections
       EditorView.lineWrapping, // Enable text wrapping
       this.setupUpdateListener()
     ];
@@ -117,6 +197,25 @@ export class CodeMirrorEditorView extends Disposable {
 
     // Register cleanup
     this.registerDisposable(() => observer.disconnect());
+  }
+
+  /**
+   * Auto-fold YAML frontmatter block if present at the start of document
+   */
+  private autoFoldFrontmatter(): void {
+    // Use requestAnimationFrame to ensure the syntax tree is fully parsed
+    requestAnimationFrame(() => {
+      // Query the foldService at position 0 to see if there's a foldable range
+      // Our custom foldService will return the frontmatter fold range if present
+      const foldRange = foldable(this.view.state, 0, this.view.state.doc.length);
+
+      if (foldRange) {
+        // Dispatch the fold effect to collapse the frontmatter
+        this.view.dispatch({
+          effects: foldEffect.of(foldRange)
+        });
+      }
+    });
   }
 
   /**

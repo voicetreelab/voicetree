@@ -30,6 +30,7 @@ interface ExtendedWindow extends Window {
   testHelpers?: {
     createTerminal: (nodeId: string) => void;
     addNodeAtPosition: (position: { x: number; y: number }) => Promise<void>;
+    getEditorInstance: (windowId: string) => { getValue: () => string; setValue: (content: string) => void } | undefined;
   };
 }
 
@@ -622,25 +623,19 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     console.log('✓ Editor window opened');
 
-    // Wait for editor React content to render
-    await appWindow.waitForSelector('#window-editor-architecture .w-md-editor', { timeout: 5000 });
+    // Wait for CodeMirror editor to render
+    await appWindow.waitForSelector('#window-editor-architecture .cm-editor', { timeout: 5000 });
 
     // Modify content in the editor
     const testContent = '# Architecture\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nSee [[core-principles]] for details.';
 
     await appWindow.evaluate((newContent) => {
-      const editor = document.querySelector('#window-editor-architecture .w-md-editor-text-input') as HTMLTextAreaElement;
+      const w = (window as ExtendedWindow);
+      const editor = w.testHelpers?.getEditorInstance('editor-architecture');
       if (editor) {
-        // Focus the editor first
-        editor.focus();
-
-        // Set value
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set;
-        nativeInputValueSetter!.call(editor, newContent);
-
-        // Trigger React's onChange by dispatching input event that React listens to
-        const event = new InputEvent('input', { bubbles: true, cancelable: true });
-        editor.dispatchEvent(event);
+        editor.setValue(newContent);
+      } else {
+        throw new Error('Editor instance not found for editor-architecture');
       }
     }, testContent);
 
@@ -701,13 +696,14 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
       timeout: 500
     }).toBe(true);
 
-    // Wait for editor React content to render again
-    await appWindow.waitForSelector('#window-editor-architecture .w-md-editor', { timeout: 500 });
+    // Wait for CodeMirror editor to render again
+    await appWindow.waitForSelector('#window-editor-architecture .cm-editor', { timeout: 500 });
 
     // Verify the editor shows the saved content
     const editorContent = await appWindow.evaluate(() => {
-      const editor = document.querySelector('#window-editor-architecture .w-md-editor-text-input') as HTMLTextAreaElement;
-      return editor?.value || null;
+      const w = (window as ExtendedWindow);
+      const editor = w.testHelpers?.getEditorInstance('editor-architecture');
+      return editor?.getValue() || null;
     });
 
     expect(editorContent).toBe(testContent);
@@ -784,25 +780,19 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     console.log('✓ Editor opened');
 
-    // Wait for editor React content to render
-    await appWindow.waitForSelector('#window-editor-introduction .w-md-editor', { timeout: 5000 });
+    // Wait for CodeMirror editor to render
+    await appWindow.waitForSelector('#window-editor-introduction .cm-editor', { timeout: 5000 });
 
     // Add a new wikilink to the content (link to 'README' which exists but isn't linked from introduction)
     const newContent = originalContent + '\n\nNew section linking to [[README]] for testing.';
 
     await appWindow.evaluate((content) => {
-      const editor = document.querySelector('#window-editor-introduction .w-md-editor-text-input') as HTMLTextAreaElement;
+      const w = (window as ExtendedWindow);
+      const editor = w.testHelpers?.getEditorInstance('editor-introduction');
       if (editor) {
-        // Focus the editor first
-        editor.focus();
-
-        // Set value using native setter
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set;
-        nativeInputValueSetter!.call(editor, content);
-
-        // Trigger React's onChange with a proper InputEvent
-        const event = new InputEvent('input', { bubbles: true, cancelable: true });
-        editor.dispatchEvent(event);
+        editor.setValue(content);
+      } else {
+        throw new Error('Editor instance not found for editor-introduction');
       }
     }, newContent);
 
@@ -1143,13 +1133,14 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     console.log('✓ Editor opened');
 
-    // Wait for editor React content to render
-    await appWindow.waitForSelector('#window-editor-api-design .w-md-editor', { timeout: 5000 });
+    // Wait for CodeMirror editor to render
+    await appWindow.waitForSelector('#window-editor-api-design .cm-editor', { timeout: 5000 });
 
     // Get initial editor content
     const initialEditorContent = await appWindow.evaluate(() => {
-      const editor = document.querySelector('#window-editor-api-design .w-md-editor-text-input') as HTMLTextAreaElement;
-      return editor?.value || null;
+      const w = (window as ExtendedWindow);
+      const editor = w.testHelpers?.getEditorInstance('editor-api-design');
+      return editor?.getValue() || null;
     });
 
     expect(initialEditorContent).toBe(originalContent);
@@ -1165,8 +1156,9 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     // Check if editor content was updated to match the external change
     const updatedEditorContent = await appWindow.evaluate(() => {
-      const editor = document.querySelector('#window-editor-api-design .w-md-editor-text-input') as HTMLTextAreaElement;
-      return editor?.value || null;
+      const w = (window as ExtendedWindow);
+      const editor = w.testHelpers?.getEditorInstance('editor-api-design');
+      return editor?.getValue() || null;
     });
 
     console.log('Editor content after external change:', updatedEditorContent?.substring(0, 50) + '...');
@@ -1391,64 +1383,67 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     console.log(`✓ Editor ${editorId} opened automatically`);
 
-    console.log('=== Step 7: Wait for editor React component to render ===');
-    await appWindow.waitForSelector(`#window-${editorId} .w-md-editor`, { timeout: 5000 });
-    console.log('✓ Editor React component rendered');
+    console.log('=== Step 7: Wait for CodeMirror editor to render ===');
+    await appWindow.waitForSelector(`#window-${editorId} .cm-editor`, { timeout: 5000 });
+    console.log('✓ CodeMirror editor rendered');
 
-    console.log('=== Step 7b: Wait for editor textarea to be ready ===');
-    await appWindow.waitForSelector(`#window-${editorId} .w-md-editor-text-input`, { timeout: 5000 });
+    console.log('=== Step 7b: Wait for editor to be fully initialized ===');
     // Give the editor a moment to fully initialize
     await appWindow.waitForTimeout(500);
-    console.log('✓ Editor textarea is ready');
+    console.log('✓ Editor is ready');
 
     console.log('=== Step 8: Edit content in markdown editor ===');
     const testContent = `---\nnode_id: ${newNodeId}\ntitle: Test Node ${newNodeId}\n---\n\n# Updated Content\n\nThis content was added by the E2E test to verify file sync.`;
 
     await appWindow.evaluate((args) => {
       const [edId, content] = args;
-      const editor = document.querySelector(`#window-${edId} .w-md-editor-text-input`) as HTMLTextAreaElement;
+      const w = (window as ExtendedWindow);
+      const editor = w.testHelpers?.getEditorInstance(edId);
       if (!editor) {
-        throw new Error(`Editor textarea not found for ${edId}`);
+        throw new Error(`Editor instance not found for ${edId}`);
       }
 
-      // Focus the editor
-      editor.focus();
-
-      // Set value using native setter to trigger React
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set;
-      nativeInputValueSetter!.call(editor, content);
-
-      // Trigger React's onChange with proper InputEvent
-      const event = new InputEvent('input', { bubbles: true, cancelable: true });
-      editor.dispatchEvent(event);
-
+      editor.setValue(content);
       console.log(`[Test] Updated editor content for ${edId}`);
     }, [editorId, testContent]);
 
     console.log('✓ Editor content updated');
 
-    console.log('=== Step 8b: Verify editor value actually changed in the DOM ===');
+    console.log('=== Step 8b: Verify editor value actually changed ===');
     const editorValue = await appWindow.evaluate((edId) => {
-      const editor = document.querySelector(`#window-${edId} .w-md-editor-text-input`) as HTMLTextAreaElement;
-      return editor?.value || null;
+      const w = (window as ExtendedWindow);
+      const editor = w.testHelpers?.getEditorInstance(edId);
+      return editor?.getValue() || null;
     }, editorId);
-    console.log(`Editor DOM value length: ${editorValue?.length || 0}`);
+    console.log(`Editor value length: ${editorValue?.length || 0}`);
     console.log(`Expected content contains "Updated Content": ${editorValue?.includes('Updated Content') || false}`);
     expect(editorValue).toContain('Updated Content');
-    console.log('✓ Editor DOM value successfully changed');
+    console.log('✓ Editor value successfully changed');
 
     console.log('=== Step 9: Wait for auto-save to write to file system ===');
-    await appWindow.waitForTimeout(2000); // Auto-save delay
 
     console.log('=== Step 10: Verify file content matches editor content ===');
-    // Find the new markdown file
-    const files = await fs.readdir(FIXTURE_VAULT_PATH);
-    const newFile = files.find(f => f.match(/_\d+\.md$/));
+    // Find the specific new markdown file for the node we created
+    // newNodeId already contains the underscore prefix (e.g. "_8")
+    const expectedFileName = `${newNodeId}.md`;
+    const filePath = path.join(FIXTURE_VAULT_PATH, expectedFileName);
 
-    expect(newFile).toBeDefined();
-    console.log(`✓ Found new file: ${newFile}`);
+    // Poll for file existence with timeout (auto-save can take some time)
+    const fileExists = await test.expect.poll(async () => {
+      try {
+        await fs.access(filePath);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }, {
+      message: `Waiting for file ${expectedFileName} to be created`,
+      timeout: 5000,
+      intervals: [100, 200, 500] // Check frequently at first, then less often
+    }).toBe(true);
 
-    const filePath = path.join(FIXTURE_VAULT_PATH, newFile!);
+    console.log(`✓ Found new file: ${expectedFileName}`);
+
     const fileContent = await fs.readFile(filePath, 'utf-8');
 
     expect(fileContent).toContain('Updated Content');
@@ -1457,7 +1452,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     console.log('=== Cleanup: Delete test file ===');
     await fs.unlink(filePath);
-    console.log(`✓ Deleted test file: ${newFile}`);
+    console.log(`✓ Deleted test file: ${expectedFileName}`);
 
     console.log('✓ Right-click add node with editor and file sync test completed');
   });

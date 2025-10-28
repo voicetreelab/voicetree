@@ -65,9 +65,6 @@ export default defineConfig({
         '@wasm': path.resolve(__dirname, './tidy/wasm_dist')
       }
     },
-    optimizeDeps: {
-      exclude: ['mermaid']
-    },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
       strictPort: true,
@@ -89,7 +86,16 @@ export default defineConfig({
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html')
+        },
+        output: {
+          manualChunks: {
+            'mermaid': ['mermaid']
+          }
         }
+      },
+      commonjsOptions: {
+        include: [/node_modules/],
+        transformMixedEsModules: true
       }
     }
   }

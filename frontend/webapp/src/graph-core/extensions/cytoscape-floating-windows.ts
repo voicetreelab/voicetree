@@ -29,6 +29,14 @@ export interface FloatingWindowConfig {
 const vanillaInstances = new Map<string, { dispose: () => void }>();
 
 /**
+ * Get a vanilla instance by window ID (for testing)
+ * @internal - Only for test usage
+ */
+export function getVanillaInstance(windowId: string): { dispose: () => void } | undefined {
+  return vanillaInstances.get(windowId);
+}
+
+/**
  * Get or create the shared overlay container for all floating windows
  */
 function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
