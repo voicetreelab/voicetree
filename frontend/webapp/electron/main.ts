@@ -5,6 +5,7 @@ import FileWatchManager from './file-watch-manager';
 import ServerManager from './server-manager';
 import TerminalManager from './terminal-manager';
 import MarkdownNodeManager from './markdown-node-manager';
+import PositionManager from './position-manager';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup';
 
 // Fix PATH for macOS/Linux GUI apps
@@ -30,6 +31,7 @@ const fileWatchManager = new FileWatchManager();
 const serverManager = new ServerManager();
 const terminalManager = new TerminalManager();
 const nodeManager = new MarkdownNodeManager();
+const positionManager = new PositionManager();
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -181,6 +183,13 @@ ipcMain.handle('create-child-node', async (event, parentNodeId) => {
   );
 });
 
+// Create standalone node handler
+ipcMain.handle('create-standalone-node', async () => {
+  return await nodeManager.createStandaloneNode(
+    fileWatchManager.getWatchedDirectory()
+  );
+});
+
 // Terminal IPC handlers
 ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
   console.log('[MAIN] terminal:spawn IPC called, event.sender.id:', event.sender.id);
@@ -204,6 +213,27 @@ ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
 
 ipcMain.handle('terminal:kill', async (event, terminalId) => {
   return terminalManager.kill(terminalId);
+});
+
+// Position management IPC handlers
+ipcMain.handle('positions:save', async (event, directoryPath, positions) => {
+  try {
+    await positionManager.savePositions(directoryPath, positions);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[MAIN] Error saving positions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('positions:load', async (event, directoryPath) => {
+  try {
+    const positions = await positionManager.loadPositions(directoryPath);
+    return { success: true, positions };
+  } catch (error: any) {
+    console.error('[MAIN] Error loading positions:', error);
+    return { success: false, error: error.message, positions: {} };
+  }
 });
 
 // App event handlers
