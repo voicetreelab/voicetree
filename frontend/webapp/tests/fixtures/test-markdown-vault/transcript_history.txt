@@ -1,0 +1,1 @@
+uh, so we did markdown editor convers ion to code mirror? Um, and that seems to have worked in the tests.we're getting one editor, uh, error when we actually launch um, voice tree um, with npm run electron. Um, so we're just going to want to figure out what that is coming from.
