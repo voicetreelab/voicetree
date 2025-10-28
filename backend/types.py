@@ -7,7 +7,6 @@ to avoid duplication and ensure consistency.
 
 from datetime import datetime
 from typing import Any, List, Optional, TypedDict, Union
-from numpy.typing import NDArray
 
 
 # Node data structures for context retrieval and general use
@@ -89,15 +88,6 @@ class ChromaGetResult(TypedDict):
 class GeminiEmbeddingResult(TypedDict):
     """Result structure from Gemini embedding API."""
     embedding: List[float]
-
-
-class EmbeddingRow(TypedDict):
-    """Row structure for TSV embedding export."""
-    node_id: int
-    embedding: NDArray[Any]
-    title: str
-    summary: str
-    filename: str
 
 
 # Markdown parsing data structures

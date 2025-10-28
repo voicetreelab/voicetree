@@ -25,17 +25,32 @@ if [ ! -f "dist/resources/server/voicetree-server" ]; then
     exit 1
 fi
 
-# Step 1.5: Copy agent tools to dist resources
+# Step 1.5: Copy agent tools and backend modules to dist resources
 echo ""
-echo "📦 Step 1.5: Copying agent tools to dist/resources/tools..."
+echo "📦 Step 1.5: Copying agent tools and backend modules to dist/resources..."
 echo "----------------------------------------------"
+
+# Copy tools
 mkdir -p ./dist/resources/tools
-# Enable dotglob to include hidden files/directories
 shopt -s dotglob
 cp -r ./tools/* ./dist/resources/tools/
 shopt -u dotglob
 echo "✅ Tools copied to dist/resources/tools/"
-# NOTE electron/tools-setup.ts COPIES THIS TO ~/Library/“Application\ Support”/
+
+# Copy backend modules needed by tools
+mkdir -p ./dist/resources/backend
+cp -r ./backend/context_retrieval ./dist/resources/backend/
+cp -r ./backend/markdown_tree_manager ./dist/resources/backend/
+cp ./backend/__init__.py ./dist/resources/backend/
+cp ./backend/types.py ./dist/resources/backend/
+cp ./backend/settings.py ./dist/resources/backend/
+cp ./backend/logging_config.py ./dist/resources/backend/
+echo "✅ Backend modules copied to dist/resources/backend/"
+echo "   - context_retrieval/"
+echo "   - markdown_tree_manager/"
+echo "   - types.py, settings.py, logging_config.py"
+
+# NOTE electron/tools-setup.ts COPIES THIS TO ~/Library/"Application\ Support"/
 
 # Step 2: Navigate to frontend
 echo ""

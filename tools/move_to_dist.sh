@@ -1,20 +1,61 @@
 #!/bin/bash
 
-# Copy the tools folder to the VoiceTree application support directory
+# Copy the tools and backend modules to both dist/resources and application support directory
 
 set -e
 
-SCRIPT_DIR="$HOME/repos/VoiceTree/tools"
-DEST_DIR="$HOME/Library/Application Support/voicetree-webapp/tools"
+VOICETREE_DIR="$HOME/repos/VoiceTree"
+TOOLS_DIR="$VOICETREE_DIR/tools"
+BACKEND_DIR="$VOICETREE_DIR/backend"
+DIST_DIR="$VOICETREE_DIR/frontend/webapp/dist/resources"
+APP_SUPPORT_DIR="$HOME/Library/Application Support/voicetree-webapp"
 
-echo "Copying tools folder to application support directory..."
-echo "Source: $SCRIPT_DIR"
-echo "Destination: $DEST_DIR"
+echo "Copying tools and backend modules to both locations..."
+echo "Source: $VOICETREE_DIR"
 
-# Create destination directory if it doesn't exist
-#mkdir -p "$DEST_DIR"
+# Copy tools to dist/resources/tools
+echo ""
+echo "Copying tools to: $DIST_DIR/tools"
+mkdir -p "$DIST_DIR/tools"
+cp -rf "$TOOLS_DIR/"* "$DIST_DIR/tools/"
+echo "✓ Tools copied to $DIST_DIR/tools"
 
-# Copy all files from tools directory to destination
-cp -rf "$SCRIPT_DIR/"* "$DEST_DIR/"
+# Copy backend modules to dist/resources/backend
+echo ""
+echo "Copying backend modules to: $DIST_DIR/backend"
+mkdir -p "$DIST_DIR/backend"
+cp -rf "$BACKEND_DIR/context_retrieval" "$DIST_DIR/backend/"
+cp -rf "$BACKEND_DIR/markdown_tree_manager" "$DIST_DIR/backend/"
+cp -f "$BACKEND_DIR/__init__.py" "$DIST_DIR/backend/"
+cp -f "$BACKEND_DIR/types.py" "$DIST_DIR/backend/"
+cp -f "$BACKEND_DIR/settings.py" "$DIST_DIR/backend/"
+cp -f "$BACKEND_DIR/logging_config.py" "$DIST_DIR/backend/"
+echo "✓ Backend modules copied to $DIST_DIR/backend"
+echo "  - context_retrieval/"
+echo "  - markdown_tree_manager/"
+echo "  - types.py, settings.py, logging_config.py"
 
-echo "✓ Tools folder successfully copied to $DEST_DIR"
+# Copy tools to application support
+echo ""
+echo "Copying tools to: $APP_SUPPORT_DIR/tools"
+mkdir -p "$APP_SUPPORT_DIR/tools"
+cp -rf "$TOOLS_DIR/"* "$APP_SUPPORT_DIR/tools/"
+echo "✓ Tools copied to $APP_SUPPORT_DIR/tools"
+
+# Copy backend modules to application support
+echo ""
+echo "Copying backend modules to: $APP_SUPPORT_DIR/backend"
+mkdir -p "$APP_SUPPORT_DIR/backend"
+cp -rf "$BACKEND_DIR/context_retrieval" "$APP_SUPPORT_DIR/backend/"
+cp -rf "$BACKEND_DIR/markdown_tree_manager" "$APP_SUPPORT_DIR/backend/"
+cp -f "$BACKEND_DIR/__init__.py" "$APP_SUPPORT_DIR/backend/"
+cp -f "$BACKEND_DIR/types.py" "$APP_SUPPORT_DIR/backend/"
+cp -f "$BACKEND_DIR/settings.py" "$APP_SUPPORT_DIR/backend/"
+cp -f "$BACKEND_DIR/logging_config.py" "$APP_SUPPORT_DIR/backend/"
+echo "✓ Backend modules copied to $APP_SUPPORT_DIR/backend"
+echo "  - context_retrieval/"
+echo "  - markdown_tree_manager/"
+echo "  - types.py, settings.py, logging_config.py"
+
+echo ""
+echo "✅ All files copied successfully!"
