@@ -30,12 +30,15 @@ export class GraphMutator {
     parentId?: string;
     color?: string;
     skipPositioning?: boolean;
+    explicitPosition?: { x: number; y: number };
   }): NodeSingular {
-    const { nodeId, label, linkedNodeIds, parentId, color, skipPositioning } = data;
+    const { nodeId, label, linkedNodeIds, parentId, color, skipPositioning, explicitPosition } = data;
 
     // Calculate initial position to minimize animation thrashing
-    // Skip positioning for bulk loads (layout will handle it)
-    const initialPosition = skipPositioning
+    // Priority: explicitPosition > skipPositioning > calculated position
+    const initialPosition = explicitPosition
+      ? explicitPosition
+      : skipPositioning
       ? { x: 0, y: 0 }
       : this.calculateInitialPosition(parentId);
 
@@ -58,6 +61,10 @@ export class GraphMutator {
       // Connect to ghost root if this is an orphan node (no parent)
       // This ensures all nodes are part of a single connected component for layout
       if (!parentId) {
+        // Ensure ghost root exists before creating edge to it
+        // This prevents race condition when ghost root was removed (e.g., during watch stop)
+        this.ensureGhostRoot();
+
         this.cy.add({
           data: {
             id: `${GHOST_ROOT_ID}->${nodeId}`,
@@ -197,6 +204,7 @@ export class GraphMutator {
     edgeLabels: Map<string, string>;
     parentId?: string;
     color?: string;
+    explicitPosition?: { x: number; y: number };
   }>): NodeSingular[] {
     const createdNodes: NodeSingular[] = [];
 
@@ -205,7 +213,7 @@ export class GraphMutator {
     this.cy.batch(() => {
       // PHASE 1: Create all nodes first (so parents exist when children reference them)
       for (const data of nodesData) {
-        const { nodeId, label, linkedNodeIds, parentId, color } = data;
+        const { nodeId, label, linkedNodeIds, parentId, color, explicitPosition } = data;
 
         // Check if node already exists
         const existingNode = this.cy.getElementById(nodeId);
@@ -215,14 +223,15 @@ export class GraphMutator {
           continue;
         }
 
-        // Add new node with skip positioning (layout will position them)
+        // Add new node with explicit position if provided, otherwise skip positioning
         const node = this.addNode({
           nodeId,
           label,
           linkedNodeIds,
           parentId,
           color,
-          skipPositioning: true
+          skipPositioning: !explicitPosition,
+          explicitPosition
         });
         createdNodes.push(node);
       }
@@ -297,6 +306,25 @@ export class GraphMutator {
           linkedNodeIds: []
         },
         position: placeholderPos
+      });
+    }
+  }
+
+  /**
+   * Ensure ghost root node exists in the graph
+   * This prevents race conditions where ghost root is removed but still referenced
+   */
+  private ensureGhostRoot(): void {
+    if (!this.cy.getElementById(GHOST_ROOT_ID).length) {
+      console.log('[GraphMutator] Ghost root missing, recreating...');
+      this.cy.add({
+        data: {
+          id: GHOST_ROOT_ID,
+          label: '',
+          linkedNodeIds: [],
+          isGhostRoot: true
+        },
+        position: { x: 0, y: 0 }
       });
     }
   }

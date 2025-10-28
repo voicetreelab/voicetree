@@ -1,7 +1,7 @@
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, ViewUpdate } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
-import { markdown } from '@codemirror/lang-markdown';
+import richEditor from 'codemirror-rich-markdoc/src/index';
 import { Disposable } from '@/views/Disposable';
 import { EventEmitter } from '@/utils/EventEmitter';
 
@@ -19,7 +19,8 @@ export interface CodeMirrorEditorOptions {
  * in the VoiceTree floating window system.
  *
  * Features:
- * - Markdown syntax highlighting
+ * - Rich Markdown editing with live preview (using codemirror-rich-markdoc)
+ * - Markdoc support with inline rendering
  * - Change event emission
  * - Focus management
  * - Proper cleanup via Disposable pattern
@@ -75,7 +76,8 @@ export class CodeMirrorEditorView extends Disposable {
   private createExtensions(): Extension[] {
     const extensions: Extension[] = [
       basicSetup,
-      markdown(),
+      richEditor({ markdoc: {} }), // Use rich-markdoc for live preview
+      EditorView.lineWrapping, // Enable text wrapping
       this.setupUpdateListener()
     ];
 

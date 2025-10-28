@@ -6,12 +6,13 @@
  */
 
 import type cytoscape from 'cytoscape';
-import type React from 'react';
-import type ReactDOM from 'react-dom/client';
+import { TerminalVanilla } from '@/components/floating-windows/editors/TerminalVanilla';
+import { CodeMirrorEditorView } from '@/views/CodeMirrorEditorView';
+import { TestComponent } from '@/components/floating-windows/editors/TestComponent';
 
 export interface FloatingWindowConfig {
   id: string;
-  component: string | React.ReactElement;
+  component: string;
   title: string;
   position?: { x: number; y: number };
   nodeData?: Record<string, unknown>;
@@ -24,17 +25,8 @@ export interface FloatingWindowConfig {
   shadowNodeDimensions?: { width: number; height: number };
 }
 
-export interface ExtensionConfig {
-  React: typeof React;
-  ReactDOM: typeof ReactDOM;
-  components: Record<string, React.ComponentType<unknown>>;
-}
-
-// Store React roots for cleanup
-const reactRoots = new Map<string, ReactDOM.Root>();
-
-// Store extension configuration
-let extensionConfig: ExtensionConfig | null = null;
+// Store vanilla JS component instances for cleanup
+const vanillaInstances = new Map<string, { dispose: () => void }>();
 
 /**
  * Get or create the shared overlay container for all floating windows
@@ -166,11 +158,11 @@ function createWindowChrome(
     if (shadowNode.length > 0) {
       shadowNode.remove();
     }
-    // Unmount React and remove DOM
-    const root = reactRoots.get(id);
-    if (root) {
-      root.unmount();
-      reactRoots.delete(id);
+    // Dispose vanilla JS instances
+    const vanillaInstance = vanillaInstances.get(id);
+    if (vanillaInstance) {
+      vanillaInstance.dispose();
+      vanillaInstances.delete(id);
     }
     windowElement.remove();
   });
@@ -341,129 +333,112 @@ function mountComponent(
 ) {
   console.log('[FloatingWindows] mountComponent called for:', windowId, 'component:', component);
 
-  if (!extensionConfig) {
-    console.error('[FloatingWindows] Extension not properly initialized.');
-    contentContainer.innerHTML = '<div style="padding: 10px; color: red;">Error: Extension not initialized</div>';
+  // Special case: Terminal uses vanilla JS (no React!)
+  if (typeof component === 'string' && component === 'Terminal') {
+    console.log('[FloatingWindows] Mounting Terminal with vanilla JS (NO REACT)');
+
+    // Create vanilla Terminal instance directly in the content container
+    const terminal = new TerminalVanilla({
+      container: contentContainer,
+      nodeMetadata: config.nodeMetadata
+    });
+
+    // Store for cleanup
+    vanillaInstances.set(windowId, terminal);
+
+    console.log('[FloatingWindows] Terminal mounted successfully (vanilla JS)');
     return;
   }
 
-  const { React, ReactDOM, components } = extensionConfig;
+  // Special case: MarkdownEditor uses vanilla JS CodeMirror
+  if (component === 'MarkdownEditor') {
+    console.log('[FloatingWindows] Mounting MarkdownEditor with vanilla JS');
 
-  // Check if component is a registered component name
-  if (typeof component === 'string') {
-    if (!components[component]) {
-      throw new Error(`[FloatingWindows] Component '${component}' not found in component registry. Available: ${Object.keys(components).join(', ')}`);
+    // Create vanilla CodeMirror editor instance directly in the content container
+    const editor = new CodeMirrorEditorView(
+      contentContainer,
+      config.initialContent || '',
+      {
+        previewMode: config.previewMode || 'edit',
+        autosaveDelay: 100
+      }
+    );
+
+    // Setup auto-save if onSave callback provided
+    if (config.onSave) {
+      editor.onChange((content) => {
+        config.onSave!(content).catch((error) => {
+          console.error('[CodeMirrorEditorView] Auto-save failed:', error);
+        });
+      });
     }
 
-    const ComponentClass = components[component];
-    console.log('[FloatingWindows] Creating root for component:', component);
+    // Store for cleanup
+    vanillaInstances.set(windowId, editor);
 
-    if (!document.body.contains(contentContainer)) {
-      console.error('[FloatingWindows] ERROR: Content container must be in document before mounting React!');
-      return;
-    }
-
-    try {
-      const root = ReactDOM.createRoot(contentContainer);
-
-      // Render the component directly - no wrapper
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      root.render(React.createElement(ComponentClass as any, {
-        windowId: windowId,
-        content: config.initialContent || '',
-        nodeMetadata: config.nodeMetadata,
-        previewMode: config.previewMode,
-        onSave: config.onSave || ((content: string) => {
-          console.log('Saved content:', content);
-          return Promise.resolve();
-        })
-      }));
-
-      reactRoots.set(windowId, root);
-
-      console.log('[FloatingWindows] Component mounted successfully');
-    } catch (error) {
-      console.error('[FloatingWindows] Error mounting component:', error);
-      contentContainer.innerHTML = `<div style="padding: 10px; color: red;">Error mounting component: ${error}</div>`;
-    }
-  } else {
-    // React element
-    const root = ReactDOM.createRoot(contentContainer);
-    root.render(component);
-    reactRoots.set(windowId, root);
+    console.log('[FloatingWindows] MarkdownEditor mounted successfully (vanilla JS)');
+    return;
   }
+
+  // Special case: TestComponent for testing
+  if (component === 'TestComponent') {
+    console.log('[FloatingWindows] Mounting TestComponent with vanilla JS');
+
+    const testComponent = new TestComponent({
+      container: contentContainer
+    });
+
+    // Store for cleanup
+    vanillaInstances.set(windowId, testComponent);
+
+    console.log('[FloatingWindows] TestComponent mounted successfully (vanilla JS)');
+    return;
+  }
+
+  // Unknown component
+  throw new Error(`[FloatingWindows] Unknown component: ${component}. Available: Terminal, MarkdownEditor, TestComponent`);
 }
 
 /**
  * Get default shadow node dimensions based on component type
  * Terminals are larger, editors are medium, other components are small
  */
-function getDefaultDimensions(component: string | React.ReactElement): { width: number; height: number } {
-  if (typeof component === 'string') {
-    switch (component) {
-      case 'Terminal':
-        // Terminals need more width for 100+ cols and height for ~30+ rows
-        // Target: 100 cols × ~9px ≈ 900px + margins (~20px) = 920px
-        // Target: 30 rows × ~17px ≈ 510px + title bar (~40px) = 550px
-        return { width: 400, height: 600 };
-      case 'MarkdownEditor':
-        // Editors are medium - typical size ~500x300
-        return { width: 400, height: 400 };
-      default:
-        // Default for unknown components
-        return { width: 200, height: 150 };
-    }
+function getDefaultDimensions(component: string): { width: number; height: number } {
+  switch (component) {
+    case 'Terminal':
+      // Terminals need more width for 100+ cols and height for ~30+ rows
+      // Target: 100 cols × ~9px ≈ 900px + margins (~20px) = 920px
+      // Target: 30 rows × ~17px ≈ 510px + title bar (~40px) = 550px
+      return { width: 400, height: 600 };
+    case 'MarkdownEditor':
+      // Editors are medium - typical size ~500x300
+      return { width: 400, height: 400 };
+    case 'TestComponent':
+      // Test component - small size for tests
+      return { width: 200, height: 150 };
+    default:
+      // Default for unknown components
+      return { width: 200, height: 150 };
   }
-  // React elements get default size
-  return { width: 200, height: 150 };
 }
 
 /**
  * Register the floating windows extension with Cytoscape
  */
 export function registerFloatingWindows(
-  cytoscape: typeof import('cytoscape'),
-  config: ExtensionConfig
+  cytoscape: typeof import('cytoscape')
 ) {
   console.log('[FloatingWindows] Registering extension...');
-
-  // Validate config
-  if (!config) {
-    throw new Error('[FloatingWindows] Config is required. Must provide React, ReactDOM, and components.');
-  }
-
-  if (!config.React) {
-    throw new Error('[FloatingWindows] Config.React is required.');
-  }
-
-  if (!config.ReactDOM) {
-    throw new Error('[FloatingWindows] Config.ReactDOM is required.');
-  }
-
-  if (!config.components) {
-    throw new Error('[FloatingWindows] Config.components is required.');
-  }
-
-  // Store config
-  extensionConfig = config;
-  console.log('[FloatingWindows] Extension configured with React dependencies');
 
   // Add the addFloatingWindow method to Core prototype
   cytoscape('core', 'addFloatingWindow', function(this: cytoscape.Core, config: FloatingWindowConfig) {
     console.log('[FloatingWindows] addFloatingWindow called with config:', config);
     const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
 
-    // Validate extension is initialized
-    if (!extensionConfig) {
-      throw new Error('Extension not initialized! Call registerFloatingWindows first.');
-    }
-
     // Validate component exists early (fail-fast principle)
-    if (typeof component === 'string') {
-      const { components } = extensionConfig;
-      if (!components[component]) {
-        throw new Error(`Component "${component}" not found in registry. Available components: ${Object.keys(components).join(', ')}`);
-      }
+    const validComponents = ['Terminal', 'MarkdownEditor', 'TestComponent'];
+    if (!validComponents.includes(component)) {
+      throw new Error(`Component "${component}" not found. Available components: ${validComponents.join(', ')}`);
     }
 
     // 1. Get or create overlay

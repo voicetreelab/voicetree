@@ -279,7 +279,7 @@ export class CytoscapeCore {
   // Proxy floating window extension method to underlying cytoscape instance
   addFloatingWindow(config: {
     id: string;
-    component: string | React.ReactElement;
+    component: string;
     position?: { x: number; y: number };
     nodeData?: Record<string, unknown>;
     resizable?: boolean;
