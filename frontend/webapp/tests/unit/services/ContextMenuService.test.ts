@@ -197,9 +197,10 @@ describe('ContextMenuService', () => {
       service = new ContextMenuService(initialConfig);
       service.initialize(cy);
 
-      expect(cy.cxtmenu).toHaveBeenCalledTimes(1);
+      // Now cxtmenu is called twice: once for nodes, once for canvas
+      expect(cy.cxtmenu).toHaveBeenCalledTimes(2);
 
-      // Get the mock menu instance
+      // Get the mock menu instance (for nodes)
       const menuInstance = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.results[0].value;
 
       // Update config
@@ -211,8 +212,9 @@ describe('ContextMenuService', () => {
       // Should have destroyed the old menu
       expect(menuInstance.destroy).toHaveBeenCalled();
 
-      // Should have created a new menu
-      expect(cy.cxtmenu).toHaveBeenCalledTimes(2);
+      // Should have created a new node menu (but not a new canvas menu)
+      // Total: 2 initial + 1 new node menu = 3 calls
+      expect(cy.cxtmenu).toHaveBeenCalledTimes(3);
     });
 
     it('should not reinitialize if cy is not set', () => {
@@ -267,6 +269,138 @@ describe('ContextMenuService', () => {
       expect(iconElement.tagName).toBe('DIV');
       expect(iconElement.querySelector('svg')).not.toBeNull();
       expect(iconElement.querySelector('path')).not.toBeNull();
+    });
+  });
+
+  describe('canvas context menu', () => {
+    it('should register canvas context menu with cxtmenu', () => {
+      const onAddNodeAtPosition = vi.fn();
+      const config = {
+        onAddNodeAtPosition,
+      };
+
+      // Spy on cy.cxtmenu before initialization
+      const cxtmenuSpy = vi.spyOn(cy, 'cxtmenu');
+
+      service = new ContextMenuService(config);
+      service.initialize(cy);
+
+      // Verify that cxtmenu was called twice: once for nodes, once for canvas
+      expect(cxtmenuSpy).toHaveBeenCalledTimes(2);
+
+      // Check that the second call is for canvas (selector: 'core')
+      const secondCall = cxtmenuSpy.mock.calls[1];
+      expect(secondCall).toBeDefined();
+      const canvasMenuOptions = secondCall[0];
+      expect(canvasMenuOptions.selector).toBe('core');
+      expect(canvasMenuOptions.commands).toBeInstanceOf(Function);
+    });
+
+    it('should store canvas click position and create menu command', () => {
+      const onAddNodeAtPosition = vi.fn();
+      const config = {
+        onAddNodeAtPosition,
+      };
+
+      // Spy on cy.cxtmenu before initialization
+      const cxtmenuSpy = vi.spyOn(cy, 'cxtmenu');
+
+      service = new ContextMenuService(config);
+      service.initialize(cy);
+
+      // Get the canvas menu setup (second call to cxtmenu)
+      const canvasMenuCall = cxtmenuSpy.mock.calls.find(
+        call => call[0]?.selector === 'core'
+      );
+      expect(canvasMenuCall).toBeDefined();
+      const commandsFunction = canvasMenuCall![0].commands;
+
+      // Spy on the cy.on method to get the cxttapstart handler
+      const onSpy = vi.spyOn(cy, 'on');
+
+      // Re-initialize to capture the event handler spy
+      service.destroy();
+      service = new ContextMenuService(config);
+      service.initialize(cy);
+
+      // Verify that cxttapstart listener was registered for storing position
+      expect(onSpy).toHaveBeenCalledWith('cxttapstart', expect.any(Function));
+
+      // Get the registered handler
+      const cxttapstartCall = onSpy.mock.calls.find(call => call[0] === 'cxttapstart');
+      expect(cxttapstartCall).toBeDefined();
+      const handler = cxttapstartCall![1] as Function;
+
+      // Simulate a canvas click event to store position
+      const position = { x: 100, y: 200 };
+      const mockEvent = {
+        target: cy,
+        position,
+      };
+
+      handler(mockEvent);
+
+      // Get the commands function from the new service instance
+      const newCanvasMenuCall = cxtmenuSpy.mock.calls.filter(
+        call => call[0]?.selector === 'core'
+      )[1]; // Get second canvas menu call (after re-initialization)
+      expect(newCanvasMenuCall).toBeDefined();
+      const newCommandsFunction = newCanvasMenuCall[0].commands;
+
+      // Get commands after position is stored
+      const commands = newCommandsFunction();
+
+      // Verify we have an "Add Node Here" command
+      expect(commands).toHaveLength(1);
+      expect(commands[0].enabled).toBe(true);
+
+      // Simulate selecting the command
+      commands[0].select();
+
+      // The handler should be called with the stored position
+      expect(onAddNodeAtPosition).toHaveBeenCalledWith(position);
+    });
+
+    it('should not store position for node clicks', () => {
+      const onAddNodeAtPosition = vi.fn();
+      const config = {
+        onAddNodeAtPosition,
+      };
+
+      // Spy on cy.cxtmenu and cy.on before initialization
+      const cxtmenuSpy = vi.spyOn(cy, 'cxtmenu');
+      const onSpy = vi.spyOn(cy, 'on');
+
+      service = new ContextMenuService(config);
+      service.initialize(cy);
+
+      // Get the registered cxttapstart handler
+      const cxttapstartCall = onSpy.mock.calls.find(call => call[0] === 'cxttapstart');
+      expect(cxttapstartCall).toBeDefined();
+      const handler = cxttapstartCall![1] as Function;
+
+      // Simulate a node click event (not canvas)
+      const node = cy.getElementById('node1');
+      const position = { x: 100, y: 200 };
+      const mockEvent = {
+        target: node,
+        position,
+      };
+
+      handler(mockEvent);
+
+      // Get the commands function from canvas menu
+      const canvasMenuCall = cxtmenuSpy.mock.calls.find(
+        call => call[0]?.selector === 'core'
+      );
+      expect(canvasMenuCall).toBeDefined();
+      const commandsFunction = canvasMenuCall![0].commands;
+
+      // Get commands after node click (position should not be stored)
+      const commands = commandsFunction();
+
+      // Commands should be empty since position wasn't stored (node click, not canvas)
+      expect(commands).toHaveLength(0);
     });
   });
 });

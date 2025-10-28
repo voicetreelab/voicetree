@@ -6,6 +6,7 @@
  * 4. Updated nodes animate with a different "breathing" effect
  * 5. Dark/light mode toggle updates graph colors and text colors appropriately
  * 6. Export button in speed dial opens a terminal successfully
+ * 7. Right-click on canvas creates new node, opens editor, and saves changes
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -453,6 +454,193 @@ test.describe('Electron Features E2E Tests', () => {
     }).toBe(true);
 
     console.log('✓ Export button test completed successfully');
+  });
+
+  test('should create new node when right-clicking canvas via context menu and open editor', async ({ appWindow, tempDir }) => {
+    console.log('=== Testing Right-Click Canvas Context Menu Add Node Functionality ===');
+
+    await startWatching(appWindow, tempDir);
+
+    // Create initial node to have something in the graph
+    await createMarkdownFile(tempDir, 'initial-node.md', '# Initial Node\n\nStarting node.');
+    await pollForNodeCount(appWindow, 1);
+
+    console.log('=== Step 1: Record initial node count and file count ===');
+    const initialState = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      return {
+        nodeCount: cy ? cy.nodes().length : 0,
+        fileCount: cy ? cy.nodes().length : 0
+      };
+    });
+    expect(initialState.nodeCount).toBe(1);
+
+    console.log('=== Step 2: Get canvas position and trigger right-click to open menu ===');
+    // Get the canvas element and trigger a right-click to open the context menu
+    const canvasPosition = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return null;
+
+      // Get the center of the viewport in graph coordinates
+      const pan = cy.pan();
+      const zoom = cy.zoom();
+      const centerX = (cy.width() / 2 - pan.x) / zoom;
+      const centerY = (cy.height() / 2 - pan.y) / zoom;
+
+      // Trigger the cxttapstart event on the canvas to open the context menu
+      cy.trigger('cxttapstart', {
+        position: { x: centerX + 200, y: centerY + 200 }
+      });
+
+      return { x: centerX + 200, y: centerY + 200 };
+    });
+
+    console.log('Triggered right-click at position:', canvasPosition);
+
+    console.log('=== Step 2b: Wait for context menu and click "Add Node Here" ===');
+    // Wait for the context menu to appear
+    await appWindow.waitForTimeout(500);
+
+    // Click on the "Add Node Here" menu item
+    await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return;
+
+      // Find the cxtmenu element and click the first command (Add Node Here)
+      const menuElement = document.querySelector('.cxtmenu');
+      if (menuElement) {
+        // Click on the first menu command
+        const firstCommand = menuElement.querySelector('.cxtmenu-item') as HTMLElement;
+        if (firstCommand) {
+          firstCommand.click();
+          console.log('Clicked Add Node Here menu item');
+        }
+      }
+    });
+
+    console.log('✓ Context menu interaction complete');
+
+    console.log('=== Step 3: Wait for new node to be created and added to graph ===');
+    // Wait for the new node to appear in the graph
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const w = (window as ExtendedWindow);
+        const cy = w.cytoscapeInstance;
+        return cy ? cy.nodes().length : 0;
+      });
+    }, {
+      message: 'Waiting for new node to be added to graph',
+      timeout: 5000
+    }).toBe(2);
+
+    console.log('✓ New node added to graph');
+
+    console.log('=== Step 3b: Verify new node is positioned near click location ===');
+    // Verify the new node's position is within a reasonable radius of the click position
+    const nodePositionCheck = await appWindow.evaluate((clickPos) => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return { success: false, message: 'No cy instance' };
+
+      // Find the newly created node (should be the one that's not 'initial-node')
+      const newNode = cy.nodes().filter(node =>
+        node.id() !== 'initial-node' && !node.data('isGhostRoot')
+      )[0];
+
+      if (!newNode) {
+        return { success: false, message: 'New node not found' };
+      }
+
+      const nodePos = newNode.position();
+      const distance = Math.sqrt(
+        Math.pow(nodePos.x - clickPos.x, 2) +
+        Math.pow(nodePos.y - clickPos.y, 2)
+      );
+
+      // Allow a generous radius (e.g., 100 pixels) to account for layout adjustments
+      const maxDistance = 100;
+      const success = distance <= maxDistance;
+
+      return {
+        success,
+        message: `Node at (${nodePos.x.toFixed(1)}, ${nodePos.y.toFixed(1)}), click at (${clickPos.x}, ${clickPos.y}), distance: ${distance.toFixed(1)}px`,
+        nodeId: newNode.id(),
+        distance
+      };
+    }, canvasPosition);
+
+    console.log('Position check result:', nodePositionCheck);
+    expect(nodePositionCheck.success).toBe(true);
+    console.log(`✓ Node positioned within acceptable radius: ${nodePositionCheck.message}`);
+
+    console.log('=== Step 4: Verify editor window opened ===');
+    await appWindow.waitForTimeout(1000);
+
+    const editorOpened = await appWindow.evaluate(() => {
+      const editors = document.querySelectorAll('.cy-floating-window');
+      for (const editor of editors) {
+        const title = editor.querySelector('.cy-floating-window-title-text');
+        if (title && title.textContent?.includes('Editor')) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    expect(editorOpened).toBe(true);
+    console.log('✓ Editor window opened');
+
+    console.log('=== Step 5: Verify markdown file was created ===');
+    const files = await fs.readdir(tempDir);
+    const markdownFiles = files.filter(f => f.endsWith('.md'));
+    expect(markdownFiles.length).toBe(2); // initial-node.md + new node
+
+    // Find the new file (should have node_id pattern like _105.md)
+    const newFile = markdownFiles.find(f => f.match(/_\d+\.md/));
+    expect(newFile).toBeDefined();
+
+    if (newFile) {
+      const content = await fs.readFile(path.join(tempDir, newFile), 'utf-8');
+      expect(content).toContain('node_id:');
+      expect(content).toContain('title: New Node');
+      console.log('✓ Markdown file created with correct content:', newFile);
+    }
+
+    console.log('=== Step 6: Verify editor content can be edited and saved ===');
+    // Type in the editor
+    await appWindow.evaluate(() => {
+      // Focus the monaco editor
+      const editorElement = document.querySelector('.monaco-editor');
+      if (editorElement) {
+        const textarea = editorElement.querySelector('textarea');
+        if (textarea) {
+          (textarea as HTMLTextAreaElement).focus();
+        }
+      }
+    });
+
+    await appWindow.waitForTimeout(500);
+
+    // Add some text to the editor
+    await appWindow.keyboard.type('\n\nThis is a test addition.');
+    await appWindow.waitForTimeout(500);
+
+    // Click save button
+    const saveButton = await appWindow.locator('button:has-text("Save")').first();
+    await saveButton.click();
+    await appWindow.waitForTimeout(1000);
+
+    // Verify the file was updated
+    if (newFile) {
+      const updatedContent = await fs.readFile(path.join(tempDir, newFile), 'utf-8');
+      expect(updatedContent).toContain('This is a test addition.');
+      console.log('✓ Editor save functionality working');
+    }
+
+    console.log('✓ Right-click add node test completed successfully');
   });
 
   // NOTE: OS preference override is tested at unit level (StyleService.test.ts:105-134)

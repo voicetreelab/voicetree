@@ -1171,4 +1171,147 @@ test.describe('Terminal E2E Tests', () => {
     // Expecting at least 5+ Python tool files
     expect(toolCountContent).toMatch(/[5-9]|[1-9]\d+/); // Match 5 or higher
   });
+
+  test('should cycle between terminals using Command+[ and Command+] hotkeys', async ({ appWindow, tempDir }) => {
+    // Start file watching
+    await appWindow.evaluate(async (dir) => {
+      const window = globalThis as ExtendedWindow;
+      if (window.electronAPI) {
+        return window.electronAPI.startFileWatching(dir);
+      }
+    }, tempDir);
+
+    // Wait for initial scan to complete (chokidar needs time to initialize)
+    await appWindow.waitForTimeout(2000);
+
+    // Create multiple test nodes AFTER watching starts
+    await fs.writeFile(path.join(tempDir, 'node-a.md'), `# Node A\n\nFirst node.`);
+    await fs.writeFile(path.join(tempDir, 'node-b.md'), `# Node B\n\nSecond node.`);
+    await fs.writeFile(path.join(tempDir, 'node-c.md'), `# Node C\n\nThird node.`);
+
+    // Wait for graph to load with multiple nodes
+    await expect.poll(async () => {
+      return appWindow.evaluate(() => {
+        const window = globalThis as ExtendedWindow;
+        const cy = window.cytoscapeInstance;
+        return cy && cy.nodes().length >= 3;
+      });
+    }, {
+      message: 'Waiting for graph nodes to load',
+      timeout: 10000
+    }).toBe(true);
+
+    // Open terminals for 3 different nodes
+    await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const testHelpers = (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers;
+      const cy = window.cytoscapeInstance;
+
+      if (testHelpers && cy) {
+        const nodes = cy.nodes();
+        const nodeIds = ['node-a', 'node-b', 'node-c'];
+        nodeIds.forEach(id => {
+          const node = cy.getElementById(id);
+          if (node.length > 0) {
+            testHelpers.createTerminal(id);
+          }
+        });
+      }
+    });
+
+    // Wait for terminals to open
+    await appWindow.waitForTimeout(2000);
+
+    // Verify 3 terminals exist
+    const terminalCount = await appWindow.evaluate(() => {
+      const terminals = document.querySelectorAll('.cy-floating-window');
+      let count = 0;
+      for (const terminal of terminals) {
+        const title = terminal.querySelector('.cy-floating-window-title-text');
+        if (title && title.textContent?.includes('Terminal')) {
+          count++;
+        }
+      }
+      return count;
+    });
+
+    expect(terminalCount).toBe(3);
+
+    // Get initial pan before hotkey
+    const initialPan = await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      return { x: cy.pan().x, y: cy.pan().y };
+    });
+
+    // Focus the graph container to ensure it receives keyboard events
+    await appWindow.evaluate(() => {
+      // The container is the parent of the cytoscape canvas
+      const container = document.querySelector('.h-full.w-full[tabindex="0"]') as HTMLElement;
+      if (container) {
+        container.focus();
+      }
+    });
+
+    // Press Command+] (next terminal)
+    await appWindow.keyboard.press('Meta+]');
+    await appWindow.waitForTimeout(500);
+
+    // Get pan after first hotkey
+    const panAfterNext = await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      return { x: cy.pan().x, y: cy.pan().y };
+    });
+
+    // Pan should have changed (viewport moved to fit terminal)
+    expect(panAfterNext.x !== initialPan.x || panAfterNext.y !== initialPan.y).toBe(true);
+
+    // Press Command+] again (cycle to next)
+    await appWindow.keyboard.press('Meta+]');
+    await appWindow.waitForTimeout(500);
+
+    const panAfterSecondNext = await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      return { x: cy.pan().x, y: cy.pan().y };
+    });
+
+    // Pan should have changed again
+    expect(panAfterSecondNext.x !== panAfterNext.x || panAfterSecondNext.y !== panAfterNext.y).toBe(true);
+
+    // Press Command+[ (previous terminal)
+    await appWindow.keyboard.press('Meta+[');
+    await appWindow.waitForTimeout(500);
+
+    const panAfterPrevious = await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      return { x: cy.pan().x, y: cy.pan().y };
+    });
+
+    // Pan should have changed back (cycling backward)
+    expect(panAfterPrevious.x !== panAfterSecondNext.x || panAfterPrevious.y !== panAfterSecondNext.y).toBe(true);
+
+    // Wrap-around test: cycle through all 3 terminals and back to first
+    await appWindow.keyboard.press('Meta+]');
+    await appWindow.waitForTimeout(300);
+    await appWindow.keyboard.press('Meta+]');
+    await appWindow.waitForTimeout(300);
+    await appWindow.keyboard.press('Meta+]'); // Should wrap to first
+
+    const panAfterWrapAround = await appWindow.evaluate(() => {
+      const window = globalThis as ExtendedWindow;
+      const cy = window.cytoscapeInstance;
+      return { x: cy.pan().x, y: cy.pan().y };
+    });
+
+    // After wrapping around, we should be close to where we started cycling
+    const distanceFromStart = Math.sqrt(
+      Math.pow(panAfterWrapAround.x - panAfterNext.x, 2) +
+      Math.pow(panAfterWrapAround.y - panAfterNext.y, 2)
+    );
+
+    expect(distanceFromStart).toBeLessThan(50); // Should be close to first terminal position
+  });
 });
