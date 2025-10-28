@@ -12,58 +12,106 @@ export function getToolsDirectory(): string {
 }
 
 /**
- * Set up agent tools directory
- * Copies tools from app Resources to Application Support, overwriting existing tools
+ * Get the backend directory path in Application Support
+ * Returns the user-writable location where backend modules are stored
+ */
+export function getBackendDirectory(): string {
+  return path.join(app.getPath('userData'), 'backend');
+}
+
+/**
+ * Set up agent tools and backend directories
+ * Copies tools and backend modules from app Resources to Application Support, overwriting existing files
  */
 export async function setupToolsDirectory(): Promise<void> {
   try {
     const toolsDestPath = getToolsDirectory();
+    const backendDestPath = getBackendDirectory();
 
-    // Remove existing tools directory if it exists to ensure fresh copy
+    // Remove existing directories if they exist to ensure fresh copy
     try {
       await fs.rm(toolsDestPath, { recursive: true, force: true });
-      console.log('[Tools] Removed existing tools directory');
+      console.log('[Setup] Removed existing tools directory');
     } catch {
       // Directory doesn't exist, which is fine
     }
 
-    console.log('[Tools] Setting up tools directory...');
+    try {
+      await fs.rm(backendDestPath, { recursive: true, force: true });
+      console.log('[Setup] Removed existing backend directory');
+    } catch {
+      // Directory doesn't exist, which is fine
+    }
 
-    // Determine source path based on whether app is packaged
+    console.log('[Setup] Setting up tools and backend directories...');
+
+    // Determine source paths based on whether app is packaged
     let toolsSourcePath: string;
+    let backendSourcePath: string;
+
     if (app.isPackaged) {
       // Packaged app: Use process.resourcesPath
       toolsSourcePath = path.join(process.resourcesPath, 'tools');
-      console.log('[Tools] Packaged app - copying from:', toolsSourcePath);
+      backendSourcePath = path.join(process.resourcesPath, 'backend');
+      console.log('[Setup] Packaged app - copying from:', process.resourcesPath);
     } else {
       // Development: Use project root
       const appPath = app.getAppPath();
       const projectRoot = path.resolve(appPath, '../..');
-      toolsSourcePath = path.join(projectRoot, 'dist', 'resources', 'tools');
-      console.log('[Tools] Development - copying from:', toolsSourcePath);
+      const resourcesPath = path.join(projectRoot, 'dist', 'resources');
+      toolsSourcePath = path.join(resourcesPath, 'tools');
+      backendSourcePath = path.join(resourcesPath, 'backend');
+      console.log('[Setup] Development - copying from:', resourcesPath);
     }
 
-    // Verify source exists
+    // Verify source directories exist
+    let toolsExist = false;
+    let backendExist = false;
+
     try {
       await fs.access(toolsSourcePath);
+      toolsExist = true;
     } catch (error) {
-      console.error('[Tools] Source tools directory not found at:', toolsSourcePath);
-      console.error('[Tools] Tools will not be available. Run build_and_package_all.sh to bundle tools.');
+      console.error('[Setup] Source tools directory not found at:', toolsSourcePath);
+    }
+
+    try {
+      await fs.access(backendSourcePath);
+      backendExist = true;
+    } catch (error) {
+      console.error('[Setup] Source backend directory not found at:', backendSourcePath);
+    }
+
+    if (!toolsExist && !backendExist) {
+      console.error('[Setup] Neither tools nor backend directories found. Run build_and_package_all.sh to bundle resources.');
       return;
     }
 
     // Create parent directory if needed
     await fs.mkdir(path.dirname(toolsDestPath), { recursive: true });
 
-    // Copy tools directory using cp -r (Unix) or xcopy (Windows)
-    if (process.platform === 'win32') {
-      execSync(`xcopy /E /I /Y "${toolsSourcePath}" "${toolsDestPath}"`);
-    } else {
-      execSync(`cp -r "${toolsSourcePath}" "${toolsDestPath}"`);
+    // Copy tools directory if it exists
+    if (toolsExist) {
+      if (process.platform === 'win32') {
+        execSync(`xcopy /E /I /Y "${toolsSourcePath}" "${toolsDestPath}"`);
+      } else {
+        execSync(`cp -r "${toolsSourcePath}" "${toolsDestPath}"`);
+      }
+      console.log('[Setup] ✓ Successfully copied tools to:', toolsDestPath);
     }
 
-    console.log('[Tools] Successfully copied tools to:', toolsDestPath);
+    // Copy backend directory if it exists
+    if (backendExist) {
+      if (process.platform === 'win32') {
+        execSync(`xcopy /E /I /Y "${backendSourcePath}" "${backendDestPath}"`);
+      } else {
+        execSync(`cp -r "${backendSourcePath}" "${backendDestPath}"`);
+      }
+      console.log('[Setup] ✓ Successfully copied backend to:', backendDestPath);
+    }
+
+    console.log('[Setup] Setup complete!');
   } catch (error) {
-    console.error('[Tools] Error setting up tools directory:', error);
+    console.error('[Setup] Error setting up directories:', error);
   }
 }
