@@ -53,6 +53,7 @@ export class CytoscapeCore {
       style: this.styleService.getCombinedStylesheet(),
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
+      boxSelectionEnabled: true,
       ...(headless ? { headless: true } : { container: container })
     };
 
@@ -116,6 +117,12 @@ export class CytoscapeCore {
     // Focus handling
     this.viz.on('tap boxselect', () => {
       this.container.focus();
+    });
+
+    // Box selection end event - log selected nodes
+    this.viz.on('boxend', () => {
+      const selected = this.viz.$('node:selected');
+      console.log(`[CytoscapeCore] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
     });
   }
 

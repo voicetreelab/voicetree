@@ -5,6 +5,7 @@ import { parseForCytoscape } from '@/graph-core/data/load_markdown/MarkdownParse
 import { GraphMutator } from '@/graph-core/mutation/GraphMutator';
 import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS, calculateParentAngle } from '@/graph-core/graphviz/layout/angularPositionSeeding';
 import { GHOST_ROOT_ID } from '@/graph-core/constants';
+import type { FileEvent } from '@/types/electron';
 
 // Normalize a filename to a consistent ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -24,10 +25,16 @@ function normalizeFileId(filename: string): string {
  * Performs pre-order traversal from root nodes
  */
 function seedBulkPositions(cy: Core, nodes: NodeSingular[]): void {
+  // Get ghost root node
+  const ghostRoot = cy.getElementById(GHOST_ROOT_ID);
+
+  // Include ghost root in the nodes to position (treat it like a normal node)
+  const allNodes = ghostRoot.length > 0 ? [...nodes, ghostRoot] : nodes;
+
   // Build parent -> children map
   const childrenMap = new Map<string, NodeSingular[]>();
 
-  nodes.forEach(node => {
+  allNodes.forEach(node => {
     const parentId = node.data('parentId');
     if (parentId) {
       if (!childrenMap.has(parentId)) {
@@ -37,8 +44,15 @@ function seedBulkPositions(cy: Core, nodes: NodeSingular[]): void {
     }
   });
 
-  // Find roots (nodes with no parentId)
-  const roots = nodes.filter(n => !n.data('parentId'));
+  // Orphan nodes (no parentId) are children of ghost root
+  const orphans = nodes.filter(n => !n.data('parentId'));
+  if (orphans.length > 0 && ghostRoot.length > 0) {
+    childrenMap.set(GHOST_ROOT_ID, orphans);
+  }
+
+  // Find true roots (nodes with no parentId AND not the ghost root)
+  // In this case, ghost root is the only true root
+  const roots = ghostRoot.length > 0 ? [ghostRoot] : nodes.filter(n => !n.data('parentId'));
 
   // Position root nodes around origin
   roots.forEach((root, index) => {
@@ -86,6 +100,7 @@ interface UseFileWatcherParams {
   setNodeCount: (count: number) => void;
   setEdgeCount: (count: number) => void;
   setIsInitialLoad: (value: boolean) => void;
+  pendingNodePositions?: React.MutableRefObject<Map<string, { x: number; y: number }>>;
 }
 
 export function useFileWatcher({
@@ -94,10 +109,13 @@ export function useFileWatcher({
   isInitialLoad,
   setNodeCount,
   setEdgeCount,
-  setIsInitialLoad
+  setIsInitialLoad,
+  pendingNodePositions
 }: UseFileWatcherParams) {
+  // Store loaded positions for restoring nodes
+  const savedPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
 
-  const handleBulkFilesAdded = useCallback(async (data: { files: Array<{ path: string; content?: string }>; directory: string }) => {
+  const handleBulkFilesAdded = useCallback(async (data: { files: FileEvent[]; directory: string }) => {
     console.log(`[Bulk Load] Processing ${data.files.length} files from initial scan`);
 
     const cy = cytoscapeRef.current?.getCore();
@@ -131,6 +149,7 @@ export function useFileWatcher({
       edgeLabels: Map<string, string>;
       parentId?: string;
       color?: string;
+      explicitPosition?: { x: number; y: number };
     }> = [];
 
     // Process all files and prepare node data
@@ -151,13 +170,18 @@ export function useFileWatcher({
       // Use first wikilink as parent for tree structure
       const parentId = linkedNodeIds.length > 0 ? linkedNodeIds[0] : undefined;
 
+      // Check if we have a saved position for this file
+      const savedPosition = savedPositionsRef.current[file.path];
+
       nodesData.push({
         nodeId,
         label: parsed.label,
         linkedNodeIds,
         edgeLabels,
         parentId,
-        color: parsed.color
+        color: parsed.color,
+        // Pass saved position if available
+        ...(savedPosition && { explicitPosition: savedPosition })
       });
     }
 
@@ -184,7 +208,7 @@ export function useFileWatcher({
 
   }, [cytoscapeRef, markdownFiles, setNodeCount, setEdgeCount, setIsInitialLoad]);
 
-  const handleFileAdded = useCallback(async (data: { path: string; content?: string }) => {
+  const handleFileAdded = useCallback(async (data: FileEvent) => {
     console.log('[DEBUG] handleFileAdded called with path:', data.path);
     if (!data.path.endsWith('.md') || !data.content) {
       console.log('[DEBUG] Skipping non-md file or no content');
@@ -221,6 +245,14 @@ export function useFileWatcher({
       const color = parsed.color;
       const label = parsed.label;
 
+      // Check if there's a pending position for this node (e.g., from right-click)
+      const pendingPosition = pendingNodePositions?.current.get(nodeId);
+      if (pendingPosition && pendingNodePositions) {
+        console.log('[handleFileAdded] Using pending position for node:', nodeId, pendingPosition);
+        // Remove from pending positions map
+        pendingNodePositions.current.delete(nodeId);
+      }
+
       // Use GraphMutator to create node (handles positioning internally)
       // The BreathingAnimationService will automatically animate new nodes via event listener
       graphMutator.addNode({
@@ -228,7 +260,8 @@ export function useFileWatcher({
         label,
         linkedNodeIds,
         parentId,
-        color
+        color,
+        explicitPosition: pendingPosition
       });
     } else {
       // Update linkedNodeIds for existing node
@@ -257,7 +290,7 @@ export function useFileWatcher({
     // Auto-layout will handle layout automatically via event listeners
   }, [cytoscapeRef, markdownFiles, isInitialLoad, setNodeCount, setEdgeCount]);
 
-  const handleFileChanged = useCallback(async (data: { path: string; content?: string }) => {
+  const handleFileChanged = useCallback(async (data: FileEvent) => {
     if (!data.path.endsWith('.md') || !data.content) return;
 
     const cy = cytoscapeRef.current?.getCore();
@@ -308,7 +341,7 @@ export function useFileWatcher({
     // Need to implement sync via the Cytoscape extension system.
   }, [cytoscapeRef, markdownFiles, isInitialLoad, setNodeCount, setEdgeCount]);
 
-  const handleFileDeleted = useCallback((data: { path: string }) => {
+  const handleFileDeleted = useCallback((data: FileEvent) => {
     if (!data.path.endsWith('.md')) return;
 
     const cy = cytoscapeRef.current?.getCore();
@@ -365,9 +398,21 @@ export function useFileWatcher({
     setIsInitialLoad(true);
   }, [cytoscapeRef, markdownFiles, setNodeCount, setEdgeCount, setIsInitialLoad]);
 
-  const handleWatchingStarted = useCallback(() => {
+  const handleWatchingStarted = useCallback(async (data: { directory: string }) => {
     console.log('[Layout] Watching started - using bulk load layout strategy');
     setIsInitialLoad(true);
+
+    // Load saved positions for this directory
+    if (window.electronAPI?.positions) {
+      const result = await window.electronAPI.positions.load(data.directory);
+      if (result.success && result.positions) {
+        console.log(`[useFileWatcher] Loaded ${Object.keys(result.positions).length} saved positions`);
+        savedPositionsRef.current = result.positions;
+      } else {
+        console.log('[useFileWatcher] No saved positions found or load failed');
+        savedPositionsRef.current = {};
+      }
+    }
   }, [setIsInitialLoad]);
 
   return {

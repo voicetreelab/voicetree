@@ -49,6 +49,13 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isInitialLoadRef = useRef(true);
 
+  // Track current terminal index for cycling
+  const currentTerminalIndexRef = useRef(0);
+
+  // Track pending node positions (for nodes created via right-click)
+  // Key: nodeId (string), Value: {x, y} position in graph coordinates
+  const pendingNodePositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+
   // Helper function to create floating editor window
   const createFloatingEditor = (
     nodeId: string,
@@ -205,6 +212,61 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     }
   };
 
+  // Helper function to save node positions after layout
+  const saveNodePositions = async () => {
+    try {
+      if (!cytoscapeRef.current || !window.electronAPI?.positions) {
+        return;
+      }
+
+      // Get current watch status to find the directory
+      const watchStatus = await window.electronAPI.getWatchStatus();
+      if (!watchStatus.isWatching || !watchStatus.directory) {
+        console.log('[saveNodePositions] Not watching a directory, skipping save');
+        return;
+      }
+
+      const cy = cytoscapeRef.current.getCore();
+      const positions: Record<string, { x: number; y: number }> = {};
+
+      // Collect positions for all non-floating-window nodes
+      cy.nodes().forEach(node => {
+        const nodeId = node.id();
+        const isFloatingWindow = node.data('isFloatingWindow');
+        const isGhostRoot = node.data('isGhostRoot');
+
+        // Skip floating windows and ghost root
+        if (isFloatingWindow || isGhostRoot) {
+          return;
+        }
+
+        // Find the filename for this node from markdownFiles map
+        let filename: string | undefined;
+        for (const [path] of markdownFiles.current) {
+          if (normalizeFileId(path) === nodeId) {
+            filename = path;
+            break;
+          }
+        }
+
+        if (filename) {
+          const pos = node.position();
+          positions[filename] = { x: pos.x, y: pos.y };
+        }
+      });
+
+      // Save to disk
+      const result = await window.electronAPI.positions.save(watchStatus.directory, positions);
+      if (result.success) {
+        console.log(`[saveNodePositions] Saved ${Object.keys(positions).length} positions to ${watchStatus.directory}/.voicetree/graph_data.json`);
+      } else {
+        console.error('[saveNodePositions] Failed to save:', result.error);
+      }
+    } catch (error) {
+      console.error('[saveNodePositions] Error:', error);
+    }
+  };
+
   // File watching event handlers
   const {
     handleBulkFilesAdded,
@@ -219,7 +281,8 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     isInitialLoad,
     setNodeCount,
     setEdgeCount,
-    setIsInitialLoad
+    setIsInitialLoad,
+    pendingNodePositions
   });
 
   // Keep isInitialLoadRef in sync with isInitialLoad state
@@ -296,6 +359,50 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     };
     container.addEventListener('wheel', handleWheel);
 
+    // Handle keyboard shortcuts for terminal cycling
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Command/Ctrl + [ or ] to cycle between terminals
+      if ((e.metaKey || e.ctrlKey) && (e.key === '[' || e.key === ']')) {
+        e.preventDefault();
+
+        if (!cytoscapeRef.current) return;
+
+        const cy = cytoscapeRef.current.getCore();
+
+        // Get all terminal nodes (shadow nodes with IDs starting with 'terminal-')
+        const terminalNodes = cy.nodes().filter(node =>
+          node.data('id')?.startsWith('terminal-') &&
+          node.data('isShadowNode') === true
+        );
+
+        if (terminalNodes.length === 0) {
+          console.log('[Hotkey] No terminal nodes found');
+          return;
+        }
+
+        // Sort terminals by ID for consistent cycling order
+        const sortedTerminals = terminalNodes.toArray().sort((a, b) =>
+          a.id().localeCompare(b.id())
+        );
+
+        // Calculate next/previous index
+        if (e.key === ']') {
+          // Next terminal (Command+])
+          currentTerminalIndexRef.current = (currentTerminalIndexRef.current + 1) % sortedTerminals.length;
+        } else {
+          // Previous terminal (Command+[)
+          currentTerminalIndexRef.current = (currentTerminalIndexRef.current - 1 + sortedTerminals.length) % sortedTerminals.length;
+        }
+
+        // Fit to the selected terminal with extra padding to show surrounding nodes
+        const targetTerminal = sortedTerminals[currentTerminalIndexRef.current];
+        cy.fit(targetTerminal, 600); // 600px padding to show context
+
+        console.log(`[Hotkey] Fitted to terminal ${currentTerminalIndexRef.current + 1}/${sortedTerminals.length}: ${targetTerminal.id()}`);
+      }
+    };
+    container.addEventListener('keydown', handleKeyDown);
+
     try {
       // Create Cytoscape instance
       console.log('[VoiceTreeGraphVizLayout] Creating CytoscapeCore instance');
@@ -312,6 +419,12 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
       // Enable auto-layout: automatically runs Cola on graph changes
       enableAutoLayout(core);
       console.log('[Layout] Auto-layout enabled with Cola');
+
+      // Listen to layout completion to save node positions
+      core.on('layoutstop', () => {
+        console.log('[Layout] Layout stopped, saving positions...');
+        saveNodePositions();
+      });
       console.log('[VoiceTreeGraphVizLayout] Got core from CytoscapeCore');
       if (typeof window !== 'undefined') {
         console.log('VoiceTreeGraphVizLayout: Initial cytoscapeInstance set on window');
@@ -320,7 +433,10 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         (window as unknown as { cytoscapeCore: CytoscapeCore | null }).cytoscapeCore = cytoscapeRef.current;
 
         // Expose test helper for creating terminal windows (for e2e tests)
-        (window as unknown as { testHelpers?: { createTerminal: (nodeId: string) => void } }).testHelpers = {
+        (window as unknown as { testHelpers?: {
+          createTerminal: (nodeId: string) => void;
+          addNodeAtPosition?: (position: { x: number; y: number }) => Promise<void>;
+        } }).testHelpers = {
           createTerminal: (nodeId: string) => {
             // Find the file path for this node
             let filePath: string | undefined;
@@ -346,7 +462,10 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
                 createFloatingTerminal(nodeId, nodeMetadata, nodePos, cytoscapeRef.current);
               }
             }
-          }
+          },
+          // Test helper to trigger the full add-node-at-position workflow
+          // This will be set after the onAddNodeAtPosition callback is defined below
+          addNodeAtPosition: undefined
         };
       }
 
@@ -469,8 +588,152 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
               createFloatingTerminal(nodeId, nodeMetadata, nodePos, cytoscapeRef.current);
             }
           }
+        },
+        onAddNodeAtPosition: async (position: { x: number; y: number }) => {
+          console.log('[onAddNodeAtPosition] Creating node at position:', position);
+
+          try {
+            if (!window.electronAPI?.createStandaloneNode) {
+              console.error('[onAddNodeAtPosition] Electron API not available');
+              return;
+            }
+
+            const result = await window.electronAPI.createStandaloneNode();
+            if (result.success && result.nodeId && result.filePath) {
+              console.log('[onAddNodeAtPosition] Successfully created node:', result.nodeId, 'at', result.filePath);
+
+              // IMPORTANT: Use the normalized filename as node ID (e.g., "_2" not "2")
+              // because file watcher will create node with normalizeFileId(filename)
+              const newNodeId = normalizeFileId(result.filePath!);
+              console.log('[onAddNodeAtPosition] Normalized node ID from path:', newNodeId);
+
+              // Store the desired position for when the file watcher adds the node
+              pendingNodePositions.current.set(newNodeId, position);
+              console.log('[onAddNodeAtPosition] Stored pending position for node:', newNodeId, position);
+
+              const content = `---
+node_id: ${result.nodeId}
+title: New Node (${result.nodeId})
+---
+### New Node
+
+Edit this node to add content.
+`;
+
+              // Wait for the node to be added to the graph by the file watcher
+              // Poll for the node existence before opening the editor
+              const waitForNode = (attempts = 0, maxAttempts = 100): void => {
+                console.log(`[waitForNode] Attempt ${attempts}: cytoscapeRef.current exists: ${!!cytoscapeRef.current}`);
+
+                if (!cytoscapeRef.current) {
+                  console.error('[waitForNode] cytoscapeRef.current is null, cannot poll for node');
+                  return;
+                }
+
+                const cy = cytoscapeRef.current.getCore();
+                const node = cy.getElementById(newNodeId);
+                const allNodes = cy.nodes();
+
+                console.log(`[waitForNode] Polling attempt ${attempts}: looking for node ${newNodeId}`);
+                console.log(`[waitForNode] Found node: ${node.length > 0}, Total nodes in graph: ${allNodes.length}`);
+                console.log(`[waitForNode] All node IDs:`, allNodes.map((n: cytoscape.NodeSingular) => n.id()).join(', '));
+
+                if (node.length > 0) {
+                  // Node exists in graph, open the editor
+                  console.log('[waitForNode] Node found in graph! Opening editor with:');
+                  console.log(`  - nodeId: ${newNodeId}`);
+                  console.log(`  - filePath: ${result.filePath}`);
+                  console.log(`  - position:`, position);
+                  console.log(`  - cytoscapeRef.current:`, !!cytoscapeRef.current);
+
+                  createFloatingEditor(newNodeId, result.filePath!, content, position, cytoscapeRef.current);
+                  console.log('[waitForNode] createFloatingEditor call completed');
+                } else if (attempts < maxAttempts) {
+                  // Node not yet in graph, wait and try again
+                  setTimeout(() => waitForNode(attempts + 1, maxAttempts), 100);
+                } else {
+                  console.error('[waitForNode] Timeout waiting for node to be added to graph after', maxAttempts * 100, 'ms');
+                  console.error('[waitForNode] Final node count:', cy.nodes().length);
+                  console.error('[waitForNode] Final node IDs:', cy.nodes().map((n: cytoscape.NodeSingular) => n.id()).join(', '));
+                }
+              };
+
+              console.log('[onAddNodeAtPosition] Starting waitForNode polling...');
+              waitForNode();
+            } else {
+              console.error('[onAddNodeAtPosition] Failed:', result.error);
+            }
+          } catch (error) {
+            console.error('[onAddNodeAtPosition] Error:', error);
+          }
         }
       });
+
+      // Expose onAddNodeAtPosition callback for testing
+      // Store reference to the callback so tests can trigger the full workflow
+      const onAddNodeAtPositionCallback = async (position: { x: number; y: number }) => {
+        console.log('[onAddNodeAtPosition] Creating node at position:', position);
+
+        try {
+          if (!window.electronAPI?.createStandaloneNode) {
+            console.error('[onAddNodeAtPosition] Electron API not available');
+            return;
+          }
+
+          const result = await window.electronAPI.createStandaloneNode();
+          if (result.success && result.nodeId && result.filePath) {
+            console.log('[onAddNodeAtPosition] Successfully created node:', result.nodeId, 'at', result.filePath);
+
+            // IMPORTANT: Use the normalized filename as node ID (e.g., "_2" not "2")
+            // because file watcher will create node with normalizeFileId(filename)
+            const newNodeId = normalizeFileId(result.filePath!);
+            console.log('[onAddNodeAtPosition] Normalized node ID from path:', newNodeId);
+
+            // Store the desired position for when the file watcher adds the node
+            pendingNodePositions.current.set(newNodeId, position);
+            console.log('[onAddNodeAtPosition] Stored pending position for node:', newNodeId, position);
+
+            const content = `---
+node_id: ${result.nodeId}
+title: New Node (${result.nodeId})
+---
+### New Node
+
+Edit this node to add content.
+`;
+
+            // Wait for the node to be added to the graph by the file watcher
+            // Poll for the node existence before opening the editor
+            const waitForNode = (attempts = 0, maxAttempts = 50): void => {
+              if (!cytoscapeRef.current) return;
+
+              const cy = cytoscapeRef.current.getCore();
+              const node = cy.getElementById(newNodeId);
+
+              if (node.length > 0) {
+                // Node exists in graph, open the editor
+                console.log('[onAddNodeAtPosition] Node found in graph, opening editor');
+                createFloatingEditor(newNodeId, result.filePath!, content, position, cytoscapeRef.current);
+              } else if (attempts < maxAttempts) {
+                // Node not yet in graph, wait and try again
+                setTimeout(() => waitForNode(attempts + 1, maxAttempts), 50);
+              } else {
+                console.error('[onAddNodeAtPosition] Timeout waiting for node to be added to graph');
+              }
+            };
+
+            waitForNode();
+          } else {
+            console.error('[onAddNodeAtPosition] Failed:', result.error);
+          }
+        } catch (error) {
+          console.error('[onAddNodeAtPosition] Error:', error);
+        }
+      };
+
+      if (typeof window !== 'undefined' && (window as unknown as { testHelpers?: { addNodeAtPosition?: (position: { x: number; y: number }) => Promise<void> } }).testHelpers) {
+        (window as unknown as { testHelpers: { addNodeAtPosition: (position: { x: number; y: number }) => Promise<void> } }).testHelpers.addNodeAtPosition = onAddNodeAtPositionCallback;
+      }
 
       // Note: floatingwindow:resize is handled by auto-layout system
 
@@ -510,6 +773,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     return () => {
       console.log('VoiceTreeGraphVizLayout: Cleanup running, destroying Cytoscape');
       container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('keydown', handleKeyDown);
 
       if (cytoscapeRef.current) {
         cytoscapeRef.current.destroy();
@@ -599,13 +863,13 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
     setTimeout(() => {
       const terminalNode = cy.$('#terminal-backup');
       if (terminalNode.length > 0) {
-        cy.fit(terminalNode, 50); // 50px padding
+        cy.fit(terminalNode, 600); // 600px padding to show context
       }
     }, 50);
     setTimeout(() => {
       const terminalNode = cy.$('#terminal-backup');
       if (terminalNode.length > 0) {
-        cy.fit(terminalNode, 50); // 50px padding
+        cy.fit(terminalNode, 600); // 600px padding to show context
       }
     }, 800); // also after auto layout
   };
@@ -648,6 +912,7 @@ export default function VoiceTreeGraphVizLayout(props: VoiceTreeGraphVizLayoutPr
         <div
           ref={containerRef}
           className="h-full w-full"
+          tabIndex={0}
           style={{
             opacity: cytoscapeRef.current ? 1 : 0.3,
             transition: 'opacity 0.3s ease-in-out'

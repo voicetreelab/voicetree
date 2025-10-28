@@ -34,6 +34,7 @@ export interface ElectronAPI {
   saveFileContent: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
   createChildNode: (parentNodeId: string) => Promise<{ success: boolean; nodeId?: number; filePath?: string; error?: string }>;
+  createStandaloneNode: () => Promise<{ success: boolean; nodeId?: number; filePath?: string; error?: string }>;
 
   // File watching methods
   startFileWatching: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
@@ -62,6 +63,12 @@ export interface ElectronAPI {
     kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
     onData: (callback: (terminalId: string, data: string) => void) => void;
     onExit: (callback: (terminalId: string, code: number) => void) => void;
+  };
+
+  // Position management operations
+  positions: {
+    save: (directoryPath: string, positions: Record<string, { x: number; y: number }>) => Promise<{ success: boolean; error?: string }>;
+    load: (directoryPath: string) => Promise<{ success: boolean; positions: Record<string, { x: number; y: number }>; error?: string }>;
   };
 
   // General IPC communication methods
