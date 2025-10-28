@@ -112,6 +112,10 @@
       {
         "from": "../../dist/resources/tools",
         "to": "tools"
+      },
+      {
+        "from": "../../dist/resources/backend",
+        "to": "backend"
       }
     ],
     "mac": {
