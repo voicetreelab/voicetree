@@ -4,3 +4,4 @@ webapp/package-lock.json
 /dist-electron/main/index.js
 /dist-electron/preload/index.js
 /dist-electron/renderer/**/*
+vscode/**/*
