@@ -75,7 +75,7 @@ ALWAYS include Mermaid diagrams showing the changes you made!
 
 To emphasize, YOUR specific task, or most relevant context (i.e. the source note you were spawned from) is:
 ```$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE
-$OBSIDIAN_SOURCE_NOTE_CONTENT ### todo this is broken 
+$OBSIDIAN_SOURCE_NOTE_CONTENT
 ```
 
 Please now wait for the user to tell you your specific action, unless it is very clear from your context what to do.

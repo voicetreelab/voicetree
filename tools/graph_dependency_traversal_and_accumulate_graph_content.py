@@ -12,8 +12,13 @@ from typing import Dict
 from typing import List
 from typing import Set
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+# sklearn is optional - only needed for TF-IDF inverse document search
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
 
 # Import from our refactored modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -43,6 +48,11 @@ def find_top_relevant_nodes(
     """
     Finds top N relevant nodes using TF-IDF against the aggregated traversed content.
     """
+    if not SKLEARN_AVAILABLE:
+        print("Warning: sklearn not available. Skipping TF-IDF inverse document search.")
+        print("Install sklearn with: pip install scikit-learn")
+        return []
+
     all_md_files = [p for p in markdown_dir.glob('**/*.md') if p.is_file()]
     # Compare using relative paths to ensure consistency
     candidate_files = []
