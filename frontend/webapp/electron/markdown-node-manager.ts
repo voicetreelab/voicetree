@@ -75,6 +75,53 @@ export default class MarkdownNodeManager {
   }
 
   /**
+   * Create a standalone node at a specific position (no parent)
+   */
+   //todo, this could probably be merged with createChild, don't want two paths.
+  async createStandaloneNode(watchDirectory: string | null): Promise<CreateChildResult> {
+    try {
+      if (!watchDirectory) {
+        return { success: false, error: 'No directory is being watched' };
+      }
+
+      console.log(`[create-standalone-node] Creating new node in ${watchDirectory}`);
+      //todo, we should just be storing the max node ID
+      // Read all markdown files to find max node ID
+      const files = await fs.readdir(watchDirectory);
+      const markdownFiles = files.filter(f => f.endsWith('.md'));
+
+      let maxNodeId = 0;
+      for (const file of markdownFiles) {
+        const filePath = path.join(watchDirectory, file);
+        const content = await fs.readFile(filePath, 'utf-8');
+        const nodeIdMatch = content.match(/^node_id:\s*(\d+)/m);
+        if (nodeIdMatch) {
+          const nodeId = parseInt(nodeIdMatch[1], 10);
+          if (nodeId > maxNodeId) {
+            maxNodeId = nodeId;
+          }
+        }
+      }
+
+      // Generate new node
+      const newNodeId = maxNodeId + 1;
+      const newFileName = `_${newNodeId}.md`;
+      const newFilePath = path.join(watchDirectory, newFileName);
+
+      const content = this.generateStandaloneNodeTemplate(newNodeId);
+
+      // Write the file
+      await fs.writeFile(newFilePath, content, 'utf-8');
+
+      console.log(`[create-standalone-node] Created ${newFileName}`);
+      return { success: true, nodeId: newNodeId, filePath: newFilePath };
+    } catch (error: any) {
+      console.error('Error creating standalone node:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Save content to a file
    */
   async saveContent(filePath: string, content: string): Promise<FileOperationResult> {
@@ -163,6 +210,20 @@ title:  (${nodeId})
 _Links:_
 Parent:
 - relationshipToParent [[${parentFileName}]]
+`;
+  }
+
+  /**
+   * Generate markdown template for a standalone node (no parent)
+   */
+  private generateStandaloneNodeTemplate(nodeId: number): string {
+    return `---
+node_id: ${nodeId}
+title: Title (${nodeId})
+---
+### Summary
+
+Content.
 `;
   }
 }
