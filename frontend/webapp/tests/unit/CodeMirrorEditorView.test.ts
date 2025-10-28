@@ -65,4 +65,27 @@ describe('CodeMirrorEditorView', () => {
     // After dispose, the editor view's DOM should be removed from container
     expect(container.querySelector('.cm-editor')).toBeNull();
   });
+
+  it('should use rich-markdoc for live preview rendering', async () => {
+    // Create editor with markdown content that has various elements
+    const markdownContent = '# Heading 1\n\n**Bold text** and *italic text*\n\n- List item 1\n- List item 2';
+    editor = new CodeMirrorEditorView(container, markdownContent);
+
+    // Wait a tick for decorations to apply
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Check that rich-markdoc plugin is loaded by looking for its characteristic classes
+    // Rich-markdoc adds decorations with cm-markdoc- prefixed classes
+    const editorElement = container.querySelector('.cm-editor');
+    expect(editorElement).not.toBeNull();
+
+    // Check for rich-markdoc specific classes or decorations
+    // The plugin uses .cm-markdoc-hidden for hiding formatting marks
+    // and creates decorations for rich text rendering
+    const hasRichMarkdocClasses =
+      container.querySelector('[class*="cm-markdoc"]') !== null ||
+      container.innerHTML.includes('cm-markdoc');
+
+    expect(hasRichMarkdocClasses).toBe(true);
+  });
 });
