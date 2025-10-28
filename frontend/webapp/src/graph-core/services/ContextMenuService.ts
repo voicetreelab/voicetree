@@ -16,6 +16,7 @@ export interface ContextMenuConfig {
   onUnpinNode?: (node: NodeSingular) => void;
   onDeleteNode?: (node: NodeSingular) => void;
   onCopyNodeName?: (nodeId: string) => void;
+  onAddNodeAtPosition?: (position: { x: number; y: number }) => void;
 }
 
 interface MenuCommand {
@@ -28,6 +29,8 @@ export class ContextMenuService {
   private cy: Core | null = null;
   private config: ContextMenuConfig;
   private menuInstance: unknown = null;
+  private canvasMenuInstance: unknown = null;
+  private lastCanvasClickPosition: { x: number; y: number } | null = null;
 
   constructor(config: ContextMenuConfig = {}) {
     this.config = config;
@@ -36,6 +39,7 @@ export class ContextMenuService {
   initialize(cy: Core): void {
     this.cy = cy;
     this.setupContextMenu();
+    this.setupCanvasContextMenu();
   }
 
   private setupContextMenu(): void {
@@ -73,6 +77,71 @@ export class ContextMenuService {
 
     // @ts-expect-error - cxtmenu doesn't have proper TypeScript definitions
     this.menuInstance = this.cy.cxtmenu(menuOptions);
+  }
+
+  private setupCanvasContextMenu(): void {
+    if (!this.cy) return;
+
+    // Get theme colors from CSS variables or use defaults
+    const style = getComputedStyle(document.body);
+    const isDarkMode = document.documentElement.classList.contains('dark');
+
+    const selectColor = style.getPropertyValue('--text-selection').trim() ||
+                       (isDarkMode ? '#3b82f6' : '#2563eb');
+    const backgroundColor = style.getPropertyValue('--background-secondary').trim() ||
+                           (isDarkMode ? '#1f2937' : '#f3f4f6');
+    const textColor = style.getPropertyValue('--text-normal').trim() ||
+                     (isDarkMode ? '#ffffff' : '#111827');
+
+    // Store the canvas click position before menu opens
+    this.cy.on('cxttapstart', (event) => {
+      if (event.target === this.cy) {
+        this.lastCanvasClickPosition = event.position;
+      }
+    });
+
+    const canvasMenuOptions = {
+      menuRadius: 75,
+      selector: 'core', // Use 'core' selector for canvas/background
+      commands: () => this.getCanvasCommands(),
+      fillColor: backgroundColor,
+      activeFillColor: selectColor,
+      activePadding: 20,
+      indicatorSize: 24,
+      separatorWidth: 3,
+      spotlightPadding: 4,
+      minSpotlightRadius: 24,
+      maxSpotlightRadius: 38,
+      openMenuEvents: 'cxttapstart taphold',
+      itemColor: textColor,
+      itemTextShadowColor: 'transparent',
+      zIndex: 9999,
+      atMouse: true, // Show menu at mouse position for canvas
+      outsideMenuCancel: 10,
+    };
+
+    // @ts-expect-error - cxtmenu doesn't have proper TypeScript definitions
+    this.canvasMenuInstance = this.cy.cxtmenu(canvasMenuOptions);
+  }
+
+  private getCanvasCommands(): MenuCommand[] {
+    const commands: MenuCommand[] = [];
+
+    // Add Node Here
+    if (this.config.onAddNodeAtPosition && this.lastCanvasClickPosition) {
+      const position = this.lastCanvasClickPosition;
+      commands.push({
+        content: this.createSvgIcon('plus', 'Add Node Here'),
+        select: () => {
+          if (this.config.onAddNodeAtPosition) {
+            this.config.onAddNodeAtPosition(position);
+          }
+        },
+        enabled: true,
+      });
+    }
+
+    return commands;
   }
 
   private getNodeCommands(node: NodeSingular): MenuCommand[] {
@@ -157,6 +226,7 @@ export class ContextMenuService {
       edit: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
       expand: 'M12 5v14 M5 12h14',
       collapse: 'M5 12h14',
+      plus: 'M12 5v14 M5 12h14',
       pin: 'M12 17v5 M9 10.76a7 7 0 1 0 6 0 M12 2v8',
       unlock: 'M7 11V7a5 5 0 0 1 9.9-1 M3 11h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V11z',
       hide: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
@@ -177,7 +247,12 @@ export class ContextMenuService {
     if (this.menuInstance && typeof this.menuInstance.destroy === 'function') {
       this.menuInstance.destroy();
     }
+    if (this.canvasMenuInstance && typeof this.canvasMenuInstance.destroy === 'function') {
+      this.canvasMenuInstance.destroy();
+    }
     this.menuInstance = null;
+    this.canvasMenuInstance = null;
+    this.lastCanvasClickPosition = null;
     this.cy = null;
   }
 

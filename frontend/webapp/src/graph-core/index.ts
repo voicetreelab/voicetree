@@ -4,19 +4,16 @@ import cytoscape from 'cytoscape';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerFloatingWindows } from './extensions/cytoscape-floating-windows';
-import { MarkdownEditor } from '@/components/floating-windows/editors/MarkdownEditor';
-import { Terminal } from '@/components/floating-windows/editors/Terminal';
 import { TestComponent } from '@/components/floating-windows/editors/TestComponent';
 
 // Register floating windows extension immediately at module load
 // This must happen before any CytoscapeCore instances are created
+// Note: Terminal and MarkdownEditor are now vanilla JS, not in React component registry
 console.log('[GraphCore] Registering floating windows extension...');
 registerFloatingWindows(cytoscape, {
   React,
   ReactDOM,
   components: {
-    MarkdownEditor,
-    Terminal,
     TestComponent
   }
 });
