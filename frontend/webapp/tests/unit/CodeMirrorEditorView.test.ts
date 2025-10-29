@@ -20,7 +20,14 @@ describe('CodeMirrorEditorView', () => {
   });
 
   it('should handle complete markdown editor lifecycle', () => {
-    const initialContent = '# Hello World\n\nThis is a test.';
+    const initialContent = `---
+node_id: 1
+title: Test Note
+---
+
+# Hello World
+
+This is a test.`;
 
     // Create editor
     editor = new CodeMirrorEditorView(container, initialContent);
@@ -66,27 +73,61 @@ describe('CodeMirrorEditorView', () => {
     expect(container.querySelector('.cm-editor')).toBeNull();
   });
 
-  it('should use rich-markdoc for live preview rendering', async () => {
-    // Create editor with markdown content that has various elements
-    const markdownContent = '# Heading 1\n\n**Bold text** and *italic text*\n\n- List item 1\n- List item 2';
+  it('should hide markdown formatting marks (###) when not editing that line', async () => {
+    // Create editor with a heading
+    const markdownContent = '### My Heading\n\nSome content';
     editor = new CodeMirrorEditorView(container, markdownContent);
 
-    // Wait a tick for decorations to apply
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // IMPORTANT: Move cursor to a different line (not the heading line)
+    // The RichEditPlugin only hides ### marks when cursor is NOT on that line
+    const view = (editor as any).view;
+    view.dispatch({
+      selection: { anchor: 20 } // Position in "Some content" line
+    });
 
-    // Check that rich-markdoc plugin is loaded by looking for its characteristic classes
-    // Rich-markdoc adds decorations with cm-markdoc- prefixed classes
-    const editorElement = container.querySelector('.cm-editor');
-    expect(editorElement).not.toBeNull();
+    // Wait for decorations to apply
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-    // Check for rich-markdoc specific classes or decorations
-    // The plugin uses .cm-markdoc-hidden for hiding formatting marks
-    // and creates decorations for rich text rendering
-    const hasRichMarkdocClasses =
-      container.querySelector('[class*="cm-markdoc"]') !== null ||
-      container.innerHTML.includes('cm-markdoc');
+    // Debug: Inspect the syntax tree AND visible ranges
+    const { syntaxTree } = await import('@codemirror/language');
+    const tree = syntaxTree(view.state);
 
-    expect(hasRichMarkdocClasses).toBe(true);
+    const nodeNames: string[] = [];
+    tree.iterate({
+      enter(node) {
+        nodeNames.push(node.name);
+      }
+    });
+
+    // Check visible ranges
+    const visibleRanges = view.visibleRanges;
+    const visibleInfo = visibleRanges.length > 0
+      ? `${visibleRanges.length} ranges: ${visibleRanges.map((r: any) => `${r.from}-${r.to}`).join(', ')}`
+      : 'EMPTY - NO VISIBLE RANGES!';
+
+    // Write nodes to file
+    const fs = await import('fs');
+    const path = await import('path');
+    const nodesPath = path.join(process.cwd(), 'test-syntax-nodes.txt');
+    fs.writeFileSync(nodesPath, `SYNTAX TREE NODES:\n${nodeNames.join(', ')}\n\nHas HeaderMark: ${nodeNames.includes('HeaderMark')}\n\nVisible Ranges: ${visibleInfo}`);
+
+    // Check if HeaderMark exists
+    const hasHeaderMark = nodeNames.includes('HeaderMark');
+
+    // Check that cm-markdoc-hidden class exists
+    const hiddenElement = container.querySelector('.cm-markdoc-hidden');
+
+    if (!hiddenElement && hasHeaderMark) {
+      throw new Error(`HeaderMark node exists but cm-markdoc-hidden class not applied! Nodes: ${nodesPath}`);
+    }
+
+    if (!hiddenElement && !hasHeaderMark) {
+      throw new Error(`HeaderMark node NOT in tree! Check ${nodesPath} for actual nodes`);
+    }
+
+    // For now, just check if we have the node in the tree
+    // We can fix the decoration application once we know the tree structure
+    expect(nodeNames.length).toBeGreaterThan(0);
   });
 
   it('should render Mermaid diagrams in live preview mode', async () => {

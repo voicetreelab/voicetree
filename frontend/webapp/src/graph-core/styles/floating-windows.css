@@ -109,7 +109,7 @@
 }
 
 /* CodeMirror Editor Styles */
-// TODO BROKEN, frontmatter styling is applying to titles as well
+/*// TODO BROKEN, frontmatter styling is applying to titles as well*/
 /*!* YAML Frontmatter - Smaller, de-emphasized styling *!*/
 /*!* Target DashLine (---) and FrontmatterContent nodes *!*/
 /*.cm-content .cm-meta {*/
@@ -122,50 +122,50 @@
 /*  display: inline;*/
 /*}*/
 
-/*!* rich-markdoc styles - hide formatting marks by default *!*/
-/*.cm-markdoc-hidden {*/
-/*  display: none;*/
-/*}*/
+/* rich-markdoc styles - hide formatting marks when not editing */
+.cm-markdoc-hidden {
+  display: none !important;
+}
 
-/*.cm-markdoc-bullet * {*/
-/*  display: none;*/
-/*}*/
+.cm-markdoc-bullet * {
+  display: none;
+}
 
-/*.cm-markdoc-bullet::after {*/
-/*  display: inline !important;*/
-/*  color: darkgray;*/
-/*  content: '•';*/
-/*}*/
+.cm-markdoc-bullet::after {
+  display: inline !important;
+  color: darkgray;
+  content: '•';
+}
 
-/*.cm-markdoc-renderBlock {*/
-/*  font-family: sans-serif;*/
-/*}*/
+.cm-markdoc-renderBlock {
+  font-family: sans-serif;
+}
 
-/*.cm-markdoc-renderBlock table {*/
-/*  border-collapse: collapse;*/
-/*  margin-left: 5px;*/
-/*}*/
+.cm-markdoc-renderBlock table {
+  border-collapse: collapse;
+  margin-left: 5px;
+}
 
-/*.cm-markdoc-renderBlock th,*/
-/*.cm-markdoc-renderBlock td {*/
-/*  border: 1px solid lightgray;*/
-/*  padding: 5px 10px;*/
-/*}*/
+.cm-markdoc-renderBlock th,
+.cm-markdoc-renderBlock td {
+  border: 1px solid lightgray;
+  padding: 5px 10px;
+}
 
-/*.cm-markdoc-renderBlock blockquote {*/
-/*  border-left: 3px solid lightgray;*/
-/*  padding-left: 10px;*/
-/*  margin: 0 0 0 15px;*/
-/*}*/
+.cm-markdoc-renderBlock blockquote {
+  border-left: 3px solid lightgray;
+  padding-left: 10px;
+  margin: 0 0 0 15px;
+}
 
-/*.cm-markdoc-renderBlock p {*/
-/*  margin: 3px;*/
-/*}*/
+.cm-markdoc-renderBlock p {
+  margin: 3px;
+}
 
-/*.cm-markdoc-tag {*/
-/*  color: darkgray;*/
-/*}*/
+.cm-markdoc-tag {
+  color: darkgray;
+}
 
-/*.cm-markdoc-code {*/
-/*  font-family: monospace;*/
-/*}*/
+.cm-markdoc-code {
+  font-family: monospace;
+}
