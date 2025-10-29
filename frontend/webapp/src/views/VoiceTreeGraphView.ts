@@ -364,26 +364,49 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Clear existing elements (except ghost root)
     cy.elements().not('[isGhostRoot]').remove();
 
-    // Process all files
-    for (const file of data.files) {
+    // Reset markdown cache so it mirrors graph state
+    this.markdownFiles.clear();
+
+    const parsedFiles = data.files.map(file => {
       const nodeId = normalizeFileId(file.fullPath);
-      const parsed = parseForCytoscape(file.content, nodeId);
+      const parsed = parseForCytoscape(file.content, file.fullPath);
+      const savedPos = this.getSavedPositionForFile(file.fullPath);
+      const parentId = parsed.linkedNodeIds.length > 0 ? parsed.linkedNodeIds[0] : undefined;
 
-      // Create node
-      mutator.addNode({ nodeId, label: parsed.label, linkedNodeIds: parsed.linkedNodeIds });
+      return {
+        file,
+        nodeId,
+        parsed,
+        savedPos,
+        parentId
+      };
+    });
 
-      // Apply saved position if available
-      const savedPos = this.savedPositions[file.fullPath];
-      if (savedPos) {
-        const node = cy.getElementById(nodeId);
-        if (node.length > 0) {
-          node.position(savedPos);
+    // Create nodes + edges in bulk to minimise layout churn
+    mutator.bulkAddNodes(parsedFiles.map(({ nodeId, parsed, savedPos, parentId }) => ({
+      nodeId,
+      label: parsed.label,
+      linkedNodeIds: parsed.linkedNodeIds,
+      edgeLabels: parsed.edgeLabels,
+      parentId,
+      color: parsed.color,
+      explicitPosition: savedPos
+    })));
+
+    // Cache file contents and decorate nodes with metadata
+    parsedFiles.forEach(({ file, nodeId, parsed }) => {
+      this.markdownFiles.set(file.fullPath, file.content);
+
+      const node = cy.getElementById(nodeId);
+      if (node.length > 0) {
+        node.data('content', file.content);
+        node.data('linkedNodeIds', parsed.linkedNodeIds);
+        node.data('edgeLabels', Object.fromEntries(parsed.edgeLabels));
+        if (parsed.color) {
+          node.data('color', parsed.color);
         }
       }
-
-      // Cache content
-      this.markdownFiles.set(file.fullPath, file.content);
-    }
+    });
 
     // Update counts
     this.updateCounts();
@@ -420,18 +443,34 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     // Check for saved position (from right-click creation or previous session)
-    const filename = data.fullPath.split('/').pop() || data.fullPath;
-    const savedPos = this.savedPositions[filename];
+    const savedPos = this.getSavedPositionForFile(data.fullPath);
 
     // Parse and add node
-    const parsed = parseForCytoscape(data.content, nodeId);
+    const parsed = parseForCytoscape(data.content, data.fullPath);
     const mutator = new GraphMutator(cy, null);
-    mutator.addNode({
+    const newNode = mutator.addNode({
       nodeId,
       label: parsed.label,
       linkedNodeIds: parsed.linkedNodeIds,
+      parentId: parsed.linkedNodeIds.length > 0 ? parsed.linkedNodeIds[0] : undefined,
+      color: parsed.color,
       explicitPosition: savedPos
     });
+
+    // Create edges for newly discovered wikilinks
+    for (const targetId of parsed.linkedNodeIds) {
+      const label = parsed.edgeLabels.get(targetId) || '';
+      mutator.addEdge(nodeId, targetId, label);
+    }
+
+    // Store latest content and metadata on node + cache
+    newNode.data('content', data.content);
+    newNode.data('linkedNodeIds', parsed.linkedNodeIds);
+    newNode.data('edgeLabels', Object.fromEntries(parsed.edgeLabels));
+
+    if (parsed.color) {
+      newNode.data('color', parsed.color);
+    }
 
     // Only trigger layout if no saved position exists
     if (!savedPos && !this.isInitialLoad) {
@@ -465,17 +504,20 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     // Parse new content
-    const parsed = parseForCytoscape(data.content, nodeId);
+    const parsed = parseForCytoscape(data.content, data.fullPath);
 
-    // Update node label
+    // Update node label + metadata
     node.data('label', parsed.label);
+    node.data('content', data.content);
+    node.data('linkedNodeIds', parsed.linkedNodeIds);
+    node.data('edgeLabels', Object.fromEntries(parsed.edgeLabels));
+    if (parsed.color) {
+      node.data('color', parsed.color);
+    }
 
-    // Update edges
+    // Update edges in-place
     const mutator = new GraphMutator(cy, null);
-    // Remove old edges
-    node.connectedEdges().remove();
-    // Add new edges
-    mutator.addNode({ nodeId, label: parsed.label, linkedNodeIds: parsed.linkedNodeIds });
+    mutator.updateNodeLinks(nodeId, parsed.linkedNodeIds, parsed.edgeLabels);
 
     // Trigger breathing animation
     const animationService = (this.cy as any).animationService;
@@ -503,6 +545,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Remove from cache
     this.markdownFiles.delete(data.fullPath);
+    delete this.savedPositions[data.fullPath];
+    const filename = data.fullPath.split('/').pop();
+    if (filename) {
+      delete this.savedPositions[filename];
+    }
 
     // Update counts and UI
     this.updateCounts();
@@ -715,6 +762,20 @@ Edit this node to add content.
   // ============================================================================
   // HELPER METHODS
   // ============================================================================
+
+  private getSavedPositionForFile(filePath: string): Position | undefined {
+    const filename = filePath.split('/').pop();
+
+    if (this.savedPositions[filePath]) {
+      return this.savedPositions[filePath];
+    }
+
+    if (filename && this.savedPositions[filename]) {
+      return this.savedPositions[filename];
+    }
+
+    return undefined;
+  }
 
   private getContentForNode(nodeId: string): string | undefined {
     for (const [path, content] of this.markdownFiles) {

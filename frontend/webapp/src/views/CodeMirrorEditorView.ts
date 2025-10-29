@@ -1,3 +1,4 @@
+import '@/graph-core/styles/floating-windows.css';
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
@@ -112,9 +113,11 @@ export class CodeMirrorEditorView extends Disposable {
     });
 
     // 3. Build the rich-markdoc plugin manually
+    // IMPORTANT: The markdown language must be provided BY the plugin, not as a separate extension
     const richMarkdocPlugin = ViewPlugin.fromClass(RichEditPlugin, {
       decorations: v => v.decorations,
       provide: () => [
+        markdownWithFrontmatter, // Provide markdown with frontmatter support
         renderBlock({}), // Markdoc config
         syntaxHighlighting(highlightStyle) // Use rich-markdoc highlightStyle for live preview
       ],
@@ -151,8 +154,7 @@ export class CodeMirrorEditorView extends Disposable {
 
     const extensions: Extension[] = [
       basicSetup,
-      markdownWithFrontmatter, // Markdown with YAML frontmatter support
-      richMarkdocPlugin, // Rich markdown editing decorations (includes syntax highlighting)
+      richMarkdocPlugin, // Rich markdown editing (provides markdown, decorations, and syntax highlighting)
       syntaxHighlighting(defaultHighlightStyle), // Code block syntax highlighting
       mermaidRender(), // Render Mermaid diagrams in live preview
       frontmatterFoldService, // Custom fold service for frontmatter

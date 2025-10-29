@@ -84,7 +84,17 @@ ColaLayout.prototype.run = function(){
     if( bb.y2 === undefined ){ bb.y2 = bb.y1 + bb.h; }
     if( bb.h === undefined ){ bb.h = bb.y2 - bb.y1; }
 
+    console.log('[Cola Debug] Bounding box:', bb);
+
+    let updatePositionCallCount = 0;
     const updateNodePositions = function(){
+        updatePositionCallCount++;
+        const isFirstThreeCalls = updatePositionCallCount <= 3;
+
+        if (isFirstThreeCalls) {
+            console.log(`[Cola Debug] updateNodePositions call #${updatePositionCallCount}`);
+        }
+
         for( let i = 0; i < nodes.length; i++ ){
             const node = nodes[i];
             const dimensions = node.layoutDimensions( options );
@@ -111,6 +121,11 @@ ColaLayout.prototype.run = function(){
 
                 if( !isNumber(retPos.x) || !isNumber(retPos.y) ){
                     retPos = undefined;
+                }
+
+                if (isFirstThreeCalls && retPos) {
+                    const currentPos = node.position();
+                    console.log(`[Cola Debug]   Node ${node.id()}: scratch=(${scratch.x.toFixed(2)}, ${scratch.y.toFixed(2)}) -> retPos=(${retPos.x.toFixed(2)}, ${retPos.y.toFixed(2)}) [was (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})]`);
                 }
             }
 
@@ -184,6 +199,7 @@ ColaLayout.prototype.run = function(){
             //let skip = 0;
 
             let firstTick = true;
+            let tickCount = 0;
 
             const inftick = function(){
                 if( layout.manuallyStopped ){
@@ -192,7 +208,18 @@ ColaLayout.prototype.run = function(){
                     return true;
                 }
 
+                tickCount++;
+                const isFirstThreeTicks = tickCount <= 3;
+
+                if (isFirstThreeTicks) {
+                    console.log(`[Cola Debug] ====== Tick #${tickCount} START ======`);
+                }
+
                 const ret = adaptor.tick();
+
+                if (isFirstThreeTicks) {
+                    console.log(`[Cola Debug] ====== Tick #${tickCount} END (converged: ${ret}) ======`);
+                }
 
                 if( !options.infinite && !firstTick ){
                     adaptor.convergenceThreshold(options.convergenceThreshold);
@@ -312,6 +339,8 @@ ColaLayout.prototype.run = function(){
             index: i,
             fixed: node.locked()
         };
+
+        console.log(`[Cola Debug] Initial setup - Node ${node.id()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
 
         return struct;
     }) );

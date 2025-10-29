@@ -105,6 +105,7 @@ function App() {
           {/* Voice Transcribe Component - 5/6 width */}
           <div className="flex-1">
             <VoiceTreeTranscribe />
+            {/*//            <VoiceInputViewWrapper /> broken*/}
           </div>
         </div>
       </div>
