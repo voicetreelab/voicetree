@@ -58,11 +58,13 @@ function createWindow() {
   fileWatchManager.setMainWindow(mainWindow);
 
   // Auto-start watching last directory if it exists
+  // Uses 'on' instead of 'once' to handle page refreshes (cmd+r)
+  // FileWatchManager intelligently handles re-watching the same directory
   // TODO: Handle edge cases:
   // - Last directory no longer exists (deleted/moved)
   // - Permission issues accessing last directory
   // - Race condition with manual watch start
-  mainWindow.webContents.once('did-finish-load', async () => {
+  mainWindow.webContents.on('did-finish-load', async () => {
     const lastDirectory = await fileWatchManager.loadLastDirectory();
     if (lastDirectory) {
       console.log(`[AutoWatch] Found last directory: ${lastDirectory}`);
