@@ -89,7 +89,7 @@ export class StyleService {
     console.log('[StyleService] getGraphColors - isDark:', isDark, 'textColor:', isDark ? '#dcddde' : '#2a2a2a');
 
     return {
-      fillColor: '#3f3f3f',
+      fillColor: isDark ? '#9fa5aa' :'#3f3f3f',
       fillHighlightColor: '#525252',
       accentBorderColor: '#4b96ff',
       lineColor: '#5e5e5e',
@@ -140,11 +140,11 @@ export class StyleService {
       {
         selector: 'node[degree]',
         style: {
-          'width': `mapData(degree, 0, 60, ${MIN_NODE_SIZE}, ${MAX_NODE_SIZE})`,
-          'height': `mapData(degree, 0, 60, ${MIN_NODE_SIZE}, ${MAX_NODE_SIZE})`,
-          'font-size': `mapData(degree, 0, 60, ${MIN_FONT_SIZE}, ${MAX_FONT_SIZE})`,
+          'width': 'mapData(degree, 0, 60, 30, 80)',
+          'height': 'mapData(degree, 0, 60, 30, 80)',
+          'font-size': 'mapData(degree, 0, 60, 12, 20)',
           'text-opacity': 'mapData(degree, 0, 60, 0.7, 1)',
-          'text-max-width': `mapData(degree, 0, 60, ${MIN_TEXT_WIDTH}, ${MAX_TEXT_WIDTH})`,
+          'text-max-width': 'mapData(degree, 0, 60, 60, 180)',
           'border-width': 'mapData(degree, 1, 10, 1, 8)',
         }
       },

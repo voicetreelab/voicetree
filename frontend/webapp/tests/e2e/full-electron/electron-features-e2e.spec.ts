@@ -7,6 +7,7 @@
  * 5. Dark/light mode toggle updates graph colors and text colors appropriately
  * 6. Export button in speed dial opens a terminal successfully
  * 7. Right-click on canvas creates new node, opens editor, and saves changes
+ * 8. Space key fits graph view to the last created node
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -641,6 +642,130 @@ test.describe('Electron Features E2E Tests', () => {
     }
 
     console.log('✓ Right-click add node test completed successfully');
+  });
+
+  test('should fit graph to last created node when pressing Space key', async ({ appWindow, tempDir }) => {
+    console.log('=== Testing Space Key Fit to Last Node ===');
+
+    await startWatching(appWindow, tempDir);
+
+    console.log('=== Step 1: Create first node ===');
+    await createMarkdownFile(tempDir, 'first-node.md', '# First Node\n\nFirst node.');
+    await pollForNodeCount(appWindow, 1);
+    await appWindow.waitForTimeout(500);
+
+    // Get position of first node
+    const firstNodePos = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return null;
+      const node = cy.getElementById('first-node');
+      return node.length > 0 ? node.position() : null;
+    });
+    expect(firstNodePos).not.toBeNull();
+    console.log('First node position:', firstNodePos);
+
+    console.log('=== Step 2: Press Space key to fit to first node ===');
+    await appWindow.keyboard.press('Space');
+    await appWindow.waitForTimeout(800); // Wait for fit animation
+
+    // Verify the viewport is centered on the first node
+    const viewportAfterFirstFit = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return null;
+
+      const pan = cy.pan();
+      const zoom = cy.zoom();
+      const extent = cy.extent();
+
+      return {
+        pan,
+        zoom,
+        extent,
+        viewportCenter: {
+          x: (cy.width() / 2 - pan.x) / zoom,
+          y: (cy.height() / 2 - pan.y) / zoom
+        }
+      };
+    });
+
+    console.log('Viewport after first fit:', viewportAfterFirstFit);
+
+    // Check that viewport center is close to first node position
+    const distanceToFirstNode = Math.sqrt(
+      Math.pow(viewportAfterFirstFit!.viewportCenter.x - firstNodePos!.x, 2) +
+      Math.pow(viewportAfterFirstFit!.viewportCenter.y - firstNodePos!.y, 2)
+    );
+    console.log('Distance from viewport center to first node:', distanceToFirstNode);
+    expect(distanceToFirstNode).toBeLessThan(100); // Space key should properly fit to node
+
+    console.log('=== Step 3: Create second node at different position ===');
+    await createMarkdownFile(tempDir, 'second-node.md', '# Second Node\n\nLinks to [[first-node]].');
+    await pollForNodeCount(appWindow, 2);
+    await appWindow.waitForTimeout(500);
+
+    // Get position of second node
+    const secondNodePos = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return null;
+      const node = cy.getElementById('second-node');
+      return node.length > 0 ? node.position() : null;
+    });
+    expect(secondNodePos).not.toBeNull();
+    console.log('Second node position:', secondNodePos);
+
+    // Verify nodes are in different positions
+    const distanceBetweenNodes = Math.sqrt(
+      Math.pow(secondNodePos!.x - firstNodePos!.x, 2) +
+      Math.pow(secondNodePos!.y - firstNodePos!.y, 2)
+    );
+    console.log('Distance between nodes:', distanceBetweenNodes);
+    expect(distanceBetweenNodes).toBeGreaterThan(50); // Nodes should be separated
+
+    console.log('=== Step 4: Press Space key to fit to second (last created) node ===');
+    await appWindow.keyboard.press('Space');
+    await appWindow.waitForTimeout(800); // Wait for fit animation
+
+    // Verify the viewport is now centered on the second node
+    const viewportAfterSecondFit = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return null;
+
+      const pan = cy.pan();
+      const zoom = cy.zoom();
+
+      return {
+        pan,
+        zoom,
+        viewportCenter: {
+          x: (cy.width() / 2 - pan.x) / zoom,
+          y: (cy.height() / 2 - pan.y) / zoom
+        }
+      };
+    });
+
+    console.log('Viewport after second fit:', viewportAfterSecondFit);
+
+    // Check that viewport center is now close to second node position
+    const distanceToSecondNode = Math.sqrt(
+      Math.pow(viewportAfterSecondFit!.viewportCenter.x - secondNodePos!.x, 2) +
+      Math.pow(viewportAfterSecondFit!.viewportCenter.y - secondNodePos!.y, 2)
+    );
+    console.log('Distance from viewport center to second node:', distanceToSecondNode);
+    expect(distanceToSecondNode).toBeLessThan(100); // Space key should properly fit to node
+
+    // Verify viewport moved from first node to second node
+    const viewportMovement = Math.sqrt(
+      Math.pow(viewportAfterSecondFit!.viewportCenter.x - viewportAfterFirstFit!.viewportCenter.x, 2) +
+      Math.pow(viewportAfterSecondFit!.viewportCenter.y - viewportAfterFirstFit!.viewportCenter.y, 2)
+    );
+    console.log('Viewport movement between fits:', viewportMovement);
+    expect(viewportMovement).toBeGreaterThan(20); // Viewport should have moved
+
+    console.log('✓ Space key fit to last node feature working correctly');
   });
 
   // NOTE: OS preference override is tested at unit level (StyleService.test.ts:105-134)

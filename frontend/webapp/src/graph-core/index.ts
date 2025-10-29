@@ -10,7 +10,7 @@ console.log('[GraphCore] Registering floating windows extension...');
 registerFloatingWindows(cytoscape);
 console.log('[GraphCore] Floating windows extension registered');
 
-export { CytoscapeCore } from './graphviz/CytoscapeCore';
+export { CytoscapeCore, AnimationType } from './graphviz/CytoscapeCore';
 export { type Node, type MarkdownTree, type NodeDefinition, type EdgeDefinition } from './types';
 export { registerFloatingWindows } from './extensions/cytoscape-floating-windows';
 console.log('[GraphCore] Module loaded');

@@ -88,16 +88,16 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
     expect(chromeCreatedSynchronously.closeButtonExists).toBe(true);
     expect(chromeCreatedSynchronously.contentContainerExists).toBe(true);
 
-    // ✅ Test 2: Wait for React content to render (async)
-    await appWindow.waitForSelector('.cy-floating-window-content .w-md-editor', { timeout: 5000 });
+    // ✅ Test 2: Wait for CodeMirror editor to render (async)
+    await appWindow.waitForSelector('.cy-floating-window-content .cm-editor', { timeout: 5000 });
 
-    const reactContentRendered = await appWindow.evaluate(() => {
+    const editorContentRendered = await appWindow.evaluate(() => {
       const contentContainer = document.querySelector('.cy-floating-window-content');
-      const mdEditor = contentContainer?.querySelector('.w-md-editor');
-      return !!mdEditor;
+      const cmEditor = contentContainer?.querySelector('.cm-editor');
+      return !!cmEditor;
     });
 
-    expect(reactContentRendered).toBe(true);
+    expect(editorContentRendered).toBe(true);
 
     // ✅ Test 3: Verify window is visible
     const windowElement = appWindow.locator('#window-sync-test-window');
@@ -122,6 +122,9 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
       });
     });
 
+    // Wait for editor to render
+    await appWindow.waitForSelector('#window-drag-test-window .cm-editor', { timeout: 5000 });
+
     // Get initial position
     const initialPosition = await appWindow.evaluate(() => {
       const windowElement = document.querySelector('#window-drag-test-window') as HTMLElement;
@@ -137,15 +140,39 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
     // Drag the window by simulating mouse events on title bar
     const titleBar = appWindow.locator('#window-drag-test-window .cy-floating-window-title');
 
-    // Get title bar bounding box
-    const box = await titleBar.boundingBox();
-    if (!box) throw new Error('Title bar not found');
+    // Try using dispatchEvent to trigger drag manually since Playwright mouse API might not work with transforms
+    await appWindow.evaluate(() => {
+      const titleBar = document.querySelector('#window-drag-test-window .cy-floating-window-title') as HTMLElement;
+      const cy = (window as any).cytoscapeInstance;
 
-    // Simulate drag: mousedown -> mousemove -> mouseup
-    await appWindow.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await appWindow.mouse.down();
-    await appWindow.mouse.move(box.x + 150, box.y + 100);
-    await appWindow.mouse.up();
+      // Get initial position
+      const rect = titleBar.getBoundingClientRect();
+      const startX = rect.left + rect.width / 2;
+      const startY = rect.top + rect.height / 2;
+
+      // Dispatch mousedown
+      const mouseDownEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        clientX: startX,
+        clientY: startY,
+        button: 0
+      });
+      titleBar.dispatchEvent(mouseDownEvent);
+
+      // Dispatch mousemove on document
+      const mouseMoveEvent = new MouseEvent('mousemove', {
+        bubbles: true,
+        clientX: startX + 150,
+        clientY: startY + 100
+      });
+      document.dispatchEvent(mouseMoveEvent);
+
+      // Dispatch mouseup on document
+      const mouseUpEvent = new MouseEvent('mouseup', {
+        bubbles: true
+      });
+      document.dispatchEvent(mouseUpEvent);
+    });
 
     // Give it a moment to update
     await appWindow.waitForTimeout(100);
@@ -207,6 +234,16 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
   });
 
   test('should handle pan/zoom correctly with new architecture', async ({ appWindow }) => {
+    // Reset zoom and pan to ensure clean state
+    await appWindow.evaluate(() => {
+      const cy = (window as any).cytoscapeInstance;
+      cy.zoom(1);
+      cy.pan({ x: 0, y: 0 });
+    });
+
+    // Wait for overlay to sync
+    await appWindow.waitForTimeout(100);
+
     // Create window
     await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
@@ -322,7 +359,7 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
 
     // Wait for React content to render in all windows
     for (let i = 1; i <= 5; i++) {
-      await appWindow.waitForSelector(`#window-multi-window-${i} .w-md-editor`, { timeout: 5000 });
+      await appWindow.waitForSelector(`#window-multi-window-${i} .cm-editor`, { timeout: 5000 });
     }
 
     // ✅ Screenshot with multiple windows
@@ -347,33 +384,31 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
       });
     });
 
-    // Wait for MDEditor to render
-    await appWindow.waitForSelector('#window-editor-preview-test .w-md-editor', { timeout: 5000 });
+    // Wait for CodeMirror editor to render
+    await appWindow.waitForSelector('#window-editor-preview-test .cm-editor', { timeout: 5000 });
 
-    // Check that the preview area exists and has content
-    const previewContent = await appWindow.evaluate(() => {
-      const container = document.querySelector('#window-editor-preview-test .w-md-editor');
-      const preview = container?.querySelector('.w-md-editor-preview');
+    // Check that the editor exists and has content (vanilla CodeMirror doesn't have separate preview mode like React)
+    const editorContent = await appWindow.evaluate(() => {
+      const container = document.querySelector('#window-editor-preview-test .cm-editor');
+      const content = container?.querySelector('.cm-content');
 
       return {
         containerExists: !!container,
-        previewExists: !!preview,
-        previewHTML: preview?.innerHTML || '',
-        previewText: preview?.textContent || '',
-        previewEmpty: !preview?.textContent || preview.textContent.trim().length === 0
+        contentExists: !!content,
+        contentHTML: content?.innerHTML || '',
+        contentText: content?.textContent || '',
+        contentEmpty: !content?.textContent || content.textContent.trim().length === 0
       };
     });
 
     // Assertions
-    expect(previewContent.containerExists).toBe(true);
-    expect(previewContent.previewExists).toBe(true);
+    expect(editorContent.containerExists).toBe(true);
+    expect(editorContent.contentExists).toBe(true);
 
-    // THIS IS THE KEY TEST: Preview should have visible content, not be blank
-    expect(previewContent.previewEmpty).toBe(false);
-    expect(previewContent.previewText).toContain('Test Header');
-    expect(previewContent.previewText).toContain('bold');
-    expect(previewContent.previewHTML).toContain('<h1');
-    expect(previewContent.previewHTML).toContain('<strong>');
+    // THIS IS THE KEY TEST: Editor should have visible content, not be blank
+    expect(editorContent.contentEmpty).toBe(false);
+    expect(editorContent.contentText).toContain('Test Header');
+    expect(editorContent.contentText).toContain('bold');
 
     // Screenshot to verify visual appearance
     await appWindow.screenshot({

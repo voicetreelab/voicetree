@@ -202,3 +202,31 @@ def test_multi_byte_character_handling():
     result = manager.get()
     assert len(result) <= 8
     # Should handle multi-byte chars correctly
+
+
+def test_history_manager_with_file_path_in_nonexistent_directory(tmp_path):
+    """
+    Test that HistoryManager with a file path fails gracefully when directory doesn't exist.
+    This tests the bug where HistoryManager.append() tries to save to a file in a directory
+    that doesn't exist yet.
+    """
+    import os
+
+    # Create a path to a file in a directory that doesn't exist
+    nonexistent_dir = tmp_path / "voicetree-test-temp"
+    file_path = str(nonexistent_dir / "transcript_history.txt")
+
+    # Directory should not exist yet
+    assert not os.path.exists(nonexistent_dir)
+
+    # Initialize HistoryManager with file path in non-existent directory
+    # This should NOT crash - the directory issue should be caught on append
+    manager = HistoryManager(file_path)
+
+    # This should raise FileNotFoundError because directory doesn't exist
+    try:
+        manager.append("test text", max_length=100)
+        assert False, "Expected FileNotFoundError but none was raised"
+    except FileNotFoundError as e:
+        assert "Directory does not exist" in str(e)
+        assert str(nonexistent_dir) in str(e)
