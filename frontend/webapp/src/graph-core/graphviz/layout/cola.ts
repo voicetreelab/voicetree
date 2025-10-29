@@ -78,22 +78,29 @@ ColaLayout.prototype.run = function(){
 
     const nonparentNodes = nodes.subtract(parentNodes);
 
-    const bb = options.boundingBox || { x1: 0, y1: 0, w: cy.width(), h: cy.height() };
-    if( bb.x2 === undefined ){ bb.x2 = bb.x1 + bb.w; }
-    if( bb.w === undefined ){ bb.w = bb.x2 - bb.x1; }
-    if( bb.y2 === undefined ){ bb.y2 = bb.y1 + bb.h; }
-    if( bb.h === undefined ){ bb.h = bb.y2 - bb.y1; }
+    // TODO: Investigate bounding box offset causing graph flicker when adding nodes
+    // The bb.x1/bb.y1 offset transformation causes nodes to jump positions when the bounding box
+    // changes between layout runs (e.g., when adding a new node at the edge of the graph).
+    // For now, forcing bb.x1=0, bb.y1=0 to prevent flicker.
+    // Original code:
+    // const bb = options.boundingBox || { x1: 0, y1: 0, w: cy.width(), h: cy.height() };
+    // if( bb.x2 === undefined ){ bb.x2 = bb.x1 + bb.w; }
+    // if( bb.w === undefined ){ bb.w = bb.x2 - bb.x1; }
+    // if( bb.y2 === undefined ){ bb.y2 = bb.y1 + bb.h; }
+    // if( bb.h === undefined ){ bb.h = bb.y2 - bb.y1; }
 
-    console.log('[Cola Debug] Bounding box:', bb);
+    const bb = { x1: 0, y1: 0, w: cy.width(), h: cy.height(), x2: cy.width(), y2: cy.height() };
+
+    // console.log('[Cola Debug] Bounding box:', bb);
 
     let updatePositionCallCount = 0;
     const updateNodePositions = function(){
         updatePositionCallCount++;
         const isFirstThreeCalls = updatePositionCallCount <= 3;
 
-        if (isFirstThreeCalls) {
-            console.log(`[Cola Debug] updateNodePositions call #${updatePositionCallCount}`);
-        }
+        // if (isFirstThreeCalls) {
+        //     console.log(`[Cola Debug] updateNodePositions call #${updatePositionCallCount}`);
+        // }
 
         for( let i = 0; i < nodes.length; i++ ){
             const node = nodes[i];
@@ -125,7 +132,7 @@ ColaLayout.prototype.run = function(){
 
                 if (isFirstThreeCalls && retPos) {
                     const currentPos = node.position();
-                    console.log(`[Cola Debug]   Node ${node.id()}: scratch=(${scratch.x.toFixed(2)}, ${scratch.y.toFixed(2)}) -> retPos=(${retPos.x.toFixed(2)}, ${retPos.y.toFixed(2)}) [was (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})]`);
+                    // console.log(`[Cola Debug]   Node ${node.id()}: scratch=(${scratch.x.toFixed(2)}, ${scratch.y.toFixed(2)}) -> retPos=(${retPos.x.toFixed(2)}, ${retPos.y.toFixed(2)}) [was (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})]`);
                 }
             }
 
@@ -212,13 +219,13 @@ ColaLayout.prototype.run = function(){
                 const isFirstThreeTicks = tickCount <= 3;
 
                 if (isFirstThreeTicks) {
-                    console.log(`[Cola Debug] ====== Tick #${tickCount} START ======`);
+                    // console.log(`[Cola Debug] ====== Tick #${tickCount} START ======`);
                 }
 
                 const ret = adaptor.tick();
 
                 if (isFirstThreeTicks) {
-                    console.log(`[Cola Debug] ====== Tick #${tickCount} END (converged: ${ret}) ======`);
+                    // console.log(`[Cola Debug] ====== Tick #${tickCount} END (converged: ${ret}) ======`);
                 }
 
                 if( !options.infinite && !firstTick ){
@@ -340,7 +347,7 @@ ColaLayout.prototype.run = function(){
             fixed: node.locked()
         };
 
-        console.log(`[Cola Debug] Initial setup - Node ${node.id()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
+        // console.log(`[Cola Debug] Initial setup - Node ${node.id()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
 
         return struct;
     }) );

@@ -53,6 +53,12 @@ class MarkdownTree:
         self.output_dir = output_dir or "markdownTreeVaultDefault"
         self._markdown_converter = None  # Will be set to TreeToMarkdownConverter when needed
 
+        # Create output directory if it doesn't exist
+        # This ensures that any files written to this directory (like transcript_history.txt)
+        # will have a valid directory to write to
+        import os
+        os.makedirs(self.output_dir, exist_ok=True)
+
         # ThreadPool for async embedding updates
         self._embedding_executor = ThreadPoolExecutor(
             max_workers=2,

@@ -39,7 +39,7 @@ export function getVanillaInstance(windowId: string): { dispose: () => void } | 
 /**
  * Get or create the shared overlay container for all floating windows
  */
-function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
+export function getOrCreateOverlay(cy: cytoscape.Core): HTMLElement {
   const container = cy.container() as HTMLElement;
   const parent = container.parentElement;
 
@@ -112,11 +112,12 @@ function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domEleme
  * Create the window chrome (frame) synchronously with vanilla DOM
  * This includes: window container, title bar, close button, and content container
  * Returns the main window element and the content container for React mounting
+ * @param shadowNode - Optional shadow node for anchoring. If omitted, window is positioned manually.
  */
-function createWindowChrome(
+export function createWindowChrome(
   cy: cytoscape.Core,
   config: FloatingWindowConfig,
-  shadowNode: cytoscape.NodeSingular
+  shadowNode?: cytoscape.NodeSingular
 ): { windowElement: HTMLElement; contentContainer: HTMLElement } {
   const { id, title, resizable = false, component } = config;
 
@@ -187,12 +188,14 @@ function createWindowChrome(
   windowElement.appendChild(titleBar);
   windowElement.appendChild(contentContainer);
 
-  // Attach drag handlers to title bar
-  attachDragHandlers(cy, titleBar, windowElement);
+  // Attach drag handlers to title bar (only if we have shadow node for position sync)
+  if (shadowNode) {
+    attachDragHandlers(cy, titleBar, windowElement);
+  }
 
   // Set up ResizeObserver to sync window size to shadow node
   // This ensures layout algorithm knows the real window dimensions
-  if (typeof ResizeObserver !== 'undefined') {
+  if (typeof ResizeObserver !== 'undefined' && shadowNode) {
     const resizeObserver = new ResizeObserver(() => {
       console.log('[FloatingWindow] ResizeObserver callback fired!');
 
@@ -333,7 +336,7 @@ function attachDragHandlers(
  * Mount React content component to the content container
  * Simplified to only handle content rendering - no wrapper, no title bar
  */
-function mountComponent(
+export function mountComponent(
   contentContainer: HTMLElement,
   component: string | React.ReactElement,
   windowId: string,

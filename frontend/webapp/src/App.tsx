@@ -1,9 +1,10 @@
-import VoiceTreeGraphVizLayout from "./components/voice-tree-graph-viz-layout.tsx";
 import VoiceTreeTranscribe from "./renderers/voicetree-transcribe";
 import Sidebar from "./components/sidebar";
 import { useGraphManager } from "./hooks/useGraphManager";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
+import { VoiceTreeGraphView } from "./views/VoiceTreeGraphView";
+import { useEffect, useRef } from "react";
 
 function App() {
   // Use the graph manager hook for file watching
@@ -17,6 +18,9 @@ function App() {
     clearError,
     isElectron
   } = useGraphManager();
+
+  // Ref for graph container
+  const graphContainerRef = useRef<HTMLDivElement>(null);
 
   // File Watching Control Panel Component
   const FileWatchingPanel = () => (
@@ -91,6 +95,22 @@ function App() {
     </div>
   );
 
+  // Initialize VoiceTreeGraphView when container is ready
+  useEffect(() => {
+    if (!graphContainerRef.current) return;
+
+    console.log('[App] Initializing VoiceTreeGraphView');
+    const graphView = new VoiceTreeGraphView(graphContainerRef.current, {
+      initialDarkMode: false
+    });
+
+    // Cleanup on unmount
+    return () => {
+      console.log('[App] Disposing VoiceTreeGraphView');
+      graphView.dispose();
+    };
+  }, []); // Empty deps - only run once on mount
+
   // Always render the full app UI - no conditional rendering
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -113,15 +133,7 @@ function App() {
       {/* Bottom Section: Graph (fills remaining space) */}
       <div className="flex-1 min-h-0 border-r pr-4">
         <Sidebar>
-          <VoiceTreeGraphVizLayout
-            isWatching={isWatching}
-            isLoading={isLoading}
-            watchDirectory={watchDirectory}
-            error={error}
-            startWatching={startWatching}
-            stopWatching={stopWatching}
-            clearError={clearError}
-          />
+          <div ref={graphContainerRef} className="h-full w-full" />
         </Sidebar>
       </div>
     </div>

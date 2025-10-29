@@ -108,9 +108,9 @@ export class TerminalVanilla {
     const term = new XTerm({
       cursorBlink: true,
       // smoothScrollDuration: 0,
-      scrollback: 10000,
-      scrollOnUserInput: false,
-      scrollOnEraseInDisplay: true,
+      scrollback: 1000,
+      scrollOnUserInput: true,
+      scrollOnEraseInDisplay: false,
       fastScrollModifier: 'shift',
       fastScrollSensitivity: 5,
     });

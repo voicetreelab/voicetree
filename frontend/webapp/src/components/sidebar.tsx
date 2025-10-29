@@ -73,7 +73,7 @@ export default function Sidebar({ children }: SidebarProps) {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1">
+      <div className="flex-1 relative">
         {children}
       </div>
     </div>

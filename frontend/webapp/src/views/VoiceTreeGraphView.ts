@@ -26,12 +26,14 @@ import type {
   Position,
   VoiceTreeGraphViewOptions
 } from './IVoiceTreeGraphView';
-import { CytoscapeCore, AnimationType } from '@/graph-core/graphviz/CytoscapeCore';
+import { CytoscapeCore, AnimationType } from '@/graph-core'; // Import from index.ts to trigger extension registration
 import { GraphMutator } from '@/graph-core/mutation/GraphMutator';
 import { StyleService } from '@/graph-core/services/StyleService';
 import { parseForCytoscape } from '@/graph-core/data/load_markdown/MarkdownParser';
 import { enableAutoLayout } from '@/graph-core/graphviz/layout/autoLayout';
+import ColaLayout from '@/graph-core/graphviz/layout/cola';
 import type { NodeSingular } from 'cytoscape';
+import { createWindowChrome, getOrCreateOverlay, mountComponent } from '@/graph-core/extensions/cytoscape-floating-windows';
 
 // Helper function to normalize file ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -63,6 +65,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   private isInitialLoad = true;
   private _isDarkMode = false;
   private currentTerminalIndex = 0;
+  private lastCreatedNodeId: string | null = null;
+
+  // Command-hover mode state
+  private commandKeyHeld = false;
+  private currentHoverEditor: HTMLElement | null = null;
 
   // DOM elements
   private statsOverlay: HTMLElement | null = null;
@@ -102,6 +109,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Setup file event listeners
     this.setupFileListeners();
+
+    // Setup command-hover mode
+    // TEMP: Disabled to test if this is causing editor tap issues
+    this.setupCommandHover();
   }
 
   // ============================================================================
@@ -213,6 +224,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Setup tap handler for nodes (skip in headless mode)
     if (!this.options.headless) {
+      console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
         console.log('[VoiceTreeGraphView] Node tapped:', nodeId);
@@ -224,9 +236,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         const content = this.getContentForNode(nodeId);
         const filePath = this.getFilePathForNode(nodeId);
 
+        console.log('[VoiceTreeGraphView] Found content?', !!content, 'filePath?', !!filePath);
+
         if (content && filePath) {
           const nodePos = event.target.position();
+          console.log('[VoiceTreeGraphView] Calling createFloatingEditor');
           this.createFloatingEditor(nodeId, filePath, content, nodePos);
+        } else {
+          console.log('[VoiceTreeGraphView] Not opening editor - missing requirements');
         }
       });
 
@@ -238,6 +255,37 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     if (typeof window !== 'undefined') {
       (window as any).cytoscapeInstance = core;
       (window as any).cytoscapeCore = this.cy;
+
+      // Expose test helpers for e2e tests
+      (window as any).testHelpers = {
+        createTerminal: (nodeId: string) => {
+          const filePath = this.getFilePathForNode(nodeId);
+          const nodeMetadata = {
+            id: nodeId,
+            name: nodeId.replace(/_/g, ' '),
+            filePath: filePath
+          };
+
+          const node = core.getElementById(nodeId);
+          if (node.length > 0) {
+            const nodePos = node.position();
+            this.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
+          }
+        },
+        addNodeAtPosition: async (position: { x: number; y: number }) => {
+          await this.handleAddNodeAtPosition(position);
+        },
+        getEditorInstance: undefined // Will be set below
+      };
+
+      // Import and expose getVanillaInstance for testing
+      import('@/graph-core/extensions/cytoscape-floating-windows').then(({ getVanillaInstance }) => {
+        if ((window as any).testHelpers) {
+          (window as any).testHelpers.getEditorInstance = (windowId: string) => {
+            return getVanillaInstance(windowId);
+          };
+        }
+      });
     }
   }
 
@@ -411,17 +459,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Update counts
     this.updateCounts();
 
-    // Trigger layout
-    cy.layout({
-      name: 'cola',
-      animate: true,
-      animationDuration: 300
-    }).run();
-
     // Set initial load complete
     this.isInitialLoad = false;
 
-    // Fit graph after layout completes
+    // Fit graph after auto-layout completes (enableAutoLayout will trigger automatically)
+    // Layout animation is 300ms, so wait 750ms total
     setTimeout(() => {
       cy.fit(undefined, 50);
     }, 750);
@@ -472,18 +514,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       newNode.data('color', parsed.color);
     }
 
-    // Only trigger layout if no saved position exists
-    if (!savedPos && !this.isInitialLoad) {
-      // Trigger incremental layout
-      cy.layout({
-        name: 'cola',
-        animate: true,
-        animationDuration: 300
-      }).run();
-    }
+    // Auto-layout will trigger automatically via enableAutoLayout when node is added
+    // No manual layout call needed
 
     // Cache content
     this.markdownFiles.set(data.fullPath, data.content);
+
+    // Track last created node
+    this.lastCreatedNodeId = nodeId;
 
     // Update counts and UI
     this.updateCounts();
@@ -561,8 +599,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     const cy = this.cy.getCore();
 
-    // Clear graph
-    cy.elements().not('[isGhostRoot]').remove();
+    // Clear graph - remove ALL elements (including ghost root) for clean state
+    cy.elements().remove();
 
     // Clear caches
     this.markdownFiles.clear();
@@ -641,6 +679,134 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     } catch (error) {
       console.error('[VoiceTreeGraphView] Error creating floating editor:', error);
     }
+  }
+
+  // ============================================================================
+  // COMMAND-HOVER MODE
+  // ============================================================================
+
+  private setupCommandHover(): void {
+    // Track command key state
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) {
+        console.log('[CommandHover] Command key pressed');
+        this.commandKeyHeld = true;
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) {
+        console.log('[CommandHover] Command key released');
+        this.commandKeyHeld = false;
+        this.closeHoverEditor();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    // Listen for node hover when command is held
+    this.cy.getCore().on('mouseover', 'node', (event) => {
+      console.log('[CommandHover] Node mouseover, commandKeyHeld:', this.commandKeyHeld);
+      if (!this.commandKeyHeld) return;
+
+      const node = event.target;
+      const nodeId = node.id();
+
+      // Get node content and file path
+      const content = this.getContentForNode(nodeId);
+      const filePath = this.getFilePathForNode(nodeId);
+
+      console.log('[CommandHover] content:', !!content, 'filePath:', filePath);
+
+      if (!content || !filePath) return;
+
+      // Open hover editor
+      this.openHoverEditor(nodeId, filePath, content, node.position());
+    });
+  }
+
+  private openHoverEditor(
+    nodeId: string,
+    filePath: string,
+    content: string,
+    nodePos: Position
+  ): void {
+    // Close any existing hover editor
+    this.closeHoverEditor();
+
+    const hoverId = `hover-${nodeId}`;
+    console.log('[VoiceTreeGraphView] Creating command-hover editor:', hoverId);
+
+    try {
+      // Get overlay
+      const overlay = getOrCreateOverlay(this.cy.getCore());
+
+      // Create window chrome WITHOUT shadow node
+      const { windowElement, contentContainer } = createWindowChrome(
+        this.cy.getCore(),
+        {
+          id: hoverId,
+          component: 'MarkdownEditor',
+          title: `⌘ ${nodeId}`,
+          position: {
+            x: nodePos.x + 50,
+            y: nodePos.y
+          },
+          initialContent: content,
+          onSave: async (newContent: string) => {
+            console.log('[VoiceTreeGraphView] Saving hover editor content');
+            if ((window as any).electronAPI?.saveFileContent) {
+              const result = await (window as any).electronAPI.saveFileContent(filePath, newContent);
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to save file');
+              }
+            } else {
+              throw new Error('Save functionality not available');
+            }
+          }
+        },
+        undefined  // No shadow node!
+      );
+
+      // Add to overlay
+      overlay.appendChild(windowElement);
+
+      // Set position manually (no shadow node to sync with)
+      windowElement.style.left = `${nodePos.x + 50}px`;
+      windowElement.style.top = `${nodePos.y}px`;
+
+      // Mount the component
+      mountComponent(contentContainer, 'MarkdownEditor', hoverId, {
+        id: hoverId,
+        component: 'MarkdownEditor',
+        title: `⌘ ${nodeId}`,
+        initialContent: content,
+        onSave: async (newContent: string) => {
+          if ((window as any).electronAPI?.saveFileContent) {
+            await (window as any).electronAPI.saveFileContent(filePath, newContent);
+          }
+        }
+      });
+
+      // Close on mouse-out
+      windowElement.addEventListener('mouseleave', () => {
+        this.closeHoverEditor();
+      });
+
+      // Store reference
+      this.currentHoverEditor = windowElement;
+    } catch (error) {
+      console.error('[VoiceTreeGraphView] Error creating hover editor:', error);
+    }
+  }
+
+  private closeHoverEditor(): void {
+    if (!this.currentHoverEditor) return;
+
+    console.log('[VoiceTreeGraphView] Closing command-hover editor');
+    this.currentHoverEditor.remove();
+    this.currentHoverEditor = null;
   }
 
   private createFloatingTerminal(
@@ -778,6 +944,16 @@ Edit this node to add content.
   }
 
   private getContentForNode(nodeId: string): string | undefined {
+    // First check if node has content in its data (for test nodes)
+    const node = this.cy.getCore().getElementById(nodeId);
+    if (node.length > 0) {
+      const nodeData = node.data();
+      if (nodeData.content) {
+        return nodeData.content;
+      }
+    }
+
+    // Fall back to markdown files map (for real file-backed nodes)
     for (const [path, content] of this.markdownFiles) {
       if (normalizeFileId(path) === nodeId) {
         return content;
@@ -787,12 +963,24 @@ Edit this node to add content.
   }
 
   private getFilePathForNode(nodeId: string): string | undefined {
+    // First check if node has filePath in its data (for test nodes)
+    const node = this.cy.getCore().getElementById(nodeId);
+    if (node.length > 0) {
+      const nodeData = node.data();
+      if (nodeData.filePath) {
+        return nodeData.filePath;
+      }
+    }
+
+    // Fall back to markdown files map (for real file-backed nodes)
     for (const [path] of this.markdownFiles) {
       if (normalizeFileId(path) === nodeId) {
         return path;
       }
     }
-    return undefined;
+
+    // For test nodes without filePath, generate a dummy path
+    return `/test/${nodeId}.md`;
   }
 
   private async saveNodePositions(): Promise<void> {
@@ -871,11 +1059,25 @@ Edit this node to add content.
   }
 
   private handleKeyDownMethod(e: KeyboardEvent): void {
+    const cy = this.cy.getCore();
+
+    // Space to fit to last created node
+    if (e.key === ' ') {
+      e.preventDefault();
+
+      if (this.lastCreatedNodeId) {
+        const node = cy.getElementById(this.lastCreatedNodeId);
+        if (node.length > 0) {
+          cy.fit(node, 150);
+        }
+      }
+      return;
+    }
+
     // Command/Ctrl + [ or ] to cycle between terminals
     if ((e.metaKey || e.ctrlKey) && (e.key === '[' || e.key === ']')) {
       e.preventDefault();
 
-      const cy = this.cy.getCore();
       const terminalNodes = cy.nodes().filter(
         (node: any) =>
           node.data('id')?.startsWith('terminal-') &&
@@ -933,11 +1135,35 @@ Edit this node to add content.
 
   refreshLayout(): void {
     const cy = this.cy.getCore();
-    cy.layout({
-      name: 'cola',
+
+    // Skip if no nodes
+    if (cy.nodes().length === 0) {
+      return;
+    }
+
+    // Directly instantiate ColaLayout (not registered with cytoscape.use())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const layout = new (ColaLayout as any)({
+      cy: cy,
+      eles: cy.elements(),
       animate: true,
-      animationDuration: 300
-    }).run();
+      animationDuration: 300,
+      randomize: false,
+      avoidOverlap: true,
+      handleDisconnected: true,
+      convergenceThreshold: 1,
+      maxSimulationTime: 3000,
+      unconstrIter: 3,
+      userConstIter: 50,
+      allConstIter: 30,
+      nodeSpacing: 30,
+      edgeLength: 200,
+      centerGraph: false,
+      fit: false,
+      nodeDimensionsIncludeLabels: true
+    });
+
+    layout.run();
   }
 
   fit(padding = 50): void {
