@@ -4,7 +4,34 @@
  * Handles communication with the VoiceTree backend server
  */
 
-import { BACKEND_BASE_URL } from '../../electron/shared-config';
+// Module-level variable to store the backend port
+let backendPort: number | null = null;
+
+/**
+ * Initialize backend connection - must be called on app startup
+ * Fetches the backend port from Electron main process via IPC
+ */
+export async function initializeBackendConnection(): Promise<void> {
+  if (window.electronAPI) {
+    backendPort = await window.electronAPI.getBackendPort();
+    console.log(`[Backend API] Connected to port ${backendPort}`);
+  } else {
+    // Fallback for non-Electron environments (tests, browser)
+    backendPort = 8001;
+    console.log(`[Backend API] Running in non-Electron mode, using fallback port ${backendPort}`);
+  }
+}
+
+/**
+ * Get the backend base URL using the dynamically discovered port
+ * Automatically initializes the backend connection if not already initialized
+ */
+async function getBackendBaseUrl(): Promise<string> {
+  if (!backendPort) {
+    await initializeBackendConnection();
+  }
+  return `http://localhost:${backendPort}`;
+}
 
 export interface LoadDirectoryRequest {
   directory_path: string;
@@ -36,7 +63,8 @@ export async function loadDirectory(directoryPath: string): Promise<LoadDirector
   }
 
   try {
-    const response = await fetch(`${BACKEND_BASE_URL}/load-directory`, {
+    const baseUrl = await getBackendBaseUrl();
+    const response = await fetch(`${baseUrl}/load-directory`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,7 +97,8 @@ export async function loadDirectory(directoryPath: string): Promise<LoadDirector
  */
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${BACKEND_BASE_URL}/health`, {
+    const baseUrl = await getBackendBaseUrl();
+    const response = await fetch(`${baseUrl}/health`, {
       method: 'GET',
     });
     return response.ok;
