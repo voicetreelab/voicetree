@@ -89,7 +89,7 @@ function updateWindowPosition(node: cytoscape.NodeSingular, domElement: HTMLElem
   const pos = node.position();
   domElement.style.left = `${pos.x}px`;
   domElement.style.top = `${pos.y}px`;
-  domElement.style.transform = 'translate(-50%, -50%)';
+  domElement.style.transform = 'translate(-50%, -50%)'; // this is not the culprit fro highlight mismatch
 }
 
 /**
@@ -155,6 +155,23 @@ export function createWindowChrome(
   titleText.className = 'cy-floating-window-title-text';
   titleText.textContent = title || `Window: ${id}`;
 
+  // Create fullscreen button (only for Terminal components)
+  let fullscreenButton: HTMLButtonElement | null = null;
+  if (component === 'Terminal') {
+    fullscreenButton = document.createElement('button');
+    fullscreenButton.className = 'cy-floating-window-fullscreen';
+    fullscreenButton.textContent = '⛶';
+    fullscreenButton.title = 'Toggle Fullscreen';
+
+    // Attach fullscreen handler
+    fullscreenButton.addEventListener('click', () => {
+      const vanillaInstance = vanillaInstances.get(id);
+      if (vanillaInstance && 'toggleFullscreen' in vanillaInstance) {
+        (vanillaInstance as TerminalVanilla).toggleFullscreen();
+      }
+    });
+  }
+
   // Create close button
   const closeButton = document.createElement('button');
   closeButton.className = 'cy-floating-window-close';
@@ -178,6 +195,9 @@ export function createWindowChrome(
 
   // Assemble title bar
   titleBar.appendChild(titleText);
+  if (fullscreenButton) {
+    titleBar.appendChild(fullscreenButton);
+  }
   titleBar.appendChild(closeButton);
 
   // Create content container
@@ -371,7 +391,7 @@ export function mountComponent(
       config.initialContent || '',
       {
         previewMode: config.previewMode || 'edit',
-        autosaveDelay: 100
+        autosaveDelay: 300
       }
     );
 
@@ -420,7 +440,8 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
       // Terminals need more width for 100+ cols and height for ~30+ rows
       // Target: 100 cols × ~9px ≈ 900px + margins (~20px) = 920px
       // Target: 30 rows × ~17px ≈ 510px + title bar (~40px) = 550px
-      return { width: 400, height: 600 };
+      // Using 800px width to provide ~100 cols and reduce line wrapping (helps with scrolling bug)
+      return { width: 800, height: 600 };
     case 'MarkdownEditor':
       // Editors are medium - typical size ~500x300
       return { width: 400, height: 400 };
