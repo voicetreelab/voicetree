@@ -1,4 +1,4 @@
-import type { Stylesheet } from 'cytoscape';
+import cytoscape, { type Stylesheet } from 'cytoscape';
 import {
   MIN_NODE_SIZE,
   MAX_NODE_SIZE,
@@ -136,18 +136,6 @@ export class StyleService {
         }
       },
 
-      // Node sizing based on degree (when degree data is available)
-      {
-        selector: 'node[degree]',
-        style: {
-          'width': 'mapData(degree, 0, 60, 30, 80)',
-          'height': 'mapData(degree, 0, 60, 30, 80)',
-          'font-size': 'mapData(degree, 0, 60, 12, 20)',
-          'text-opacity': 'mapData(degree, 0, 60, 0.7, 1)',
-          'text-max-width': 'mapData(degree, 0, 60, 60, 180)',
-          'border-width': 'mapData(degree, 1, 10, 1, 8)',
-        }
-      },
 
       // Hover effects
       {
@@ -409,5 +397,65 @@ export class StyleService {
       ...this.getDefaultStylesheet(),
       ...this.getFrontmatterStylesheet(),
     ];
+  }
+
+  /**
+   * Update node sizes based on their degree (number of connections)
+   * @param cy - Cytoscape instance
+   * @param nodes - Optional specific nodes to update. If not provided, updates all nodes.
+   */
+  updateNodeSizes(cy: cytoscape.Core, nodes?: cytoscape.NodeCollection): void {
+    if (!cy) return;
+
+    const nodesToUpdate = nodes || cy.nodes();
+
+    // Helper to validate that a value is a healthy non-negative number
+    const isValidNumber = (val: number): boolean =>
+      typeof val === 'number' && !isNaN(val) && isFinite(val) && val >= 0;
+
+    nodesToUpdate.forEach(node => {
+      // Skip ghost root node
+      if (node.data('isGhostRoot')) return;
+
+      let degree = node.degree();
+
+      // Defensive check: ensure degree is a valid number, default to 0 if not
+      if (!isValidNumber(degree)) {
+        console.warn(`[StyleService] Invalid degree value for node ${node.id()}: ${degree}, defaulting to 0`);
+        degree = 0;
+      }
+
+      // Logarithmic + linear scaling: 30*log(degree + 3) + degree
+      // This creates strong emphasis on low-to-mid degree differences
+      // while still rewarding high-degree nodes
+      const size = 30 * Math.log(degree + 3) + degree;
+
+      // Scale other properties proportionally to size
+      // Use size as base and scale others relative to it
+      const width = size;
+      const height = size;
+      const fontSize = 8 + size / 8; // Font scales with size
+      const textWidth = size * 2; // Text width scales with size
+      const borderWidth = 1 + size / 15; // Border scales with size
+      const textOpacity = Math.min(1, 0.7 + degree / 100); // Slight opacity increase with degree
+
+      // Validate all calculated values before applying
+      if (!isValidNumber(width) || !isValidNumber(height) || !isValidNumber(fontSize) ||
+          !isValidNumber(textWidth) || !isValidNumber(borderWidth) || !isValidNumber(textOpacity)) {
+        console.error(`[StyleService] Calculated invalid style values for node ${node.id()}:`, {
+          degree, size, width, height, fontSize, textWidth, borderWidth, textOpacity
+        });
+        return; // Skip this node to prevent NaN styles
+      }
+
+      node.style({
+        'width': width,
+        'height': height,
+        'font-size': fontSize,
+        'text-max-width': textWidth,
+        'border-width': borderWidth,
+        'text-opacity': textOpacity
+      });
+    });
   }
 }
