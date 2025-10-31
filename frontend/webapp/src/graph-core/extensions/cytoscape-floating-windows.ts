@@ -155,22 +155,19 @@ export function createWindowChrome(
   titleText.className = 'cy-floating-window-title-text';
   titleText.textContent = title || `Window: ${id}`;
 
-  // Create fullscreen button (only for Terminal components)
-  let fullscreenButton: HTMLButtonElement | null = null;
-  if (component === 'Terminal') {
-    fullscreenButton = document.createElement('button');
-    fullscreenButton.className = 'cy-floating-window-fullscreen';
-    fullscreenButton.textContent = '⛶';
-    fullscreenButton.title = 'Toggle Fullscreen';
+  // Create fullscreen button for all components
+  const fullscreenButton = document.createElement('button');
+  fullscreenButton.className = 'cy-floating-window-fullscreen';
+  fullscreenButton.textContent = '⛶';
+  fullscreenButton.title = 'Toggle Fullscreen';
 
-    // Attach fullscreen handler
-    fullscreenButton.addEventListener('click', () => {
-      const vanillaInstance = vanillaInstances.get(id);
-      if (vanillaInstance && 'toggleFullscreen' in vanillaInstance) {
-        (vanillaInstance as TerminalVanilla).toggleFullscreen();
-      }
-    });
-  }
+  // Attach fullscreen handler
+  fullscreenButton.addEventListener('click', () => {
+    const vanillaInstance = vanillaInstances.get(id);
+    if (vanillaInstance && 'toggleFullscreen' in vanillaInstance) {
+      (vanillaInstance as { toggleFullscreen: () => Promise<void> }).toggleFullscreen();
+    }
+  });
 
   // Create close button
   const closeButton = document.createElement('button');
@@ -195,9 +192,7 @@ export function createWindowChrome(
 
   // Assemble title bar
   titleBar.appendChild(titleText);
-  if (fullscreenButton) {
-    titleBar.appendChild(fullscreenButton);
-  }
+  titleBar.appendChild(fullscreenButton);
   titleBar.appendChild(closeButton);
 
   // Create content container
