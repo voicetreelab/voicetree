@@ -290,8 +290,8 @@ app.on('before-quit', (event) => {
 });
 
 app.on('window-all-closed', () => {
-  // Also clean up here for safety (belt and suspenders)
-  serverManager.stop();
+  // Server cleanup moved to before-quit only to allow macOS to keep server running when window closes
+  // This prevents the "worst of both worlds" where app stays in dock but server is dead
   terminalManager.cleanup();
 
   if (process.platform !== 'darwin') {
