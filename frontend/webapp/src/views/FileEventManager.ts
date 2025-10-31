@@ -19,6 +19,7 @@ import type {
   BulkFileEvent,
   Position
 } from './IVoiceTreeGraphView';
+import { getResponsivePadding } from '@/utils/cytoscape';
 
 // Helper function to normalize file ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -122,7 +123,8 @@ export class FileEventManager {
     // Fit graph after auto-layout completes (enableAutoLayout will trigger automatically)
     // Layout animation is 300ms, so wait 750ms total
     setTimeout(() => {
-      cy.fit(undefined, 50);
+      // Use 3% responsive padding for bulk load fit (was 50px on 1440p)
+      cy.fit(undefined, getResponsivePadding(cy, 3));
     }, 750);
   }
 
