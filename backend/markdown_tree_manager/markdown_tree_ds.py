@@ -127,6 +127,9 @@ class MarkdownTree:
             def add_nodes(self, nodes: dict[int, 'Node']) -> None:
                 pass  # No-op
 
+            def sync_all_embeddings(self) -> None:
+                pass  # No-op
+
             def get_stats(self) -> dict[str, Any]:
                 """Provide minimal stats interface expected by tests."""
                 return {
@@ -600,3 +603,37 @@ class MarkdownTree:
         logging.info(f"Removed node {node_id}: {node.title}")
 
         return True
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Serialize the MarkdownTree to a dictionary for API transmission.
+
+        Returns:
+            Dictionary with structure:
+            {
+                "tree": {
+                    "node_id": {
+                        "id": int,
+                        "title": str,
+                        "content": str,
+                        "summary": str,
+                        "parent_id": Optional[int],
+                        "children": list[int],
+                        "relationships": dict[int, str]
+                    }
+                }
+            }
+        """
+        tree_dict = {}
+        for node_id, node in self.tree.items():
+            tree_dict[str(node_id)] = {
+                "id": node.id,
+                "title": node.title,
+                "content": node.content,
+                "summary": node.summary,
+                "parent_id": node.parent_id,
+                "children": node.children,
+                "relationships": node.relationships
+            }
+
+        return {"tree": tree_dict}
