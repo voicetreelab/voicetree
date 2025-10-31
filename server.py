@@ -233,6 +233,9 @@ async def load_directory(request: LoadDirectoryRequest):
     global decision_tree, converter, processor, markdown_dir
 
     try:
+        # Log all POST parameters
+        logger.info(f"POST /load-directory parameters: {request.model_dump()}")
+
         new_dir = request.directory_path
 
         # Validate directory path
