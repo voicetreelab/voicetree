@@ -80,15 +80,24 @@ export class GraphMutator {
   }
 
   /**
-   * Add an edge between two nodes, ensuring target node exists
+   * Add an edge between two nodes, ensuring both source and target exist
    */
   addEdge(
     sourceId: string,
     targetId: string,
     label?: string
   ): EdgeSingular {
+    // Ensure both source and target nodes exist
+    // Source might be ghost root which could have been removed
+    if (sourceId === GHOST_ROOT_ID) {
+      this.ensureGhostRoot();
+    } else if (!this.cy.getElementById(sourceId).length) {
+      console.warn(`[GraphMutator] Attempted to create edge with nonexistent source: ${sourceId}. Skipping edge creation.`);
+      return this.cy.collection(); // Return empty collection
+    }
+
     // Ensure target node exists (create placeholder if needed)
-    this.ensurePlaceholderNode(targetId, sourceId);
+    this.ensurePlaceholderNode(targetId, sourceId); // todo, suspicious, do we really need this?
 
     const edgeId = `${sourceId}->${targetId}`;
 
