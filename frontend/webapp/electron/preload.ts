@@ -3,6 +3,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
+  // Backend server configuration
+  getBackendPort: () => ipcRenderer.invoke('get-backend-port'),
+
   // File watching controls
   startFileWatching: (directoryPath) => ipcRenderer.invoke('start-file-watching', directoryPath),
   stopFileWatching: () => ipcRenderer.invoke('stop-file-watching'),

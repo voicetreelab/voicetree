@@ -27,6 +27,9 @@ export interface ErrorEvent {
 }
 
 export interface ElectronAPI {
+  // Backend server configuration
+  getBackendPort: () => Promise<number | null>;
+
   // Directory selection
   openDirectoryDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>;
 

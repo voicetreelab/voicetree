@@ -2,7 +2,7 @@ import { app } from 'electron';
 import path from 'path';
 import { promises as fs, createWriteStream } from 'fs';
 import { spawn, ChildProcess } from 'child_process';
-import { BACKEND_PORT } from './shared-config';
+import { findAvailablePort } from './port-utils';
 
 /**
  * Deep module for managing the VoiceTree Python backend server.
@@ -22,11 +22,13 @@ import { BACKEND_PORT } from './shared-config';
  */
 export default class ServerManager {
   private serverProcess: ChildProcess | null = null;
+  private actualPort: number | null = null;
 
   /**
    * Start the VoiceTree server
+   * @returns The port number the server is running on
    */
-  async start(): Promise<void> {
+  async start(): Promise<number> {
     // Create a debug log file to capture environment differences
     const debugLogPath = path.join(app.getPath('userData'), 'server-debug.log');
     const logStream = createWriteStream(debugLogPath, { flags: 'a' });
@@ -39,7 +41,12 @@ export default class ServerManager {
     };
 
     try {
+      // Find available port starting from 8001
+      const port = await findAvailablePort(8001);
+      this.actualPort = port;
+
       debugLog('=== VoiceTree Server Startup ===');
+      debugLog(`[Server] Found available port: ${port}`);
       debugLog(`App launched from: ${process.argv0}`);
       debugLog(`App packaged: ${app.isPackaged}`);
       debugLog(`Process CWD: ${process.cwd()}`);
@@ -75,12 +82,12 @@ export default class ServerManager {
       debugLog(`[Server] Server directory: ${serverDir}`);
 
       // Spawn the server process
-      debugLog(`[Server] Starting VoiceTree server on port ${BACKEND_PORT}...`);
-      debugLog(`[Server] Spawn command: ${serverPath} ${BACKEND_PORT}`);
+      debugLog(`[Server] Starting VoiceTree server on port ${port}...`);
+      debugLog(`[Server] Spawn command: ${serverPath} ${port}`);
 
       const serverEnv = this.buildServerEnvironment(serverDir);
 
-      this.serverProcess = spawn(serverPath, [BACKEND_PORT.toString()], {
+      this.serverProcess = spawn(serverPath, [port.toString()], {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: serverEnv,
         cwd: serverDir,
@@ -97,15 +104,18 @@ export default class ServerManager {
       this.attachServerHandlers(this.serverProcess, debugLog);
 
       // Test if the server is accessible after a short delay
-      this.scheduleHealthCheck(debugLog);
+      this.scheduleHealthCheck(debugLog, port);
 
       // Keep log open for a moment then close
       this.scheduleLogClosure(logStream, debugLog);
+
+      return port;
 
     } catch (error: any) {
       debugLog(`[Server] Error during server startup: ${error}`);
       debugLog(`[Server] Stack trace: ${error.stack}`);
       logStream.end();
+      throw error; // Re-throw to signal startup failure
     }
   }
 
@@ -130,6 +140,13 @@ export default class ServerManager {
    */
   isRunning(): boolean {
     return this.serverProcess !== null && this.serverProcess.pid !== undefined;
+  }
+
+  /**
+   * Get the port the server is running on
+   */
+  getPort(): number | null {
+    return this.actualPort;
   }
 
   /**
@@ -228,11 +245,11 @@ export default class ServerManager {
   /**
    * Schedule a health check to test if the server is accessible
    */
-  private scheduleHealthCheck(debugLog: (message: string) => void): void {
+  private scheduleHealthCheck(debugLog: (message: string) => void, port: number): void {
     setTimeout(async () => {
       try {
         const http = require('http');
-        http.get(`http://localhost:${BACKEND_PORT}/health`, (res: any) => {
+        http.get(`http://localhost:${port}/health`, (res: any) => {
           debugLog(`[Server] Health check response code: ${res.statusCode}`);
         }).on('error', (err: any) => {
           debugLog(`[Server] Health check failed: ${err.message}`);

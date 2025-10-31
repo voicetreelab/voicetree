@@ -33,6 +33,9 @@ const terminalManager = new TerminalManager();
 const nodeManager = new MarkdownNodeManager();
 const positionManager = new PositionManager();
 
+// Store the backend server port (set during app startup)
+let serverPort: number | null = null;
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -116,6 +119,11 @@ function createWindow() {
     terminalManager.cleanupForWindow(windowId);
   });
 }
+
+// IPC handler for backend server port
+ipcMain.handle('get-backend-port', () => {
+  return serverPort;
+});
 
 // IPC handlers for file watching
 ipcMain.handle('start-file-watching', async (event, directoryPath) => {
@@ -262,17 +270,28 @@ app.whenReady().then(async () => {
   // Set up agent tools directory on first launch
   await setupToolsDirectory();
 
-  // Start the Python server before creating window
-  await serverManager.start();
+  // Start the Python server and store the port it's using
+  serverPort = await serverManager.start();
+  console.log(`[App] Server started on port ${serverPort}`);
 
   createWindow();
 });
 
-app.on('window-all-closed', () => {
+// Handle hot reload and app quit scenarios
+// IMPORTANT: before-quit fires on hot reload, window-all-closed does not
+app.on('before-quit', (event) => {
+  console.log('[App] before-quit event - cleaning up resources...');
+
   // Clean up server process
   serverManager.stop();
 
   // Clean up all terminals
+  terminalManager.cleanup();
+});
+
+app.on('window-all-closed', () => {
+  // Also clean up here for safety (belt and suspenders)
+  serverManager.stop();
   terminalManager.cleanup();
 
   if (process.platform !== 'darwin') {
@@ -285,7 +304,8 @@ app.on('activate', async () => {
     // Restart server if it's not running (macOS dock click after window close)
     if (!serverManager.isRunning()) {
       console.log('[App] Reactivating - restarting server...');
-      await serverManager.start();
+      serverPort = await serverManager.start();
+      console.log(`[App] Server restarted on port ${serverPort}`);
     }
     createWindow();
   }
