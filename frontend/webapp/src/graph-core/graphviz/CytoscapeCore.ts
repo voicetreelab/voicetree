@@ -65,6 +65,9 @@ export class CytoscapeCore {
     // Update node degrees after initial elements are added
     this.updateNodeDegrees();
 
+    // Update node sizes based on initial degrees
+    this.styleService.updateNodeSizes(this.viz);
+
     this.setupEventListeners();
   }
 
@@ -124,12 +127,30 @@ export class CytoscapeCore {
       const selected = this.viz.$('node:selected');
       console.log(`[CytoscapeCore] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
     });
+
+    // Update node sizes when edges are added or removed (catches GraphMutator changes)
+    // Only update the source and target nodes of the affected edge for efficiency
+    this.viz.on('add', 'edge', (e) => {
+      if (!e.target) return;
+      const edge = e.target;
+      const affectedNodes = edge.source().union(edge.target());
+      this.styleService.updateNodeSizes(this.viz, affectedNodes);
+    });
+
+    this.viz.on('remove', 'edge', (e) => {
+      if (!e.target) return;
+      const edge = e.target;
+      const affectedNodes = edge.source().union(edge.target());
+      this.styleService.updateNodeSizes(this.viz, affectedNodes);
+    });
   }
 
   // Add nodes to the graph
   addNodes(nodes: NodeDefinition[]): NodeCollection {
     const addedNodes = this.viz.add(nodes).nodes();
     this.updateNodeDegrees();
+    // Only update the newly added nodes
+    this.styleService.updateNodeSizes(this.viz, addedNodes);
     return addedNodes;
   }
 
@@ -138,13 +159,19 @@ export class CytoscapeCore {
     const addedEdges = this.viz.add(edges).edges();
     // Update degrees for all nodes since edges affect node degrees
     this.updateNodeDegrees();
+    // Only update nodes connected to the new edges
+    const affectedNodes = addedEdges.connectedNodes();
+    this.styleService.updateNodeSizes(this.viz, affectedNodes);
     return addedEdges;
   }
 
   // Add elements (nodes and edges) to the graph
   addElements(elements: (NodeDefinition | EdgeDefinition)[]): void {
-    this.viz.add(elements);
+    const added = this.viz.add(elements);
     this.updateNodeDegrees();
+    // Update all nodes in this case since we don't know what was added
+    // (could be optimized by separating nodes and edges)
+    this.styleService.updateNodeSizes(this.viz);
   }
 
   // Get all nodes
