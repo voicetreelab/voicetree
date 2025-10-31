@@ -26,17 +26,17 @@ export interface AutoLayoutOptions {
 
 const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
-  maxSimulationTime: 3000,
+  maxSimulationTime: 750,
   avoidOverlap: true,
   nodeSpacing: 30,
-  handleDisconnected: true,
-  convergenceThreshold: 1,
-  unconstrIter: 3,
-  userConstIter: 50,
-  allConstIter: 30,
+  handleDisconnected: false, // shouldn't matter with ghost root node
+  convergenceThreshold: 3,
+  // unconstrIter: 3,
+  // userConstIter: 50,
+  // allConstIter: 30,
   edgeLength: 200,
-  edgeSymDiffLength: undefined,
-  edgeJaccardLength: undefined
+  // edgeSymDiffLength: undefined,
+  // edgeJaccardLength: undefined
 };
 
 /**
