@@ -17,7 +17,7 @@ import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscap
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'test-markdown-vault');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example_real_large');
 
 // Type definitions
 interface ExtendedWindow extends Window {
@@ -1455,6 +1455,135 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     console.log(`✓ Deleted test file: ${expectedFileName}`);
 
     console.log('✓ Right-click add node with editor and file sync test completed');
+  });
+
+  test('should open search with cmd-f and navigate to selected node', async ({ appWindow }) => {
+    console.log('\n=== Starting ninja-keys search navigation test ===');
+
+    console.log('=== Step 1: Start watching the fixture vault ===');
+    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    expect(watchResult.success).toBe(true);
+    console.log(`✓ Started watching: ${watchResult.directory}`);
+
+    console.log('=== Step 2: Wait for graph to load ===');
+    await appWindow.waitForTimeout(2000);
+
+    const graphState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      return {
+        nodeCount: cy.nodes().length,
+        nodeLabels: cy.nodes().map((n: NodeSingular) => n.data('label') || n.id()).slice(0, 5)
+      };
+    });
+
+    expect(graphState.nodeCount).toBeGreaterThan(0);
+    console.log(`✓ Graph loaded with ${graphState.nodeCount} nodes`);
+    console.log(`  Sample nodes: ${graphState.nodeLabels.join(', ')}`);
+
+    console.log('=== Step 3: Get initial zoom/pan state ===');
+    const initialState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const zoom = cy.zoom();
+      const pan = cy.pan();
+      return { zoom, pan };
+    });
+    console.log(`  Initial zoom: ${initialState.zoom}, pan: (${initialState.pan.x}, ${initialState.pan.y})`);
+
+    console.log('=== Step 4: Open ninja-keys search with keyboard shortcut ===');
+    // Simulate cmd-f (Meta+f on Mac, Ctrl+f elsewhere)
+    await appWindow.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
+
+    // Wait for ninja-keys modal to appear
+    await appWindow.waitForTimeout(500);
+
+    const ninjaKeysVisible = await appWindow.evaluate(() => {
+      const ninjaKeys = document.querySelector('ninja-keys');
+      if (!ninjaKeys) return false;
+      const shadowRoot = ninjaKeys.shadowRoot;
+      if (!shadowRoot) return false;
+      const modal = shadowRoot.querySelector('.modal');
+      // Check if modal exists and is not hidden
+      return modal !== null;
+    });
+
+    expect(ninjaKeysVisible).toBe(true);
+    console.log('✓ ninja-keys search modal opened');
+
+    console.log('=== Step 5: Get a target node to search for ===');
+    const targetNode = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const nodes = cy.nodes();
+      if (nodes.length === 0) throw new Error('No nodes available');
+      // Get first node
+      const node = nodes[0];
+      return {
+        id: node.id(),
+        label: node.data('label') || node.id()
+      };
+    });
+
+    console.log(`  Target node: ${targetNode.label} (${targetNode.id})`);
+
+    console.log('=== Step 6: Type search query into ninja-keys ===');
+    // Type a few characters from the node label
+    const searchQuery = targetNode.label.substring(0, Math.min(5, targetNode.label.length));
+    await appWindow.keyboard.type(searchQuery);
+
+    // Wait for search results to update
+    await appWindow.waitForTimeout(300);
+    console.log(`  Typed search query: "${searchQuery}"`);
+
+    console.log('=== Step 7: Select first result with Enter ===');
+    await appWindow.keyboard.press('Enter');
+
+    // Wait for navigation animation
+    await appWindow.waitForTimeout(500);
+
+    console.log('=== Step 8: Verify zoom/pan changed (node was fitted) ===');
+    const finalState = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const zoom = cy.zoom();
+      const pan = cy.pan();
+      return { zoom, pan };
+    });
+
+    console.log(`  Final zoom: ${finalState.zoom}, pan: (${finalState.pan.x}, ${finalState.pan.y})`);
+
+    // Check that EITHER zoom or pan changed (cy.fit modifies these)
+    const zoomChanged = Math.abs(finalState.zoom - initialState.zoom) > 0.01;
+    const panChanged = Math.abs(finalState.pan.x - initialState.pan.x) > 1 ||
+                       Math.abs(finalState.pan.y - initialState.pan.y) > 1;
+
+    expect(zoomChanged || panChanged).toBe(true);
+    console.log('✓ Graph viewport changed - node was fitted');
+
+    console.log('=== Step 9: Verify ninja-keys modal closed ===');
+    const ninjaKeysClosed = await appWindow.evaluate(() => {
+      const ninjaKeys = document.querySelector('ninja-keys');
+      if (!ninjaKeys) return true; // Not found means closed
+      const shadowRoot = ninjaKeys.shadowRoot;
+      if (!shadowRoot) return true;
+      const modal = shadowRoot.querySelector('.modal');
+      // Modal should be hidden or removed
+      if (!modal) return true;
+      const overlay = shadowRoot.querySelector('.modal-overlay');
+      // Check if overlay is visible (indicates open state)
+      return overlay ? getComputedStyle(overlay).display === 'none' : true;
+    });
+
+    expect(ninjaKeysClosed).toBe(true);
+    console.log('✓ ninja-keys modal closed after selection');
+
+    console.log('✓ ninja-keys search navigation test completed');
   });
 });
 
