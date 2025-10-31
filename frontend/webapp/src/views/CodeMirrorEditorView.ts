@@ -52,6 +52,7 @@ export class CodeMirrorEditorView extends Disposable {
   private changeEmitter: EventEmitter<string>;
   private options: CodeMirrorEditorOptions;
   private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
+  private fullscreen: FloatingWindowFullscreen;
 
   /**
    * Creates a new CodeMirror editor instance
@@ -68,6 +69,9 @@ export class CodeMirrorEditorView extends Disposable {
     this.container = container;
     this.options = options;
     this.changeEmitter = new EventEmitter<string>();
+
+    // Setup fullscreen (no callback needed - CodeMirror auto-resizes)
+    this.fullscreen = new FloatingWindowFullscreen(container);
 
     // Create editor state with extensions
     const state = EditorState.create({
@@ -286,6 +290,34 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
+   * Enter fullscreen mode
+   */
+  async enterFullscreen(): Promise<void> {
+    await this.fullscreen.enter();
+  }
+
+  /**
+   * Exit fullscreen mode
+   */
+  async exitFullscreen(): Promise<void> {
+    await this.fullscreen.exit();
+  }
+
+  /**
+   * Toggle fullscreen mode
+   */
+  async toggleFullscreen(): Promise<void> {
+    await this.fullscreen.toggle();
+  }
+
+  /**
+   * Check if editor is in fullscreen mode
+   */
+  isFullscreen(): boolean {
+    return this.fullscreen.isFullscreen();
+  }
+
+  /**
    * Clean up editor resources
    */
   dispose(): void {
@@ -294,6 +326,9 @@ export class CodeMirrorEditorView extends Disposable {
       clearTimeout(this.debounceTimeout);
       this.debounceTimeout = null;
     }
+
+    // Cleanup fullscreen
+    this.fullscreen.dispose();
 
     // Destroy the CodeMirror view
     this.view.destroy();

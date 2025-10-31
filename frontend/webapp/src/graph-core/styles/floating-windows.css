@@ -65,6 +65,24 @@
   text-overflow: ellipsis;
 }
 
+/* Fullscreen button */
+.cy-floating-window-fullscreen {
+  all: unset;
+  cursor: pointer;
+  font-size: 14px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+.cy-floating-window-fullscreen:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
 /* Close button */
 .cy-floating-window-close {
   all: unset;

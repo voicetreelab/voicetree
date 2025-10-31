@@ -281,7 +281,7 @@ export default class TerminalManager {
     const customEnv = { ...process.env };
 
     // Extra env vars (e.g., agent info)
-    if (nodeMetadata.extraEnv) {
+    if (nodeMetadata?.extraEnv) {
     console.log(`[TerminalManager] extraEnv:`, nodeMetadata.extraEnv);
     if (nodeMetadata.extraEnv.OBSIDIAN_VAULT_PATH) {
       console.log(`[TerminalManager] WARNING: extraEnv contains OBSIDIAN_VAULT_PATH: ${nodeMetadata.extraEnv.OBSIDIAN_VAULT_PATH}`);
