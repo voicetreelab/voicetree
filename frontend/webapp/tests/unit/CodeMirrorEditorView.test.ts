@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CodeMirrorEditorView } from '@/views/CodeMirrorEditorView';
 
 describe('CodeMirrorEditorView', () => {
@@ -19,7 +19,7 @@ describe('CodeMirrorEditorView', () => {
     }
   });
 
-  it('should handle complete markdown editor lifecycle', () => {
+  it('should handle complete markdown editor lifecycle', async () => {
     const initialContent = `---
 node_id: 1
 title: Test Note
@@ -40,7 +40,7 @@ This is a test.`;
     editor.setValue(newContent);
     expect(editor.getValue()).toBe(newContent);
 
-    // Test onChange callback registration and event emission
+    // Test onChange callback registration and event emission (with debounce)
     let changedContent = '';
     let changeCallCount = 0;
     const unsubscribe = editor.onChange((content) => {
@@ -52,13 +52,20 @@ This is a test.`;
     const thirdContent = '# Third Version\n\nMore text.';
     editor.setValue(thirdContent);
 
-    // onChange should have fired
+    // onChange should NOT have fired yet (debounced)
+    expect(changeCallCount).toBe(0);
+
+    // Wait for debounce delay (default 300ms)
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    // onChange should have fired after debounce
     expect(changeCallCount).toBe(1);
     expect(changedContent).toBe(thirdContent);
 
     // Test unsubscribe
     unsubscribe();
     editor.setValue('# Fourth Version');
+    await new Promise(resolve => setTimeout(resolve, 350));
     expect(changeCallCount).toBe(1); // Should still be 1 after unsubscribe
 
     // Test focus (should not throw)
@@ -165,6 +172,35 @@ Some text after diagram.`;
     expect(hasContent).toBe(true);
   });
 
+  it('should debounce onChange events to prevent excessive saves', async () => {
+    // Create editor with custom short debounce delay for faster testing
+    editor = new CodeMirrorEditorView(container, '# Initial', { autosaveDelay: 100 });
+
+    let changeCallCount = 0;
+    let lastContent = '';
+    editor.onChange((content) => {
+      changeCallCount++;
+      lastContent = content;
+    });
+
+    // Make multiple rapid changes
+    editor.setValue('# Change 1');
+    await new Promise(resolve => setTimeout(resolve, 50));
+    editor.setValue('# Change 2');
+    await new Promise(resolve => setTimeout(resolve, 50));
+    editor.setValue('# Change 3');
+
+    // At this point, no onChange should have fired yet
+    expect(changeCallCount).toBe(0);
+
+    // Wait for debounce delay
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // Should only have called onChange once with the final content
+    expect(changeCallCount).toBe(1);
+    expect(lastContent).toBe('# Change 3');
+  });
+
   it('should auto-fold YAML frontmatter on initialization', async () => {
     // Create editor with frontmatter
     const contentWithFrontmatter = `---
@@ -198,5 +234,79 @@ This is the main content of the note.`;
 
     // The content should be folded (placeholder present)
     expect(hasFoldedContent).toBe(true);
+  });
+
+  it('should support fullscreen mode for markdown editor', async () => {
+    // Mock fullscreen API (not always available in test environment)
+    const requestFullscreenMock = vi.fn().mockResolvedValue(undefined);
+    const exitFullscreenMock = vi.fn().mockResolvedValue(undefined);
+
+    // Override fullscreen API on container
+    container.requestFullscreen = requestFullscreenMock;
+    Object.defineProperty(document, 'exitFullscreen', {
+      value: exitFullscreenMock,
+      writable: true,
+      configurable: true
+    });
+
+    // Create editor
+    editor = new CodeMirrorEditorView(container, '# Test Content');
+
+    // Initially not fullscreen
+    expect(editor.isFullscreen()).toBe(false);
+
+    // Enter fullscreen
+    await editor.enterFullscreen();
+    expect(requestFullscreenMock).toHaveBeenCalledTimes(1);
+
+    // Mock fullscreen state change
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: container,
+      writable: true,
+      configurable: true
+    });
+
+    // Now should be fullscreen
+    expect(editor.isFullscreen()).toBe(true);
+
+    // Exit fullscreen
+    await editor.exitFullscreen();
+    expect(exitFullscreenMock).toHaveBeenCalledTimes(1);
+
+    // Mock fullscreen state change
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: null,
+      writable: true,
+      configurable: true
+    });
+
+    // Should not be fullscreen
+    expect(editor.isFullscreen()).toBe(false);
+
+    // Test toggle from non-fullscreen
+    await editor.toggleFullscreen();
+    expect(requestFullscreenMock).toHaveBeenCalledTimes(2);
+
+    // Mock fullscreen state change
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: container,
+      writable: true,
+      configurable: true
+    });
+
+    // Test toggle from fullscreen
+    await editor.toggleFullscreen();
+    expect(exitFullscreenMock).toHaveBeenCalledTimes(2);
+
+    // Cleanup should exit fullscreen if active
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: container,
+      writable: true,
+      configurable: true
+    });
+    editor.dispose();
+
+    // Should have called exitFullscreen during dispose
+    expect(exitFullscreenMock).toHaveBeenCalledTimes(3);
   });
 });

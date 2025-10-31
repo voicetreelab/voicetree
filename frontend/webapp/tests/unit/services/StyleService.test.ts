@@ -174,14 +174,50 @@ describe('StyleService', () => {
       expect(nameStyle?.style.label).toBe('data(name)');
     });
 
-    it('should include degree-based sizing', () => {
-      const stylesheet = styleService.getDefaultStylesheet();
-      const degreeStyle = stylesheet.find(s => s.selector === 'node[degree]');
+    it('should update node sizes based on degree programmatically', () => {
+      // Create a mock Cytoscape instance with nodes
+      const mockNodes = [
+        {
+          data: (key?: string) => key === 'isGhostRoot' ? false : undefined,
+          degree: () => 0,
+          style: vi.fn()
+        },
+        {
+          data: (key?: string) => key === 'isGhostRoot' ? false : undefined,
+          degree: () => 30,
+          style: vi.fn()
+        },
+        {
+          data: (key?: string) => key === 'isGhostRoot' ? false : undefined,
+          degree: () => 60,
+          style: vi.fn()
+        }
+      ];
 
-      expect(degreeStyle).toBeDefined();
-      expect(degreeStyle?.style.width).toContain('mapData');
-      expect(degreeStyle?.style.height).toContain('mapData');
-      expect(degreeStyle?.style['font-size']).toContain('mapData');
+      const mockCy = {
+        nodes: () => mockNodes
+      } as any;
+
+      styleService.updateNodeSizes(mockCy);
+
+      // Verify each node had style applied with logarithmic formula: 30*log(degree+3) + degree
+      // degree 0: 30*log(3) + 0 ≈ 32.96
+      expect(mockNodes[0].style).toHaveBeenCalledWith(expect.objectContaining({
+        width: expect.closeTo(32.96, 1),
+        height: expect.closeTo(32.96, 1)
+      }));
+
+      // degree 30: 30*log(33) + 30 ≈ 134.9
+      expect(mockNodes[1].style).toHaveBeenCalledWith(expect.objectContaining({
+        width: expect.closeTo(134.9, 1),
+        height: expect.closeTo(134.9, 1)
+      }));
+
+      // degree 60: 30*log(63) + 60 ≈ 184.3
+      expect(mockNodes[2].style).toHaveBeenCalledWith(expect.objectContaining({
+        width: expect.closeTo(184.3, 1),
+        height: expect.closeTo(184.3, 1)
+      }));
     });
 
     it('should include hover state styles', () => {
