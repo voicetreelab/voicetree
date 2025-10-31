@@ -34,6 +34,8 @@ export class HotkeyManager {
   private modifierCallbacks: Map<Modifier, ((held: boolean) => void)[]> = new Map();
   private keyDownHandler?: (e: KeyboardEvent) => void;
   private keyUpHandler?: (e: KeyboardEvent) => void;
+  private blurHandler?: () => void;
+  private visibilityHandler?: () => void;
 
   constructor() {
     this.setupListeners();
@@ -152,8 +154,41 @@ export class HotkeyManager {
   // PRIVATE METHODS
   // ============================================================================
 
+  /**
+   * Reset all hotkeys to unpressed state
+   * Used when window loses focus to prevent stuck keys
+   */
+  private resetAllHotkeys(): void {
+    console.log('[HotkeyManager] Resetting all hotkeys (focus lost or visibility change)');
+
+    for (const [hotkeyKey, hotkey] of this.hotkeys.entries()) {
+      if (hotkey.isPressed) {
+        console.log(`[HotkeyManager] Resetting stuck hotkey: ${hotkeyKey}`);
+        hotkey.isPressed = false;
+        this.stopRepeating(hotkey);
+
+        // Fire onRelease if provided
+        if (hotkey.config.onRelease) {
+          hotkey.config.onRelease();
+        }
+      }
+    }
+
+    // Also notify all modifier callbacks that modifiers are released
+    for (const [modifier, callbacks] of this.modifierCallbacks.entries()) {
+      callbacks.forEach(cb => cb(false));
+    }
+  }
+
   private setupListeners(): void {
     this.keyDownHandler = (e: KeyboardEvent) => {
+      // Prevent browser default for Meta+[ and Meta+] (browser back/forward navigation)
+      // MUST be done FIRST, before any other logic
+      if ((e.key === '[' || e.key === ']') && e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
       // Track modifier keys
       this.handleModifierKeyDown(e);
 
@@ -172,7 +207,6 @@ export class HotkeyManager {
       }
 
       if (hotkey && !hotkey.isPressed) {
-        e.preventDefault();
         hotkey.isPressed = true;
 
         // Fire onPress
@@ -211,6 +245,20 @@ export class HotkeyManager {
 
     document.addEventListener('keydown', this.keyDownHandler);
     document.addEventListener('keyup', this.keyUpHandler);
+
+    // Handle window blur (focus lost) - prevents stuck keys
+    this.blurHandler = () => {
+      this.resetAllHotkeys();
+    };
+    window.addEventListener('blur', this.blurHandler);
+
+    // Handle visibility change (tab hidden) - additional safety
+    this.visibilityHandler = () => {
+      if (document.hidden) {
+        this.resetAllHotkeys();
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 
   /**

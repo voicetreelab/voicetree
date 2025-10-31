@@ -29,6 +29,9 @@ import { enableAutoLayout } from '@/graph-core/graphviz/layout/autoLayout';
 import ColaLayout from '@/graph-core/graphviz/layout/cola';
 import { FileEventManager } from './FileEventManager';
 import { FloatingWindowManager } from './FloatingWindowManager';
+import { HotkeyManager } from './HotkeyManager';
+import { SearchService } from './SearchService';
+import { getResponsivePadding } from '@/utils/cytoscape';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -42,6 +45,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // Managers
   private fileEventManager: FileEventManager;
   private floatingWindowManager: FloatingWindowManager;
+  private hotkeyManager: HotkeyManager;
+  private searchService: SearchService;
 
   // State
   private _isDarkMode = false;
@@ -61,7 +66,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   // Bound event handlers for cleanup
   private handleResize!: () => void;
-  private handleKeyDown!: (e: KeyboardEvent) => void;
 
   constructor(
     container: HTMLElement,
@@ -82,9 +86,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       this.cy,
       (stats) => this.handleStatsChanged(stats)
     );
+    this.hotkeyManager = new HotkeyManager();
     this.floatingWindowManager = new FloatingWindowManager(
       this.cy,
-      this.fileEventManager
+      this.fileEventManager,
+      this.hotkeyManager
+    );
+    this.searchService = new SearchService(
+      this.cy,
+      (nodeId) => this.handleSearchSelect(nodeId)
     );
 
     // Initialize Cytoscape
@@ -124,7 +134,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   private render(): void {
     // Set container classes
-    this.container.className = 'h-full bg-background overflow-hidden relative';
+    this.container.className = 'h-full w-full bg-background overflow-hidden relative';
+    // Allow container to receive keyboard events
+    this.container.setAttribute('tabindex', '0');
 
     // Create hamburger button
     const menuBtn = document.createElement('button');
@@ -281,17 +293,95 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   private setupEventListeners(): void {
     // Bind handlers
     this.handleResize = this.handleResizeMethod.bind(this);
-    this.handleKeyDown = this.handleKeyDownMethod.bind(this);
 
     // Window resize
     window.addEventListener('resize', this.handleResize);
 
-    // Keyboard shortcuts
-    this.container.addEventListener('keydown', this.handleKeyDown);
+    // Focus container to ensure it receives keyboard events
+    this.container.focus();
+
+    // Setup graph-specific hotkeys via HotkeyManager
+    this.hotkeyManager.setupGraphHotkeys({
+      fitToLastNode: () => this.fitToLastNode(),
+      cycleTerminal: (direction) => this.cycleTerminal(direction)
+    });
+
+    // Register cmd-f for search
+    this.hotkeyManager.registerHotkey({
+      key: 'f',
+      modifiers: ['Meta'],
+      onPress: () => this.searchService.open()
+    });
 
     // Prevent page scroll when zooming
     const handleWheel = (e: WheelEvent) => e.preventDefault();
     this.container.addEventListener('wheel', handleWheel, { passive: false });
+  }
+
+  private fitToLastNode(): void {
+    if (this.lastCreatedNodeId) {
+      const cy = this.cy.getCore();
+      const node = cy.getElementById(this.lastCreatedNodeId);
+      if (node.length > 0) {
+        // Use 19% of viewport for comfortable zoom on new nodes (was 275px on 1440p)
+        cy.fit(node, getResponsivePadding(cy, 19));
+      }
+    }
+  }
+
+  private cycleTerminal(direction: 1 | -1): void {
+    const cy = this.cy.getCore();
+    const terminalNodes = cy.nodes().filter(
+      (node: any) =>
+        node.data('id')?.startsWith('terminal-') &&
+        node.data('isShadowNode') === true
+    );
+
+    if (terminalNodes.length === 0) {
+      return;
+    }
+
+    // Sort terminals
+    const sortedTerminals = terminalNodes.toArray().sort((a: any, b: any) =>
+      a.id().localeCompare(b.id())
+    );
+
+    // Calculate next/previous index
+    let currentIndex = this.floatingWindowManager.getCurrentTerminalIndex();
+    if (direction === 1) {
+      currentIndex = (currentIndex + 1) % sortedTerminals.length;
+    } else {
+      currentIndex = (currentIndex - 1 + sortedTerminals.length) % sortedTerminals.length;
+    }
+    this.floatingWindowManager.setCurrentTerminalIndex(currentIndex);
+
+    // Fit to terminal with reasonable padding
+    const targetTerminal = sortedTerminals[currentIndex];
+    // Use 14% of viewport for terminal cycling (was 200px on 1440p)
+    cy.fit(targetTerminal, getResponsivePadding(cy, 14));
+  }
+
+  private handleSearchSelect(nodeId: string): void {
+    console.log('[VoiceTreeGraphView] handleSearchSelect called with nodeId:', nodeId);
+    const cy = this.cy.getCore();
+    const node = cy.getElementById(nodeId);
+    console.log('[VoiceTreeGraphView] Found node:', node.length > 0, node);
+
+    if (node.length > 0) {
+      // Fit to node with padding
+      console.log('[VoiceTreeGraphView] Calling cy.fit on node');
+      // Use 9% of viewport for search results (was 125px on 1440p)
+      cy.fit(node, getResponsivePadding(cy, 9));
+
+      // Flash the node to indicate selection
+      node.addClass('highlighted');
+      setTimeout(() => {
+        node.removeClass('highlighted');
+      }, 1000);
+      console.log('[VoiceTreeGraphView] Node fitted and highlighted');
+    } else {
+      console.warn('[VoiceTreeGraphView] Node not found for id:', nodeId);
+    }
   }
 
   private setupFileListeners(): void {
@@ -324,6 +414,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   private handleBulkFilesAdded(data: BulkFileEvent): void {
     this.fileEventManager.handleBulkFilesAdded(data);
+    this.searchService.updateSearchData();
   }
 
   private handleFileAdded(data: FileEvent): void {
@@ -333,14 +424,17 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     if (nodeId) {
       this.lastCreatedNodeId = nodeId;
     }
+    this.searchService.updateSearchData();
   }
 
   private handleFileChanged(data: FileEvent): void {
     this.fileEventManager.handleFileChanged(data);
+    this.searchService.updateSearchData();
   }
 
   private handleFileDeleted(data: { fullPath: string }): void {
     this.fileEventManager.handleFileDeleted(data);
+    this.searchService.updateSearchData();
   }
 
   private handleWatchingStopped(): void {
@@ -372,56 +466,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     const core = this.cy.getCore();
     core.resize();
     core.fit();
-  }
-
-  private handleKeyDownMethod(e: KeyboardEvent): void {
-    const cy = this.cy.getCore();
-
-    // Space to fit to last created node
-    if (e.key === ' ') {
-      e.preventDefault();
-
-      if (this.lastCreatedNodeId) {
-        const node = cy.getElementById(this.lastCreatedNodeId);
-        if (node.length > 0) {
-          cy.fit(node, 150);
-        }
-      }
-      return;
-    }
-
-    // Command/Ctrl + [ or ] to cycle between terminals
-    if ((e.metaKey || e.ctrlKey) && (e.key === '[' || e.key === ']')) {
-      e.preventDefault();
-
-      const terminalNodes = cy.nodes().filter(
-        (node: any) =>
-          node.data('id')?.startsWith('terminal-') &&
-          node.data('isShadowNode') === true
-      );
-
-      if (terminalNodes.length === 0) {
-        return;
-      }
-
-      // Sort terminals
-      const sortedTerminals = terminalNodes.toArray().sort((a: any, b: any) =>
-        a.id().localeCompare(b.id())
-      );
-
-      // Calculate next/previous index
-      let currentIndex = this.floatingWindowManager.getCurrentTerminalIndex();
-      if (e.key === ']') {
-        currentIndex = (currentIndex + 1) % sortedTerminals.length;
-      } else {
-        currentIndex = (currentIndex - 1 + sortedTerminals.length) % sortedTerminals.length;
-      }
-      this.floatingWindowManager.setCurrentTerminalIndex(currentIndex);
-
-      // Fit to terminal
-      const targetTerminal = sortedTerminals[currentIndex];
-      cy.fit(targetTerminal, 600);
-    }
   }
 
   // ============================================================================
@@ -483,9 +527,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     layout.run();
   }
 
-  fit(padding = 50): void {
+  fit(paddingPercentage = 3): void {
     const cy = this.cy.getCore();
-    cy.fit(undefined, padding);
+    // Use responsive padding instead of fixed pixels (default was 50px on 1440p)
+    cy.fit(undefined, getResponsivePadding(cy, paddingPercentage));
   }
 
   toggleDarkMode(): void {
@@ -503,6 +548,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     const styleService = new StyleService();
     const newStyles = styleService.getCombinedStylesheet();
     this.cy.getCore().style(newStyles);
+
+    // Update search service theme
+    this.searchService.updateTheme(this._isDarkMode);
   }
 
   isDarkMode(): boolean {
@@ -546,7 +594,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Remove window event listeners
     window.removeEventListener('resize', this.handleResize);
-    this.container.removeEventListener('keydown', this.handleKeyDown);
 
     // Remove electron API listeners
     if (window.electronAPI) {
@@ -559,8 +606,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     // Dispose managers
+    this.hotkeyManager.dispose();
     this.fileEventManager.dispose();
     this.floatingWindowManager.dispose();
+    this.searchService.dispose();
 
     // Destroy Cytoscape
     this.cy.destroy();
