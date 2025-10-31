@@ -17,6 +17,7 @@ import type { NodeSingular } from 'cytoscape';
 import { createWindowChrome, getOrCreateOverlay, mountComponent } from '@/graph-core/extensions/cytoscape-floating-windows';
 import type { Position } from './IVoiceTreeGraphView';
 import type { FileEventManager } from './FileEventManager';
+import type { HotkeyManager } from './HotkeyManager';
 
 // Helper function to normalize file ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -35,6 +36,7 @@ function normalizeFileId(filename: string): string {
 export class FloatingWindowManager {
   private cy: CytoscapeCore;
   private fileEventManager: FileEventManager;
+  private hotkeyManager: HotkeyManager;
 
   // Command-hover mode state
   private commandKeyHeld = false;
@@ -43,13 +45,10 @@ export class FloatingWindowManager {
   // Terminal navigation state
   private currentTerminalIndex = 0;
 
-  // Bound event handlers for cleanup
-  private keyDownHandler?: (e: KeyboardEvent) => void;
-  private keyUpHandler?: (e: KeyboardEvent) => void;
-
-  constructor(cy: CytoscapeCore, fileEventManager: FileEventManager) {
+  constructor(cy: CytoscapeCore, fileEventManager: FileEventManager, hotkeyManager: HotkeyManager) {
     this.cy = cy;
     this.fileEventManager = fileEventManager;
+    this.hotkeyManager = hotkeyManager;
   }
 
   // ============================================================================
@@ -131,24 +130,16 @@ export class FloatingWindowManager {
    * Setup command-hover mode (Cmd+hover to show editor)
    */
   setupCommandHover(): void {
-    // Track command key state
-    this.keyDownHandler = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey) {
-        console.log('[CommandHover] Command key pressed');
-        this.commandKeyHeld = true;
-      }
-    };
+    // Track Command/Ctrl key state via HotkeyManager
+    this.hotkeyManager.onModifierChange('Meta', (held: boolean) => {
+      console.log('[CommandHover] Meta key', held ? 'pressed' : 'released');
+      this.commandKeyHeld = held;
+    });
 
-    this.keyUpHandler = (e: KeyboardEvent) => {
-      if (!e.metaKey && !e.ctrlKey) {
-        console.log('[CommandHover] Command key released');
-        this.commandKeyHeld = false;
-        // Don't close editor - let it stay open until user clicks outside
-      }
-    };
-
-    document.addEventListener('keydown', this.keyDownHandler);
-    document.addEventListener('keyup', this.keyUpHandler);
+    this.hotkeyManager.onModifierChange('Control', (held: boolean) => {
+      console.log('[CommandHover] Control key', held ? 'pressed' : 'released');
+      this.commandKeyHeld = held;
+    });
 
     // Listen for node hover when command is held
     this.cy.getCore().on('mouseover', 'node', (event) => {
@@ -291,16 +282,9 @@ export class FloatingWindowManager {
    * Cleanup
    */
   dispose(): void {
-    // Remove event listeners
-    if (this.keyDownHandler) {
-      document.removeEventListener('keydown', this.keyDownHandler);
-    }
-    if (this.keyUpHandler) {
-      document.removeEventListener('keyup', this.keyUpHandler);
-    }
-
     // Close hover editor if open
     this.closeHoverEditor();
+    // Note: HotkeyManager disposal is handled by VoiceTreeGraphView
   }
 
   // ============================================================================
