@@ -145,6 +145,12 @@ export class HotkeyManager {
     if (this.keyUpHandler) {
       document.removeEventListener('keyup', this.keyUpHandler);
     }
+    if (this.blurHandler) {
+      window.removeEventListener('blur', this.blurHandler);
+    }
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+    }
 
     this.hotkeys.clear();
     this.modifierCallbacks.clear();
@@ -207,6 +213,7 @@ export class HotkeyManager {
       }
 
       if (hotkey && !hotkey.isPressed) {
+        console.log(`[HotkeyManager] Hotkey pressed: ${hotkeyKey}`);
         hotkey.isPressed = true;
 
         // Fire onPress
@@ -230,6 +237,7 @@ export class HotkeyManager {
       for (const [hotkeyKey, hotkey] of this.hotkeys.entries()) {
         // Check if this hotkey uses the released key
         if (hotkey.config.key === releasedKey && hotkey.isPressed) {
+          console.log(`[HotkeyManager] Hotkey released: ${hotkeyKey}`);
           hotkey.isPressed = false;
 
           // Stop repeating
