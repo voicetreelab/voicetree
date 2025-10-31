@@ -17,6 +17,7 @@ import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
 import { Disposable } from '@/views/Disposable';
 import { EventEmitter } from '@/utils/EventEmitter';
 import { mermaidRender } from '@/views/extensions/mermaidRender';
+import { FloatingWindowFullscreen } from '@/utils/FloatingWindowFullscreen';
 
 /**
  * Configuration options for CodeMirrorEditorView
@@ -50,6 +51,7 @@ export class CodeMirrorEditorView extends Disposable {
   private container: HTMLElement;
   private changeEmitter: EventEmitter<string>;
   private options: CodeMirrorEditorOptions;
+  private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Creates a new CodeMirror editor instance
@@ -173,12 +175,24 @@ export class CodeMirrorEditorView extends Disposable {
 
   /**
    * Setup update listener to detect content changes
+   * Debounces emissions based on autosaveDelay option (default: 300ms)
    */
   private setupUpdateListener(): Extension {
     return EditorView.updateListener.of((viewUpdate: ViewUpdate) => {
       if (viewUpdate.docChanged) {
         const content = viewUpdate.state.doc.toString();
-        this.changeEmitter.emit(content);
+        const delay = this.options.autosaveDelay ?? 300;
+
+        // Clear existing timeout
+        if (this.debounceTimeout) {
+          clearTimeout(this.debounceTimeout);
+        }
+
+        // Set new timeout to emit after delay
+        this.debounceTimeout = setTimeout(() => {
+          this.changeEmitter.emit(content);
+          this.debounceTimeout = null;
+        }, delay);
       }
     });
   }
@@ -275,6 +289,12 @@ export class CodeMirrorEditorView extends Disposable {
    * Clean up editor resources
    */
   dispose(): void {
+    // Clear any pending debounce timeout
+    if (this.debounceTimeout) {
+      clearTimeout(this.debounceTimeout);
+      this.debounceTimeout = null;
+    }
+
     // Destroy the CodeMirror view
     this.view.destroy();
 
