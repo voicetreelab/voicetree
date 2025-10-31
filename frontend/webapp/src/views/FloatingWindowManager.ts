@@ -42,9 +42,6 @@ export class FloatingWindowManager {
   private commandKeyHeld = false;
   private currentHoverEditor: HTMLElement | null = null;
 
-  // Terminal navigation state
-  private currentTerminalIndex = 0;
-
   constructor(cy: CytoscapeCore, fileEventManager: FileEventManager, hotkeyManager: HotkeyManager) {
     this.cy = cy;
     this.fileEventManager = fileEventManager;
@@ -262,20 +259,6 @@ export class FloatingWindowManager {
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating floating terminal:', error);
     }
-  }
-
-  /**
-   * Get current terminal index (for keyboard navigation)
-   */
-  getCurrentTerminalIndex(): number {
-    return this.currentTerminalIndex;
-  }
-
-  /**
-   * Set current terminal index (for keyboard navigation)
-   */
-  setCurrentTerminalIndex(index: number): void {
-    this.currentTerminalIndex = index;
   }
 
   /**

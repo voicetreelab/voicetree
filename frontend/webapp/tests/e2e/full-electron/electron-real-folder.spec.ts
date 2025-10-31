@@ -1585,6 +1585,105 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     console.log('✓ ninja-keys search navigation test completed');
   });
+
+  test('should handle multiple consecutive cmd-f searches without focus issues', async ({ appWindow }) => {
+    console.log('\n=== Starting multiple consecutive search test ===');
+
+    console.log('=== Step 1: Start watching the fixture vault ===');
+    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, FIXTURE_VAULT_PATH);
+
+    expect(watchResult.success).toBe(true);
+    console.log(`✓ Started watching: ${watchResult.directory}`);
+
+    console.log('=== Step 2: Wait for graph to load ===');
+    await appWindow.waitForTimeout(2000);
+
+    console.log('=== Step 3: Get three different target nodes ===');
+    const targetNodes = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const nodes = cy.nodes();
+      if (nodes.length < 3) throw new Error('Need at least 3 nodes for test');
+
+      return [
+        { id: nodes[0].id(), label: nodes[0].data('label') || nodes[0].id() },
+        { id: nodes[1].id(), label: nodes[1].data('label') || nodes[1].id() },
+        { id: nodes[2].id(), label: nodes[2].data('label') || nodes[2].id() }
+      ];
+    });
+
+    console.log(`  Target nodes: ${targetNodes.map(n => n.label).join(', ')}`);
+
+    // Test 3 consecutive searches
+    for (let i = 0; i < 3; i++) {
+      const targetNode = targetNodes[i];
+      console.log(`\n=== Iteration ${i + 1}: Search for "${targetNode.label}" ===`);
+
+      console.log(`  Step ${i + 1}.1: Open search with Cmd-F`);
+      await appWindow.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
+      await appWindow.waitForTimeout(300);
+
+      console.log(`  Step ${i + 1}.2: Verify modal opened`);
+      const modalOpen = await appWindow.evaluate(() => {
+        const ninjaKeys = document.querySelector('ninja-keys');
+        return ninjaKeys?.shadowRoot?.querySelector('.modal') !== null;
+      });
+
+      if (!modalOpen) {
+        throw new Error(`Search modal failed to open on iteration ${i + 1}`);
+      }
+      console.log(`  ✓ Modal opened successfully on iteration ${i + 1}`);
+
+      console.log(`  Step ${i + 1}.3: Type search query`);
+      const searchQuery = targetNode.label.substring(0, Math.min(5, targetNode.label.length));
+      await appWindow.keyboard.type(searchQuery);
+      await appWindow.waitForTimeout(200);
+
+      console.log(`  Step ${i + 1}.4: Select result with Enter`);
+      const stateBefore = await appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('Cytoscape not initialized');
+        return { zoom: cy.zoom(), pan: cy.pan() };
+      });
+
+      await appWindow.keyboard.press('Enter');
+      await appWindow.waitForTimeout(300);
+
+      console.log(`  Step ${i + 1}.5: Verify navigation occurred`);
+      const stateAfter = await appWindow.evaluate(() => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) throw new Error('Cytoscape not initialized');
+        return { zoom: cy.zoom(), pan: cy.pan() };
+      });
+
+      const zoomChanged = Math.abs(stateAfter.zoom - stateBefore.zoom) > 0.01;
+      const panChanged = Math.abs(stateAfter.pan.x - stateBefore.pan.x) > 1 ||
+                         Math.abs(stateAfter.pan.y - stateBefore.pan.y) > 1;
+
+      expect(zoomChanged || panChanged).toBe(true);
+      console.log(`  ✓ Navigation successful on iteration ${i + 1}`);
+
+      console.log(`  Step ${i + 1}.6: Verify modal closed`);
+      const modalClosed = await appWindow.evaluate(() => {
+        const ninjaKeys = document.querySelector('ninja-keys');
+        if (!ninjaKeys?.shadowRoot) return true;
+        const overlay = ninjaKeys.shadowRoot.querySelector('.modal-overlay');
+        return !overlay || getComputedStyle(overlay).display === 'none';
+      });
+
+      expect(modalClosed).toBe(true);
+      console.log(`  ✓ Modal closed after iteration ${i + 1}`);
+
+      // Brief pause between iterations
+      await appWindow.waitForTimeout(200);
+    }
+
+    console.log('\n✓ Successfully completed 3 consecutive searches without focus issues');
+  });
 });
 
 export { test };

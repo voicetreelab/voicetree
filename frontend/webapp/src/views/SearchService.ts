@@ -60,6 +60,8 @@ export class SearchService {
       console.log('[SearchService] Extracted nodeId:', nodeId);
       if (nodeId) {
         console.log('[SearchService] Calling onNodeSelect with:', nodeId);
+        // Close the search modal before triggering selection to prevent focus issues
+        this.close();
         this.onNodeSelect(nodeId);
       } else {
         console.warn('[SearchService] No nodeId found in event detail');
