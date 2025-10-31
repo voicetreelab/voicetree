@@ -4,14 +4,16 @@
  * This class is responsible for:
  * 1. Initializing and managing the Cytoscape.js graph instance
  * 2. Rendering and managing UI overlays (stats, loading, empty state)
- * 3. Coordinating FileEventManager and FloatingWindowManager
- * 4. Handling keyboard shortcuts and window resize
- * 5. Managing dark mode and themes
- * 6. Providing public API for graph interaction
+ * 3. Coordinating managers and handling window resize
+ * 4. Managing dark mode and themes
+ * 5. Providing public API for graph interaction
  *
  * Heavy lifting is delegated to:
  * - FileEventManager: File operations, parsing, caching, position management
  * - FloatingWindowManager: Editor/terminal windows, context menu, command-hover
+ * - GraphNavigationService: User-triggered navigation actions (fit, cycle, search)
+ * - HotkeyManager: Keyboard shortcut handling
+ * - SearchService: Command palette integration
  */
 
 import { Disposable } from './Disposable';
@@ -31,7 +33,7 @@ import { FileEventManager } from './FileEventManager';
 import { FloatingWindowManager } from './FloatingWindowManager';
 import { HotkeyManager } from './HotkeyManager';
 import { SearchService } from './SearchService';
-import { getResponsivePadding } from '@/utils/cytoscape';
+import { GraphNavigationService } from './GraphNavigationService';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -47,10 +49,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   private floatingWindowManager: FloatingWindowManager;
   private hotkeyManager: HotkeyManager;
   private searchService: SearchService;
+  private navigationService: GraphNavigationService;
 
   // State
   private _isDarkMode = false;
-  private lastCreatedNodeId: string | null = null;
 
   // DOM elements
   private statsOverlay: HTMLElement | null = null;
@@ -92,9 +94,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       this.fileEventManager,
       this.hotkeyManager
     );
+    this.navigationService = new GraphNavigationService(this.cy);
     this.searchService = new SearchService(
       this.cy,
-      (nodeId) => this.handleSearchSelect(nodeId)
+      (nodeId) => this.navigationService.handleSearchSelect(nodeId)
     );
 
     // Initialize Cytoscape
@@ -302,8 +305,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Setup graph-specific hotkeys via HotkeyManager
     this.hotkeyManager.setupGraphHotkeys({
-      fitToLastNode: () => this.fitToLastNode(),
-      cycleTerminal: (direction) => this.cycleTerminal(direction)
+      fitToLastNode: () => this.navigationService.fitToLastNode(),
+      cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction)
     });
 
     // Register cmd-f for search
@@ -316,72 +319,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Prevent page scroll when zooming
     const handleWheel = (e: WheelEvent) => e.preventDefault();
     this.container.addEventListener('wheel', handleWheel, { passive: false });
-  }
-
-  private fitToLastNode(): void {
-    if (this.lastCreatedNodeId) {
-      const cy = this.cy.getCore();
-      const node = cy.getElementById(this.lastCreatedNodeId);
-      if (node.length > 0) {
-        // Use 19% of viewport for comfortable zoom on new nodes (was 275px on 1440p)
-        cy.fit(node, getResponsivePadding(cy, 19));
-      }
-    }
-  }
-
-  private cycleTerminal(direction: 1 | -1): void {
-    const cy = this.cy.getCore();
-    const terminalNodes = cy.nodes().filter(
-      (node: any) =>
-        node.data('id')?.startsWith('terminal-') &&
-        node.data('isShadowNode') === true
-    );
-
-    if (terminalNodes.length === 0) {
-      return;
-    }
-
-    // Sort terminals
-    const sortedTerminals = terminalNodes.toArray().sort((a: any, b: any) =>
-      a.id().localeCompare(b.id())
-    );
-
-    // Calculate next/previous index
-    let currentIndex = this.floatingWindowManager.getCurrentTerminalIndex();
-    if (direction === 1) {
-      currentIndex = (currentIndex + 1) % sortedTerminals.length;
-    } else {
-      currentIndex = (currentIndex - 1 + sortedTerminals.length) % sortedTerminals.length;
-    }
-    this.floatingWindowManager.setCurrentTerminalIndex(currentIndex);
-
-    // Fit to terminal with reasonable padding
-    const targetTerminal = sortedTerminals[currentIndex];
-    // Use 14% of viewport for terminal cycling (was 200px on 1440p)
-    cy.fit(targetTerminal, getResponsivePadding(cy, 14));
-  }
-
-  private handleSearchSelect(nodeId: string): void {
-    console.log('[VoiceTreeGraphView] handleSearchSelect called with nodeId:', nodeId);
-    const cy = this.cy.getCore();
-    const node = cy.getElementById(nodeId);
-    console.log('[VoiceTreeGraphView] Found node:', node.length > 0, node);
-
-    if (node.length > 0) {
-      // Fit to node with padding
-      console.log('[VoiceTreeGraphView] Calling cy.fit on node');
-      // Use 9% of viewport for search results (was 125px on 1440p)
-      cy.fit(node, getResponsivePadding(cy, 9));
-
-      // Flash the node to indicate selection
-      node.addClass('highlighted');
-      setTimeout(() => {
-        node.removeClass('highlighted');
-      }, 1000);
-      console.log('[VoiceTreeGraphView] Node fitted and highlighted');
-    } else {
-      console.warn('[VoiceTreeGraphView] Node not found for id:', nodeId);
-    }
   }
 
   private setupFileListeners(): void {
@@ -422,7 +359,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Track last created node for "fit to last node" feature
     const nodeId = data.fullPath.replace(/\.md$/i, '').split('/').pop();
     if (nodeId) {
-      this.lastCreatedNodeId = nodeId;
+      this.navigationService.setLastCreatedNodeId(nodeId);
     }
     this.searchService.updateSearchData();
   }
