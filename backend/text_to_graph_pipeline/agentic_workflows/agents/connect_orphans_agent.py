@@ -189,7 +189,7 @@ class ConnectOrphansAgent(Agent):
         self,
         response: ConnectOrphansResponse,
         roots: list[RootNodeInfo]
-    ) -> tuple[list[BaseTreeAction], dict[str, list[int]]]:
+    ) -> list[BaseTreeAction]:
         """
         Create tree actions to connect the grouped roots under new parent nodes.
 
@@ -198,12 +198,9 @@ class ConnectOrphansAgent(Agent):
             roots: Original list of RootNodeInfo for title->ID mapping
 
         Returns:
-            Tuple of:
-            - List of CreateAction for new parent nodes with children_to_link populated
-            - Dict mapping parent node names to child node IDs (for backwards compatibility)
+            List of CreateAction for new parent nodes with children_to_link populated
         """
         actions: list[BaseTreeAction] = []
-        parent_child_mapping = {}
 
         for grouping in response.groupings:
             # Extract child titles from the new structure
@@ -222,22 +219,19 @@ class ConnectOrphansAgent(Agent):
             )
             actions.append(parent_action)
 
-            # Store the mapping for backwards compatibility (can be removed later)
-            parent_child_mapping[grouping.synthetic_parent_title] = root_ids
-
             self.logger.info(
                 f"Creating synthetic parent '{grouping.synthetic_parent_title}' "
                 f"for children: {child_titles} (IDs: {root_ids})"
             )
 
-        return actions, parent_child_mapping
+        return actions
 
     async def run(
         self,
         tree: MarkdownTree,
         max_roots_to_process: int = 20,
         include_full_content: bool = True
-    ) -> tuple[list[BaseTreeAction], dict[str, list[int]]]:
+    ) -> list[BaseTreeAction]:
         """
         Main entry point to run the connection mechanism.
 
@@ -247,9 +241,7 @@ class ConnectOrphansAgent(Agent):
             include_full_content: If True, includes full content in prompt
 
         Returns:
-            Tuple of:
-            - List of tree actions to apply
-            - Dict mapping parent node names to child node IDs
+            List of tree actions to apply
         """
         # Find disconnected roots
         roots = self.find_disconnected_roots(tree)
@@ -257,7 +249,7 @@ class ConnectOrphansAgent(Agent):
         # Minimum group size is always 2 (simplified)
         if len(roots) < 2:
             self.logger.info("Not enough disconnected roots to group")
-            return [], {}
+            return []
 
         # Limit roots for processing (for performance)
         if len(roots) > max_roots_to_process:
@@ -295,7 +287,7 @@ class ConnectOrphansAgent(Agent):
         # Extract actions from the response
         response = final_state.get("connect_orphans_response")
         if response:
-            actions, parent_child_mapping = self.create_connection_actions(response, roots)
-            return actions, parent_child_mapping
+            actions = self.create_connection_actions(response, roots)
+            return actions
 
-        return [], {}
+        return []

@@ -76,7 +76,7 @@ async def process_tree(tree_path: str, output_path: str = None):
     logger.info("="*60)
 
     agent = ConnectOrphansAgent()
-    actions, parent_child_mapping = await agent.run(
+    actions = await agent.run(
         tree=tree,
         max_roots_to_process=20  # Process up to 20 roots at once
     )
@@ -91,43 +91,12 @@ async def process_tree(tree_path: str, output_path: str = None):
             else:
                 logger.warning(f"Unexpected action type: {type(action)}")
 
-        # Apply the actions to create the parent nodes
+        # Apply the actions to create the parent nodes and link children
+        # TreeActionApplier handles children_to_link automatically
         logger.info("\nApplying actions to tree...")
         applier = TreeActionApplier(tree)
         new_node_ids = applier.apply(actions)
-        logger.info(f"Created nodes with IDs: {new_node_ids}")
-
-        # Now connect the orphans to their new parents
-        logger.info("\nConnecting orphans to parent nodes...")
-        nodes_to_update = set()
-        for action in actions:
-            # Type check: ConnectOrphansAgent should only return CreateAction instances
-            if hasattr(action, 'new_node_name'):
-                parent_name = action.new_node_name
-            else:
-                logger.warning(f"Action missing new_node_name attribute: {type(action)}")
-                continue
-            # Find the newly created parent node by name
-            parent_id = None
-            for node_id, node in tree.tree.items():
-                if node.title == parent_name and node_id in new_node_ids:
-                    parent_id = node_id
-                    break
-
-            if parent_id and parent_name in parent_child_mapping:
-                child_ids = parent_child_mapping[parent_name]
-                for child_id in child_ids:
-                    if child_id in tree.tree:
-                        # Update the child's parent_id
-                        tree.tree[child_id].parent_id = parent_id
-                        # Add the child to parent's children list
-                        if child_id not in tree.tree[parent_id].children:
-                            tree.tree[parent_id].children.append(child_id)
-                        nodes_to_update.add(child_id)
-                        logger.info(f"  Connected node {child_id} to parent {parent_id} ({parent_name})")
-
-        # Update the nodes_to_update set to include all modified nodes
-        new_node_ids.update(nodes_to_update)
+        logger.info(f"Created and linked nodes with IDs: {new_node_ids}")
 
         # Save the updated tree if output path provided
         if output_path:
@@ -157,7 +126,7 @@ async def process_tree(tree_path: str, output_path: str = None):
     logger.info(f"  Orphan nodes: {len(final_orphans)}")
     logger.info(f"  Change: {len(initial_orphans)} → {len(final_orphans)} orphans")
 
-    return tree, actions, parent_child_mapping
+    return tree, actions
 
 
 async def main():
