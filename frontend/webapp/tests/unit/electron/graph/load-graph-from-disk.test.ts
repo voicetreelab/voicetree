@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
-import * as O from 'fp-ts/Option'
+import * as O from 'fp-ts/lib/Option.js'
 import { loadGraphFromDisk } from '../../../../src/functional_graph/shell/main/load-graph-from-disk'
 
 describe('loadGraphFromDisk', () => {

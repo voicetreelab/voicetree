@@ -32,3 +32,6 @@ We favor "deep modules", a single class with a minimal public API hiding interna
 ### HANDOVER
 
 Once you are at 100,000 tokens, make a HANDOVER.md document saving your thought process for how you were going to solve your next steps.
+
+
+THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP. EVERYTHING SHOULD BE MODELLED AS FUNCTIONS. PURE OR IMPURE. PUSH IMPURITY TO EDGEs.

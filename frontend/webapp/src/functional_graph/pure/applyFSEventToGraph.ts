@@ -1,5 +1,5 @@
-import type {Graph, FSUpdate, EnvReader, GraphNode, NodeId, Env} from '@/functional_graph/pure/types.ts'
-import * as O from 'fp-ts/Option'
+import type {Graph, FSUpdate, EnvReader, GraphNode, NodeId, Env} from '@/functional_graph/pure/types'
+import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 
 /**

@@ -11,7 +11,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
-import type { NodeMetadata } from '@/floating-windows/types.ts';
+import type { NodeMetadata } from '@/floating-windows/types';
 
 export interface TerminalNoAutoScrollConfig {
   nodeMetadata?: NodeMetadata;

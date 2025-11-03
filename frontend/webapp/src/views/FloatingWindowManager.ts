@@ -16,35 +16,46 @@ import type { CytoscapeCore } from '@/graph-core';
 import type { NodeSingular } from 'cytoscape';
 import { createWindowChrome, getOrCreateOverlay, mountComponent } from '@/graph-core/extensions/cytoscape-floating-windows';
 import type { Position } from './IVoiceTreeGraphView';
-import type { FileEventManager } from './FileEventManager';
 import type { HotkeyManager } from './HotkeyManager';
+import type { Graph, NodeId } from '@/functional_graph/pure/types';
+import { nodeIdToFilename } from '@/functional_graph/pure/markdown_parsing/filename-utils';
+import * as O from 'fp-ts/lib/Option';
 
-// Helper function to normalize file ID
-// 'concepts/introduction.md' -> 'introduction'
-function normalizeFileId(filename: string): string {
-  let id = filename.replace(/\.md$/i, '');
-  const lastSlash = id.lastIndexOf('/');
-  if (lastSlash >= 0) {
-    id = id.substring(lastSlash + 1);
-  }
-  return id;
-}
+/**
+ * Function type for getting current graph state
+ */
+type GetGraphState = () => Graph;
+
+/**
+ * Function type for getting vault path
+ */
+type GetVaultPath = () => string | undefined;
 
 /**
  * Manages all floating windows (editors, terminals) for the graph
  */
 export class FloatingWindowManager {
   private cy: CytoscapeCore;
-  private fileEventManager: FileEventManager;
+  private getGraphState: GetGraphState;
+  private getVaultPath: GetVaultPath;
   private hotkeyManager: HotkeyManager;
 
   // Command-hover mode state
   private commandKeyHeld = false;
   private currentHoverEditor: HTMLElement | null = null;
 
-  constructor(cy: CytoscapeCore, fileEventManager: FileEventManager, hotkeyManager: HotkeyManager) {
+  // Store positions for newly created nodes (before they're in the graph)
+  private pendingPositions = new Map<string, Position>();
+
+  constructor(
+    cy: CytoscapeCore,
+    getGraphState: GetGraphState,
+    getVaultPath: GetVaultPath,
+    hotkeyManager: HotkeyManager
+  ) {
     this.cy = cy;
-    this.fileEventManager = fileEventManager;
+    this.getGraphState = getGraphState;
+    this.getVaultPath = getVaultPath;
     this.hotkeyManager = hotkeyManager;
   }
 
@@ -58,8 +69,8 @@ export class FloatingWindowManager {
   setupContextMenu(): void {
     this.cy.enableContextMenu({
       onOpenEditor: (nodeId: string) => {
-        const content = this.fileEventManager.getContentForNode(nodeId);
-        const filePath = this.fileEventManager.getFilePathForNode(nodeId);
+        const content = this.getContentForNode(nodeId);
+        const filePath = this.getFilePathForNode(nodeId);
 
         if (content && filePath) {
           const node = this.cy.getCore().getElementById(nodeId);
@@ -76,7 +87,7 @@ export class FloatingWindowManager {
       },
       onDeleteNode: async (node: NodeSingular) => {
         const nodeId = node.id();
-        const filePath = this.fileEventManager.getFilePathForNode(nodeId);
+        const filePath = this.getFilePathForNode(nodeId);
 
         if (filePath && (window as any).electronAPI?.deleteFile) {
           if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
@@ -86,7 +97,7 @@ export class FloatingWindowManager {
           try {
             const result = await (window as any).electronAPI.deleteFile(filePath);
             if (result.success) {
-              // FileEventManager will handle the delete event from the file watcher
+              // Graph will handle the delete event from the file watcher
               this.cy.hideNode(node);
             } else {
               console.error('[FloatingWindowManager] Failed to delete file:', result.error);
@@ -99,7 +110,7 @@ export class FloatingWindowManager {
         }
       },
       onOpenTerminal: (nodeId: string) => {
-        const filePath = this.fileEventManager.getFilePathForNode(nodeId);
+        const filePath = this.getFilePathForNode(nodeId);
         const nodeMetadata = {
           id: nodeId,
           name: nodeId.replace(/_/g, ' '),
@@ -113,7 +124,7 @@ export class FloatingWindowManager {
         }
       },
       onCopyNodeName: (nodeId: string) => {
-        const absolutePath = this.fileEventManager.getFilePathForNode(nodeId);
+        const absolutePath = this.getFilePathForNode(nodeId);
         navigator.clipboard.writeText(absolutePath || nodeId);
       },
       onAddNodeAtPosition: async (position: Position) => {
@@ -147,8 +158,8 @@ export class FloatingWindowManager {
       const nodeId = node.id();
 
       // Get node content and file path
-      const content = this.fileEventManager.getContentForNode(nodeId);
-      const filePath = this.fileEventManager.getFilePathForNode(nodeId);
+      const content = this.getContentForNode(nodeId);
+      const filePath = this.getFilePathForNode(nodeId);
 
       console.log('[CommandHover] content:', !!content, 'filePath:', filePath);
 
@@ -383,9 +394,10 @@ export class FloatingWindowManager {
           y: parentPos.y + 100
         };
 
-        const newNodeId = normalizeFileId(result.filePath);
+        // Extract node ID from file path (basename without .md)
+        const newNodeId = this.extractNodeIdFromPath(result.filePath);
 
-        // Wait for node to be added by file watcher
+        // Wait for node to be added by file watcher to functional graph
         const waitForNode = (attempts = 0, maxAttempts = 100): void => {
           if (!this.cy) return;
 
@@ -394,7 +406,7 @@ export class FloatingWindowManager {
 
           if (node.length > 0) {
             // Node found, get its content and open editor
-            const content = this.fileEventManager.getContentForNode(newNodeId);
+            const content = this.getContentForNode(newNodeId);
             if (content) {
               this.createFloatingEditor(newNodeId, result.filePath!, content, editorPosition);
             } else {
@@ -428,12 +440,13 @@ export class FloatingWindowManager {
       if (result.success && result.nodeId && result.filePath) {
         console.log('[FloatingWindowManager] Successfully created standalone node:', result.nodeId);
 
-        // Store position in FileEventManager so handleFileAdded can use it
-        this.fileEventManager.storePosition(result.filePath, position);
+        // Store position for when node appears in graph
+        this.storePosition(result.filePath, position);
 
-        const newNodeId = normalizeFileId(result.filePath);
+        // Extract node ID from file path (basename without .md)
+        const newNodeId = this.extractNodeIdFromPath(result.filePath);
 
-        // Wait for node to be added by file watcher
+        // Wait for node to be added by file watcher to functional graph
         const waitForNode = (attempts = 0, maxAttempts = 100): void => {
           if (!this.cy) return;
 
@@ -465,5 +478,53 @@ Edit this node to add content.
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating standalone node:', error);
     }
+  }
+
+  // ============================================================================
+  // HELPER METHODS - Data access from functional graph
+  // ============================================================================
+
+  /**
+   * Get markdown content for a node ID from functional graph
+   */
+  private getContentForNode(nodeId: NodeId): string | undefined {
+    const graph = this.getGraphState();
+    const node = graph.nodes[nodeId];
+    return node?.content;
+  }
+
+  /**
+   * Get absolute file path for a node ID
+   * Constructs path from vaultPath + nodeId.md
+   */
+  private getFilePathForNode(nodeId: NodeId): string | undefined {
+    const vaultPath = this.getVaultPath();
+    if (!vaultPath) {
+      console.warn('[FloatingWindowManager] No vault path available');
+      return undefined;
+    }
+
+    const filename = nodeIdToFilename(nodeId);
+    return `${vaultPath}/${filename}`;
+  }
+
+  /**
+   * Store a position for a file (used when creating nodes at specific positions)
+   */
+  private storePosition(filePath: string, position: Position): void {
+    const filename = filePath.split('/').pop() || filePath;
+    this.pendingPositions.set(filename, position);
+  }
+
+  /**
+   * Extract node ID from file path (basename without .md)
+   */
+  private extractNodeIdFromPath(filePath: string): NodeId {
+    let id = filePath.replace(/\.md$/i, '');
+    const lastSlash = id.lastIndexOf('/');
+    if (lastSlash >= 0) {
+      id = id.substring(lastSlash + 1);
+    }
+    return id;
   }
 }

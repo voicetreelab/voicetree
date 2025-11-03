@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import * as O from 'fp-ts/Option'
+import * as O from 'fp-ts/lib/Option.js'
 import { parseMarkdownToGraphNode } from '../../../../src/functional_graph/pure/markdown_parsing/parse-markdown-to-node'
 
 describe('parseMarkdownToGraphNode', () => {

@@ -1,8 +1,8 @@
-import * as O from 'fp-ts/Option'
-import type { GraphNode } from '@/functional_graph/pure/types.ts'
-import { extractFrontmatter } from '@/functional_graph/pure/markdown_parsing/extract-frontmatter.ts'
-import { extractTitle } from '@/functional_graph/pure/markdown_parsing/extract-title.ts'
-import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils.ts'
+import * as O from 'fp-ts/lib/Option.js'
+import type { GraphNode } from '@/functional_graph/pure/types'
+import { extractFrontmatter } from '@/functional_graph/pure/markdown_parsing/extract-frontmatter'
+import { extractTitle } from '@/functional_graph/pure/markdown_parsing/extract-title'
+import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
 
 /**
  * Parses markdown content into a GraphNode.

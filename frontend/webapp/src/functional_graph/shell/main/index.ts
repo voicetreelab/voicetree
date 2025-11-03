@@ -35,14 +35,14 @@ export type {
   CytoscapeElements,
   CytoscapeNodeElement,
   CytoscapeEdgeElement
-} from '@/functional_graph/pure/types.ts'
+} from '@/functional_graph/pure/types'
 
 // Pure functions
-export { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape.ts'
+export { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape'
 export {
   createCreateNodeAction,
   createUpdateNodeAction,
   createDeleteNodeAction
-} from '@/functional_graph/pure/action-creators.ts'
+} from '@/functional_graph/pure/action-creators'
 
 // State management - GraphStateManager removed (commented out in source)

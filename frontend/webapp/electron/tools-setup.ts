@@ -1,13 +1,15 @@
-import { app } from 'electron';
-import path from 'path';
 import { promises as fs } from 'fs';
+import path from 'path';
+import { createBuildEnv, getBuildConfig } from './build-config';
 
 /**
  * Get the tools directory path in Application Support
  * Returns the user-writable location where agent tools are stored
  */
 export function getToolsDirectory(): string {
-  return path.join(app.getPath('userData'), 'tools');
+  const env = createBuildEnv();
+  const config = getBuildConfig(env);
+  return config.toolsDest;
 }
 
 /**
@@ -15,7 +17,9 @@ export function getToolsDirectory(): string {
  * Returns the user-writable location where backend modules are stored
  */
 export function getBackendDirectory(): string {
-  return path.join(app.getPath('userData'), 'backend');
+  const env = createBuildEnv();
+  const config = getBuildConfig(env);
+  return config.backendDest;
 }
 
 /**
@@ -39,13 +43,18 @@ async function copyDir(src: string, dest: string): Promise<void> {
 
 /**
  * Set up agent tools and backend directories
- * Copies tools and backend modules from app Resources to Application Support, overwriting existing files
+ * Copies tools and backend modules from source to Application Support, overwriting existing files
  *
  * SKIPS entirely in test mode (HEADLESS_TEST=1) for fast test startup
+ *
+ * Uses centralized build-config for all path resolution
  */
 export async function setupToolsDirectory(): Promise<void> {
+  const env = createBuildEnv();
+  const config = getBuildConfig(env);
+
   // Skip entirely in test mode
-  if (process.env.HEADLESS_TEST === '1') {
+  if (!config.shouldCopyTools) {
     console.log('[Setup] Skipping tools setup in test mode');
     return;
   }
@@ -57,67 +66,51 @@ export async function setupToolsDirectory(): Promise<void> {
     }, 10000);
   });
 
-  const setupPromise = setupToolsDirectoryInternal();
+  const setupPromise = setupToolsDirectoryInternal(config);
 
   return Promise.race([setupPromise, timeoutPromise]);
 }
 
-async function setupToolsDirectoryInternal(): Promise<void> {
+async function setupToolsDirectoryInternal(config: ReturnType<typeof getBuildConfig>): Promise<void> {
   try {
-    const toolsDestPath = getToolsDirectory();
-    const backendDestPath = getBackendDirectory();
+    const { toolsSource, toolsDest, backendSource, backendDest } = config;
 
     // Remove existing directories if they exist to ensure fresh copy
     try {
-      await fs.rm(toolsDestPath, { recursive: true, force: true });
+      await fs.rm(toolsDest, { recursive: true, force: true });
       console.log('[Setup] Removed existing tools directory');
     } catch {
       // Directory doesn't exist, which is fine
     }
 
     try {
-      await fs.rm(backendDestPath, { recursive: true, force: true });
+      await fs.rm(backendDest, { recursive: true, force: true });
       console.log('[Setup] Removed existing backend directory');
     } catch {
       // Directory doesn't exist, which is fine
     }
 
     console.log('[Setup] Setting up tools and backend directories...');
-
-    // Determine source paths based on whether app is packaged
-    let toolsSourcePath: string;
-    let backendSourcePath: string;
-
-    if (app.isPackaged) {
-      // Packaged app: Use process.resourcesPath
-      toolsSourcePath = path.join(process.resourcesPath, 'tools');
-      backendSourcePath = path.join(process.resourcesPath, 'backend');
-      console.log('[Setup] Packaged app - copying from:', process.resourcesPath);
-    } else {
-      // Development: Copy directly from repo source
-      const appPath = app.getAppPath();
-      const projectRoot = path.resolve(appPath, '../..');
-      toolsSourcePath = path.join(projectRoot, 'tools');
-      backendSourcePath = path.join(projectRoot, 'backend');
-      console.log('[Setup] Development - copying from repo:', projectRoot);
-    }
+    console.log('[Setup] Source paths from build-config:');
+    console.log('[Setup]   Tools:', toolsSource);
+    console.log('[Setup]   Backend:', backendSource);
 
     // Verify source directories exist
     let toolsExist = false;
     let backendExist = false;
 
     try {
-      await fs.access(toolsSourcePath);
+      await fs.access(toolsSource);
       toolsExist = true;
     } catch (error) {
-      console.error('[Setup] Source tools directory not found at:', toolsSourcePath);
+      console.error('[Setup] Source tools directory not found at:', toolsSource);
     }
 
     try {
-      await fs.access(backendSourcePath);
+      await fs.access(backendSource);
       backendExist = true;
     } catch (error) {
-      console.error('[Setup] Source backend directory not found at:', backendSourcePath);
+      console.error('[Setup] Source backend directory not found at:', backendSource);
     }
 
     if (!toolsExist && !backendExist) {
@@ -125,22 +118,22 @@ async function setupToolsDirectoryInternal(): Promise<void> {
     }
 
     // Always create tools directory (for terminal cwd)
-    await fs.mkdir(toolsDestPath, { recursive: true });
-    console.log('[Setup] ✓ Created tools directory at:', toolsDestPath);
+    await fs.mkdir(toolsDest, { recursive: true });
+    console.log('[Setup] ✓ Created tools directory at:', toolsDest);
 
-    // Copy tools directory if source exists (async)
+    // Copy tools directory if source exists
     if (toolsExist) {
-      await copyDir(toolsSourcePath, toolsDestPath);
-      console.log('[Setup] ✓ Copied tools to:', toolsDestPath);
+      await copyDir(toolsSource, toolsDest);
+      console.log('[Setup] ✓ Copied tools to:', toolsDest);
     }
 
     // Create backend directory if needed
-    await fs.mkdir(backendDestPath, { recursive: true });
+    await fs.mkdir(backendDest, { recursive: true });
 
-    // Copy backend directory if source exists (async)
+    // Copy backend directory if source exists
     if (backendExist) {
-      await copyDir(backendSourcePath, backendDestPath);
-      console.log('[Setup] ✓ Copied backend to:', backendDestPath);
+      await copyDir(backendSource, backendDest);
+      console.log('[Setup] ✓ Copied backend to:', backendDest);
     }
 
     console.log('[Setup] Setup complete!');

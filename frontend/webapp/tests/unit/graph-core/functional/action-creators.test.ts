@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import * as O from 'fp-ts/Option'
+import * as O from 'fp-ts/lib/Option.js'
 import {
   createCreateNodeAction,
   createUpdateNodeAction,

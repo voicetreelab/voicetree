@@ -5,7 +5,7 @@
  */
 
 import { loadGraphFromDisk } from './load-graph-from-disk.ts'
-import type { Graph } from '@/functional_graph/pure/types.ts'
+import type { Graph } from '@/functional_graph/pure/types'
 
 /**
  * Example 1: Basic usage in main process

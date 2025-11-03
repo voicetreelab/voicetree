@@ -77,6 +77,20 @@ export interface ElectronAPI {
   // Backend log streaming
   onBackendLog: (callback: (log: string) => void) => void;
 
+  // Functional graph API
+  graph?: {
+    // Action dispatchers - send actions to main process
+    createNode: (action: unknown) => Promise<{ success: boolean; error?: string }>;
+    updateNode: (action: unknown) => Promise<{ success: boolean; error?: string }>;
+    deleteNode: (action: unknown) => Promise<{ success: boolean; error?: string }>;
+
+    // Query current graph state
+    getState: () => Promise<unknown>;
+
+    // Subscribe to graph state broadcasts
+    onStateChanged: (callback: (graph: unknown) => void) => () => void;
+  };
+
   // General IPC communication methods
   invoke(channel: string, ...args: unknown[]): Promise<unknown>;
   on(channel: string, listener: (...args: unknown[]) => void): void;
