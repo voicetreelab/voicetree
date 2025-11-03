@@ -4,8 +4,8 @@
  * This demonstrates how to use loadGraphFromDisk following the IO monad pattern.
  */
 
-import { loadGraphFromDisk } from './load-graph-from-disk'
-import type { Graph } from '@/graph-core/functional/types'
+import { loadGraphFromDisk } from './load-graph-from-disk.ts'
+import type { Graph } from '@/functional_graph/pure/types.ts'
 
 /**
  * Example 1: Basic usage in main process

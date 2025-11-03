@@ -4,7 +4,7 @@ import {
   createCreateNodeAction,
   createUpdateNodeAction,
   createDeleteNodeAction
-} from '@/graph-core/functional/action-creators'
+} from '@/functional_graph/pure/action-creators'
 
 describe('action-creators', () => {
   describe('createCreateNodeAction', () => {

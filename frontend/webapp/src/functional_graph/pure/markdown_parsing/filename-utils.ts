@@ -1,4 +1,4 @@
-import type { NodeId } from '@/graph-core/functional/types'
+import type { NodeId } from '@/functional_graph/pure/types.ts'
 
 /**
  * Converts a filename to a node ID by removing the .md extension.

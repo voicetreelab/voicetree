@@ -5,3 +5,4 @@ webapp/package-lock.json
 /dist-electron/preload/index.js
 /dist-electron/renderer/**/*
 vscode/**/*
+**/chroma.sqlite3

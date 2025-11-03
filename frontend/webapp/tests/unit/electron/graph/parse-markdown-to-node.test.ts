@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/Option'
-import { parseMarkdownToGraphNode } from '../../../../electron/graph/parse-markdown-to-node'
+import { parseMarkdownToGraphNode } from '../../../../src/functional_graph/pure/markdown_parsing/parse-markdown-to-node'
 
 describe('parseMarkdownToGraphNode', () => {
   it('should parse node with complete frontmatter', () => {

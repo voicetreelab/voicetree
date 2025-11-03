@@ -1,5 +1,5 @@
-import type { NodeId, GraphNode } from '@/graph-core/functional/types'
-import { nodeIdToFilename } from './filename-utils'
+import type { NodeId, GraphNode } from '@/functional_graph/pure/types.ts'
+import { nodeIdToFilename } from './filename-utils.ts'
 
 /**
  * Extracts linked node IDs from markdown content.

@@ -1,16 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import * as O from 'fp-ts/Option'
-import { apply_db_updates_to_graph } from '@/graph-core/functional/apply-db-updates'
-import { Graph, FSUpdate, GraphNode } from '@/graph-core/functional/types'
+import { apply_db_updates_to_graph } from '@/functional_graph/pure/applyFSEventToGraph'
+import { Graph, FSUpdate, GraphNode, Env } from '@/functional_graph/pure/types'
 
 describe('apply_db_updates_to_graph', () => {
-  // Mock broadcast function for testing
-  const mockBroadcast = (_graph: Graph) => {
-    // No-op for tests
+  // Mock environment for testing
+  const mockBroadcast = vi.fn()
+  const testEnv: Env = {
+    vaultPath: '/tmp/test-vault',
+    broadcast: mockBroadcast
   }
-
-  // Create the curried function with mock broadcast
-  const applyUpdate = apply_db_updates_to_graph(mockBroadcast)
 
   // Test helper to create a minimal empty graph
   const createEmptyGraph = (): Graph => ({
@@ -38,153 +37,279 @@ describe('apply_db_updates_to_graph', () => {
     }
   }
 
+  beforeEach(() => {
+    mockBroadcast.mockClear()
+  })
+
   describe('Added event', () => {
-    it('should accept an Added FSUpdate and return a graph and UIIO effect', () => {
+    it('should add a new node to empty graph with correct ID, title, and content', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/new-node.md',
-        content: '# New Node\n\nContent',
+        path: '/test/my-note.md',
+        content: '# My Note Title\n\nSome content here',
         eventType: 'Added'
       }
 
-      const [updatedGraph, uiEffect] = applyUpdate(graph, update)
+      const effect = apply_db_updates_to_graph(graph, update)
+      const updatedGraph = effect(testEnv)
 
-      // Verify function signature - returns tuple of [Graph, UIIO]
-      expect(updatedGraph).toBeDefined()
-      expect(updatedGraph.nodes).toBeDefined()
-      expect(updatedGraph.edges).toBeDefined()
-      expect(typeof uiEffect).toBe('function')
+      // Verify node was added
+      expect(Object.keys(updatedGraph.nodes)).toHaveLength(1)
+      expect(updatedGraph.nodes['my-note']).toBeDefined()
+      expect(updatedGraph.nodes['my-note'].id).toBe('my-note')
+      expect(updatedGraph.nodes['my-note'].title).toBe('My Note Title')
+      expect(updatedGraph.nodes['my-note'].content).toBe('# My Note Title\n\nSome content here')
     })
 
-    it('should return a valid Graph structure for Added event', () => {
+    it('should parse links from content and add them as edges', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/new-node.md',
-        content: '# New Node',
+        path: '/test/node-a.md',
+        content: '# Node A\n\nLinks to [[node-b]] and [[node-c]]',
         eventType: 'Added'
       }
 
-      const [updatedGraph] = applyUpdate(graph, update)
+      const effect = apply_db_updates_to_graph(graph, update)
+      const updatedGraph = effect(testEnv)
 
-      // Verify graph structure
-      expect(updatedGraph).toHaveProperty('nodes')
-      expect(updatedGraph).toHaveProperty('edges')
-      expect(typeof updatedGraph.nodes).toBe('object')
-      expect(typeof updatedGraph.edges).toBe('object')
+      // Verify edges were parsed
+      expect(updatedGraph.edges['node-a']).toEqual(['node-b', 'node-c'])
     })
 
-    it('should return an executable IO effect for Added event', () => {
+    it('should handle content with no links (empty edges array)', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/new-node.md',
-        content: '# New Node',
+        path: '/test/node-a.md',
+        content: '# Node A\n\nNo links here',
         eventType: 'Added'
       }
 
-      const [, uiEffect] = applyUpdate(graph, update)
+      const effect = apply_db_updates_to_graph(graph, update)
+      const updatedGraph = effect(testEnv)
 
-      // Verify the effect is executable (doesn't throw)
-      expect(() => uiEffect()).not.toThrow()
+      // Verify empty edges
+      expect(updatedGraph.edges['node-a']).toEqual([])
+    })
+
+    it('should add multiple nodes sequentially to the graph', () => {
+      const graph = createEmptyGraph()
+
+      const update1: FSUpdate = {
+        path: '/test/node-1.md',
+        content: '# Node 1',
+        eventType: 'Added'
+      }
+      const graph1 = apply_db_updates_to_graph(graph, update1)(testEnv)
+
+      const update2: FSUpdate = {
+        path: '/test/node-2.md',
+        content: '# Node 2',
+        eventType: 'Added'
+      }
+      const graph2 = apply_db_updates_to_graph(graph1, update2)(testEnv)
+
+      // Both nodes should exist
+      expect(Object.keys(graph2.nodes)).toHaveLength(2)
+      expect(graph2.nodes['node-1']).toBeDefined()
+      expect(graph2.nodes['node-2']).toBeDefined()
+    })
+
+    it('should treat duplicate addition as update (node already exists)', () => {
+      const existingGraph = createGraphWithNode('existing-node')
+
+      const update: FSUpdate = {
+        path: '/test/existing-node.md',
+        content: '# Updated Title\n\nNew content',
+        eventType: 'Added'
+      }
+
+      const updatedGraph = apply_db_updates_to_graph(existingGraph, update)(testEnv)
+
+      // Should have updated the existing node, not added a duplicate
+      expect(Object.keys(updatedGraph.nodes)).toHaveLength(1)
+      expect(updatedGraph.nodes['existing-node'].title).toBe('Updated Title')
+      expect(updatedGraph.nodes['existing-node'].content).toBe('# Updated Title\n\nNew content')
     })
   })
 
   describe('Changed event', () => {
-    it('should accept a Changed FSUpdate and return a graph and UIIO effect', () => {
-      const graph = createGraphWithNode('test-node')
+    it('should update existing node content and title', () => {
+      const graph = createGraphWithNode('my-note')
+
       const update: FSUpdate = {
-        path: '/test/test-node.md',
-        content: '# Updated Node\n\nUpdated content',
+        path: '/test/my-note.md',
+        content: '# Updated Title\n\nUpdated content',
         eventType: 'Changed'
       }
 
-      const [updatedGraph, uiEffect] = applyUpdate(graph, update)
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // Verify function signature
-      expect(updatedGraph).toBeDefined()
-      expect(updatedGraph.nodes).toBeDefined()
-      expect(updatedGraph.edges).toBeDefined()
-      expect(typeof uiEffect).toBe('function')
+      // Verify node was updated
+      expect(updatedGraph.nodes['my-note'].title).toBe('Updated Title')
+      expect(updatedGraph.nodes['my-note'].content).toBe('# Updated Title\n\nUpdated content')
     })
 
-    it('should return a valid Graph structure for Changed event', () => {
-      const graph = createGraphWithNode('test-node')
+    it('should update edges when links in content change', () => {
+      const graph: Graph = {
+        nodes: {
+          'node-a': {
+            id: 'node-a',
+            title: 'Node A',
+            content: '# Node A\n\nLinks to [[node-b]]',
+            summary: '',
+            color: O.none
+          }
+        },
+        edges: {
+          'node-a': ['node-b']
+        }
+      }
+
       const update: FSUpdate = {
-        path: '/test/test-node.md',
-        content: '# Updated Node',
+        path: '/test/node-a.md',
+        content: '# Node A\n\nNow links to [[node-c]] and [[node-d]]',
         eventType: 'Changed'
       }
 
-      const [updatedGraph] = applyUpdate(graph, update)
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // Verify graph structure
-      expect(updatedGraph).toHaveProperty('nodes')
-      expect(updatedGraph).toHaveProperty('edges')
-      expect(typeof updatedGraph.nodes).toBe('object')
-      expect(typeof updatedGraph.edges).toBe('object')
+      // Edges should reflect new links
+      expect(updatedGraph.edges['node-a']).toEqual(['node-c', 'node-d'])
     })
 
-    it('should return an executable IO effect for Changed event', () => {
-      const graph = createGraphWithNode('test-node')
+    it('should preserve other nodes when updating one node', () => {
+      const graph: Graph = {
+        nodes: {
+          'node-a': { id: 'node-a', title: 'A', content: '# A', summary: '', color: O.none },
+          'node-b': { id: 'node-b', title: 'B', content: '# B', summary: '', color: O.none }
+        },
+        edges: {
+          'node-a': [],
+          'node-b': []
+        }
+      }
+
       const update: FSUpdate = {
-        path: '/test/test-node.md',
-        content: '# Updated Node',
+        path: '/test/node-a.md',
+        content: '# A Updated',
         eventType: 'Changed'
       }
 
-      const [, uiEffect] = applyUpdate(graph, update)
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // Verify the effect is executable
-      expect(() => uiEffect()).not.toThrow()
+      // node-a updated, node-b unchanged
+      expect(updatedGraph.nodes['node-a'].title).toBe('A Updated')
+      expect(updatedGraph.nodes['node-b'].title).toBe('B')
+    })
+
+    it('should treat change of non-existent node as addition', () => {
+      const graph = createEmptyGraph()
+
+      const update: FSUpdate = {
+        path: '/test/new-node.md',
+        content: '# New Node',
+        eventType: 'Changed'
+      }
+
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
+
+      // Should have added the node
+      expect(updatedGraph.nodes['new-node']).toBeDefined()
+      expect(updatedGraph.nodes['new-node'].title).toBe('New Node')
     })
   })
 
   describe('Deleted event', () => {
-    it('should accept a Deleted FSUpdate and return a graph and UIIO effect', () => {
-      const graph = createGraphWithNode('test-node')
+    it('should remove node from graph', () => {
+      const graph = createGraphWithNode('node-to-delete')
+
       const update: FSUpdate = {
-        path: '/test/test-node.md',
+        path: '/test/node-to-delete.md',
         content: '',
         eventType: 'Deleted'
       }
 
-      const [updatedGraph, uiEffect] = applyUpdate(graph, update)
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // Verify function signature
-      expect(updatedGraph).toBeDefined()
-      expect(updatedGraph.nodes).toBeDefined()
-      expect(updatedGraph.edges).toBeDefined()
-      expect(typeof uiEffect).toBe('function')
+      // Node should be removed
+      expect(updatedGraph.nodes['node-to-delete']).toBeUndefined()
+      expect(Object.keys(updatedGraph.nodes)).toHaveLength(0)
     })
 
-    it('should return a valid Graph structure for Deleted event', () => {
-      const graph = createGraphWithNode('test-node')
+    it('should remove edges from the deleted node', () => {
+      const graph: Graph = {
+        nodes: {
+          'node-a': { id: 'node-a', title: 'A', content: '# A', summary: '', color: O.none }
+        },
+        edges: {
+          'node-a': ['node-b', 'node-c']
+        }
+      }
+
       const update: FSUpdate = {
-        path: '/test/test-node.md',
+        path: '/test/node-a.md',
         content: '',
         eventType: 'Deleted'
       }
 
-      const [updatedGraph] = applyUpdate(graph, update)
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // Verify graph structure
-      expect(updatedGraph).toHaveProperty('nodes')
-      expect(updatedGraph).toHaveProperty('edges')
-      expect(typeof updatedGraph.nodes).toBe('object')
-      expect(typeof updatedGraph.edges).toBe('object')
+      // Edges from deleted node should be removed
+      expect(updatedGraph.edges['node-a']).toBeUndefined()
     })
 
-    it('should return an executable IO effect for Deleted event', () => {
-      const graph = createGraphWithNode('test-node')
+    it('should remove references to deleted node from other nodes edges', () => {
+      const graph: Graph = {
+        nodes: {
+          'node-a': { id: 'node-a', title: 'A', content: '# A', summary: '', color: O.none },
+          'node-b': { id: 'node-b', title: 'B', content: '# B', summary: '', color: O.none },
+          'node-c': { id: 'node-c', title: 'C', content: '# C', summary: '', color: O.none }
+        },
+        edges: {
+          'node-a': ['node-b', 'node-c'],
+          'node-b': ['node-a', 'node-c'],
+          'node-c': ['node-a']
+        }
+      }
+
       const update: FSUpdate = {
-        path: '/test/test-node.md',
+        path: '/test/node-a.md',
         content: '',
         eventType: 'Deleted'
       }
 
-      const [, uiEffect] = applyUpdate(graph, update)
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // Verify the effect is executable
-      expect(() => uiEffect()).not.toThrow()
+      // node-a deleted, all references to it removed from other edges
+      expect(updatedGraph.nodes['node-a']).toBeUndefined()
+      expect(updatedGraph.edges['node-a']).toBeUndefined()
+      expect(updatedGraph.edges['node-b']).toEqual(['node-c']) // node-a removed
+      expect(updatedGraph.edges['node-c']).toEqual([]) // node-a removed
+    })
+
+    it('should preserve other nodes when deleting one node', () => {
+      const graph: Graph = {
+        nodes: {
+          'node-a': { id: 'node-a', title: 'A', content: '# A', summary: '', color: O.none },
+          'node-b': { id: 'node-b', title: 'B', content: '# B', summary: '', color: O.none }
+        },
+        edges: {
+          'node-a': [],
+          'node-b': []
+        }
+      }
+
+      const update: FSUpdate = {
+        path: '/test/node-a.md',
+        content: '',
+        eventType: 'Deleted'
+      }
+
+      const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
+
+      // node-b should remain
+      expect(updatedGraph.nodes['node-b']).toBeDefined()
+      expect(updatedGraph.nodes['node-b'].title).toBe('B')
     })
   })
 
@@ -197,13 +322,13 @@ describe('apply_db_updates_to_graph', () => {
         eventType: 'Added'
       }
 
-      const [graph1, effect1] = applyUpdate(graph, update)
-      const [graph2, effect2] = applyUpdate(graph, update)
+      const effect = apply_db_updates_to_graph(graph, update)
+      const graph1 = effect(testEnv)
+      const graph2 = effect(testEnv)
 
       // Both calls should produce equivalent graph structures
       expect(graph1.nodes).toEqual(graph2.nodes)
       expect(graph1.edges).toEqual(graph2.edges)
-      expect(typeof effect1).toBe(typeof effect2)
     })
 
     it('should not mutate the input graph', () => {
@@ -217,11 +342,48 @@ describe('apply_db_updates_to_graph', () => {
         eventType: 'Added'
       }
 
-      applyUpdate(graph, update)
+      const effect = apply_db_updates_to_graph(graph, update)
+      effect(testEnv)
 
       // Original graph should be unchanged
       expect(graph.nodes).toEqual(originalNodes)
       expect(graph.edges).toEqual(originalEdges)
+    })
+
+    it('should use Reader pattern (environment provided at execution)', () => {
+      // Test with different environments
+      const broadcast1 = vi.fn()
+      const broadcast2 = vi.fn()
+
+      const env1: Env = {
+        vaultPath: '/vault1',
+        broadcast: broadcast1
+      }
+
+      const env2: Env = {
+        vaultPath: '/vault2',
+        broadcast: broadcast2
+      }
+
+      const graph = createEmptyGraph()
+      const update: FSUpdate = {
+        path: '/test/node.md',
+        content: '# Node',
+        eventType: 'Added'
+      }
+
+      // Same effect, different environments
+      const effect = apply_db_updates_to_graph(graph, update)
+
+      // Execute with different environments
+      const graph1 = effect(env1)
+      const graph2 = effect(env2)
+
+      // Pure function should NOT call broadcast - graphs should be identical
+      expect(broadcast1).not.toHaveBeenCalled()
+      expect(broadcast2).not.toHaveBeenCalled()
+      expect(graph1.nodes).toEqual(graph2.nodes)
+      expect(graph1.edges).toEqual(graph2.edges)
     })
   })
 })
