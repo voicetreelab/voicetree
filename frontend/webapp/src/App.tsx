@@ -1,6 +1,6 @@
 import VoiceTreeTranscribe from "./renderers/voicetree-transcribe";
 import Sidebar from "./components/sidebar";
-import { useGraphManager } from "./hooks/useGraphManager";
+import { useFolderWatcher } from "./hooks/useFolderWatcher.tsx";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { VoiceTreeGraphView } from "./views/VoiceTreeGraphView";
@@ -8,7 +8,7 @@ import { ElectronMarkdownVault } from "./providers/ElectronMarkdownVault";
 import { useEffect, useRef } from "react";
 
 function App() {
-  // Use the graph manager hook for file watching
+  // Use the folder watcher hook for file watching
   const {
     isWatching,
     isLoading,
@@ -18,7 +18,7 @@ function App() {
     stopWatching,
     clearError,
     isElectron
-  } = useGraphManager();
+  } = useFolderWatcher();
 
   // Ref for graph container
   const graphContainerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +53,7 @@ function App() {
           </div>
         )}
 
-        {/* Graph data display removed - not available from useGraphManager */}
+        {/* Graph data display removed - not available from useFolderWatcher */}
       </div>
 
       {/* Control Button */}

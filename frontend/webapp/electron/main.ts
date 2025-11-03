@@ -89,7 +89,17 @@ function createWindow() {
 
     const levels = ['LOG', 'WARNING', 'ERROR'];
     const levelName = levels[level] || 'LOG';
-    console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
+
+    try {
+      console.log(`[Renderer ${levelName}] ${message} (${sourceId}:${line})`);
+    } catch (error) {
+      // Silently ignore EPIPE errors when stdout/stderr is closed
+      // This can happen when the terminal that launched Electron is closed
+      if ((error as NodeJS.ErrnoException).code !== 'EPIPE') {
+        // Re-throw non-EPIPE errors
+        throw error;
+      }
+    }
   });
 
   // Load the app

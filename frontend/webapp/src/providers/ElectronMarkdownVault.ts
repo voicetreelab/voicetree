@@ -18,6 +18,7 @@ import type { ElectronAPI, FileEvent } from '@/types/electron.d';
 
 export class ElectronMarkdownVault implements IMarkdownVaultProvider {
   private electronAPI: ElectronAPI;
+  private watchDirectory: string | undefined;
 
   constructor() {
     if (!window.electronAPI) {
@@ -97,6 +98,9 @@ export class ElectronMarkdownVault implements IMarkdownVaultProvider {
       timestamp: string;
       positions?: Record<string, { x: number; y: number }>;
     }) => {
+      // Store the watched directory
+      this.watchDirectory = data.directory;
+
       callback({
         directory: data.directory,
         timestamp: data.timestamp,
@@ -163,6 +167,13 @@ export class ElectronMarkdownVault implements IMarkdownVaultProvider {
       isWatching: status.isWatching,
       directory: status.directory || null,
     };
+  }
+
+  /**
+   * Get the currently watched directory (synchronous)
+   */
+  getWatchDirectory(): string | undefined {
+    return this.watchDirectory;
   }
 
   // ==========================================================================

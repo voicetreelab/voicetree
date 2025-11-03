@@ -72,7 +72,7 @@ MINIMIZE_TEST=0 npx playwright test electron-port-conflict-resolution.spec.ts --
               ▼
 ┌─────────────────────────────────────────┐
 │ 4. User Opens Folder (UI Action)       │
-│    useGraphManager.startWatching()      │
+│    useFolderWatcher.startWatching()      │
 │    → IPC: startFileWatching()           │
 └─────────────┬───────────────────────────┘
               │

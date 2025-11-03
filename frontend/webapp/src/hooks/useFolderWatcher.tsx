@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { WatchStatus } from '@/types/electron';
 
 
-interface UseGraphManagerReturn {
+interface UseFolderWatcherReturn {
   // File watching state
   isWatching: boolean;
   isLoading: boolean;
@@ -18,7 +18,7 @@ interface UseGraphManagerReturn {
   isElectron: boolean;
 }
 
-export function useGraphManager(): UseGraphManagerReturn {
+export function useFolderWatcher(): UseFolderWatcherReturn {
   // State for file watching
   const [watchStatus, setWatchStatus] = useState<WatchStatus>({ isWatching: false });
   const [isLoading, setIsLoading] = useState(false);
@@ -49,14 +49,14 @@ export function useGraphManager(): UseGraphManagerReturn {
     if (!isElectron || !window.electronAPI?.onWatchingStarted) return;
 
     const handleWatchingStarted = (data: { directory: string; timestamp: string }) => {
-      console.log('[useGraphManager] watching-started event received:', data.directory);
+      console.log('[useFolderWatcher] watching-started event received:', data.directory);
       setWatchStatus({ isWatching: true, directory: data.directory });
       setIsLoading(false);
       setError(null);
     };
 
     const handleWatchingStopped = () => {
-      console.log('[useGraphManager] file-watching-stopped event received');
+      console.log('[useFolderWatcher] file-watching-stopped event received');
       setWatchStatus({ isWatching: false });
       setIsLoading(false);
     };
@@ -150,4 +150,4 @@ export function useGraphManager(): UseGraphManagerReturn {
   };
 }
 
-export default useGraphManager;
+export default useFolderWatcher;

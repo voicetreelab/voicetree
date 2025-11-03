@@ -14,7 +14,6 @@ data GraphNode = GraphNode
   , title :: String
   , content :: String
   , summary :: String
-  , linkedNodeIds :: [NodeId]
   , color :: Maybe String
   }
 
