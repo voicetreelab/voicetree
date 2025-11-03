@@ -75,5 +75,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   positions: {
     save: (directoryPath, positions) => ipcRenderer.invoke('positions:save', directoryPath, positions),
     load: (directoryPath) => ipcRenderer.invoke('positions:load', directoryPath)
+  },
+
+  // Backend log streaming
+  onBackendLog: (callback) => {
+    ipcRenderer.on('backend-log', (event, log) => callback(log));
   }
 });
