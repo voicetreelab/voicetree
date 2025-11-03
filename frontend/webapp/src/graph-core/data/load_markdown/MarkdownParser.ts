@@ -395,23 +395,30 @@ export function parseForCytoscape(content: string, filename: string): ParsedCyto
   const linkedNodeIds: string[] = [];
   const edgeLabels = new Map<string, string>();
 
-  // Match pattern: "- relationship_type [[filename]]" or just "[[filename]]"
-  const linkMatches = content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]|(?:^|[^\-\n])\[\[([^\]]+)\]\]/g);
+  // First, find all labeled links: "- relationship_type [[filename]]"
+  const labeledLinkMatches = content.matchAll(/(?:^|\n)\s*-\s*([^[\n]+?)\s*\[\[([^\]]+)\]\]/g);
+  const labeledTargets = new Set<string>();
 
-  for (const match of linkMatches) {
-    let targetId: string;
+  for (const match of labeledLinkMatches) {
+    const label = match[1]?.trim() || '';
+    const targetId = normalizeFileIdInternal(match[2]);
+    linkedNodeIds.push(targetId);
+    labeledTargets.add(targetId);
+    if (label) {
+      edgeLabels.set(targetId, label);
+    }
+  }
 
-    if (match[2]) {
-      // Matched "- label [[target]]" format
-      const label = match[1]?.trim() || '';
-      targetId = normalizeFileIdInternal(match[2]);
-      linkedNodeIds.push(targetId);
-      if (label) {
-        edgeLabels.set(targetId, label);
-      }
-    } else if (match[3]) {
-      // Matched plain "[[target]]" format (no label)
-      targetId = normalizeFileIdInternal(match[3]);
+  // Then, find all plain wikilinks: [[filename]]
+  const plainLinkMatches = content.matchAll(/\[\[([^\]]+)\]\]/g);
+
+  for (const match of plainLinkMatches) {
+    const targetId = normalizeFileIdInternal(match[1]);
+    // Only add if not already captured as a labeled link
+    if (!labeledTargets.has(targetId) || !linkedNodeIds.includes(targetId)) {
+      // Check if this exact link instance was already captured
+      // We do this by checking if we already added this targetId
+      // In the case of duplicates, we allow them (Obsidian does)
       linkedNodeIds.push(targetId);
     }
   }
