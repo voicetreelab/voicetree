@@ -14,10 +14,10 @@ import tagParser from 'codemirror-rich-markdoc/src/tagParser';
 import highlightStyle from 'codemirror-rich-markdoc/src/highlightStyle';
 import RichEditPlugin from 'codemirror-rich-markdoc/src/richEdit';
 import renderBlock from 'codemirror-rich-markdoc/src/renderBlock';
-import { Disposable } from '@/views/Disposable.ts';
-import { EventEmitter } from '@/utils/EventEmitter.ts';
-import { mermaidRender } from '@/components/floating-windows/extensions/mermaidRender.ts';
-import { FloatingWindowFullscreen } from '@/utils/FloatingWindowFullscreen.ts';
+import { Disposable } from '@/views/Disposable';
+import { EventEmitter } from '@/utils/EventEmitter';
+import { mermaidRender } from '@/components/floating-windows/extensions/mermaidRender';
+import { FloatingWindowFullscreen } from '@/utils/FloatingWindowFullscreen';
 
 /**
  * Configuration options for CodeMirrorEditorView

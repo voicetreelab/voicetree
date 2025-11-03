@@ -12,13 +12,14 @@ let backendPort: number | null = null;
  * Fetches the backend port from Electron main process via IPC
  */
 export async function initializeBackendConnection(): Promise<void> {
-  if (window.electronAPI) {
+  // Check if running in renderer process (has window object)
+  if (typeof window !== 'undefined' && window.electronAPI) {
     backendPort = await window.electronAPI.getBackendPort();
     console.log(`[Backend API] Connected to port ${backendPort}`);
   } else {
-    // Fallback for non-Electron environments (tests, browser)
+    // Fallback for main process or non-Electron environments (tests, browser)
     backendPort = 8001;
-    console.log(`[Backend API] Running in non-Electron mode, using fallback port ${backendPort}`);
+    console.log(`[Backend API] Running in main process or non-Electron mode, using fallback port ${backendPort}`);
   }
 }
 
