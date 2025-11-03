@@ -4,6 +4,7 @@ import { useGraphManager } from "./hooks/useGraphManager";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { VoiceTreeGraphView } from "./views/VoiceTreeGraphView";
+import { ElectronMarkdownVault } from "./providers/ElectronMarkdownVault";
 import { useEffect, useRef } from "react";
 
 function App() {
@@ -100,7 +101,8 @@ function App() {
     if (!graphContainerRef.current) return;
 
     console.log('[App] Initializing VoiceTreeGraphView');
-    const graphView = new VoiceTreeGraphView(graphContainerRef.current, {
+    const vaultProvider = new ElectronMarkdownVault();
+    const graphView = new VoiceTreeGraphView(graphContainerRef.current, vaultProvider, {
       initialDarkMode: false
     });
 

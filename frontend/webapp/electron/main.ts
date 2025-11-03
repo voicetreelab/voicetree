@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fixPath from 'fix-path';
 import FileWatchManager from './file-watch-manager';
-import ServerManager from './server-manager';
+import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager';
+import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager';
 import TerminalManager from './terminal-manager';
 import MarkdownNodeManager from './markdown-node-manager';
 import PositionManager from './position-manager';
@@ -28,13 +29,17 @@ if (process.env.MINIMIZE_TEST === '1') {
 
 // Global manager instances
 const fileWatchManager = new FileWatchManager();
-const serverManager = new ServerManager();
+// TextToTreeServer: Converts text input (voice/typed) to markdown tree structure
+// Select implementation based on environment (no fallbacks)
+const textToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
+  ? new StubTextToTreeServerManager()
+  : new RealTextToTreeServerManager();
 const terminalManager = new TerminalManager();
 const nodeManager = new MarkdownNodeManager();
 const positionManager = new PositionManager();
 
-// Store the backend server port (set during app startup)
-let serverPort: number | null = null;
+// Store the TextToTreeServer port (set during app startup)
+let textToTreeServerPort: number | null = null;
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -59,6 +64,7 @@ function createWindow() {
 
   // Set the main window reference
   fileWatchManager.setMainWindow(mainWindow);
+  fileWatchManager.setPositionManager(positionManager);
 
   // Auto-start watching last directory if it exists
   // Uses 'on' instead of 'once' to handle page refreshes (cmd+r)
@@ -122,7 +128,7 @@ function createWindow() {
 
 // IPC handler for backend server port
 ipcMain.handle('get-backend-port', () => {
-  return serverPort;
+  return textToTreeServerPort;
 });
 
 // IPC handlers for file watching
@@ -267,12 +273,13 @@ app.whenReady().then(async () => {
     app.dock.hide();
   }
 
-  // Set up agent tools directory on first launch
+  // Set up agent tools directory on first launch (skipped in test mode)
   await setupToolsDirectory();
 
-  // Start the Python server and store the port it's using
-  serverPort = await serverManager.start();
-  console.log(`[App] Server started on port ${serverPort}`);
+  // Start the server and store the port it's using
+  // Factory automatically chooses StubServer (test) or RealServer (production)
+  textToTreeServerPort = await textToTreeServerManager.start();
+  console.log(`[App] Server started on port ${textToTreeServerPort}`);
 
   createWindow();
 });
@@ -283,7 +290,7 @@ app.on('before-quit', (event) => {
   console.log('[App] before-quit event - cleaning up resources...');
 
   // Clean up server process
-  serverManager.stop();
+  textToTreeServerManager.stop();
 
   // Clean up all terminals
   terminalManager.cleanup();
@@ -292,6 +299,10 @@ app.on('before-quit', (event) => {
 app.on('window-all-closed', () => {
   // Server cleanup moved to before-quit only to allow macOS to keep server running when window closes
   // This prevents the "worst of both worlds" where app stays in dock but server is dead
+
+  // TODO: terminalManager.cleanup() should maybe also be moved to before-quit only,
+  // but it's complicated because the graph renderer (which hosts terminal UI) is destroyed
+  // when the window closes, so terminals lose their renderer connection anyway
   terminalManager.cleanup();
 
   if (process.platform !== 'darwin') {
@@ -302,10 +313,10 @@ app.on('window-all-closed', () => {
 app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     // Restart server if it's not running (macOS dock click after window close)
-    if (!serverManager.isRunning()) {
+    if (!textToTreeServerManager.isRunning()) {
       console.log('[App] Reactivating - restarting server...');
-      serverPort = await serverManager.start();
-      console.log(`[App] Server restarted on port ${serverPort}`);
+      textToTreeServerPort = await textToTreeServerManager.start();
+      console.log(`[App] Server restarted on port ${textToTreeServerPort}`);
     }
     createWindow();
   }

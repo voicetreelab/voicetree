@@ -1,44 +1,39 @@
+/**
+ * EXPERIMENTAL: Terminal with user-scroll-only mode
+ *
+ * This variant blocks programmatic scrolls and only allows scrolling
+ * from actual user mouse wheel/trackpad events.
+ *
+ * Purpose: Test if blocking non-user scrolls fixes the scrolling bug
+ */
+
 import { Terminal as XTerm } from '@xterm/xterm';
-import type { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
-import { ClipboardAddon } from '@xterm/addon-clipboard';
-import { SearchAddon } from '@xterm/addon-search';
-import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
-import type { NodeMetadata } from '@/components/floating-windows/types';
-import { FloatingWindowFullscreen } from '@/utils/FloatingWindowFullscreen';
+import type { NodeMetadata } from '@/components/floating-windows/types.ts';
 
-export interface TerminalVanillaConfig {
+export interface TerminalNoAutoScrollConfig {
   nodeMetadata?: NodeMetadata;
   container: HTMLElement;
 }
 
-/**
- * Minimal vanilla JS terminal wrapper - bare essentials only
- */
-export class TerminalVanilla {
+export class TerminalNoAutoScroll {
   private term: XTerm | null = null;
   private terminalId: string | null = null;
   private fitAddon: FitAddon | null = null;
-  private searchAddon: SearchAddon | null = null;
   private container: HTMLElement;
   private nodeMetadata?: NodeMetadata;
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
-  private fullscreen: FloatingWindowFullscreen;
 
-  constructor(config: TerminalVanillaConfig) {
+  // User scroll tracking
+  private userScrollFlag = false;
+  private lastScrollPosition = 0;
+
+  constructor(config: TerminalNoAutoScrollConfig) {
     this.container = config.container;
     this.nodeMetadata = config.nodeMetadata;
-
-    // Setup fullscreen with callback to fit terminal when fullscreen changes
-    this.fullscreen = new FloatingWindowFullscreen(config.container, () => {
-      if (this.fitAddon) {
-        this.fitAddon.fit();
-      }
-    });
-
     this.mount();
   }
 
@@ -47,10 +42,7 @@ export class TerminalVanilla {
     const term = new XTerm({
       cursorBlink: true,
       scrollback: 1000,
-        scrollOnEraseInDisplay : true,
-        scrollOnUserInput: true,
-        fontSize: 9,
-        allowProposedApi: true, // Required for Unicode11Addon
+      scrollOnUserInput: false, // Don't auto-scroll on user input
     });
 
     // Add FitAddon
@@ -75,21 +67,50 @@ export class TerminalVanilla {
       console.warn('WebGL2 not supported, using default DOM renderer:', e);
     }
 
-    // Load clipboard addon for proper copy/paste handling
-    const clipboardAddon = new ClipboardAddon();
-    term.loadAddon(clipboardAddon);
-
-    // Load search addon for find-in-terminal functionality
-    const searchAddon = new SearchAddon();
-    term.loadAddon(searchAddon);
-    this.searchAddon = searchAddon;
-
-    // Load Unicode11 addon for better Unicode support
-    const unicode11Addon = new Unicode11Addon();
-    term.loadAddon(unicode11Addon);
-    term.unicode.activeVersion = '11';
-
     fitAddon.fit();
+
+    // **EXPERIMENTAL: Track user wheel events with flag approach**
+    const wheelHandler = (e: WheelEvent) => {
+      console.log('[NoAutoScroll] 🖱️ WHEEL EVENT, deltaY:', e.deltaY);
+      this.userScrollFlag = true;
+      setTimeout(() => {
+        console.log('[NoAutoScroll] ⏰ Clearing user scroll flag');
+        this.userScrollFlag = false;
+      }, 50);
+    };
+
+    // Try multiple event listeners to catch it early
+    term.element?.addEventListener('wheel', wheelHandler, { passive: true, capture: true });
+    this.container.addEventListener('wheel', wheelHandler, { passive: true, capture: true });
+    console.log('[NoAutoScroll] Wheel listeners attached to:', term.element, this.container);
+
+    // **EXPERIMENTAL: Monitor scrolls and block non-user scrolls**
+    term.onScroll((newPosition) => {
+      const delta = newPosition - this.lastScrollPosition;
+      const isUserInitiated = this.userScrollFlag;
+
+      console.log('[NoAutoScroll] 📜 SCROLL EVENT:', {
+        newPosition,
+        lastPosition: this.lastScrollPosition,
+        delta,
+        userScrollFlag: this.userScrollFlag,
+        isUserInitiated,
+        willBlock: !isUserInitiated && newPosition !== this.lastScrollPosition
+      });
+
+      if (!isUserInitiated && newPosition !== this.lastScrollPosition) {
+        // This scroll happened WITHOUT the user scroll flag - block it!
+        console.error('[NoAutoScroll] ❌ BLOCKING programmatic scroll from', this.lastScrollPosition, 'to', newPosition);
+
+        // Immediately scroll back to previous position
+        term.scrollToLine(this.lastScrollPosition);
+        return;
+      }
+
+      // Allow this scroll - update tracked position
+      console.log('[NoAutoScroll] ✅ ALLOWING scroll to', newPosition);
+      this.lastScrollPosition = newPosition;
+    });
 
     // Handle terminal input
     term.onData(data => {
@@ -107,7 +128,7 @@ export class TerminalVanilla {
       }
     });
 
-    // Set up ResizeObserver for container resize with 5s debounce
+    // Set up ResizeObserver for container resize
     this.resizeObserver = new ResizeObserver(() => {
       if (this.resizeTimeout) {
         clearTimeout(this.resizeTimeout);
@@ -160,66 +181,6 @@ export class TerminalVanilla {
     }
   }
 
-  /**
-   * Reconstructs a complete logical line from potentially wrapped physical buffer lines.
-   *
-   * When terminal content exceeds the terminal width, xterm.js wraps it across multiple
-   * physical buffer lines. This utility walks backwards from a given line index to find
-   * all wrapped segments and reconstructs the original logical line.
-   *
-   * This is critical for proper scroll calculations and line-based operations in narrow terminals.
-   *
-   * @param lineIndex The buffer line index to start from
-   * @param buffer The terminal buffer (active or alternate)
-   * @returns Object containing the complete line data and the starting line index
-   */
-  private getFullBufferLineAsString(lineIndex: number, buffer: Terminal['buffer']['active']): { lineData: string | undefined; lineIndex: number } {
-    let line = buffer.getLine(lineIndex);
-    if (!line) {
-      return { lineData: undefined, lineIndex };
-    }
-    let lineData = line.translateToString(true);
-    while (lineIndex > 0 && line.isWrapped) {
-      line = buffer.getLine(--lineIndex);
-      if (!line) {
-        break;
-      }
-      lineData = line.translateToString(false) + lineData;
-    }
-    return { lineData, lineIndex };
-  }
-
-  /**
-   * Enter fullscreen mode
-   */
-  async enterFullscreen() {
-    await this.fullscreen.enter();
-  }
-
-  /**
-   * Exit fullscreen mode
-   */
-  async exitFullscreen() {
-    await this.fullscreen.exit();
-  }
-
-  /**
-   * Toggle fullscreen mode
-   */
-  async toggleFullscreen() {
-    await this.fullscreen.toggle();
-  }
-
-  /**
-   * Check if terminal is in fullscreen mode
-   */
-  isFullscreen(): boolean {
-    return this.fullscreen.isFullscreen();
-  }
-
-  /**
-   * Cleanup and destroy the terminal
-   */
   dispose() {
     if (this.resizeTimeout) {
       clearTimeout(this.resizeTimeout);
@@ -228,9 +189,6 @@ export class TerminalVanilla {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
-
-    // Cleanup fullscreen
-    this.fullscreen.dispose();
 
     // Kill terminal process
     if (this.terminalId && window.electronAPI?.terminal) {

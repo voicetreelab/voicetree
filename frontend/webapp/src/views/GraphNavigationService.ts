@@ -11,7 +11,7 @@
  */
 
 import type { CytoscapeCore } from '@/graph-core';
-import { getResponsivePadding } from '@/utils/cytoscape';
+import { getResponsivePadding } from '@/utils/responsivePadding';
 
 /**
  * Manages all user-triggered navigation actions for the graph

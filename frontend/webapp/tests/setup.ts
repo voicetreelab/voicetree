@@ -2,6 +2,33 @@ import "@testing-library/jest-dom";
 import { afterEach, beforeAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 
+// Mock CSS imports from node_modules
+vi.mock('*.css', () => ({}));
+
+// Mock ninja-keys to prevent CSS import issues from @material/mwc-icon
+// ninja-keys is a transitive dependency that imports CSS, which breaks Vitest
+vi.mock('ninja-keys', () => {
+  // Define custom element for ninja-keys
+  class NinjaKeysElement extends HTMLElement {
+    data: any[] = [];
+
+    open() {
+      this.dispatchEvent(new Event('opened'));
+    }
+
+    close() {
+      this.dispatchEvent(new Event('closed'));
+    }
+  }
+
+  // Register custom element if not already registered
+  if (!customElements.get('ninja-keys')) {
+    customElements.define('ninja-keys', NinjaKeysElement);
+  }
+
+  return {};
+});
+
 // Mock console methods to suppress error logs during tests
 beforeAll(() => {
   // Store original console methods
