@@ -34,7 +34,8 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
-      }
+      },
+      timeout: 120000 // 2 minutes timeout (needed for slower CI environments)
     });
 
     await use(electronApp);

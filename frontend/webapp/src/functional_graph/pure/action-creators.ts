@@ -1,5 +1,5 @@
-import * as O from 'fp-ts/Option'
-import type { CreateNode, UpdateNode, DeleteNode, Position } from '@/functional_graph/pure/types.ts'
+import * as O from 'fp-ts/lib/Option.js'
+import type { CreateNode, UpdateNode, DeleteNode, Position } from '@/functional_graph/pure/types'
 
 /**
  * Pure action creator functions.

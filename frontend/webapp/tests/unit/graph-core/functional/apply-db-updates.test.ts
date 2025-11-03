@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import * as O from 'fp-ts/Option'
+import * as O from 'fp-ts/lib/Option.js'
 import { apply_db_updates_to_graph } from '@/functional_graph/pure/applyFSEventToGraph'
 import { Graph, FSUpdate, GraphNode, Env } from '@/functional_graph/pure/types'
 

@@ -9,7 +9,6 @@
  * 5. Providing public API for graph interaction
  *
  * Heavy lifting is delegated to:
- * - FileEventManager: File operations, parsing, caching, position management
  * - FloatingWindowManager: Editor/terminal windows, context menu, command-hover
  * - GraphNavigationService: User-triggered navigation actions (fit, cycle, search)
  * - HotkeyManager: Keyboard shortcut handling
@@ -29,7 +28,6 @@ import { CytoscapeCore } from '@/graph-core'; // Import from index.ts to trigger
 import { StyleService } from '@/graph-core/services/StyleService';
 import { enableAutoLayout } from '@/graph-core/graphviz/layout/autoLayout';
 import ColaLayout from '@/graph-core/graphviz/layout/cola';
-import { FileEventManager } from './FileEventManager';
 import { FloatingWindowManager } from './FloatingWindowManager';
 import { HotkeyManager } from './HotkeyManager';
 import { SearchService } from './SearchService';
@@ -37,6 +35,9 @@ import { GraphNavigationService } from './GraphNavigationService';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import type { IMarkdownVaultProvider, Disposable as VaultDisposable } from '@/providers/IMarkdownVaultProvider';
 import { SpeedDialMenuView } from './SpeedDialMenuView';
+import { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape';
+import { computeCytoscapeDiff } from '@/functional_graph/pure/cytoscape/compute-cytoscape-diff';
+import type { Graph, CytoscapeElements, CytoscapeDiff } from '@/functional_graph/pure/types';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -49,7 +50,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   private vaultProvider: IMarkdownVaultProvider;
 
   // Managers
-  private fileEventManager: FileEventManager;
   private floatingWindowManager: FloatingWindowManager;
   private hotkeyManager: HotkeyManager;
   private searchService: SearchService;
@@ -57,9 +57,13 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   // State
   private _isDarkMode = false;
+  private currentGraphState: Graph = { nodes: {}, edges: {} };
 
   // Vault event disposables
   private vaultDisposables: VaultDisposable[] = [];
+
+  // Functional graph subscription
+  private unsubscribeGraphUpdates: (() => void) | null = null;
 
   // DOM elements
   private statsOverlay: HTMLElement | null = null;
@@ -97,15 +101,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     this.render();
 
     // Initialize managers (after cy is created in render())
-    this.fileEventManager = new FileEventManager(
-      this.cy,
-      this.vaultProvider,
-      (stats) => this.handleStatsChanged(stats)
-    );
     this.hotkeyManager = new HotkeyManager();
     this.floatingWindowManager = new FloatingWindowManager(
       this.cy,
-      this.fileEventManager,
+      () => this.getCurrentGraphState(),
+      () => this.vaultProvider.getWatchDirectory?.(),
       this.hotkeyManager
     );
     this.navigationService = new GraphNavigationService(this.cy);
@@ -120,12 +120,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Setup event listeners
     this.setupEventListeners();
 
-    // Setup file event listeners
-    this.setupFileListeners();
+    // FILE EVENT LISTENERS REMOVED - now handled by functional graph via subscribeToGraphUpdates
 
     // Setup command-hover mode
     // TEMP: Disabled to test if this is causing editor tap issues
     this.floatingWindowManager.setupCommandHover();
+
+    // Subscribe to functional graph updates
+    this.subscribeToGraphUpdates();
   }
 
   // ============================================================================
@@ -242,7 +244,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Listen to layout completion
     core.on('layoutstop', () => {
       console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
-      this.fileEventManager.saveNodePositions();
+      this.saveNodePositions();
       this.layoutCompleteEmitter.emit();
     });
 
@@ -254,7 +256,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         clearTimeout(this.savePositionsTimeout);
       }
       this.savePositionsTimeout = setTimeout(() => {
-        this.fileEventManager.saveNodePositions();
+        this.saveNodePositions();
       }, 1000); // Wait 1 second after last drag
     });
 
@@ -268,13 +270,16 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Emit node selected event
         this.nodeSelectedEmitter.emit(nodeId);
 
-        // Find file and open editor
-        const content = this.fileEventManager.getContentForNode(nodeId);
-        const filePath = this.fileEventManager.getFilePathForNode(nodeId);
+        // Get content from functional graph
+        const node = this.currentGraphState.nodes[nodeId];
+        const vaultPath = this.vaultProvider.getWatchDirectory?.();
 
-        console.log('[VoiceTreeGraphView] Found content?', !!content, 'filePath?', !!filePath);
+        if (node && vaultPath) {
+          const content = node.content;
+          const filePath = `${vaultPath}/${nodeId}.md`;
 
-        if (content && filePath) {
+          console.log('[VoiceTreeGraphView] Found content?', !!content, 'filePath?', !!filePath);
+
           const nodePos = event.target.position();
           console.log('[VoiceTreeGraphView] Calling createFloatingEditor');
           this.floatingWindowManager.createFloatingEditor(nodeId, filePath, content, nodePos);
@@ -295,7 +300,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       // Expose test markdown_parsing for e2e tests
       (window as any).testHelpers = {
         createTerminal: (nodeId: string) => {
-          const filePath = this.fileEventManager.getFilePathForNode(nodeId);
+          const vaultPath = this.vaultProvider.getWatchDirectory?.();
+          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
           const nodeMetadata = {
             id: nodeId,
             name: nodeId.replace(/_/g, ' '),
@@ -343,7 +349,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     const handleBeforeUnload = () => {
       console.log('[VoiceTreeGraphView] Window closing, saving positions...');
       // Use synchronous IPC if available, otherwise just log
-      this.fileEventManager.saveNodePositions();
+      this.saveNodePositions();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
@@ -368,91 +374,179 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     this.container.addEventListener('wheel', handleWheel, { passive: false });
   }
 
-  private setupFileListeners(): void {
-    // Subscribe to all file watcher events via vault provider
-    this.vaultDisposables.push(
-      this.vaultProvider.onFilesLoaded((files) => {
-        this.handleBulkFilesAdded({ files });
-      })
-    );
-
-    this.vaultDisposables.push(
-      this.vaultProvider.onFileAdded((file) => {
-        this.handleFileAdded(file);
-      })
-    );
-
-    this.vaultDisposables.push(
-      this.vaultProvider.onFileChanged((file) => {
-        this.handleFileChanged(file);
-      })
-    );
-
-    this.vaultDisposables.push(
-      this.vaultProvider.onFileDeleted((fullPath) => {
-        this.handleFileDeleted({ fullPath });
-      })
-    );
-
-    this.vaultDisposables.push(
-      this.vaultProvider.onWatchingStopped(() => {
-        this.handleWatchingStopped();
-      })
-    );
-
-    this.vaultDisposables.push(
-      this.vaultProvider.onWatchingStarted((event) => {
-        this.handleWatchingStarted({
-          directory: event.directory,
-          positions: event.positions
-        });
-      })
-    );
-  }
 
   // ============================================================================
-  // FILE EVENT HANDLERS (delegate to FileEventManager)
+  // FUNCTIONAL GRAPH SUBSCRIPTION
   // ============================================================================
 
-  private handleBulkFilesAdded(data: BulkFileEvent): void {
-    this.fileEventManager.handleBulkFilesAdded(data);
-    this.searchService.updateSearchData();
-  }
-
-  private handleFileAdded(data: FileEvent): void {
-    this.fileEventManager.handleFileAdded(data);
-    // Track last created node for "fit to last node" feature
-    const nodeId = data.fullPath.replace(/\.md$/i, '').split('/').pop();
-    if (nodeId) {
-      this.navigationService.setLastCreatedNodeId(nodeId);
+  /**
+   * Subscribe to functional graph state updates from main process.
+   * This is the PURE FP approach - graph state flows from main process,
+   * we project it to Cytoscape elements, and reconcile the DOM.
+   */
+  private subscribeToGraphUpdates(): void {
+    if (typeof window !== 'undefined' && window.electronAPI?.graph) {
+      this.unsubscribeGraphUpdates = window.electronAPI.graph.onStateChanged(
+        (graph: Graph) => {
+          console.log('[VoiceTreeGraphView] Graph state updated:',
+            Object.keys(graph.nodes).length, 'nodes');
+          this.currentGraphState = graph;
+          this.updateCytoscapeFromGraph(graph);
+        }
+      );
     }
+  }
+
+  /**
+   * Get current graph state for FloatingWindowManager
+   */
+  private getCurrentGraphState(): Graph {
+    return this.currentGraphState;
+  }
+
+  /**
+   * Update Cytoscape from pure graph state.
+   * PURE PROJECTION: Graph → CytoscapeElements → Diff → DOM
+   */
+  private updateCytoscapeFromGraph(graph: Graph): void {
+    const cy = this.cy.getCore();
+
+    // PURE: Project graph to desired Cytoscape elements
+    const desiredElements = projectToCytoscape(graph);
+
+    // PURE: Compute diff between current and desired state
+    const diff = computeCytoscapeDiff(cy, desiredElements);
+
+    // IMPURE: Apply diff to Cytoscape DOM
+    this.applyCytoscapeDiff(diff);
+
+    // IMPURE: Update search index after graph changes (side effect at edge)
     this.searchService.updateSearchData();
+
+    // IMPURE: Update stats overlay
+    this.handleStatsChanged();
   }
 
-  private handleFileChanged(data: FileEvent): void {
-    this.fileEventManager.handleFileChanged(data);
-    this.searchService.updateSearchData();
+  /**
+   * IMPURE: Apply computed diff to Cytoscape DOM.
+   * This is the edge - pure logic has been separated into computeCytoscapeDiff.
+   * IDEMPOTENT: Empty diff has no effect. Same diff twice produces same result.
+   */
+  private applyCytoscapeDiff(diff: CytoscapeDiff): void {
+    const cy = this.cy.getCore();
+
+    cy.batch(() => {
+      // Remove first (to avoid orphaned edges)
+      diff.edgesToRemove.forEach(id => {
+        cy.getElementById(id).remove();
+      });
+
+      diff.nodesToRemove.forEach(id => {
+        cy.getElementById(id).remove();
+      });
+
+      // Add/update nodes
+      diff.nodesToAdd.forEach(nodeElem => {
+        cy.add({
+          group: 'nodes' as const,
+          data: nodeElem.data
+        });
+      });
+
+      diff.nodesToUpdate.forEach(({ id, data }) => {
+        cy.getElementById(id).data(data);
+      });
+
+      // Add edges
+      diff.edgesToAdd.forEach(edgeElem => {
+        cy.add({
+          group: 'edges' as const,
+          data: edgeElem.data
+        });
+      });
+    });
+
+    // Track last created node for "fit to last node" feature
+    // Use the last node in the nodesToAdd array
+    if (diff.nodesToAdd.length > 0) {
+      const lastAddedNode = diff.nodesToAdd[diff.nodesToAdd.length - 1];
+      this.navigationService.setLastCreatedNodeId(lastAddedNode.data.id);
+    }
   }
 
-  private handleFileDeleted(data: { fullPath: string }): void {
-    this.fileEventManager.handleFileDeleted(data);
-    this.searchService.updateSearchData();
-  }
-
-  private handleWatchingStopped(): void {
-    this.fileEventManager.handleWatchingStopped();
-  }
-
-  private handleWatchingStarted(data: WatchingStartedEvent): void {
-    this.fileEventManager.handleWatchingStarted(data);
-  }
+  // ============================================================================
+  // FILE EVENT HANDLERS - REMOVED
+  // ============================================================================
+  // File events are now handled by functional graph architecture:
+  // 1. FileWatchManager detects filesystem changes
+  // 2. file-watch-handlers.ts intercepts and applies to functional graph
+  // 3. Graph updates broadcast via 'graph:stateChanged'
+  // 4. subscribeToGraphUpdates() receives and projects to Cytoscape
+  // 5. updateCytoscapeFromGraph() updates search index after graph projection
+  // 6. applyCytoscapeDiff() tracks last created node for "fit to last node" feature
 
 
   // ============================================================================
   // HELPER METHODS
   // ============================================================================
 
-  private handleStatsChanged(stats: { nodeCount: number; edgeCount: number }): void {
+  /**
+   * Save node positions to disk via IPC
+   */
+  private async saveNodePositions(): Promise<void> {
+    try {
+      // Get watch directory
+      const watchStatus = await this.vaultProvider.getWatchStatus();
+      if (!watchStatus.isWatching || !watchStatus.directory) {
+        console.warn('[VoiceTreeGraphView] Not watching any directory');
+        return;
+      }
+
+      const cy = this.cy.getCore();
+      const positions: Record<string, { x: number; y: number }> = {};
+
+      // Collect positions from Cytoscape nodes
+      cy.nodes().forEach((node) => {
+        const nodeId = node.id();
+        const isFloatingWindow = node.data('isFloatingWindow');
+        const isGhost = nodeId.startsWith('ghost-');
+
+        // Skip floating windows and ghost nodes
+        if (isFloatingWindow || isGhost) {
+          return;
+        }
+
+        // Use node ID as filename (assumes nodeId = filename without .md)
+        const filename = `${nodeId}.md`;
+        const pos = node.position();
+        positions[filename] = { x: pos.x, y: pos.y };
+      });
+
+      console.log(`[VoiceTreeGraphView] Saving ${Object.keys(positions).length} node positions`);
+
+      // Save to disk via vault provider
+      const result = await this.vaultProvider.savePositions(
+        watchStatus.directory,
+        positions
+      );
+
+      if (result.success) {
+        console.log(`[VoiceTreeGraphView] Successfully saved positions to disk`);
+      } else {
+        console.error('[VoiceTreeGraphView] Failed to save positions:', result.error);
+      }
+    } catch (error) {
+      console.error('[VoiceTreeGraphView] Error saving positions:', error);
+    }
+  }
+
+  private handleStatsChanged(): void {
+    const cy = this.cy.getCore();
+    const stats = {
+      nodeCount: cy.nodes().length,
+      edgeCount: cy.edges().length
+    };
+
     // Update UI overlays
     if (this.statsOverlay) {
       this.statsOverlay.textContent = `${stats.nodeCount} nodes • ${stats.edgeCount} edges`;
@@ -565,7 +659,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   getStats(): { nodeCount: number; edgeCount: number } {
-    return this.fileEventManager.getStats();
+    const cy = this.cy.getCore();
+    return {
+      nodeCount: cy.nodes().length,
+      edgeCount: cy.edges().length
+    };
   }
 
   /**
@@ -655,13 +753,18 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Remove window event listeners
     window.removeEventListener('resize', this.handleResize);
 
+    // Unsubscribe from functional graph updates
+    if (this.unsubscribeGraphUpdates) {
+      this.unsubscribeGraphUpdates();
+      this.unsubscribeGraphUpdates = null;
+    }
+
     // Dispose vault event listeners
     this.vaultDisposables.forEach(disposable => disposable.dispose());
     this.vaultDisposables = [];
 
     // Dispose managers
     this.hotkeyManager.dispose();
-    this.fileEventManager.dispose();
     this.floatingWindowManager.dispose();
     this.searchService.dispose();
 

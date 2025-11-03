@@ -38,10 +38,8 @@ export function setupFileWatchHandlers(
     broadcast
   }
 
-  // Hook into FileWatchManager's internal event system by wrapping sendToRenderer
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const originalSendToRenderer = (fileWatchManager as any).sendToRenderer.bind(fileWatchManager)
-
+  // Hook into FileWatchManager's internal event system by replacing sendToRenderer
+  // This intercepts all file events and processes them through the functional graph
   // eslint-disable-next-line no-param-reassign, @typescript-eslint/no-explicit-any
   ;(fileWatchManager as any).sendToRenderer = function (channel: string, data?: any) {
     // Intercept file events and update graph
@@ -106,8 +104,8 @@ export function setupFileWatchHandlers(
       console.error('[FileWatch] Error updating graph:', error)
     }
 
-    // Always call original to maintain existing behavior
-    originalSendToRenderer(channel, data)
+    // Functional graph is now the single source of truth for file events
+    // Old system (FileEventManager) is no longer used
   }
 
   console.log('[FileWatch] Graph handlers registered')

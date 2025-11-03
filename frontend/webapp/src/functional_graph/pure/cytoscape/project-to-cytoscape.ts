@@ -3,7 +3,8 @@ import type {
     CytoscapeElements,
     CytoscapeNodeElement,
     CytoscapeEdgeElement
-} from '@/functional_graph/pure/types.ts'
+} from '@/functional_graph/pure/types'
+import * as O from 'fp-ts/lib/Option.js'
 
 /**
  * Pure projection function that converts our pure Graph to Cytoscape's UI representation.
@@ -28,7 +29,8 @@ export function projectToCytoscape(graph: Graph): CytoscapeElements {
         label: node.title,
         content: node.content,
         summary: node.summary,
-        color: node.color
+        // Unwrap Option<string> to string | undefined for Cytoscape
+        color: O.isSome(node.color) ? node.color.value : undefined
       }
     })
   )

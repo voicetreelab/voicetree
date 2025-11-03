@@ -1,6 +1,6 @@
-import type {Graph, NodeAction, AppEffect, GraphNode, Env} from '@/functional_graph/pure/types.ts'
-import * as O from 'fp-ts/Option'
-import * as TE from 'fp-ts/TaskEither'
+import type {Graph, NodeAction, AppEffect, GraphNode, Env} from '@/functional_graph/pure/types'
+import * as O from 'fp-ts/lib/Option.js'
+import * as TE from 'fp-ts/lib/TaskEither.js'
 import { promises as fs } from 'fs'
 import path from 'path'
 

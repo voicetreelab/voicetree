@@ -1,4 +1,4 @@
-import type { NodeId, GraphNode } from '@/functional_graph/pure/types.ts'
+import type { NodeId, GraphNode } from '@/functional_graph/pure/types'
 import { nodeIdToFilename } from './filename-utils.ts'
 
 /**
@@ -38,9 +38,9 @@ export function extractLinkedNodeIds(
     .map((match) => {
       const linkText = match[1].trim()
 
-      // Find node by title or filename matching linkText
+      // Find node by title, node ID, or filename matching linkText
       const targetNode = Object.values(nodes).find(
-        (n) => n.title === linkText || nodeIdToFilename(n.id) === linkText
+        (n) => n.title === linkText || n.id === linkText || nodeIdToFilename(n.id) === linkText
       )
 
       return targetNode?.id

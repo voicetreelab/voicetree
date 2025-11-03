@@ -4,6 +4,7 @@ import { promises as fs, createWriteStream } from 'fs';
 import http from 'http';
 import { spawn, ChildProcess } from 'child_process';
 import { findAvailablePort } from '../port-utils';
+import { createBuildEnv, getBuildConfig } from '../build-config';
 import type { ITextToTreeServerManager } from './ITextToTreeServerManager';
 
 /**
@@ -148,21 +149,21 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
   /**
    * Get the server executable path based on packaging mode
+   * Uses centralized build-config for path resolution
    */
   private getServerPath(debugLog: (message: string) => void): string {
-    let serverPath: string;
+    const env = createBuildEnv();
+    const config = getBuildConfig(env);
 
-    if (app.isPackaged) {
-      // Packaged app: Use process.resourcesPath
-      serverPath = path.join(process.resourcesPath, 'server', 'voicetree-server');
-      debugLog(`[TextToTreeServer] Packaged app - using server at: ${serverPath}`);
-    } else {
-      // Unpackaged (development): Use app path to find project root
-      const appPath = app.getAppPath();
-      const projectRoot = path.resolve(appPath, '../..');
-      serverPath = path.join(projectRoot, 'dist', 'resources', 'server', 'voicetree-server');
-      debugLog(`[TextToTreeServer] Unpackaged app - using server at: ${serverPath}`);
+    if (!config.serverBinaryPath) {
+      debugLog('[TextToTreeServer] ERROR: No server binary path configured!');
+      debugLog('[TextToTreeServer] This should not happen in production mode');
+      throw new Error('Server binary path not configured');
     }
+
+    const serverPath = config.serverBinaryPath;
+    debugLog(`[TextToTreeServer] Using server path from build-config: ${serverPath}`);
+    debugLog(`[TextToTreeServer] Environment: ${env.nodeEnv}, Packaged: ${env.isPackaged}`);
 
     return serverPath;
   }

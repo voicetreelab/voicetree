@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { apply_graph_updates } from '@/functional_graph/pure/applyGraphActionsToDB'
 import type { Graph, CreateNode, UpdateNode, DeleteNode, Env } from '@/functional_graph/pure/types'
-import * as E from 'fp-ts/Either'
+import * as E from 'fp-ts/lib/Either.js'
 
 /**
  * Setup IPC handlers for user-initiated graph actions.
@@ -53,6 +53,10 @@ export function setupGraphIpcHandlers(
 
       // Update global state with new graph
       setGraph(result.right)
+
+      // Broadcast graph update to renderer
+      broadcast(result.right)
+
       return { success: true }
     } catch (error) {
       console.error('[IPC] Error handling createNode:', error)
@@ -84,6 +88,10 @@ export function setupGraphIpcHandlers(
 
       // Update global state with new graph
       setGraph(result.right)
+
+      // Broadcast graph update to renderer
+      broadcast(result.right)
+
       return { success: true }
     } catch (error) {
       console.error('[IPC] Error handling updateNode:', error)
@@ -115,6 +123,10 @@ export function setupGraphIpcHandlers(
 
       // Update global state with new graph
       setGraph(result.right)
+
+      // Broadcast graph update to renderer
+      broadcast(result.right)
+
       return { success: true }
     } catch (error) {
       console.error('[IPC] Error handling deleteNode:', error)

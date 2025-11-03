@@ -1,6 +1,6 @@
-import * as O from 'fp-ts/Option'
-import * as RTE from 'fp-ts/ReaderTaskEither'
-import * as R from 'fp-ts/Reader'
+import * as O from 'fp-ts/lib/Option.js'
+import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
+import * as R from 'fp-ts/lib/Reader.js'
 
 /**
  * Core pure model for the functional graph architecture
@@ -98,10 +98,6 @@ export type AppEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
  */
 export type EnvReader<A> = R.Reader<Env, A>
 
-// Legacy type aliases for backward compatibility during migration
-export type DBIO<A = void> = AppEffect<A>
-export type UIIO<A = void> = EnvReader<A>
-
 // ============================================================================
 // Cytoscape Projection Types
 // ============================================================================
@@ -128,4 +124,16 @@ export interface CytoscapeEdgeElement {
 export interface CytoscapeElements {
   readonly nodes: ReadonlyArray<CytoscapeNodeElement>
   readonly edges: ReadonlyArray<CytoscapeEdgeElement>
+}
+
+/**
+ * Diff between current Cytoscape state and desired state.
+ * Describes what operations are needed to reconcile the DOM.
+ */
+export interface CytoscapeDiff {
+  readonly nodesToAdd: ReadonlyArray<CytoscapeNodeElement>
+  readonly nodesToUpdate: ReadonlyArray<{ readonly id: string; readonly data: any }>
+  readonly nodesToRemove: ReadonlyArray<string>
+  readonly edgesToAdd: ReadonlyArray<CytoscapeEdgeElement>
+  readonly edgesToRemove: ReadonlyArray<string>
 }

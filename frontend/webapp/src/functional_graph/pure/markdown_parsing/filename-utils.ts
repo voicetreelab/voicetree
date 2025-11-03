@@ -1,12 +1,15 @@
-import type { NodeId } from '@/functional_graph/pure/types.ts'
+import type { NodeId } from '@/functional_graph/pure/types'
 
 /**
- * Converts a filename to a node ID by removing the .md extension.
+ * Converts a filename to a node ID by extracting the basename without extension.
  *
  * Pure function: same input -> same output, no side effects
  *
+ * IMPORTANT: This uses basename-only to match FileEventManager's normalizeFileId behavior.
+ * Both systems MUST use the same ID format to avoid edge creation errors.
+ *
  * @param filename - The filename (with or without path)
- * @returns Node ID (filename without .md extension)
+ * @returns Node ID (basename without .md extension and without path)
  *
  * @example
  * ```typescript
@@ -14,11 +17,23 @@ import type { NodeId } from '@/functional_graph/pure/types.ts'
  * // => "my-node"
  *
  * filenameToNodeId("subfolder/another-node.md")
- * // => "subfolder/another-node"
+ * // => "another-node"  // Path stripped!
+ *
+ * filenameToNodeId("concepts/architecture.md")
+ * // => "architecture"  // Path stripped!
  * ```
  */
 export function filenameToNodeId(filename: string): NodeId {
-  return filename.replace(/\.md$/, '')
+  // Strip .md extension
+  let id = filename.replace(/\.md$/, '')
+
+  // Strip path - keep only basename
+  const lastSlash = id.lastIndexOf('/')
+  if (lastSlash >= 0) {
+    id = id.substring(lastSlash + 1)
+  }
+
+  return id
 }
 
 /**

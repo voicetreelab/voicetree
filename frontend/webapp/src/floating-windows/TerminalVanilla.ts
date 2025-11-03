@@ -6,8 +6,8 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
-import type { NodeMetadata } from '@/floating-windows/types.ts';
-import { FloatingWindowFullscreen } from '@/utils/FloatingWindowFullscreen.ts';
+import type { NodeMetadata } from '@/floating-windows/types';
+import { FloatingWindowFullscreen } from '@/utils/FloatingWindowFullscreen';
 
 export interface TerminalVanillaConfig {
   nodeMetadata?: NodeMetadata;

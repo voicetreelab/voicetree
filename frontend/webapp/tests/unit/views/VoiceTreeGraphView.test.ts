@@ -287,4 +287,107 @@ describe('VoiceTreeGraphView with MemoryVault', () => {
 
     expect(graph.getStats().nodeCount).toBe(10);
   });
+
+  // ==========================================================================
+  // FUNCTIONAL GRAPH SUBSCRIPTION TESTS
+  // ==========================================================================
+
+  it('should subscribe to functional graph updates via electronAPI', () => {
+    // Setup mock electronAPI
+    const mockCallbacks: Array<(graph: any) => void> = [];
+    const mockElectronAPI = {
+      graph: {
+        onStateChanged: (callback: (graph: any) => void) => {
+          mockCallbacks.push(callback);
+          return () => {
+            const idx = mockCallbacks.indexOf(callback);
+            if (idx > -1) mockCallbacks.splice(idx, 1);
+          };
+        }
+      }
+    };
+
+    // Inject mock API
+    (window as any).electronAPI = mockElectronAPI;
+
+    // Create new graph instance to trigger subscription
+    const testContainer = document.createElement('div');
+    testContainer.style.width = '800px';
+    testContainer.style.height = '600px';
+    document.body.appendChild(testContainer);
+
+    const testVault = new MemoryMarkdownVault();
+    const testGraph = new VoiceTreeGraphView(testContainer, testVault, { headless: true });
+
+    // Verify subscription was registered
+    expect(mockCallbacks.length).toBe(1);
+
+    // Cleanup
+    testGraph.dispose();
+    document.body.removeChild(testContainer);
+    delete (window as any).electronAPI;
+  });
+
+  it('should update cytoscape when receiving graph state from main process', async () => {
+    // Setup mock electronAPI with state change emitter
+    let stateChangeCallback: ((graph: any) => void) | null = null;
+    const mockElectronAPI = {
+      graph: {
+        onStateChanged: (callback: (graph: any) => void) => {
+          stateChangeCallback = callback;
+          return () => { stateChangeCallback = null; };
+        }
+      }
+    };
+
+    (window as any).electronAPI = mockElectronAPI;
+
+    // Create graph instance
+    const testContainer = document.createElement('div');
+    testContainer.style.width = '800px';
+    testContainer.style.height = '600px';
+    document.body.appendChild(testContainer);
+
+    const testVault = new MemoryMarkdownVault();
+    const testGraph = new VoiceTreeGraphView(testContainer, testVault, { headless: true });
+
+    // Emit mock graph state
+    const mockGraphState = {
+      nodes: {
+        'node1': {
+          id: 'node1',
+          title: 'Node 1',
+          content: '# Node 1\n\nContent',
+          summary: 'Summary',
+          color: null
+        },
+        'node2': {
+          id: 'node2',
+          title: 'Node 2',
+          content: '# Node 2\n\nContent',
+          summary: 'Summary',
+          color: null
+        }
+      },
+      edges: {
+        'node1': ['node2']
+      }
+    };
+
+    stateChangeCallback!(mockGraphState);
+
+    // Wait for next tick to allow batched updates
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Verify cytoscape was updated (filtering out ghost root if present)
+    const cy = (testGraph as any).cy.getCore();
+    const nonGhostNodes = cy.nodes().filter((node: any) => !node.data('isGhostRoot'));
+    expect(nonGhostNodes.length).toBe(2);
+    expect(cy.edges().length).toBe(1);
+
+    // Cleanup
+    testGraph.dispose();
+    document.body.removeChild(testContainer);
+    delete (window as any).electronAPI;
+  });
 });
