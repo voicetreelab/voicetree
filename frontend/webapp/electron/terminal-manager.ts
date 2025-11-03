@@ -147,7 +147,13 @@ export default class TerminalManager {
       // Create a fake terminal ID for error display
       const terminalId = `error-${Date.now()}`;
       setTimeout(() => {
-        sender.send('terminal:data', terminalId, errorMessage);
+        try {
+          if (!sender.isDestroyed()) {
+            sender.send('terminal:data', terminalId, errorMessage);
+          }
+        } catch (error) {
+          console.error(`Failed to send terminal error message for ${terminalId}:`, error);
+        }
       }, 100);
 
       return { success: true, terminalId }; // Return success with error terminal

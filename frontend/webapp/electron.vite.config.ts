@@ -92,6 +92,9 @@ export default defineConfig({
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),
       strictPort: true,
       host: true,
+      hmr: {
+        overlay: true
+      },
       watch: {
         ignored: [
           '**/dist/**',
@@ -99,7 +102,12 @@ export default defineConfig({
           '**/resources/**',
           '**/.venv*/**',
           '**/node_modules/**'
-        ]
+        ],
+        // Debounce file change events to prevent HMR loops
+        awaitWriteFinish: {
+          stabilityThreshold: 200,
+          pollInterval: 100
+        }
       }
     },
     build: {

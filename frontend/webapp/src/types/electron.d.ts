@@ -4,7 +4,7 @@ import type { CytoscapeCore as VoiceTreeCytoscapeCore } from '@/graph-core/graph
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
 
 // Re-export NodeMetadata for use in terminal API
-export type { NodeMetadata } from '@/components/floating-windows/types';
+export type { NodeMetadata } from '@/floating-windows/types';
 
 export interface FileEvent {
   path: string;

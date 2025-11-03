@@ -536,7 +536,12 @@ class FileWatchManager {
 
   private sendToRenderer(channel: string, data?: unknown): void {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send(channel, data);
+      try {
+        this.mainWindow.webContents.send(channel, data);
+      } catch (error) {
+        // Silently ignore errors when renderer is destroyed
+        console.error(`[FileWatchManager] Failed to send to renderer (${channel}):`, error);
+      }
     }
   }
 
