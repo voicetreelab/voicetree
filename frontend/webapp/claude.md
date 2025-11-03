@@ -28,3 +28,7 @@ cytoscape graph visualisation is at webapp/src/graph-core
 
 
 We favor "deep modules", a single class with a minimal public API hiding internal complexity, over shallow ones that create unnecessary indirection.
+
+### HANDOVER
+
+Once you are at 100,000 tokens, make a HANDOVER.md document saving your thought process for how you were going to solve your next steps.

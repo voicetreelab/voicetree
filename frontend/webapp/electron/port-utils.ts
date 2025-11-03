@@ -22,9 +22,9 @@ export async function isPortAvailable(port: number): Promise<boolean> {
       resolve(true); // Port is available
     });
 
-    // IMPORTANT: Listen on 0.0.0.0 (all interfaces) to match Python server binding
-    // Python uvicorn binds to 0.0.0.0 by default, so we must check the same address
-    server.listen(port, '0.0.0.0');
+    // Listen on 127.0.0.1 (localhost only) to match stub server binding
+    // Test servers bind to localhost for security
+    server.listen(port, '127.0.0.1');
   });
 }
 

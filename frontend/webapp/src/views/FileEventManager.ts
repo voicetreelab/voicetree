@@ -19,7 +19,8 @@ import type {
   BulkFileEvent,
   Position
 } from './IVoiceTreeGraphView';
-import { getResponsivePadding } from '@/utils/cytoscape';
+import { getResponsivePadding } from '@/utils/responsivePadding';
+import type { IMarkdownVaultProvider } from '@/providers/IMarkdownVaultProvider';
 
 // Helper function to normalize file ID
 // 'concepts/introduction.md' -> 'introduction'
@@ -37,6 +38,7 @@ function normalizeFileId(filename: string): string {
  */
 export class FileEventManager {
   private cy: CytoscapeCore;
+  private vaultProvider: IMarkdownVaultProvider;
 
   // Data storage
   private markdownFiles = new Map<string, string>();
@@ -51,9 +53,11 @@ export class FileEventManager {
 
   constructor(
     cy: CytoscapeCore,
+    vaultProvider: IMarkdownVaultProvider,
     onStatsChanged?: (stats: { nodeCount: number; edgeCount: number }) => void
   ) {
     this.cy = cy;
+    this.vaultProvider = vaultProvider;
     this.onStatsChanged = onStatsChanged;
   }
 
@@ -260,6 +264,10 @@ export class FileEventManager {
   handleWatchingStopped(): void {
     console.log('[FileEventManager] Handling watching stopped');
 
+    // Save positions before clearing everything
+    console.log('[FileEventManager] Saving positions before stopping watch...');
+    this.saveNodePositions();
+
     const cy = this.cy.getCore();
 
     // Clear graph - remove ALL elements (including ghost root) for clean state
@@ -332,6 +340,10 @@ export class FileEventManager {
     }
 
     // For test nodes without filePath, generate a dummy path
+    // This is expected for test nodes, only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`[FileEventManager] getFilePathForNode: Could not find file path for node "${nodeId}", using fallback /test/ path`);
+    }
     return `/test/${nodeId}.md`;
   }
 
@@ -340,13 +352,10 @@ export class FileEventManager {
    */
   async saveNodePositions(): Promise<void> {
     try {
-      if (!(window as any).electronAPI?.positions) {
-        return;
-      }
-
       // Get watch directory
-      const watchStatus = await (window as any).electronAPI.getWatchStatus();
+      const watchStatus = await this.vaultProvider.getWatchStatus();
       if (!watchStatus.isWatching || !watchStatus.directory) {
+        console.warn('[FileEventManager] Not watching any directory');
         return;
       }
 
@@ -354,29 +363,56 @@ export class FileEventManager {
       const positions: Record<string, Position> = {};
 
       // Collect positions
-      cy.nodes().forEach((node: any) => {
+      const allNodes = cy.nodes();
+      let skippedFloating = 0;
+      let skippedGhost = 0;
+      let skippedNoFilename = 0;
+      let saved = 0;
+
+      console.log(`[FileEventManager] saveNodePositions: Processing ${allNodes.length} total nodes`);
+      console.log(`[FileEventManager] markdownFiles map has ${this.markdownFiles.size} entries`);
+
+      allNodes.forEach((node: any) => {
         const nodeId = node.id();
         const isFloatingWindow = node.data('isFloatingWindow');
         const isGhostRoot = node.data('isGhostRoot');
 
-        if (isFloatingWindow || isGhostRoot) {
+        if (isFloatingWindow) {
+          skippedFloating++;
+          return;
+        }
+        if (isGhostRoot) {
+          skippedGhost++;
           return;
         }
 
-        const filename = this.getFilePathForNode(nodeId);
-        if (filename) {
+        const filePath = this.getFilePathForNode(nodeId);
+        if (filePath) {
+          // Use basename (filename only) for consistency with right-click creation
+          const filename = filePath.split('/').pop() || filePath;
           const pos = node.position();
           positions[filename] = { x: pos.x, y: pos.y };
+          saved++;
+        } else {
+          skippedNoFilename++;
+          console.warn(`[FileEventManager] No filename found for node: ${nodeId}`);
         }
       });
 
+      console.log(`[FileEventManager] Position save stats:
+  - Total nodes: ${allNodes.length}
+  - Saved: ${saved}
+  - Skipped (floating): ${skippedFloating}
+  - Skipped (ghost): ${skippedGhost}
+  - Skipped (no filename): ${skippedNoFilename}`);
+
       // Save to disk
-      const result = await (window as any).electronAPI.positions.save(
+      const result = await this.vaultProvider.savePositions(
         watchStatus.directory,
         positions
       );
       if (result.success) {
-        console.log(`[FileEventManager] Saved ${Object.keys(positions).length} positions`);
+        console.log(`[FileEventManager] Successfully saved ${Object.keys(positions).length} positions to disk`);
       } else {
         console.error('[FileEventManager] Failed to save positions:', result.error);
       }

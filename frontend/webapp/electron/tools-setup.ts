@@ -1,7 +1,6 @@
 import { app } from 'electron';
 import path from 'path';
 import { promises as fs } from 'fs';
-import { execSync } from 'child_process';
 
 /**
  * Get the tools directory path in Application Support
@@ -20,10 +19,50 @@ export function getBackendDirectory(): string {
 }
 
 /**
+ * Recursive async copy function
+ */
+async function copyDir(src: string, dest: string): Promise<void> {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDir(srcPath, destPath);
+    } else {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+/**
  * Set up agent tools and backend directories
  * Copies tools and backend modules from app Resources to Application Support, overwriting existing files
+ *
+ * SKIPS entirely in test mode (HEADLESS_TEST=1) for fast test startup
  */
 export async function setupToolsDirectory(): Promise<void> {
+  // Skip entirely in test mode
+  if (process.env.HEADLESS_TEST === '1') {
+    console.log('[Setup] Skipping tools setup in test mode');
+    return;
+  }
+
+  // Add timeout wrapper (10 seconds max)
+  const timeoutPromise = new Promise<void>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error('[Setup] Timeout: tools setup took > 10 seconds'));
+    }, 10000);
+  });
+
+  const setupPromise = setupToolsDirectoryInternal();
+
+  return Promise.race([setupPromise, timeoutPromise]);
+}
+
+async function setupToolsDirectoryInternal(): Promise<void> {
   try {
     const toolsDestPath = getToolsDirectory();
     const backendDestPath = getBackendDirectory();
@@ -90,28 +129,21 @@ export async function setupToolsDirectory(): Promise<void> {
     // Create parent directory if needed
     await fs.mkdir(path.dirname(toolsDestPath), { recursive: true });
 
-    // Copy tools directory if it exists
+    // Copy tools directory if it exists (async)
     if (toolsExist) {
-      if (process.platform === 'win32') {
-        execSync(`xcopy /E /I /Y "${toolsSourcePath}" "${toolsDestPath}"`);
-      } else {
-        execSync(`cp -r "${toolsSourcePath}" "${toolsDestPath}"`);
-      }
+      await copyDir(toolsSourcePath, toolsDestPath);
       console.log('[Setup] ✓ Successfully copied tools to:', toolsDestPath);
     }
 
-    // Copy backend directory if it exists
+    // Copy backend directory if it exists (async)
     if (backendExist) {
-      if (process.platform === 'win32') {
-        execSync(`xcopy /E /I /Y "${backendSourcePath}" "${backendDestPath}"`);
-      } else {
-        execSync(`cp -r "${backendSourcePath}" "${backendDestPath}"`);
-      }
+      await copyDir(backendSourcePath, backendDestPath);
       console.log('[Setup] ✓ Successfully copied backend to:', backendDestPath);
     }
 
     console.log('[Setup] Setup complete!');
   } catch (error) {
     console.error('[Setup] Error setting up directories:', error);
+    throw error; // Fail fast
   }
 }

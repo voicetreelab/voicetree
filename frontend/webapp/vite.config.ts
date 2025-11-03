@@ -64,5 +64,6 @@ export default defineConfig({
     fileParallelism: false, // Run test files sequentially
     testTimeout: 10000, // 10 second timeout per test
     hookTimeout: 5000, // 5 second timeout for hooks
+    css: true
   },
 });

@@ -14,7 +14,7 @@ test('CodeMirror syntax highlighting visual test', async ({ page }) => {
         <h1>CodeMirror Syntax Highlighting Test</h1>
         <div id="editor"></div>
         <script type="module">
-          import { CodeMirrorEditorView } from '/src/views/CodeMirrorEditorView.ts';
+          import { CodeMirrorEditorView } from '/src/components/floating-windows/CodeMirrorEditorView.ts';
 
           const content = \`# Test Document
 

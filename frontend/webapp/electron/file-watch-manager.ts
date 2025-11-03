@@ -3,6 +3,7 @@ import { promises as fs, statSync } from 'fs';
 import chokidar, { FSWatcher } from 'chokidar';
 import { app, BrowserWindow, dialog } from 'electron';
 import { checkBackendHealth, loadDirectory } from '../src/utils/backend-api';
+import type PositionManager from './position-manager';
 
 interface FileInfo {
   filePath: string;
@@ -17,6 +18,7 @@ class FileWatchManager {
   private initialScanFiles: FileInfo[] = [];
   private isInitialScan: boolean = true;
   private fileLimitExceeded: boolean = false;
+  private positionManager: PositionManager;
 
   // Get path to config file for storing last directory
   getConfigPath(): string {
@@ -58,16 +60,24 @@ class FileWatchManager {
     this.mainWindow = window;
   }
 
+  setPositionManager(manager: PositionManager): void {
+    this.positionManager = manager;
+  }
+
   async startWatching(directoryPath: string): Promise<{ success: boolean; directory?: string; error?: string }> {
     // If already watching the same directory, just return success and re-emit events
     // This prevents unnecessary restart on page reload while keeping renderer in sync
     if (this.watcher && this.watchedDirectory === directoryPath) {
       console.log(`[FileWatchManager] Already watching ${directoryPath}, skipping restart`);
 
+      // Load saved positions from disk
+      const positions = await this.positionManager.loadPositions(directoryPath);
+
       // Re-emit watching-started event for new renderer instance after reload
       this.sendToRenderer('watching-started', {
         directory: directoryPath,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        positions: positions
       });
 
       // Delay file resend to ensure renderer has set up event listeners
@@ -139,10 +149,14 @@ class FileWatchManager {
       console.log(`[FileWatchManager] Watcher created and listeners attached`);
       console.log(`[FileWatchManager] Started watching directory: ${directoryPath}`);
 
+      // Load saved positions from disk
+      const positions = await this.positionManager.loadPositions(directoryPath);
+
       // Emit watching-started event to sync UI state
       this.sendToRenderer('watching-started', {
         directory: directoryPath,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        positions: positions
       });
 
       // Save as last directory for auto-start on next launch

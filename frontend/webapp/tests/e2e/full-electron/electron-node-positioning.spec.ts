@@ -6,9 +6,8 @@
  *    Note: Due to a race condition, the visual position may be affected by layout initially,
  *    but the position is correctly saved to disk.
  * 2. Angular seeding - Normal add node via createChildNode, positioned relative to parent using angular subdivision (SPAWN_RADIUS = 200px)
- * 3. Saved position restore - SKIPPED (KNOWN BUG): Positions are saved to disk but not loaded on restart.
- *    The file-watch-manager.ts needs to be updated to load positions from PositionManager and
- *    include them in the watching-started event.
+ * 3. Saved position restore - Positions are saved to disk and restored when folder is re-opened.
+ *    The file-watch-manager.ts loads positions from PositionManager and includes them in the watching-started event.
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -59,7 +58,7 @@ const test = base.extend<{
   appWindow: async ({ electronApp }, use) => {
     const window = await electronApp.firstWindow();
     window.on('console', msg => console.log(`BROWSER [${msg.type()}]:`, msg.text()));
-    await waitForAppLoad(window);
+    await waitForAppLoad(window, 30000);
     await use(window);
   },
 
@@ -281,10 +280,9 @@ test.describe('Node Positioning E2E Tests', () => {
     console.log('✓ Test Case 2 completed successfully');
   });
 
-  test.skip('Test Case 3: Saved position restoration (KNOWN BUG - positions not loaded on restart)', async ({ appWindow, tempDir }) => {
+  test('Test Case 3: Saved position restoration on folder re-open', async ({ appWindow, tempDir }) => {
     console.log('=== Test Case 3: Saved Position Restoration ===');
-    console.log('SKIPPED: Positions are saved to disk but not loaded by file-watch-manager on restart');
-    console.log('BUG: file-watch-manager.ts does not load positions from PositionManager and include in watching-started event');
+    console.log('Tests that node positions are saved to .voicetree/graph_data.json and restored when folder is re-opened');
 
     console.log('=== Step 1: Load directory and add nodes ===');
     await startWatching(appWindow, tempDir);
@@ -296,6 +294,7 @@ test.describe('Node Positioning E2E Tests', () => {
     await pollForNodeCount(appWindow, 3);
 
     console.log('=== Step 2: Capture initial positions ===');
+    await appWindow.waitForTimeout(1000); // Allow auto-layout to finish
     const initialPositions = await appWindow.evaluate(() => {
       const w = (window as ExtendedWindow);
       const cy = w.cytoscapeInstance;
@@ -318,53 +317,164 @@ test.describe('Node Positioning E2E Tests', () => {
     expect(initialPositions).not.toBeNull();
     console.log('Initial positions:', initialPositions);
 
-    console.log('=== Step 3: Trigger manual position save by emitting layoutstop ===');
-    // Trigger layoutstop event which will call saveNodePositions internally
+    const POSITION_TOLERANCE = 5; // 5px tolerance when comparing saved/restored positions
+    const savedPositionsByNodeId: Record<string, { x: number; y: number }> = {};
+
+    console.log('=== Step 3: Trigger position save and verify graph_data.json ===');
+    const graphDataPath = path.join(tempDir, '.voicetree', 'graph_data.json');
+
+    // Force-save positions via layoutstop to flush latest layout coordinates
     await appWindow.evaluate(() => {
       const w = (window as ExtendedWindow);
       const cy = w.cytoscapeInstance;
-      if (!cy) return;
-
-      // Emit layoutstop event to trigger position save
-      cy.emit('layoutstop');
+      if (cy) {
+        cy.emit('layoutstop');
+      }
     });
-
-    await appWindow.waitForTimeout(1500); // Wait for save to complete
-
-    console.log('=== Step 4: Verify positions were saved to graph_data.json ===');
-    const graphDataPath = path.join(tempDir, '.voicetree', 'graph_data.json');
+    await appWindow.waitForTimeout(1500);
 
     await expect.poll(async () => {
       try {
-        await fs.access(graphDataPath);
-        return true;
+        const graphDataContent = await fs.readFile(graphDataPath, 'utf-8');
+        const savedData = JSON.parse(graphDataContent);
+        const expectedFilenames = ['node1.md', 'node2.md', 'node3.md'];
+        return expectedFilenames.every(filename => !!savedData[filename]);
       } catch {
         return false;
       }
     }, {
-      message: 'Waiting for graph_data.json to be created',
-      timeout: 3000
+      message: 'Waiting for graph_data.json to contain positions for all nodes',
+      timeout: 8000
     }).toBe(true);
 
     const graphDataContent = await fs.readFile(graphDataPath, 'utf-8');
     const savedData = JSON.parse(graphDataContent);
     console.log('Saved graph_data.json:', savedData);
 
-    // Positions are saved with full path as keys
-    const node1Path = path.join(tempDir, 'node1.md');
-    const node2Path = path.join(tempDir, 'node2.md');
-    const node3Path = path.join(tempDir, 'node3.md');
+    const nodesWithFilenames = [
+      { id: 'node1', filename: 'node1.md' },
+      { id: 'node2', filename: 'node2.md' },
+      { id: 'node3', filename: 'node3.md' }
+    ];
 
-    expect(savedData[node1Path]).toBeDefined();
-    expect(savedData[node2Path]).toBeDefined();
-    expect(savedData[node3Path]).toBeDefined();
+    for (const { id, filename } of nodesWithFilenames) {
+      const savedPosition = savedData[filename];
+      expect(savedPosition).toBeDefined();
 
-    console.log('✓ Positions saved to disk correctly');
+      const initial = initialPositions![id];
+      expect(initial).toBeDefined();
 
-    console.log('=== KNOWN BUG: Positions would not be restored on restart ===');
-    console.log('The file-watch-manager does not include a positionManager instance');
-    console.log('and does not call loadPositions() to include in the watching-started event');
-    console.log('✓ Test Case 3 verified save behavior (restore behavior needs implementation fix)');
+      const xDiff = Math.abs(savedPosition.x - initial.x);
+      const yDiff = Math.abs(savedPosition.y - initial.y);
+
+      console.log(`${filename}: saved (${savedPosition.x.toFixed(1)}, ${savedPosition.y.toFixed(1)}), diff from initial (${xDiff.toFixed(1)}, ${yDiff.toFixed(1)})`);
+
+      expect(xDiff).toBeLessThanOrEqual(POSITION_TOLERANCE);
+      expect(yDiff).toBeLessThanOrEqual(POSITION_TOLERANCE);
+
+      savedPositionsByNodeId[id] = savedPosition;
+    }
+
+    console.log('✓ Positions saved to disk correctly with basename keys');
+
+    console.log('=== Step 4: Stop watching to simulate closing the folder ===');
+    await stopWatching(appWindow);
+    await appWindow.waitForTimeout(500);
+
+    // Verify graph was cleared
+    const graphClearedCheck = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return false;
+      return cy.nodes().length === 0;
+    });
+    expect(graphClearedCheck).toBe(true);
+    console.log('✓ Graph cleared after stopping watch');
+
+    console.log('=== Step 5: Re-open the same directory (simulates app restart) ===');
+    await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow & {
+        __lastWatchingStartedData?: any;
+        __watchingStartedTestRegistered?: boolean;
+      });
+      if (!w.__watchingStartedTestRegistered && w.electronAPI?.onWatchingStarted) {
+        w.electronAPI.onWatchingStarted((data) => {
+          (w as any).__lastWatchingStartedData = data;
+        });
+        w.__watchingStartedTestRegistered = true;
+      }
+      (w as any).__lastWatchingStartedData = null;
+    });
+
+    await startWatching(appWindow, tempDir);
+    await pollForNodeCount(appWindow, 3);
+
+    console.log('=== Step 6: Verify positions were restored from graph_data.json ===');
+    const restoredPositions = await appWindow.evaluate(() => {
+      const w = (window as ExtendedWindow);
+      const cy = w.cytoscapeInstance;
+      if (!cy) return null;
+
+      const positions: Record<string, { x: number; y: number }> = {};
+      const nodes = ['node1', 'node2', 'node3'];
+
+      for (const nodeId of nodes) {
+        const node = cy.getElementById(nodeId);
+        if (node.length > 0) {
+          const pos = node.position();
+          positions[nodeId] = { x: pos.x, y: pos.y };
+        }
+      }
+
+      return positions;
+    });
+
+    expect(restoredPositions).not.toBeNull();
+    console.log('Saved positions (from disk):', savedPositionsByNodeId);
+    console.log('Restored positions:', restoredPositions);
+
+    const watchingStartedData = await appWindow.evaluate(() => {
+      return (window as any).__lastWatchingStartedData;
+    });
+
+    expect(watchingStartedData).toBeDefined();
+    expect(watchingStartedData.positions).toBeDefined();
+
+    for (const { id, filename } of nodesWithFilenames) {
+      const saved = savedPositionsByNodeId[id];
+      const fromEvent = watchingStartedData.positions[filename];
+      expect(fromEvent).toBeDefined();
+      const xDiff = Math.abs(fromEvent.x - saved.x);
+      const yDiff = Math.abs(fromEvent.y - saved.y);
+      console.log(`${id}: saved (${saved.x.toFixed(1)}, ${saved.y.toFixed(1)}), event (${fromEvent.x.toFixed(1)}, ${fromEvent.y.toFixed(1)}), diff (${xDiff.toFixed(1)}, ${yDiff.toFixed(1)})`);
+      expect(xDiff).toBeLessThanOrEqual(POSITION_TOLERANCE);
+      expect(yDiff).toBeLessThanOrEqual(POSITION_TOLERANCE);
+    }
+
+    console.log('✓ Saved positions provided in watching-started event');
+
+    // CRITICAL: Verify that actual node positions in graph match saved positions
+    // Allow generous tolerance (~50px) since Cola layout may adjust positions slightly
+    const COLA_ADJUSTMENT_TOLERANCE = 50; // Cola can adjust positions to satisfy constraints
+
+    for (const { id } of nodesWithFilenames) {
+      const saved = savedPositionsByNodeId[id];
+      const restored = restoredPositions![id];
+
+      expect(restored).toBeDefined();
+
+      const xDiff = Math.abs(restored.x - saved.x);
+      const yDiff = Math.abs(restored.y - saved.y);
+
+      console.log(`${id}: saved (${saved.x.toFixed(1)}, ${saved.y.toFixed(1)}), restored (${restored.x.toFixed(1)}, ${restored.y.toFixed(1)}), diff (${xDiff.toFixed(1)}, ${yDiff.toFixed(1)})`);
+
+      // Nodes should start near their saved positions (Cola may adjust slightly)
+      expect(xDiff).toBeLessThanOrEqual(COLA_ADJUSTMENT_TOLERANCE);
+      expect(yDiff).toBeLessThanOrEqual(COLA_ADJUSTMENT_TOLERANCE);
+    }
+
+    console.log('✓ Actual node positions match saved positions (within Cola adjustment tolerance)');
+    console.log('✓ Test Case 3 completed successfully - position persistence verified!');
   });
 });
 

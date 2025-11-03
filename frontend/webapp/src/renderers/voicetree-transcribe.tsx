@@ -12,6 +12,7 @@ import { type Token } from "@soniox/speech-to-text-web";
 export default function VoiceTreeTranscribe() {
   const [textInput, setTextInput] = useState("");
   const [allFinalTokens, setAllFinalTokens] = useState<Token[]>([]);
+  const [backendPort, setBackendPort] = useState<number | undefined>(undefined);
 
   const {
     state,
@@ -24,6 +25,15 @@ export default function VoiceTreeTranscribe() {
     apiKey: getAPIKey,
   });
 
+  // Fetch backend port on mount
+  useEffect(() => {
+    window.electronAPI?.getBackendPort().then((port: number | null) => {
+      if (port) {
+        setBackendPort(port);
+      }
+    });
+  }, []);
+
   // Use the new transcription sender hook
   const {
     sendIncrementalTokens,
@@ -33,7 +43,7 @@ export default function VoiceTreeTranscribe() {
     connectionError,
     reset: resetSender,
   } = useTranscriptionSender({
-    endpoint: "http://localhost:8001/send-text",
+    endpoint: backendPort ? `http://localhost:${backendPort}/send-text` : "http://localhost:8001/send-text",
   });
 
   // Track how many voice tokens we've seen to append new ones only
@@ -175,7 +185,7 @@ export default function VoiceTreeTranscribe() {
         {/* Status Bar */}
         <div className="flex items-center justify-between px-4 py-1 text-xs bg-muted/30">
           <div className="flex items-center gap-4">
-            <StatusDisplay state={state} />
+            <StatusDisplay state={state} port={backendPort} />
             {bufferLength > 0 && (
               <span className="text-muted-foreground">
                 Buffer: <span className="font-mono font-semibold text-primary">{bufferLength}</span>

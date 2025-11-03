@@ -34,6 +34,8 @@ import { FloatingWindowManager } from './FloatingWindowManager';
 import { HotkeyManager } from './HotkeyManager';
 import { SearchService } from './SearchService';
 import { GraphNavigationService } from './GraphNavigationService';
+import { getResponsivePadding } from '@/utils/responsivePadding';
+import type { IMarkdownVaultProvider, Disposable as VaultDisposable } from '@/providers/IMarkdownVaultProvider';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -43,6 +45,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   private cy!: CytoscapeCore; // Initialized in render() called from constructor
   private container: HTMLElement;
   private options: VoiceTreeGraphViewOptions;
+  private vaultProvider: IMarkdownVaultProvider;
 
   // Managers
   private fileEventManager: FileEventManager;
@@ -53,6 +56,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   // State
   private _isDarkMode = false;
+
+  // Vault event disposables
+  private vaultDisposables: VaultDisposable[] = [];
 
   // DOM elements
   private statsOverlay: HTMLElement | null = null;
@@ -69,12 +75,17 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // Bound event handlers for cleanup
   private handleResize!: () => void;
 
+  // Debounce timer for position saving
+  private savePositionsTimeout: NodeJS.Timeout | null = null;
+
   constructor(
     container: HTMLElement,
+    vaultProvider: IMarkdownVaultProvider,
     options: VoiceTreeGraphViewOptions = {}
   ) {
     super();
     this.container = container;
+    this.vaultProvider = vaultProvider;
     this.options = options;
 
     // Initialize dark mode
@@ -86,6 +97,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Initialize managers (after cy is created in render())
     this.fileEventManager = new FileEventManager(
       this.cy,
+      this.vaultProvider,
       (stats) => this.handleStatsChanged(stats)
     );
     this.hotkeyManager = new HotkeyManager();
@@ -223,6 +235,18 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       this.layoutCompleteEmitter.emit();
     });
 
+    // Save positions when user finishes dragging nodes
+    core.on('free', 'node', () => {
+      console.log('[VoiceTreeGraphView] Node drag ended, saving positions...');
+      // Debounce to avoid too many saves
+      if (this.savePositionsTimeout) {
+        clearTimeout(this.savePositionsTimeout);
+      }
+      this.savePositionsTimeout = setTimeout(() => {
+        this.fileEventManager.saveNodePositions();
+      }, 1000); // Wait 1 second after last drag
+    });
+
     // Setup tap handler for nodes (skip in headless mode)
     if (!this.options.headless) {
       console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
@@ -273,10 +297,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.floatingWindowManager.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
           }
         },
-        addNodeAtPosition: async () => {
-          // This is handled by FloatingWindowManager via context menu
-          // For testing, we can call it directly if needed
-          alert('Use context menu for adding nodes at position');
+        addNodeAtPosition: async (position: { x: number; y: number }) => {
+          // For testing: directly invoke the context menu handler
+          const contextMenu = (core as any).contextMenus;
+          if (contextMenu?._config?.onAddNodeAtPosition) {
+            await contextMenu._config.onAddNodeAtPosition(position);
+          } else {
+            console.error('[TestHelpers] onAddNodeAtPosition handler not found');
+          }
         },
         getEditorInstance: undefined // Will be set below
       };
@@ -300,6 +328,14 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Window resize
     window.addEventListener('resize', this.handleResize);
 
+    // Save positions before window closes
+    const handleBeforeUnload = () => {
+      console.log('[VoiceTreeGraphView] Window closing, saving positions...');
+      // Use synchronous IPC if available, otherwise just log
+      this.fileEventManager.saveNodePositions();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     // Focus container to ensure it receives keyboard events
     this.container.focus();
 
@@ -322,27 +358,45 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   private setupFileListeners(): void {
-    // Subscribe to all file watcher events via window.electronAPI
-    if (!window.electronAPI) {
-      console.warn('[VoiceTreeGraphView] electronAPI not available');
-      return;
-    }
+    // Subscribe to all file watcher events via vault provider
+    this.vaultDisposables.push(
+      this.vaultProvider.onFilesLoaded((files) => {
+        this.handleBulkFilesAdded({ files });
+      })
+    );
 
-    window.electronAPI.onInitialFilesLoaded((data) => {
-      this.handleBulkFilesAdded({ files: data.files });
-    });
-    window.electronAPI.onFileAdded(this.handleFileAdded.bind(this));
-    window.electronAPI.onFileChanged(this.handleFileChanged.bind(this));
-    window.electronAPI.onFileDeleted((data) => {
-      this.handleFileDeleted({ fullPath: data.fullPath });
-    });
-    window.electronAPI.onFileWatchingStopped(this.handleWatchingStopped.bind(this));
+    this.vaultDisposables.push(
+      this.vaultProvider.onFileAdded((file) => {
+        this.handleFileAdded(file);
+      })
+    );
 
-    if (window.electronAPI.onWatchingStarted) {
-      window.electronAPI.onWatchingStarted((data) => {
-        this.handleWatchingStarted({ directory: data.directory });
-      });
-    }
+    this.vaultDisposables.push(
+      this.vaultProvider.onFileChanged((file) => {
+        this.handleFileChanged(file);
+      })
+    );
+
+    this.vaultDisposables.push(
+      this.vaultProvider.onFileDeleted((fullPath) => {
+        this.handleFileDeleted({ fullPath });
+      })
+    );
+
+    this.vaultDisposables.push(
+      this.vaultProvider.onWatchingStopped(() => {
+        this.handleWatchingStopped();
+      })
+    );
+
+    this.vaultDisposables.push(
+      this.vaultProvider.onWatchingStarted((event) => {
+        this.handleWatchingStarted({
+          directory: event.directory,
+          positions: event.positions
+        });
+      })
+    );
   }
 
   // ============================================================================
@@ -532,15 +586,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Remove window event listeners
     window.removeEventListener('resize', this.handleResize);
 
-    // Remove electron API listeners
-    if (window.electronAPI) {
-      window.electronAPI.removeAllListeners('initial-files-loaded');
-      window.electronAPI.removeAllListeners('file-added');
-      window.electronAPI.removeAllListeners('file-changed');
-      window.electronAPI.removeAllListeners('file-deleted');
-      window.electronAPI.removeAllListeners('file-watching-stopped');
-      window.electronAPI.removeAllListeners('watching-started');
-    }
+    // Dispose vault event listeners
+    this.vaultDisposables.forEach(disposable => disposable.dispose());
+    this.vaultDisposables = [];
 
     // Dispose managers
     this.hotkeyManager.dispose();

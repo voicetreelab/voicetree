@@ -6,9 +6,9 @@
  */
 
 import type cytoscape from 'cytoscape';
-import { TerminalVanilla } from '@/components/floating-windows/editors/TerminalVanilla';
-import { CodeMirrorEditorView } from '@/views/CodeMirrorEditorView';
-import { TestComponent } from '@/components/floating-windows/editors/TestComponent';
+import { TerminalVanilla } from '@/components/floating-windows/TerminalVanilla.ts';
+import { CodeMirrorEditorView } from '@/components/floating-windows/CodeMirrorEditorView.ts';
+import { TestComponent } from '@/components/floating-windows/TestComponent.ts';
 
 export interface FloatingWindowConfig {
   id: string;
