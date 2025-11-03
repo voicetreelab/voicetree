@@ -9,9 +9,13 @@ import os
 from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 
 from backend.markdown_tree_manager.markdown_tree_ds import MarkdownTree, Node
 from cloud_functions.agentic_workflows.http_client import ConnectOrphansAgentHTTPClient
+
+# Load environment variables from .env file
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -137,10 +141,7 @@ class TestOrphanConnectionHTTPClient:
         orphan_url = os.getenv("ORPHAN_AGENT_URL")
 
         if not orphan_url:
-            print("\n⚠️  ORPHAN_AGENT_URL not set - skipping HTTP call test")
-            print("   To test the full HTTP path, set ORPHAN_AGENT_URL environment variable")
-            pytest.skip("ORPHAN_AGENT_URL not set - serialization test passed")
-            return
+            pytest.fail("ORPHAN_AGENT_URL environment variable not set. Please set it in .env file or export it.")
 
         print(f"\n=== Testing HTTP Call to Cloud Function ===")
         print(f"URL: {orphan_url}")
@@ -150,14 +151,13 @@ class TestOrphanConnectionHTTPClient:
 
         # Test the HTTP client call (this will call tree.to_dict() internally)
         try:
-            actions, parent_child_mapping = await http_client.run(
+            actions = await http_client.run(
                 tree=tree,
                 max_roots_to_process=10
             )
 
             print(f"\n✅ HTTP client call succeeded")
             print(f"   Returned {len(actions)} actions")
-            print(f"   Parent-child mapping: {parent_child_mapping}")
 
             if actions:
                 print("\n=== Actions Created ===")
@@ -171,7 +171,6 @@ class TestOrphanConnectionHTTPClient:
 
             # Verify the response structure
             assert isinstance(actions, list), "Actions should be a list"
-            assert isinstance(parent_child_mapping, dict), "Parent-child mapping should be a dict"
 
         except Exception as e:
             pytest.fail(f"HTTP client call failed: {e}")
@@ -265,10 +264,7 @@ class TestOrphanConnectionHTTPClient:
         orphan_url = os.getenv("ORPHAN_AGENT_URL")
 
         if not orphan_url:
-            print("\n⚠️  ORPHAN_AGENT_URL not set - skipping full e2e test")
-            print("   To test the full HTTP path, set ORPHAN_AGENT_URL environment variable")
-            pytest.skip("ORPHAN_AGENT_URL not set")
-            return
+            pytest.fail("ORPHAN_AGENT_URL environment variable not set. Please set it in .env file or export it.")
 
         print(f"\n=== Calling Cloud Function ===")
         print(f"URL: {orphan_url}")
@@ -277,14 +273,13 @@ class TestOrphanConnectionHTTPClient:
         http_client = ConnectOrphansAgentHTTPClient(orphan_url)
 
         # Call the HTTP client (this will use to_dict() internally)
-        actions, parent_child_mapping = await http_client.run(
+        actions = await http_client.run(
             tree=tree,
             max_roots_to_process=10
         )
 
         print(f"\n=== HTTP Client Results ===")
         print(f"Actions returned: {len(actions)}")
-        print(f"Parent-child mapping: {parent_child_mapping}")
 
         # Debug: Check if children_to_link is populated
         for i, action in enumerate(actions):

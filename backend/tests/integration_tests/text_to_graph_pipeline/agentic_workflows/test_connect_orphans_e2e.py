@@ -97,7 +97,7 @@ class TestConnectOrphansE2E:
 
         # Run the connect orphans agent directly
         agent = ConnectOrphansAgent()
-        actions, parent_child_mapping = await agent.run(tree, max_roots_to_process=20)
+        actions = await agent.run(tree, max_roots_to_process=20)
 
         print("\n=== Connect Orphans Agent Results ===")
         print(f"Created {len(actions)} actions")
@@ -243,77 +243,37 @@ class TestConnectOrphansE2E:
         print("\n=== Testing Actual Parent Connection ===")
         print(f"Initial orphans: {initial_orphan_count}")
 
-        # Create an enhanced version of ConnectOrphansAgent that actually connects
+        # Run the connect orphans agent
+        # Agent now uses children_to_link which is handled automatically by TreeActionApplier
         agent = ConnectOrphansAgent()
-
-        # Override the create_connection_actions to include UpdateActions
-        original_create_actions = agent.create_connection_actions
-
-        def enhanced_create_actions(response, roots):
-            """Enhanced version that includes UpdateActions to set parent_id"""
-            # Unpack the tuple returned by original_create_actions
-            actions, parent_child_mapping = original_create_actions(response, roots)
-
-            # For each CreateAction (parent node), add UpdateActions for children
-            enhanced_actions = []
-            for action in actions:
-                enhanced_actions.append(action)
-
-                # Find which roots should be connected to this parent
-                for grouping in response.groupings:
-                    if grouping.synthetic_parent_title == action.new_node_name:
-                        # Extract child titles from the new structure
-                        child_titles = [child.child_title for child in grouping.children]
-                        # Map titles to IDs
-                        root_ids = agent._map_titles_to_ids(
-                            child_titles,
-                            roots
-                        )
-
-                        # Create UpdateActions to connect orphans to parent
-                        for root_id in root_ids:
-                            if root_id in tree.tree:
-                                update_action = UpdateAction(
-                                    action="UPDATE",
-                                    node_id=root_id,
-                                    parent_node_id=action.new_node_name,  # Will need ID after creation
-                                    new_content="",  # Empty string instead of None
-                                    new_summary=""   # Empty string instead of None
-                                )
-                                enhanced_actions.append(update_action)
-
-            return enhanced_actions, parent_child_mapping
-
-        # Temporarily replace the method
-        agent.create_connection_actions = enhanced_create_actions
-
-        # Run the agent
-        actions, _ = await agent.run(tree, max_roots_to_process=15)
+        actions = await agent.run(tree, max_roots_to_process=15)
 
         print(f"Generated {len(actions)} actions")
 
-        # Separate create and update actions
+        # All actions should be CreateActions with children_to_link populated
         create_actions = [a for a in actions if isinstance(a, CreateAction)]
-        update_actions = [a for a in actions if isinstance(a, UpdateAction)]
 
-        print(f"  - {len(create_actions)} CreateActions (new parent nodes)")
-        print(f"  - {len(update_actions)} UpdateActions (connect orphans)")
+        print(f"  - {len(create_actions)} CreateActions (new parent nodes with children_to_link)")
 
         # Verify the actions are structured correctly
         if create_actions:
             print("\nParent nodes to create:")
             for action in create_actions[:3]:  # Show first 3
                 print(f"  - {action.new_node_name}")
-
-        if update_actions:
-            print(f"\nOrphans to connect: {len(update_actions)}")
-            # Note: In real implementation, we'd need to handle node ID mapping properly
+                if hasattr(action, 'children_to_link') and action.children_to_link:
+                    print(f"    Will link {len(action.children_to_link)} children: {action.children_to_link}")
 
         # Write the tree to markdown (before applying actions to show initial state)
         self.write_tree_to_markdown_output(tree, "test_connect_orphans_agent_with_actual_connections")
 
-        # The test passes if we generate both create and update actions
+        # The test passes if we generate actions or none if no good groupings
         assert len(actions) >= 0, "Should generate some actions or none if no good groupings"
+
+        # Verify that children_to_link is populated in the actions
+        for action in create_actions:
+            assert hasattr(action, 'children_to_link'), "CreateAction should have children_to_link attribute"
+            if action.children_to_link:
+                print(f"✓ {action.new_node_name} has {len(action.children_to_link)} children to link")
 
 
 if __name__ == "__main__":

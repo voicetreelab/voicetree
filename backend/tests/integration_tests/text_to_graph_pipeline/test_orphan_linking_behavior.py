@@ -138,7 +138,7 @@ class TestOrphanLinkingBehavior:
 
                 # Run the agent
                 agent = ConnectOrphansAgent()
-                actions, _ = await agent.run(tree, max_roots_to_process=10)
+                actions = await agent.run(tree, max_roots_to_process=10)
 
                 # ASSERTIONS: Verify the behavior
                 if actions:  # Agent might not create groups if it doesn't find relationships
