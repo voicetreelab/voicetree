@@ -214,7 +214,7 @@ Currently our pure functions return `DBIO` and `UIIO` as stubs. Now we implement
 
 ### DBIO - Database/Filesystem Effects
 
-**In:** `src/graph-core/functional/apply-graph-updates.ts`
+**In:** `src/graph-core/functional/mapGraphActionsToDBEvents.ts`
 
 ```typescript
 function persistAction(action: NodeAction, vaultPath: string): DBIO<void> {
@@ -264,7 +264,7 @@ const [newGraph, dbEffect] = apply(currentGraph, action)
 
 ### UIIO - UI Broadcast Effects
 
-**In:** `src/graph-core/functional/apply-db-updates.ts`
+**In:** `src/graph-core/functional/mapFSEventToGraph.ts`
 
 ```typescript
 function broadcastGraph(graph: Graph): UIIO<void> {
