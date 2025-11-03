@@ -14,6 +14,11 @@ export default defineConfig({
     // Configuration for electron main process
     plugins: [externalizeDepsPlugin()],
     logLevel: 'error',
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
+      }
+    },
     build: {
       outDir: 'dist-electron/main',
       logLevel: 'error',
@@ -31,6 +36,11 @@ export default defineConfig({
     // Configuration for preload script
     plugins: [externalizeDepsPlugin()],
     logLevel: 'error',
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
+      }
+    },
     build: {
       outDir: 'dist-electron/preload',
       logLevel: 'error',

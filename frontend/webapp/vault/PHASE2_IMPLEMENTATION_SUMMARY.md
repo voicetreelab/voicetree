@@ -94,7 +94,7 @@ This allows parallel operation with the existing system.
 ### Core Functional Layer
 
 **Modified:**
-- `/src/graph-core/functional/mapGraphActionsToDBEvents.ts`
+- `/src/graph-core/functional/applyGraphActionsToDB.ts`
   - Added currying for vaultPath injection
   - Implemented real DBIO effects (fs.writeFile, fs.unlink)
   - Changed Updat Here's how to refactor to the Reader + Environment pattern:
@@ -356,7 +356,7 @@ This allows parallel operation with the existing system.
   dependencies!
 eNode to throw on missing node (fail fast)
 
-- `/src/graph-core/functional/mapFSEventToGraph.ts`
+- `/src/graph-core/functional/applyFSEventToGraph.ts`
   - Added currying for broadcast function injection
   - Implemented real UIIO effects (broadcast to renderer)
   - Implemented file parsing (extractNodeIdFromPath, parseLinksFromContent)

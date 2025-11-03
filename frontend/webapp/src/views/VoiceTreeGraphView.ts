@@ -292,7 +292,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       (window as any).cytoscapeInstance = core;
       (window as any).cytoscapeCore = this.cy;
 
-      // Expose test helpers for e2e tests
+      // Expose test markdown_parsing for e2e tests
       (window as any).testHelpers = {
         createTerminal: (nodeId: string) => {
           const filePath = this.fileEventManager.getFilePathForNode(nodeId);

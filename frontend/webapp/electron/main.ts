@@ -8,6 +8,10 @@ import TerminalManager from './terminal-manager';
 import MarkdownNodeManager from './markdown-node-manager';
 import PositionManager from './position-manager';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup';
+import { loadGraphFromDisk } from '../src/functional_graph/shell/main/load-graph-from-disk';
+import { setupGraphIpcHandlers } from './handlers/ipc-graph-handlers';
+import { setupFileWatchHandlers } from './handlers/file-watch-handlers';
+import type { Graph } from '../src/functional_graph/pure/types';
 
 // Fix PATH for macOS/Linux GUI apps
 // This ensures the Electron process and all child processes have access to
@@ -40,6 +44,27 @@ const positionManager = new PositionManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
+
+// ============================================================================
+// Functional Graph Architecture (Phase 2)
+// ============================================================================
+// Feature flag to enable/disable functional architecture
+const USE_FUNCTIONAL_GRAPH = process.env.FUNCTIONAL_GRAPH === 'true' || true; // Default to true for Phase 2
+
+// The ONLY mutable state in the functional architecture
+let currentGraph: Graph | null = null;
+
+// Getter/setter for controlled access to graph state
+const getGraph = (): Graph => {
+  if (!currentGraph) {
+    throw new Error('Graph not initialized');
+  }
+  return currentGraph;
+};
+
+const setGraph = (graph: Graph): void => {
+  currentGraph = graph;
+};
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -77,6 +102,26 @@ function createWindow() {
     const lastDirectory = await fileWatchManager.loadLastDirectory();
     if (lastDirectory) {
       console.log(`[AutoWatch] Found last directory: ${lastDirectory}`);
+
+      // Initialize functional graph if enabled
+      if (USE_FUNCTIONAL_GRAPH) {
+        try {
+          console.log('[FunctionalGraph] Loading graph from disk...');
+          const loadGraph = loadGraphFromDisk(lastDirectory);
+          currentGraph = await loadGraph();
+          console.log(`[FunctionalGraph] Loaded ${Object.keys(currentGraph.nodes).length} nodes`);
+
+          // Setup handlers now that graph is initialized
+          const broadcast = (graph: Graph) => {
+            mainWindow.webContents.send('graph:stateChanged', graph);
+          };
+          setupGraphIpcHandlers(getGraph, setGraph, lastDirectory, broadcast);
+          setupFileWatchHandlers(fileWatchManager, getGraph, setGraph, mainWindow, lastDirectory);
+        } catch (error) {
+          console.error('[FunctionalGraph] Failed to load graph:', error);
+        }
+      }
+
       console.log(`[AutoWatch] Auto-starting watch...`);
       await fileWatchManager.startWatching(lastDirectory);
     }
@@ -158,6 +203,30 @@ ipcMain.handle('start-file-watching', async (event, directoryPath) => {
       }
 
       selectedDirectory = result.filePaths[0];
+    }
+
+    // Initialize functional graph if enabled and not already initialized for this directory
+    if (USE_FUNCTIONAL_GRAPH) {
+      try {
+        console.log('[FunctionalGraph] Loading graph from disk...');
+        const loadGraph = loadGraphFromDisk(selectedDirectory);
+        currentGraph = await loadGraph();
+        console.log(`[FunctionalGraph] Loaded ${Object.keys(currentGraph.nodes).length} nodes`);
+
+        // Get main window for handlers
+        const mainWindow = BrowserWindow.getAllWindows()[0];
+        if (mainWindow) {
+          // Setup handlers now that graph is initialized
+          const broadcast = (graph: Graph) => {
+            mainWindow.webContents.send('graph:stateChanged', graph);
+          };
+          setupGraphIpcHandlers(getGraph, setGraph, selectedDirectory, broadcast);
+          setupFileWatchHandlers(fileWatchManager, getGraph, setGraph, mainWindow, selectedDirectory);
+        }
+      } catch (error) {
+        console.error('[FunctionalGraph] Failed to load graph:', error);
+        // Continue with file watching even if functional graph fails
+      }
     }
 
     return await fileWatchManager.startWatching(selectedDirectory);

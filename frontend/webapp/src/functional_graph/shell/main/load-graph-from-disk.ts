@@ -1,8 +1,8 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import type { Graph, NodeId } from '@/graph-core/functional/types'
-import { parseMarkdownToGraphNode } from './parse-markdown-to-node'
-import { extractLinkedNodeIds } from './extract-linked-node-ids'
+import type { Graph, NodeId } from '@/functional_graph/pure/types.ts'
+import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown_parsing/parse-markdown-to-node.ts'
+import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids.ts'
 
 /**
  * Loads a graph from the filesystem.
@@ -52,25 +52,27 @@ export function loadGraphFromDisk(vaultPath: string): () => Promise<Graph> {
  * @returns Array of relative file paths (e.g., ["note.md", "subfolder/other.md"])
  */
 async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> {
-  const allFiles: readonly string[] = []
-
-  async function scan(dirPath: string, relativePath = ''): Promise<void> {
+  async function scan(dirPath: string, relativePath = ''): Promise<readonly string[]> {
     const entries = await fs.readdir(dirPath, { withFileTypes: true })
 
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name)
-      const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name
+    const results = await Promise.all(
+      entries.map(async (entry) => {
+        const fullPath = path.join(dirPath, entry.name)
+        const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name
 
-      if (entry.isDirectory()) {
-        await scan(fullPath, relPath)
-      } else if (entry.isFile() && entry.name.endsWith('.md')) {
-        allFiles.push(relPath)
-      }
-    }
+        if (entry.isDirectory()) {
+          return scan(fullPath, relPath)
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          return [relPath]
+        }
+        return []
+      })
+    )
+
+    return results.flat()
   }
 
-  await scan(vaultPath)
-  return allFiles
+  return scan(vaultPath)
 }
 
 /**
@@ -84,16 +86,15 @@ async function loadNodes(
   vaultPath: string,
   files: readonly string[]
 ): Promise<Record<NodeId, Graph['nodes'][NodeId]>> {
-  const nodes: Record<NodeId, Graph['nodes'][NodeId]> = {}
-
-  for (const file of files) {
+  const nodePromises = files.map(async (file) => {
     const fullPath = path.join(vaultPath, file)
     const content = await fs.readFile(fullPath, 'utf-8')
     const node = parseMarkdownToGraphNode(content, file)
-    nodes[node.id] = node
-  }
+    return [node.id, node] as const
+  })
 
-  return nodes
+  const nodeEntries = await Promise.all(nodePromises)
+  return Object.fromEntries(nodeEntries)
 }
 
 /**
@@ -105,12 +106,10 @@ async function loadNodes(
  * @returns Adjacency list mapping node ID to array of linked node IDs
  */
 function buildEdges(nodes: Record<NodeId, Graph['nodes'][NodeId]>): Graph['edges'] {
-  const edges: Record<NodeId, readonly NodeId[]> = {}
-
-  for (const [nodeId, node] of Object.entries(nodes)) {
+  const edgeEntries = Object.entries(nodes).map(([nodeId, node]) => {
     const linkedIds = extractLinkedNodeIds(node.content, nodes)
-    edges[nodeId] = linkedIds
-  }
+    return [nodeId, linkedIds] as const
+  })
 
-  return edges
+  return Object.fromEntries(edgeEntries)
 }

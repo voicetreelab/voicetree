@@ -3,7 +3,7 @@
  *
  * This module implements a functional approach to graph state management:
  *
- * - Pure projection: Graph domain model → Cytoscape UI representation
+ * - Pure projection: Graph pure model → Cytoscape UI representation
  * - Idempotent reconciliation: Rendering same graph state has no effect
  * - Action-based mutations: All changes go through well-typed actions
  * - Single source of truth: Graph state lives in main process
@@ -35,15 +35,14 @@ export type {
   CytoscapeElements,
   CytoscapeNodeElement,
   CytoscapeEdgeElement
-} from './types'
+} from '@/functional_graph/pure/types.ts'
 
 // Pure functions
-export { projectToCytoscape } from './project-to-cytoscape'
+export { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape.ts'
 export {
   createCreateNodeAction,
   createUpdateNodeAction,
   createDeleteNodeAction
-} from './action-creators'
+} from '@/functional_graph/pure/action-creators.ts'
 
-// State management
-export { GraphStateManager } from './GraphStateManager'
+// State management - GraphStateManager removed (commented out in source)

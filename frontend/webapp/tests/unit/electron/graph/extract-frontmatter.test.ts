@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractFrontmatter } from '../../../../electron/graph/extract-frontmatter'
+import { extractFrontmatter } from '../../../../src/functional_graph/pure/markdown_parsing/extract-frontmatter'
 
 describe('extractFrontmatter', () => {
   it('should extract all frontmatter fields', () => {
@@ -85,7 +85,7 @@ another: 123
     })
   })
 
-  it('should handle malformed YAML frontmatter gracefully', () => {
+  it('should fail fast on malformed YAML frontmatter', () => {
     const content = `---
 node_id: "123"
 title: Invalid YAML: missing quotes cause problems
@@ -93,15 +93,8 @@ summary: This is not properly quoted
 ---
 # Content`
 
-    const result = extractFrontmatter(content)
-
-    // Should return empty frontmatter on parse error
-    expect(result).toEqual({
-      node_id: undefined,
-      title: undefined,
-      summary: undefined,
-      color: undefined
-    })
+    // Should throw on malformed YAML - fail fast, no error handling
+    expect(() => extractFrontmatter(content)).toThrow()
   })
 
   it('should normalize numeric node_id to string', () => {

@@ -80,5 +80,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Backend log streaming
   onBackendLog: (callback) => {
     ipcRenderer.on('backend-log', (event, log) => callback(log));
+  },
+
+  // Functional graph API (Phase 3)
+  graph: {
+    // Action dispatchers - send actions to main process
+    createNode: (action) => ipcRenderer.invoke('graph:createNode', action),
+    updateNode: (action) => ipcRenderer.invoke('graph:updateNode', action),
+    deleteNode: (action) => ipcRenderer.invoke('graph:deleteNode', action),
+
+    // Query current graph state
+    getState: () => ipcRenderer.invoke('graph:getState'),
+
+    // Subscribe to graph state broadcasts
+    onStateChanged: (callback) => {
+      ipcRenderer.on('graph:stateChanged', (event, graph) => callback(graph));
+    }
   }
 });

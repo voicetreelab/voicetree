@@ -94,13 +94,12 @@ async function setupToolsDirectoryInternal(): Promise<void> {
       backendSourcePath = path.join(process.resourcesPath, 'backend');
       console.log('[Setup] Packaged app - copying from:', process.resourcesPath);
     } else {
-      // Development: Use project root
+      // Development: Copy directly from repo source
       const appPath = app.getAppPath();
       const projectRoot = path.resolve(appPath, '../..');
-      const resourcesPath = path.join(projectRoot, 'dist', 'resources');
-      toolsSourcePath = path.join(resourcesPath, 'tools');
-      backendSourcePath = path.join(resourcesPath, 'backend');
-      console.log('[Setup] Development - copying from:', resourcesPath);
+      toolsSourcePath = path.join(projectRoot, 'tools');
+      backendSourcePath = path.join(projectRoot, 'backend');
+      console.log('[Setup] Development - copying from repo:', projectRoot);
     }
 
     // Verify source directories exist
@@ -122,23 +121,26 @@ async function setupToolsDirectoryInternal(): Promise<void> {
     }
 
     if (!toolsExist && !backendExist) {
-      console.error('[Setup] Neither tools nor backend directories found. Run build_and_package_all.sh to bundle resources.');
-      return;
+      console.warn('[Setup] Neither tools nor backend directories found. Creating empty directories.');
     }
 
-    // Create parent directory if needed
-    await fs.mkdir(path.dirname(toolsDestPath), { recursive: true });
+    // Always create tools directory (for terminal cwd)
+    await fs.mkdir(toolsDestPath, { recursive: true });
+    console.log('[Setup] ✓ Created tools directory at:', toolsDestPath);
 
-    // Copy tools directory if it exists (async)
+    // Copy tools directory if source exists (async)
     if (toolsExist) {
       await copyDir(toolsSourcePath, toolsDestPath);
-      console.log('[Setup] ✓ Successfully copied tools to:', toolsDestPath);
+      console.log('[Setup] ✓ Copied tools to:', toolsDestPath);
     }
 
-    // Copy backend directory if it exists (async)
+    // Create backend directory if needed
+    await fs.mkdir(backendDestPath, { recursive: true });
+
+    // Copy backend directory if source exists (async)
     if (backendExist) {
       await copyDir(backendSourcePath, backendDestPath);
-      console.log('[Setup] ✓ Successfully copied backend to:', backendDestPath);
+      console.log('[Setup] ✓ Copied backend to:', backendDestPath);
     }
 
     console.log('[Setup] Setup complete!');

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as path from 'path'
-import { loadGraphFromDisk } from '../../../electron/graph/load-graph-from-disk'
+import { loadGraphFromDisk } from '../../../src/functional_graph/shell/main/load-graph-from-disk'
 
 describe('loadGraphFromDisk - integration test with real vault', () => {
   // Use the root markdownTreeVault which has actual content

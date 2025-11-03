@@ -1,16 +1,30 @@
-import { describe, it, expect } from 'vitest'
-import { apply_graph_updates } from '../../../../src/graph-core/functional/apply-graph-updates'
-import { Graph, CreateNode, UpdateNode, DeleteNode, GraphNode } from '../../../../src/graph-core/functional/types'
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { apply_graph_updates } from '../../../../src/functional_graph/pure/applyGraphActionsToDB'
+import { Graph, CreateNode, UpdateNode, DeleteNode, GraphNode, Env } from '../../../../src/functional_graph/pure/types'
 import * as O from 'fp-ts/Option'
+import * as E from 'fp-ts/Either'
 import { tmpdir } from 'os'
 import path from 'path'
+import { promises as fs } from 'fs'
 
 describe('apply_graph_updates', () => {
-  // Mock vault path for testing
-  const testVaultPath = path.join(tmpdir(), 'test-vault')
+  const testVaultPath = path.join(tmpdir(), 'test-vault-reader-monad')
 
-  // Create the curried function with test vault path
-  const applyUpdate = apply_graph_updates(testVaultPath)
+  // Mock environment for testing
+  const testEnv: Env = {
+    vaultPath: testVaultPath,
+    broadcast: vi.fn()
+  }
+
+  // Create test vault directory before all tests
+  beforeAll(async () => {
+    await fs.mkdir(testVaultPath, { recursive: true })
+  })
+
+  // Clean up test vault directory after all tests
+  afterAll(async () => {
+    await fs.rm(testVaultPath, { recursive: true, force: true })
+  })
 
   // Helper to create an empty graph
   const emptyGraph = (): Graph => ({
@@ -33,7 +47,7 @@ describe('apply_graph_updates', () => {
   })
 
   describe('CreateNode', () => {
-    it('should create a new node in the graph', () => {
+    it('should create a new node in the graph', async () => {
       const graph = emptyGraph()
       const action: CreateNode = {
         type: 'CreateNode',
@@ -42,19 +56,25 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const [updatedGraph, dbEffect] = applyUpdate(graph, action)
+      // Create effect (pure - no execution)
+      const effect = apply_graph_updates(graph, action)
 
-      // Verify the node was added to the graph
-      expect(updatedGraph.nodes['node-1']).toBeDefined()
-      expect(updatedGraph.nodes['node-1'].id).toBe('node-1')
-      expect(updatedGraph.nodes['node-1'].content).toBe('# New Node\n\nThis is content')
-      expect(updatedGraph.nodes['node-1'].title).toBe('New Node')
+      // Execute effect with environment
+      const result = await effect(testEnv)()
 
-      // Verify DB effect is returned
-      expect(typeof dbEffect).toBe('function')
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        const updatedGraph = result.right
+
+        // Verify the node was added to the graph
+        expect(updatedGraph.nodes['node-1']).toBeDefined()
+        expect(updatedGraph.nodes['node-1'].id).toBe('node-1')
+        expect(updatedGraph.nodes['node-1'].content).toBe('# New Node\n\nThis is content')
+        expect(updatedGraph.nodes['node-1'].title).toBe('New Node')
+      }
     })
 
-    it('should extract title from markdown header', () => {
+    it('should extract title from markdown header', async () => {
       const graph = emptyGraph()
       const action: CreateNode = {
         type: 'CreateNode',
@@ -63,12 +83,16 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const [updatedGraph] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
-      expect(updatedGraph.nodes['node-2'].title).toBe('My Title')
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        expect(result.right.nodes['node-2'].title).toBe('My Title')
+      }
     })
 
-    it('should use default title when no markdown header present', () => {
+    it('should use default title when no markdown header present', async () => {
       const graph = emptyGraph()
       const action: CreateNode = {
         type: 'CreateNode',
@@ -77,12 +101,16 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const [updatedGraph] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
-      expect(updatedGraph.nodes['node-3'].title).toBe('Untitled')
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        expect(result.right.nodes['node-3'].title).toBe('Untitled')
+      }
     })
 
-    it('should not modify the original graph', () => {
+    it('should not modify the original graph', async () => {
       const graph = emptyGraph()
       const action: CreateNode = {
         type: 'CreateNode',
@@ -91,17 +119,22 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const [updatedGraph] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
       // Original graph should be unchanged
       expect(Object.keys(graph.nodes).length).toBe(0)
+
       // Updated graph should have the new node
-      expect(Object.keys(updatedGraph.nodes).length).toBe(1)
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        expect(Object.keys(result.right.nodes).length).toBe(1)
+      }
     })
   })
 
   describe('UpdateNode', () => {
-    it('should update an existing node with new content', () => {
+    it('should update an existing node with new content', async () => {
       const graph = graphWithNode('node-1', '# Old Title\n\nOld content')
       const action: UpdateNode = {
         type: 'UpdateNode',
@@ -109,17 +142,20 @@ describe('apply_graph_updates', () => {
         content: '# Updated Title\n\nNew content'
       }
 
-      const [updatedGraph, dbEffect] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
-      // Verify node was updated
-      expect(updatedGraph.nodes['node-1'].content).toBe('# Updated Title\n\nNew content')
-      expect(updatedGraph.nodes['node-1'].title).toBe('Updated Title')
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        const updatedGraph = result.right
 
-      // Verify DB effect is returned
-      expect(typeof dbEffect).toBe('function')
+        // Verify node was updated
+        expect(updatedGraph.nodes['node-1'].content).toBe('# Updated Title\n\nNew content')
+        expect(updatedGraph.nodes['node-1'].title).toBe('Updated Title')
+      }
     })
 
-    it('should preserve node id when updating', () => {
+    it('should preserve node id when updating', async () => {
       const graph = graphWithNode('node-1', '# Original')
       const action: UpdateNode = {
         type: 'UpdateNode',
@@ -127,9 +163,13 @@ describe('apply_graph_updates', () => {
         content: '# Updated'
       }
 
-      const [updatedGraph] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
-      expect(updatedGraph.nodes['node-1'].id).toBe('node-1')
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        expect(result.right.nodes['node-1'].id).toBe('node-1')
+      }
     })
 
     it('should throw when updating non-existent node (fail fast)', () => {
@@ -141,10 +181,10 @@ describe('apply_graph_updates', () => {
       }
 
       // Should throw per fail-fast design philosophy
-      expect(() => applyUpdate(graph, action)).toThrow('Node non-existent not found for update')
+      expect(() => apply_graph_updates(graph, action)).toThrow('Node non-existent not found for update')
     })
 
-    it('should not modify the original graph', () => {
+    it('should not modify the original graph', async () => {
       const graph = graphWithNode('node-1', '# Original')
       const originalContent = graph.nodes['node-1'].content
 
@@ -154,34 +194,49 @@ describe('apply_graph_updates', () => {
         content: '# Updated'
       }
 
-      const [updatedGraph] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
       // Original graph should be unchanged
       expect(graph.nodes['node-1'].content).toBe(originalContent)
+
       // Updated graph should have new content
-      expect(updatedGraph.nodes['node-1'].content).toBe('# Updated')
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        expect(result.right.nodes['node-1'].content).toBe('# Updated')
+      }
     })
   })
 
   describe('DeleteNode', () => {
-    it('should remove a node from the graph', () => {
+    it('should remove a node from the graph', async () => {
+      // First create the file so it exists to be deleted
+      await fs.writeFile(path.join(testVaultPath, 'node-1.md'), '# Test', 'utf-8')
+
       const graph = graphWithNode('node-1', '# Test')
       const action: DeleteNode = {
         type: 'DeleteNode',
         nodeId: 'node-1'
       }
 
-      const [updatedGraph, dbEffect] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
-      // Verify node was removed
-      expect(updatedGraph.nodes['node-1']).toBeUndefined()
-      expect(Object.keys(updatedGraph.nodes).length).toBe(0)
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        const updatedGraph = result.right
 
-      // Verify DB effect is returned
-      expect(typeof dbEffect).toBe('function')
+        // Verify node was removed
+        expect(updatedGraph.nodes['node-1']).toBeUndefined()
+        expect(Object.keys(updatedGraph.nodes).length).toBe(0)
+      }
     })
 
-    it('should remove node from edges when deleted', () => {
+    it('should remove node from edges when deleted', async () => {
+      // First create the files so they exist to be deleted
+      await fs.writeFile(path.join(testVaultPath, 'node-1.md'), 'Content', 'utf-8')
+      await fs.writeFile(path.join(testVaultPath, 'node-2.md'), 'Content', 'utf-8')
+
       const graph: Graph = {
         nodes: {
           'node-1': {
@@ -210,45 +265,61 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      const [updatedGraph] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
-      // Verify node-1's edges are removed
-      expect(updatedGraph.edges['node-1']).toBeUndefined()
-      // TODO: Also verify edges FROM other nodes TO node-1 are removed
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        const updatedGraph = result.right
+
+        // Verify node-1's edges are removed
+        expect(updatedGraph.edges['node-1']).toBeUndefined()
+      }
     })
 
-    it('should handle deleting non-existent node gracefully', () => {
+    it('should fail when deleting non-existent file (fail fast)', async () => {
       const graph = emptyGraph()
       const action: DeleteNode = {
         type: 'DeleteNode',
         nodeId: 'non-existent'
       }
 
-      // Should not throw
-      const [updatedGraph, dbEffect] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
-      expect(typeof dbEffect).toBe('function')
-      expect(Object.keys(updatedGraph.nodes).length).toBe(0)
+      // Fail fast - deleting non-existent file should fail
+      expect(E.isLeft(result)).toBe(true)
+      if (E.isLeft(result)) {
+        expect(result.left.message).toContain('ENOENT')
+      }
     })
 
-    it('should not modify the original graph', () => {
+    it('should not modify the original graph', async () => {
+      // First create the file so it exists to be deleted
+      await fs.writeFile(path.join(testVaultPath, 'node-1.md'), '# Test', 'utf-8')
+
       const graph = graphWithNode('node-1', '# Test')
       const action: DeleteNode = {
         type: 'DeleteNode',
         nodeId: 'node-1'
       }
 
-      const [updatedGraph] = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
+      const result = await effect(testEnv)()
 
       // Original graph should still have the node
       expect(graph.nodes['node-1']).toBeDefined()
+
       // Updated graph should not have the node
-      expect(updatedGraph.nodes['node-1']).toBeUndefined()
+      expect(E.isRight(result)).toBe(true)
+      if (E.isRight(result)) {
+        expect(result.right.nodes['node-1']).toBeUndefined()
+      }
     })
   })
 
   describe('Function signature and structure', () => {
-    it('should return a tuple of [Graph, DBIO]', () => {
+    it('should return AppEffect (ReaderTaskEither)', () => {
       const graph = emptyGraph()
       const action: CreateNode = {
         type: 'CreateNode',
@@ -257,20 +328,10 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const result = applyUpdate(graph, action)
+      const effect = apply_graph_updates(graph, action)
 
-      // Should be an array with 2 elements
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBe(2)
-
-      const [updatedGraph, dbEffect] = result
-
-      // First element should be a Graph
-      expect(updatedGraph).toHaveProperty('nodes')
-      expect(updatedGraph).toHaveProperty('edges')
-
-      // Second element should be a function (IO effect)
-      expect(typeof dbEffect).toBe('function')
+      // Should be a function (Reader)
+      expect(typeof effect).toBe('function')
     })
 
     it('should handle all three action types', () => {
@@ -294,30 +355,54 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      // All should return valid results without throwing
-      expect(() => applyUpdate(graph, createAction)).not.toThrow()
-      expect(() => applyUpdate(graph, updateAction)).not.toThrow()
-      expect(() => applyUpdate(graph, deleteAction)).not.toThrow()
+      // All should return valid effects without throwing
+      expect(() => apply_graph_updates(graph, createAction)).not.toThrow()
+      expect(() => apply_graph_updates(graph, updateAction)).not.toThrow()
+      expect(() => apply_graph_updates(graph, deleteAction)).not.toThrow()
     })
 
-    it('should curry vaultPath correctly', () => {
-      // Test that currying works
-      const vaultPath = '/test/vault'
-      const curriedApply = apply_graph_updates(vaultPath)
-      expect(typeof curriedApply).toBe('function')
+    it('should use Reader pattern (environment provided at execution)', async () => {
+      // Create two separate vault directories
+      const vault1Path = path.join(tmpdir(), 'test-vault-reader-1')
+      const vault2Path = path.join(tmpdir(), 'test-vault-reader-2')
+      await fs.mkdir(vault1Path, { recursive: true })
+      await fs.mkdir(vault2Path, { recursive: true })
 
-      // Test that the curried function returns proper results
-      const graph = emptyGraph()
-      const action: CreateNode = {
-        type: 'CreateNode',
-        nodeId: 'test',
-        content: '# Test',
-        position: O.none
+      try {
+        // Test with different environments
+        const env1: Env = {
+          vaultPath: vault1Path,
+          broadcast: vi.fn()
+        }
+
+        const env2: Env = {
+          vaultPath: vault2Path,
+          broadcast: vi.fn()
+        }
+
+        const graph = emptyGraph()
+        const action: CreateNode = {
+          type: 'CreateNode',
+          nodeId: 'test',
+          content: '# Test',
+          position: O.none
+        }
+
+        // Same effect, different environments
+        const effect = apply_graph_updates(graph, action)
+
+        // Can execute with different environments
+        const result1 = await effect(env1)()
+        const result2 = await effect(env2)()
+
+        // Both should succeed
+        expect(E.isRight(result1)).toBe(true)
+        expect(E.isRight(result2)).toBe(true)
+      } finally {
+        // Clean up
+        await fs.rm(vault1Path, { recursive: true, force: true })
+        await fs.rm(vault2Path, { recursive: true, force: true })
       }
-
-      const [updatedGraph, dbEffect] = curriedApply(graph, action)
-      expect(updatedGraph).toHaveProperty('nodes')
-      expect(typeof dbEffect).toBe('function')
     })
   })
 })

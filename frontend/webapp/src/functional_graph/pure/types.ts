@@ -1,9 +1,23 @@
 import * as O from 'fp-ts/Option'
-import * as IO from 'fp-ts/IO'
+import * as RTE from 'fp-ts/ReaderTaskEither'
+import * as R from 'fp-ts/Reader'
 
 /**
- * Core domain model for the functional graph architecture
+ * Core pure model for the functional graph architecture
  */
+
+// ============================================================================
+// Environment (Dependencies)
+// ============================================================================
+
+/**
+ * Runtime environment containing all IO dependencies
+ * This is the Reader monad's environment
+ */
+export interface Env {
+  readonly vaultPath: string
+  readonly broadcast: (graph: Graph) => void
+}
 
 // ============================================================================
 // Domain Model
@@ -70,14 +84,23 @@ export interface FSUpdate {
 // ============================================================================
 
 /**
- * Database IO effect - writes to filesystem
+ * App effect: computation that needs environment, is async, and can fail
+ *
+ * ReaderTaskEither<Env, Error, A> means:
+ * - Reader: needs Env to run
+ * - Task: async computation
+ * - Either: can succeed with A or fail with Error
  */
-export type DBIO<A = void> = IO.IO<A>
+export type AppEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
 
 /**
- * UI IO effect - broadcasts to renderer
+ * Pure Reader effect: needs environment but is synchronous
  */
-export type UIIO<A = void> = IO.IO<A>
+export type EnvReader<A> = R.Reader<Env, A>
+
+// Legacy type aliases for backward compatibility during migration
+export type DBIO<A = void> = AppEffect<A>
+export type UIIO<A = void> = EnvReader<A>
 
 // ============================================================================
 // Cytoscape Projection Types

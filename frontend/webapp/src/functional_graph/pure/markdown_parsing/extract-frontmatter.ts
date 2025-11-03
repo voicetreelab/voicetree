@@ -14,10 +14,11 @@ export interface Frontmatter {
  * Extracts frontmatter from markdown content.
  *
  * Pure function: same input -> same output, no side effects
- * Handles malformed frontmatter gracefully by returning empty frontmatter.
+ * Fails fast if frontmatter is malformed - no error handling.
  *
  * @param content - The full markdown content including frontmatter
  * @returns Frontmatter object with optional fields
+ * @throws Error if frontmatter YAML is malformed
  *
  * @example
  * ```typescript
@@ -34,23 +35,13 @@ export interface Frontmatter {
  * ```
  */
 export function extractFrontmatter(content: string): Frontmatter {
-  try {
-    const parsed = matter(content)
+  const parsed = matter(content)
 
-    return {
-      node_id: normalizeToString(parsed.data.node_id),
-      title: normalizeToString(parsed.data.title),
-      summary: normalizeToString(parsed.data.summary),
-      color: normalizeToString(parsed.data.color)
-    }
-  } catch {
-    // If frontmatter parsing fails (malformed YAML), return empty frontmatter
-    return {
-      node_id: undefined,
-      title: undefined,
-      summary: undefined,
-      color: undefined
-    }
+  return {
+    node_id: normalizeToString(parsed.data.node_id),
+    title: normalizeToString(parsed.data.title),
+    summary: normalizeToString(parsed.data.summary),
+    color: normalizeToString(parsed.data.color)
   }
 }
 

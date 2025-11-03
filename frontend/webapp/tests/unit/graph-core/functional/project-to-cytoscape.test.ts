@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/Option'
-import { projectToCytoscape } from '@/graph-core/functional/project-to-cytoscape'
-import { Graph, GraphNode } from '@/graph-core/functional/types'
+import { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape'
+import { Graph, GraphNode } from '@/functional_graph/pure/types'
 
 describe('projectToCytoscape', () => {
   describe('empty graph', () => {

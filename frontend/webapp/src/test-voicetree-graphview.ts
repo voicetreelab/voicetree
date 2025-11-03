@@ -23,7 +23,7 @@ interface MockElectronAPI {
   openFolder?: () => Promise<{ success: boolean; directory?: string; error?: string }>;
   stopWatching?: () => Promise<void>;
 
-  // Test helpers - not part of real API
+  // Test markdown_parsing - not part of real API
   _simulateFileAdded?: (file: FileEvent) => void;
   _simulateFileChanged?: (file: FileEvent) => void;
   _simulateFileDeleted?: (fullPath: string) => void;

@@ -80,7 +80,7 @@ import type { Graph } from '@/graph-core/functional/types'
 ### 2. Unused Imports (6 errors) ❌
 
 **Files:**
-- `mapGraphActionsToDBEvents.ts` - `IO`, `NodeId`
+- `applyGraphActionsToDB.ts` - `IO`, `NodeId`
 - `project-to-cytoscape.ts` - `O`, `NodeId`
 
 **Fix:** Remove unused imports
@@ -88,8 +88,8 @@ import type { Graph } from '@/graph-core/functional/types'
 ### 3. Unused Variables (2 errors) ❌
 
 **Files:**
-- `mapFSEventToGraph.ts:134` - `_removed`
-- `mapGraphActionsToDBEvents.ts:124` - `_removed`
+- `applyFSEventToGraph.ts:134` - `_removed`
+- `applyGraphActionsToDB.ts:124` - `_removed`
 
 **Fix:** Prefix with `_` is already done, but ESLint still complains. Use destructuring ignore pattern:
 ```typescript
@@ -102,7 +102,7 @@ const [newGraph] = ...
 
 ### 4. Mutation Violations (2 errors) ❌
 
-**File:** `electron/graph/mapFSEventToGraph.ts:189`
+**File:** `electron/graph/applyFSEventToGraph.ts:189`
 ```typescript
 let edges = [...currentLinkedIds]  // Should be const
 ```
@@ -141,8 +141,8 @@ These are acceptable functional compromises for real-world code.
 ✅ `extract-frontmatter.ts` - Pure string → object
 
 ### Functional with Minor Issues
-⚠️ `mapGraphActionsToDBEvents.ts` - Unused imports, one throw statement
-⚠️ `mapFSEventToGraph.ts` - Unused imports, one `let`
+⚠️ `applyGraphActionsToDB.ts` - Unused imports, one throw statement
+⚠️ `applyFSEventToGraph.ts` - Unused imports, one `let`
 ⚠️ `project-to-cytoscape.ts` - Unused imports
 ⚠️ `load-graph-from-disk.ts` - Relative imports, for loops (acceptable)
 ⚠️ `parse-markdown-to-node.ts` - Relative imports
@@ -158,7 +158,7 @@ These are acceptable functional compromises for real-world code.
 ### High Priority
 1. **Fix relative imports** - Update tsconfig to support `@/` alias for electron files
 2. **Remove unused imports** - Clean up IO, NodeId, O imports
-3. **Fix `let` → `const`** in mapFSEventToGraph.ts
+3. **Fix `let` → `const`** in applyFSEventToGraph.ts
 
 ### Medium Priority
 4. **Type `any`** - Replace with proper Cytoscape types

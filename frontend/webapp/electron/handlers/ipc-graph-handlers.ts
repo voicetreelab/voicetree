@@ -1,38 +1,58 @@
 import { ipcMain } from 'electron'
-import { apply_graph_updates } from '@/graph-core/functional/apply-graph-updates'
-import type { Graph, CreateNode, UpdateNode, DeleteNode } from '@/graph-core/functional/types'
+import { apply_graph_updates } from '@/functional_graph/pure/applyGraphActionsToDB'
+import type { Graph, CreateNode, UpdateNode, DeleteNode, Env } from '@/functional_graph/pure/types'
+import * as E from 'fp-ts/Either'
 
 /**
  * Setup IPC handlers for user-initiated graph actions.
  *
  * This module wires user actions from the renderer to the functional graph core.
- * It follows the functional pattern:
+ * It follows the functional pattern with Reader monad:
  * 1. Get current graph state (via getter)
- * 2. Apply action to get new graph + DB effect (pure function)
- * 3. Execute DB effect (write to filesystem)
+ * 2. Apply action to get ReaderTaskEither effect (pure function)
+ * 3. Execute effect by providing environment (write to filesystem)
  * 4. Update graph state (via setter)
  *
  * @param getGraph - Function to get current graph state
  * @param setGraph - Function to update graph state
  * @param vaultPath - Path to the vault directory for filesystem operations
+ * @param broadcast - Function to broadcast graph updates to renderer
  */
 export function setupGraphIpcHandlers(
   getGraph: () => Graph,
   setGraph: (graph: Graph) => void,
-  vaultPath: string
+  vaultPath: string,
+  broadcast: (graph: Graph) => void
 ): void {
-  // Create curried apply function with vaultPath injected
-  const applyUpdate = apply_graph_updates(vaultPath)
+  // Create environment object (contains all dependencies)
+  const env: Env = {
+    vaultPath,
+    broadcast
+  }
 
   // CREATE NODE
   ipcMain.handle('graph:createNode', async (_event, action: CreateNode) => {
     try {
       const currentGraph = getGraph()
-      const [newGraph, dbEffect] = applyUpdate(currentGraph, action)
 
-      await dbEffect() // Write to filesystem
-      setGraph(newGraph) // Update cache
+      // Create Reader effect (pure - no execution yet)
+      const effect = apply_graph_updates(currentGraph, action)
 
+      // Execute by providing environment
+      // effect(env) - Reader execution (provide Env)
+      // () - TaskEither execution (run async)
+      const result = await effect(env)()
+
+      if (E.isLeft(result)) {
+        console.error('[IPC] Error handling createNode:', result.left)
+        return {
+          success: false,
+          error: result.left.message
+        }
+      }
+
+      // Update global state with new graph
+      setGraph(result.right)
       return { success: true }
     } catch (error) {
       console.error('[IPC] Error handling createNode:', error)
@@ -47,11 +67,23 @@ export function setupGraphIpcHandlers(
   ipcMain.handle('graph:updateNode', async (_event, action: UpdateNode) => {
     try {
       const currentGraph = getGraph()
-      const [newGraph, dbEffect] = applyUpdate(currentGraph, action)
 
-      await dbEffect() // Write to filesystem
-      setGraph(newGraph) // Update cache
+      // Create Reader effect (pure - no execution yet)
+      const effect = apply_graph_updates(currentGraph, action)
 
+      // Execute by providing environment
+      const result = await effect(env)()
+
+      if (E.isLeft(result)) {
+        console.error('[IPC] Error handling updateNode:', result.left)
+        return {
+          success: false,
+          error: result.left.message
+        }
+      }
+
+      // Update global state with new graph
+      setGraph(result.right)
       return { success: true }
     } catch (error) {
       console.error('[IPC] Error handling updateNode:', error)
@@ -66,11 +98,23 @@ export function setupGraphIpcHandlers(
   ipcMain.handle('graph:deleteNode', async (_event, action: DeleteNode) => {
     try {
       const currentGraph = getGraph()
-      const [newGraph, dbEffect] = applyUpdate(currentGraph, action)
 
-      await dbEffect() // Delete from filesystem
-      setGraph(newGraph) // Update cache
+      // Create Reader effect (pure - no execution yet)
+      const effect = apply_graph_updates(currentGraph, action)
 
+      // Execute by providing environment
+      const result = await effect(env)()
+
+      if (E.isLeft(result)) {
+        console.error('[IPC] Error handling deleteNode:', result.left)
+        return {
+          success: false,
+          error: result.left.message
+        }
+      }
+
+      // Update global state with new graph
+      setGraph(result.right)
       return { success: true }
     } catch (error) {
       console.error('[IPC] Error handling deleteNode:', error)
