@@ -148,7 +148,7 @@ ipcMain.handle('start-file-watching', async (event, directoryPath) => {
 
     if (!selectedDirectory) {
       const result = await dialog.showOpenDialog({
-        properties: ['openDirectory'],
+        properties: ['openDirectory', 'createDirectory'],
         title: 'Select Directory to Watch for Markdown Files',
         buttonLabel: 'Watch Directory'
       });
