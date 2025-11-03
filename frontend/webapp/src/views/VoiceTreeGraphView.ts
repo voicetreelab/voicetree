@@ -36,6 +36,7 @@ import { SearchService } from './SearchService';
 import { GraphNavigationService } from './GraphNavigationService';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import type { IMarkdownVaultProvider, Disposable as VaultDisposable } from '@/providers/IMarkdownVaultProvider';
+import { SpeedDialMenuView } from './SpeedDialMenuView';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -65,6 +66,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   private loadingOverlay: HTMLElement | null = null;
   private errorOverlay: HTMLElement | null = null;
   private emptyStateOverlay: HTMLElement | null = null;
+  private speedDialMenu: SpeedDialMenuView | null = null;
 
   // Event emitters
   private nodeSelectedEmitter = new EventEmitter<string>();
@@ -167,6 +169,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       window.dispatchEvent(event);
     };
     this.container.appendChild(menuBtn);
+
+    // Create speed dial menu
+    this.speedDialMenu = new SpeedDialMenuView(this.container, {
+      onToggleDarkMode: () => this.toggleDarkMode(),
+      onBackup: () => this.createBackupTerminal(),
+      onSettings: () => console.log('[SpeedDial] Settings clicked'),
+      onAbout: () => console.log('[SpeedDial] About clicked'),
+      isDarkMode: this._isDarkMode,
+    });
 
     // Create loading overlay
     this.loadingOverlay = document.createElement('div');
@@ -542,6 +553,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     // Update search service theme
     this.searchService.updateTheme(this._isDarkMode);
+
+    // Update speed dial menu icon
+    if (this.speedDialMenu) {
+      this.speedDialMenu.updateDarkMode(this._isDarkMode);
+    }
   }
 
   isDarkMode(): boolean {
@@ -550,6 +566,59 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   getStats(): { nodeCount: number; edgeCount: number } {
     return this.fileEventManager.getStats();
+  }
+
+  /**
+   * Creates a floating terminal with pre-pasted backup command
+   * Command: mkdir -p "{watchDir}/../backups" && mv "{watchDir}" "{watchDir}/../backups/"
+   */
+  createBackupTerminal(): void {
+    // Get watch directory from vault provider
+    const watchDir = this.vaultProvider.getWatchDirectory?.();
+
+    if (!watchDir) {
+      console.warn('[backup] No watched directory available');
+      return;
+    }
+
+    // Generate the move command with mkdir to ensure backups directory exists
+    const backupCommand = `mkdir -p "${watchDir}/../backups" && mv "${watchDir}" "${watchDir}/../backups/"`;
+
+    // Create metadata for terminal with pre-pasted command
+    const terminalMetadata = {
+      id: 'backup-terminal',
+      name: 'Backup Terminal',
+      initialCommand: backupCommand,
+    };
+
+    // Get position in center of current viewport (where user is looking)
+    const cy = this.cy.getCore();
+    const pan = cy.pan();
+    const zoom = cy.zoom();
+    const centerX = (cy.width() / 2 - pan.x) / zoom;
+    const centerY = (cy.height() / 2 - pan.y) / zoom;
+
+    // Create floating terminal with pre-pasted command
+    this.floatingWindowManager.createFloatingTerminal(
+      'backup',
+      terminalMetadata,
+      { x: centerX, y: centerY }
+    );
+
+    // Fit the graph to include the newly spawned terminal
+    setTimeout(() => {
+      const terminalNode = cy.$('#terminal-backup');
+      if (terminalNode.length > 0) {
+        cy.fit(terminalNode, 50); // 50px padding
+      }
+    }, 50);
+
+    setTimeout(() => {
+      const terminalNode = cy.$('#terminal-backup');
+      if (terminalNode.length > 0) {
+        cy.fit(terminalNode, 50); // 50px padding
+      }
+    }, 800); // also after auto layout
   }
 
   // ============================================================================
@@ -595,6 +664,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     this.fileEventManager.dispose();
     this.floatingWindowManager.dispose();
     this.searchService.dispose();
+
+    // Dispose speed dial menu
+    if (this.speedDialMenu) {
+      this.speedDialMenu.dispose();
+      this.speedDialMenu = null;
+    }
 
     // Destroy Cytoscape
     this.cy.destroy();

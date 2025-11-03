@@ -119,4 +119,10 @@ export interface IMarkdownVaultProvider {
     isWatching: boolean;
     directory: string | null;
   }>;
+
+  /**
+   * Get the currently watched directory path (synchronous)
+   * @returns The watched directory path or undefined if not watching
+   */
+  getWatchDirectory?(): string | undefined;
 }

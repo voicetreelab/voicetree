@@ -41,7 +41,7 @@ Editor ↔ Indirection Layer (electronAPI) ↔ Files/Mock ↔ Graph Data ↔ Gra
 
 ### 4. Graph Data Layer
 - **Parser**: `src/graph-core/data/load_markdown/MarkdownParser.ts`
-- **Manager**: `src/hooks/useGraphManager.tsx`
+- **Manager**: `src/hooks/useFolderWatcher.tsx`
 - **Transformation Pipeline**:
   1. Parse markdown files (extract frontmatter, links)
   2. Generate graph nodes (id, label, linkedNodeIds)
@@ -184,7 +184,7 @@ The test harness (`floating-editor-harness.tsx`) provides three modes:
 
 - **Main Layout**: `src/components/voicetree-layout.tsx`
 - **Editor Component**: `src/components/floating-windows/editors/MarkdownEditor.tsx`
-- **Graph Manager**: `src/hooks/useGraphManager.tsx`
+- **Graph Manager**: `src/hooks/useFolderWatcher.tsx`
 - **Mock API**: `src/test/mock-electron-api.ts`
 - **Test Harness**: `tests/e2e/isolated-with-harness/floating-editor-harness.tsx`
 - **Integration Tests**: `tests/e2e/isolated-with-harness/editor-file-graph-integration.spec.ts`

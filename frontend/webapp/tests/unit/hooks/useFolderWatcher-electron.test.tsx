@@ -1,8 +1,8 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useGraphManager } from '@/hooks/useGraphManager';
+import { useFolderWatcher } from '../../../src/hooks/useFolderWatcher';
 
-// Mock Electron API - only the IPC methods useGraphManager actually uses
+// Mock Electron API - only the IPC methods useFolderWatcher actually uses
 const eventListeners: Record<string, ((data?: unknown) => void)[]> = {};
 
 const mockElectronAPI = {
@@ -38,7 +38,7 @@ Object.defineProperty(window, 'electronAPI', {
   writable: true,
 });
 
-describe('useGraphManager (Electron version)', () => {
+describe('useFolderWatcher (Electron version)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Clear event listeners between tests
@@ -53,7 +53,7 @@ describe('useGraphManager (Electron version)', () => {
   });
 
   it('should initialize with default state', async () => {
-    const { result } = renderHook(() => useGraphManager());
+    const { result } = renderHook(() => useFolderWatcher());
 
     // Wait for the async initialization in useEffect to complete
     await act(async () => {
@@ -70,7 +70,7 @@ describe('useGraphManager (Electron version)', () => {
   });
 
   it('should update state when watching-started event is received', async () => {
-    const { result } = renderHook(() => useGraphManager());
+    const { result } = renderHook(() => useFolderWatcher());
 
     // Wait for initialization
     await act(async () => {
@@ -93,7 +93,7 @@ describe('useGraphManager (Electron version)', () => {
   });
 
   it('should update state when file-watching-stopped event is received', async () => {
-    const { result } = renderHook(() => useGraphManager());
+    const { result } = renderHook(() => useFolderWatcher());
 
     // Wait for initialization and set to watching state
     await act(async () => {
@@ -117,7 +117,7 @@ describe('useGraphManager (Electron version)', () => {
   });
 
   it('should clear graph data when stopping watching', async () => {
-    const { result } = renderHook(() => useGraphManager());
+    const { result } = renderHook(() => useFolderWatcher());
 
     // Start watching first - trigger the event to simulate success
     await act(async () => {
@@ -142,7 +142,7 @@ describe('useGraphManager (Electron version)', () => {
   });
 
   it('should handle stopWatching errors gracefully', async () => {
-    const { result } = renderHook(() => useGraphManager());
+    const { result } = renderHook(() => useFolderWatcher());
 
     // Start watching first - trigger the event to simulate success
     await act(async () => {
@@ -168,7 +168,7 @@ describe('useGraphManager (Electron version)', () => {
   });
 
   it('should handle stopWatching exception gracefully', async () => {
-    const { result } = renderHook(() => useGraphManager());
+    const { result } = renderHook(() => useFolderWatcher());
 
     // Start watching first - trigger the event to simulate success
     await act(async () => {

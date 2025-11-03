@@ -43,7 +43,7 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
   test('should progressively build and update graph based on file operations', async ({ page }) => {
     // Capture console messages
     page.on('console', msg => {
-      if (msg.text().includes('Mock') || msg.text().includes('useGraphManager') || msg.text().includes('Test:')) {
+      if (msg.text().includes('Mock') || msg.text().includes('useFolderWatcher') || msg.text().includes('Test:')) {
         console.log('Browser console:', msg.text());
       }
     });
