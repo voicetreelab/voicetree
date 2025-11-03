@@ -96,6 +96,15 @@ function App() {
     </div>
   );
 
+  // Listen for backend logs and display in dev console
+  useEffect(() => {
+    if (!window.electronAPI?.onBackendLog) return;
+
+    window.electronAPI.onBackendLog((log: string) => {
+      console.log('[Backend]', log);
+    });
+  }, []);
+
   // Initialize VoiceTreeGraphView when container is ready
   useEffect(() => {
     if (!graphContainerRef.current) return;

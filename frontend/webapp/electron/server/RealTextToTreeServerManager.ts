@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { promises as fs, createWriteStream } from 'fs';
 import http from 'http';
@@ -215,21 +215,32 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
    * Attach stdout, stderr, and exit handlers to the server process
    */
   private attachServerHandlers(serverProcess: ChildProcess, debugLog: (message: string) => void): void {
+    // Helper to send logs to all renderer windows
+    const sendToRenderer = (message: string) => {
+      BrowserWindow.getAllWindows().forEach(window => {
+        window.webContents.send('backend-log', message);
+      });
+    };
+
     // Log server stdout
     serverProcess.stdout?.on('data', (data) => {
       const output = data.toString().trim();
       debugLog(`[Server stdout] ${output}`);
+      sendToRenderer(output);
     });
 
     // Log server stderr
     serverProcess.stderr?.on('data', (data) => {
       const output = data.toString().trim();
       debugLog(`[Server stderr] ${output}`);
+      sendToRenderer(output);
     });
 
     // Handle server exit
     serverProcess.on('exit', (code, signal) => {
-      debugLog(`[TextToTreeServer] Process exited with code ${code} and signal ${signal}`);
+      const message = `[TextToTreeServer] Process exited with code ${code} and signal ${signal}`;
+      debugLog(message);
+      sendToRenderer(message);
       this.serverProcess = null;
     });
 
@@ -237,6 +248,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
     serverProcess.on('error', (error) => {
       debugLog(`[TextToTreeServer] Failed to start: ${error.message}`);
       debugLog(`[TextToTreeServer] Error details: ${JSON.stringify(error)}`);
+      sendToRenderer(`[TextToTreeServer] Error: ${error.message}`);
       this.serverProcess = null;
     });
   }

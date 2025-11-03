@@ -74,6 +74,9 @@ export interface ElectronAPI {
     load: (directoryPath: string) => Promise<{ success: boolean; positions: Record<string, { x: number; y: number }>; error?: string }>;
   };
 
+  // Backend log streaming
+  onBackendLog: (callback: (log: string) => void) => void;
+
   // General IPC communication methods
   invoke(channel: string, ...args: unknown[]): Promise<unknown>;
   on(channel: string, listener: (...args: unknown[]) => void): void;
