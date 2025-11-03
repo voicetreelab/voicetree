@@ -10,7 +10,7 @@
  */
 
 import { Disposable } from './Disposable';
-import '@/components/speed-dial-menu.css';
+import '@/views/styles/speed-dial-menu.css';
 
 export interface SpeedDialMenuViewOptions {
   onToggleDarkMode: () => void;

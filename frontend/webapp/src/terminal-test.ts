@@ -16,7 +16,7 @@
  */
 
 import '@xterm/xterm/css/xterm.css';
-import { TerminalNoAutoScroll } from './components/floating-windows/TerminalNoAutoScroll.ts';
+import { TerminalNoAutoScroll } from '@/floating-windows/TerminalNoAutoScroll.ts';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
