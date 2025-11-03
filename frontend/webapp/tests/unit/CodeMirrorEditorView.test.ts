@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { CodeMirrorEditorView } from '@/views/CodeMirrorEditorView';
+import { CodeMirrorEditorView } from '@/components/floating-windows/CodeMirrorEditorView';
 
 describe('CodeMirrorEditorView', () => {
   let container: HTMLElement;

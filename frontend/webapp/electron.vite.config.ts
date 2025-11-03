@@ -53,6 +53,23 @@ export default defineConfig({
     root: '.',
     logLevel: 'error',
     plugins: [
+      // Plugin to handle CSS imports from Lit Element components (ninja-keys -> @material/mwc-icon)
+      // Must run before tailwindcss plugin
+      {
+        name: 'lit-css',
+        enforce: 'pre',
+        resolveId(source, importer) {
+          if (source.endsWith('.css') && importer && importer.includes('@material')) {
+            // Return a virtual module ID to bypass Tailwind
+            return '\0' + source + '.js'
+          }
+        },
+        load(id) {
+          if (id.startsWith('\0') && id.includes('.css.js')) {
+            return 'export const styles = "";'
+          }
+        }
+      },
       react(),
       tailwindcss(),
       topLevelAwait(),
@@ -62,8 +79,14 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        '@wasm': path.resolve(__dirname, './tidy/wasm_dist')
+        '@wasm': path.resolve(__dirname, './tidy/wasm_dist'),
+        // Alias CSS imports from @material to prevent import errors
+        '@material/mwc-icon/mwc-icon-host.css': path.resolve(__dirname, 'src/utils/empty-css-export.ts')
       }
+    },
+    optimizeDeps: {
+      // Exclude ninja-keys from pre-bundling so our virtual module plugin can handle the CSS import
+      exclude: ['ninja-keys']
     },
     server: {
       port: parseInt(process.env.DEV_SERVER_PORT || '3000'),

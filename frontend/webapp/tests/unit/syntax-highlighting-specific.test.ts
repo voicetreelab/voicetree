@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CodeMirrorEditorView } from '@/views/CodeMirrorEditorView';
+import { CodeMirrorEditorView } from '@/components/floating-windows/CodeMirrorEditorView';
 
 describe('CodeMirror Syntax Highlighting - Specific Token Test', () => {
   let container: HTMLElement;
