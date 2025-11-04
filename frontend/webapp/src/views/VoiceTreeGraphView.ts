@@ -284,7 +284,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
           console.log('[VoiceTreeGraphView] Calling createFloatingEditor');
           this.floatingWindowManager.createFloatingEditor(nodeId, filePath, content, nodePos);
         } else {
-          console.log('[VoiceTreeGraphView] Not opening editor - missing requirements');
+          console.log('[VoiceTreeGraphView] Not opening editor - missing requirements', node, vaultPath);
         }
       });
 

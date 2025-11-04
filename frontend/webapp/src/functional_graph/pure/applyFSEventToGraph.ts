@@ -1,6 +1,7 @@
 import type {Graph, FSUpdate, EnvReader, GraphNode, NodeId, Env} from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
+import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
 
 /**
  * Apply filesystem updates to the graph.
@@ -35,7 +36,7 @@ export function apply_db_updates_to_graph(
  * Parses the file content and adds a new node to the graph.
  */
 function handleAdded(env: Env, graph: Graph, update: FSUpdate): Graph {
-  const nodeId = extractNodeIdFromPath(update.path)
+  const nodeId = extractNodeIdFromPath(update.path, env.vaultPath)
 
   // If node already exists, treat as update instead
   if (graph.nodes[nodeId]) {
@@ -74,7 +75,7 @@ function handleAdded(env: Env, graph: Graph, update: FSUpdate): Graph {
  * Updates an existing node with new content from the filesystem.
  */
 function handleChanged(env: Env, graph: Graph, update: FSUpdate): Graph {
-  const nodeId = extractNodeIdFromPath(update.path)
+  const nodeId = extractNodeIdFromPath(update.path, env.vaultPath)
   const existingNode = graph.nodes[nodeId]
 
   if (!existingNode) {
@@ -113,7 +114,7 @@ function handleChanged(env: Env, graph: Graph, update: FSUpdate): Graph {
  * Removes a node from the graph when its file is deleted.
  */
 function handleDeleted(env: Env, graph: Graph, update: FSUpdate): Graph {
-  const nodeId = extractNodeIdFromPath(update.path)
+  const nodeId = extractNodeIdFromPath(update.path, env.vaultPath)
 
   // Remove node from graph
   const remainingNodes = Object.fromEntries(
@@ -136,12 +137,35 @@ function handleDeleted(env: Env, graph: Graph, update: FSUpdate): Graph {
 }
 
 /**
- * Extract node ID from file path.
- * E.g., "/path/to/vault/MyNote.md" -> "MyNote"
+ * Extract node ID from file path by computing relative path from vault.
+ *
+ * Pure function: same input -> same output, no side effects
+ *
+ * @param filePath - Absolute path to the file (e.g., "/path/to/vault/subfolder/MyNote.md")
+ * @param vaultPath - Absolute path to the vault (e.g., "/path/to/vault")
+ * @returns Node ID with relative path preserved (e.g., "subfolder/MyNote")
+ *
+ * @example
+ * ```typescript
+ * extractNodeIdFromPath("/vault/MyNote.md", "/vault")
+ * // => "MyNote"
+ *
+ * extractNodeIdFromPath("/vault/subfolder/MyNote.md", "/vault")
+ * // => "subfolder/MyNote"
+ * ```
  */
-function extractNodeIdFromPath(filePath: string): NodeId {
-  const basename = path.basename(filePath, '.md')
-  return basename
+function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeId {
+  // Normalize paths to handle trailing slashes
+  const normalizedVault = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/' // todo this should be made into a type
+  // todo i.e. vaultPath: VaultPath, which must end in a / on toString ?
+
+  // Get relative path from vault
+  const relativePath = filePath.startsWith(normalizedVault)
+    ? filePath.substring(normalizedVault.length)
+    : path.basename(filePath) // Fallback to basename if not under vault
+
+  // Convert to node ID (remove .md extension)
+  return filenameToNodeId(relativePath)
 }
 
 /**

@@ -111,6 +111,13 @@ function App() {
 
     console.log('[App] Initializing VoiceTreeGraphView');
     const vaultProvider = new ElectronMarkdownVault();
+
+    // Subscribe to watching-started event to store vault directory
+    // This is critical for floating editors to work - they need the vault path
+    const watchingSubscription = vaultProvider.onWatchingStarted((event) => {
+      console.log('[App] Vault watching started:', event.directory);
+    });
+
     const graphView = new VoiceTreeGraphView(graphContainerRef.current, vaultProvider, {
       initialDarkMode: false
     });
@@ -118,6 +125,7 @@ function App() {
     // Cleanup on unmount
     return () => {
       console.log('[App] Disposing VoiceTreeGraphView');
+      watchingSubscription.dispose();
       graphView.dispose();
     };
   }, []); // Empty deps - only run once on mount

@@ -36,17 +36,20 @@ export function projectToCytoscape(graph: Graph): CytoscapeElements {
   )
 
   // Project edges: Flatten adjacency list to edge elements
+  // Filter out edges where target node doesn't exist (dangling references)
   const edges: readonly CytoscapeEdgeElement[] = Object.entries(graph.edges).flatMap(
     ([sourceId, targets]): readonly CytoscapeEdgeElement[] =>
-      targets.map(
-        (targetId): CytoscapeEdgeElement => ({
-          data: {
-            id: `${sourceId}-${targetId}`,
-            source: sourceId,
-            target: targetId
-          }
-        })
-      )
+      targets
+        .filter((targetId) => graph.nodes[targetId] !== undefined)
+        .map(
+          (targetId): CytoscapeEdgeElement => ({
+            data: {
+              id: `${sourceId}-${targetId}`,
+              source: sourceId,
+              target: targetId
+            }
+          })
+        )
   )
 
   return {

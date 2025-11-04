@@ -108,7 +108,7 @@ export interface CytoscapeNodeElement {
     readonly label: string
     readonly content: string
     readonly summary: string
-    readonly color: O.Option<string>
+    readonly color: string | undefined
   }
 }
 
