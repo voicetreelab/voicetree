@@ -1,0 +1,54 @@
+{
+  "__GHOST_ROOT__.md": {
+    "x": 394.5,
+    "y": 298
+  },
+  "1.md": {
+    "x": 0,
+    "y": 0
+  },
+  "2.md": {
+    "x": 0,
+    "y": 0
+  },
+  "3.md": {
+    "x": 0,
+    "y": 0
+  },
+  "ESLint-Functional-Programming-Report.md": {
+    "x": 0,
+    "y": 0
+  },
+  "FunctionalDesignPhase1.md": {
+    "x": 0,
+    "y": 0
+  },
+  "Migration-NextSteps.md": {
+    "x": 0,
+    "y": 0
+  },
+  "PHASE2_IMPLEMENTATION_SUMMARY.md": {
+    "x": 0,
+    "y": 0
+  },
+  "Phase1-LoadGraphInMainProcess.md": {
+    "x": 0,
+    "y": 0
+  },
+  "Phase2-WireUpEventHandlers.md": {
+    "x": 0,
+    "y": 0
+  },
+  "Phase3-Implementation-Summary.md": {
+    "x": 0,
+    "y": 0
+  },
+  "Phase3-RefactorRendererToSendActions.md": {
+    "x": 0,
+    "y": 0
+  },
+  "Task-RefactorToReaderMonad.md": {
+    "x": 62.67888392562101,
+    "y": -225.6439821322356
+  }
+}
