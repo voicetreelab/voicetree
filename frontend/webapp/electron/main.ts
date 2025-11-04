@@ -2,15 +2,14 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import fixPath from 'fix-path';
-import FileWatchManager from './file-watch-manager';
+import FileWatchHandler from './handlers/file-watch-handler';
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager';
 import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager';
 import TerminalManager from './terminal-manager';
 import PositionManager from './position-manager';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup';
 import { loadGraphFromDisk } from '../src/functional_graph/shell/main/load-graph-from-disk';
-import { setupGraphIpcHandlers } from './handlers/ipc-graph-handlers';
-import { setupFileWatchHandlers } from './handlers/file-watch-handlers';
+import './handlers/ipc-graph-handlers'; // Auto-registers IPC handlers
 import type { Graph } from '../src/functional_graph/pure/types';
 
 // Fix PATH for macOS/Linux GUI apps
@@ -32,7 +31,7 @@ if (process.env.MINIMIZE_TEST === '1') {
 }
 
 // Global manager instances
-const fileWatchManager = new FileWatchManager();
+const fileWatchManager = new FileWatchHandler();
 // TextToTreeServer: Converts text input (voice/typed) to markdown tree structure
 // Select implementation based on environment (no fallbacks)
 const textToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
@@ -50,29 +49,54 @@ let textToTreeServerPort: number | null = null;
 
 // The ONLY mutable state in the functional architecture
 let currentGraph: Graph | null = null;
+let currentVaultPath: string | null = null;
+let currentMainWindow: BrowserWindow | null = null;
 let isGraphInitialized = false; // Guard against double initialization
 
 // Getter/setter for controlled access to graph state
-const getGraph = (): Graph => {
+export const getGraph = (): Graph => {
   if (!currentGraph) {
     throw new Error('Graph not initialized');
   }
   return currentGraph;
 };
 
-const setGraph = (graph: Graph): void => {
+export const setGraph = (graph: Graph): void => {
   currentGraph = graph;
 };
 
+// Getter/setter for controlled access to vault path
+export const getVaultPath = (): string => {
+  if (!currentVaultPath) {
+    throw new Error('Vault path not initialized');
+  }
+  return currentVaultPath;
+};
+
+export const setVaultPath = (path: string): void => {
+  currentVaultPath = path;
+};
+
+// Getter/setter for controlled access to main window
+export const getMainWindow = (): BrowserWindow => {
+  if (!currentMainWindow) {
+    throw new Error('Main window not initialized');
+  }
+  return currentMainWindow;
+};
+
+export const setMainWindow = (window: BrowserWindow): void => {
+  currentMainWindow = window;
+};
+
 /**
- * Initialize functional graph from disk and set up all handlers.
+ * Initialize functional graph from disk.
  * MUST be called BEFORE any file watching starts.
  * Safe to call multiple times - will only initialize once.
  *
  * @param vaultPath - Path to the vault directory
- * @param mainWindow - BrowserWindow for broadcasting updates
  */
-async function initializeFunctionalGraph(vaultPath: string, mainWindow: BrowserWindow): Promise<void> {
+async function initializeFunctionalGraph(vaultPath: string): Promise<void> {
   // Guard against double initialization
   if (isGraphInitialized) {
     console.log('[FunctionalGraph] Already initialized, skipping');
@@ -82,19 +106,17 @@ async function initializeFunctionalGraph(vaultPath: string, mainWindow: BrowserW
   try {
     console.log('[FunctionalGraph] Loading graph from disk...');
 
-    // Step 1: Load graph from disk (IO effect)
+    // Step 1: Set global vault path (used by handlers)
+    setVaultPath(vaultPath);
+
+    // Step 2: Load graph from disk (IO effect)
     const loadGraph = loadGraphFromDisk(vaultPath);
     currentGraph = await loadGraph();
     console.log(`[FunctionalGraph] Loaded ${Object.keys(currentGraph.nodes).length} nodes`);
 
-    // Step 2: Setup IPC handlers for user actions (ONCE)
-    const broadcast = (graph: Graph) => {
-      mainWindow.webContents.send('graph:stateChanged', graph);
-    };
-    setupGraphIpcHandlers(getGraph, setGraph, vaultPath, broadcast);
-
-    // Step 3: Setup file watch handlers for FS events (ONCE)
-    setupFileWatchHandlers(fileWatchManager, getGraph, setGraph, mainWindow, vaultPath);
+    // Step 3: Inject graph dependencies into FileWatchHandler
+    fileWatchManager.setGraphDependencies(getGraph, setGraph, getVaultPath);
+    console.log('[FunctionalGraph] Graph dependencies injected into FileWatchHandler');
 
     isGraphInitialized = true;
     console.log('[FunctionalGraph] Initialization complete');
@@ -125,13 +147,16 @@ function createWindow() {
   // Capture window ID before it gets destroyed
   const windowId = mainWindow.webContents.id;
 
-  // Set the main window reference
+  // Set global main window reference (used by handlers)
+  setMainWindow(mainWindow);
+
+  // Set the main window reference for managers
   fileWatchManager.setMainWindow(mainWindow);
   fileWatchManager.setPositionManager(positionManager);
 
   // Auto-start watching last directory if it exists
   // Uses 'on' instead of 'once' to handle page refreshes (cmd+r)
-  // FileWatchManager intelligently handles re-watching the same directory
+  // FileWatchHandler intelligently handles re-watching the same directory
   // TODO: Handle edge cases:
   // - Last directory no longer exists (deleted/moved)
   // - Permission issues accessing last directory
@@ -150,7 +175,7 @@ function createWindow() {
       // CRITICAL: Initialize functional graph BEFORE starting file watching
       // File watch handlers need the graph to exist when events fire
       try {
-        await initializeFunctionalGraph(lastDirectory, mainWindow);
+        await initializeFunctionalGraph(lastDirectory);
       } catch (error) {
         console.error('[AutoWatch] Graph initialization failed, skipping file watch:', error);
         return;
@@ -261,7 +286,7 @@ ipcMain.handle('start-file-watching', async (event, directoryPath) => {
     // CRITICAL: Initialize functional graph BEFORE starting file watching
     // File watch handlers need the graph to exist when events fire
     try {
-      await initializeFunctionalGraph(selectedDirectory, mainWindow);
+      await initializeFunctionalGraph(selectedDirectory);
     } catch (error) {
       console.error('[IPC] Graph initialization failed:', error);
       return {

@@ -2,15 +2,17 @@ import path from 'path';
 import { promises as fs, statSync } from 'fs';
 import chokidar, { FSWatcher } from 'chokidar';
 import { app, BrowserWindow, dialog } from 'electron';
-import { checkBackendHealth, loadDirectory } from '../src/utils/backend-api';
-import type PositionManager from './position-manager';
+import { checkBackendHealth, loadDirectory } from '../../src/utils/backend-api';
+import type PositionManager from '../position-manager';
+import { apply_db_updates_to_graph } from '../../src/functional_graph/pure/applyFSEventToGraph';
+import type { Graph, FSUpdate, Env } from '../../src/functional_graph/pure/types';
 
 interface FileInfo {
   filePath: string;
   relativePath: string;
 }
 
-class FileWatchManager {
+class FileWatchHandler {
   private static readonly MAX_FILES = 300;
   private watcher: FSWatcher | null = null;
   private watchedDirectory: string | null = null;
@@ -19,6 +21,11 @@ class FileWatchManager {
   private isInitialScan: boolean = true;
   private fileLimitExceeded: boolean = false;
   private positionManager: PositionManager;
+
+  // Functional graph dependencies
+  private getGraphFn: (() => Graph) | null = null;
+  private setGraphFn: ((graph: Graph) => void) | null = null;
+  private getVaultPathFn: (() => string) | null = null;
 
   // Get path to config file for storing last directory
   getConfigPath(): string {
@@ -62,6 +69,16 @@ class FileWatchManager {
 
   setPositionManager(manager: PositionManager): void {
     this.positionManager = manager;
+  }
+
+  setGraphDependencies(
+    getGraph: () => Graph,
+    setGraph: (graph: Graph) => void,
+    getVaultPath: () => string
+  ): void {
+    this.getGraphFn = getGraph;
+    this.setGraphFn = setGraph;
+    this.getVaultPathFn = getVaultPath;
   }
 
   async startWatching(directoryPath: string): Promise<{ success: boolean; directory?: string; error?: string }> {
@@ -209,9 +226,9 @@ class FileWatchManager {
 
         if (this.isInitialScan) {
           // Check file limit before collecting
-          if (this.initialScanFiles.length >= FileWatchManager.MAX_FILES) {
+          if (this.initialScanFiles.length >= FileWatchHandler.MAX_FILES) {
             this.fileLimitExceeded = true;
-            console.error(`[FileWatchManager] File limit exceeded: ${this.initialScanFiles.length} files (max: ${FileWatchManager.MAX_FILES})`);
+            console.error(`[FileWatchManager] File limit exceeded: ${this.initialScanFiles.length} files (max: ${FileWatchHandler.MAX_FILES})`);
 
             // Stop the watcher
             await this.stopWatching();
@@ -220,8 +237,8 @@ class FileWatchManager {
             if (this.mainWindow && !this.mainWindow.isDestroyed()) {
               dialog.showErrorBox(
                 'Too Many Files',
-                `Cannot load directory: found more than ${FileWatchManager.MAX_FILES} markdown files.\n\n` +
-                `VoiceTree can only handle directories with up to ${FileWatchManager.MAX_FILES} markdown files.\n\n` +
+                `Cannot load directory: found more than ${FileWatchHandler.MAX_FILES} markdown files.\n\n` +
+                `VoiceTree can only handle directories with up to ${FileWatchHandler.MAX_FILES} markdown files.\n\n` +
                 `Please select a smaller directory.`
               );
             }
@@ -229,7 +246,7 @@ class FileWatchManager {
             // Send error to renderer
             this.sendToRenderer('file-watch-error', {
               type: 'file_limit_exceeded',
-              message: `Directory contains more than ${FileWatchManager.MAX_FILES} files. Please select a smaller directory.`,
+              message: `Directory contains more than ${FileWatchHandler.MAX_FILES} files. Please select a smaller directory.`,
               directory: this.watchedDirectory,
               fileCount: this.initialScanFiles.length
             });
@@ -392,7 +409,7 @@ class FileWatchManager {
   // Used when renderer reloads while watcher is still active
   private async resendCurrentFiles(): Promise<void> {
     if (!this.watchedDirectory) {
-      console.log('[FileWatchManager] No directory being watched, skipping resend');
+      console.log('[FileWatchHandler] No directory being watched, skipping resend');
       return;
     }
 
@@ -406,11 +423,11 @@ class FileWatchManager {
       console.log(`[FileWatchManager] Found ${files.length} files to resend`);
 
       // Check if we hit the file limit
-      if (files.length >= FileWatchManager.MAX_FILES) {
-        console.warn(`[FileWatchManager] File limit reached during resend: ${files.length} files (max: ${FileWatchManager.MAX_FILES})`);
+      if (files.length >= FileWatchHandler.MAX_FILES) {
+        console.warn(`[FileWatchManager] File limit reached during resend: ${files.length} files (max: ${FileWatchHandler.MAX_FILES})`);
         this.sendToRenderer('file-watch-error', {
           type: 'file_limit_warning',
-          message: `Directory contains ${files.length}+ files. Only loading first ${FileWatchManager.MAX_FILES} files.`,
+          message: `Directory contains ${files.length}+ files. Only loading first ${FileWatchHandler.MAX_FILES} files.`,
           directory: this.watchedDirectory,
           fileCount: files.length
         });
@@ -458,7 +475,7 @@ class FileWatchManager {
 
       for (const entry of entries) {
         // Check file limit
-        if (files.length >= FileWatchManager.MAX_FILES) {
+        if (files.length >= FileWatchHandler.MAX_FILES) {
           console.log(`[FileWatchManager] Reached file limit during scan: ${files.length}`);
           return;
         }
@@ -534,13 +551,79 @@ class FileWatchManager {
     }
   }
 
-  private sendToRenderer(channel: string, data?: unknown): void {
+  private sendToRenderer(channel: string, data?: any): void {
+    // Intercept file events and update functional graph
+    try {
+      // Only process if graph dependencies are set
+      if (this.getGraphFn && this.setGraphFn && this.getVaultPathFn && this.mainWindow) {
+        // Construct environment from dependencies
+        const env: Env = {
+          vaultPath: this.getVaultPathFn(),
+          broadcast: (graph: Graph) => {
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+              this.mainWindow.webContents.send('graph:stateChanged', graph);
+            }
+          }
+        };
+
+        if (channel === 'file-added' && data?.fullPath && data?.content) {
+          const fsUpdate: FSUpdate = {
+            path: data.fullPath,
+            content: data.content,
+            eventType: 'Added'
+          };
+          const currentGraph = this.getGraphFn();
+          const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
+          const newGraph = effect(env);
+          this.setGraphFn(newGraph);
+          env.broadcast(newGraph);
+          return; // Functional graph handles this - don't send raw file event
+        }
+
+        if (channel === 'file-changed' && data?.fullPath && data?.content) {
+          const fsUpdate: FSUpdate = {
+            path: data.fullPath,
+            content: data.content,
+            eventType: 'Changed'
+          };
+          const currentGraph = this.getGraphFn();
+          const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
+          const newGraph = effect(env);
+          this.setGraphFn(newGraph);
+          env.broadcast(newGraph);
+          return; // Functional graph handles this - don't send raw file event
+        }
+
+        if (channel === 'file-deleted' && data?.fullPath) {
+          const fsUpdate: FSUpdate = {
+            path: data.fullPath,
+            content: '',
+            eventType: 'Deleted'
+          };
+          const currentGraph = this.getGraphFn();
+          const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
+          const newGraph = effect(env);
+          this.setGraphFn(newGraph);
+          env.broadcast(newGraph);
+          return; // Functional graph handles this - don't send raw file event
+        }
+
+        if (channel === 'initial-files-loaded') {
+          const currentGraph = this.getGraphFn();
+          env.broadcast(currentGraph);
+          return; // Functional graph handles this - don't send raw file event
+        }
+      }
+    } catch (error) {
+      console.error('[FileWatchHandler] Error updating graph:', error);
+    }
+
+    // For all other events, send to renderer as before
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       try {
         this.mainWindow.webContents.send(channel, data);
       } catch (error) {
-        // Silently ignore errors when renderer is destroyed
-        console.error(`[FileWatchManager] Failed to send to renderer (${channel}):`, error);
+        console.error(`[FileWatchHandler] Failed to send to renderer (${channel}):`, error);
       }
     }
   }
@@ -562,7 +645,7 @@ class FileWatchManager {
     const maxAttempts = 20;
     const delayMs = 500;
 
-    console.log('[FileWatchManager] Waiting for backend to be ready...');
+    console.log('[FileWatchHandler] Waiting for backend to be ready...');
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -581,7 +664,7 @@ class FileWatchManager {
       }
     }
 
-    console.warn('[FileWatchManager] Backend did not become ready within timeout period');
+    console.warn('[FileWatchHandler] Backend did not become ready within timeout period');
     return false;
   }
 
@@ -597,7 +680,7 @@ class FileWatchManager {
       // Wait for backend to be ready first
       const isReady = await this.waitForBackendReady();
       if (!isReady) {
-        console.warn('[FileWatchManager] Backend not ready, skipping load-directory notification');
+        console.warn('[FileWatchHandler] Backend not ready, skipping load-directory notification');
         return;
       }
 
@@ -606,12 +689,106 @@ class FileWatchManager {
       console.log(`[FileWatchManager] Backend loaded directory successfully:`, response);
       console.log(`[FileWatchManager] Backend loaded ${response.nodes_loaded} nodes from ${response.directory}`);
     } catch (error) {
-      console.error('[FileWatchManager] Failed to notify backend of directory:', error);
-      console.warn('[FileWatchManager] Continuing with file watching despite backend error');
+      console.error('[FileWatchHandler] Failed to notify backend of directory:', error);
+      console.warn('[FileWatchHandler] Continuing with file watching despite backend error');
       // Note: We continue with file watching even if backend notification fails
       // This allows the frontend to work independently
     }
   }
 }
 
-export default FileWatchManager;
+export default FileWatchHandler;
+
+/**
+ * Test helper function to setup FileWatchHandler with graph dependencies.
+ * This replaces the old monkey-patching approach from file-watch-handlers.ts.
+ *
+ * @param fileWatchHandler - The FileWatchHandler or mock instance
+ * @param getGraphFn - Function to get current graph
+ * @param setGraphFn - Function to set graph
+ * @param mainWindow - Mock main window
+ * @param vaultPath - Path to vault
+ */
+export function setupFileWatchHandlerForTests(
+  fileWatchHandler: any,
+  getGraphFn: () => Graph,
+  setGraphFn: (graph: Graph) => void,
+  mainWindow: any,
+  vaultPath: string
+): void {
+  // If it's a real FileWatchHandler instance, use setGraphDependencies
+  if (fileWatchHandler instanceof FileWatchHandler) {
+    fileWatchHandler.setMainWindow(mainWindow);
+    fileWatchHandler.setGraphDependencies(getGraphFn, setGraphFn, () => vaultPath);
+    return;
+  }
+
+  // For mock instances, monkey-patch sendToRenderer (legacy test support)
+  const originalSendToRenderer = fileWatchHandler.sendToRenderer?.bind(fileWatchHandler);
+
+  fileWatchHandler.sendToRenderer = function(channel: string, data?: any) {
+    try {
+      const env: Env = {
+        vaultPath,
+        broadcast: (graph: Graph) => {
+          mainWindow.webContents.send('graph:stateChanged', graph);
+        }
+      };
+
+      if (channel === 'file-added' && data?.fullPath && data?.content) {
+        const fsUpdate: FSUpdate = {
+          path: data.fullPath,
+          content: data.content,
+          eventType: 'Added'
+        };
+        const currentGraph = getGraphFn();
+        const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
+        const newGraph = effect(env);
+        setGraphFn(newGraph);
+        env.broadcast(newGraph);
+        return;
+      }
+
+      if (channel === 'file-changed' && data?.fullPath && data?.content) {
+        const fsUpdate: FSUpdate = {
+          path: data.fullPath,
+          content: data.content,
+          eventType: 'Changed'
+        };
+        const currentGraph = getGraphFn();
+        const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
+        const newGraph = effect(env);
+        setGraphFn(newGraph);
+        env.broadcast(newGraph);
+        return;
+      }
+
+      if (channel === 'file-deleted' && data?.fullPath) {
+        const fsUpdate: FSUpdate = {
+          path: data.fullPath,
+          content: '',
+          eventType: 'Deleted'
+        };
+        const currentGraph = getGraphFn();
+        const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
+        const newGraph = effect(env);
+        setGraphFn(newGraph);
+        env.broadcast(newGraph);
+        return;
+      }
+
+      if (channel === 'initial-files-loaded') {
+        const currentGraph = getGraphFn();
+        env.broadcast(currentGraph);
+        return;
+      }
+    } catch (error) {
+      console.error('[FileWatchHandler] Error updating graph:', error);
+    }
+
+    // Fallback to original behavior for other events
+    if (originalSendToRenderer) {
+      originalSendToRenderer(channel, data);
+    }
+  };
+}

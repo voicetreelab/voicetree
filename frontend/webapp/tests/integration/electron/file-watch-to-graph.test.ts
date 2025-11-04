@@ -10,11 +10,11 @@
  * We test the BEHAVIOR, not implementation details.
  *
  * Architecture:
- * FileWatchManager → file-watch-handlers → applyFSEventToGraph (pure) → Graph state update + broadcast
+ * FileWatchHandler → file-watch-handlers → applyFSEventToGraph (pure) → Graph state update + broadcast
  *
  * Testing Strategy:
  * - Use real temporary directory for filesystem operations
- * - Mock FileWatchManager to trigger file events programmatically
+ * - Mock FileWatchHandler to trigger file events programmatically
  * - Mock mainWindow.webContents.send to capture broadcast calls
  * - DO NOT mock the pure functional core (applyFSEventToGraph) - test the real thing
  * - Verify end-to-end behavior: file change → graph updated + broadcast sent
@@ -24,34 +24,43 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
-import { setupFileWatchHandlers } from '../../../electron/handlers/file-watch-handlers'
+import { setupFileWatchHandlerForTests } from '../../../electron/handlers/file-watch-handler'
 import type { Graph } from '@/functional_graph/pure/types'
 import type { BrowserWindow } from 'electron'
 
-// Mock FileWatchManager interface for programmatic event triggering
+// State managed by mocked globals
+let currentGraph: Graph = { nodes: {}, edges: {} }
+let tempVault: string = ''
+let mockMainWindow: any = null
+
+// Mock ../main module
+vi.mock('../../../electron/main', () => ({
+  getGraph: () => currentGraph,
+  setGraph: (graph: Graph) => {
+    currentGraph = graph
+  },
+  getVaultPath: () => tempVault,
+  getMainWindow: () => mockMainWindow
+}))
+
+// Mock FileWatchHandler interface for programmatic event triggering
 interface MockFileWatchManager {
   sendToRenderer: (channel: string, data?: any) => void
 }
 
 describe('File Watch → Graph Updates - Behavioral Integration', () => {
-  let tempVault: string
   let mockFileWatchManager: MockFileWatchManager
-  let mockMainWindow: any // Mock BrowserWindow
-  let currentGraph: Graph
   let broadcastCalls: Array<{ graph: Graph }>
 
-  // Getter/setter for graph state (mimics the real implementation in main.ts)
+  // Helper to access current graph (for tests)
   const getGraph = (): Graph => currentGraph
-  const setGraph = (graph: Graph): void => {
-    currentGraph = graph
-  }
 
   beforeEach(async () => {
     // Create temporary vault for filesystem operations
     tempVault = path.join('/tmp', `test-vault-${Date.now()}`)
     await fs.mkdir(tempVault, { recursive: true })
 
-    // Initialize graph to empty state
+    // Initialize graph to empty state (module-level variable)
     currentGraph = { nodes: {}, edges: {} }
 
     // Track all broadcast calls
@@ -73,12 +82,12 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       }
     } as any
 
-    // Setup file watch handlers (this wraps sendToRenderer with our interceptor)
-    setupFileWatchHandlers(
-      mockFileWatchManager as any,
-      getGraph,
-      setGraph,
-      mockMainWindow as BrowserWindow,
+    // Setup file watch handlers
+    setupFileWatchHandlerForTests(
+      mockFileWatchManager,
+      () => currentGraph,
+      (graph: Graph) => { currentGraph = graph },
+      mockMainWindow,
       tempVault
     )
   })
@@ -98,7 +107,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
 
       expect(getGraph().nodes).toEqual({})
 
-      // WHEN: FileWatchManager detects the new file and triggers file-added event
+      // WHEN: FileWatchHandler detects the new file and triggers file-added event
       mockFileWatchManager.sendToRenderer('file-added', {
         fullPath: filePath,
         content: fileContent

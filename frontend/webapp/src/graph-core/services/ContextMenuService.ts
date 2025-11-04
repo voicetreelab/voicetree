@@ -10,7 +10,7 @@ cytoscape.use(cxtmenu);
 export interface ContextMenuConfig {
   onOpenEditor?: (nodeId: string) => void;
   onOpenTerminal?: (nodeId: string) => void;
-  onExpandNode?: (node: NodeSingular) => void;
+  onCreateChildNode?: (node: NodeSingular) => void;
   onCollapseNode?: (node: NodeSingular) => void;
   onPinNode?: (node: NodeSingular) => void;
   onUnpinNode?: (node: NodeSingular) => void;
@@ -165,10 +165,10 @@ export class ContextMenuService {
         select: () => this.config.onCollapseNode?.(node),
         enabled: true,
       });
-    } else if (!isExpanded && this.config.onExpandNode) {
+    } else if (!isExpanded && this.config.onCreateChildNode) {
       commands.push({
         content: this.createSvgIcon('expand', 'Expand'),
-        select: () => this.config.onExpandNode?.(node),
+        select: () => this.config.onCreateChildNode?.(node),
         enabled: true,
       });
     }
