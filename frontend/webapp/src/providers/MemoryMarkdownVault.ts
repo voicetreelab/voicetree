@@ -151,6 +151,13 @@ export class MemoryMarkdownVault implements IMarkdownVaultProvider {
     return { ...this.watchStatus };
   }
 
+  /**
+   * Get the currently watched directory (synchronous)
+   */
+  getWatchDirectory(): string | undefined {
+    return this.watchStatus.directory ?? undefined;
+  }
+
   // ==========================================================================
   // INTERNAL EVENT SYSTEM
   // ==========================================================================

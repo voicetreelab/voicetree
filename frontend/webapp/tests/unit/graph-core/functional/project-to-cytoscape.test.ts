@@ -42,7 +42,7 @@ describe('projectToCytoscape', () => {
           label: 'Test Node',
           content: 'Test content',
           summary: 'Test summary',
-          color: O.none
+          color: undefined
         }
       })
       expect(result.edges).toEqual([])
@@ -81,11 +81,11 @@ describe('projectToCytoscape', () => {
 
       const node1 = result.nodes.find(n => n.data.id === 'node1')
       expect(node1?.data.label).toBe('First Node')
-      expect(node1?.data.color).toEqual(O.some('#FF0000'))
+      expect(node1?.data.color).toBe('#FF0000')
 
       const node2 = result.nodes.find(n => n.data.id === 'node2')
       expect(node2?.data.label).toBe('Second Node')
-      expect(node2?.data.color).toEqual(O.none)
+      expect(node2?.data.color).toBeUndefined()
     })
   })
 

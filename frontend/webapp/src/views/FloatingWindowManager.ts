@@ -518,6 +518,10 @@ Edit this node to add content.
 
   /**
    * Extract node ID from file path (basename without .md)
+   *
+   * todo: This uses basename-only which is inconsistent with the functional graph's
+   * path-preserving approach. This should be refactored to handle relative paths.
+   * For now keeping basename to avoid breaking existing behavior until full refactor.
    */
   private extractNodeIdFromPath(filePath: string): NodeId {
     let id = filePath.replace(/\.md$/i, '');

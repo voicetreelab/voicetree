@@ -213,8 +213,12 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
     const windowElement = appWindow.locator('#window-close-test-window');
     await expect(windowElement).toBeVisible();
 
+    // Wait for CodeMirror to render (button might not be clickable until editor is ready)
+    await appWindow.waitForSelector('#window-close-test-window .cm-editor', { timeout: 5000 });
+
     // Click close button
     const closeButton = appWindow.locator('#window-close-test-window .cy-floating-window-close');
+    await expect(closeButton).toBeVisible();
     await closeButton.click();
 
     // Give it a moment to remove
@@ -606,6 +610,7 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
 
     // Close the window using the close button
     const closeButton = appWindow.locator('#window-terminal-cleanup-test .cy-floating-window-close');
+    await expect(closeButton).toBeVisible();
     await closeButton.click();
 
     // Wait for cleanup to happen

@@ -130,6 +130,39 @@ describe('apply_db_updates_to_graph', () => {
       expect(updatedGraph.nodes['existing-node'].title).toBe('Updated Title')
       expect(updatedGraph.nodes['existing-node'].content).toBe('# Updated Title\n\nNew content')
     })
+
+    it('should preserve relative path in node ID for nested files', () => {
+      const graph = createEmptyGraph()
+      const update: FSUpdate = {
+        path: '/tmp/test-vault/subfolder/nested-note.md',
+        content: '# Nested Note\n\nContent in subfolder',
+        eventType: 'Added'
+      }
+
+      const effect = apply_db_updates_to_graph(graph, update)
+      const updatedGraph = effect(testEnv)
+
+      // Verify node ID includes the relative path
+      expect(updatedGraph.nodes['subfolder/nested-note']).toBeDefined()
+      expect(updatedGraph.nodes['subfolder/nested-note'].id).toBe('subfolder/nested-note')
+      expect(updatedGraph.nodes['subfolder/nested-note'].title).toBe('Nested Note')
+    })
+
+    it('should handle deeply nested paths correctly', () => {
+      const graph = createEmptyGraph()
+      const update: FSUpdate = {
+        path: '/tmp/test-vault/a/b/c/deep.md',
+        content: '# Deep Note',
+        eventType: 'Added'
+      }
+
+      const effect = apply_db_updates_to_graph(graph, update)
+      const updatedGraph = effect(testEnv)
+
+      // Verify full relative path is preserved
+      expect(updatedGraph.nodes['a/b/c/deep']).toBeDefined()
+      expect(updatedGraph.nodes['a/b/c/deep'].id).toBe('a/b/c/deep')
+    })
   })
 
   describe('Changed event', () => {
