@@ -70,29 +70,32 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       // Log all environment variables to file (not console to avoid clutter)
       this.logStream.write(`Full environment:\n${JSON.stringify(process.env, null, 2)}\n`);
 
-      // Determine server path based on whether app is packaged
-      const serverPath = this.getServerPath(debugLog);
+      // Get build configuration
+      const env = createBuildEnv();
+      const config = getBuildConfig(env);
 
-      // Verify server exists
-      await this.verifyServerExists(serverPath, debugLog);
+      // Spawn configuration based on dev vs prod
+      const command = config.pythonCommand;
+      const args = [...config.pythonArgs, port.toString()];
+      const cwd = config.pythonCwd;
 
-      // Make server executable on Unix systems
-      await this.makeExecutable(serverPath, debugLog);
-
-      // Get the directory where the server is located
-      const serverDir = path.dirname(serverPath);
-      debugLog(`[TextToTreeServer] Server directory: ${serverDir}`);
-
-      // Spawn the server process
       debugLog(`[TextToTreeServer] Starting VoiceTree server on port ${port}...`);
-      debugLog(`[TextToTreeServer] Spawn command: ${serverPath} ${port}`);
+      debugLog(`[TextToTreeServer] Command: ${command}`);
+      debugLog(`[TextToTreeServer] Args: ${args.join(' ')}`);
+      debugLog(`[TextToTreeServer] Working directory: ${cwd}`);
 
-      const serverEnv = this.buildServerEnvironment(serverDir);
+      // Verify server exists (only for binary in production)
+      if (config.serverBinaryPath) {
+        await this.verifyServerExists(config.serverBinaryPath, debugLog);
+        await this.makeExecutable(config.serverBinaryPath, debugLog);
+      }
 
-      this.serverProcess = spawn(serverPath, [port.toString()], {
+      const serverEnv = this.buildServerEnvironment(cwd);
+
+      this.serverProcess = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: serverEnv,
-        cwd: serverDir,
+        cwd: cwd,
         detached: false
       });
 
@@ -147,26 +150,6 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
     return this.actualPort;
   }
 
-  /**
-   * Get the server executable path based on packaging mode
-   * Uses centralized build-config for path resolution
-   */
-  private getServerPath(debugLog: (message: string) => void): string {
-    const env = createBuildEnv();
-    const config = getBuildConfig(env);
-
-    if (!config.serverBinaryPath) {
-      debugLog('[TextToTreeServer] ERROR: No server binary path configured!');
-      debugLog('[TextToTreeServer] This should not happen in production mode');
-      throw new Error('Server binary path not configured');
-    }
-
-    const serverPath = config.serverBinaryPath;
-    debugLog(`[TextToTreeServer] Using server path from build-config: ${serverPath}`);
-    debugLog(`[TextToTreeServer] Environment: ${env.nodeEnv}, Packaged: ${env.isPackaged}`);
-
-    return serverPath;
-  }
 
   /**
    * Verify server exists, fail fast if not

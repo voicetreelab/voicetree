@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { apply_graph_updates } from '@/functional_graph/pure/applyGraphActionsToDB'
 import type { Graph, CreateNode, UpdateNode, DeleteNode, Env } from '@/functional_graph/pure/types'
 import * as E from 'fp-ts/lib/Either.js'
+import {AppEffect} from "../../src/functional_graph/pure/types";
 
 /**
  * Setup IPC handlers for user-initiated graph actions.
@@ -36,12 +37,13 @@ export function setupGraphIpcHandlers(
       const currentGraph = getGraph()
 
       // Create Reader effect (pure - no execution yet)
-      const effect = apply_graph_updates(currentGraph, action)
+      const effect : AppEffect<Graph> = apply_graph_updates(currentGraph, action)
 
       // Execute by providing environment
       // effect(env) - Reader execution (provide Env)
       // () - TaskEither execution (run async)
       const result = await effect(env)()
+        // todo, how do we modify the env? env should have state that can be mutated right?
 
       if (E.isLeft(result)) {
         console.error('[IPC] Error handling createNode:', result.left)

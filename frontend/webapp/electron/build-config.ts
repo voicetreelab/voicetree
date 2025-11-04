@@ -88,76 +88,64 @@ export function createBuildEnv(): BuildEnv {
  * Pure function - same env always produces same config
  */
 export function getBuildConfig(env: BuildEnv): BuildConfig {
-  return {
-    // Python server configuration
-    ...getPythonConfig(env),
+  return env.nodeEnv === 'development'
+    ? getBuildConfigDev(env)
+    : getBuildConfigProd(env);
+}
 
-    // Tools and backend configuration
-    ...getToolsConfig(env),
+/**
+ * Development configuration - run Python directly from source
+ */
+function getBuildConfigDev(env: BuildEnv): BuildConfig {
+  return {
+    // Python: Run directly from source
+    pythonCommand: 'python',
+    pythonArgs: ['server.py'],
+    pythonCwd: path.join(env.rootDir, 'backend'),
+    shouldCompilePython: false,
+    serverBinaryPath: null,
+
+    // Tools: Copy from repo source
+    toolsSource: path.join(env.rootDir, 'tools'),
+    toolsDest: path.join(env.userDataPath, 'tools'),
+    backendSource: path.join(env.rootDir, 'backend'),
+    backendDest: path.join(env.userDataPath, 'backend'),
+    shouldCopyTools: !env.isTest,
   };
 }
 
 /**
- * Python server configuration strategy
+ * Production configuration - run compiled binary
  */
-function getPythonConfig(env: BuildEnv): Pick<
-  BuildConfig,
-  'pythonCommand' | 'pythonArgs' | 'pythonCwd' | 'shouldCompilePython' | 'serverBinaryPath'
-> {
-  // Development: Run Python directly from source
-  if (env.nodeEnv === 'development') {
-    return {
-      pythonCommand: 'python',
-      pythonArgs: ['server.py'],
-      pythonCwd: path.join(env.rootDir, 'backend'),
-      shouldCompilePython: false,
-      serverBinaryPath: null
-    };
-  }
-
-  // Production/Packaged: Run compiled binary
+function getBuildConfigProd(env: BuildEnv): BuildConfig {
+  // Binary location depends on packaging state
   const serverBinaryPath = env.isPackaged
     ? path.join(process.resourcesPath, 'server', 'voicetree-server')
     : path.join(env.rootDir, 'dist', 'resources', 'server', 'voicetree-server');
 
+  // Tools source depends on packaging state
+  const toolsSource = env.isPackaged
+    ? path.join(process.resourcesPath, 'tools')
+    : path.join(env.rootDir, 'tools');
+
+  const backendSource = env.isPackaged
+    ? path.join(process.resourcesPath, 'backend')
+    : path.join(env.rootDir, 'backend');
+
   return {
+    // Python: Run compiled binary
     pythonCommand: serverBinaryPath,
     pythonArgs: [],
     pythonCwd: env.rootDir,
     shouldCompilePython: true,
-    serverBinaryPath
-  };
-}
+    serverBinaryPath,
 
-/**
- * Tools and backend modules configuration strategy
- */
-function getToolsConfig(env: BuildEnv): Pick<
-  BuildConfig,
-  'toolsSource' | 'toolsDest' | 'backendSource' | 'backendDest' | 'shouldCopyTools'
-> {
-  // Destination is always Application Support
-  const toolsDest = path.join(env.userDataPath, 'tools');
-  const backendDest = path.join(env.userDataPath, 'backend');
-
-  // Source depends on packaging
-  const toolsSource = env.isPackaged
-    ? path.join(process.resourcesPath, 'tools')
-    : path.join(env.rootDir, 'tools');  // Dev: copy from repo source
-
-  const backendSource = env.isPackaged
-    ? path.join(process.resourcesPath, 'backend')
-    : path.join(env.rootDir, 'backend');  // Dev: copy from repo source
-
-  // Skip copying in test mode for fast startup
-  const shouldCopyTools = !env.isTest;
-
-  return {
+    // Tools: Copy from packaged resources or build output
     toolsSource,
-    toolsDest,
+    toolsDest: path.join(env.userDataPath, 'tools'),
     backendSource,
-    backendDest,
-    shouldCopyTools
+    backendDest: path.join(env.userDataPath, 'backend'),
+    shouldCopyTools: !env.isTest,
   };
 }
 
