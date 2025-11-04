@@ -1,11 +1,11 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import fixPath from 'fix-path';
 import FileWatchManager from './file-watch-manager';
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager';
 import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager';
 import TerminalManager from './terminal-manager';
-import MarkdownNodeManager from './markdown-node-manager';
 import PositionManager from './position-manager';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup';
 import { loadGraphFromDisk } from '../src/functional_graph/shell/main/load-graph-from-disk';
@@ -39,7 +39,6 @@ const textToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.
   ? new StubTextToTreeServerManager()
   : new RealTextToTreeServerManager();
 const terminalManager = new TerminalManager();
-const nodeManager = new MarkdownNodeManager();
 const positionManager = new PositionManager();
 
 // Store the TextToTreeServer port (set during app startup)
@@ -240,6 +239,19 @@ ipcMain.handle('start-file-watching', async (event, directoryPath) => {
       selectedDirectory = result.filePaths[0];
     }
 
+    // FAIL FAST: Validate directory exists before proceeding
+    if (!fs.existsSync(selectedDirectory)) {
+      const error = `Directory does not exist: ${selectedDirectory}`;
+      console.error('[IPC] start-file-watching failed:', error);
+      return { success: false, error };
+    }
+
+    if (!fs.statSync(selectedDirectory).isDirectory()) {
+      const error = `Path is not a directory: ${selectedDirectory}`;
+      console.error('[IPC] start-file-watching failed:', error);
+      return { success: false, error };
+    }
+
     // Get main window for handlers
     const mainWindow = BrowserWindow.getAllWindows()[0];
     if (!mainWindow) {
@@ -290,43 +302,6 @@ ipcMain.handle('get-watch-status', () => {
   return status;
 });
 
-// File content handlers
-ipcMain.handle('save-file-content', async (event, filePath, content) => {
-  return await nodeManager.saveContent(filePath, content);
-});
-
-ipcMain.handle('delete-file', async (event, filePath) => {
-  return await nodeManager.delete(filePath);
-});
-
-// Create child node handler
-ipcMain.handle('create-child-node', async (event, parentNodeId) => {
-  return await nodeManager.createChild(
-    parentNodeId,
-    fileWatchManager.getWatchedDirectory()
-  );
-});
-
-// Create standalone node handler
-ipcMain.handle('create-standalone-node', async (_event, position?: { x: number; y: number }) => {
-  const watchDirectory = fileWatchManager.getWatchedDirectory();
-  const result = await nodeManager.createStandaloneNode(watchDirectory);
-
-  // If node creation succeeded and position was provided, save it immediately
-  if (result.success && result.filePath && position && watchDirectory) {
-    try {
-      // Extract relative filename from full path
-      const filename = path.basename(result.filePath);
-      await positionManager.updatePosition(watchDirectory, filename, position);
-      console.log(`[create-standalone-node] Saved position (${position.x}, ${position.y}) for ${filename}`);
-    } catch (error) {
-      console.error('[create-standalone-node] Failed to save position:', error);
-      // Don't fail the whole operation if position save fails
-    }
-  }
-
-  return result;
-});
 
 // Terminal IPC handlers
 ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {

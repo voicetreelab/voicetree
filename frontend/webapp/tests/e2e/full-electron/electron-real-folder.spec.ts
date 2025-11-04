@@ -17,7 +17,7 @@ import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscap
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'test-markdown-vault');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example_real_large/2025-09-30');
 
 // Type definitions
 interface ExtendedWindow extends Window {
