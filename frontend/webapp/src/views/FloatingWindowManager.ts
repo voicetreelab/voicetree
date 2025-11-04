@@ -80,7 +80,7 @@ export class FloatingWindowManager {
           }
         }
       },
-      onExpandNode: (node: NodeSingular) => {
+      onCreateChildNode: (node: NodeSingular) => {
         const nodeId = node.id();
         console.log('[FloatingWindowManager] Expanding node:', nodeId);
         this.createNewChildNode(nodeId);

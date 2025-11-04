@@ -79,7 +79,7 @@ MINIMIZE_TEST=0 npx playwright test electron-port-conflict-resolution.spec.ts --
               ▼
 ┌─────────────────────────────────────────┐
 │ 5. File Watch Manager Calls Backend    │
-│    FileWatchManager.notifyBackend()     │
+│    FileWatchHandler.notifyBackend()     │
 │    → loadDirectory(directoryPath)      │
 │    → backend-api.ts invoked             │
 └─────────────┬───────────────────────────┘
@@ -126,7 +126,7 @@ MINIMIZE_TEST=0 npx playwright test electron-port-conflict-resolution.spec.ts --
 ### 3. Lazy Initialization
 - Backend connection NOT initialized at app startup (no blocking)
 - Auto-initializes on first `getBackendBaseUrl()` call
-- Happens when `FileWatchManager` calls `loadDirectory()`
+- Happens when `FileWatchHandler` calls `loadDirectory()`
 
 ### 4. Network Request Interception
 - Test intercepts `window.fetch` to capture requests
@@ -160,6 +160,6 @@ MINIMIZE_TEST=0 npx playwright test electron-port-conflict-resolution.spec.ts --
 - **Port Utils**: `electron/port-utils.ts` - Port discovery logic
 - **Server Manager**: `electron/server-manager.ts` - Python server lifecycle
 - **Backend API**: `src/utils/backend-api.ts` - HTTP client with lazy init
-- **File Watch Manager**: `electron/file-watch-manager.ts` - Calls backend API
+- **File Watch Manager**: `electron/file-watch-handler.ts` - Calls backend API
 - **Main Process**: `electron/main.ts` - IPC handlers and startup
 - **Preload**: `electron/preload.ts` - IPC bridge to renderer

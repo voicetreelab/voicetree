@@ -84,10 +84,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Functional graph API (Phase 3)
   graph: {
-    // Action dispatchers - send actions to main process
-    createNode: (action) => ipcRenderer.invoke('graph:createNode', action),
-    updateNode: (action) => ipcRenderer.invoke('graph:updateNode', action),
-    deleteNode: (action) => ipcRenderer.invoke('graph:deleteNode', action),
+    // Action dispatcher - send any node action to main process
+    update: (action) => ipcRenderer.invoke('graph:update', action),
 
     // Query current graph state
     getState: () => ipcRenderer.invoke('graph:getState'),

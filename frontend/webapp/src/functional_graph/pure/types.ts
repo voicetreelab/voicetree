@@ -84,17 +84,33 @@ export interface FSUpdate {
 // ============================================================================
 
 /**
- * App effect: computation that needs environment, is async, and can fail
+ * Filesystem write effect: async operation that writes to disk
+ *
+ * Used for user-initiated actions that modify files (create/update/delete nodes).
+ * These effects:
+ * - Write to filesystem (requires vaultPath from Env)
+ * - Are async (TaskEither)
+ * - Can fail with Error
+ * - Return computed result (but IPC handlers should ignore it - file watch handlers own state)
  *
  * ReaderTaskEither<Env, Error, A> means:
  * - Reader: needs Env to run
  * - Task: async computation
  * - Either: can succeed with A or fail with Error
  */
-export type AppEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
+export type FSWriteEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
+
+/**
+ * Generic app effect (alias for backwards compatibility)
+ * Prefer FSWriteEffect for filesystem operations
+ */
+export type AppEffect<A> = FSWriteEffect<A>
 
 /**
  * Pure Reader effect: needs environment but is synchronous
+ *
+ * Used for pure computations that need config (vaultPath) but don't perform IO.
+ * File watch handlers use this to update graph state from filesystem events.
  */
 export type EnvReader<A> = R.Reader<Env, A>
 

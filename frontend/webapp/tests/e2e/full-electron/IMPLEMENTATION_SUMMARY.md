@@ -173,7 +173,7 @@ IPC: get-backend-port → 8002
     ↓
 User opens folder
     ↓
-FileWatchManager.notifyBackend()
+FileWatchHandler.notifyBackend()
     ↓
 loadDirectory() in backend-api.ts
     ↓

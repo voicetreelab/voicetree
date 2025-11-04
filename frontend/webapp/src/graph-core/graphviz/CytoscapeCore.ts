@@ -144,40 +144,40 @@ export class CytoscapeCore {
       this.styleService.updateNodeSizes(this.viz, affectedNodes);
     });
   }
-
-  // Add nodes to the graph
-  addNodes(nodes: NodeDefinition[]): NodeCollection {
-    const addedNodes = this.viz.add(nodes).nodes();
-    this.updateNodeDegrees();
-    // Only update the newly added nodes
-    this.styleService.updateNodeSizes(this.viz, addedNodes);
-    return addedNodes;
-  }
-
-  // Add edges to the graph
-  addEdges(edges: EdgeDefinition[]): EdgeCollection {
-    const addedEdges = this.viz.add(edges).edges();
-    // Update degrees for all nodes since edges affect node degrees
-    this.updateNodeDegrees();
-    // Only update nodes connected to the new edges
-    const affectedNodes = addedEdges.connectedNodes();
-    this.styleService.updateNodeSizes(this.viz, affectedNodes);
-    return addedEdges;
-  }
-
-  // Add elements (nodes and edges) to the graph
-  addElements(elements: (NodeDefinition | EdgeDefinition)[]): void {
-    const added = this.viz.add(elements);
-    this.updateNodeDegrees();
-    // Update all nodes in this case since we don't know what was added
-    // (could be optimized by separating nodes and edges)
-    this.styleService.updateNodeSizes(this.viz);
-  }
-
-  // Get all nodes
-  getNodes(): NodeCollection {
-    return this.viz.nodes();
-  }
+// TODO UNUSED
+  // // Add nodes to the graph
+  // addNodes(nodes: NodeDefinition[]): NodeCollection {
+  //   const addedNodes = this.viz.add(nodes).nodes();
+  //   this.updateNodeDegrees();
+  //   // Only update the newly added nodes
+  //   this.styleService.updateNodeSizes(this.viz, addedNodes);
+  //   return addedNodes;
+  // }
+  //
+  // // Add edges to the graph
+  // addEdges(edges: EdgeDefinition[]): EdgeCollection {
+  //   const addedEdges = this.viz.add(edges).edges();
+  //   // Update degrees for all nodes since edges affect node degrees
+  //   this.updateNodeDegrees();
+  //   // Only update nodes connected to the new edges
+  //   const affectedNodes = addedEdges.connectedNodes();
+  //   this.styleService.updateNodeSizes(this.viz, affectedNodes);
+  //   return addedEdges;
+  // }
+  //
+  // // Add elements (nodes and edges) to the graph
+  // addElements(elements: (NodeDefinition | EdgeDefinition)[]): void {
+  //   const added = this.viz.add(elements);
+  //   this.updateNodeDegrees();
+  //   // Update all nodes in this case since we don't know what was added
+  //   // (could be optimized by separating nodes and edges)
+  //   this.styleService.updateNodeSizes(this.viz);
+  // }
+  //
+  // // Get all nodes
+  // getNodes(): NodeCollection {
+  //   return this.viz.nodes();
+  // }
 
   // Get all edges
   getEdges(): EdgeCollection {

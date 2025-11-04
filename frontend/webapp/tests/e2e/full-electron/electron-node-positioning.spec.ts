@@ -7,7 +7,7 @@
  *    but the position is correctly saved to disk.
  * 2. Angular seeding - Normal add node via createChildNode, positioned relative to parent using angular subdivision (SPAWN_RADIUS = 200px)
  * 3. Saved position restore - Positions are saved to disk and restored when folder is re-opened.
- *    The file-watch-manager.ts loads positions from PositionManager and includes them in the watching-started event.
+ *    The file-watch-handler.ts loads positions from PositionManager and includes them in the watching-started event.
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */

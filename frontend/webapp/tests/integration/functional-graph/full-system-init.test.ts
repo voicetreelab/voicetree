@@ -23,6 +23,23 @@ import type { IpcMainInvokeEvent } from 'electron'
 import * as O from 'fp-ts/lib/Option.js'
 import type { Graph, CreateNode, UpdateNode, DeleteNode } from '@/functional_graph/pure/types'
 
+// State that will be managed by mocked globals
+let currentGraph: Graph | null = null
+let mockWindow: any = null
+let tempVault: string = ''
+
+// Helper to access current graph (for tests)
+const getGraph = (): Graph => {
+  if (!currentGraph) {
+    throw new Error('Graph not initialized')
+  }
+  return currentGraph
+}
+
+const setGraph = (graph: Graph): void => {
+  currentGraph = graph
+}
+
 // Mock Electron's ipcMain
 const ipcMain = {
   _handlers: new Map<string, Function>(),
@@ -43,11 +60,31 @@ const ipcMain = {
 // Mock electron module
 vi.mock('electron', () => ({
   ipcMain,
+  app: {
+    whenReady: () => Promise.resolve(),
+    on: vi.fn(),
+    quit: vi.fn()
+  },
   BrowserWindow: class {
     webContents = {
       send: vi.fn()
     }
   }
+}))
+
+// Mock ../main module to provide global getters/setters
+vi.mock('../../../electron/main', () => ({
+  getGraph: () => {
+    if (!currentGraph) {
+      throw new Error('Graph not initialized')
+    }
+    return currentGraph
+  },
+  setGraph: (graph: Graph) => {
+    currentGraph = graph
+  },
+  getVaultPath: () => tempVault,
+  getMainWindow: () => mockWindow
 }))
 
 // We'll need to import the actual initialization function
@@ -56,7 +93,7 @@ vi.mock('electron', () => ({
 
 import { loadGraphFromDisk } from '@/functional_graph/shell/main/load-graph-from-disk'
 
-// Mock FileWatchManager to control file events
+// Mock FileWatchHandler to control file events
 class MockFileWatchManager {
   // This will be wrapped by setupFileWatchHandlers
   sendToRenderer(channel: string, data?: any): void {
@@ -82,19 +119,12 @@ class MockFileWatchManager {
 }
 
 describe('Module D: Full System Initialization - Behavioral Integration', () => {
-  let tempVault: string
-  let mockWindow: any
   let broadcastedGraphs: Graph[]
-  let getGraph: () => Graph
-  let setGraph: (graph: Graph) => void
-  let currentGraph: Graph | null
   let mockFileWatchManager: MockFileWatchManager
 
   beforeEach(async () => {
     // Reset IPC handlers before each test
-    ipcMain.removeHandler('graph:createNode')
-    ipcMain.removeHandler('graph:updateNode')
-    ipcMain.removeHandler('graph:deleteNode')
+    ipcMain.removeHandler('graph:update')
     ipcMain.removeHandler('graph:getState')
 
     // Create temporary vault with real markdown files
@@ -127,17 +157,8 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       }
     }
 
-    // Initialize graph state management (mimicking main.ts)
+    // Reset graph state (mocked globals will use this)
     currentGraph = null
-    getGraph = () => {
-      if (!currentGraph) {
-        throw new Error('Graph not initialized')
-      }
-      return currentGraph
-    }
-    setGraph = (graph: Graph) => {
-      currentGraph = graph
-    }
 
     // Create mock file watch manager
     mockFileWatchManager = new MockFileWatchManager()
@@ -148,9 +169,7 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
     await fs.rm(tempVault, { recursive: true, force: true })
 
     // Remove IPC handlers
-    ipcMain.removeHandler('graph:createNode')
-    ipcMain.removeHandler('graph:updateNode')
-    ipcMain.removeHandler('graph:deleteNode')
+    ipcMain.removeHandler('graph:update')
     ipcMain.removeHandler('graph:getState')
   })
 
@@ -164,17 +183,18 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
     currentGraph = await loadGraph()
     console.log(`[Test] Loaded ${Object.keys(currentGraph.nodes).length} nodes`)
 
-    // Step 2: Setup IPC handlers for user actions
-    const broadcast = (graph: Graph) => {
-      mainWindow.webContents.send('graph:stateChanged', graph)
-    }
-    const { setupGraphIpcHandlers } = await import('../../../electron/handlers/ipc-graph-handlers')
-    setupGraphIpcHandlers(getGraph, setGraph, vaultPath, broadcast)
+    // Step 2: Import IPC handlers - they auto-register using mocked globals
+    await import('../../../electron/handlers/ipc-graph-handlers')
 
-    // Step 3: Setup file watch handlers
-    // setupFileWatchHandlers will wrap mockFileWatchManager.sendToRenderer
-    const { setupFileWatchHandlers } = await import('../../../electron/handlers/file-watch-handlers')
-    setupFileWatchHandlers(mockFileWatchManager as any, getGraph, setGraph, mainWindow, vaultPath)
+    // Step 3: Setup file watch handlers - hook into mockFileWatchManager
+    const { setupFileWatchHandlerForTests } = await import('../../../electron/handlers/file-watch-handler')
+    setupFileWatchHandlerForTests(
+      mockFileWatchManager as any,
+      getGraph,
+      setGraph,
+      mockWindow,
+      tempVault
+    )
   }
 
   describe('BEHAVIOR: Full initialization from vault with files', () => {
@@ -231,7 +251,7 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       }
 
       const mockEvent = {} as IpcMainInvokeEvent
-      const handler = ipcMain._handlers.get('graph:createNode')
+      const handler = ipcMain._handlers.get('graph:update')
       if (handler) {
         const result = await handler(mockEvent, createAction)
         expect(result.success).toBe(true)
@@ -266,7 +286,7 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       }
 
       const mockEvent = {} as IpcMainInvokeEvent
-      const handler = ipcMain._handlers.get('graph:updateNode')
+      const handler = ipcMain._handlers.get('graph:update')
       if (handler) {
         const result = await handler(mockEvent, updateAction)
         expect(result.success).toBe(true)
@@ -296,7 +316,7 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       }
 
       const mockEvent = {} as IpcMainInvokeEvent
-      const handler = ipcMain._handlers.get('graph:deleteNode')
+      const handler = ipcMain._handlers.get('graph:update')
       if (handler) {
         const result = await handler(mockEvent, deleteAction)
         expect(result.success).toBe(true)
@@ -320,10 +340,6 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       await initializeFunctionalGraph(tempVault, mockWindow)
       const initialNodeCount = Object.keys(getGraph().nodes).length
 
-      // Import setupFileWatchHandlers to set up handlers
-      const { setupFileWatchHandlers } = await import('../../../electron/handlers/file-watch-handlers')
-      setupFileWatchHandlers(mockFileWatchManager as any, getGraph, setGraph, mockWindow, tempVault)
-
       // WHEN: File system adds a new file
       const newFilePath = path.join(tempVault, 'new_file.md')
       const newContent = '# New File\n\nAdded via filesystem.'
@@ -342,10 +358,6 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       // GIVEN: System is initialized
       await initializeFunctionalGraph(tempVault, mockWindow)
 
-      // Import setupFileWatchHandlers
-      const { setupFileWatchHandlers } = await import('../../../electron/handlers/file-watch-handlers')
-      setupFileWatchHandlers(mockFileWatchManager as any, getGraph, setGraph, mockWindow, tempVault)
-
       // WHEN: File system modifies an existing file
       const modifiedPath = path.join(tempVault, 'home.md')
       const modifiedContent = '# Home Modified\n\nChanged via filesystem.'
@@ -363,10 +375,6 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       // GIVEN: System is initialized
       await initializeFunctionalGraph(tempVault, mockWindow)
       const initialNodeCount = Object.keys(getGraph().nodes).length
-
-      // Import setupFileWatchHandlers
-      const { setupFileWatchHandlers } = await import('../../../electron/handlers/file-watch-handlers')
-      setupFileWatchHandlers(mockFileWatchManager as any, getGraph, setGraph, mockWindow, tempVault)
 
       // WHEN: File system deletes a file
       const deletedPath = path.join(tempVault, 'voicetree.md')
@@ -397,7 +405,7 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       }
 
       const mockEvent = {} as IpcMainInvokeEvent
-      const handler = ipcMain._handlers.get('graph:createNode')
+      const handler = ipcMain._handlers.get('graph:update')
       if (handler) {
         await handler(mockEvent, createAction)
       }
@@ -411,10 +419,6 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
     it('should broadcast graph updates on file watch events', async () => {
       // GIVEN: System is initialized
       await initializeFunctionalGraph(tempVault, mockWindow)
-
-      // Set up file watch handlers
-      const { setupFileWatchHandlers } = await import('../../../electron/handlers/file-watch-handlers')
-      setupFileWatchHandlers(mockFileWatchManager as any, getGraph, setGraph, mockWindow, tempVault)
 
       broadcastedGraphs = [] // Reset broadcasts
       vi.clearAllMocks()
@@ -446,10 +450,6 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
       // WHEN: Initialize the system
       await initializeFunctionalGraph(tempVault, mockWindow)
 
-      // Set up file watch handlers
-      const { setupFileWatchHandlers } = await import('../../../electron/handlers/file-watch-handlers')
-      setupFileWatchHandlers(mockFileWatchManager as any, getGraph, setGraph, mockWindow, tempVault)
-
       // THEN: Can immediately query graph state
       const handler = ipcMain._handlers.get('graph:getState')
       if (handler) {
@@ -467,7 +467,7 @@ describe('Module D: Full System Initialization - Behavioral Integration', () => 
         position: O.none
       }
 
-      const createHandler = ipcMain._handlers.get('graph:createNode')
+      const createHandler = ipcMain._handlers.get('graph:update')
       if (createHandler) {
         const result = await createHandler({} as IpcMainInvokeEvent, createAction)
         expect(result.success).toBe(true)

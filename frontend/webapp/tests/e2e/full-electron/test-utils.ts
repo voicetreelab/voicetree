@@ -411,14 +411,14 @@ export async function triggerExpandNode(appWindow: Page, nodeId: string): Promis
     node.emit('cxttapstart');
 
     // The context menu should now be open. The expand action is registered in the menu.
-    // To simulate clicking the expand button, we need to trigger the onExpandNode callback
+    // To simulate clicking the expand button, we need to trigger the onCreateChildNode callback
     // that was registered when the context menu was set up.
 
-    // The menu is set up in voice-tree-graph-viz-layout.tsx with an onExpandNode handler
+    // The menu is set up in voice-tree-graph-viz-layout.tsx with an onCreateChildNode handler
     // We can access it through the cytoscapeCore reference
     const cytoscapeCore = (window as any).cytoscapeCore;
     if (cytoscapeCore && cytoscapeCore.contextMenuService) {
-      // Access the config and call onExpandNode directly
+      // Access the config and call onCreateChildNode directly
       const config = cytoscapeCore.contextMenuService.config;
       if (config && config.onExpandNode) {
         config.onExpandNode(node);

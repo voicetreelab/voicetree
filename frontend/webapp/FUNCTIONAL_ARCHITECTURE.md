@@ -9,7 +9,7 @@
 │  ┌──────────────┐                                                  │
 │  │ User Actions │  (onClick, addNode, updateNode, deleteNode)      │
 │  └──────┬───────┘                                                  │
-│         │                                                           │
+│         │         side effect: optimistic UI updates.                                                  │
 │         │ IPC                                                       │
 │         ▼                                                           │
 └─────────────────────────────────────────────────────────────────────┘
@@ -110,7 +110,7 @@
 │  │  └── node3.md  ───── fs watch ──────────┐│
 │  └─────────────────────────────────────────┘│
 │                                              │
-│                                              └─── FileWatchManager
+│                                              └─── FileWatchHandler
 └──────────────────────────────────────────────────────────────────┘
           │
           │ IPC: 'graph:stateChanged'
@@ -186,7 +186,7 @@
    - setGraph(newGraph)       (mutation)
    - FS writes file           (side effect via TaskEither)
    ↓
-5. FileWatchManager detects new file
+5. FileWatchHandler detects new file
    ↓
 6. File handler (IMPURE):
    - Calls: apply_db_updates_to_graph(currentGraph, fsUpdate)
@@ -204,7 +204,7 @@
 ```
 1. User edits file in VS Code
    ↓
-2. FileWatchManager detects change
+2. FileWatchHandler detects change
    ↓
 3. File handler (IMPURE):
    - Build effect: apply_db_updates_to_graph(graph, fsUpdate)
@@ -232,7 +232,7 @@
 1. **Connect to main.ts**
    - Wire up handlers in electron/main.ts
    - Initialize global state from `loadGraphFromDisk`
-   - Setup FileWatchManager integration
+   - Setup FileWatchHandler integration
    - Test end-to-end flow
 
 2. **Renderer Integration**

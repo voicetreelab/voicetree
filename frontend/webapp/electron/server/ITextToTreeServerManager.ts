@@ -6,7 +6,7 @@
  *
  * Note: This server is NOT responsible for reading existing markdown files.
  * File watching and graph visualization of existing files happens independently
- * in FileWatchManager and the frontend renderer.
+ * in FileWatchHandler and the frontend renderer.
  *
  * Implementations:
  * - StubTextToTreeServerManager: Lightweight HTTP server for tests

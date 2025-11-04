@@ -9,13 +9,25 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { BrowserWindow } from 'electron'
-import type { Graph, FSUpdate } from '@/functional_graph/pure/types'
-import { setupFileWatchHandlers } from '../../../electron/handlers/file-watch-handlers'
+import type { Graph } from '@/functional_graph/pure/types'
+import { setupFileWatchHandlerForTests } from '../../../electron/handlers/file-watch-handler'
+
+// State managed by mocked globals
+let currentGraph: Graph = { nodes: {}, edges: {} }
+let mockWindow: Pick<BrowserWindow, 'webContents'> | null = null
+
+// Mock ../main module
+vi.mock('../../../electron/main', () => ({
+  getGraph: () => currentGraph,
+  setGraph: (graph: Graph) => {
+    currentGraph = graph
+  },
+  getVaultPath: () => '/test/vault',
+  getMainWindow: () => mockWindow
+}))
 
 describe('Debug: Graph Broadcasting', () => {
-  let mockWindow: Pick<BrowserWindow, 'webContents'>
   let broadcastEvents: Array<{ channel: string; data: any }>
-  let currentGraph: Graph
   let mockFileWatchManager: any
 
   beforeEach(() => {
@@ -52,16 +64,11 @@ describe('Debug: Graph Broadcasting', () => {
 
   it('should broadcast graph when initial-files-loaded event is sent', () => {
     // Setup handlers
-    const getGraph = () => currentGraph
-    const setGraph = (graph: Graph) => {
-      currentGraph = graph
-    }
-
-    setupFileWatchHandlers(
+    setupFileWatchHandlerForTests(
       mockFileWatchManager,
-      getGraph,
-      setGraph,
-      mockWindow as BrowserWindow,
+      () => currentGraph,
+      (graph: Graph) => { currentGraph = graph },
+      mockWindow,
       '/test/vault'
     )
 
@@ -77,16 +84,11 @@ describe('Debug: Graph Broadcasting', () => {
 
   it('should update graph and broadcast when file-added event is sent', () => {
     // Setup handlers
-    const getGraph = () => currentGraph
-    const setGraph = (graph: Graph) => {
-      currentGraph = graph
-    }
-
-    setupFileWatchHandlers(
+    setupFileWatchHandlerForTests(
       mockFileWatchManager,
-      getGraph,
-      setGraph,
-      mockWindow as BrowserWindow,
+      () => currentGraph,
+      (graph: Graph) => { currentGraph = graph },
+      mockWindow,
       '/test/vault'
     )
 
@@ -108,16 +110,11 @@ describe('Debug: Graph Broadcasting', () => {
 
   it('should update graph with wikilinks and broadcast', () => {
     // Setup handlers
-    const getGraph = () => currentGraph
-    const setGraph = (graph: Graph) => {
-      currentGraph = graph
-    }
-
-    setupFileWatchHandlers(
+    setupFileWatchHandlerForTests(
       mockFileWatchManager,
-      getGraph,
-      setGraph,
-      mockWindow as BrowserWindow,
+      () => currentGraph,
+      (graph: Graph) => { currentGraph = graph },
+      mockWindow,
       '/test/vault'
     )
 

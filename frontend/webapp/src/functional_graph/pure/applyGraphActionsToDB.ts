@@ -1,4 +1,4 @@
-import type {Graph, NodeAction, AppEffect, GraphNode, Env} from '@/functional_graph/pure/types'
+import type {Graph, NodeAction, FSWriteEffect, GraphNode, Env} from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import * as TE from 'fp-ts/lib/TaskEither.js'
 import { promises as fs } from 'fs'
@@ -11,19 +11,20 @@ const toError = (reason: unknown): Error =>
   reason instanceof Error ? reason : new Error(String(reason))
 
 /**
- * Apply a user-initiated action to the graph.
+ * Apply a user-initiated action to the graph by writing to filesystem.
  *
- * Function signature: Graph -> NodeAction -> AppEffect<Graph>
+ * Function signature: Graph -> NodeAction -> FSWriteEffect<Graph>
  *
- * Instead of taking vaultPath explicitly, it reads from environment via Reader monad.
- * The impure shell provides the environment when executing.
+ * This creates an effect that writes to the filesystem.
+ * The returned graph is for validation/testing - IPC handlers should NOT use it to update state.
+ * Graph state updates come from file watch handlers detecting the filesystem change.
  *
- * @returns Effect that when given Env, produces updated graph or error
+ * @returns Filesystem write effect that returns computed graph (but don't update state with it!)
  */
 export function apply_graph_updates(
   graph: Graph,
   action: NodeAction
-): AppEffect<Graph> {
+): FSWriteEffect<Graph> {
   switch (action.type) {
     case 'CreateNode':
       return handleCreateNode(graph, action)
@@ -37,13 +38,12 @@ export function apply_graph_updates(
 /**
  * Handle CreateNode action.
  *
- * Creates a new GraphNode and returns an effect that reads vaultPath from environment
- * to persist it to filesystem.
+ * Creates a new GraphNode and returns a filesystem write effect.
  */
 function handleCreateNode(
   graph: Graph,
   action: Extract<NodeAction, { readonly type: 'CreateNode' }>
-): AppEffect<Graph> {
+): FSWriteEffect<Graph> {
   // Create updated graph (pure computation)
   const newNode: GraphNode = {
     id: action.nodeId,
@@ -77,13 +77,12 @@ function handleCreateNode(
 /**
  * Handle UpdateNode action.
  *
- * Updates an existing GraphNode and returns an effect that reads vaultPath from environment
- * to persist it to filesystem.
+ * Updates an existing GraphNode and returns a filesystem write effect.
  */
 function handleUpdateNode(
   graph: Graph,
   action: Extract<NodeAction, { readonly type: 'UpdateNode' }>
-): AppEffect<Graph> {
+): FSWriteEffect<Graph> {
   const existingNode = graph.nodes[action.nodeId]
 
   if (!existingNode) {
@@ -123,13 +122,12 @@ function handleUpdateNode(
 /**
  * Handle DeleteNode action.
  *
- * Removes a GraphNode and returns an effect that reads vaultPath from environment
- * to delete it from filesystem.
+ * Removes a GraphNode and returns a filesystem write effect.
  */
 function handleDeleteNode(
   graph: Graph,
   action: Extract<NodeAction, { readonly type: 'DeleteNode' }>
-): AppEffect<Graph> {
+): FSWriteEffect<Graph> {
   // Remove node from graph (pure computation)
   const remainingNodes = Object.fromEntries(
     Object.entries(graph.nodes).filter(([id]) => id !== action.nodeId)

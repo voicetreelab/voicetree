@@ -736,7 +736,7 @@ setupGraphIpcHandlers(
 
 // Setup file watch handlers
 setupFileWatchHandlers(
-  fileWatchManager: FileWatchManager,
+  fileWatchManager: FileWatchHandler,
   getGraph: () => Graph,
   setGraph: (graph: Graph) => void,
   mainWindow: BrowserWindow,
@@ -808,7 +808,7 @@ rg "apply_graph_updates.*vaultPath" electron/
 1. Don't call `env.broadcast()` in pure functions - only in handlers!
 2. Remember `effect(env)()` - two function calls for Reader + TaskEither
 3. Check `window.electronAPI` exists before using in renderer
-4. FileWatchManager must be initialized before handlers setup
+4. FileWatchHandler must be initialized before handlers setup
 5. Vault path must exist before `loadGraphFromDisk`
 
 ---

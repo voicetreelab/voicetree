@@ -261,7 +261,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     });
 
     // Setup tap handler for nodes (skip in headless mode)
-    if (!this.options.headless) {
+    // if (!this.options.headless) { //todo unnec
       console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
       core.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
@@ -290,7 +290,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
       // Setup context menu (requires DOM)
       this.floatingWindowManager.setupContextMenu();
-    }
+    // }
 
     // Expose for testing
     if (typeof window !== 'undefined') {
@@ -478,7 +478,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // FILE EVENT HANDLERS - REMOVED
   // ============================================================================
   // File events are now handled by functional graph architecture:
-  // 1. FileWatchManager detects filesystem changes
+  // 1. FileWatchHandler detects filesystem changes
   // 2. file-watch-handlers.ts intercepts and applies to functional graph
   // 3. Graph updates broadcast via 'graph:stateChanged'
   // 4. subscribeToGraphUpdates() receives and projects to Cytoscape
