@@ -2,7 +2,8 @@ import { ipcMain } from 'electron'
 import { apply_graph_deltas } from '@/functional_graph/pure/applyGraphActionsToDB'
 import type {Graph, GraphDelta, Env, NodeDelta} from '@/functional_graph/pure/types'
 import * as E from 'fp-ts/lib/Either.js'
-import { getGraph, setGraph, getVaultPath, getMainWindow } from '@/electron/main.ts'
+import * as O from 'fp-ts/lib/Option.js'
+import { getGraph, setGraph, getVaultPath } from '@/functional_graph/shell/state/graph-store.ts'
 
 /**
  * IPC handlers for user-initiated graph actions.
@@ -22,9 +23,18 @@ import { getGraph, setGraph, getVaultPath, getMainWindow } from '@/electron/main
 
 async function applyDelta(action: readonly NodeDelta[]) {
     try {
+        // Get vault path from Option
+        const vaultPathOption = getVaultPath()
+        if (O.isNone(vaultPathOption)) {
+            return {
+                success: false,
+                error: 'No vault path set - cannot apply graph delta'
+            }
+        }
+
         // Construct environment for filesystem write
         const env: Env = {
-            vaultPath: getVaultPath(),
+            vaultPath: vaultPathOption.value,
         }
 
         // Create Reader effect (pure - no execution yet)

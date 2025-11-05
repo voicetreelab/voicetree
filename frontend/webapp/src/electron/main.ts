@@ -45,6 +45,9 @@ let textToTreeServerPort: number | null = null;
 // Functional Graph Architecture
 // ============================================================================
 
+// Global main window reference
+let currentMainWindow: BrowserWindow | null = null;
+
 // Getter/setter for controlled access to main window
 export const getMainWindow = (): BrowserWindow => {
   if (!currentMainWindow) {
@@ -104,16 +107,6 @@ function createWindow() {
     const lastDirectory = await fileWatchManager.loadLastDirectory();
     if (lastDirectory) {
       console.log(`[AutoWatch] Found last directory: ${lastDirectory}`);
-
-      // CRITICAL: Initialize functional graph BEFORE starting file watching
-      // File watch handlers need the graph to exist when events fire
-      try {
-        await initializeFunctionalGraph(lastDirectory);
-      } catch (error) {
-        console.error('[AutoWatch] Graph initialization failed, skipping file watch:', error);
-        return;
-      }
-
       console.log(`[AutoWatch] Auto-starting watch...`);
       await fileWatchManager.startWatching(lastDirectory);
     }
@@ -214,18 +207,6 @@ ipcMain.handle('start-file-watching', async (event, directoryPath) => {
     const mainWindow = BrowserWindow.getAllWindows()[0];
     if (!mainWindow) {
       return { success: false, error: 'No main window found' };
-    }
-
-    // CRITICAL: Initialize functional graph BEFORE starting file watching
-    // File watch handlers need the graph to exist when events fire
-    try {
-      await initializeFunctionalGraph(selectedDirectory);
-    } catch (error) {
-      console.error('[IPC] Graph initialization failed:', error);
-      return {
-        success: false,
-        error: `Failed to initialize graph: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
     }
 
     return await fileWatchManager.startWatching(selectedDirectory);

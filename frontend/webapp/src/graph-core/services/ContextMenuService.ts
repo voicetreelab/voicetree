@@ -2,7 +2,6 @@ import type {Core, NodeSingular} from 'cytoscape';
 // @ts-expect-error - cytoscape-cxtmenu doesn't have proper TypeScript definitions
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
-import {CLASS_EXPANDED} from '@/graph-core/constants';
 import {createNewChildNodeFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 
 export interface Position {
@@ -13,16 +12,12 @@ export interface Position {
 // Register the extension with cytoscape
 cytoscape.use(cxtmenu);
 
-export interface ContextMenuConfig {
-    onOpenEditor?: (nodeId: string) => void;
-    onOpenTerminal?: (nodeId: string) => void;
-    onCreateChildNode?: (node: NodeSingular) => void;
-    onCollapseNode?: (node: NodeSingular) => void;
-    onPinNode?: (node: NodeSingular) => void;
-    onUnpinNode?: (node: NodeSingular) => void;
-    onDeleteNode?: (node: NodeSingular) => void;
-    onCopyNodeName?: (nodeId: string) => void;
-    onAddNodeAtPosition?: (position: { x: number; y: number }) => void;
+export interface ContextMenuDependencies {
+    getContentForNode: (nodeId: string) => string | undefined;
+    getFilePathForNode: (nodeId: string) => string | undefined;
+    createFloatingEditor: (nodeId: string, filePath: string, content: string, pos: Position) => void;
+    createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => void;
+    handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
 
 interface MenuCommand {
@@ -34,17 +29,18 @@ interface MenuCommand {
 
 export class ContextMenuService {
     private cy: Core | null = null;
-    private config: ContextMenuConfig;
+    private deps: ContextMenuDependencies | null = null;
     private menuInstance: unknown = null;
     private canvasMenuInstance: unknown = null;
     private lastCanvasClickPosition: { x: number; y: number } | null = null;
 
-    constructor(config: ContextMenuConfig = {}) {
-        this.config = config;
+    constructor() {
+        // Dependencies will be provided in initialize()
     }
 
-    initialize(cy: Core): void {
+    initialize(cy: Core, deps: ContextMenuDependencies): void {
         this.cy = cy;
+        this.deps = deps;
         this.setupContextMenu();
         this.setupCanvasContextMenu();
     }
@@ -135,14 +131,13 @@ export class ContextMenuService {
         const commands: MenuCommand[] = [];
 
         // Add Node Here
-        if (this.config.onAddNodeAtPosition && this.lastCanvasClickPosition) {
+        if (this.deps && this.lastCanvasClickPosition) {
             const position = this.lastCanvasClickPosition;
             commands.push({
                 content: this.createSvgIcon('plus', 'Add Node Here'),
-                select: () => {
-                    if (this.config.onAddNodeAtPosition) {
-                        this.config.onAddNodeAtPosition(position);
-                    }
+                select: async () => {
+                    console.log('[ContextMenuService] Creating node at position:', position);
+                    await this.deps!.handleAddNodeAtPosition(position);
                 },
                 enabled: true,
             });
@@ -152,60 +147,97 @@ export class ContextMenuService {
     }
 
     private getNodeCommands(node: NodeSingular): MenuCommand[] {
+        if (!this.cy || !this.deps) return [];
+
         const commands: MenuCommand[] = [];
         const nodeId = node.id();
-        const isExpanded = node.hasClass(CLASS_EXPANDED);
 
         // Open in Editor
-        if (this.config.onOpenEditor) {
-            commands.push({
-                content: this.createSvgIcon('edit', 'Edit'),
-                select: () => this.config.onOpenEditor?.(nodeId),
-                enabled: true,
-            });
-        }
+        commands.push({
+            content: this.createSvgIcon('edit', 'Edit'),
+            select: () => {
+                const content = this.deps!.getContentForNode(nodeId);
+                const filePath = this.deps!.getFilePathForNode(nodeId);
 
-        // Expand/Collapse
-        if (isExpanded && this.config.onCollapseNode) {
-            commands.push({
-                content: this.createSvgIcon('collapse', 'Collapse'),
-                select: () => this.config.onCollapseNode?.(node),
-                enabled: true,
-            });
-        } else if (!isExpanded && this.config.onCreateChildNode) {
-            commands.push({
-                content: this.createSvgIcon('expand', 'Expand'),
-                select: () => this.config.onCreateChildNode?.(node),
-                enabled: true,
-            });
-        }
+                if (content && filePath) {
+                    const targetNode = this.cy!.getElementById(nodeId);
+                    if (targetNode.length > 0) {
+                        const pos = targetNode.position();
+                        this.deps!.createFloatingEditor(nodeId, filePath, content, pos);
+                    }
+                }
+            },
+            enabled: true,
+        });
 
-        // Terminal (replaces Pin/Unpin)
-        if (this.config.onOpenTerminal) {
-            commands.push({
-                content: this.createSvgIcon('terminal', 'Terminal'),
-                select: () => this.config.onOpenTerminal?.(nodeId),
-                enabled: true,
-            });
-        }
+        // Create child node
+        commands.push({
+            content: this.createSvgIcon('expand', 'Create Child'),
+            select: () => {
+                console.log('[ContextMenuService] adding child node to:', nodeId);
+                createNewChildNodeFromUI(nodeId, this.cy!);
+            },
+            enabled: true,
+        });
+
+        // Terminal
+        commands.push({
+            content: this.createSvgIcon('terminal', 'Terminal'),
+            select: () => {
+                const filePath = this.deps!.getFilePathForNode(nodeId);
+                const nodeMetadata = {
+                    id: nodeId,
+                    name: nodeId.replace(/_/g, ' '),
+                    filePath: filePath
+                };
+
+                const targetNode = this.cy!.getElementById(nodeId);
+                if (targetNode.length > 0) {
+                    const nodePos = targetNode.position();
+                    this.deps!.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
+                }
+            },
+            enabled: true,
+        });
 
         // Delete node
-        if (this.config.onDeleteNode) {
-            commands.push({
-                content: this.createSvgIcon('trash', 'Delete'),
-                select: () => this.config.onDeleteNode?.(node),
-                enabled: true,
-            });
-        }
+        commands.push({
+            content: this.createSvgIcon('trash', 'Delete'),
+            select: async () => {
+                const filePath = this.deps!.getFilePathForNode(nodeId);
+
+                if (filePath && (window as any).electronAPI?.deleteFile) {
+                    if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
+                        return;
+                    }
+
+                    try {
+                        const result = await (window as any).electronAPI.deleteFile(filePath);
+                        if (result.success) {
+                            // Graph will handle the delete event from the file watcher
+                            this.cy!.getElementById(nodeId).remove();
+                        } else {
+                            console.error('[ContextMenuService] Failed to delete file:', result.error);
+                            alert(`Failed to delete file: ${result.error}`);
+                        }
+                    } catch (error) {
+                        console.error('[ContextMenuService] Error deleting file:', error);
+                        alert(`Error deleting file: ${error}`);
+                    }
+                }
+            },
+            enabled: true,
+        });
 
         // Copy name
-        if (this.config.onCopyNodeName) {
-            commands.push({
-                content: this.createSvgIcon('copy', 'Copy'),
-                select: () => this.config.onCopyNodeName?.(nodeId),
-                enabled: true,
-            });
-        }
+        commands.push({
+            content: this.createSvgIcon('copy', 'Copy'),
+            select: () => {
+                const absolutePath = this.deps!.getFilePathForNode(nodeId);
+                navigator.clipboard.writeText(absolutePath || nodeId);
+            },
+            enabled: true,
+        });
 
         return commands;
     }
@@ -251,138 +283,16 @@ export class ContextMenuService {
     }
 
     destroy(): void {
-        if (this.menuInstance && typeof this.menuInstance.destroy === 'function') {
-            this.menuInstance.destroy();
+        if (this.menuInstance && typeof (this.menuInstance as Record<string, unknown>).destroy === 'function') {
+            (this.menuInstance as { destroy: () => void }).destroy();
         }
-        if (this.canvasMenuInstance && typeof this.canvasMenuInstance.destroy === 'function') {
-            this.canvasMenuInstance.destroy();
+        if (this.canvasMenuInstance && typeof (this.canvasMenuInstance as Record<string, unknown>).destroy === 'function') {
+            (this.canvasMenuInstance as { destroy: () => void }).destroy();
         }
         this.menuInstance = null;
         this.canvasMenuInstance = null;
         this.lastCanvasClickPosition = null;
         this.cy = null;
+        this.deps = null;
     }
-
-    updateConfig(config: Partial<ContextMenuConfig>): void {
-        this.config = {...this.config, ...config};
-        // Reinitialize menu with new config if cy is available
-        if (this.cy) {
-            // Destroy existing menu instance
-            if (this.menuInstance && typeof this.menuInstance.destroy === 'function') {
-                this.menuInstance.destroy();
-                this.menuInstance = null;
-            }
-            // Create new menu with updated config
-            this.setupContextMenu();
-        }
-    }
-
-    /**
-     * Setup context menu callbacks for node interactions
-     * This configures the high-level behavior when context menu items are selected
-     */
-    setupContextMenuCallbacks(callbacks: ContextMenuConfig): void {
-        this.updateConfig(callbacks);
-    }
-
-    /**
-     * Get the context menu service instance from a Core
-     */
-    static getInstance(cy: Core): ContextMenuService | null {
-        // Access the private contextMenuService from CytoscapeCore
-        // This is a workaround since we can't directly access it
-        return (cy as any).__contextMenuService || null;
-    }
-
-    /**
-     * Store the instance on the Core for later retrieval
-     */
-    static setInstance(cy: Core, service: ContextMenuService): void {
-        (cy as any).__contextMenuService = service;
-    }
-
-    /**
-     * Setup context menu for node interactions
-     * Moved from FloatingWindowManager to centralize context menu logic
-     */
-    static setupContextMenu(
-        cy: Core, // CytoscapeCore with enableContextMenu method
-        deps: {
-            getGraph: () => import('@/functional_graph/pure/types').Graph;
-            getContentForNode: (nodeId: string) => string | undefined;
-            getFilePathForNode: (nodeId: string) => string | undefined;
-            getVaultPath: () => string | undefined;
-            createFloatingEditor: (nodeId: string, filePath: string, content: string, pos: Position) => void;
-            extractNodeIdFromPath: (filePath: string) => string;
-            createFloatingTerminal: (nodeId: string, metadata: any, pos: Position) => void;
-            handleAddNodeAtPosition: (position: Position) => Promise<void>;
-        }
-    ): void {
-        cy.enableContextMenu({
-            onOpenEditor: (nodeId: string) => {
-                const content = deps.getContentForNode(nodeId);
-                const filePath = deps.getFilePathForNode(nodeId);
-
-                if (content && filePath) {
-                    const node = cy.getCore().getElementById(nodeId);
-                    if (node.length > 0) {
-                        const pos = node.position();
-                        deps.createFloatingEditor(nodeId, filePath, content, pos);
-                    }
-                }
-            },
-            onCreateChildNode: (node: NodeSingular) => {
-                const nodeId = node.id();
-                console.log('[ContextMenuService] adding child node to:', nodeId);
-                createNewChildNodeFromUI(nodeId, cy);
-            },
-            onDeleteNode: async (node: NodeSingular) => {
-                const nodeId = node.id();
-                const filePath = deps.getFilePathForNode(nodeId);
-
-                if (filePath && (window as any).electronAPI?.deleteFile) {
-                    if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
-                        return;
-                    }
-
-                    try {
-                        const result = await (window as any).electronAPI.deleteFile(filePath);
-                        if (result.success) {
-                            // Graph will handle the delete event from the file watcher
-                            cy.hideNode(node);
-                        } else {
-                            console.error('[ContextMenuService] Failed to delete file:', result.error);
-                            alert(`Failed to delete file: ${result.error}`);
-                        }
-                    } catch (error) {
-                        console.error('[ContextMenuService] Error deleting file:', error);
-                        alert(`Error deleting file: ${error}`);
-                    }
-                }
-            },
-            onOpenTerminal: (nodeId: string) => {
-                const filePath = deps.getFilePathForNode(nodeId);
-                const nodeMetadata = {
-                    id: nodeId,
-                    name: nodeId.replace(/_/g, ' '),
-                    filePath: filePath
-                };
-
-                const node = cy.getCore().getElementById(nodeId);
-                if (node.length > 0) {
-                    const nodePos = node.position();
-                    deps.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
-                }
-            },
-            onCopyNodeName: (nodeId: string) => {
-                const absolutePath = deps.getFilePathForNode(nodeId);
-                navigator.clipboard.writeText(absolutePath || nodeId);
-            },
-            onAddNodeAtPosition: async (position: Position) => {
-                console.log('[ContextMenuService] Creating node at position:', position);
-                await deps.handleAddNodeAtPosition(position);
-            }
-        });
-    }
-
 }

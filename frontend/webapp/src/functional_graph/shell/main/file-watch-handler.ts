@@ -6,7 +6,9 @@ import { checkBackendHealth, loadDirectory } from '../../../utils/backend-api.ts
 import type PositionManager from '@/electron/position-manager.ts';
 import { apply_db_updates_to_graph } from '../../pure/applyFSEventToGraph.ts';
 import type {Graph, FSUpdate, Env, FilePath} from '../../pure/types.ts';
-import * as O from "fp-ts/Option";
+import * as O from "fp-ts/lib/Option.js";
+import { getGraph, setGraph, getVaultPath, setVaultPath } from '../state/graph-store.ts';
+import { loadGraphFromDisk } from './load-graph-from-disk.ts';
 
 interface FileInfo {
   filePath: string;
@@ -24,11 +26,6 @@ class FileWatchHandler {
   private fileLimitExceeded: boolean = false;
   private positionManager: PositionManager;
 
-  // Functional graph dependencies
-  private getGraphFn: (() => Graph) | null = null;
-  private setGraphFn: ((graph: Graph) => void) | null = null;
-  private getVaultPathFn: (() => string) | null = null;
-
   // Get path to config file for storing last directory
   getConfigPath(): string {
     const userDataPath = app.getPath('userData');
@@ -37,10 +34,15 @@ class FileWatchHandler {
 
   // Load last watched directory from config
   async loadLastDirectory(): Promise<O.Option<FilePath>> {
+    try {
       const configPath = this.getConfigPath();
       const data = await fs.readFile(configPath, 'utf8');
       const config = JSON.parse(data);
       return O.fromNullable(config.lastDirectory);
+    } catch (error) {
+      // Config file doesn't exist yet (first run) - return None
+      return O.none;
+    }
   }
 
   // Save last watched directory to config
@@ -63,16 +65,6 @@ class FileWatchHandler {
 
   setPositionManager(manager: PositionManager): void {
     this.positionManager = manager;
-  }
-
-  setGraphDependencies(
-    getGraph: () => Graph,
-    setGraph: (graph: Graph) => void,
-    getVaultPath: () => string
-  ): void {
-    this.getGraphFn = getGraph;
-    this.setGraphFn = setGraph;
-    this.getVaultPathFn = getVaultPath;
   }
 
   async startWatching(directoryPath: string): Promise<{ success: boolean; directory?: string; error?: string }> {
@@ -110,6 +102,13 @@ class FileWatchHandler {
       // Verify directory exists and is accessible
       await fs.access(directoryPath, fs.constants.R_OK);
       console.log(`[FileWatchManager] Directory accessible: ${directoryPath}`);
+
+      // Initialize functional graph state
+      console.log('[FileWatchManager] Loading graph from disk...');
+      setVaultPath(directoryPath);
+      const graph = await loadGraphFromDisk(O.some(directoryPath));
+      setGraph(graph);
+      console.log(`[FileWatchManager] Loaded ${Object.keys(graph.nodes).length} nodes`);
 
       this.watchedDirectory = directoryPath;
       this.initialScanFiles = [];
@@ -548,11 +547,12 @@ class FileWatchHandler {
   private sendToRenderer(channel: string, data?: any): void {
     // Intercept file events and update functional graph
     try {
-      // Only process if graph dependencies are set
-      if (this.getGraphFn && this.setGraphFn && this.getVaultPathFn && this.mainWindow) {
-        // Construct environment from dependencies
+      // Only process if vault path is set
+      const vaultPathOption = getVaultPath();
+      if (O.isSome(vaultPathOption) && this.mainWindow) {
+        // Construct environment
         const env: Env = {
-          vaultPath: this.getVaultPathFn(),
+          vaultPath: vaultPathOption.value,
           broadcast: (graph: Graph) => {
             if (this.mainWindow && !this.mainWindow.isDestroyed()) {
               this.mainWindow.webContents.send('graph:stateChanged', graph);
@@ -566,10 +566,10 @@ class FileWatchHandler {
             content: data.content,
             eventType: 'Added'
           };
-          const currentGraph = this.getGraphFn();
+          const currentGraph = getGraph();
           const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
           const newGraph = effect(env);
-          this.setGraphFn(newGraph);
+          setGraph(newGraph);
           env.broadcast(newGraph);
           return; // Functional graph handles this - don't send raw file event
         }
@@ -580,10 +580,10 @@ class FileWatchHandler {
             content: data.content,
             eventType: 'Changed'
           };
-          const currentGraph = this.getGraphFn();
+          const currentGraph = getGraph();
           const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
           const newGraph = effect(env);
-          this.setGraphFn(newGraph);
+          setGraph(newGraph);
           env.broadcast(newGraph);
           return; // Functional graph handles this - don't send raw file event
         }
@@ -594,16 +594,16 @@ class FileWatchHandler {
             content: '',
             eventType: 'Deleted'
           };
-          const currentGraph = this.getGraphFn();
+          const currentGraph = getGraph();
           const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
           const newGraph = effect(env);
-          this.setGraphFn(newGraph);
+          setGraph(newGraph);
           env.broadcast(newGraph);
           return; // Functional graph handles this - don't send raw file event
         }
 
         if (channel === 'initial-files-loaded') {
-          const currentGraph = this.getGraphFn();
+          const currentGraph = getGraph();
           env.broadcast(currentGraph);
           return; // Functional graph handles this - don't send raw file event
         }
@@ -694,14 +694,9 @@ class FileWatchHandler {
 export default FileWatchHandler;
 
 /**
- * Test helper function to setup FileWatchHandler with graph dependencies.
- * This replaces the old monkey-patching approach from file-watch-handlers.ts.
- *
- * @param fileWatchHandler - The FileWatchHandler or mock instance
- * @param getGraphFn - Function to get current graph
- * @param setGraphFn - Function to set graph
- * @param mainWindow - Mock main window
- * @param vaultPath - Path to vault
+ * DEPRECATED: Test helper function no longer needed.
+ * Tests should directly import getGraph, setGraph, etc. from graph-store.ts
+ * instead of using dependency injection.
  */
 export function setupFileWatchHandlerForTests(
   fileWatchHandler: any,
@@ -710,79 +705,6 @@ export function setupFileWatchHandlerForTests(
   mainWindow: any,
   vaultPath: string
 ): void {
-  // If it's a real FileWatchHandler instance, use setGraphDependencies
-  if (fileWatchHandler instanceof FileWatchHandler) {
-    fileWatchHandler.setMainWindow(mainWindow);
-    fileWatchHandler.setGraphDependencies(getGraphFn, setGraphFn, () => vaultPath);
-    return;
-  }
-
-  // For mock instances, monkey-patch sendToRenderer (legacy test support)
-  const originalSendToRenderer = fileWatchHandler.sendToRenderer?.bind(fileWatchHandler);
-
-  fileWatchHandler.sendToRenderer = function(channel: string, data?: any) {
-    try {
-      const env: Env = {
-        vaultPath,
-        broadcast: (graph: Graph) => {
-          mainWindow.webContents.send('graph:stateChanged', graph);
-        }
-      };
-
-      if (channel === 'file-added' && data?.fullPath && data?.content) {
-        const fsUpdate: FSUpdate = {
-          path: data.fullPath,
-          content: data.content,
-          eventType: 'Added'
-        };
-        const currentGraph = getGraphFn();
-        const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
-        const newGraph = effect(env);
-        setGraphFn(newGraph);
-        env.broadcast(newGraph);
-        return;
-      }
-
-      if (channel === 'file-changed' && data?.fullPath && data?.content) {
-        const fsUpdate: FSUpdate = {
-          path: data.fullPath,
-          content: data.content,
-          eventType: 'Changed'
-        };
-        const currentGraph = getGraphFn();
-        const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
-        const newGraph = effect(env);
-        setGraphFn(newGraph);
-        env.broadcast(newGraph);
-        return;
-      }
-
-      if (channel === 'file-deleted' && data?.fullPath) {
-        const fsUpdate: FSUpdate = {
-          path: data.fullPath,
-          content: '',
-          eventType: 'Deleted'
-        };
-        const currentGraph = getGraphFn();
-        const effect = apply_db_updates_to_graph(currentGraph, fsUpdate);
-        const newGraph = effect(env);
-        setGraphFn(newGraph);
-        env.broadcast(newGraph);
-        return;
-      }
-
-      if (channel === 'initial-files-loaded') {
-        const currentGraph = getGraphFn();
-        env.broadcast(currentGraph);
-        return;
-      }
-    } catch (error) {
-      console.error('[FileWatchHandler] Error updating graph:', error);
-    }
-
-    // Fallback to original behavior for other events
-    if (originalSendToRenderer) {
-      originalSendToRenderer(channel, data);
-    }
-  };
+  console.warn('[DEPRECATED] setupFileWatchHandlerForTests is deprecated. Import from graph-store.ts instead.');
+  // Tests should now directly import from graph-store and call setGraph/setVaultPath
 }

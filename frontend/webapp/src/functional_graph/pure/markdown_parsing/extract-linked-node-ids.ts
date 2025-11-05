@@ -40,7 +40,7 @@ export function extractLinkedNodeIds(
 
       // Find node by title, node ID, or filename matching linkText
       const targetNode = Object.values(nodes).find(
-        (n) => n.title === linkText || n.idAndFilePath === linkText || nodeIdToFilePathWithExtension(n.idAndFilePath) === linkText
+        (n) =>  n.idAndFilePath === linkText || nodeIdToFilePathWithExtension(n.idAndFilePath) === linkText
       )
 
       return targetNode?.idAndFilePath
