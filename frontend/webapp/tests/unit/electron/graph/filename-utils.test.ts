@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   filenameToNodeId,
-  nodeIdToFilename
+  nodeIdToFilePathWithExtension
 } from '../../../../src/functional_graph/pure/markdown_parsing/filename-utils'
 
 describe('filename-utils', () => {
@@ -109,7 +109,7 @@ describe('filename-utils', () => {
     it('should add .md extension to simple node ID', () => {
       const nodeId = 'my-note'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('my-note.md')
     })
@@ -117,7 +117,7 @@ describe('filename-utils', () => {
     it('should add .md extension to node ID with path', () => {
       const nodeId = 'subfolder/my-note'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('subfolder/my-note.md')
     })
@@ -125,7 +125,7 @@ describe('filename-utils', () => {
     it('should add .md extension to deeply nested path', () => {
       const nodeId = 'folder/subfolder/deeply/nested/note'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('folder/subfolder/deeply/nested/note.md')
     })
@@ -133,7 +133,7 @@ describe('filename-utils', () => {
     it('should add .md even if node ID already has .md', () => {
       const nodeId = 'already-has.md'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       // This is expected behavior - no deduplication
       expect(result).toBe('already-has.md.md')
@@ -142,7 +142,7 @@ describe('filename-utils', () => {
     it('should handle empty string', () => {
       const nodeId = ''
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('.md')
     })
@@ -150,7 +150,7 @@ describe('filename-utils', () => {
     it('should handle node ID with special characters', () => {
       const nodeId = 'note-with-$pecial_chars@2024'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('note-with-$pecial_chars@2024.md')
     })
@@ -158,7 +158,7 @@ describe('filename-utils', () => {
     it('should handle node ID with unicode characters', () => {
       const nodeId = '日本語ノート'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('日本語ノート.md')
     })
@@ -166,7 +166,7 @@ describe('filename-utils', () => {
     it('should handle node ID with spaces', () => {
       const nodeId = 'my note with spaces'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('my note with spaces.md')
     })
@@ -174,7 +174,7 @@ describe('filename-utils', () => {
     it('should handle node ID with dots', () => {
       const nodeId = 'note.with.dots'
 
-      const result = nodeIdToFilename(nodeId)
+      const result = nodeIdToFilePathWithExtension(nodeId)
 
       expect(result).toBe('note.with.dots.md')
     })
@@ -183,7 +183,7 @@ describe('filename-utils', () => {
       const originalFilename = 'test-note.md'
 
       const nodeId = filenameToNodeId(originalFilename)
-      const backToFilename = nodeIdToFilename(nodeId)
+      const backToFilename = nodeIdToFilePathWithExtension(nodeId)
 
       expect(backToFilename).toBe(originalFilename)
     })
@@ -192,7 +192,7 @@ describe('filename-utils', () => {
       const originalFilename = 'folder/subfolder/note.md'
 
       const nodeId = filenameToNodeId(originalFilename)
-      const backToFilename = nodeIdToFilename(nodeId)
+      const backToFilename = nodeIdToFilePathWithExtension(nodeId)
 
       expect(backToFilename).toBe(originalFilename)
     })

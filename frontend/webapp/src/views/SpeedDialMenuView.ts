@@ -104,7 +104,7 @@ export class SpeedDialMenuView extends Disposable {
       button.className += ' speed-dial-danger';
     }
     button.setAttribute('aria-label', item.label);
-    button.setAttribute('data-item-id', item.id);
+    button.setAttribute('data-item-idAndFilePath', item.id);
 
     // Create icon
     const icon = this.createIcon(item.iconName);

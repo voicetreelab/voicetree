@@ -75,7 +75,7 @@ export function computeCytoscapeDiff(
     }
   })
 
-  // Find edges to add
+  // Find outgoingEdges to add
   desired.edges.forEach(edgeElem => {
     if (!currentEdgeIds.has(edgeElem.data.id)) {
       edgesToAdd.push(edgeElem)
@@ -83,7 +83,7 @@ export function computeCytoscapeDiff(
     // Note: Edges typically don't need updates, so we skip update logic
   })
 
-  // Find edges to remove
+  // Find outgoingEdges to remove
   currentEdgeIds.forEach(id => {
     if (!desiredEdgeMap.has(id)) {
       edgesToRemove.push(id)

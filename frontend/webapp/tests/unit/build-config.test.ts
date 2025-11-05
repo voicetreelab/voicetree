@@ -22,7 +22,7 @@ vi.mock('electron', () => ({
 }));
 
 // Import after mocking
-import { createBuildEnv, getBuildConfig, type BuildEnv } from '../../electron/build-config';
+import { createBuildEnv, getBuildConfig, type BuildEnv } from '../../src/electron/build-config';
 
 describe('build-config', () => {
   const mockUserDataPath = '/Users/test/Library/Application Support/Electron';

@@ -8,7 +8,7 @@
  * - Updates search data when nodes change
  */
 
-import type { CytoscapeCore } from '@/graph-core';
+import type { Core } from 'cytoscape';
 import 'ninja-keys';
 
 // Extend HTMLElement for ninja-keys custom element
@@ -29,12 +29,12 @@ interface NinjaKeysElement extends HTMLElement {
  * SearchService manages the command palette search integration
  */
 export class SearchService {
-  private cy: CytoscapeCore;
+  private cy: Core;
   private ninjaKeys: NinjaKeysElement;
   private onNodeSelect: (nodeId: string) => void;
 
   constructor(
-    cy: CytoscapeCore,
+    cy: Core,
     onNodeSelect: (nodeId: string) => void
   ) {
     this.cy = cy;
@@ -92,7 +92,7 @@ export class SearchService {
    * Update search data from current Cytoscape nodes
    */
   updateSearchData(): void {
-    const nodes = this.cy.getCore().nodes();
+    const nodes = this.cy.nodes();
 
     const searchData: NinjaAction[] = nodes.map((node) => {
       const nodeId = node.id();

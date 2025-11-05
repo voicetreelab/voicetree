@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import net from 'net';
-import { findAvailablePort, isPortAvailable } from '../../../electron/port-utils';
+import { findAvailablePort, isPortAvailable } from '../../../src/electron/port-utils';
 
 describe('Port Discovery Utilities', () => {
   let testServers: net.Server[] = [];

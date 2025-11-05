@@ -255,7 +255,7 @@ getSpawnArgs(strategy, port)
 spawn(...)
 ```
 
-**Why:** Isolate side effects to make code predictable. 90% of code is pure, 10% is impure at edges.
+**Why:** Isolate side effects to make code predictable. 90% of code is pure, 10% is impure at outgoingEdges.
 
 ### 4. Higher-Order Functions
 
@@ -293,7 +293,7 @@ const createServerLauncher = (env: BuildEnv) => (port: number) => ...
 6. **Functional**
    - No classes, no interfaces
    - Just data flowing through pure functions
-   - Impurity pushed to edges
+   - Impurity pushed to outgoingEdges
 
 ---
 
@@ -450,7 +450,7 @@ switch (strategy.type) {
 
 **Solution:** Accept the difference, make it explicit with sum types, localize it to one function
 
-**Approach:** Functional programming (pure functions + sum types + push impurity to edges)
+**Approach:** Functional programming (pure functions + sum types + push impurity to outgoingEdges)
 
 **Not Implemented:** This is a proposed refactor, not yet applied to the codebase
 

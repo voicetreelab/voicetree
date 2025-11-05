@@ -44,8 +44,8 @@ Editor ↔ Indirection Layer (electronAPI) ↔ Files/Mock ↔ Graph Data ↔ Gra
 - **Manager**: `src/hooks/useFolderWatcher.tsx`
 - **Transformation Pipeline**:
   1. Parse markdown files (extract frontmatter, links)
-  2. Generate graph nodes (id, label, linkedNodeIds)
-  3. Generate graph edges from links
+  2. Generate graph nodes (idAndFilePath, label, linkedNodeIds)
+  3. Generate graph outgoingEdges from links
   4. Update cytoscape visualization
 
 ### 5. Graph Visualization

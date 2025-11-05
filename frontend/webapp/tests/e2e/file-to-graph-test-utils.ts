@@ -22,7 +22,7 @@ export interface GraphTestHelpers {
    * Get graph stats from UI instead of Cytoscape instance
    * More reliable when multiple instances exist
    */
-  getGraphStatsFromUI: () => Promise<{ nodes: number; edges: number } | null>;
+  getGraphStatsFromUI: () => Promise<{ nodes: number; outgoingEdges: number } | null>;
 
   /**
    * Wait for graph to update after file events
@@ -49,17 +49,17 @@ export function createGraphTestHelpers(page: Page): GraphTestHelpers {
     },
 
     getGraphStatsFromUI: async () => {
-      return page.evaluate((): { nodes: number; edges: number } | null => {
-        // Find the UI element showing "X nodes • Y edges"
+      return page.evaluate((): { nodes: number; outgoingEdges: number } | null => {
+        // Find the UI element showing "X nodes • Y outgoingEdges"
         const elements = Array.from(document.querySelectorAll('*'));
         const nodeDisplay = elements.find(el => {
           const text = el.textContent || '';
-          return text.match(/(\d+)\s+nodes?\s+•\s+(\d+)\s+edges?/) &&
+          return text.match(/(\d+)\s+nodes?\s+•\s+(\d+)\s+outgoingEdges?/) &&
                  !text.includes('function');
         });
 
         if (nodeDisplay) {
-          const match = nodeDisplay.textContent!.match(/(\d+)\s+nodes?\s+•\s+(\d+)\s+edges?/);
+          const match = nodeDisplay.textContent!.match(/(\d+)\s+nodes?\s+•\s+(\d+)\s+outgoingEdges?/);
           if (match) {
             return {
               nodes: parseInt(match[1], 10),

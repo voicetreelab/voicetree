@@ -1,5 +1,5 @@
-import type { NodeId, GraphNode } from '@/functional_graph/pure/types'
-import { nodeIdToFilename } from './filename-utils.ts'
+import type { NodeId, Node } from '@/functional_graph/pure/types'
+import { nodeIdToFilePathWithExtension } from './filename-utils.ts'
 
 /**
  * Extracts linked node IDs from markdown content.
@@ -19,8 +19,8 @@ import { nodeIdToFilename } from './filename-utils.ts'
  * ```typescript
  * const content = "See [[Node A]] and [[Node B]] and [[Node A]] again"
  * const nodes = {
- *   "1": { id: "1", title: "Node A", ... },
- *   "2": { id: "2", title: "Node B", ... }
+ *   "1": { idAndFilePath: "1", title: "Node A", ... },
+ *   "2": { idAndFilePath: "2", title: "Node B", ... }
  * }
  *
  * extractLinkedNodeIds(content, nodes)
@@ -29,7 +29,7 @@ import { nodeIdToFilename } from './filename-utils.ts'
  */
 export function extractLinkedNodeIds(
   content: string,
-  nodes: Record<NodeId, GraphNode>
+  nodes: Record<NodeId, Node>
 ): readonly NodeId[] {
   const wikilinkRegex = /\[\[([^\]]+)\]\]/g
   const matches = [...content.matchAll(wikilinkRegex)]
@@ -40,10 +40,10 @@ export function extractLinkedNodeIds(
 
       // Find node by title, node ID, or filename matching linkText
       const targetNode = Object.values(nodes).find(
-        (n) => n.title === linkText || n.id === linkText || nodeIdToFilename(n.id) === linkText
+        (n) => n.title === linkText || n.idAndFilePath === linkText || nodeIdToFilePathWithExtension(n.idAndFilePath) === linkText
       )
 
-      return targetNode?.id
+      return targetNode?.idAndFilePath
     })
     .filter((id): id is NodeId => id !== undefined)
 

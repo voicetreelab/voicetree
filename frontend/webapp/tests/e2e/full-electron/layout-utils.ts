@@ -88,7 +88,7 @@ export async function checkLayoutQuality(appWindow: Page): Promise<LayoutQuality
         const e2Source = e2.source().position();
         const e2Target = e2.target().position();
 
-        // Skip adjacent edges
+        // Skip adjacent outgoingEdges
         const shareNode =
           e1.source().id() === e2.source().id() ||
           e1.source().id() === e2.target().id() ||

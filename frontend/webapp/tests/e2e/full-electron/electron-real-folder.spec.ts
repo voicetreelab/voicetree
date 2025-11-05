@@ -1,9 +1,9 @@
 /**
  * BEHAVIORAL SPEC:
- * 1. App loads and visualizes a folder of markdown files as a graph with visible, labeled edges
+ * 1. App loads and visualizes a folder of markdown files as a graph with visible, labeled outgoingEdges
  * 2. Creating/deleting markdown files adds/removes nodes from the graph
  * 3. Clicking nodes opens floating markdown editors that save changes to disk
- * 4. Adding wiki-links in editors creates new edges in the graph
+ * 4. Adding wiki-links in editors creates new outgoingEdges in the graph
  * 5. Bulk loads use tree layout; incremental nodes are positioned without overlap
  * 6. External file changes sync to open editors (bidirectional sync)
  *
@@ -217,17 +217,17 @@ test.describe('Real Folder E2E Tests', () => {
     expect(initialGraph.nodeLabels).toContain('Core Principles');
     expect(initialGraph.nodeLabels).toContain('Main Project');
 
-    // Verify edges exist (wiki-links create edges)
+    // Verify outgoingEdges exist (wiki-links create outgoingEdges)
     expect(initialGraph.edgeCount).toBeGreaterThan(0);
 
-    // BEHAVIORAL TEST: Verify edges are actually visible (not just present in data)
+    // BEHAVIORAL TEST: Verify outgoingEdges are actually visible (not just present in data)
     const edgeVisibility = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      // Filter out ghost edges (invisible edges to GHOST_ROOT_ID)
+      // Filter out ghost outgoingEdges (invisible outgoingEdges to GHOST_ROOT_ID)
       const visibleEdges = cy.edges('[!isGhostEdge]');
-      if (visibleEdges.length === 0) return { visible: false, reason: 'no visible edges' };
+      if (visibleEdges.length === 0) return { visible: false, reason: 'no visible outgoingEdges' };
 
       // Sample first visible edge to check visibility styles
       const edge = visibleEdges.first();
@@ -249,15 +249,15 @@ test.describe('Real Folder E2E Tests', () => {
     expect(edgeVisibility.opacity).toBeGreaterThan(0);
     expect(edgeVisibility.width).toBeGreaterThan(0);
 
-    // BEHAVIORAL TEST: Verify edges have labels displayed
+    // BEHAVIORAL TEST: Verify outgoingEdges have labels displayed
     const edgeLabelCheck = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
       const edges = cy.edges();
-      if (edges.length === 0) return { hasLabels: false, reason: 'no edges' };
+      if (edges.length === 0) return { hasLabels: false, reason: 'no outgoingEdges' };
 
-      // Sample all edges to check if ANY have labels
+      // Sample all outgoingEdges to check if ANY have labels
       const edgesWithLabels = edges.filter(e => {
         const label = e.data('label');
         return label && label.length > 0;
@@ -278,7 +278,7 @@ test.describe('Real Folder E2E Tests', () => {
     });
 
     console.log('Edge label check (initial):', edgeLabelCheck);
-    // Initial edges from plain [[wikilinks]] won't have labels
+    // Initial outgoingEdges from plain [[wikilinks]] won't have labels
     expect(edgeLabelCheck.totalEdges).toBeGreaterThan(0);
 
     // SKIPPED: Edge labels with relationship types (e.g., "references", "extends")
@@ -344,7 +344,7 @@ It demonstrates that the file watcher detects new files in real-time.`);
     // Node count should have increased (allowing for possible placeholder cleanup)
     expect(updatedGraph.nodeCount).toBeGreaterThanOrEqual(nodeCountBeforeAdd);
 
-    // Check that edges were created for the wiki-links (using title labels)
+    // Check that outgoingEdges were created for the wiki-links (using title labels)
     const newConceptEdges = updatedGraph.edges.filter(e =>
       e.source === 'New Concept' || e.target === 'New Concept'
     );
@@ -392,7 +392,7 @@ It demonstrates that the file watcher detects new files in real-time.`);
 
     console.log('=== STEP 6: Verify wiki-link relationships ===');
 
-    // Check for wiki-link edges that reliably exist from fixture files
+    // Check for wiki-link outgoingEdges that reliably exist from fixture files
     // Note: Edges now use node titles (from markdown headings) as labels, not filenames
 
     // workflow.md links to architecture (line 3: [[architecture]])
@@ -482,7 +482,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
       timeout: 10000
     }).toBe(true);
 
-    // Verify the complex links created appropriate edges
+    // Verify the complex links created appropriate outgoingEdges
     const graphWithComplexLinks = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not available');
@@ -719,8 +719,8 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
       };
     });
 
-    console.log('Initial edges for introduction node:', initialEdges.nodeEdgeCount);
-    console.log('Initial total edges:', initialEdges.totalEdges);
+    console.log('Initial outgoingEdges for introduction node:', initialEdges.nodeEdgeCount);
+    console.log('Initial total outgoingEdges:', initialEdges.totalEdges);
 
     // Click on the 'introduction' node to open editor
     await appWindow.evaluate(() => {
@@ -788,8 +788,8 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
       };
     });
 
-    console.log('Updated edges for introduction node:', updatedEdges.nodeEdgeCount);
-    console.log('Updated total edges:', updatedEdges.totalEdges);
+    console.log('Updated outgoingEdges for introduction node:', updatedEdges.nodeEdgeCount);
+    console.log('Updated total outgoingEdges:', updatedEdges.totalEdges);
     console.log('Has README edge:', updatedEdges.hasREADMEEdge);
 
     // Verify edge count increased and new edge to 'README' exists

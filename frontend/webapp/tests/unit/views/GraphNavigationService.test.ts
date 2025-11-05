@@ -1,24 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GraphNavigationService } from '@/views/GraphNavigationService';
-import { CytoscapeCore } from '@/graph-core';
+import cytoscape, { type Core } from 'cytoscape';
+import '@/graph-core'; // Import to trigger extension registration
 
 describe('GraphNavigationService', () => {
   let service: GraphNavigationService;
-  let cy: CytoscapeCore;
+  let cy: Core;
   let container: HTMLElement;
 
   beforeEach(() => {
-    // Create CytoscapeCore instance with test nodes
+    // Create cytoscape Core instance with test nodes
     container = document.createElement('div');
     container.style.width = '800px';
     container.style.height = '600px';
     document.body.appendChild(container);
 
-    cy = new CytoscapeCore(container, [
-      { data: { id: 'node1', label: 'Node 1' }, position: { x: 100, y: 100 } },
-      { data: { id: 'node2', label: 'Node 2' }, position: { x: 200, y: 200 } },
-      { data: { id: 'node3', label: 'Node 3' }, position: { x: 300, y: 300 } },
-    ], true);
+    cy = cytoscape({
+      container,
+      elements: [
+        { data: { id: 'node1', label: 'Node 1' }, position: { x: 100, y: 100 } },
+        { data: { id: 'node2', label: 'Node 2' }, position: { x: 200, y: 200 } },
+        { data: { id: 'node3', label: 'Node 3' }, position: { x: 300, y: 300 } },
+      ],
+      headless: true
+    });
 
     service = new GraphNavigationService(cy);
   });
@@ -32,8 +37,7 @@ describe('GraphNavigationService', () => {
 
   describe('fitToLastNode', () => {
     it('should fit viewport to last created node when one is set', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.setLastCreatedNodeId('node2');
       service.fitToLastNode();
@@ -47,8 +51,7 @@ describe('GraphNavigationService', () => {
     });
 
     it('should do nothing when no last node is set', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.fitToLastNode();
 
@@ -56,8 +59,7 @@ describe('GraphNavigationService', () => {
     });
 
     it('should handle non-existent node gracefully', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.setLastCreatedNodeId('nonexistent-node');
       service.fitToLastNode();
@@ -67,8 +69,7 @@ describe('GraphNavigationService', () => {
     });
 
     it('should update to new node when setLastCreatedNodeId is called multiple times', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
@@ -84,9 +85,9 @@ describe('GraphNavigationService', () => {
 
   describe('cycleTerminal', () => {
     beforeEach(() => {
-      const coreInstance = cy.getCore();
+      // Use cy directly
       // Add terminal nodes (shadow nodes with terminal- prefix)
-      coreInstance.add([
+      cy.add([
         {
           data: {
             id: 'terminal-node1',
@@ -115,8 +116,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should cycle to next terminal in forward direction', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
 
@@ -127,8 +128,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should cycle through all terminals in forward direction', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
       expect(fitSpy.mock.calls[0][0].id()).toBe('terminal-node2'); // index 0->1
@@ -141,8 +142,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should wrap around to first terminal after last one in forward direction', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       // Cycle through all terminals
       service.cycleTerminal(1); // 0->1: terminal-node2
@@ -156,8 +157,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should cycle to previous terminal in backward direction', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       // Backward from initial position (0) wraps to last terminal
       service.cycleTerminal(-1);
@@ -168,8 +169,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should cycle through all terminals in backward direction', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(-1);
       expect(fitSpy.mock.calls[0][0].id()).toBe('terminal-node3');
@@ -182,8 +183,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should wrap around to last terminal after first one in backward direction', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       // Cycle backward to wrap to last
       service.cycleTerminal(-1);
@@ -200,11 +201,11 @@ describe('GraphNavigationService', () => {
     });
 
     it('should do nothing when no terminal nodes exist', () => {
-      const coreInstance = cy.getCore();
+      // Use cy directly
       // Remove all terminal nodes
-      coreInstance.remove('node[id ^= "terminal-"]');
+      cy.remove('node[id ^= "terminal-"]');
 
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
 
@@ -212,9 +213,9 @@ describe('GraphNavigationService', () => {
     });
 
     it('should only cycle through nodes with terminal- prefix and isShadowNode=true', () => {
-      const coreInstance = cy.getCore();
+      // Use cy directly
       // Add a node with terminal prefix but not a shadow node
-      coreInstance.add({
+      cy.add({
         data: {
           id: 'terminal-fake',
           isShadowNode: false,
@@ -224,7 +225,7 @@ describe('GraphNavigationService', () => {
       });
 
       // Add a shadow node without terminal prefix
-      coreInstance.add({
+      cy.add({
         data: {
           id: 'shadow-other',
           isShadowNode: true,
@@ -233,7 +234,7 @@ describe('GraphNavigationService', () => {
         position: { x: 500, y: 200 }
       });
 
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       // Cycle through - should only hit the 3 real terminals
       // Starting from index 0, cycling forward hits indices 1, 2, 0
@@ -246,11 +247,11 @@ describe('GraphNavigationService', () => {
     });
 
     it('should handle single terminal node correctly', () => {
-      const coreInstance = cy.getCore();
+      // Use cy directly
       // Remove all terminals except one
-      coreInstance.remove('#terminal-node2, #terminal-node3');
+      cy.remove('#terminal-node2, #terminal-node3');
 
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
       expect(fitSpy.mock.calls[0][0].id()).toBe('terminal-node1');
@@ -265,8 +266,8 @@ describe('GraphNavigationService', () => {
 
   describe('handleSearchSelect', () => {
     it('should fit viewport to selected node', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.handleSearchSelect('node2');
 
@@ -275,8 +276,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should highlight selected node by adding highlighted class', () => {
-      const coreInstance = cy.getCore();
-      const node = coreInstance.getElementById('node2');
+      // Use cy directly
+      const node = cy.getElementById('node2');
       const addClassSpy = vi.spyOn(node, 'addClass');
 
       service.handleSearchSelect('node2');
@@ -287,8 +288,8 @@ describe('GraphNavigationService', () => {
     it('should remove highlight after timeout', () => {
       vi.useFakeTimers();
 
-      const coreInstance = cy.getCore();
-      const node = coreInstance.getElementById('node2');
+      // Use cy directly
+      const node = cy.getElementById('node2');
       const removeClassSpy = vi.spyOn(node, 'removeClass');
 
       service.handleSearchSelect('node2');
@@ -304,8 +305,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should handle non-existent node gracefully without throwing', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       expect(() => {
         service.handleSearchSelect('nonexistent-node');
@@ -316,8 +317,8 @@ describe('GraphNavigationService', () => {
     });
 
     it('should use appropriate padding for search results', () => {
-      const coreInstance = cy.getCore();
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      // Use cy directly
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       service.handleSearchSelect('node1');
 
@@ -328,14 +329,14 @@ describe('GraphNavigationService', () => {
 
   describe('navigation integration', () => {
     it('should maintain independent state for different navigation actions', () => {
-      const coreInstance = cy.getCore();
+      // Use cy directly
       // Add terminals
-      coreInstance.add([
+      cy.add([
         { data: { id: 'terminal-a', isShadowNode: true }, position: { x: 400, y: 100 } },
         { data: { id: 'terminal-b', isShadowNode: true }, position: { x: 400, y: 200 } }
       ]);
 
-      const fitSpy = vi.spyOn(coreInstance, 'fit');
+      const fitSpy = vi.spyOn(cy, 'fit');
 
       // Set last node and fit to it
       service.setLastCreatedNodeId('node1');

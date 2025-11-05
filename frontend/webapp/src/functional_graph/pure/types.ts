@@ -15,69 +15,101 @@ import * as R from 'fp-ts/lib/Reader.js'
  * This is the Reader monad's environment
  */
 export interface Env {
-  readonly vaultPath: string
-  readonly broadcast: (graph: Graph) => void
+    readonly vaultPath: string
 }
+export type FilePath = string // todo enforce only / and chars
 
 // ============================================================================
 // Domain Model
 // ============================================================================
 
-export type NodeId = string
+export type NodeId = FilePath
 
-export interface GraphNode {
-  readonly id: NodeId
-  readonly title: string
-  readonly content: string
-  readonly summary: string
-  readonly color: O.Option<string>
+export interface Position {
+    readonly x: number // from top left of canvas origin?
+    readonly y: number
+}
+
+export interface NodeUIMetadata {
+    // readonly title: string //todo, derived from content? first #+, otherwise file slug
+    // todo complexity is that we don't want markdown title to be big if it's also visually on graph
+    // we could make markdown title # small <-- best CHOSEN
+    // or use another markdown character to represent title,
+    readonly color: O.Option<string>
+    readonly position: Position
+    // width/height is derived from node degree
+
+}
+export interface Node {
+    // CORE GRAPH STRUCTURE
+    readonly outgoingEdges: readonly NodeId[] // Adjacency list to children / outgoing outgoingEdges
+    // incomingEdges is derived
+    readonly idAndFilePath: NodeId //  we enforce idAndFilePath = relativeFilePath
+
+    // DATA
+    readonly content: string
+
+    // visual METADATA
+    readonly nodeUIMetadata: NodeUIMetadata
+
+    // FS DB METADATA
+    // readonly fileName:  (filePath: FilePath) => string, derived
 }
 
 export interface Graph {
-  readonly nodes: Record<NodeId, GraphNode>
-  readonly edges: Record<NodeId, readonly NodeId[]> // Adjacency list
+    readonly nodes: Record<NodeId, Node>
 }
 
 // ============================================================================
 // Actions (User-initiated changes)
 // ============================================================================
 
-export interface Position {
-  readonly x: number
-  readonly y: number
-}
 
-export interface CreateNode {
-  readonly type: 'CreateNode'
-  readonly nodeId: NodeId
-  readonly content: string
-  readonly position: O.Option<Position>
+export interface CreateEmptyNodeFromUIInteraction {
+    readonly type: 'CreateNodeFromUIInteraction'
+    readonly createsIncomingEdges: readonly NodeId[] // from parent to child
 }
+// note, we could just pass this straight in to apply graph action to db
+// but keeping it separate for now to have a bit more customisability
 
-export interface UpdateNode {
-  readonly type: 'UpdateNode'
-  readonly nodeId: NodeId
-  readonly content: string
+export interface UpdateNodeContent {
+    readonly type: 'UpdateNode'
+    readonly nodeId: NodeId
+    readonly content: string
+} // mapped to UpsertNodeAction
+
+
+// so we hvae two options.
+// in frontend impure edge, at ui interaction, we can either send through a UpdateNodeContent to backend
+// or we can call getNode(nodeId) from backend, map to an Upsert, and then call an UpsertNodeContent.
+
+
+export interface UpsertNodeAction {
+    readonly type: 'UpsertNode'
+    readonly nodeToUpsert: Node
 }
 
 export interface DeleteNode {
-  readonly type: 'DeleteNode'
-  readonly nodeId: NodeId
+    readonly type: 'DeleteNode'
+    readonly nodeId: NodeId
 }
 
-export type NodeAction = CreateNode | UpdateNode | DeleteNode
+export type NodeDelta = UpsertNodeAction | DeleteNode
+export type GraphDelta = readonly NodeDelta[];
 
 // ============================================================================
 // External Events (Filesystem changes)
 // ============================================================================
 
-export type FSEventType = 'Added' | 'Changed' | 'Deleted'
+export type FSEvent = FSUpdate | FSDelete
 
 export interface FSUpdate {
-  readonly path: string
-  readonly content: string
-  readonly eventType: FSEventType
+    readonly path: string
+    readonly content: string
 }
+
+export interface FSDelete {readonly path: string}
+
 
 // ============================================================================
 // Effects (Side effects to be executed)
@@ -119,27 +151,27 @@ export type EnvReader<A> = R.Reader<Env, A>
 // ============================================================================
 
 export interface CytoscapeNodeElement {
-  readonly data: {
-    readonly id: string
-    readonly label: string
-    readonly content: string
-    readonly summary: string
-    readonly color: string | undefined
-  }
+    readonly data: {
+        readonly id: string
+        readonly label: string
+        readonly content: string
+        readonly summary: string
+        readonly color: string | undefined
+    }
 }
 
 export interface CytoscapeEdgeElement {
-  readonly data: {
-    readonly id: string
-    readonly source: string
-    readonly target: string
-    readonly label?: string
-  }
+    readonly data: {
+        readonly id: string
+        readonly source: string
+        readonly target: string
+        readonly label?: string
+    }
 }
 
 export interface CytoscapeElements {
-  readonly nodes: ReadonlyArray<CytoscapeNodeElement>
-  readonly edges: ReadonlyArray<CytoscapeEdgeElement>
+    readonly nodes: ReadonlyArray<CytoscapeNodeElement>
+    readonly edges: ReadonlyArray<CytoscapeEdgeElement>
 }
 
 /**
@@ -147,9 +179,9 @@ export interface CytoscapeElements {
  * Describes what operations are needed to reconcile the DOM.
  */
 export interface CytoscapeDiff {
-  readonly nodesToAdd: ReadonlyArray<CytoscapeNodeElement>
-  readonly nodesToUpdate: ReadonlyArray<{ readonly id: string; readonly data: any }>
-  readonly nodesToRemove: ReadonlyArray<string>
-  readonly edgesToAdd: ReadonlyArray<CytoscapeEdgeElement>
-  readonly edgesToRemove: ReadonlyArray<string>
+    readonly nodesToAdd: ReadonlyArray<CytoscapeNodeElement>
+    readonly nodesToUpdate: ReadonlyArray<{ readonly id: string; readonly data: any }>
+    readonly nodesToRemove: ReadonlyArray<string>
+    readonly edgesToAdd: ReadonlyArray<CytoscapeEdgeElement>
+    readonly edgesToRemove: ReadonlyArray<string>
 }

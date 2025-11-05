@@ -131,16 +131,7 @@ export function polarToCartesian(
   };
 }
 
-/**
- * Calculate angle of parent node based on grandparent->parent vector
- *
- * This dynamically determines the parent's angle from its position relative
- * to its parent (the grandparent), rather than storing it as state.
- *
- * @param parentNode - The parent node whose angle we want to calculate
- * @param cy - Cytoscape core instance
- * @returns Angle in degrees (0-360), or undefined if parent is root
- */
+// MOVING TO src/functional_graph/pure/cytoscape/layout/positioning.ts
 export function calculateParentAngle(
   parentNode: NodeSingular,
   cy: Core

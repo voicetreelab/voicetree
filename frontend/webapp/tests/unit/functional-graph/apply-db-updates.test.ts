@@ -61,7 +61,7 @@ describe('apply_db_updates_to_graph', () => {
       expect(updatedGraph.nodes['my-note'].content).toBe('# My Note Title\n\nSome content here')
     })
 
-    it('should parse links from content and add them as edges', () => {
+    it('should parse links from content and add them as outgoingEdges', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
         path: '/test/node-a.md',
@@ -72,11 +72,11 @@ describe('apply_db_updates_to_graph', () => {
       const effect = apply_db_updates_to_graph(graph, update)
       const updatedGraph = effect(testEnv)
 
-      // Verify edges were parsed
+      // Verify outgoingEdges were parsed
       expect(updatedGraph.edges['node-a']).toEqual(['node-b', 'node-c'])
     })
 
-    it('should handle content with no links (empty edges array)', () => {
+    it('should handle content with no links (empty outgoingEdges array)', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
         path: '/test/node-a.md',
@@ -87,7 +87,7 @@ describe('apply_db_updates_to_graph', () => {
       const effect = apply_db_updates_to_graph(graph, update)
       const updatedGraph = effect(testEnv)
 
-      // Verify empty edges
+      // Verify empty outgoingEdges
       expect(updatedGraph.edges['node-a']).toEqual([])
     })
 
@@ -182,7 +182,7 @@ describe('apply_db_updates_to_graph', () => {
       expect(updatedGraph.nodes['my-note'].content).toBe('# Updated Title\n\nUpdated content')
     })
 
-    it('should update edges when links in content change', () => {
+    it('should update outgoingEdges when links in content change', () => {
       const graph: Graph = {
         nodes: {
           'node-a': {
@@ -269,7 +269,7 @@ describe('apply_db_updates_to_graph', () => {
       expect(Object.keys(updatedGraph.nodes)).toHaveLength(0)
     })
 
-    it('should remove edges from the deleted node', () => {
+    it('should remove outgoingEdges from the deleted node', () => {
       const graph: Graph = {
         nodes: {
           'node-a': { id: 'node-a', title: 'A', content: '# A', summary: '', color: O.none }
@@ -291,7 +291,7 @@ describe('apply_db_updates_to_graph', () => {
       expect(updatedGraph.edges['node-a']).toBeUndefined()
     })
 
-    it('should remove references to deleted node from other nodes edges', () => {
+    it('should remove references to deleted node from other nodes outgoingEdges', () => {
       const graph: Graph = {
         nodes: {
           'node-a': { id: 'node-a', title: 'A', content: '# A', summary: '', color: O.none },
@@ -313,7 +313,7 @@ describe('apply_db_updates_to_graph', () => {
 
       const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // node-a deleted, all references to it removed from other edges
+      // node-a deleted, all references to it removed from other outgoingEdges
       expect(updatedGraph.nodes['node-a']).toBeUndefined()
       expect(updatedGraph.edges['node-a']).toBeUndefined()
       expect(updatedGraph.edges['node-b']).toEqual(['node-c']) // node-a removed

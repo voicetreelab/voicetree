@@ -283,7 +283,7 @@ test.describe('Tidy + Micro-Relax Experiment', () => {
     // Validate results
     expect(relaxResult.avgEdgeLength).toBeGreaterThan(100);
     expect(relaxResult.avgEdgeLength).toBeLessThan(300); // More lenient threshold
-    expect(relaxResult.minEdgeLength).toBeGreaterThan(50); // No super short edges
+    expect(relaxResult.minEdgeLength).toBeGreaterThan(50); // No super short outgoingEdges
 
     console.log('✓ Tidy + Micro-Relax experiment completed successfully');
     console.log('  Check screenshots to compare:');

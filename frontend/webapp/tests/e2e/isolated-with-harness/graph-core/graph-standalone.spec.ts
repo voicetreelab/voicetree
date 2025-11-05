@@ -13,7 +13,7 @@ test('standalone graph module renders markdown nodes', async ({ page }) => {
   });
   expect(nodeCount).toBe(6); // 6 files in example_small
 
-  // Verify edges exist with relationship labels
+  // Verify outgoingEdges exist with relationship labels
   const edgeData = await page.evaluate(() => {
     if (!window.cy) return { count: 0, labels: [] };
     const edges = window.cy.edges();
@@ -24,8 +24,8 @@ test('standalone graph module renders markdown nodes', async ({ page }) => {
     };
   });
 
-  expect(edgeData.count).toBeGreaterThan(0); // At least some edges from wikilinks
-  expect(edgeData.labels.length).toBeGreaterThan(0); // At least some edges have relationship labels
+  expect(edgeData.count).toBeGreaterThan(0); // At least some outgoingEdges from wikilinks
+  expect(edgeData.labels.length).toBeGreaterThan(0); // At least some outgoingEdges have relationship labels
 
   // Verify specific relationship types are displayed
   const expectedRelationships = [

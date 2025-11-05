@@ -139,7 +139,7 @@ test.describe('VoiceTreeGraphView Vanilla Implementation', () => {
     expect(nodeCount).toBe(4);
     console.log(`✓ Bulk loaded ${nodeCount} nodes`);
 
-    // Verify edges exist (nodes are linked)
+    // Verify outgoingEdges exist (nodes are linked)
     const edgeCount = await page.evaluate(() => {
       const view = (window as any).voiceTreeGraphView;
       return view ? view.getStats().edgeCount : 0;
@@ -343,7 +343,7 @@ test.describe('VoiceTreeGraphView Vanilla Implementation', () => {
     console.log(`✓ Node position: (${nodePosition!.x}, ${nodePosition!.y})`);
 
     // Find canvas element (use the layer2-node canvas which is the top interaction layer)
-    const canvas = await page.locator('#graph-container canvas[data-id="layer2-node"]');
+    const canvas = await page.locator('#graph-container canvas[data-idAndFilePath="layer2-node"]');
     const canvasBox = await canvas.boundingBox();
     expect(canvasBox).not.toBeNull();
 

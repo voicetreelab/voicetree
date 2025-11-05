@@ -16,7 +16,7 @@ describe('ZoomCollapseService', () => {
     document.body.appendChild(container);
 
     // Initialize cytoscape with a simple tree structure
-    // NOTE: In our graph structure, edges go FROM child TO parent (child links to parent)
+    // NOTE: In our graph structure, outgoingEdges go FROM child TO parent (child links to parent)
     cy = cytoscape({
       container: container,
       elements: [
@@ -114,7 +114,7 @@ describe('ZoomCollapseService', () => {
       expect(parentNode.hasClass('has-hidden-children')).toBe(false);
     });
 
-    it('should update visibility when zooming in (edges get longer)', () => {
+    it('should update visibility when zooming in (outgoingEdges get longer)', () => {
       // Start with threshold of 150px - child should be hidden at zoom=1
       service = new ZoomCollapseService(cy, 150);
       service.initialize();
@@ -135,7 +135,7 @@ describe('ZoomCollapseService', () => {
       expect(parentNode.hasClass('has-hidden-children')).toBe(false);
     });
 
-    it('should update visibility when zooming out (edges get shorter)', () => {
+    it('should update visibility when zooming out (outgoingEdges get shorter)', () => {
       // Start with threshold of 150px and zoom=2 - child should be visible
       cy.zoom(2);
       service = new ZoomCollapseService(cy, 150);
@@ -204,7 +204,7 @@ describe('ZoomCollapseService', () => {
   });
 
   describe('ghost root handling', () => {
-    it('should skip edges connected to ghost root nodes', () => {
+    it('should skip outgoingEdges connected to ghost root nodes', () => {
       // Add a ghost root node (child links to ghost root parent)
       cy.add([
         { data: { id: 'ghostRoot', isGhostRoot: true }, position: { x: 0, y: 0 } },

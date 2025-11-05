@@ -25,9 +25,9 @@
 // Core types
 export type {
   Graph,
-  GraphNode,
+  Node,
   NodeId,
-  NodeAction,
+  GraphDelta,
   CreateNode,
   UpdateNode,
   DeleteNode,
@@ -39,10 +39,3 @@ export type {
 
 // Pure functions
 export { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape'
-export {
-  createCreateNodeAction,
-  createUpdateNodeAction,
-  createDeleteNodeAction
-} from '@/functional_graph/pure/action-creators'
-
-// State management - GraphStateManager removed (commented out in source)

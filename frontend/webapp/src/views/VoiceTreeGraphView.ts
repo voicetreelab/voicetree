@@ -24,8 +24,11 @@ import type {
   WatchingStartedEvent,
   VoiceTreeGraphViewOptions
 } from './IVoiceTreeGraphView';
-import { CytoscapeCore } from '@/graph-core'; // Import from index.ts to trigger extension registration
+import cytoscape, { type Core, type CytoscapeOptions } from 'cytoscape';
+import '@/graph-core'; // Import to trigger extension registration
 import { StyleService } from '@/graph-core/services/StyleService';
+import { BreathingAnimationService } from '@/graph-core/services/BreathingAnimationService';
+import { ContextMenuService } from '@/graph-core/services/ContextMenuService';
 import { enableAutoLayout } from '@/graph-core/graphviz/layout/autoLayout';
 import ColaLayout from '@/graph-core/graphviz/layout/cola';
 import { FloatingWindowManager } from './FloatingWindowManager';
@@ -38,16 +41,23 @@ import { SpeedDialMenuView } from './SpeedDialMenuView';
 import { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape';
 import { computeCytoscapeDiff } from '@/functional_graph/pure/cytoscape/compute-cytoscape-diff';
 import type { Graph, CytoscapeElements, CytoscapeDiff } from '@/functional_graph/pure/types';
+import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, MIN_ZOOM, MAX_ZOOM, GHOST_ROOT_ID } from '@/graph-core/constants';
+import type { NodeDefinition } from '@/graph-core/types';
 
 /**
  * Main VoiceTreeGraphView implementation
  */
 export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphView {
   // Core instances
-  private cy!: CytoscapeCore; // Initialized in render() called from constructor
+  private cy!: Core; // Initialized in render() called from constructor
   private container: HTMLElement;
   private options: VoiceTreeGraphViewOptions;
   private vaultProvider: IMarkdownVaultProvider;
+
+  // Services
+  private styleService!: StyleService; // Initialized in render()
+  private animationService!: BreathingAnimationService; // Initialized in render()
+  private contextMenuService!: ContextMenuService; // Initialized in setupCytoscape()
 
   // Managers
   private floatingWindowManager: FloatingWindowManager;
@@ -57,7 +67,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
   // State
   private _isDarkMode = false;
-  private currentGraphState: Graph = { nodes: {}, edges: {} };
+  private currentGraphState: Graph = { nodes: {} };
 
   // Vault event disposables
   private vaultDisposables: VaultDisposable[] = [];
@@ -228,28 +238,141 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     this.container.style.opacity = '0.3';
     this.container.style.transition = 'opacity 0.3s ease-in-out';
     const headless = this.options.headless || false;
-    this.cy = new CytoscapeCore(this.container, [], headless);
+
+    // Initialize StyleService
+    this.styleService = new StyleService();
+
+    // Add ghost root node as the first element to ensure it exists before any edges reference it
+    const ghostRootNode: NodeDefinition = {
+      data: {
+        id: GHOST_ROOT_ID,
+        label: '',
+        linkedNodeIds: [],
+        isGhostRoot: true
+      },
+      position: { x: 0, y: 0 }
+    };
+
+    // Initialize cytoscape with ghost root node
+    const cytoscapeOptions: CytoscapeOptions = {
+      elements: [ghostRootNode],
+      style: this.styleService.getCombinedStylesheet(),
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+      boxSelectionEnabled: true,
+      ...(headless ? { headless: true } : { container: this.container })
+    };
+
+    this.cy = cytoscape(cytoscapeOptions);
+
+    // Initialize animation service with cy instance (sets up event listeners)
+    this.animationService = new BreathingAnimationService(this.cy);
+
+    // Update node degrees after initial elements are added
+    this.updateNodeDegrees();
+
+    // Update node sizes based on initial degrees
+    this.styleService.updateNodeSizes(this.cy);
+
+    // Setup basic cytoscape event listeners (hover, focus, etc.)
+    this.setupBasicCytoscapeEventListeners();
 
     // Update opacity after Cytoscape is ready
     this.container.style.opacity = '1';
   }
 
-  private setupCytoscape(): void {
-    const core = this.cy.getCore();
+  /**
+   * Update the degree data attribute for all nodes based on their connections.
+   * This is used by the StyleService to apply degree-based sizing and styling.
+   */
+  private updateNodeDegrees(): void {
+    if (!this.cy) return;
+    this.cy.nodes().forEach(node => {
+      node.data('degree', node.degree());
+    });
+  }
 
+  /**
+   * Setup basic cytoscape event listeners for hover, focus, box selection, etc.
+   * These were previously in CytoscapeCore.setupEventListeners()
+   */
+  private setupBasicCytoscapeEventListeners(): void {
+    // Basic hover effects
+    this.cy.on('mouseover', 'node', (e) => {
+      if (!e.target) return;
+
+      const node = e.target;
+      this.cy.elements()
+        .difference(node.closedNeighborhood())
+        .addClass(CLASS_UNHOVER);
+
+      node.addClass(CLASS_HOVER)
+        .connectedEdges()
+        .addClass(CLASS_CONNECTED_HOVER)
+        .connectedNodes()
+        .addClass(CLASS_CONNECTED_HOVER);
+
+      // Stop breathing animation on hover for new nodes and appended content
+      if (this.animationService.isAnimationActive(node)) {
+        const animationType = node.data('animationType');
+        if (animationType === 'new_node' || animationType === 'appended_content') {
+          this.animationService.stopAnimationForNode(node);
+        }
+      }
+    });
+
+    this.cy.on('mouseout', (e) => {
+      if (!e.target || e.target === this.cy) return;
+
+      this.cy.elements().removeClass([
+        CLASS_HOVER,
+        CLASS_UNHOVER,
+        CLASS_CONNECTED_HOVER
+      ]);
+    });
+
+    // Focus handling
+    this.cy.on('tap boxselect', () => {
+      this.container.focus();
+    });
+
+    // Box selection end event - log selected nodes
+    this.cy.on('boxend', () => {
+      const selected = this.cy.$('node:selected');
+      console.log(`[VoiceTreeGraphView] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
+    });
+
+    // Update node sizes when edges are added or removed
+    // Only update the source and target nodes of the affected edge for efficiency
+    this.cy.on('add', 'edge', (e) => {
+      if (!e.target) return;
+      const edge = e.target;
+      const affectedNodes = edge.source().union(edge.target());
+      this.styleService.updateNodeSizes(this.cy, affectedNodes);
+    });
+
+    this.cy.on('remove', 'edge', (e) => {
+      if (!e.target) return;
+      const edge = e.target;
+      const affectedNodes = edge.source().union(edge.target());
+      this.styleService.updateNodeSizes(this.cy, affectedNodes);
+    });
+  }
+
+  private setupCytoscape(): void {
     // Enable auto-layout
-    enableAutoLayout(core);
+    enableAutoLayout(this.cy);
     console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');
 
     // Listen to layout completion
-    core.on('layoutstop', () => {
+    this.cy.on('layoutstop', () => {
       console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
       this.saveNodePositions();
       this.layoutCompleteEmitter.emit();
     });
 
     // Save positions when user finishes dragging nodes
-    core.on('free', 'node', () => {
+    this.cy.on('free', 'node', () => {
       console.log('[VoiceTreeGraphView] Node drag ended, saving positions...');
       // Debounce to avoid too many saves
       if (this.savePositionsTimeout) {
@@ -263,7 +386,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Setup tap handler for nodes (skip in headless mode)
     // if (!this.options.headless) { //todo unnec
       console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
-      core.on('tap', 'node', (event) => {
+      this.cy.on('tap', 'node', (event) => {
         const nodeId = event.target.id();
         console.log('[VoiceTreeGraphView] Node tapped:', nodeId);
 
@@ -289,12 +412,85 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       });
 
       // Setup context menu (requires DOM)
-      this.floatingWindowManager.setupContextMenu();
+      this.contextMenuService = new ContextMenuService({
+        onOpenEditor: (nodeId: string) => {
+          const content = this.currentGraphState.nodes[nodeId]?.content;
+          const vaultPath = this.vaultProvider.getWatchDirectory?.();
+          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
+
+          if (content && filePath) {
+            const node = this.cy.getElementById(nodeId);
+            if (node.length > 0) {
+              const pos = node.position();
+              this.floatingWindowManager.createFloatingEditor(nodeId, filePath, content, pos);
+            }
+          }
+        },
+        onCreateChildNode: (node) => {
+          const nodeId = node.id();
+          console.log('[VoiceTreeGraphView] Creating child node for:', nodeId);
+          import('@/functional_graph/shell/UI/handleUIActions').then(({ createNewChildNodeFromUI }) => {
+            createNewChildNodeFromUI(nodeId, this.cy);
+          });
+        },
+        onDeleteNode: async (node) => {
+          const nodeId = node.id();
+          const vaultPath = this.vaultProvider.getWatchDirectory?.();
+          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
+
+          if (filePath && (window as any).electronAPI?.deleteFile) {
+            if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
+              return;
+            }
+
+            try {
+              const result = await (window as any).electronAPI.deleteFile(filePath);
+              if (result.success) {
+                // Graph will handle the delete event from the file watcher
+                this.cy.getElementById(nodeId).remove();
+              } else {
+                console.error('[VoiceTreeGraphView] Failed to delete file:', result.error);
+                alert(`Failed to delete file: ${result.error}`);
+              }
+            } catch (error) {
+              console.error('[VoiceTreeGraphView] Error deleting file:', error);
+              alert(`Error deleting file: ${error}`);
+            }
+          }
+        },
+        onOpenTerminal: (nodeId: string) => {
+          const vaultPath = this.vaultProvider.getWatchDirectory?.();
+          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
+          const nodeMetadata = {
+            id: nodeId,
+            name: nodeId.replace(/_/g, ' '),
+            filePath: filePath
+          };
+
+          const node = this.cy.getElementById(nodeId);
+          if (node.length > 0) {
+            const nodePos = node.position();
+            this.floatingWindowManager.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
+          }
+        },
+        onCopyNodeName: (nodeId: string) => {
+          const vaultPath = this.vaultProvider.getWatchDirectory?.();
+          const absolutePath = vaultPath ? `${vaultPath}/${nodeId}.md` : nodeId;
+          navigator.clipboard.writeText(absolutePath);
+        },
+        onAddNodeAtPosition: async (position) => {
+          console.log('[VoiceTreeGraphView] Creating node at position:', position);
+          await this.floatingWindowManager.handleAddNodeAtPosition(position);
+        }
+      });
+
+      // Initialize context menu with cy instance
+      this.contextMenuService.initialize(this.cy);
     // }
 
     // Expose for testing
     if (typeof window !== 'undefined') {
-      (window as any).cytoscapeInstance = core;
+      (window as any).cytoscapeInstance = this.cy;
       (window as any).cytoscapeCore = this.cy;
 
       // Expose test markdown_parsing for e2e tests
@@ -308,7 +504,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             filePath: filePath
           };
 
-          const node = core.getElementById(nodeId);
+          const node = this.cy.getElementById(nodeId);
           if (node.length > 0) {
             const nodePos = node.position();
             this.floatingWindowManager.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
@@ -316,7 +512,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         },
         addNodeAtPosition: async (position: { x: number; y: number }) => {
           // For testing: directly invoke the context menu handler
-          const contextMenu = (core as any).contextMenus;
+          const contextMenu = (this.cy as any).contextMenus;
           if (contextMenu?._config?.onAddNodeAtPosition) {
             await contextMenu._config.onAddNodeAtPosition(position);
           } else {
@@ -409,7 +605,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
    * PURE PROJECTION: Graph → CytoscapeElements → Diff → DOM
    */
   private updateCytoscapeFromGraph(graph: Graph): void {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
 
     // PURE: Project graph to desired Cytoscape elements
     const desiredElements = projectToCytoscape(graph);
@@ -433,10 +629,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
    * IDEMPOTENT: Empty diff has no effect. Same diff twice produces same result.
    */
   private applyCytoscapeDiff(diff: CytoscapeDiff): void {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
 
     cy.batch(() => {
-      // Remove first (to avoid orphaned edges)
+      // Remove first (to avoid orphaned outgoingEdges)
       diff.edgesToRemove.forEach(id => {
         cy.getElementById(id).remove();
       });
@@ -457,7 +653,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         cy.getElementById(id).data(data);
       });
 
-      // Add edges
+      // Add outgoingEdges
       diff.edgesToAdd.forEach(edgeElem => {
         cy.add({
           group: 'edges' as const,
@@ -541,7 +737,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   private handleStatsChanged(): void {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     const stats = {
       nodeCount: cy.nodes().length,
       edgeCount: cy.edges().length
@@ -559,9 +755,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   private handleResizeMethod(): void {
-    const core = this.cy.getCore();
-    core.resize();
-    core.fit();
+    this.cy.resize();
+    this.cy.fit();
   }
 
   // ============================================================================
@@ -569,7 +764,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // ============================================================================
 
   focusNode(nodeId: string): void {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     const node = cy.getElementById(nodeId);
     if (node.length > 0) {
       cy.animate({
@@ -583,7 +778,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   getSelectedNodes(): string[] {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     return cy.$(':selected')
       .nodes()
       .filter((n: any) => !n.data('isFloatingWindow'))
@@ -591,7 +786,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   refreshLayout(): void {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
 
     // Skip if no nodes
     if (cy.nodes().length === 0) {
@@ -624,7 +819,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   fit(paddingPercentage = 3): void {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     // Use responsive padding instead of fixed pixels (default was 50px on 1440p)
     cy.fit(undefined, getResponsivePadding(cy, paddingPercentage));
   }
@@ -643,7 +838,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Update graph styles
     const styleService = new StyleService();
     const newStyles = styleService.getCombinedStylesheet();
-    this.cy.getCore().style(newStyles);
+    this.cy.style(newStyles);
 
     // Update search service theme
     this.searchService.updateTheme(this._isDarkMode);
@@ -659,7 +854,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   getStats(): { nodeCount: number; edgeCount: number } {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     return {
       nodeCount: cy.nodes().length,
       edgeCount: cy.edges().length
@@ -690,7 +885,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     };
 
     // Get position in center of current viewport (where user is looking)
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     const pan = cy.pan();
     const zoom = cy.zoom();
     const centerX = (cy.width() / 2 - pan.x) / zoom;
@@ -768,10 +963,20 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     this.floatingWindowManager.dispose();
     this.searchService.dispose();
 
+    // Dispose services
+    if (this.contextMenuService) {
+      this.contextMenuService.destroy();
+    }
+
     // Dispose speed dial menu
     if (this.speedDialMenu) {
       this.speedDialMenu.dispose();
       this.speedDialMenu = null;
+    }
+
+    // Destroy services
+    if (this.animationService) {
+      this.animationService.destroy();
     }
 
     // Destroy Cytoscape

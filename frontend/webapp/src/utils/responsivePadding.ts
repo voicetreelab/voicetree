@@ -1,4 +1,4 @@
-import type { CytoscapeCore } from '@/graph-core';
+import type { Core } from 'cytoscape';
 
 /**
  * Calculate responsive padding for cy.fit() based on viewport dimensions
@@ -19,7 +19,7 @@ import type { CytoscapeCore } from '@/graph-core';
  * // On 2560x1440 screen with 10% padding: 144px
  * cy.fit(node, getResponsivePadding(cy, 10));
  */
-export function getResponsivePadding(cy: CytoscapeCore, targetPercentage: number = 10): number {
+export function getResponsivePadding(cy: Core, targetPercentage: number = 10): number {
   const width = cy.width();
   const height = cy.height();
 

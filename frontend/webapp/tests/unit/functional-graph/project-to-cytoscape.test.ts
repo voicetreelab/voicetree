@@ -89,8 +89,8 @@ describe('projectToCytoscape', () => {
     })
   })
 
-  describe('graph with edges', () => {
-    it('should project edges from adjacency list', () => {
+  describe('graph with outgoingEdges', () => {
+    it('should project outgoingEdges from adjacency list', () => {
       const graphWithEdges: Graph = {
         nodes: {
           'node1': {
@@ -126,7 +126,7 @@ describe('projectToCytoscape', () => {
       })
     })
 
-    it('should project multiple edges from same source', () => {
+    it('should project multiple outgoingEdges from same source', () => {
       const graphWithMultipleEdges: Graph = {
         nodes: {
           'node1': {
@@ -166,7 +166,7 @@ describe('projectToCytoscape', () => {
       expect(edgeIds).toContain('node1-node3')
     })
 
-    it('should project edges from multiple sources', () => {
+    it('should project outgoingEdges from multiple sources', () => {
       const graphWithComplexEdges: Graph = {
         nodes: {
           'node1': {
@@ -268,7 +268,7 @@ describe('projectToCytoscape', () => {
   })
 
   describe('integration: complex graph', () => {
-    it('should correctly project a complex graph with multiple nodes and edges', () => {
+    it('should correctly project a complex graph with multiple nodes and outgoingEdges', () => {
       const complexGraph: Graph = {
         nodes: {
           'root': {
@@ -319,7 +319,7 @@ describe('projectToCytoscape', () => {
       expect(nodeIds).toContain('child2')
       expect(nodeIds).toContain('grandchild')
 
-      // Verify all edges are present
+      // Verify all outgoingEdges are present
       const edgeConnections = result.edges.map(e => `${e.data.source}-${e.data.target}`)
       expect(edgeConnections).toContain('root-child1')
       expect(edgeConnections).toContain('root-child2')

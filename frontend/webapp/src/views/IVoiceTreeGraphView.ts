@@ -141,7 +141,7 @@ export interface IVoiceTreeGraphView {
    *
    * Behavior:
    * - Adjusts zoom and pan to show entire graph
-   * - Includes padding around edges
+   * - Includes padding around outgoingEdges
    * - Animated transition (600ms)
    *
    * @param padding - Padding in pixels (default: 50)

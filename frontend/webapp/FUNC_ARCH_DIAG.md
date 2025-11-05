@@ -32,7 +32,7 @@
 │  │  │    3. getMainWindow() → window       │ ◄───────┐ │ │   │   │
 │  │  │    4. Build Env from global state    │         │ │ │   │   │
 │  │  │    5. Build effect:                  │         │ │ │   │   │
-│  │  │       effect = apply_graph_updates   │         │ │ │   │   │
+│  │  │       effect = apply_graph_deltas   │         │ │ │   │   │
 │  │  │                (graph, action)       │         │ │ │   │   │
 │  │  │    6. Execute: result = effect(env)()│────┐    │ │ │   │   │
 │  │  │    7. setGraph(result.right)         │    │    │ │ │   │   │
@@ -77,9 +77,9 @@
 │  │  ┌───────────────────────────────────────┐                │   │
 │  │  │  applyGraphActionsToDB.ts             │                │   │
 │  │  │                                        │                │   │
-│  │  │  apply_graph_updates(                 │                │   │
+│  │  │  apply_graph_deltas(                 │                │   │
 │  │  │    graph: Graph,                      │                │   │
-│  │  │    action: NodeAction                 │                │   │
+│  │  │    action: GraphDelta                 │                │   │
 │  │  │  ): AppEffect<Graph>                  │                │   │
 │  │  │                                        │                │   │
 │  │  │  Returns: (env: Env) =>               │                │   │
@@ -104,13 +104,13 @@
 │  │  │  Pure Computation:                    │                │   │
 │  │  │  • Parse markdown                     │                │   │
 │  │  │  • Update graph structure             │                │   │
-│  │  │  • Extract edges from [[links]]       │                │   │
+│  │  │  • Extract outgoingEdges from [[links]]       │                │   │
 │  │  │  • Return new Graph (NO broadcast!)   │                │   │
 │  │  │  • vaultPath passed as parameter      │                │   │
 │  │  └───────────────────────────────────────┘                │   │
 │  │                                                            │   │
 │  │  Other Pure Functions:                                    │   │
-│  │  • action-creators.ts       (Build NodeAction objects)    │   │
+│  │  • uiInteractionsToGraphDeltas.ts       (Build GraphDelta objects)    │   │
 │  │  • project-to-cytoscape.ts  (Graph → CytoscapeElements)   │   │
 │  │  • markdown_parsing/        (Parse markdown, extract data)│   │
 │  └────────────────────────────────────────────────────────────┘   │
@@ -151,7 +151,7 @@
 - ~150 lines of duplicated code
 
 **After:**
-- 1 unified handler: `graph:update` accepting `NodeAction`
+- 1 unified handler: `graph:update` accepting `GraphDelta`
 - ~50 lines, single point of maintenance
 - Type safety maintained via discriminated union
 
@@ -177,7 +177,7 @@ const env: Env = {
 }
 
 // Pure function receives it as parameter
-const effect = apply_graph_updates(currentGraph, action)
+const effect = apply_graph_deltas(currentGraph, action)
 const result = await effect(env)()  // Env provided here
 ```
 
@@ -194,7 +194,7 @@ const result = await effect(env)()  // Env provided here
    │ - getGraph() → currentGraph
    │ - getVaultPath() → vaultPath
    │ - Build Env from global state
-   │ - Call: apply_graph_updates(graph, action)
+   │ - Call: apply_graph_deltas(graph, action)
    │ - Execute: await effect(env)()
    │
 5. Pure Layer:

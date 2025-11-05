@@ -35,9 +35,9 @@ interface ExtendedWindow extends Window {
  * Tests the actual system behavior: file changes should result in graph updates
  * This is a true end-to-end test that verifies:
  * - Files added -> nodes appear in the graph
- * - Files with links -> edges appear in the graph
+ * - Files with links -> outgoingEdges appear in the graph
  * - Files modified -> graph updates
- * - Files deleted -> nodes and edges removed
+ * - Files deleted -> nodes and outgoingEdges removed
  */
 test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
   test('should progressively build and update graph based on file operations', async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
     // The graph container should exist but show empty state message
     await expect(page.locator('text=Graph visualization will appear here')).toBeVisible();
 
-    // Verify no nodes or edges are rendered in the canvas
+    // Verify no nodes or outgoingEdges are rendered in the canvas
     const nodeCount = await page.evaluate((): number => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       return cy ? cy.nodes().length : 0;
@@ -204,7 +204,7 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
       window.dispatchEvent(event);
     });
 
-    // Wait for node and edges to be removed after file deletion
+    // Wait for node and outgoingEdges to be removed after file deletion
     await expect.poll(async () => {
       return page.evaluate((): GraphState => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -215,7 +215,7 @@ test.describe('File-to-Graph Pipeline Behavioral Tests', () => {
         };
       });
     }, {
-      message: 'Waiting for 1 node and 0 edges after file deletion',
+      message: 'Waiting for 1 node and 0 outgoingEdges after file deletion',
       timeout: 5000
     }).toEqual({ nodes: 1, edges: 0 });
 

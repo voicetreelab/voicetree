@@ -24,7 +24,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
-import { setupFileWatchHandlerForTests } from '../../../electron/handlers/file-watch-handler'
+import { setupFileWatchHandlerForTests } from '../../../src/functional_graph/shell/main/file-watch-handler'
 import type { Graph } from '@/functional_graph/pure/types'
 import type { BrowserWindow } from 'electron'
 
@@ -164,7 +164,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       }
     })
 
-    it('should parse markdown links as edges', async () => {
+    it('should parse markdown links as outgoingEdges', async () => {
       // GIVEN: Two nodes, one linking to the other
       const file1Path = path.join(tempVault, 'node1.md')
       const file1Content = '# Node 1\n\nFirst node.'
@@ -253,7 +253,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       expect(broadcastCalls[1].graph.nodes['update_test'].title).toBe('Updated Title')
     })
 
-    it('should update edges when links are added or removed', async () => {
+    it('should update outgoingEdges when links are added or removed', async () => {
       // GIVEN: Two nodes with no links
       const file1Path = path.join(tempVault, 'node1.md')
       await fs.writeFile(file1Path, '# Node 1\n\nNo links.', 'utf-8')
@@ -269,7 +269,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
         content: '# Node 2\n\nNo links.'
       })
 
-      // Initially no edges
+      // Initially no outgoingEdges
       expect(getGraph().edges['node2'] || []).toHaveLength(0)
 
       // WHEN: node2 is updated to add a link to node1
@@ -349,7 +349,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       expect(broadcastCalls[1].graph.nodes['delete_test']).toBeUndefined()
     })
 
-    it('should remove edges pointing to deleted node', async () => {
+    it('should remove outgoingEdges pointing to deleted node', async () => {
       // GIVEN: Two nodes with an edge between them
       const file1Path = path.join(tempVault, 'node1.md')
       await fs.writeFile(file1Path, '# Node 1\n\nFirst node.', 'utf-8')
@@ -377,14 +377,14 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       expect(getGraph().nodes['node1']).toBeUndefined()
 
       // AND: Edge from node2 to node1 should still exist (orphaned edge)
-      // Note: The current implementation keeps the edge, which creates orphaned edges
+      // Note: The current implementation keeps the edge, which creates orphaned outgoingEdges
       // This is the actual behavior - we're testing reality, not ideal behavior
       const graph = getGraph()
       expect(graph.edges['node2']).toBeDefined()
       // The edge still references node1, even though node1 no longer exists
     })
 
-    it('should remove outgoing edges from deleted node', async () => {
+    it('should remove outgoing outgoingEdges from deleted node', async () => {
       // GIVEN: Two nodes, node2 links to node1
       const file1Path = path.join(tempVault, 'node1.md')
       await fs.writeFile(file1Path, '# Node 1\n\nFirst node.', 'utf-8')
