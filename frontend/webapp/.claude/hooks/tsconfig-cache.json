@@ -1,0 +1,12 @@
+{
+  "hashes": {
+    "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.app.json": "7dbd2f1939565a9c63f8a205c322c08afe0702a8eeede04b679380256948f6c2",
+    "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.json": "081df96f510b4b99a3586d34f2a90afb05f7b342e243d24af327424c03907007"
+  },
+  "mappings": {
+    "src": {
+      "configPath": "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.app.json",
+      "excludes": []
+    }
+  }
+}

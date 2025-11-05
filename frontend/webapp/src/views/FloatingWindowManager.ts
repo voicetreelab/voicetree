@@ -368,7 +368,7 @@ Edit this node to add content.
   /**
    * Get markdown content for a node ID from functional graph
    */
-  private getContentForNode(nodeId: NodeId): string | undefined {
+  getContentForNode(nodeId: NodeId): string | undefined {
     const graph = this.getGraphState();
     const node = graph.nodes[nodeId];
     return node?.content;
@@ -378,7 +378,7 @@ Edit this node to add content.
    * Get absolute file path for a node ID
    * Constructs path from vaultPath + nodeId.md
    */
-  private getFilePathForNode(nodeId: NodeId): string | undefined {
+  getFilePathForNode(nodeId: NodeId): string | undefined {
     const vaultPath = this.getVaultPath();
     if (!vaultPath) {
       console.warn('[FloatingWindowManager] No vault path available');

@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "name": "Node.js Quality Check Hook",
+  "description": "Quality checks optimized for Node.js TypeScript projects",
+  "projectType": "node-typescript",
+  "typescript": {
+    "enabled": true,
+    "showDependencyErrors": false
+  },
+  "eslint": {
+    "enabled": true,
+    "autofix": true
+  },
+  "prettier": {
+    "enabled": true,
+    "autofix": true
+  },
+  "general": {
+    "autofixSilent": true,
+    "debug": false
+  },
+  "rules": {
+    "console": {
+      "enabled": false,
+      "severity": "info",
+      "message": "Console is acceptable for CLI tools"
+    },
+    "asAny": {
+      "enabled": true,
+      "severity": "warning",
+      "message": "Prefer proper types or 'as unknown' for type assertions"
+    },
+    "debugger": {
+      "enabled": true,
+      "severity": "error",
+      "message": "Remove debugger statements before committing"
+    },
+    "todos": {
+      "enabled": true,
+      "severity": "info",
+      "patterns": ["TODO", "FIXME", "HACK"]
+    }
+  },
+  "fileTypes": {
+    "cli": {
+      "patterns": ["index.ts", "index.js", "cli.ts", "cli.js"],
+      "paths": ["src/", "bin/"]
+    },
+    "transport": {
+      "patterns": ["*.ts", "*.js"],
+      "paths": ["src/client/", "src/server/", "typescript-sdk/src/client/", "typescript-sdk/src/server/"]
+    }
+  },
+  "ignore": {
+    "paths": [
+      "node_modules/",
+      "build/",
+      "dist/",
+      ".next/",
+      "coverage/",
+      "public/",
+      "*.config.js",
+      "*.config.ts"
+    ]
+  }
+}

@@ -47,6 +47,7 @@ export async function createNewChildNodeFromUI(
     parentNodeId: string,
     cy: Core
 ): Promise<void> {
+
     // Get current graph state
     const currentGraph: Graph = await window.electronAPI?.graph.getState() // todo, in memory renderer cache?
 

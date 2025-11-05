@@ -49,11 +49,11 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/combined-hook.py"
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/quality-check.cjs"
           }
         ]
       }

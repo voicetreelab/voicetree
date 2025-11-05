@@ -412,82 +412,18 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       });
 
       // Setup context menu (requires DOM)
-      this.contextMenuService = new ContextMenuService({
-        onOpenEditor: (nodeId: string) => {
-          const content = this.currentGraphState.nodes[nodeId]?.content;
-          const vaultPath = this.vaultProvider.getWatchDirectory?.();
-          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
-
-          if (content && filePath) {
-            const node = this.cy.getElementById(nodeId);
-            if (node.length > 0) {
-              const pos = node.position();
-              this.floatingWindowManager.createFloatingEditor(nodeId, filePath, content, pos);
-            }
-          }
-        },
-        onCreateChildNode: (node) => {
-          const nodeId = node.id();
-          console.log('[VoiceTreeGraphView] Creating child node for:', nodeId);
-          import('@/functional_graph/shell/UI/handleUIActions').then(({ createNewChildNodeFromUI }) => {
-            createNewChildNodeFromUI(nodeId, this.cy);
-          });
-        },
-        onDeleteNode: async (node) => {
-          const nodeId = node.id();
-          const vaultPath = this.vaultProvider.getWatchDirectory?.();
-          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
-
-          if (filePath && (window as any).electronAPI?.deleteFile) {
-            if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
-              return;
-            }
-
-            try {
-              const result = await (window as any).electronAPI.deleteFile(filePath);
-              if (result.success) {
-                // Graph will handle the delete event from the file watcher
-                this.cy.getElementById(nodeId).remove();
-              } else {
-                console.error('[VoiceTreeGraphView] Failed to delete file:', result.error);
-                alert(`Failed to delete file: ${result.error}`);
-              }
-            } catch (error) {
-              console.error('[VoiceTreeGraphView] Error deleting file:', error);
-              alert(`Error deleting file: ${error}`);
-            }
-          }
-        },
-        onOpenTerminal: (nodeId: string) => {
-          const vaultPath = this.vaultProvider.getWatchDirectory?.();
-          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
-          const nodeMetadata = {
-            id: nodeId,
-            name: nodeId.replace(/_/g, ' '),
-            filePath: filePath
-          };
-
-          const node = this.cy.getElementById(nodeId);
-          if (node.length > 0) {
-            const nodePos = node.position();
-            this.floatingWindowManager.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
-          }
-        },
-        onCopyNodeName: (nodeId: string) => {
-          const vaultPath = this.vaultProvider.getWatchDirectory?.();
-          const absolutePath = vaultPath ? `${vaultPath}/${nodeId}.md` : nodeId;
-          navigator.clipboard.writeText(absolutePath);
-        },
-        onAddNodeAtPosition: async (position) => {
-          console.log('[VoiceTreeGraphView] Creating node at position:', position);
-          await this.floatingWindowManager.handleAddNodeAtPosition(position);
-        }
+      this.contextMenuService = new ContextMenuService();
+      // Initialize context menu with cy instance and dependencies
+      this.contextMenuService.initialize(this.cy, {
+        getContentForNode: (nodeId: string) => this.floatingWindowManager.getContentForNode(nodeId),
+        getFilePathForNode: (nodeId: string) => this.floatingWindowManager.getFilePathForNode(nodeId),
+        createFloatingEditor: (nodeId: string, filePath: string, content: string, pos) =>
+          this.floatingWindowManager.createFloatingEditor(nodeId, filePath, content, pos),
+        createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
+          this.floatingWindowManager.createFloatingTerminal(nodeId, metadata, pos),
+        handleAddNodeAtPosition: (position) =>
+          this.floatingWindowManager.handleAddNodeAtPosition(position)
       });
-
-      // Initialize context menu with cy instance
-      this.contextMenuService.initialize(this.cy);
-    // }
-
     // Expose for testing
     if (typeof window !== 'undefined') {
       (window as any).cytoscapeInstance = this.cy;

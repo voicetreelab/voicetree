@@ -44,10 +44,8 @@ export function parseMarkdownToGraphNode(content: string, filename: string): Nod
   const frontmatter = extractFrontmatter(content)
 
   return {
-    idAndFilePath: frontmatter.node_id ?? filenameToNodeId(filename),
-    title: frontmatter.title ?? extractTitle(content) ?? 'Untitled',
+    idAndFilePath: filenameToNodeId(filename),
     content,
-    summary: frontmatter.summary ?? '',
     color: frontmatter.color ? O.some(frontmatter.color) : O.none
   }
 }

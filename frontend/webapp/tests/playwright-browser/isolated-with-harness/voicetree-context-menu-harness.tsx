@@ -79,10 +79,16 @@ const mockGraphStore = {
   }
 };
 
-// Mock electronAPI for graph updates
+// Mock electronAPI BEFORE any components are imported
+// This must be set up before VoiceTreeGraphView is created
 if (typeof window !== 'undefined') {
   (window as any).electronAPI = {
     graph: {
+      getState: async () => ({ nodes: {} }),
+      applyGraphDelta: async (delta: any) => {
+        console.log('[MockElectronAPI] applyGraphDelta called:', delta);
+        return { success: true };
+      },
       onStateChanged: (callback: (graph: any) => void) => {
         // Return unsubscribe function
         return () => {};
