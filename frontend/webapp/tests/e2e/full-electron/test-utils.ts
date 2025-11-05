@@ -141,7 +141,7 @@ export async function getNodeData(appWindow: Page, index = 0): Promise<{ id: str
 }
 
 /**
- * Check graph integrity (no orphaned edges, all nodes valid)
+ * Check graph integrity (no orphaned outgoingEdges, all nodes valid)
  */
 export async function checkGraphIntegrity(appWindow: Page): Promise<{
   nodeCount: number;

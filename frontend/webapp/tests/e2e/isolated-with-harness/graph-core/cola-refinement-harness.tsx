@@ -82,7 +82,7 @@ export function ColaRefinementTestHarness() {
           selector: 'node',
           style: {
             'background-color': '#4a90e2',
-            'label': 'data(id)',
+            'label': 'data(idAndFilePath)',
             'color': '#fff',
             'text-valign': 'center',
             'text-halign': 'center',
@@ -145,7 +145,7 @@ export function ColaRefinementTestHarness() {
           });
         });
 
-        // Add edges from linkedNodeIds
+        // Add outgoingEdges from linkedNodeIds
         testNodes.forEach(node => {
           if (node.linkedNodeIds) {
             node.linkedNodeIds.forEach(linkedId => {

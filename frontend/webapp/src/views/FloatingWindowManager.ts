@@ -12,14 +12,15 @@
  * This class owns all floating window state and operations.
  */
 
-import type { CytoscapeCore } from '@/graph-core';
-import type { NodeSingular } from 'cytoscape';
+import type { Core, NodeSingular } from 'cytoscape';
 import { createWindowChrome, getOrCreateOverlay, mountComponent } from '@/graph-core/extensions/cytoscape-floating-windows';
 import type { Position } from './IVoiceTreeGraphView';
 import type { HotkeyManager } from './HotkeyManager';
 import type { Graph, NodeId } from '@/functional_graph/pure/types';
-import { nodeIdToFilename } from '@/functional_graph/pure/markdown_parsing/filename-utils';
+import { nodeIdToFilePathWithExtension } from '@/functional_graph/pure/markdown_parsing/filename-utils';
 import * as O from 'fp-ts/lib/Option';
+import {GraphMutator} from "@/graph-core/mutation/GraphMutator.ts";
+import { ContextMenuService } from '@/graph-core/services/ContextMenuService';
 
 /**
  * Function type for getting current graph state
@@ -35,7 +36,7 @@ type GetVaultPath = () => string | undefined;
  * Manages all floating windows (editors, terminals) for the graph
  */
 export class FloatingWindowManager {
-  private cy: CytoscapeCore;
+  private cy: Core;
   private getGraphState: GetGraphState;
   private getVaultPath: GetVaultPath;
   private hotkeyManager: HotkeyManager;
@@ -48,7 +49,7 @@ export class FloatingWindowManager {
   private pendingPositions = new Map<string, Position>();
 
   constructor(
-    cy: CytoscapeCore,
+    cy: Core,
     getGraphState: GetGraphState,
     getVaultPath: GetVaultPath,
     hotkeyManager: HotkeyManager
@@ -62,77 +63,6 @@ export class FloatingWindowManager {
   // ============================================================================
   // PUBLIC API
   // ============================================================================
-
-  /**
-   * Setup context menu for node interactions
-   */
-  setupContextMenu(): void {
-    this.cy.enableContextMenu({
-      onOpenEditor: (nodeId: string) => {
-        const content = this.getContentForNode(nodeId);
-        const filePath = this.getFilePathForNode(nodeId);
-
-        if (content && filePath) {
-          const node = this.cy.getCore().getElementById(nodeId);
-          if (node.length > 0) {
-            const pos = node.position();
-            this.createFloatingEditor(nodeId, filePath, content, pos);
-          }
-        }
-      },
-      onCreateChildNode: (node: NodeSingular) => {
-        const nodeId = node.id();
-        console.log('[FloatingWindowManager] Expanding node:', nodeId);
-        this.createNewChildNode(nodeId);
-      },
-      onDeleteNode: async (node: NodeSingular) => {
-        const nodeId = node.id();
-        const filePath = this.getFilePathForNode(nodeId);
-
-        if (filePath && (window as any).electronAPI?.deleteFile) {
-          if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
-            return;
-          }
-
-          try {
-            const result = await (window as any).electronAPI.deleteFile(filePath);
-            if (result.success) {
-              // Graph will handle the delete event from the file watcher
-              this.cy.hideNode(node);
-            } else {
-              console.error('[FloatingWindowManager] Failed to delete file:', result.error);
-              alert(`Failed to delete file: ${result.error}`);
-            }
-          } catch (error) {
-            console.error('[FloatingWindowManager] Error deleting file:', error);
-            alert(`Error deleting file: ${error}`);
-          }
-        }
-      },
-      onOpenTerminal: (nodeId: string) => {
-        const filePath = this.getFilePathForNode(nodeId);
-        const nodeMetadata = {
-          id: nodeId,
-          name: nodeId.replace(/_/g, ' '),
-          filePath: filePath
-        };
-
-        const node = this.cy.getCore().getElementById(nodeId);
-        if (node.length > 0) {
-          const nodePos = node.position();
-          this.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
-        }
-      },
-      onCopyNodeName: (nodeId: string) => {
-        const absolutePath = this.getFilePathForNode(nodeId);
-        navigator.clipboard.writeText(absolutePath || nodeId);
-      },
-      onAddNodeAtPosition: async (position: Position) => {
-        console.log('[FloatingWindowManager] Creating node at position:', position);
-        await this.handleAddNodeAtPosition(position);
-      }
-    });
-  }
 
   /**
    * Setup command-hover mode (Cmd+hover to show editor)
@@ -150,7 +80,7 @@ export class FloatingWindowManager {
     });
 
     // Listen for node hover when command is held
-    this.cy.getCore().on('mouseover', 'node', (event) => {
+    this.cy.on('mouseover', 'node', (event) => {
       console.log('[CommandHover] Node mouseover, commandKeyHeld:', this.commandKeyHeld);
       if (!this.commandKeyHeld) return;
 
@@ -183,7 +113,7 @@ export class FloatingWindowManager {
     console.log('[FloatingWindowManager] Creating floating editor:', editorId);
 
     // Check if already exists
-    const existing = this.cy.getCore().nodes(`#${editorId}`);
+    const existing = this.cy.nodes(`#${editorId}`);
     if (existing && existing.length > 0) {
       console.log('[FloatingWindowManager] Editor already exists');
       return;
@@ -235,14 +165,14 @@ export class FloatingWindowManager {
     console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
 
     // Check if already exists
-    const existing = this.cy.getCore().nodes(`#${terminalId}`);
+    const existing = this.cy.nodes(`#${terminalId}`);
     if (existing && existing.length > 0) {
       console.log('[FloatingWindowManager] Terminal already exists');
       return;
     }
 
     // Check if parent node exists
-    const parentNodeExists = this.cy.getCore().getElementById(nodeId).length > 0;
+    const parentNodeExists = this.cy.getElementById(nodeId).length > 0;
 
     const nodeData: Record<string, unknown> = {
       isFloatingWindow: true,
@@ -299,11 +229,11 @@ export class FloatingWindowManager {
 
     try {
       // Get overlay
-      const overlay = getOrCreateOverlay(this.cy.getCore());
+      const overlay = getOrCreateOverlay(this.cy);
 
       // Create window chrome WITHOUT shadow node
       const { windowElement, contentContainer } = createWindowChrome(
-        this.cy.getCore(),
+        this.cy,
         {
           id: hoverId,
           component: 'MarkdownEditor',
@@ -375,60 +305,11 @@ export class FloatingWindowManager {
     this.currentHoverEditor = null;
   }
 
-  private async createNewChildNode(parentNodeId: string): Promise<void> {
-    try {
-      if (!(window as any).electronAPI?.createChildNode) {
-        console.error('[FloatingWindowManager] Electron API not available');
-        return;
-      }
-
-      const result = await (window as any).electronAPI.createChildNode(parentNodeId);
-      if (result.success && result.nodeId && result.filePath) {
-        console.log('[FloatingWindowManager] Successfully created child node:', result.nodeId);
-
-        // Get parent node position to place editor nearby
-        const parentNode = this.cy.getCore().getElementById(parentNodeId);
-        const parentPos = parentNode.length > 0 ? parentNode.position() : { x: 0, y: 0 };
-        const editorPosition = {
-          x: parentPos.x + 100,
-          y: parentPos.y + 100
-        };
-
-        // Extract node ID from file path (basename without .md)
-        const newNodeId = this.extractNodeIdFromPath(result.filePath);
-
-        // Wait for node to be added by file watcher to functional graph
-        const waitForNode = (attempts = 0, maxAttempts = 100): void => {
-          if (!this.cy) return;
-
-          const cy = this.cy.getCore();
-          const node = cy.getElementById(newNodeId);
-
-          if (node.length > 0) {
-            // Node found, get its content and open editor
-            const content = this.getContentForNode(newNodeId);
-            if (content) {
-              this.createFloatingEditor(newNodeId, result.filePath!, content, editorPosition);
-            } else {
-              console.warn('[FloatingWindowManager] No content found for new child node');
-            }
-          } else if (attempts < maxAttempts) {
-            setTimeout(() => waitForNode(attempts + 1, maxAttempts), 100);
-          } else {
-            console.error('[FloatingWindowManager] Timeout waiting for child node');
-          }
-        };
-
-        waitForNode();
-      } else {
-        console.error('[FloatingWindowManager] Failed to create child node:', result.error);
-      }
-    } catch (error) {
-      console.error('[FloatingWindowManager] Error creating child node:', error);
-    }
-  }
-
-  private async handleAddNodeAtPosition(position: Position): Promise<void> {
+  /**
+   * Handle adding a node at a specific position
+   * Made public for use by ContextMenuService callbacks
+   */
+  async handleAddNodeAtPosition(position: Position): Promise<void> {
     try {
       if (!(window as any).electronAPI?.createStandaloneNode) {
         console.error('[FloatingWindowManager] Electron API not available');
@@ -450,7 +331,7 @@ export class FloatingWindowManager {
         const waitForNode = (attempts = 0, maxAttempts = 100): void => {
           if (!this.cy) return;
 
-          const cy = this.cy.getCore();
+          const cy = this.cy;
           const node = cy.getElementById(newNodeId);
 
           if (node.length > 0) {
@@ -504,7 +385,7 @@ Edit this node to add content.
       return undefined;
     }
 
-    const filename = nodeIdToFilename(nodeId);
+    const filename = nodeIdToFilePathWithExtension(nodeId);
     return `${vaultPath}/${filename}`;
   }
 

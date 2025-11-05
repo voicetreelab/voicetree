@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
-import PositionManager from '../../electron/position-manager';
+import PositionManager from '../../src/electron/position-manager';
 
 describe('PositionManager', () => {
   const testDir = path.join(__dirname, '../fixtures/test-positions');

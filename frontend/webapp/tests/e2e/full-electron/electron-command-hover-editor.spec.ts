@@ -82,7 +82,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
       // Wait a bit for editor to be created
       return new Promise((resolve) => {
         setTimeout(() => {
-          const hoverEditor = document.querySelector('[id^="window-hover-"]');
+          const hoverEditor = document.querySelector('[idAndFilePath^="window-hover-"]');
           const titleBar = hoverEditor?.querySelector('.cy-floating-window-title');
           resolve({
             exists: !!hoverEditor,
@@ -156,7 +156,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
     // Verify no shadow node with hover- prefix exists
     const shadowNodeExists = await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
-      const shadowNodes = cy.nodes('[id ^= "hover-"]');
+      const shadowNodes = cy.nodes('[idAndFilePath ^= "hover-"]');
       return shadowNodes.length > 0;
     });
 
@@ -199,7 +199,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Verify editor exists
     const editorExistsBefore = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-hover-"]');
+      return !!document.querySelector('[idAndFilePath^="window-hover-"]');
     });
     expect(editorExistsBefore).toBe(true);
 
@@ -209,7 +209,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Editor should be closed
     const editorExistsAfter = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-hover-"]');
+      return !!document.querySelector('[idAndFilePath^="window-hover-"]');
     });
     expect(editorExistsAfter).toBe(false);
 
@@ -249,7 +249,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Verify editor exists
     const editorExistsBefore = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-hover-"]');
+      return !!document.querySelector('[idAndFilePath^="window-hover-"]');
     });
     expect(editorExistsBefore).toBe(true);
 
@@ -259,7 +259,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Editor should close immediately
     const editorExistsAfter = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-hover-"]');
+      return !!document.querySelector('[idAndFilePath^="window-hover-"]');
     });
     expect(editorExistsAfter).toBe(false);
   });
@@ -290,7 +290,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Hover editor should NOT appear
     const hoverEditorExists = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-hover-"]');
+      return !!document.querySelector('[idAndFilePath^="window-hover-"]');
     });
 
     expect(hoverEditorExists).toBe(false);
@@ -342,7 +342,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Verify first editor exists
     const firstEditorId = await appWindow.evaluate(() => {
-      const editor = document.querySelector('[id^="window-hover-"]');
+      const editor = document.querySelector('[idAndFilePath^="window-hover-"]');
       return editor?.id || null;
     });
     expect(firstEditorId).toContain('hover-test-node-6a');
@@ -353,13 +353,13 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Should only have one editor
     const editorCount = await appWindow.evaluate(() => {
-      return document.querySelectorAll('[id^="window-hover-"]').length;
+      return document.querySelectorAll('[idAndFilePath^="window-hover-"]').length;
     });
     expect(editorCount).toBe(1);
 
     // Verify second editor exists
     const secondEditorId = await appWindow.evaluate(() => {
-      const editor = document.querySelector('[id^="window-hover-"]');
+      const editor = document.querySelector('[idAndFilePath^="window-hover-"]');
       return editor?.id || null;
     });
     expect(secondEditorId).toContain('hover-test-node-6b');
@@ -401,7 +401,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // Get initial editor position
     const initialPos = await appWindow.evaluate(() => {
-      const editor = document.querySelector('[id^="window-hover-"]') as HTMLElement;
+      const editor = document.querySelector('[idAndFilePath^="window-hover-"]') as HTMLElement;
       return {
         left: editor.style.left,
         top: editor.style.top
@@ -424,7 +424,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
     // Editor should move with graph (overlay transform changes)
     const afterPan = await appWindow.evaluate(() => {
       const overlay = document.querySelector('.cy-floating-overlay') as HTMLElement;
-      const editor = document.querySelector('[id^="window-hover-"]') as HTMLElement;
+      const editor = document.querySelector('[idAndFilePath^="window-hover-"]') as HTMLElement;
       return {
         overlayTransform: overlay.style.transform,
         editorLeft: editor.style.left,
@@ -481,11 +481,11 @@ test.describe('Command-Hover Mode for Node Editor', () => {
     await appWindow.waitForTimeout(500); // Wait for CodeMirror to render
 
     // Wait for CodeMirror editor to be mounted
-    await appWindow.waitForSelector('[id^="window-hover-"] .cm-editor', { timeout: 3000 });
+    await appWindow.waitForSelector('[idAndFilePath^="window-hover-"] .cm-editor', { timeout: 3000 });
 
     // Check editor has content
     const editorHasContent = await appWindow.evaluate(() => {
-      const contentContainer = document.querySelector('[id^="window-hover-"] .cy-floating-window-content');
+      const contentContainer = document.querySelector('[idAndFilePath^="window-hover-"] .cy-floating-window-content');
       const cmEditor = contentContainer?.querySelector('.cm-editor');
       const cmContent = cmEditor?.querySelector('.cm-content');
 
@@ -557,7 +557,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
 
     // No hover editor should have appeared
     const hoverEditorExists = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-hover-"]');
+      return !!document.querySelector('[idAndFilePath^="window-hover-"]');
     });
 
     expect(hoverEditorExists).toBe(false);

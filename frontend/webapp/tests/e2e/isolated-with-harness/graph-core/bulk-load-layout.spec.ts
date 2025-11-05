@@ -270,7 +270,7 @@ test.describe('Bulk Load Layout', () => {
 
     console.log(`✓ Hierarchy check: ${hierarchyCheck.violations} violations out of ${hierarchyCheck.total} edges (${hierarchyCheck.nodeCount} nodes, ${hierarchyCheck.edgeCount} edges)`);
 
-    // Most edges should respect hierarchy (allow some violations for complex graphs)
+    // Most outgoingEdges should respect hierarchy (allow some violations for complex graphs)
     const violationRate = hierarchyCheck.violations / hierarchyCheck.total;
     expect(violationRate).toBeLessThan(0.3); // Less than 30% violations
   });
@@ -340,7 +340,7 @@ test.describe('Bulk Load Layout', () => {
 
     // Verify structure integrity
     expect(graphMetrics.nodeCount).toBe(55);
-    expect(graphMetrics.edgeCount).toBeGreaterThan(0); // Should have edges from wikilinks
+    expect(graphMetrics.edgeCount).toBeGreaterThan(0); // Should have outgoingEdges from wikilinks
 
     console.log(`✓ Graph structure: ${graphMetrics.nodeCount} nodes, ${graphMetrics.edgeCount} edges`);
     console.log(`✓ Connected components: ${graphMetrics.connectedComponents}`);

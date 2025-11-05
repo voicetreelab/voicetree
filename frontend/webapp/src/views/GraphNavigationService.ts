@@ -10,20 +10,20 @@
  * This class owns all user-triggered navigation state and operations.
  */
 
-import type { CytoscapeCore } from '@/graph-core';
+import type { Core } from 'cytoscape';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 
 /**
  * Manages all user-triggered navigation actions for the graph
  */
 export class GraphNavigationService {
-  private cy: CytoscapeCore;
+  private cy: Core;
 
   // Navigation state
   private lastCreatedNodeId: string | null = null;
   private currentTerminalIndex = 0;
 
-  constructor(cy: CytoscapeCore) {
+  constructor(cy: Core) {
     this.cy = cy;
   }
 
@@ -43,7 +43,7 @@ export class GraphNavigationService {
    */
   fitToLastNode(): void {
     if (this.lastCreatedNodeId) {
-      const cy = this.cy.getCore();
+      const cy = this.cy;
       const node = cy.getElementById(this.lastCreatedNodeId);
       if (node.length > 0) {
         // Use 19% of viewport for comfortable zoom on new nodes (was 275px on 1440p)
@@ -57,7 +57,7 @@ export class GraphNavigationService {
    * @param direction 1 for next, -1 for previous
    */
   cycleTerminal(direction: 1 | -1): void {
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     const terminalNodes = cy.nodes().filter(
       (node: any) =>
         node.data('id')?.startsWith('terminal-') &&
@@ -91,7 +91,7 @@ export class GraphNavigationService {
    */
   handleSearchSelect(nodeId: string): void {
     console.log('[GraphNavigationService] handleSearchSelect called with nodeId:', nodeId);
-    const cy = this.cy.getCore();
+    const cy = this.cy;
     const node = cy.getElementById(nodeId);
     console.log('[GraphNavigationService] Found node:', node.length > 0, node);
 
@@ -108,7 +108,7 @@ export class GraphNavigationService {
       }, 1000);
       console.log('[GraphNavigationService] Node fitted and highlighted');
     } else {
-      console.warn('[GraphNavigationService] Node not found for id:', nodeId);
+      console.warn('[GraphNavigationService] Node not found for idAndFilePath:', nodeId);
     }
   }
 }

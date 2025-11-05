@@ -1,7 +1,8 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { CytoscapeCore as VoiceTreeCytoscapeCore } from '@/graph-core/graphviz/CytoscapeCore';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
+import type { GraphDelta } from '@/functional_graph/pure/types';
+import {apply_graph_deltas} from "@/functional_graph/pure/applyGraphActionsToDB.ts";
 
 // Re-export NodeMetadata for use in terminal API
 export type { NodeMetadata } from '@/floating-windows/types';
@@ -78,14 +79,12 @@ export interface ElectronAPI {
   onBackendLog: (callback: (log: string) => void) => void;
 
   // Functional graph API
-  graph?: {
-    // Action dispatchers - send actions to main process
-    createNode: (action: unknown) => Promise<{ success: boolean; error?: string }>;
-    updateNode: (action: unknown) => Promise<{ success: boolean; error?: string }>;
-    deleteNode: (action: unknown) => Promise<{ success: boolean; error?: string }>;
+  graph: {
+    // Action dispatcher - send any node action to main process
+    applyGraphDelta: (action: GraphDelta) => Promise<unknown>;
 
     // Query current graph state
-    getState: () => Promise<unknown>;
+    getState: () => Promise<Graph>;
 
     // Subscribe to graph state broadcasts
     onStateChanged: (callback: (graph: unknown) => void) => () => void;
@@ -103,7 +102,7 @@ declare global {
     electronAPI?: ElectronAPI;
     // Graph-related properties exposed for testing
     cy: CytoscapeCore | null;
-    cytoscapeCore: VoiceTreeCytoscapeCore | null;
+    cytoscapeCore: CytoscapeCore | null;
     layoutManager: LayoutManager | null;
     // Test helper functions
     loadTestData: () => void;

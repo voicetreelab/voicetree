@@ -403,4 +403,196 @@ describe('ContextMenuService', () => {
       expect(commands).toHaveLength(0);
     });
   });
+
+  describe('createNewChildNodeFromUI', () => {
+    it('should create optimistic UI update and dispatch action to backend', async () => {
+      // Mock window.electronAPI
+      const mockGraphUpdate = vi.fn().mockResolvedValue({ success: true });
+      (global as any).window = {
+        electronAPI: {
+          graph: {
+            update: mockGraphUpdate
+          }
+        }
+      };
+
+      // Create mock cytoscape instance
+      const mockCyAdd = vi.fn();
+      const mockCyBatch = vi.fn((fn) => fn());
+      const mockCy = {
+        getCore: () => ({
+          add: mockCyAdd,
+          batch: mockCyBatch
+        })
+      };
+
+      // Create mock graph with parent node
+      const mockGraph = {
+        nodes: {
+          'parent_node': {
+            id: 'parent_node',
+            content: '# Parent Node',
+            outgoingEdges: [],
+            nodeUIMetadata: {
+              color: { _tag: 'None' },
+              position: { x: 100, y: 100 }
+            }
+          }
+        }
+      };
+
+      // Create dependencies
+      const deps = {
+        cy: mockCy,
+        getGraph: () => mockGraph,
+        getContentForNode: vi.fn(),
+        createFloatingEditor: vi.fn(),
+        extractNodeIdFromPath: vi.fn(),
+        getVaultPath: () => '/test/vault'
+      };
+
+      // Call createNewChildNodeFromUI
+      await ContextMenuService.createNewChildNode('parent_node', deps as any);
+
+      // Verify cytoscape batch was called for optimistic update
+      expect(mockCyBatch).toHaveBeenCalled();
+
+      // Verify node was added to cytoscape
+      expect(mockCyAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          group: 'nodes',
+          data: expect.objectContaining({
+            id: 'parent_node_0',
+            content: '# New Node'
+          })
+        })
+      );
+
+      // Verify edge was added to cytoscape
+      expect(mockCyAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          group: 'edges',
+          data: expect.objectContaining({
+            source: 'parent_node',
+            target: 'parent_node_0'
+          })
+        })
+      );
+
+      // Verify graph update was called
+      expect(mockGraphUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nodeToCreate: expect.objectContaining({
+            id: 'parent_node_0',
+            content: '# New Node'
+          }),
+          createsIncomingEdges: ['parent_node']
+        })
+      );
+
+      // Cleanup
+      delete (global as any).window;
+    });
+
+    it('should handle missing parent node gracefully', async () => {
+      // Mock window.electronAPI
+      const mockGraphUpdate = vi.fn().mockResolvedValue({ success: true });
+      (global as any).window = {
+        electronAPI: {
+          graph: {
+            update: mockGraphUpdate
+          }
+        }
+      };
+
+      // Create mock with empty graph
+      const mockCy = {
+        getCore: () => ({
+          add: vi.fn(),
+          batch: vi.fn()
+        })
+      };
+
+      const mockGraph = {
+        nodes: {}
+      };
+
+      const deps = {
+        cy: mockCy,
+        getGraph: () => mockGraph,
+        getContentForNode: vi.fn(),
+        createFloatingEditor: vi.fn(),
+        extractNodeIdFromPath: vi.fn(),
+        getVaultPath: () => '/test/vault'
+      };
+
+      // Spy on console.error
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Call createNewChildNodeFromUI with non-existent parent
+      await ContextMenuService.createNewChildNode('nonexistent', deps as any);
+
+      // Verify error was logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[ContextMenuService] Parent node not found:',
+        'nonexistent'
+      );
+
+      // Verify graph update was NOT called
+      expect(mockGraphUpdate).not.toHaveBeenCalled();
+
+      // Cleanup
+      consoleErrorSpy.mockRestore();
+      delete (global as any).window;
+    });
+
+    it('should handle missing electronAPI gracefully', async () => {
+      // Don't set window.electronAPI
+      (global as any).window = {};
+
+      const mockCy = {
+        getCore: () => ({
+          add: vi.fn(),
+          batch: vi.fn()
+        })
+      };
+
+      const mockGraph = {
+        nodes: {
+          'parent_node': {
+            id: 'parent_node',
+            content: '# Parent Node',
+            outgoingEdges: [],
+            nodeUIMetadata: {
+              color: { _tag: 'None' },
+              position: { x: 100, y: 100 }
+            }
+          }
+        }
+      };
+
+      const deps = {
+        cy: mockCy,
+        getGraph: () => mockGraph,
+        getContentForNode: vi.fn(),
+        createFloatingEditor: vi.fn(),
+        extractNodeIdFromPath: vi.fn(),
+        getVaultPath: () => '/test/vault'
+      };
+
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Call createNewChildNodeFromUI
+      await ContextMenuService.createNewChildNode('parent_node', deps as any);
+
+      // Verify error was logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[ContextMenuService] Functional graph API not available'
+      );
+
+      // Cleanup
+      consoleErrorSpy.mockRestore();
+      delete (global as any).window;
+    });
+  });
 });

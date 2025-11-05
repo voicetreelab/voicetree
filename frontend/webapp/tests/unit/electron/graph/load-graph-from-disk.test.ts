@@ -117,7 +117,7 @@ This is in a subfolder.`
     expect(graph.nodes['node3'].title).toBe('Node Three')
   })
 
-  it('should build edges from wikilinks', async () => {
+  it('should build outgoingEdges from wikilinks', async () => {
     const loadGraph = loadGraphFromDisk(testVaultPath)
     const graph = await loadGraph()
 

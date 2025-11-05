@@ -258,7 +258,7 @@ export class StyleService {
         }
       },
 
-      // Ghost edges - invisible connections to ghost root
+      // Ghost outgoingEdges - invisible connections to ghost root
       {
         selector: 'edge[isGhostEdge]',
         style: {

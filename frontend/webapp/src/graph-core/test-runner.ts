@@ -120,12 +120,12 @@ async function initializeGraph() {
 
     // Store linkedNodeIds on nodes for the layout algorithm
     // Edges in our data go FROM child TO parent (child links to parent)
-    // So linkedNodeIds = targets of outgoing edges = parents
+    // So linkedNodeIds = targets of outgoing outgoingEdges = parents
     graphData.nodes.forEach(nodeEl => {
       const linkedIds: string[] = [];
       graphData.edges.forEach(edgeEl => {
         if (isBulkLoad) {
-          // Hierarchical: linkedNodeIds = parents (targets of outgoing edges)
+          // Hierarchical: linkedNodeIds = parents (targets of outgoing outgoingEdges)
           if (edgeEl.data.source === nodeEl.data.id) {
             linkedIds.push(edgeEl.data.target);
           }

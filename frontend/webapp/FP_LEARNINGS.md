@@ -58,7 +58,7 @@ env.broadcast(newGraph)  // Side effect in impure shell
 **Pattern:**
 ```typescript
 // Pure layer: Build effect description
-const effect: AppEffect<Graph> = apply_graph_updates(graph, action)
+const effect: AppEffect<Graph> = apply_graph_deltas(graph, action)
 
 // Impure shell: Execute the effect
 const result = await effect(env)()
@@ -128,7 +128,7 @@ await effect1(env)()  // NOW it reads the file
 
 **Old pattern (pre-Reader):**
 ```typescript
-function apply_graph_updates(vaultPath: string) {
+function apply_graph_deltas(vaultPath: string) {
   return (graph, action) => {
     const newGraph = ...
     const dbEffect = ...
@@ -139,7 +139,7 @@ function apply_graph_updates(vaultPath: string) {
 
 **Reader pattern:**
 ```typescript
-function apply_graph_updates(graph, action): AppEffect<Graph> {
+function apply_graph_deltas(graph, action): AppEffect<Graph> {
   return (env: Env) => TE.tryCatch(
     async () => {
       // Effect logic here
@@ -159,7 +159,7 @@ function apply_graph_updates(graph, action): AppEffect<Graph> {
 
 **Problem:**
 Using "apply" in both pure and impure layers:
-- Pure: `apply_graph_updates()` - builds effect description
+- Pure: `apply_graph_deltas()` - builds effect description
 - Impure: `applyDBAction()` - executes effect
 
 **Causes confusion** about which layer you're in.
@@ -173,13 +173,13 @@ Using "apply" in both pure and impure layers:
 
 **Wrong:**
 ```typescript
-const effect = apply_graph_updates(graph, action)
+const effect = apply_graph_deltas(graph, action)
 const result = await effect()  // ❌ Missing env!
 ```
 
 **Right:**
 ```typescript
-const effect = apply_graph_updates(graph, action)
+const effect = apply_graph_deltas(graph, action)
 //    ^^^^^^ This is: (env: Env) => TaskEither<Error, Graph>
 
 const result = await effect(env)()
@@ -249,7 +249,7 @@ const testEnv: Env = {
   broadcast: vi.fn()  // Mock, but won't be called in pure function
 }
 
-const effect = apply_graph_updates(graph, action)
+const effect = apply_graph_deltas(graph, action)
 const result = await effect(testEnv)()
 
 expect(E.isRight(result)).toBe(true)

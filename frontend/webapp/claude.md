@@ -33,5 +33,9 @@ We favor "deep modules", a single class with a minimal public API hiding interna
 
 Once you are at 100,000 tokens, make a HANDOVER.md document saving your thought process for how you were going to solve your next steps.
 
+### FILE EDITING
 
+- NEVER remove comments written by a HUMAN, (e.g. tagged with  //human), you are only allowed to concisely modify them minimal edits if the comment has become out of date 
+
+### PHILOSOPHY
 THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP. EVERYTHING SHOULD BE MODELLED AS FUNCTIONS. PURE OR IMPURE. PUSH IMPURITY TO EDGEs.

@@ -60,7 +60,7 @@ test.describe('Incremental Layout - Online Node Positioning', () => {
           }
         });
 
-        // Add edges
+        // Add outgoingEdges
         linkedNodes.forEach((targetId, idx) => {
           if (window.cy.$id(targetId).length > 0) {
             window.cy.add({

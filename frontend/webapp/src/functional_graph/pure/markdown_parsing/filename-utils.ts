@@ -26,7 +26,7 @@ import type { NodeId } from '@/functional_graph/pure/types'
 export function filenameToNodeId(filename: string): NodeId {
   // Strip .md extension
   return filename.replace(/\.md$/, '')
-  // todo, at some point we need to think about whether node id should be filepath, node counter
+  // todo, at some point we need to think about whether node idAndFilePath should be filepath, node counter
 }
 
 /**
@@ -39,13 +39,13 @@ export function filenameToNodeId(filename: string): NodeId {
  *
  * @example
  * ```typescript
- * nodeIdToFilename("my-node")
+ * nodeIdToFilePathWithExtension("my-node")
  * // => "my-node.md"
  *
- * nodeIdToFilename("subfolder/another-node")
+ * nodeIdToFilePathWithExtension("subfolder/another-node")
  * // => "subfolder/another-node.md"
  * ```
  */
-export function nodeIdToFilename(nodeId: NodeId): string {
+export function nodeIdToFilePathWithExtension(nodeId: NodeId): string {
   return `${nodeId}.md`
 }

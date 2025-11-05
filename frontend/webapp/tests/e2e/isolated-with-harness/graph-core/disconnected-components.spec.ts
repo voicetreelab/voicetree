@@ -41,7 +41,7 @@ test.describe('Disconnected Components - Layout', () => {
           data: nodeData
         });
 
-        // Add edges
+        // Add outgoingEdges
         if (nodeData.linkedNodeIds && nodeData.linkedNodeIds.length > 0) {
           for (const targetId of nodeData.linkedNodeIds) {
             window.cy.add({

@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { BrowserWindow } from 'electron'
 import type { Graph } from '@/functional_graph/pure/types'
-import { setupFileWatchHandlerForTests } from '../../../electron/handlers/file-watch-handler'
+import { setupFileWatchHandlerForTests } from '../../../src/functional_graph/shell/main/file-watch-handler'
 
 // State managed by mocked globals
 let currentGraph: Graph = { nodes: {}, edges: {} }
@@ -124,7 +124,7 @@ describe('Debug: Graph Broadcasting', () => {
       content: '# Linked Note\n\nLinks to [[test-node]]'
     })
 
-    // Verify graph has edges
+    // Verify graph has outgoingEdges
     expect(currentGraph.edges['linked-note']).toBeDefined()
     expect(currentGraph.edges['linked-note']).toContain('test-node')
 

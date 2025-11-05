@@ -2,7 +2,7 @@ import {type Core, type NodeSingular} from 'cytoscape';
 
 /**
  * SPIKE: Auto-collapse nodes based on edge pixel distance
- * When edges are shorter than threshold pixels, hide children and mark parent
+ * When outgoingEdges are shorter than threshold pixels, hide children and mark parent
  */
 export class ZoomCollapseService {
     private cy: Core;
@@ -33,7 +33,7 @@ export class ZoomCollapseService {
             const source = edge.source();
             const target = edge.target();
 
-            // Skip ghost root edges
+            // Skip ghost root outgoingEdges
             if (source.data('isGhostRoot') || target.data('isGhostRoot')) {
                 return;
             }
@@ -73,7 +73,7 @@ export class ZoomCollapseService {
 
         // // Hide nodes that should be hidden
         // this.cy.nodes().forEach(node => {
-        //     const nodeId = node.id();
+        //     const nodeId = node.idAndFilePath();
         //
         //     if (nodesToHide.has(nodeId) && !this.hiddenNodes.has(nodeId)) {
         //         // Hide this node

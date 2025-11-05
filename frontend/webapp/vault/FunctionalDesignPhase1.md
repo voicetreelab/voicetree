@@ -5,12 +5,12 @@
 ```haskell
 -- Domain Model
 type Graph = Graph
-  { nodes :: Record NodeId GraphNode
-  , edges :: Record NodeId [NodeId]  -- Adjacency list
+  { nodes :: Record NodeId Node
+  , outgoingEdges :: Record NodeId [NodeId]  -- Adjacency list
   }
 
-data GraphNode = GraphNode
-  { id :: NodeId
+data Node = Node
+  { idAndFilePath :: NodeId
   , title :: String
   , content :: String
   , summary :: String
@@ -18,7 +18,7 @@ data GraphNode = GraphNode
   }
 
 -- Actions
-data NodeAction
+data GraphDelta
   = AddNode NodeId String (Maybe Position)
   | UpdateNode NodeId String
   | DeleteNode NodeId
@@ -35,17 +35,17 @@ data FSUpdate = FSUpdate
 
 ```haskell
 -- 1. User actions → update graph + persist
-apply_graph_updates :: Graph -> NodeAction -> (Graph, DBIO ())
-apply_graph_updates graph action =
+apply_graph_deltas :: Graph -> GraphDelta -> (Graph, DBIO ())
+apply_graph_deltas graph action =
   let newGraph = applyActionToGraph graph action
       dbEffect = persistAction action  -- writes to FS, async
   in (newGraph, dbEffect)
 
 where
-  applyActionToGraph :: Graph -> NodeAction -> Graph
+  applyActionToGraph :: Graph -> GraphDelta -> Graph
   applyActionToGraph g (AddNode nodeId content pos) =
-    let node = GraphNode
-          { id = nodeId
+    let node = Node
+          { idAndFilePath = nodeId
           , content = content
           , title = extractTitle content
           , linkedNodeIds = extractLinks content
@@ -53,7 +53,7 @@ where
           }
     in g { nodes = Map.insert nodeId node (nodes g) }
 
-  persistAction :: NodeAction -> DBIO ()
+  persistAction :: GraphDelta -> DBIO ()
   persistAction (AddNode nodeId content _) =
     writeFile (nodeId <> ".md") content
 
@@ -69,11 +69,11 @@ where
   applyFSUpdateToGraph :: Graph -> FSUpdate -> Graph
   applyFSUpdateToGraph g (FSUpdate path content Added) =
     let node = parseMarkdownToGraphNode content path
-    in g { nodes = Map.insert (node.id) node (nodes g) }
+    in g { nodes = Map.insert (node.idAndFilePath) node (nodes g) }
 
   applyFSUpdateToGraph g (FSUpdate path content Changed) =
     let node = parseMarkdownToGraphNode content path
-    in g { nodes = Map.insert (node.id) node (nodes g) }
+    in g { nodes = Map.insert (node.idAndFilePath) node (nodes g) }
 
   applyFSUpdateToGraph g (FSUpdate path _ Deleted) =
     let nodeId = pathToNodeId path
@@ -88,14 +88,14 @@ projectToCytoscape :: Graph -> CytoscapeElements
 projectToCytoscape graph =
   CytoscapeElements
     { nodes = map nodeToElement (Map.elems (nodes graph))
-    , edges = map edgeToElement (Map.elems (edges graph))
+    , outgoingEdges = map edgeToElement (Map.elems (outgoingEdges graph))
     }
 
 -- Renderer applies projection (reconciles automatically)
 updateCytoscape :: CytoscapeCore -> CytoscapeElements -> UIIO ()
 updateCytoscape cy elements =
   forM_ (elements.nodes) $ \elem ->
-    case getElementById cy elem.id of
+    case getElementById cy elem.idAndFilePath of
       Just existing -> updateIfChanged existing elem  -- no-op if same
       Nothing -> addElement cy elem                   -- new node
 ```
@@ -129,7 +129,7 @@ main = do
   -- Handle user actions from renderer
   ipcHandle "graph:applyUpdate" $ \action -> do
     graph <- readIORef (graph manager)
-    let (newGraph, dbEffect) = apply_graph_updates graph action
+    let (newGraph, dbEffect) = apply_graph_deltas graph action
     writeIORef (graph manager) newGraph
     runDBIO dbEffect
 
@@ -149,7 +149,7 @@ handleAddNode pos = do
   let action = AddNode (generateId ()) "# New Node" (Just pos)
 
   -- Optimistic UI update
-  cy.add { id = action.nodeId, label = "New Node", position = pos }
+  cy.add { idAndFilePath = action.nodeId, label = "New Node", position = pos }
 
   -- Send to main for persistence
   electronAPI.graph.applyUpdate action
@@ -163,8 +163,8 @@ onGraphStateChanged callback =
 
 ## Rollout Strategy
 
-1. **Add types** (GraphState, NodeAction) - no behavior change
-2. **Implement apply_graph_updates** in main - parallel to existing code
+1. **Add types** (GraphState, GraphDelta) - no behavior change
+2. **Implement apply_graph_deltas** in main - parallel to existing code
 3. **Implement apply_db_updates_to_graph** - runs alongside FileEventManager
 4. **Add projection layer** in renderer - coexists with direct mutations
 5. **Gradually migrate** user actions to send NodeActions
@@ -173,7 +173,7 @@ onGraphStateChanged callback =
 
 ## Success Criteria
 
-- ✓ All graph mutations go through `apply_graph_updates` or `apply_db_updates_to_graph`
+- ✓ All graph mutations go through `apply_graph_deltas` or `apply_db_updates_to_graph`
 - ✓ Renderer never directly mutates Cytoscape for graph data (only UI state)
 - ✓ Filesystem is source of truth, Graph is cached projection
 - ✓ All tests pass with new architecture

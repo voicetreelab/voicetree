@@ -15,17 +15,17 @@ import * as O from 'fp-ts/lib/Option.js'
  * - IMMUTABLE: Does not mutate the input graph
  *
  * @param graph - The pure graph to project
- * @returns CytoscapeElements containing nodes and edges for rendering
+ * @returns CytoscapeElements containing nodes and outgoingEdges for rendering
  */
 export function projectToCytoscape(graph: Graph): CytoscapeElements {
   // Pure projection: Graph → CytoscapeElements
   // This function is PURE, IDEMPOTENT, and IMMUTABLE
 
-  // Project nodes: Map pure GraphNode to Cytoscape representation
+  // Project nodes: Map pure Node to Cytoscape representation
   const nodes: readonly CytoscapeNodeElement[] = Object.values(graph.nodes).map(
     (node): CytoscapeNodeElement => ({
       data: {
-        id: node.id,
+        id: node.idAndFilePath,
         label: node.title,
         content: node.content,
         summary: node.summary,
@@ -35,8 +35,8 @@ export function projectToCytoscape(graph: Graph): CytoscapeElements {
     })
   )
 
-  // Project edges: Flatten adjacency list to edge elements
-  // Filter out edges where target node doesn't exist (dangling references)
+  // Project outgoingEdges: Flatten adjacency list to edge elements
+  // Filter out outgoingEdges where target node doesn't exist (dangling references)
   const edges: readonly CytoscapeEdgeElement[] = Object.entries(graph.edges).flatMap(
     ([sourceId, targets]): readonly CytoscapeEdgeElement[] =>
       targets

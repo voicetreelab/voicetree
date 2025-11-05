@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import * as O from "fp-ts/Option";
 import type { Graph, NodeId } from '@/functional_graph/pure/types'
 import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown_parsing/parse-markdown-to-node'
 import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids'
@@ -7,42 +8,38 @@ import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/e
 /**
  * Loads a graph from the filesystem.
  *
- * IO function: Wraps side effects (file I/O) in a function that returns a Promise.
- * The function itself is pure - calling it returns the same IO effect for the same input.
- * Only when the returned function is executed (called) do side effects occur.
+ * IO function: Performs side effects (file I/O) and returns a Promise<Graph>.
  *
  * @param vaultPath - Absolute path to the vault directory containing markdown files
- * @returns IO effect that, when executed, produces a Graph
+ * @returns Promise that resolves to a Graph
  *
  * Algorithm:
  * 1. Scan vault directory recursively for .md files
- * 2. Read each file and parse into GraphNode
- * 3. Build adjacency list by extracting wikilinks from each node
- * 4. Return Graph with nodes and edges
+ * 2. Read each file and parse into Node (preliminary, without outgoingEdges)
+ * 3. Build final nodes with outgoingEdges extracted from wikilinks in content
+ * 4. Return Graph with nodes containing their outgoingEdges
  *
  * @example
  * ```typescript
- * // Creating the IO effect (pure, no side effects)
- * const loadGraph = loadGraphFromDisk('/path/to/vault')
- *
- * // Executing the IO effect (triggers file I/O)
- * const graph = await loadGraph()
+ * const graph = await loadGraphFromDisk('/path/to/vault')
  * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
-export function loadGraphFromDisk(vaultPath: string): () => Promise<Graph> {
-  return async () => {
+export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Graph> {
+    if (O.isNone(vaultPath)) {
+        return { nodes: {} };
+    }
+
     // Step 1: Scan directory for markdown files
-    const files = await scanMarkdownFiles(vaultPath)
+    const files = await scanMarkdownFiles(vaultPath.value)
 
-    // Step 2: Load all nodes
-    const nodes = await loadNodes(vaultPath, files)
+    // Step 2: Load preliminary nodes
+    const preliminaryNodes = await loadNodes(vaultPath.value, files)
 
-    // Step 3: Build edges from wikilinks
-    const edges = buildEdges(nodes)
+    // Step 3: Build final nodes with outgoingEdges from wikilinks
+    const nodesWithEdges = buildNodesWithEdges(preliminaryNodes)
 
-    return { nodes, edges }
-  }
+    return { nodes: nodesWithEdges }
 }
 
 /**
@@ -80,7 +77,7 @@ async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> 
  *
  * @param vaultPath - Absolute path to vault directory
  * @param files - Array of relative file paths
- * @returns Record mapping node ID to GraphNode
+ * @returns Record mapping node ID to Node
  */
 async function loadNodes(
   vaultPath: string,
@@ -90,7 +87,7 @@ async function loadNodes(
     const fullPath = path.join(vaultPath, file)
     const content = await fs.readFile(fullPath, 'utf-8')
     const node = parseMarkdownToGraphNode(content, file)
-    return [node.id, node] as const
+    return [node.idAndFilePath, node] as const
   })
 
   const nodeEntries = await Promise.all(nodePromises)
@@ -98,18 +95,21 @@ async function loadNodes(
 }
 
 /**
- * Builds adjacency list from wikilinks in node content.
+ * Builds final nodes with outgoingEdges extracted from wikilinks in content.
  *
  * Pure function: same input -> same output, no side effects
  *
- * @param nodes - Record of all nodes
- * @returns Adjacency list mapping node ID to array of linked node IDs
+ * @param nodes - Record of preliminary nodes (may have empty/incorrect outgoingEdges)
+ * @returns Record of nodes with correct outgoingEdges populated from wikilinks
  */
-function buildEdges(nodes: Record<NodeId, Graph['nodes'][NodeId]>): Graph['edges'] {
-  const edgeEntries = Object.entries(nodes).map(([nodeId, node]) => {
-    const linkedIds = extractLinkedNodeIds(node.content, nodes)
-    return [nodeId, linkedIds] as const
+function buildNodesWithEdges(
+  nodes: Record<NodeId, Graph['nodes'][NodeId]>
+): Record<NodeId, Graph['nodes'][NodeId]> {
+  const nodeEntries = Object.entries(nodes).map(([nodeId, node]) => {
+    const outgoingEdges = extractLinkedNodeIds(node.content, nodes)
+    const nodeWithEdges = { ...node, outgoingEdges }
+    return [nodeId, nodeWithEdges] as const
   })
 
-  return Object.fromEntries(edgeEntries)
+  return Object.fromEntries(nodeEntries)
 }

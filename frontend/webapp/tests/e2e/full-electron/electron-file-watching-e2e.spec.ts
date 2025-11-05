@@ -2,7 +2,7 @@
  * BEHAVIORAL SPEC:
  * 1. When user points app at a folder, it watches markdown files and displays them as graph nodes
  * 2. Creating/modifying/deleting markdown files updates the graph automatically
- * 3. Wiki-links [[filename]] create edges between nodes
+ * 3. Wiki-links [[filename]] create outgoingEdges between nodes
  * 4. Graph handles rapid file changes without corruption
  * 5. Stopping file watching clears the graph
  * 6. After stopping, user can restart watching on a different folder (or the same folder)
@@ -140,7 +140,7 @@ test.describe('Electron File Watching E2E Tests', () => {
     });
 
     // Now we have 3 nodes: introduction, the manually created node, and advanced
-    // And 2 edges: introduction -> manual node, advanced -> introduction
+    // And 2 outgoingEdges: introduction -> manual node, advanced -> introduction
     expect(graphWithLink).toMatchObject({
       nodes: 3,
       edges: 2

@@ -104,7 +104,7 @@ const [newGraph] = ...
 
 **File:** `electron/graph/applyFSEventToGraph.ts:189`
 ```typescript
-let edges = [...currentLinkedIds]  // Should be const
+let outgoingEdges = [...currentLinkedIds]  // Should be const
 ```
 
 **Fix:** Change to `const`
@@ -136,7 +136,7 @@ These are acceptable functional compromises for real-world code.
 
 ### Pure Functional Files (100% Compliant)
 ✅ `types.ts` - Type definitions only
-✅ `action-creators.ts` - Pure action creators
+✅ `uiInteractionsToGraphDeltas.ts` - Pure action creators
 ✅ `extract-title.ts` - Pure string → string
 ✅ `extract-frontmatter.ts` - Pure string → object
 

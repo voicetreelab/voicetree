@@ -291,7 +291,7 @@ test.describe('Isolated xterm.js Terminal Tests', () => {
         const mockAPI = (window as any).electronAPI;
 
         // Try to write to non-existent terminal
-        const result = await mockAPI.terminal.write('invalid-id', 'test');
+        const result = await mockAPI.terminal.write('invalid-idAndFilePath', 'test');
         return result;
       });
 

@@ -1,20 +1,20 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type { GraphNode } from '@/functional_graph/pure/types'
+import type { Node } from '@/functional_graph/pure/types'
 import { extractFrontmatter } from '@/functional_graph/pure/markdown_parsing/extract-frontmatter'
 import { extractTitle } from '@/functional_graph/pure/markdown_parsing/extract-title'
 import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
 
 /**
- * Parses markdown content into a GraphNode.
+ * Parses markdown content into a Node.
  *
  * Pure function: same input -> same output, no side effects
  *
  * @param content - Full markdown content including frontmatter
  * @param filename - Filename of the markdown file (used as fallback for node_id)
- * @returns GraphNode with all fields populated
+ * @returns Node with all fields populated
  *
  * Field resolution priority:
- * - id: frontmatter.node_id > filenameToNodeId(filename)
+ * - idAndFilePath: frontmatter.node_id > filenameToNodeId(filename)
  * - title: frontmatter.title > extractTitle(content) > 'Untitled'
  * - content: full markdown content
  * - summary: frontmatter.summary > ''
@@ -32,7 +32,7 @@ import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filen
  *
  * const node = parseMarkdownToGraphNode(content, "test.md")
  * // node = {
- * //   id: "123",
+ * //   idAndFilePath: "123",
  * //   title: "My Node",
  * //   content: content,
  * //   summary: "A test node",
@@ -40,11 +40,11 @@ import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filen
  * // }
  * ```
  */
-export function parseMarkdownToGraphNode(content: string, filename: string): GraphNode {
+export function parseMarkdownToGraphNode(content: string, filename: string): Node {
   const frontmatter = extractFrontmatter(content)
 
   return {
-    id: frontmatter.node_id ?? filenameToNodeId(filename),
+    idAndFilePath: frontmatter.node_id ?? filenameToNodeId(filename),
     title: frontmatter.title ?? extractTitle(content) ?? 'Untitled',
     content,
     summary: frontmatter.summary ?? '',

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { extractLinkedNodeIds } from '../../../../src/functional_graph/pure/markdown_parsing/extract-linked-node-ids'
-import type { GraphNode } from '../../../../src/functional_graph/pure/types'
+import type { Node } from '../../../../src/functional_graph/pure/types'
 
 describe('extractLinkedNodeIds', () => {
-  const createNode = (id: string, title: string): GraphNode => ({
-    id,
+  const createNode = (id: string, title: string): Node => ({
+    idAndFilePath: id,
     title,
     content: '',
     summary: '',

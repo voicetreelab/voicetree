@@ -1,4 +1,4 @@
-import type {Graph, FSUpdate, EnvReader, GraphNode, NodeId, Env} from '@/functional_graph/pure/types'
+import type {Graph, FSUpdate, EnvReader, Node, NodeId, Env} from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
@@ -43,16 +43,16 @@ function handleAdded(env: Env, graph: Graph, update: FSUpdate): Graph {
     return handleChanged(env, graph, update)
   }
 
-  // Create new GraphNode from file content
-  const newNode: GraphNode = {
-    id: nodeId,
+  // Create new Node from file content
+  const newNode: Node = {
+    idAndFilePath: nodeId,
     title: extractTitle(update.content),
     content: update.content,
     summary: '', // TODO: Generate summary in Phase 3
     color: O.none
   }
 
-  // Parse edges from markdown links
+  // Parse outgoingEdges from markdown links
   const edges = parseLinksFromContent(update.content)
 
   const updatedGraph: Graph = {
@@ -84,14 +84,14 @@ function handleChanged(env: Env, graph: Graph, update: FSUpdate): Graph {
   }
 
   // Update node with new content
-  const updatedNode: GraphNode = {
+  const updatedNode: Node = {
     ...existingNode,
     title: extractTitle(update.content),
     content: update.content
     // TODO: Update summary in Phase 3
   }
 
-  // Parse edges from markdown links
+  // Parse outgoingEdges from markdown links
   const edges = parseLinksFromContent(update.content)
 
   const updatedGraph: Graph = {
@@ -121,7 +121,7 @@ function handleDeleted(env: Env, graph: Graph, update: FSUpdate): Graph {
     Object.entries(graph.nodes).filter(([id]) => id !== nodeId)
   )
 
-  // Remove edges connected to this node
+  // Remove outgoingEdges connected to this node
   const updatedEdges = Object.fromEntries(
     Object.entries(graph.edges)
       .filter(([id]) => id !== nodeId)
@@ -183,7 +183,7 @@ function extractTitle(content: string): string {
 }
 
 /**
- * Parse markdown links from content to extract edges.
+ * Parse markdown links from content to extract outgoingEdges.
  * E.g., "[[OtherNote]]" -> ["OtherNote"]
  */
 function parseLinksFromContent(content: string): readonly NodeId[] {
