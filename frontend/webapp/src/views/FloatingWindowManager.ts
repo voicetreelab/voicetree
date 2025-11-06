@@ -19,7 +19,7 @@ import type { HotkeyManager } from './HotkeyManager';
 import type { Graph, NodeId } from '@/functional_graph/pure/types';
 import { nodeIdToFilePathWithExtension } from '@/functional_graph/pure/markdown_parsing/filename-utils';
 import * as O from 'fp-ts/lib/Option';
-import {GraphMutator} from "@/graph-core/mutation/GraphMutator.ts";
+import {GraphMutator} from "@/functional_graph/shell/UI/GraphMutator.ts";
 import { ContextMenuService } from '@/graph-core/services/ContextMenuService';
 
 /**
