@@ -43,6 +43,7 @@ export interface ElectronAPI {
   startFileWatching: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
   stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
   getWatchStatus: () => Promise<WatchStatus>;
+  loadPreviousFolder: () => Promise<{ success: boolean; directory?: string; error?: string }>;
 
   // File system event listeners
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => void;
@@ -83,7 +84,10 @@ export interface ElectronAPI {
     applyGraphDelta: (action: GraphDelta) => Promise<unknown>;
 
     // Query current graph state
-    getState: () => Promise<Graph>;
+    getState: () => Promise<{ success: boolean; graph: Graph }>;
+
+    // Subscribe to graph delta updates (returns unsubscribe function)
+    onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void;
   };
 
   // General IPC communication methods

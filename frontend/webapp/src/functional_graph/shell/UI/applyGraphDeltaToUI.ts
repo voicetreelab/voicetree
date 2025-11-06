@@ -13,6 +13,7 @@ import * as O from 'fp-ts/lib/Option.js';
  * - Deleting nodes
  */
 export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
+    console.log('[applyGraphDeltaToUI] Starting, delta length:', delta.length);
     cy.batch(() => {
         // Ensure ghost root exists before processing deltas
         ensureGhostRoot(cy);
@@ -96,6 +97,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
             }
         });
     });
+    console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 }
 
 /**

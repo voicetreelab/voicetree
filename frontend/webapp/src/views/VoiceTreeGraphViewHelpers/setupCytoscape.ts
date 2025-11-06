@@ -58,49 +58,48 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
     }, 1000); // Wait 1 second after last drag
   });
 
-  // Setup tap handler for nodes (skip in headless mode)
-  // if (!this.options.headless) { //todo unnec
-    console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
-    cy.on('tap', 'node', (event) => {
-      const nodeId = event.target.id();
-      console.log('[VoiceTreeGraphView] Node tapped:', nodeId);
+  // Setup tap handler for nodes
+  console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
+  cy.on('tap', 'node', (event) => {
+    const nodeId = event.target.id();
+    console.log('[VoiceTreeGraphView] Node tapped:', nodeId);
 
-      // Emit node selected event
-      onNodeSelected(nodeId);
+    // Emit node selected event
+    onNodeSelected(nodeId);
 
-      // Get content from functional graph
-      const currentGraphState = getCurrentGraphState();
-      const vaultProvider = getVaultProvider();
-      const node = currentGraphState.nodes[nodeId];
-      const vaultPath = vaultProvider.getWatchDirectory?.();
+    // Get content from functional graph
+    const currentGraphState = getCurrentGraphState();
+    const vaultProvider = getVaultProvider();
+    const node = currentGraphState.nodes[nodeId];
+    const vaultPath = vaultProvider.getWatchDirectory?.();
 
-      if (node && vaultPath) {
-        const content = node.content;
-        const filePath = `${vaultPath}/${nodeId}.md`;
+    if (node && vaultPath) {
+      const content = node.content;
+      const filePath = `${vaultPath}/${nodeId}.md`;
 
-        console.log('[VoiceTreeGraphView] Found content?', !!content, 'filePath?', !!filePath);
+      console.log('[VoiceTreeGraphView] Found content?', !!content, 'filePath?', !!filePath);
 
-        const nodePos = event.target.position();
-        console.log('[VoiceTreeGraphView] Calling createFloatingEditor');
-        floatingWindowManager.createFloatingEditor(nodeId, filePath, content, nodePos);
-      } else {
-        console.log('[VoiceTreeGraphView] Not opening editor - missing requirements', node, vaultPath);
-      }
-    });
+      const nodePos = event.target.position();
+      console.log('[VoiceTreeGraphView] Calling createFloatingEditor');
+      floatingWindowManager.createFloatingEditor(nodeId, filePath, content, nodePos);
+    } else {
+      console.log('[VoiceTreeGraphView] Not opening editor - missing requirements', node, vaultPath);
+    }
+  });
 
-    // Setup context menu (requires DOM)
-    const contextMenuService = new ContextMenuService();
-    // Initialize context menu with cy instance and dependencies
-    contextMenuService.initialize(cy, {
-      getContentForNode: (nodeId: string) => floatingWindowManager.getContentForNode(nodeId),
-      getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
-      createFloatingEditor: (nodeId: string, filePath: string, content: string, pos) =>
-        floatingWindowManager.createFloatingEditor(nodeId, filePath, content, pos),
-      createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
-        floatingWindowManager.createFloatingTerminal(nodeId, metadata as { id: string; name: string; filePath?: string }, pos),
-      handleAddNodeAtPosition: (position) =>
-        floatingWindowManager.handleAddNodeAtPosition(position)
-    });
+  // Setup context menu (with defensive DOM checks)
+  const contextMenuService = new ContextMenuService();
+  // Initialize context menu with cy instance and dependencies
+  contextMenuService.initialize(cy, {
+    getContentForNode: (nodeId: string) => floatingWindowManager.getContentForNode(nodeId),
+    getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
+    createFloatingEditor: (nodeId: string, filePath: string, content: string, pos) =>
+      floatingWindowManager.createFloatingEditor(nodeId, filePath, content, pos),
+    createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
+      floatingWindowManager.createFloatingTerminal(nodeId, metadata as { id: string; name: string; filePath?: string }, pos),
+    handleAddNodeAtPosition: (position) =>
+      floatingWindowManager.handleAddNodeAtPosition(position)
+  });
 
   // Expose for testing
   if (typeof window !== 'undefined') {

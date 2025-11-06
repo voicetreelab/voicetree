@@ -74,15 +74,19 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
 
   // Start watching function
   const startWatching = useCallback(async () => {
-    if (!isElectron) return;
+    if (!isElectron) {
+      console.error('[useFolderWatcher] Not in Electron, cannot start watching');
+      return;
+    }
 
-    console.log('[DEBUG] startWatching called, current watchStatus:', watchStatus);
+    console.log('[useFolderWatcher] startWatching called, current watchStatus:', watchStatus);
     setIsLoading(true);
     setError(null);
 
     try {
+      console.log('[useFolderWatcher] Calling window.electronAPI.startFileWatching()...');
       const result = await window.electronAPI!.startFileWatching();
-      console.log('[DEBUG] startFileWatching result:', result);
+      console.log('[useFolderWatcher] startFileWatching IPC result:', result);
       if (result.success) {
         // Reset state immediately after successful IPC call
         // Event will also sync state with directory info, but we do it here for UI responsiveness

@@ -38,7 +38,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Create memory vault (used for position management)
     vault = new MemoryMarkdownVault();
 
-    // Create graph instance
+    // Create graph instance for unit tests
     graph = new VoiceTreeGraphView(container, vault);
   });
 
@@ -112,10 +112,10 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
 
   it('should subscribe to functional graph updates via electronAPI', () => {
     // Setup mock electronAPI
-    const mockCallbacks: Array<(graph: unknown) => void> = [];
+    const mockCallbacks: Array<(delta: unknown) => void> = [];
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: unknown) => void) => {
+        onGraphUpdate: (callback: (delta: unknown) => void) => {
           mockCallbacks.push(callback);
           return () => {
             const idx = mockCallbacks.indexOf(callback);
@@ -154,7 +154,23 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 
-  it('should render graph delta to cytoscape when CustomEvent is dispatched', async () => {
+  it('should render graph delta to cytoscape when electronAPI callback is invoked', async () => {
+    // Setup mock electronAPI that captures the callback
+    let capturedCallback: ((delta: unknown) => void) | null = null;
+    const mockElectronAPI = {
+      graph: {
+        onGraphUpdate: (callback: (delta: unknown) => void) => {
+          capturedCallback = callback;
+          return () => {
+            capturedCallback = null;
+          };
+        }
+      }
+    };
+
+    // Inject mock API
+    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
+
     // Create container and view
     const testContainer = document.createElement('div');
     testContainer.style.width = '800px';
@@ -196,8 +212,9 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
       }
     ];
 
-    // Dispatch the CustomEvent (simulating preload.ts behavior)
-    window.dispatchEvent(new CustomEvent('graph:stateChanged', { detail: delta }));
+    // Invoke the callback directly (simulating main process sending delta)
+    expect(capturedCallback).not.toBeNull();
+    capturedCallback!(delta);
 
     // Wait for the update to be processed
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -224,16 +241,17 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Cleanup
     testGraph.dispose();
     document.body.removeChild(testContainer);
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 
-  it('should update cytoscape when receiving graph state from main process', async () => {
-    // Setup mock electronAPI with state change emitter
-    let stateChangeCallback: ((graph: unknown) => void) | null = null;
+  it('should update cytoscape when receiving graph delta from main process', async () => {
+    // Setup mock electronAPI with graph update callback
+    let graphUpdateCallback: ((delta: unknown) => void) | null = null;
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: unknown) => void) => {
-          stateChangeCallback = callback;
-          return () => { stateChangeCallback = null; };
+        onGraphUpdate: (callback: (delta: unknown) => void) => {
+          graphUpdateCallback = callback;
+          return () => { graphUpdateCallback = null; };
         }
       }
     };
@@ -257,36 +275,41 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     const testVault = new MemoryMarkdownVault();
     const testGraph = new VoiceTreeGraphView(testContainer, testVault);
 
-    // Emit mock graph state with proper Option types
-    const mockGraphState = {
-      nodes: {
-        'node1': {
-          id: 'node1',
-          title: 'Node 1',
+    // Create mock graph delta with two nodes
+    const mockDelta = [
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'node1',
           content: '# Node 1\n\nContent',
-          summary: 'Summary',
-          color: O.none
-        },
-        'node2': {
-          id: 'node2',
-          title: 'Node 2',
-          content: '# Node 2\n\nContent',
-          summary: 'Summary',
-          color: O.none
+          outgoingEdges: ['node2'],
+          nodeUIMetadata: {
+            color: O.none,
+            position: { x: 100, y: 100 }
+          }
         }
       },
-      edges: {
-        'node1': ['node2']
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'node2',
+          content: '# Node 2\n\nContent',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            color: O.none,
+            position: { x: 200, y: 200 }
+          }
+        }
       }
-    };
+    ];
 
-    stateChangeCallback!(mockGraphState);
+    graphUpdateCallback!(mockDelta);
 
     // Wait for next tick to allow batched updates
     await new Promise(resolve => setTimeout(resolve, 10));
 
     // Verify cytoscape was updated (filtering out ghost root if present)
-    const cy = (testGraph as unknown as { cy: { getCore: () => Core } }).cy.getCore();
+    const cy = (testGraph as unknown as { cy: Core }).cy;
     const nonGhostNodes = cy.nodes().filter(node => !node.data('isGhostRoot'));
     expect(nonGhostNodes.length).toBe(2);
     expect(cy.edges().length).toBe(1);
@@ -311,13 +334,13 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Verify getWatchDirectory returns the absolutePath
     expect(vault.getWatchDirectory?.()).toBe('/test/vault');
 
-    // Setup mock electronAPI with state change emitter
-    let stateChangeCallback: ((graph: unknown) => void) | null = null;
+    // Setup mock electronAPI with graph update callback
+    let graphUpdateCallback: ((delta: unknown) => void) | null = null;
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: unknown) => void) => {
-          stateChangeCallback = callback;
-          return () => { stateChangeCallback = null; };
+        onGraphUpdate: (callback: (delta: unknown) => void) => {
+          graphUpdateCallback = callback;
+          return () => { graphUpdateCallback = null; };
         }
       }
     };
@@ -327,27 +350,29 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Create graph instance
     const testGraph = new VoiceTreeGraphView(container, vault);
 
-    // Emit mock graph state with a node
-    const mockGraphState = {
-      nodes: {
-        'test-node': {
-          id: 'test-node',
-          title: 'Test Node',
+    // Emit mock graph delta with a node
+    const mockDelta = [
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'test-node',
           content: '# Test Node\n\nSome content',
-          summary: 'Summary',
-          color: O.none
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            color: O.none,
+            position: { x: 100, y: 100 }
+          }
         }
-      },
-      edges: {}
-    };
+      }
+    ];
 
-    stateChangeCallback!(mockGraphState);
+    graphUpdateCallback!(mockDelta);
 
     // Wait for graph update
     await new Promise(resolve => setTimeout(resolve, 10));
 
     // Simulate node tap
-    const cy = (testGraph as unknown as { cy: { getCore: () => Core } }).cy.getCore();
+    const cy = (testGraph as unknown as { cy: Core }).cy;
     const node = cy.getElementById('test-node');
     expect(node.length).toBe(1);
 
@@ -368,12 +393,12 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     expect(vault.getWatchDirectory?.()).toBeUndefined();
 
     // Setup mock electronAPI
-    let stateChangeCallback: ((graph: unknown) => void) | null = null;
+    let graphUpdateCallback: ((delta: unknown) => void) | null = null;
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: unknown) => void) => {
-          stateChangeCallback = callback;
-          return () => { stateChangeCallback = null; };
+        onGraphUpdate: (callback: (delta: unknown) => void) => {
+          graphUpdateCallback = callback;
+          return () => { graphUpdateCallback = null; };
         }
       }
     };
@@ -383,21 +408,23 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Create graph instance
     const testGraph = new VoiceTreeGraphView(container, vault);
 
-    // Emit mock graph state with a node
-    const mockGraphState = {
-      nodes: {
-        'test-node': {
-          id: 'test-node',
-          title: 'Test Node',
+    // Emit mock graph delta with a node
+    const mockDelta = [
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'test-node',
           content: '# Test Node\n\nSome content',
-          summary: 'Summary',
-          color: O.none
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            color: O.none,
+            position: { x: 100, y: 100 }
+          }
         }
-      },
-      edges: {}
-    };
+      }
+    ];
 
-    stateChangeCallback!(mockGraphState);
+    graphUpdateCallback!(mockDelta);
 
     // Wait for graph update
     await new Promise(resolve => setTimeout(resolve, 10));

@@ -48,6 +48,18 @@ export class ContextMenuService {
     private setupContextMenu(): void {
         if (!this.cy) return;
 
+        // Skip if cytoscape is in headless mode (no container)
+        if (!this.cy.container()) {
+            console.log('[ContextMenuService] Skipping context menu setup - cytoscape is in headless mode');
+            return;
+        }
+
+        // Skip if DOM is not available (e.g., in test environment)
+        if (typeof document === 'undefined' || !document.body || !document.documentElement) {
+            console.log('[ContextMenuService] Skipping context menu setup - DOM not available');
+            return;
+        }
+
         // Get theme colors from CSS variables or use defaults
         const style = getComputedStyle(document.body);
         const isDarkMode = document.documentElement.classList.contains('dark');
@@ -84,6 +96,18 @@ export class ContextMenuService {
 
     private setupCanvasContextMenu(): void {
         if (!this.cy) return;
+
+        // Skip if cytoscape is in headless mode (no container)
+        if (!this.cy.container()) {
+            console.log('[ContextMenuService] Skipping canvas context menu setup - cytoscape is in headless mode');
+            return;
+        }
+
+        // Skip if DOM is not available (e.g., in test environment)
+        if (typeof document === 'undefined' || !document.body || !document.documentElement) {
+            console.log('[ContextMenuService] Skipping canvas context menu setup - DOM not available');
+            return;
+        }
 
         // Get theme colors from CSS variables or use defaults
         const style = getComputedStyle(document.body);
@@ -205,14 +229,15 @@ export class ContextMenuService {
             content: this.createSvgIcon('trash', 'Delete'),
             select: async () => {
                 const filePath = this.deps!.getFilePathForNode(nodeId);
+                const electronAPI = (window as { electronAPI?: { deleteFile: (path: string) => Promise<{ success: boolean; error?: string }> } }).electronAPI;
 
-                if (filePath && (window as any).electronAPI?.deleteFile) {
+                if (filePath && electronAPI?.deleteFile) {
                     if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
                         return;
                     }
 
                     try {
-                        const result = await (window as any).electronAPI.deleteFile(filePath);
+                        const result = await electronAPI.deleteFile(filePath);
                         if (result.success) {
                             // Graph will handle the delete event from the file watcher
                             this.cy!.getElementById(nodeId).remove();
@@ -243,6 +268,12 @@ export class ContextMenuService {
     }
 
     private createSvgIcon(type: string, tooltip: string): HTMLElement {
+        // Defensive check for DOM availability
+        if (typeof document === 'undefined') {
+            // Return a minimal placeholder in non-DOM environments
+            return { textContent: type } as HTMLElement;
+        }
+
         const div = document.createElement('div');
         div.style.width = '24px';
         div.style.height = '24px';

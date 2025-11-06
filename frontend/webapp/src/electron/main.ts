@@ -73,16 +73,16 @@ function createWindow() {
   // - Last directory no longer exists (deleted/moved)
   // - Permission issues accessing last directory
   // - Race condition with manual watch start
-  mainWindow.webContents.on('did-finish-load', async () => {
-    // Skip auto-loading in test mode to avoid blocking app startup
-    if (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') {
-      console.log('[AutoWatch] Skipping auto-load in test mode');
-      return;
-    }
-
-    // Load last directory and set up file watching using functional approach
-    await initialLoad();
-  });
+  // mainWindow.webContents.on('did-finish-load', async () => {
+  //   // Skip auto-loading in test mode to avoid blocking app startup
+  //   if (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') {
+  //     console.log('[AutoWatch] Skipping auto-load in test mode');
+  //     return;
+  //   }
+  //
+  //   // Load last directory and set up file watching using functional approach
+  //   // await initialLoad(); THIS IS INSTEAD CALLED FROM UI
+  // });
 
   // Pipe renderer console logs to electron terminal
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
