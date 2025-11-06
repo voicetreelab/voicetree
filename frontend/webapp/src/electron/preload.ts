@@ -8,6 +8,9 @@ const electronAPI: ElectronAPI = {
   // Backend server configuration
   getBackendPort: () => ipcRenderer.invoke('get-backend-port'),
 
+  // Directory selection
+  openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
+
   // File watching controls
   startFileWatching: (directoryPath) => ipcRenderer.invoke('start-file-watching', directoryPath),
   stopFileWatching: () => ipcRenderer.invoke('stop-file-watching'),
@@ -15,37 +18,37 @@ const electronAPI: ElectronAPI = {
 
   // File watching event listeners
   onWatchingStarted: (callback) => {
-    ipcRenderer.on('watching-started', (event, data) => callback(data));
+    ipcRenderer.on('watching-started', (_event, data) => callback(data));
   },
   onInitialFilesLoaded: (callback) => {
-    ipcRenderer.on('initial-files-loaded', (event, data) => callback(data));
+    ipcRenderer.on('initial-files-loaded', (_event, data) => callback(data));
   },
   onFileAdded: (callback) => {
-    ipcRenderer.on('file-added', (event, data) => callback(data));
+    ipcRenderer.on('file-added', (_event, data) => callback(data));
   },
   onFileChanged: (callback) => {
-    ipcRenderer.on('file-changed', (event, data) => callback(data));
+    ipcRenderer.on('file-changed', (_event, data) => callback(data));
   },
   onFileDeleted: (callback) => {
-    ipcRenderer.on('file-deleted', (event, data) => callback(data));
+    ipcRenderer.on('file-deleted', (_event, data) => callback(data));
   },
   onDirectoryAdded: (callback) => {
-    ipcRenderer.on('directory-added', (event, data) => callback(data));
+    ipcRenderer.on('directory-added', (_event, data) => callback(data));
   },
   onDirectoryDeleted: (callback) => {
-    ipcRenderer.on('directory-deleted', (event, data) => callback(data));
+    ipcRenderer.on('directory-deleted', (_event, data) => callback(data));
   },
   onInitialScanComplete: (callback) => {
-    ipcRenderer.on('initial-scan-complete', (event, data) => callback(data));
+    ipcRenderer.on('initial-scan-complete', (_event, data) => callback(data));
   },
   onFileWatchError: (callback) => {
-    ipcRenderer.on('file-watch-error', (event, data) => callback(data));
+    ipcRenderer.on('file-watch-error', (_event, data) => callback(data));
   },
   onFileWatchInfo: (callback) => {
-    ipcRenderer.on('file-watch-info', (event, data) => callback(data));
+    ipcRenderer.on('file-watch-info', (_event, data) => callback(data));
   },
   onFileWatchingStopped: (callback) => {
-    ipcRenderer.on('file-watching-stopped', (event, data) => callback(data));
+    ipcRenderer.on('file-watching-stopped', (_event, data) => callback(data));
   },
 
   // Remove event listeners (cleanup)
@@ -66,10 +69,10 @@ const electronAPI: ElectronAPI = {
     resize: (terminalId, cols, rows) => ipcRenderer.invoke('terminal:resize', terminalId, cols, rows),
     kill: (terminalId) => ipcRenderer.invoke('terminal:kill', terminalId),
     onData: (callback) => {
-      ipcRenderer.on('terminal:data', (event, terminalId, data) => callback(terminalId, data));
+      ipcRenderer.on('terminal:data', (_event, terminalId, data) => callback(terminalId, data));
     },
     onExit: (callback) => {
-      ipcRenderer.on('terminal:exit', (event, terminalId, code) => callback(terminalId, code));
+      ipcRenderer.on('terminal:exit', (_event, terminalId, code) => callback(terminalId, code));
     }
   },
 
@@ -81,7 +84,7 @@ const electronAPI: ElectronAPI = {
 
   // Backend log streaming
   onBackendLog: (callback) => {
-    ipcRenderer.on('backend-log', (event, log) => callback(log));
+    ipcRenderer.on('backend-log', (_event, log) => callback(log));
   },
 
   // Functional graph API (Phase 3)
@@ -90,17 +93,7 @@ const electronAPI: ElectronAPI = {
     applyGraphDelta: (action: GraphDelta) => ipcRenderer.invoke('graph:applyDelta', action),
 
     // Query current graph state
-    getState: () : Promise<Graph> => ipcRenderer.invoke('graph:getState'),
-
-    // Subscribe to graph state broadcasts
-    onStateChanged: (callback) => {
-      const listener = (event, graph) => callback(graph);
-      ipcRenderer.on('graph:stateChanged', listener);
-      // Return cleanup function
-      return () => {
-        ipcRenderer.off('graph:stateChanged', listener);
-      };
-    }
+    getState: () : Promise<Graph> => ipcRenderer.invoke('graph:getState')
   },
 
   // General IPC communication methods
@@ -110,3 +103,13 @@ const electronAPI: ElectronAPI = {
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+// Direct IPC → Browser Event wiring (no subscription layer)
+// These listeners are always active and dispatch CustomEvents for the renderer to handle
+ipcRenderer.on('graph:initialized', (_event, graph: Graph) => {
+  window.dispatchEvent(new CustomEvent('graph:initialized', { detail: graph }));
+});
+
+ipcRenderer.on('graph:stateChanged', (_event, delta: GraphDelta) => {
+  window.dispatchEvent(new CustomEvent('graph:stateChanged', { detail: delta }));
+});

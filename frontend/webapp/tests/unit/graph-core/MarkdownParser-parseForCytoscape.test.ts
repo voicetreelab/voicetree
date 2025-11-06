@@ -96,7 +96,7 @@ Just some content without frontmatter.`;
       expect(result.nodeId).toBe('my-file');
     });
 
-    it('should extract just filename from path', () => {
+    it('should extract just filename from absolutePath', () => {
       const content = '# Test';
       const result = parseForCytoscape(content, 'concepts/introduction.md');
 

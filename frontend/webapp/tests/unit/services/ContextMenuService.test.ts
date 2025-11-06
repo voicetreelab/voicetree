@@ -166,7 +166,7 @@ describe('ContextMenuService', () => {
       commands[0].select();
       expect(mockDeps.createFloatingEditor).toHaveBeenCalledWith(
         'node1',
-        '/path/to/node1.md',
+        '/absolutePath/to/node1.md',
         'Content for node1',
         expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) })
       );
@@ -209,7 +209,7 @@ describe('ContextMenuService', () => {
       const iconElement = commands[0].content as HTMLElement;
       expect(iconElement.tagName).toBe('DIV');
       expect(iconElement.querySelector('svg')).not.toBeNull();
-      expect(iconElement.querySelector('path')).not.toBeNull();
+      expect(iconElement.querySelector('absolutePath')).not.toBeNull();
     });
   });
 

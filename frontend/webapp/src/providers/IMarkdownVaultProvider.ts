@@ -10,8 +10,8 @@
  */
 
 export interface FileData {
-  path: string;          // Relative path (e.g., "concepts/introduction.md")
-  fullPath: string;      // Absolute path
+  path: string;          // Relative absolutePath (e.g., "concepts/introduction.md")
+  fullPath: string;      // Absolute absolutePath
   content: string;       // File content
   size: number;          // File size in bytes
   modified: string;      // ISO timestamp
@@ -66,7 +66,7 @@ export interface IMarkdownVaultProvider {
 
   /**
    * Called when a file is deleted from vault
-   * @param callback - Receives the deleted file's path
+   * @param callback - Receives the deleted file's absolutePath
    * @returns Disposable to remove listener
    */
   onFileDeleted(callback: (fullPath: string) => void): Disposable;
@@ -91,14 +91,14 @@ export interface IMarkdownVaultProvider {
 
   /**
    * Load saved node positions for a directory
-   * @param directory - Vault directory path
+   * @param directory - Vault directory absolutePath
    * @returns Promise resolving to position map (filename -> {x, y})
    */
   loadPositions(directory: string): Promise<Record<string, Position>>;
 
   /**
    * Save node positions for a directory
-   * @param directory - Vault directory path
+   * @param directory - Vault directory absolutePath
    * @param positions - Position map to save
    * @returns Promise resolving to success status
    */
@@ -121,8 +121,8 @@ export interface IMarkdownVaultProvider {
   }>;
 
   /**
-   * Get the currently watched directory path (synchronous)
-   * @returns The watched directory path or undefined if not watching
+   * Get the currently watched directory absolutePath (synchronous)
+   * @returns The watched directory absolutePath or undefined if not watching
    */
   getWatchDirectory?(): string | undefined;
 }

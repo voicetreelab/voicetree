@@ -84,9 +84,6 @@ export interface ElectronAPI {
 
     // Query current graph state
     getState: () => Promise<Graph>;
-
-    // Subscribe to graph state broadcasts
-    onStateChanged: (callback: (graph: unknown) => void) => () => void;
   };
 
   // General IPC communication methods

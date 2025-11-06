@@ -1,7 +1,7 @@
 /**
  * Build Configuration - Single Source of Truth
  *
- * All path resolution and dev/prod/test logic lives here.
+ * All absolutePath resolution and dev/prod/test logic lives here.
  * This prevents scattered conditional logic across the codebase.
  *
  * Usage:
@@ -42,7 +42,7 @@ export type BuildConfig = {
   readonly backendDest: string;
   readonly shouldCopyTools: boolean;
 
-  // Server binary path (production only)
+  // Server binary absolutePath (production only)
   readonly serverBinaryPath: string | null;
 };
 
@@ -60,9 +60,9 @@ export function createBuildEnv(): BuildEnv {
   const isPackaged = app.isPackaged;
   const appPath = app.getAppPath();
 
-  // Compute repo root from app path
-  // In dev: appPath = /path/to/VoiceTree/frontend/webapp
-  // In packaged: appPath = /path/to/VoiceTree.app/Contents/Resources/app.asar
+  // Compute repo root from app absolutePath
+  // In dev: appPath = /absolutePath/to/VoiceTree/frontend/webapp
+  // In packaged: appPath = /absolutePath/to/VoiceTree.app/Contents/Resources/app.asar
   const rootDir = isPackaged
     ? path.dirname(process.resourcesPath)
     : path.resolve(appPath, '../..');

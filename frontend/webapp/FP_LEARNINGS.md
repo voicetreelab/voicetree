@@ -6,16 +6,16 @@
 
 **WRONG:**
 ```typescript
-function saveFile(path: string, content: string): void {
-  fs.writeFileSync(path, content)  // Executes immediately!
+function saveFile(absolutePath: string, content: string): void {
+  fs.writeFileSync(absolutePath, content)  // Executes immediately!
 }
 ```
 
 **RIGHT:**
 ```typescript
-function saveFile(path: string, content: string): AppEffect<void> {
+function saveFile(absolutePath: string, content: string): AppEffect<void> {
   return (env: Env) => TE.tryCatch(
-    async () => await fs.writeFile(path, content),
+    async () => await fs.writeFile(absolutePath, content),
     toError
   )
   // Returns a DESCRIPTION, doesn't execute!

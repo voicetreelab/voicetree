@@ -5,11 +5,11 @@ import type { NodeId } from '@/functional_graph/pure/types'
  *
  * Pure function: same input -> same output, no side effects
  *
- * Preserves the full relative path (if present) to support nested folder structures.
+ * Preserves the full relative absolutePath (if present) to support nested folder structures.
  * This allows nodes with the same filename in different folders to have unique IDs.
  *
- * @param filename - The filename (with or without path)
- * @returns Node ID (filename without .md extension, path preserved)
+ * @param filename - The filename (with or without absolutePath)
+ * @returns Node ID (filename without .md extension, absolutePath preserved)
  *
  * @example
  * ```typescript
@@ -26,7 +26,7 @@ import type { NodeId } from '@/functional_graph/pure/types'
 export function filenameToNodeId(filename: string): NodeId {
   // Strip .md extension
   return filename.replace(/\.md$/, '')
-  // todo, at some point we need to think about whether node idAndFilePath should be filepath, node counter
+  // todo, at some point we need to think about whether node relativeFilePathIsID should be filepath, node counter
 }
 
 /**

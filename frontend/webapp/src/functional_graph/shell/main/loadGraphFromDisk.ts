@@ -1,16 +1,18 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
+import * as E from "fp-ts/lib/Either.js";
 import type { Graph, NodeId } from '@/functional_graph/pure/types'
 import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown_parsing/parse-markdown-to-node'
 import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids'
+import { enforceFileLimit } from './fileLimitEnforce'
 
 /**
  * Loads a graph from the filesystem.
  *
  * IO function: Performs side effects (file I/O) and returns a Promise<Graph>.
  *
- * @param vaultPath - Absolute path to the vault directory containing markdown files
+ * @param vaultPath - Absolute absolutePath to the vault directory containing markdown files
  * @returns Promise that resolves to a Graph
  *
  * Algorithm:
@@ -21,7 +23,7 @@ import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/e
  *
  * @example
  * ```typescript
- * const graph = await loadGraphFromDisk('/path/to/vault')
+ * const graph = await loadGraphFromDisk('/absolutePath/to/vault')
  * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
@@ -32,6 +34,13 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Gr
 
     // Step 1: Scan directory for markdown files
     const files = await scanMarkdownFiles(vaultPath.value)
+
+    // Step 1.5: Enforce file limit (will show error dialog and return Left if exceeded)
+    const limitCheck = enforceFileLimit(files.length);
+    if (E.isLeft(limitCheck)) {
+        // Return empty graph if file limit exceeded
+        return { nodes: {} };
+    }
 
     // Step 2: Load preliminary nodes
     const preliminaryNodes = await loadNodes(vaultPath.value, files)
@@ -45,7 +54,7 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Gr
 /**
  * Scans vault directory recursively for markdown files.
  *
- * @param vaultPath - Absolute path to vault directory
+ * @param vaultPath - Absolute absolutePath to vault directory
  * @returns Array of relative file paths (e.g., ["note.md", "subfolder/other.md"])
  */
 async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> {
@@ -75,7 +84,7 @@ async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> 
 /**
  * Loads all markdown files into GraphNodes.
  *
- * @param vaultPath - Absolute path to vault directory
+ * @param vaultPath - Absolute absolutePath to vault directory
  * @param files - Array of relative file paths
  * @returns Record mapping node ID to Node
  */
@@ -87,7 +96,7 @@ async function loadNodes(
     const fullPath = path.join(vaultPath, file)
     const content = await fs.readFile(fullPath, 'utf-8')
     const node = parseMarkdownToGraphNode(content, file)
-    return [node.idAndFilePath, node] as const
+    return [node.relativeFilePathIsID, node] as const
   })
 
   const nodeEntries = await Promise.all(nodePromises)

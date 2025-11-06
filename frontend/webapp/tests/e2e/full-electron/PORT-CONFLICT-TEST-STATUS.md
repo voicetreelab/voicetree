@@ -126,7 +126,7 @@ expect(backendPort).toBe(8002); // Gets 8001 instead
 ## Recommended Next Steps
 
 ### Option 1: Accept Current Behavior
-- Test 2 validates the critical path (lazy init + API integration)
+- Test 2 validates the critical absolutePath (lazy init + API integration)
 - Port conflict scenario is edge case
 - Keep test as documentation of attempted approach
 

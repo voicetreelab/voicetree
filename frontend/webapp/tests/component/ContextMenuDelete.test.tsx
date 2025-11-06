@@ -135,7 +135,7 @@ describe('Context Menu Delete Functionality', () => {
   });
 
   it('should show confirmation dialog when delete is selected', async () => {
-    const mockFilePath = '/test/path/test-node.md';
+    const mockFilePath = '/test/absolutePath/test-node.md';
     const onDeleteNode = vi.fn(async (node) => {
       // Simulate the delete logic from VoiceTreeGraphVizLayout
       if (window.confirm(`Are you sure you want to delete "${node.id()}"? This will move the file to trash.`)) {
@@ -185,7 +185,7 @@ describe('Context Menu Delete Functionality', () => {
       if (!window.confirm(`Are you sure you want to delete "${node.id()}"?`)) {
         return; // Cancel deletion
       }
-      await window.electronAPI!.deleteFile!('/test/path/test-node.md');
+      await window.electronAPI!.deleteFile!('/test/absolutePath/test-node.md');
     });
 
     contextMenuService = new ContextMenuService({
@@ -323,7 +323,7 @@ describe('Context Menu Delete Functionality', () => {
       // Check if it's an HTML element with an SVG
       if (cmd.content && typeof cmd.content === 'object' && cmd.content.querySelector) {
         const svg = cmd.content.querySelector('svg');
-        const path = cmd.content.querySelector('path');
+        const path = cmd.content.querySelector('absolutePath');
         return svg && path && path.getAttribute('d')?.includes('M3 6h18');
       }
       return false;
@@ -332,8 +332,8 @@ describe('Context Menu Delete Functionality', () => {
     expect(deleteCommand).toBeDefined();
     expect(deleteCommand.enabled).toBe(true);
 
-    // Verify it's the trash icon by checking the path data
-    const pathElement = deleteCommand.content.querySelector('path');
-    expect(pathElement.getAttribute('d')).toContain('M3 6h18'); // Part of trash icon path
+    // Verify it's the trash icon by checking the absolutePath data
+    const pathElement = deleteCommand.content.querySelector('absolutePath');
+    expect(pathElement.getAttribute('d')).toContain('M3 6h18'); // Part of trash icon absolutePath
   });
 });

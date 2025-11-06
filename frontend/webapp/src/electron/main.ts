@@ -1,15 +1,14 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import fs from 'fs';
 import fixPath from 'fix-path';
-import FileWatchHandler from '@/functional_graph/shell/main/file-watch-handler.ts';
+import { initialLoad } from '@/functional_graph/shell/main/watchFolder.ts';
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager.ts';
 import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager.ts';
 import TerminalManager from './terminal-manager.ts';
 import PositionManager from './position-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
-import '@/functional_graph/shell/main/ipc-graph-handlers.ts'; // Auto-registers IPC handlers
-import * as O from "fp-ts/lib/Option.js";
+import { setMainWindow } from '@/functional_graph/shell/state/app-electron-state.ts';
+import { registerAllIpcHandlers } from '@/functional_graph/shell/main/ipc-graph-handlers.ts';
 
 // Fix PATH for macOS/Linux GUI apps
 // This ensures the Electron process and all child processes have access to
@@ -30,7 +29,6 @@ if (process.env.MINIMIZE_TEST === '1') {
 }
 
 // Global manager instances
-const fileWatchManager = new FileWatchHandler();
 // TextToTreeServer: Converts text input (voice/typed) to markdown tree structure
 // Select implementation based on environment (no fallbacks)
 const textToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1')
@@ -46,23 +44,6 @@ let textToTreeServerPort: number | null = null;
 // Functional Graph Architecture
 // ============================================================================
 
-// Global main window reference
-let currentMainWindow: BrowserWindow | null = null;
-
-// Getter/setter for controlled access to main window
-export const getMainWindow = (): BrowserWindow => {
-  if (!currentMainWindow) {
-    throw new Error('Main window not initialized');
-  }
-  return currentMainWindow;
-};
-
-export const setMainWindow = (window: BrowserWindow): void => {
-  currentMainWindow = window;
-};
-
-
-
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -76,7 +57,6 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false,
       preload: path.join(__dirname, '../preload/index.js')
     }
   });
@@ -87,13 +67,8 @@ function createWindow() {
   // Set global main window reference (used by handlers)
   setMainWindow(mainWindow);
 
-  // Set the main window reference for managers
-  fileWatchManager.setMainWindow(mainWindow);
-  fileWatchManager.setPositionManager(positionManager);
-
   // Auto-start watching last directory if it exists
   // Uses 'on' instead of 'once' to handle page refreshes (cmd+r)
-  // FileWatchHandler intelligently handles re-watching the same directory
   // TODO: Handle edge cases:
   // - Last directory no longer exists (deleted/moved)
   // - Permission issues accessing last directory
@@ -105,12 +80,8 @@ function createWindow() {
       return;
     }
 
-    const lastDirectory = O.toNullable(await fileWatchManager.loadLastDirectory());
-    if (lastDirectory) {
-      console.log(`[AutoWatch] Found last directory: ${lastDirectory}`);
-      console.log(`[AutoWatch] Auto-starting watch...`);
-      await fileWatchManager.startWatching(lastDirectory);
-    }
+    // Load last directory and set up file watching using functional approach
+    await initialLoad();
   });
 
   // Pipe renderer console logs to electron terminal
@@ -167,126 +138,12 @@ function createWindow() {
   });
 }
 
-// IPC handler for backend server port
-ipcMain.handle('get-backend-port', () => {
-  return textToTreeServerPort;
-});
-
-// IPC handlers for file watching
-ipcMain.handle('start-file-watching', async (event, directoryPath) => {
-  try {
-    let selectedDirectory = directoryPath;
-
-    if (!selectedDirectory) {
-      const result = await dialog.showOpenDialog({
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Select Directory to Watch for Markdown Files',
-        buttonLabel: 'Watch Directory'
-      });
-
-      if (result.canceled || result.filePaths.length === 0) {
-        return { success: false, error: 'No directory selected' };
-      }
-
-      selectedDirectory = result.filePaths[0];
-    }
-
-    // FAIL FAST: Validate directory exists before proceeding
-    if (!fs.existsSync(selectedDirectory)) {
-      const error = `Directory does not exist: ${selectedDirectory}`;
-      console.error('[IPC] start-file-watching failed:', error);
-      return { success: false, error };
-    }
-
-    if (!fs.statSync(selectedDirectory).isDirectory()) {
-      const error = `Path is not a directory: ${selectedDirectory}`;
-      console.error('[IPC] start-file-watching failed:', error);
-      return { success: false, error };
-    }
-
-    // Get main window for handlers
-    const mainWindow = BrowserWindow.getAllWindows()[0];
-    if (!mainWindow) {
-      return { success: false, error: 'No main window found' };
-    }
-
-    return await fileWatchManager.startWatching(selectedDirectory);
-  } catch (error: any) {
-    console.error('Error in start-file-watching handler:', error);
-    return {
-      success: false,
-      error: `Failed to start file watching: ${error.message}`
-    };
-  }
-});
-
-ipcMain.handle('stop-file-watching', async () => {
-  try {
-    await fileWatchManager.stopWatching();
-    return { success: true };
-  } catch (error: any) {
-    console.error('Error in stop-file-watching handler:', error);
-    return {
-      success: false,
-      error: `Failed to stop file watching: ${error.message}`
-    };
-  }
-});
-
-ipcMain.handle('get-watch-status', () => {
-  const status = {
-    isWatching: fileWatchManager.isWatching(),
-    directory: fileWatchManager.getWatchedDirectory()
-  };
-  console.log('Watch status:', status);
-  return status;
-});
-
-
-// Terminal IPC handlers
-ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
-  console.log('[MAIN] terminal:spawn IPC called, event.sender.idAndFilePath:', event.sender.id);
-  const result = await terminalManager.spawn(
-    event.sender,
-    nodeMetadata,
-    () => fileWatchManager.getWatchedDirectory(),
-    getToolsDirectory
-  );
-  console.log('[MAIN] terminal:spawn result:', result);
-  return result;
-});
-
-ipcMain.handle('terminal:write', async (event, terminalId, data) => {
-  return terminalManager.write(terminalId, data);
-});
-
-ipcMain.handle('terminal:resize', async (event, terminalId, cols, rows) => {
-  return terminalManager.resize(terminalId, cols, rows);
-});
-
-ipcMain.handle('terminal:kill', async (event, terminalId) => {
-  return terminalManager.kill(terminalId);
-});
-
-// Position management IPC handlers
-ipcMain.handle('positions:save', async (event, directoryPath, positions) => {
-  try {
-    await positionManager.savePositions(directoryPath, positions);
-    return { success: true };
-  } catch (error: any) {
-    console.error('[MAIN] Error saving positions:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('positions:load', async (event, directoryPath) => {
-  try {
-    const positions = await positionManager.loadPositions(directoryPath);
-    return { success: true, positions };
-  } catch (error: any) {
-    console.error('[MAIN] Error loading positions:', error);
-    return { success: false, error: error.message, positions: {} };
-  }
+// Register all IPC handlers
+registerAllIpcHandlers({
+  terminalManager,
+  positionManager,
+  getBackendPort: () => textToTreeServerPort,
+  getToolsDirectory
 });
 
 // App event handlers
@@ -309,7 +166,7 @@ app.whenReady().then(async () => {
 
 // Handle hot reload and app quit scenarios
 // IMPORTANT: before-quit fires on hot reload, window-all-closed does not
-app.on('before-quit', (event) => {
+app.on('before-quit', () => {
   console.log('[App] before-quit event - cleaning up resources...');
 
   // Clean up server process

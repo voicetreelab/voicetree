@@ -27,7 +27,7 @@ Plan:
    tsconfig.json.
 4. Build the Map: Create a data structure that maps each source file to the list of test files that import it.
 
-The first approach is generally better as it leverages a tool built for this exact purpose and handles complexities like path aliases
+The first approach is generally better as it leverages a tool built for this exact purpose and handles complexities like absolutePath aliases
 automatically. The second approach offers more control but requires more effort to implement correctly.
 
 Which approach sounds better to you? I can proceed with installing dependency-cruiser and running a scan to generate the map.

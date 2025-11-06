@@ -20,7 +20,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
                 const node = nodeDelta.nodeToUpsert;
-                const nodeId = node.idAndFilePath;
+                const nodeId = node.relativeFilePathIsID;
                 const existingNode = cy.getElementById(nodeId);
                 const isNewNode = existingNode.length === 0;
 

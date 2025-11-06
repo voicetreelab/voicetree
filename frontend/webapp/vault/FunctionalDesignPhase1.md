@@ -10,7 +10,7 @@ type Graph = Graph
   }
 
 data Node = Node
-  { idAndFilePath :: NodeId
+  { relativeFilePathIsID :: NodeId
   , title :: String
   , content :: String
   , summary :: String
@@ -25,7 +25,7 @@ data GraphDelta
 
 -- External events
 data FSUpdate = FSUpdate
-  { path :: FilePath
+  { absolutePath :: FilePath
   , content :: String
   , eventType :: FSEventType  -- Added | Changed | Deleted
   }
@@ -45,7 +45,7 @@ where
   applyActionToGraph :: Graph -> GraphDelta -> Graph
   applyActionToGraph g (AddNode nodeId content pos) =
     let node = Node
-          { idAndFilePath = nodeId
+          { relativeFilePathIsID = nodeId
           , content = content
           , title = extractTitle content
           , linkedNodeIds = extractLinks content
@@ -67,16 +67,16 @@ apply_db_updates_to_graph graph fsUpdate =
 
 where
   applyFSUpdateToGraph :: Graph -> FSUpdate -> Graph
-  applyFSUpdateToGraph g (FSUpdate path content Added) =
-    let node = parseMarkdownToGraphNode content path
-    in g { nodes = Map.insert (node.idAndFilePath) node (nodes g) }
+  applyFSUpdateToGraph g (FSUpdate absolutePath content Added) =
+    let node = parseMarkdownToGraphNode content absolutePath
+    in g { nodes = Map.insert (node.relativeFilePathIsID) node (nodes g) }
 
-  applyFSUpdateToGraph g (FSUpdate path content Changed) =
-    let node = parseMarkdownToGraphNode content path
-    in g { nodes = Map.insert (node.idAndFilePath) node (nodes g) }
+  applyFSUpdateToGraph g (FSUpdate absolutePath content Changed) =
+    let node = parseMarkdownToGraphNode content absolutePath
+    in g { nodes = Map.insert (node.relativeFilePathIsID) node (nodes g) }
 
-  applyFSUpdateToGraph g (FSUpdate path _ Deleted) =
-    let nodeId = pathToNodeId path
+  applyFSUpdateToGraph g (FSUpdate absolutePath _ Deleted) =
+    let nodeId = pathToNodeId absolutePath
     in g { nodes = Map.delete nodeId (nodes g) }
 ```
 
@@ -95,7 +95,7 @@ projectToCytoscape graph =
 updateCytoscape :: CytoscapeCore -> CytoscapeElements -> UIIO ()
 updateCytoscape cy elements =
   forM_ (elements.nodes) $ \elem ->
-    case getElementById cy elem.idAndFilePath of
+    case getElementById cy elem.relativeFilePathIsID of
       Just existing -> updateIfChanged existing elem  -- no-op if same
       Nothing -> addElement cy elem                   -- new node
 ```
@@ -149,7 +149,7 @@ handleAddNode pos = do
   let action = AddNode (generateId ()) "# New Node" (Just pos)
 
   -- Optimistic UI update
-  cy.add { idAndFilePath = action.nodeId, label = "New Node", position = pos }
+  cy.add { relativeFilePathIsID = action.nodeId, label = "New Node", position = pos }
 
   -- Send to main for persistence
   electronAPI.graph.applyUpdate action

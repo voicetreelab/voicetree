@@ -64,8 +64,8 @@ const VOICETREE_HOME = app.getPath('userData') + '/voicetree';
 
 // Runtime - no conditionals!
 const config = {
-  toolsDir: path.join(VOICETREE_HOME, 'tools'),
-  serverBinary: path.join(VOICETREE_HOME, 'server', 'voicetree-server')
+  toolsDir: absolutePath.join(VOICETREE_HOME, 'tools'),
+  serverBinary: absolutePath.join(VOICETREE_HOME, 'server', 'voicetree-server')
 };
 ```
 
@@ -145,14 +145,14 @@ const getServerStrategy = (env: BuildEnv): ServerStrategy => {
     return {
       type: 'python-source',
       pythonPath: 'python',
-      scriptPath: path.join(env.rootDir, 'backend', 'server.py'),
-      cwd: path.join(env.rootDir, 'backend')
+      scriptPath: absolutePath.join(env.rootDir, 'backend', 'server.py'),
+      cwd: absolutePath.join(env.rootDir, 'backend')
     };
   }
 
   const binaryPath = env.isPackaged
-    ? path.join(process.resourcesPath, 'server', 'voicetree-server')
-    : path.join(env.rootDir, 'dist', 'resources', 'server', 'voicetree-server');
+    ? absolutePath.join(process.resourcesPath, 'server', 'voicetree-server')
+    : absolutePath.join(env.rootDir, 'dist', 'resources', 'server', 'voicetree-server');
 
   return {
     type: 'compiled-binary',
@@ -416,9 +416,9 @@ private async startInternal(): Promise<number> {
 ```typescript
 // Scattered conditionals everywhere
 if (app.isPackaged) {
-  serverPath = path.join(process.resourcesPath, 'server', 'voicetree-server');
+  serverPath = absolutePath.join(process.resourcesPath, 'server', 'voicetree-server');
 } else {
-  serverPath = path.join(projectRoot, 'dist', 'resources', 'server', 'voicetree-server');
+  serverPath = absolutePath.join(projectRoot, 'dist', 'resources', 'server', 'voicetree-server');
 }
 
 // Wait, am I in dev or prod? What about Python source?

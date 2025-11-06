@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 
-# Define project root as absolute path
+# Define project root as absolute absolutePath
 PROJECT_ROOT = Path("/Users/bobbobby/repos/VoiceTree/frontend/webapp").resolve()
 
 

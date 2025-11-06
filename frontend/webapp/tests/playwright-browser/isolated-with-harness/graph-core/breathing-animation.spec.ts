@@ -45,7 +45,7 @@ test.describe('Breathing Animation for New and Updated Nodes', () => {
       const cy = (window as any).cytoscapeInstance;
       if (!cy) return null;
 
-      // Normalize the file path to match how the app does it
+      // Normalize the file absolutePath to match how the app does it
       const nodeId = filePath.replace(/\.md$/, '').replace(/\//g, '_');
       const node = cy.getElementById(nodeId);
 

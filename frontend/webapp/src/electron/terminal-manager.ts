@@ -60,7 +60,7 @@ export default class TerminalManager {
         : process.env.SHELL || '/bin/bash';
 
       // Don't use login shell flag because:
-      // 1. fix-path already fixed the PATH in main.ts
+      // 1. fix-absolutePath already fixed the PATH in main.ts
       // 2. Login shells reset environment, overwriting our custom env vars
       const shellArgs: string[] = [];
 
@@ -85,7 +85,7 @@ export default class TerminalManager {
       }
 
       // Create PTY instance
-      // PATH is already fixed by fix-path in main.ts
+      // PATH is already fixed by fix-absolutePath in main.ts
       // Use standard terminal dimensions (80×24) - close to actual frontend size
       // Frontend will resize to actual dimensions after FitAddon calculates them
       // CRITICAL: Don't use massive dimensions (800×1600) as resize triggers clear screen
@@ -115,7 +115,7 @@ export default class TerminalManager {
       // Handle PTY data
       ptyProcess.onData((data: string) => {
         // console.log(`[TerminalManager] onData called for ${terminalId}, data length: ${data.length}`);
-        // console.log(`[TerminalManager] sender.idAndFilePath: ${sender.idAndFilePath}, sender.isDestroyed: ${sender.isDestroyed()}`);
+        // console.log(`[TerminalManager] sender.relativeFilePathIsID: ${sender.relativeFilePathIsID}, sender.isDestroyed: ${sender.isDestroyed()}`);
         try {
           sender.send('terminal:data', terminalId, data);
           // console.log(`[TerminalManager] Successfully sent data to renderer`);
@@ -277,7 +277,7 @@ export default class TerminalManager {
 
   /**
    * Build environment variables for the terminal, including node metadata
-   * Note: PATH is already fixed by fix-path in main.ts
+   * Note: PATH is already fixed by fix-absolutePath in main.ts
    */
   private buildEnvironment(
     nodeMetadata: NodeMetadata | undefined,
@@ -295,7 +295,7 @@ export default class TerminalManager {
     Object.assign(customEnv, nodeMetadata.extraEnv);
     }
 
-    // Always set vault path from watched directory
+    // Always set vault absolutePath from watched directory
     const watchedDir = getWatchedDirectory();
     const vaultPath = watchedDir || process.cwd();
     console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
@@ -306,14 +306,14 @@ export default class TerminalManager {
       // Set node-based environment variables
       if (nodeMetadata.filePath) {
 
-        // Convert absolute path to relative path from vault root if needed
+        // Convert absolute absolutePath to relative absolutePath from vault root if needed
         let relativePath = nodeMetadata.filePath;
         if (path.isAbsolute(nodeMetadata.filePath)) {
-          // If filePath is absolute, make it relative to vault path
+          // If filePath is absolute, make it relative to vault absolutePath
           relativePath = path.relative(vaultPath, nodeMetadata.filePath);
         }
 
-        // OBSIDIAN_SOURCE_NOTE is the relative path from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
+        // OBSIDIAN_SOURCE_NOTE is the relative absolutePath from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
         customEnv.OBSIDIAN_SOURCE_NOTE = relativePath;
 
         // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03" or ".")

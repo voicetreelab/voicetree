@@ -43,7 +43,7 @@
 │  │  │  file-watch-handlers.ts              │    │ │  │ │ │   │   │
 │  │  │  (INITIALIZED ONCE, NOT SETUP)       │    │ │  │ │ │   │   │
 │  │  │                                       │    │ │  │ │ │   │   │
-│  │  │  onFileChange(path, content)         │    │ │  │ │ │   │   │
+│  │  │  onFileChange(absolutePath, content)         │    │ │  │ │ │   │   │
 │  │  │    1. getGraph() → Graph             │ ◄──┼─┼──┼─┼─┤   │   │
 │  │  │    2. getVaultPath() → vaultPath     │ ◄──┼─┼──┼─┘ │   │   │
 │  │  │    3. getMainWindow() → window       │ ◄──┼─┼──┘   │   │   │

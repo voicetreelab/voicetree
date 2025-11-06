@@ -108,7 +108,7 @@ export class GraphNavigationService {
       }, 1000);
       console.log('[GraphNavigationService] Node fitted and highlighted');
     } else {
-      console.warn('[GraphNavigationService] Node not found for idAndFilePath:', nodeId);
+      console.warn('[GraphNavigationService] Node not found for relativeFilePathIsID:', nodeId);
     }
   }
 }

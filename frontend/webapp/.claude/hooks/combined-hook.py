@@ -5,7 +5,7 @@ import fcntl
 import os
 import time
 
-# Define lock file path
+# Define lock file absolutePath
 LOCK_FILE = '/tmp/claude-hook-combined.lock'
 
 # Read stdin once

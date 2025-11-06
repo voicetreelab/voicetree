@@ -176,7 +176,7 @@ test.describe('Real Folder E2E Tests', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
 
-      // Pass the folder path directly to bypass the dialog
+      // Pass the folder absolutePath directly to bypass the dialog
       return await api.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 

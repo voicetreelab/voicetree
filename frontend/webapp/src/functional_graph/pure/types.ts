@@ -44,7 +44,7 @@ export interface Node {
     // CORE GRAPH STRUCTURE
     readonly outgoingEdges: readonly NodeId[] // Adjacency list to children / outgoing outgoingEdges
     // incomingEdges is derived
-    readonly idAndFilePath: NodeId //  we enforce idAndFilePath = relativeFilePath
+    readonly relativeFilePathIsID: NodeId //  we enforce relativeFilePathIsID = relativeFilePath
 
     // DATA
     readonly content: string
@@ -104,11 +104,12 @@ export type GraphDelta = readonly NodeDelta[];
 export type FSEvent = FSUpdate | FSDelete
 
 export interface FSUpdate {
-    readonly path: string
+    readonly absolutePath: FilePath
     readonly content: string
+    readonly eventType: 'Added' | 'Changed' | 'Deleted'
 }
 
-export interface FSDelete {readonly path: string}
+export interface FSDelete {readonly absolutePath: FilePath}
 
 
 // ============================================================================
@@ -180,7 +181,7 @@ export interface CytoscapeElements {
  */
 export interface CytoscapeDiff {
     readonly nodesToAdd: ReadonlyArray<CytoscapeNodeElement>
-    readonly nodesToUpdate: ReadonlyArray<{ readonly id: string; readonly data: any }>
+    readonly nodesToUpdate: ReadonlyArray<{ readonly id: string; readonly data: Partial<CytoscapeNodeElement['data']> }>
     readonly nodesToRemove: ReadonlyArray<string>
     readonly edgesToAdd: ReadonlyArray<CytoscapeEdgeElement>
     readonly edgesToRemove: ReadonlyArray<string>

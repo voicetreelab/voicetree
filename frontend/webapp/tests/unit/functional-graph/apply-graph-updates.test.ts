@@ -68,7 +68,7 @@ describe('apply_graph_updates', () => {
 
         // Verify the node was added to the graph
         expect(updatedGraph.nodes['node-1']).toBeDefined()
-        expect(updatedGraph.nodes['node-1'].idAndFilePath).toBe('node-1')
+        expect(updatedGraph.nodes['node-1'].relativeFilePathIsID).toBe('node-1')
         expect(updatedGraph.nodes['node-1'].content).toBe('# New Node\n\nThis is content')
         expect(updatedGraph.nodes['node-1'].title).toBe('New Node')
       }
@@ -155,7 +155,7 @@ describe('apply_graph_updates', () => {
       }
     })
 
-    it('should preserve node idAndFilePath when updating', async () => {
+    it('should preserve node relativeFilePathIsID when updating', async () => {
       const graph = graphWithNode('node-1', '# Original')
       const action: UpdateNode = {
         type: 'UpdateNode',
@@ -168,7 +168,7 @@ describe('apply_graph_updates', () => {
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
-        expect(result.right.nodes['node-1'].idAndFilePath).toBe('node-1')
+        expect(result.right.nodes['node-1'].relativeFilePathIsID).toBe('node-1')
       }
     })
 
@@ -240,14 +240,14 @@ describe('apply_graph_updates', () => {
       const graph: Graph = {
         nodes: {
           'node-1': {
-            idAndFilePath: 'node-1',
+            relativeFilePathIsID: 'node-1',
             title: 'Node 1',
             content: 'Content',
             summary: 'Summary',
             color: O.none
           },
           'node-2': {
-            idAndFilePath: 'node-2',
+            relativeFilePathIsID: 'node-2',
             title: 'Node 2',
             content: 'Content',
             summary: 'Summary',

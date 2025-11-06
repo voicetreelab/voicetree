@@ -73,7 +73,7 @@ export class ZoomCollapseService {
 
         // // Hide nodes that should be hidden
         // this.cy.nodes().forEach(node => {
-        //     const nodeId = node.idAndFilePath();
+        //     const nodeId = node.relativeFilePathIsID();
         //
         //     if (nodesToHide.has(nodeId) && !this.hiddenNodes.has(nodeId)) {
         //         // Hide this node

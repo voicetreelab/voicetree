@@ -46,49 +46,38 @@ export function computeCytoscapeDiff(
     currentEdgeIds.add(edge.id())
   })
 
-  // Compute diff operations
-  const nodesToAdd: CytoscapeNodeElement[] = []
-  const nodesToUpdate: Array<{ id: string; data: any }> = []
-  const nodesToRemove: string[] = []
-  const edgesToAdd: CytoscapeEdgeElement[] = []
-  const edgesToRemove: string[] = []
+  // Compute diff operations using functional patterns
 
-  // Find nodes to add/update
-  desired.nodes.forEach(nodeElem => {
+  // Partition nodes into add vs update based on existence in current state
+  const { nodesToAdd, nodesToUpdate } = desired.nodes.reduce<{
+    readonly nodesToAdd: readonly CytoscapeNodeElement[]
+    readonly nodesToUpdate: readonly { readonly id: string; readonly data: Partial<CytoscapeNodeElement['data']> }[]
+  }>((acc, nodeElem) => {
     if (currentNodeIds.has(nodeElem.data.id)) {
       // Node exists - mark for update
-      // Note: We update unconditionally for now. Could add deep comparison later.
-      nodesToUpdate.push({
-        id: nodeElem.data.id,
-        data: nodeElem.data
-      })
+      return {
+        ...acc,
+        nodesToUpdate: [...acc.nodesToUpdate, { id: nodeElem.data.id, data: nodeElem.data }]
+      }
     } else {
       // Node doesn't exist - mark for add
-      nodesToAdd.push(nodeElem)
+      return {
+        ...acc,
+        nodesToAdd: [...acc.nodesToAdd, nodeElem]
+      }
     }
-  })
+  }, { nodesToAdd: [], nodesToUpdate: [] })
 
-  // Find nodes to remove
-  currentNodeIds.forEach(id => {
-    if (!desiredNodeMap.has(id)) {
-      nodesToRemove.push(id)
-    }
-  })
+  // Find nodes to remove (in current but not in desired)
+  const nodesToRemove: readonly string[] = Array.from(currentNodeIds).filter(id => !desiredNodeMap.has(id))
 
-  // Find outgoingEdges to add
-  desired.edges.forEach(edgeElem => {
-    if (!currentEdgeIds.has(edgeElem.data.id)) {
-      edgesToAdd.push(edgeElem)
-    }
-    // Note: Edges typically don't need updates, so we skip update logic
-  })
+  // Find edges to add (in desired but not in current)
+  const edgesToAdd: readonly CytoscapeEdgeElement[] = desired.edges.filter(
+    edgeElem => !currentEdgeIds.has(edgeElem.data.id)
+  )
 
-  // Find outgoingEdges to remove
-  currentEdgeIds.forEach(id => {
-    if (!desiredEdgeMap.has(id)) {
-      edgesToRemove.push(id)
-    }
-  })
+  // Find edges to remove (in current but not in desired)
+  const edgesToRemove: readonly string[] = Array.from(currentEdgeIds).filter(id => !desiredEdgeMap.has(id))
 
   return {
     nodesToAdd,

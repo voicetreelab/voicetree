@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run tests for modified file
 
-# Parse JSON input to get file path
+# Parse JSON input to get file absolutePath
 file_path=$(python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('tool_input', {}).get('file_path', ''))")
 
 # Only check TypeScript/JavaScript files

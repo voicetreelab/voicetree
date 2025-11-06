@@ -4,8 +4,6 @@ import type {
     FSWriteEffect,
     Node as GraphNode,
     Env,
-    UpsertNodeAction,
-    NodeDelta,
     NodeId
 } from '@/functional_graph/pure/types'
 import * as TE from 'fp-ts/lib/TaskEither.js'
@@ -15,6 +13,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { fromNodeToMarkdownContent } from '@/functional_graph/pure/markdown_writing/node_to_markdown'
 import { nodeIdToFilePathWithExtension } from '@/functional_graph/pure/markdown_parsing/filename-utils'
+import {applyGraphDeltaToGraph} from "@/functional_graph/pure/graphDelta/applyGraphDeltaToGraph.ts";
 
 /**
  * Helper to convert unknown errors to Error type
@@ -48,7 +47,7 @@ export function apply_graph_deltas(
     })
 
     // Compute new graph state for validation/testing
-    const newGraph = applyDeltasToGraph(graph, deltas)
+    const newGraph = applyGraphDeltaToGraph(graph, deltas)
 
     // Sequence all write effects and return new graph
     return pipe(
@@ -64,7 +63,7 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
             const markdown = fromNodeToMarkdownContent(node)
-            const filename = nodeIdToFilePathWithExtension(node.idAndFilePath)
+            const filename = nodeIdToFilePathWithExtension(node.relativeFilePathIsID)
             const fullPath = path.join(env.vaultPath, filename)
 
             // Ensure parent directory exists
@@ -89,26 +88,3 @@ function deleteNodeFile(nodeId: NodeId): FSWriteEffect<void> {
     )
 }
 
-/**
- * Apply deltas to graph to compute new graph state
- * Used for validation/testing only - actual state updates come from file watch handlers
- */
-function applyDeltasToGraph(graph: Graph, deltas: GraphDelta): Graph {
-    return deltas.reduce((g, delta) => {
-        switch (delta.type) {
-            case 'UpsertNode':
-                // Upsert the node (edges are already in the node)
-                return {
-                    nodes: {
-                        ...g.nodes,
-                        [delta.nodeToUpsert.idAndFilePath]: delta.nodeToUpsert
-                    }
-                }
-            case 'DeleteNode':
-                // Delete the node
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { [delta.nodeId]: _removed, ...remainingNodes } = g.nodes
-                return { nodes: remainingNodes }
-        }
-    }, graph)
-}

@@ -173,7 +173,7 @@ const test = base.extend({
 
 The stub implements:
 - **GET /health** - Returns `{"status": "ok", "message": "Stub backend healthy"}`
-- **POST /load-directory** - Returns `{"status": "success", "directory": path, "nodes_loaded": 0}`
+- **POST /load-directory** - Returns `{"status": "success", "directory": absolutePath, "nodes_loaded": 0}`
 
 ### Port Discovery Flow
 

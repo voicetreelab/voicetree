@@ -62,11 +62,11 @@ tests/e2e/isolated-xterm/
 interface MockElectronAPI {
   terminal: {
     spawn: () => Promise<{ success: boolean; terminalId: string }>;
-    write: (idAndFilePath: string, data: string) => Promise<{ success: boolean }>;
-    resize: (idAndFilePath: string, cols: number, rows: number) => Promise<{ success: boolean }>;
-    kill: (idAndFilePath: string) => Promise<{ success: boolean }>;
-    onData: (callback: (idAndFilePath: string, data: string) => void) => void;
-    onExit: (callback: (idAndFilePath: string, code: number) => void) => void;
+    write: (relativeFilePathIsID: string, data: string) => Promise<{ success: boolean }>;
+    resize: (relativeFilePathIsID: string, cols: number, rows: number) => Promise<{ success: boolean }>;
+    kill: (relativeFilePathIsID: string) => Promise<{ success: boolean }>;
+    onData: (callback: (relativeFilePathIsID: string, data: string) => void) => void;
+    onExit: (callback: (relativeFilePathIsID: string, code: number) => void) => void;
   };
 }
 ```

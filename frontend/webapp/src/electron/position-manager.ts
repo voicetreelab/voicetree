@@ -21,7 +21,7 @@ class PositionManager {
   private static readonly GRAPH_DATA_FILE = 'graph_data.json';
 
   /**
-   * Get the path to .voicetree/graph_data.json for a given directory
+   * Get the absolutePath to .voicetree/graph_data.json for a given directory
    */
   private getGraphDataPath(directoryPath: string): string {
     return path.join(directoryPath, PositionManager.VOICETREE_DIR, PositionManager.GRAPH_DATA_FILE);

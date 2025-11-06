@@ -3,7 +3,7 @@ import path from 'path';
 import { createBuildEnv, getBuildConfig } from './build-config.ts';
 
 /**
- * Get the tools directory path in Application Support
+ * Get the tools directory absolutePath in Application Support
  * Returns the user-writable location where agent tools are stored
  */
 export function getToolsDirectory(): string {
@@ -13,7 +13,7 @@ export function getToolsDirectory(): string {
 }
 
 /**
- * Get the backend directory path in Application Support
+ * Get the backend directory absolutePath in Application Support
  * Returns the user-writable location where backend modules are stored
  */
 export function getBackendDirectory(): string {
@@ -47,7 +47,7 @@ async function copyDir(src: string, dest: string): Promise<void> {
  *
  * SKIPS entirely in test mode (HEADLESS_TEST=1) for fast test startup
  *
- * Uses centralized build-config for all path resolution
+ * Uses centralized build-config for all absolutePath resolution
  */
 export async function setupToolsDirectory(): Promise<void> {
   const env = createBuildEnv();

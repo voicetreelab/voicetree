@@ -113,7 +113,7 @@ function App() {
     const vaultProvider = new ElectronMarkdownVault();
 
     // Subscribe to watching-started event to store vault directory
-    // This is critical for floating editors to work - they need the vault path
+    // This is critical for floating editors to work - they need the vault absolutePath
     const watchingSubscription = vaultProvider.onWatchingStarted((event) => {
       console.log('[App] Vault watching started:', event.directory);
     });

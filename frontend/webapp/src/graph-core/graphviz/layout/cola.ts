@@ -132,7 +132,7 @@ ColaLayout.prototype.run = function(){
 
                 if (isFirstThreeCalls && retPos) {
                     const currentPos = node.position();
-                    // console.log(`[Cola Debug]   Node ${node.idAndFilePath()}: scratch=(${scratch.x.toFixed(2)}, ${scratch.y.toFixed(2)}) -> retPos=(${retPos.x.toFixed(2)}, ${retPos.y.toFixed(2)}) [was (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})]`);
+                    // console.log(`[Cola Debug]   Node ${node.relativeFilePathIsID()}: scratch=(${scratch.x.toFixed(2)}, ${scratch.y.toFixed(2)}) -> retPos=(${retPos.x.toFixed(2)}, ${retPos.y.toFixed(2)}) [was (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})]`);
                 }
             }
 
@@ -347,7 +347,7 @@ ColaLayout.prototype.run = function(){
             fixed: node.locked()
         };
 
-        // console.log(`[Cola Debug] Initial setup - Node ${node.idAndFilePath()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
+        // console.log(`[Cola Debug] Initial setup - Node ${node.relativeFilePathIsID()}: cytoPos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}) -> colaPos=(${struct.x.toFixed(2)}, ${struct.y.toFixed(2)}) [bb offset: (${bb.x1}, ${bb.y1})]`);
 
         return struct;
     }) );

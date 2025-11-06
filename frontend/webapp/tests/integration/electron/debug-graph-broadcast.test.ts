@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { BrowserWindow } from 'electron'
 import type { Graph } from '@/functional_graph/pure/types'
-import { setupFileWatchHandlerForTests } from '../../../src/functional_graph/shell/main/file-watch-handler'
+import { setupFileWatchHandlerForTests } from '@/electron/file-watch-handler.ts'
 
 // State managed by mocked globals
 let currentGraph: Graph = { nodes: {}, edges: {} }
