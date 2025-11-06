@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type {Graph, GraphDelta} from "@/functional_graph/pure/types.ts";
+import type { GraphDelta } from "@/functional_graph/pure/types.ts";
 import type { ElectronAPI } from '@/types/electron';
 
 // Expose protected methods that allow the renderer process to use
@@ -15,6 +15,7 @@ const electronAPI: ElectronAPI = {
   startFileWatching: (directoryPath) => ipcRenderer.invoke('start-file-watching', directoryPath),
   stopFileWatching: () => ipcRenderer.invoke('stop-file-watching'),
   getWatchStatus: () => ipcRenderer.invoke('get-watch-status'),
+  loadPreviousFolder: () => ipcRenderer.invoke('load-previous-folder'),
 
   // File watching event listeners
   onWatchingStarted: (callback) => {
@@ -93,7 +94,14 @@ const electronAPI: ElectronAPI = {
     applyGraphDelta: (action: GraphDelta) => ipcRenderer.invoke('graph:applyDelta', action),
 
     // Query current graph state
-    getState: () : Promise<Graph> => ipcRenderer.invoke('graph:getState')
+    getState: () => ipcRenderer.invoke('graph:getState'),
+
+    // Subscribe to graph delta updates (returns unsubscribe function)
+    onGraphUpdate: (callback: (delta: GraphDelta) => void) => {
+      const handler = (_event: unknown, delta: GraphDelta) => callback(delta);
+      ipcRenderer.on('graph:stateChanged', handler);
+      return () => ipcRenderer.off('graph:stateChanged', handler);
+    }
   },
 
   // General IPC communication methods
@@ -103,13 +111,3 @@ const electronAPI: ElectronAPI = {
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
-
-// Direct IPC → Browser Event wiring (no subscription layer)
-// These listeners are always active and dispatch CustomEvents for the renderer to handle
-ipcRenderer.on('graph:initialized', (_event, graph: Graph) => {
-  window.dispatchEvent(new CustomEvent('graph:initialized', { detail: graph }));
-});
-
-ipcRenderer.on('graph:stateChanged', (_event, delta: GraphDelta) => {
-  window.dispatchEvent(new CustomEvent('graph:stateChanged', { detail: delta }));
-});

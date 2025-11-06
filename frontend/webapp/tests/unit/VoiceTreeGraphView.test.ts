@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { FileEvent } from '@/views/IVoiceTreeGraphView';
+import type { IMarkdownVaultProvider } from '@/providers/IMarkdownVaultProvider';
 
 /**
  * Behavioral test for VoiceTreeGraphView
@@ -17,7 +18,8 @@ import type { FileEvent } from '@/views/IVoiceTreeGraphView';
 describe('VoiceTreeGraphView', () => {
   let container: HTMLElement;
   let fileAddedHandler: ((data: FileEvent) => void) | null = null;
-  let originalElectronAPI: any;
+  let originalElectronAPI: unknown;
+  let mockVault: IMarkdownVaultProvider;
 
   beforeEach(() => {
     // Create container element with proper dimensions for Cytoscape
@@ -26,11 +28,25 @@ describe('VoiceTreeGraphView', () => {
     container.style.height = '600px';
     document.body.appendChild(container);
 
+    // Create mock vault provider
+    mockVault = {
+      onFilesLoaded: vi.fn(() => ({ dispose: vi.fn() })),
+      onFileAdded: vi.fn(() => ({ dispose: vi.fn() })),
+      onFileChanged: vi.fn(() => ({ dispose: vi.fn() })),
+      onFileDeleted: vi.fn(() => ({ dispose: vi.fn() })),
+      onWatchingStarted: vi.fn(() => ({ dispose: vi.fn() })),
+      onWatchingStopped: vi.fn(() => ({ dispose: vi.fn() })),
+      loadPositions: vi.fn().mockResolvedValue({}),
+      savePositions: vi.fn().mockResolvedValue({ success: true }),
+      getWatchStatus: vi.fn().mockResolvedValue({ isWatching: true, directory: '/test/vault' }),
+      getWatchDirectory: () => '/test/vault'
+    };
+
     // Save original electronAPI
-    originalElectronAPI = (window as any).electronAPI;
+    originalElectronAPI = (window as unknown as { electronAPI: unknown }).electronAPI;
 
     // Mock window.electronAPI - capture the handler so we can trigger events
-    (window as any).electronAPI = {
+    (window as unknown as { electronAPI: unknown }).electronAPI = {
       onInitialFilesLoaded: vi.fn(),
       onFileAdded: vi.fn((handler) => {
         fileAddedHandler = handler;
@@ -45,7 +61,7 @@ describe('VoiceTreeGraphView', () => {
 
   afterEach(() => {
     // Restore original electronAPI
-    (window as any).electronAPI = originalElectronAPI;
+    (window as unknown as { electronAPI: unknown }).electronAPI = originalElectronAPI;
   });
 
   it('should create a node in the graph when a file is added', async () => {
@@ -53,10 +69,10 @@ describe('VoiceTreeGraphView', () => {
     const { VoiceTreeGraphView } = await import('@/views/VoiceTreeGraphView');
 
     // Step 1: Create view - constructor should subscribe to electronAPI events
-    const view = new VoiceTreeGraphView(container, { headless: true });
+    const view = new VoiceTreeGraphView(container, mockVault);
 
     // Verify that the view subscribed to file events
-    expect((window as any).electronAPI.onFileAdded).toHaveBeenCalled();
+    expect((window as unknown as { electronAPI: { onFileAdded: { toHaveBeenCalled: () => void } } }).electronAPI.onFileAdded).toHaveBeenCalled();
 
     // Step 2: Trigger file add event - simulate electronAPI detecting new file
     const fileEvent: FileEvent = {
@@ -84,7 +100,7 @@ describe('VoiceTreeGraphView', () => {
 
     // Step 4: Dispose and verify cleanup
     view.dispose();
-    expect((window as any).electronAPI.removeAllListeners).toHaveBeenCalled();
+    expect((window as unknown as { electronAPI: { removeAllListeners: { toHaveBeenCalled: () => void } } }).electronAPI.removeAllListeners).toHaveBeenCalled();
 
     // Cleanup
     document.body.removeChild(container);

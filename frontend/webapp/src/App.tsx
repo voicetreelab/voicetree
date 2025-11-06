@@ -110,6 +110,7 @@ function App() {
     if (!graphContainerRef.current) return;
 
     console.log('[App] Initializing VoiceTreeGraphView');
+    console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
     const vaultProvider = new ElectronMarkdownVault();
 
     // Subscribe to watching-started event to store vault directory
@@ -125,6 +126,7 @@ function App() {
     // Cleanup on unmount
     return () => {
       console.log('[App] Disposing VoiceTreeGraphView');
+      console.trace('[App] VoiceTreeGraphView disposal stack trace'); // DEBUG: Track cleanup
       watchingSubscription.dispose();
       graphView.dispose();
     };
@@ -149,12 +151,12 @@ function App() {
         </div>
       </div>
 
-      {/* Bottom Section: Graph (fills remaining space) */}
-      <div className="flex-1 min-h-0 border-r pr-4">
-        <Sidebar>
-          <div ref={graphContainerRef} className="h-full w-full" />
-        </Sidebar>
-      </div>
+      {/*/!* Bottom Section: Graph (fills remaining space) *!/*/}
+      {/*<div className="flex-1 min-h-0 border-r pr-4">*/}
+      {/*  <Sidebar>*/}
+      {/*    <div ref={graphContainerRef} className="h-full w-full" />*/}
+      {/*  </Sidebar>*/}
+      {/*</div>*/}
     </div>
   );
 }

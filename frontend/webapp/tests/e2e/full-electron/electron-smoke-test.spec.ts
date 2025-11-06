@@ -11,6 +11,7 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
+import type { ElectronAPI } from '@/types/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -19,10 +20,7 @@ const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example
 // Type definitions
 interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
-    startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
-    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-  };
+  electronAPI?: ElectronAPI;
 }
 
 // Extend test with Electron app
@@ -100,33 +98,43 @@ test.describe('Smoke Test', () => {
       return await api.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
-    console.log('Watch result:', JSON.stringify(watchResult));
     expect(watchResult).toBeDefined();
     expect(watchResult.success).toBe(true);
+    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
     console.log('✓ File watching started');
 
-    // Wait for initial scan
+    // Wait for graph to load and broadcast to UI
     await appWindow.waitForTimeout(1000);
 
-    // Verify graph has visible nodes
-    const graphState = await appWindow.evaluate(() => {
+    // Verify graph was loaded into main process state
+    const graphStateResult = await appWindow.evaluate(async () => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.graph.getState();
+    });
+
+    expect(graphStateResult.success).toBe(true);
+    const nodeCount = Object.keys(graphStateResult.graph.nodes).length;
+    console.log(`✓ Graph loaded into state with ${nodeCount} nodes`);
+    expect(nodeCount).toBeGreaterThan(0);
+
+    // Verify graph was rendered in Cytoscape UI
+    const cytoscapeState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-
       return {
         nodeCount: cy.nodes().length,
-        nodeLabels: cy.nodes().map((n: NodeSingular) => n.data('label')).slice(0, 5)
+        nodeLabels: cy.nodes().map((n: NodeSingular) => n.data('label')).slice(0, 3)
       };
     });
 
-    console.log(`Graph loaded with ${graphState.nodeCount} nodes`);
-    console.log('Sample node labels:', graphState.nodeLabels);
+    console.log(`✓ Graph rendered in UI with ${cytoscapeState.nodeCount} nodes`);
+    console.log('  Sample labels:', cytoscapeState.nodeLabels.join(', '));
 
-    // Verify we have some nodes
-    expect(graphState.nodeCount).toBeGreaterThan(0);
-    console.log('✓ Graph has visible nodes');
+    // Smoke test: Just verify nodes are rendered (may include virtual nodes)
+    expect(cytoscapeState.nodeCount).toBeGreaterThan(0);
 
-    console.log('✅ Legacy smoke test passed!');
+    console.log('✅ Smoke test passed!');
   });
 });
 

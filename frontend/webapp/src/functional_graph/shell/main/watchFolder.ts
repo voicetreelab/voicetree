@@ -63,8 +63,10 @@ async function saveLastDirectory(directoryPath: string): Promise<void> {
 }
 
 export async function loadFolder(vaultPath: FilePath): Promise<void>  {
+    console.log('[loadFolder] Starting for path:', vaultPath);
     // Load graph from disk (IO operation)
     const currentGraph: Graph = await loadGraphFromDisk(O.some(vaultPath));
+    console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
 
     // Update graph store
     setVaultPath(vaultPath);
@@ -72,6 +74,7 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
 
     // Broadcast initial graph to UI (different event from incremental updates)
     const graphDelta : GraphDelta = mapNewGraphToDelta(currentGraph)
+    console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
 
     const mainWindow = getMainWindow();
     if (!mainWindow) {
@@ -80,9 +83,11 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     }
 
     applyGraphDeltaToStateAndUI(graphDelta, mainWindow)
+    console.log('[loadFolder] Graph delta broadcast to UI');
 
     // Setup file watcher
     await setupWatcher(vaultPath);
+    console.log('[loadFolder] File watcher setup complete');
 
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(vaultPath);
@@ -143,6 +148,7 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
             // and ignore common hidden
             '**/node_modules/**',
             '**/.git/**',
+            '**/.voicetree/**', // Ignore position data directory to prevent feedback loop
             '**/.*', // Hidden files
             '**/*.tmp',
             '**/*.temp'

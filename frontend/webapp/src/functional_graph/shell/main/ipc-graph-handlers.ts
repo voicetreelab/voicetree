@@ -2,7 +2,7 @@ import { ipcMain, dialog, BrowserWindow } from 'electron'
 import type { GraphDelta } from '@/functional_graph/pure/types'
 import { getGraph } from '@/functional_graph/shell/state/graph-store.ts'
 import { applyGraphDeltaToStateAndUI } from "@/functional_graph/shell/main/applyGraphDeltaToStateAndUI.ts"
-import { loadFolder, stopWatching, isWatching, getWatchedDirectory } from '@/functional_graph/shell/main/watchFolder.ts'
+import { loadFolder, stopWatching, isWatching, getWatchedDirectory, initialLoad } from '@/functional_graph/shell/main/watchFolder.ts'
 import fs from 'fs'
 import type TerminalManager from '@/electron/terminal-manager.ts'
 import type PositionManager from '@/electron/position-manager.ts'
@@ -38,11 +38,15 @@ export function registerAllIpcHandlers(deps: IpcHandlerDependencies) {
 
   // File watching handlers
   ipcMain.handle('start-file-watching', async (_event, directoryPath) => {
+    console.log('[IPC] start-file-watching handler called, directoryPath:', directoryPath);
     // Get selected directory (either from param or via dialog)
     const getDirectory = async (): Promise<string | null> => {
       if (directoryPath) {
+        console.log('[IPC] Using provided directory path:', directoryPath);
         return directoryPath
       }
+
+      console.log('[IPC] No directory provided, showing dialog...');
 
       const result = await dialog.showOpenDialog({
         properties: ['openDirectory', 'createDirectory'],
@@ -58,25 +62,32 @@ export function registerAllIpcHandlers(deps: IpcHandlerDependencies) {
     }
 
     const selectedDirectory = await getDirectory()
+    console.log('[IPC] Selected directory:', selectedDirectory);
 
     if (!selectedDirectory) {
+      console.log('[IPC] No directory selected, returning error');
       return { success: false, error: 'No directory selected' }
     }
 
     // FAIL FAST: Validate directory exists before proceeding
+    console.log('[IPC] Validating directory exists...');
     if (!fs.existsSync(selectedDirectory)) {
       const error = `Directory does not exist: ${selectedDirectory}`
       console.error('[IPC] start-file-watching failed:', error)
       return { success: false, error }
     }
 
+    console.log('[IPC] Validating path is a directory...');
     if (!fs.statSync(selectedDirectory).isDirectory()) {
       const error = `Path is not a directory: ${selectedDirectory}`
       console.error('[IPC] start-file-watching failed:', error)
       return { success: false, error }
     }
 
-    return await loadFolder(selectedDirectory)
+    console.log('[IPC] Calling loadFolder...');
+    await loadFolder(selectedDirectory)
+    console.log('[IPC] loadFolder completed successfully');
+    return { success: true, directory: selectedDirectory }
   })
 
   ipcMain.handle('stop-file-watching', async () => {
@@ -91,6 +102,19 @@ export function registerAllIpcHandlers(deps: IpcHandlerDependencies) {
     }
     console.log('Watch status:', status)
     return status
+  })
+
+  ipcMain.handle('load-previous-folder', async () => {
+    console.log('[IPC] load-previous-folder handler called');
+    await initialLoad();
+    const watchedDir = getWatchedDirectory();
+    if (watchedDir) {
+      console.log('[IPC] Successfully loaded previous folder:', watchedDir);
+      return { success: true, directory: watchedDir };
+    } else {
+      console.log('[IPC] No previous folder found to load');
+      return { success: false, error: 'No previous folder found' };
+    }
   })
 
   // Terminal IPC handlers

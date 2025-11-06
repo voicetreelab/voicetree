@@ -34,14 +34,11 @@ import { GraphNavigationService } from './GraphNavigationService';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import type { IMarkdownVaultProvider, Disposable as VaultDisposable } from '@/providers/IMarkdownVaultProvider';
 import { SpeedDialMenuView } from './SpeedDialMenuView';
-// TODO: Remove these unused imports after full migration to applyGraphDeltaToUI
-// import { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape';
-// import { computeCytoscapeDiff } from '@/functional_graph/pure/cytoscape/compute-cytoscape-diff';
-import type { Graph } from '@/functional_graph/pure/types';
+import type { Graph, GraphDelta } from '@/functional_graph/pure/types';
 import { MIN_ZOOM, MAX_ZOOM, GHOST_ROOT_ID } from '@/graph-core/constants';
 import type { NodeDefinition } from '@/graph-core/types';
-import { subscribeToGraphUpdates } from '@/functional_graph/shell/UI/subscribeToGraphUpdates';
 import { setupBasicCytoscapeEventListeners, setupCytoscape } from './VoiceTreeGraphViewHelpers';
+import { applyGraphDeltaToUI } from '@/functional_graph/shell/UI/applyGraphDeltaToUI';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -56,7 +53,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // Services
   private styleService!: StyleService; // Initialized in render()
   private animationService!: BreathingAnimationService; // Initialized in render()
-  private contextMenuService!: ContextMenuService; // Initialized in setupCytoscape()
+  private contextMenuService?: ContextMenuService; // Initialized in setupCytoscape()
 
   // Managers
   private floatingWindowManager: FloatingWindowManager;
@@ -71,8 +68,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // Vault event disposables
   private vaultDisposables: VaultDisposable[] = [];
 
-  // Functional graph subscription cleanup
-  private unsubscribeGraphUpdates: (() => void) | null = null;
+  // Graph subscription cleanup
+  private cleanupGraphSubscription: (() => void) | null = null;
 
   // DOM elements
   private statsOverlay: HTMLElement | null = null;
@@ -135,8 +132,58 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // TEMP: Disabled to test if this is causing editor tap issues
     this.floatingWindowManager.setupCommandHover();
 
-    // Subscribe to functional graph updates
-    this.unsubscribeGraphUpdates = subscribeToGraphUpdates(this.cy);
+    // Subscribe to graph delta updates via electronAPI
+    this.subscribeToGraphUpdates();
+  }
+
+  /**
+   * Subscribe to graph delta updates from main process via electronAPI
+   */
+  private subscribeToGraphUpdates(): void {
+    // Access electronAPI with type assertion since global Window type may not be recognized
+    const electronAPI = (window as { electronAPI?: { graph: { onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void } } }).electronAPI;
+
+    if (!electronAPI?.graph.onGraphUpdate) {
+      console.warn('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
+      return;
+    }
+
+    const handleGraphDelta = (delta: GraphDelta): void => {
+      console.log('[VoiceTreeGraphView] Received graph delta, length:', delta.length);
+      console.trace('[VoiceTreeGraphView] Graph delta stack trace'); // DEBUG: Check if called repeatedly
+      applyGraphDeltaToUI(this.cy, delta);
+    };
+
+    // Subscribe to graph updates via electronAPI (returns cleanup function)
+    this.cleanupGraphSubscription = electronAPI.graph.onGraphUpdate(handleGraphDelta);
+
+    // Auto-load previous folder if available
+    this.autoLoadPreviousFolder();
+  }
+
+  /**
+   * Auto-load the last watched folder (if one exists)
+   */
+  private autoLoadPreviousFolder(): void {
+    const electronAPI = (window as Window & { electronAPI?: { loadPreviousFolder?: () => Promise<{ success: boolean; directory?: string; error?: string }> } }).electronAPI;
+
+    if (!electronAPI?.loadPreviousFolder) {
+      console.warn('[VoiceTreeGraphView] loadPreviousFolder not available');
+      return;
+    }
+
+    console.log('[VoiceTreeGraphView] Auto-loading previous folder...');
+    electronAPI.loadPreviousFolder()
+      .then((result: { success: boolean; directory?: string; error?: string }) => {
+        if (result.success && result.directory) {
+          console.log('[VoiceTreeGraphView] Successfully auto-loaded folder:', result.directory);
+        } else {
+          console.log('[VoiceTreeGraphView] No previous folder to load:', result.error);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('[VoiceTreeGraphView] Error auto-loading previous folder:', error);
+      });
   }
 
   // ============================================================================
@@ -252,7 +299,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     };
 
     // Initialize cytoscape with ghost root node
-    const cytoscapeOptions: CytoscapeOptions = {
+    // Try with container first, fall back to headless if it fails (e.g., in JSDOM)
+    let cytoscapeOptions: CytoscapeOptions = {
       elements: [ghostRootNode],
       style: this.styleService.getCombinedStylesheet(),
       minZoom: MIN_ZOOM,
@@ -261,7 +309,19 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       container: this.container
     };
 
-    this.cy = cytoscape(cytoscapeOptions);
+    try {
+      this.cy = cytoscape(cytoscapeOptions);
+    } catch (error) {
+      // If container-based initialization fails (e.g., JSDOM without proper layout),
+      // fall back to headless mode
+      console.log('[VoiceTreeGraphView] Container-based init failed, using headless mode:', error);
+      cytoscapeOptions = {
+        ...cytoscapeOptions,
+        container: undefined,
+        headless: true
+      };
+      this.cy = cytoscape(cytoscapeOptions);
+    }
 
     // Initialize animation service with cy instance (sets up event listeners)
     this.animationService = new BreathingAnimationService(this.cy);
@@ -602,10 +662,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Remove window event listeners
     window.removeEventListener('resize', this.handleResize);
 
-    // Unsubscribe from functional graph updates
-    if (this.unsubscribeGraphUpdates) {
-      this.unsubscribeGraphUpdates();
-      this.unsubscribeGraphUpdates = null;
+    // Cleanup graph subscription
+    if (this.cleanupGraphSubscription) {
+      this.cleanupGraphSubscription();
+      this.cleanupGraphSubscription = null;
     }
 
     // Dispose vault event listeners
