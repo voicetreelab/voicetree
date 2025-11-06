@@ -22,13 +22,24 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     container = document.createElement('div');
     container.style.width = '800px';
     container.style.height = '600px';
+
+    // JSDOM doesn't calculate dimensions from styles, so we need to stub them BEFORE appending
+    Object.defineProperty(container, 'clientWidth', { value: 800, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 600, configurable: true });
+    Object.defineProperty(container, 'offsetWidth', { value: 800, configurable: true });
+    Object.defineProperty(container, 'offsetHeight', { value: 600, configurable: true });
+    container.getBoundingClientRect = () => ({
+      x: 0, y: 0, top: 0, left: 0, bottom: 600, right: 800, width: 800, height: 600,
+      toJSON: () => ({})
+    });
+
     document.body.appendChild(container);
 
     // Create memory vault (used for position management)
     vault = new MemoryMarkdownVault();
 
-    // Create graph with headless mode for faster tests
-    graph = new VoiceTreeGraphView(container, vault, { headless: true });
+    // Create graph instance
+    graph = new VoiceTreeGraphView(container, vault);
   });
 
   afterEach(() => {
@@ -123,8 +134,16 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     testContainer.style.height = '600px';
     document.body.appendChild(testContainer);
 
+    // JSDOM doesn't calculate dimensions from styles
+    Object.defineProperty(testContainer, 'clientWidth', { value: 800, writable: true });
+    Object.defineProperty(testContainer, 'clientHeight', { value: 600, writable: true });
+    testContainer.getBoundingClientRect = () => ({
+      x: 0, y: 0, top: 0, left: 0, bottom: 600, right: 800, width: 800, height: 600,
+      toJSON: () => ({})
+    });
+
     const testVault = new MemoryMarkdownVault();
-    const testGraph = new VoiceTreeGraphView(testContainer, testVault, { headless: true });
+    const testGraph = new VoiceTreeGraphView(testContainer, testVault);
 
     // Verify subscription was registered
     expect(mockCallbacks.length).toBe(1);
@@ -142,8 +161,16 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     testContainer.style.height = '600px';
     document.body.appendChild(testContainer);
 
+    // JSDOM doesn't calculate dimensions from styles
+    Object.defineProperty(testContainer, 'clientWidth', { value: 800, writable: true });
+    Object.defineProperty(testContainer, 'clientHeight', { value: 600, writable: true });
+    testContainer.getBoundingClientRect = () => ({
+      x: 0, y: 0, top: 0, left: 0, bottom: 600, right: 800, width: 800, height: 600,
+      toJSON: () => ({})
+    });
+
     const testVault = new MemoryMarkdownVault();
-    const testGraph = new VoiceTreeGraphView(testContainer, testVault, { headless: true });
+    const testGraph = new VoiceTreeGraphView(testContainer, testVault);
 
     // Get the cytoscape instance
     const cy = (testGraph as unknown as { cy: Core }).cy;
@@ -219,8 +246,16 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     testContainer.style.height = '600px';
     document.body.appendChild(testContainer);
 
+    // JSDOM doesn't calculate dimensions from styles
+    Object.defineProperty(testContainer, 'clientWidth', { value: 800, writable: true });
+    Object.defineProperty(testContainer, 'clientHeight', { value: 600, writable: true });
+    testContainer.getBoundingClientRect = () => ({
+      x: 0, y: 0, top: 0, left: 0, bottom: 600, right: 800, width: 800, height: 600,
+      toJSON: () => ({})
+    });
+
     const testVault = new MemoryMarkdownVault();
-    const testGraph = new VoiceTreeGraphView(testContainer, testVault, { headless: true });
+    const testGraph = new VoiceTreeGraphView(testContainer, testVault);
 
     // Emit mock graph state with proper Option types
     const mockGraphState = {
@@ -290,7 +325,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
 
     // Create graph instance
-    const testGraph = new VoiceTreeGraphView(container, vault, { headless: true });
+    const testGraph = new VoiceTreeGraphView(container, vault);
 
     // Emit mock graph state with a node
     const mockGraphState = {
@@ -346,7 +381,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
 
     // Create graph instance
-    const testGraph = new VoiceTreeGraphView(container, vault, { headless: true });
+    const testGraph = new VoiceTreeGraphView(container, vault);
 
     // Emit mock graph state with a node
     const mockGraphState = {

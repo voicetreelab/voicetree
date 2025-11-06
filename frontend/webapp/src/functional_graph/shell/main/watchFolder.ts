@@ -3,7 +3,7 @@ import type {FilePath, Graph, GraphDelta} from "@/functional_graph/pure/types.ts
 import {setGraph, setVaultPath} from "@/functional_graph/shell/state/graph-store.ts";
 import {app} from "electron";
 import path from "path";
-import * as O from "fp-ts/Option";
+import * as O from "fp-ts/lib/Option.js";
 import {promises as fs} from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
 import type {FSUpdate} from "@/functional_graph/pure/types.ts";
@@ -130,8 +130,16 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
     // Create new watcher
     watcher = chokidar.watch(vaultPath, {
         ignored: [
-            // Only watch .md files
-            (filePath: string) => !filePath.endsWith('.md'),
+            // Only watch .md files (but allow directories without extensions)
+            (filePath: string) => {
+                const ext = path.extname(filePath);
+                // If no extension, it's probably a directory - don't ignore
+                if (!ext) {
+                    return false;
+                }
+                // For files, only allow .md
+                return ext !== '.md';
+            },
             // and ignore common hidden
             '**/node_modules/**',
             '**/.git/**',

@@ -41,7 +41,6 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Gr
         // Return empty graph if file limit exceeded
         return { nodes: {} };
     }
-
     // Step 2: Load preliminary nodes
     const preliminaryNodes = await loadNodes(vaultPath.value, files)
 
