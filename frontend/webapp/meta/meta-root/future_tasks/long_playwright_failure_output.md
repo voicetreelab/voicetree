@@ -22,10 +22,10 @@ Let me check and fix this:
 
 ⏺ Now let me look at what's causing the verbose output in test failures:
 
-⏺ Search(pattern: "console\.log.*html|innerHTML|content\(\)|outerHTML", path: "tests/e2e")
+⏺ Search(pattern: "console\.log.*html|innerHTML|content\(\)|outerHTML", absolutePath: "tests/e2e")
 ⎿  Found 1 file (ctrl+o to expand)
 
-⏺ Search(pattern: "console\.log.*html|\.content\(\)", path: "tests/e2e/file-to-graph-pipeline.spec.ts", output_mode: "content")
+⏺ Search(pattern: "console\.log.*html|\.content\(\)", absolutePath: "tests/e2e/file-to-graph-pipeline.spec.ts", output_mode: "content")
 ⎿  Found 0 lines
 
 ⏺ Let me check what's in the test output issue more carefully. The verbose output in your test results comes from Playwright's default behavior when

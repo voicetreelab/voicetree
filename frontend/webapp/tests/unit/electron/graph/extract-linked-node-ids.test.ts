@@ -5,7 +5,7 @@ import type { Node } from '../../../../src/functional_graph/pure/types'
 
 describe('extractLinkedNodeIds', () => {
   const createNode = (id: string, title: string): Node => ({
-    idAndFilePath: id,
+    relativeFilePathIsID: id,
     title,
     content: '',
     summary: '',

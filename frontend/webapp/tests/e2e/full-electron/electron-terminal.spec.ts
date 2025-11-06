@@ -17,7 +17,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import { focusTerminal, getTerminalContent } from './test-utils';
 
-// Use absolute path from project root
+// Use absolute absolutePath from project root
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow extends Window {
@@ -1046,7 +1046,7 @@ test.describe('Terminal E2E Tests', () => {
 
   test('should spawn terminal in Application Support tools directory with accessible tools', async ({ appWindow, tempDir }) => {
     // This test verifies the tools directory bundling implementation:
-    // - Terminal spawns in Application Support tools directory (not hardcoded ~/repos path)
+    // - Terminal spawns in Application Support tools directory (not hardcoded ~/repos absolutePath)
     // - Tools are accessible from the spawned terminal
     // - setupToolsDirectory() successfully copied tools on first launch
 
@@ -1136,7 +1136,7 @@ test.describe('Terminal E2E Tests', () => {
     const pwdContent = await getTerminalContent(appWindow);
     console.log('Terminal pwd output:', pwdContent);
 
-    // CRITICAL ASSERTION 1: Working directory should be Application Support tools path
+    // CRITICAL ASSERTION 1: Working directory should be Application Support tools absolutePath
     // Should contain "Application Support/VoiceTree/tools" or "Application Support/Electron/tools"
     expect(pwdContent).toMatch(/Application Support.*tools/i);
 

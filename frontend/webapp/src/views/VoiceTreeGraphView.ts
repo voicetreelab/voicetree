@@ -19,9 +19,6 @@ import { Disposable } from './Disposable';
 import { EventEmitter } from './EventEmitter';
 import type {
   IVoiceTreeGraphView,
-  FileEvent,
-  BulkFileEvent,
-  WatchingStartedEvent,
   VoiceTreeGraphViewOptions
 } from './IVoiceTreeGraphView';
 import cytoscape, { type Core, type CytoscapeOptions } from 'cytoscape';
@@ -29,7 +26,6 @@ import '@/graph-core'; // Import to trigger extension registration
 import { StyleService } from '@/graph-core/services/StyleService';
 import { BreathingAnimationService } from '@/graph-core/services/BreathingAnimationService';
 import { ContextMenuService } from '@/graph-core/services/ContextMenuService';
-import { enableAutoLayout } from '@/graph-core/graphviz/layout/autoLayout';
 import ColaLayout from '@/graph-core/graphviz/layout/cola';
 import { FloatingWindowManager } from './FloatingWindowManager';
 import { HotkeyManager } from './HotkeyManager';
@@ -38,11 +34,14 @@ import { GraphNavigationService } from './GraphNavigationService';
 import { getResponsivePadding } from '@/utils/responsivePadding';
 import type { IMarkdownVaultProvider, Disposable as VaultDisposable } from '@/providers/IMarkdownVaultProvider';
 import { SpeedDialMenuView } from './SpeedDialMenuView';
-import { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape';
-import { computeCytoscapeDiff } from '@/functional_graph/pure/cytoscape/compute-cytoscape-diff';
-import type { Graph, CytoscapeElements, CytoscapeDiff } from '@/functional_graph/pure/types';
-import { CLASS_HOVER, CLASS_UNHOVER, CLASS_CONNECTED_HOVER, MIN_ZOOM, MAX_ZOOM, GHOST_ROOT_ID } from '@/graph-core/constants';
+// TODO: Remove these unused imports after full migration to applyGraphDeltaToUI
+// import { projectToCytoscape } from '@/functional_graph/pure/cytoscape/project-to-cytoscape';
+// import { computeCytoscapeDiff } from '@/functional_graph/pure/cytoscape/compute-cytoscape-diff';
+import type { Graph } from '@/functional_graph/pure/types';
+import { MIN_ZOOM, MAX_ZOOM, GHOST_ROOT_ID } from '@/graph-core/constants';
 import type { NodeDefinition } from '@/graph-core/types';
+import { subscribeToGraphUpdates } from '@/functional_graph/shell/UI/subscribeToGraphUpdates';
+import { setupBasicCytoscapeEventListeners, setupCytoscape } from './VoiceTreeGraphViewHelpers';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -72,7 +71,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   // Vault event disposables
   private vaultDisposables: VaultDisposable[] = [];
 
-  // Functional graph subscription
+  // Functional graph subscription cleanup
   private unsubscribeGraphUpdates: (() => void) | null = null;
 
   // DOM elements
@@ -137,7 +136,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     this.floatingWindowManager.setupCommandHover();
 
     // Subscribe to functional graph updates
-    this.subscribeToGraphUpdates();
+    this.unsubscribeGraphUpdates = subscribeToGraphUpdates(this.cy);
   }
 
   // ============================================================================
@@ -237,7 +236,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Container serves as both the wrapper and the cytoscape rendering target
     this.container.style.opacity = '0.3';
     this.container.style.transition = 'opacity 0.3s ease-in-out';
-    const headless = this.options.headless || false;
 
     // Initialize StyleService
     this.styleService = new StyleService();
@@ -260,7 +258,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
       boxSelectionEnabled: true,
-      ...(headless ? { headless: true } : { container: this.container })
+      container: this.container
     };
 
     this.cy = cytoscape(cytoscapeOptions);
@@ -297,175 +295,80 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
    * These were previously in CytoscapeCore.setupEventListeners()
    */
   private setupBasicCytoscapeEventListeners(): void {
-    // Basic hover effects
-    this.cy.on('mouseover', 'node', (e) => {
-      if (!e.target) return;
-
-      const node = e.target;
-      this.cy.elements()
-        .difference(node.closedNeighborhood())
-        .addClass(CLASS_UNHOVER);
-
-      node.addClass(CLASS_HOVER)
-        .connectedEdges()
-        .addClass(CLASS_CONNECTED_HOVER)
-        .connectedNodes()
-        .addClass(CLASS_CONNECTED_HOVER);
-
-      // Stop breathing animation on hover for new nodes and appended content
-      if (this.animationService.isAnimationActive(node)) {
-        const animationType = node.data('animationType');
-        if (animationType === 'new_node' || animationType === 'appended_content') {
-          this.animationService.stopAnimationForNode(node);
-        }
-      }
-    });
-
-    this.cy.on('mouseout', (e) => {
-      if (!e.target || e.target === this.cy) return;
-
-      this.cy.elements().removeClass([
-        CLASS_HOVER,
-        CLASS_UNHOVER,
-        CLASS_CONNECTED_HOVER
-      ]);
-    });
-
-    // Focus handling
-    this.cy.on('tap boxselect', () => {
-      this.container.focus();
-    });
-
-    // Box selection end event - log selected nodes
-    this.cy.on('boxend', () => {
-      const selected = this.cy.$('node:selected');
-      console.log(`[VoiceTreeGraphView] Box selection: ${selected.length} nodes selected`, selected.map(n => n.id()));
-    });
-
-    // Update node sizes when edges are added or removed
-    // Only update the source and target nodes of the affected edge for efficiency
-    this.cy.on('add', 'edge', (e) => {
-      if (!e.target) return;
-      const edge = e.target;
-      const affectedNodes = edge.source().union(edge.target());
-      this.styleService.updateNodeSizes(this.cy, affectedNodes);
-    });
-
-    this.cy.on('remove', 'edge', (e) => {
-      if (!e.target) return;
-      const edge = e.target;
-      const affectedNodes = edge.source().union(edge.target());
-      this.styleService.updateNodeSizes(this.cy, affectedNodes);
-    });
+    setupBasicCytoscapeEventListeners(
+      this.cy,
+      this.animationService,
+      this.styleService,
+      this.container
+    );
   }
 
   private setupCytoscape(): void {
-    // Enable auto-layout
-    enableAutoLayout(this.cy);
-    console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');
-
-    // Listen to layout completion
-    this.cy.on('layoutstop', () => {
-      console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
-      this.saveNodePositions();
-      this.layoutCompleteEmitter.emit();
+    this.contextMenuService = setupCytoscape({
+      cy: this.cy,
+      savePositionsTimeout: { current: this.savePositionsTimeout },
+      saveNodePositions: () => this.saveNodePositions(),
+      onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
+      onNodeSelected: (nodeId) => this.nodeSelectedEmitter.emit(nodeId),
+      getCurrentGraphState: () => this.getCurrentGraphState(),
+      getVaultProvider: () => this.vaultProvider,
+      floatingWindowManager: this.floatingWindowManager
     });
+  }
 
-    // Save positions when user finishes dragging nodes
-    this.cy.on('free', 'node', () => {
-      console.log('[VoiceTreeGraphView] Node drag ended, saving positions...');
-      // Debounce to avoid too many saves
-      if (this.savePositionsTimeout) {
-        clearTimeout(this.savePositionsTimeout);
+  /**
+   * Get current graph state for FloatingWindowManager
+   */
+  private getCurrentGraphState(): Graph {
+    return this.currentGraphState;
+  }
+
+  /**
+   * Save node positions to disk via IPC
+   */
+  private async saveNodePositions(): Promise<void> {
+    try {
+      // Get watch directory
+      const watchStatus = await this.vaultProvider.getWatchStatus();
+      if (!watchStatus.isWatching || !watchStatus.directory) {
+        console.warn('[VoiceTreeGraphView] Not watching any directory');
+        return;
       }
-      this.savePositionsTimeout = setTimeout(() => {
-        this.saveNodePositions();
-      }, 1000); // Wait 1 second after last drag
-    });
 
-    // Setup tap handler for nodes (skip in headless mode)
-    // if (!this.options.headless) { //todo unnec
-      console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
-      this.cy.on('tap', 'node', (event) => {
-        const nodeId = event.target.id();
-        console.log('[VoiceTreeGraphView] Node tapped:', nodeId);
+      const positions: Record<string, { x: number; y: number }> = {};
 
-        // Emit node selected event
-        this.nodeSelectedEmitter.emit(nodeId);
+      // Collect positions from Cytoscape nodes
+      this.cy.nodes().forEach((node) => {
+        const nodeId = node.id();
+        const isFloatingWindow = node.data('isFloatingWindow');
+        const isGhost = nodeId.startsWith('ghost-');
 
-        // Get content from functional graph
-        const node = this.currentGraphState.nodes[nodeId];
-        const vaultPath = this.vaultProvider.getWatchDirectory?.();
-
-        if (node && vaultPath) {
-          const content = node.content;
-          const filePath = `${vaultPath}/${nodeId}.md`;
-
-          console.log('[VoiceTreeGraphView] Found content?', !!content, 'filePath?', !!filePath);
-
-          const nodePos = event.target.position();
-          console.log('[VoiceTreeGraphView] Calling createFloatingEditor');
-          this.floatingWindowManager.createFloatingEditor(nodeId, filePath, content, nodePos);
-        } else {
-          console.log('[VoiceTreeGraphView] Not opening editor - missing requirements', node, vaultPath);
+        // Skip floating windows and ghost nodes
+        if (isFloatingWindow || isGhost) {
+          return;
         }
+
+        // Use node ID as filename (assumes nodeId = filename without .md)
+        const filename = `${nodeId}.md`;
+        const pos = node.position();
+        positions[filename] = { x: pos.x, y: pos.y };
       });
 
-      // Setup context menu (requires DOM)
-      this.contextMenuService = new ContextMenuService();
-      // Initialize context menu with cy instance and dependencies
-      this.contextMenuService.initialize(this.cy, {
-        getContentForNode: (nodeId: string) => this.floatingWindowManager.getContentForNode(nodeId),
-        getFilePathForNode: (nodeId: string) => this.floatingWindowManager.getFilePathForNode(nodeId),
-        createFloatingEditor: (nodeId: string, filePath: string, content: string, pos) =>
-          this.floatingWindowManager.createFloatingEditor(nodeId, filePath, content, pos),
-        createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
-          this.floatingWindowManager.createFloatingTerminal(nodeId, metadata, pos),
-        handleAddNodeAtPosition: (position) =>
-          this.floatingWindowManager.handleAddNodeAtPosition(position)
-      });
-    // Expose for testing
-    if (typeof window !== 'undefined') {
-      (window as any).cytoscapeInstance = this.cy;
-      (window as any).cytoscapeCore = this.cy;
+      console.log(`[VoiceTreeGraphView] Saving ${Object.keys(positions).length} node positions`);
 
-      // Expose test markdown_parsing for e2e tests
-      (window as any).testHelpers = {
-        createTerminal: (nodeId: string) => {
-          const vaultPath = this.vaultProvider.getWatchDirectory?.();
-          const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
-          const nodeMetadata = {
-            id: nodeId,
-            name: nodeId.replace(/_/g, ' '),
-            filePath: filePath
-          };
+      // Save to disk via vault provider
+      const result = await this.vaultProvider.savePositions(
+        watchStatus.directory,
+        positions
+      );
 
-          const node = this.cy.getElementById(nodeId);
-          if (node.length > 0) {
-            const nodePos = node.position();
-            this.floatingWindowManager.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
-          }
-        },
-        addNodeAtPosition: async (position: { x: number; y: number }) => {
-          // For testing: directly invoke the context menu handler
-          const contextMenu = (this.cy as any).contextMenus;
-          if (contextMenu?._config?.onAddNodeAtPosition) {
-            await contextMenu._config.onAddNodeAtPosition(position);
-          } else {
-            console.error('[TestHelpers] onAddNodeAtPosition handler not found');
-          }
-        },
-        getEditorInstance: undefined // Will be set below
-      };
-
-      // Import and expose getVanillaInstance for testing
-      import('@/graph-core/extensions/cytoscape-floating-windows').then(({ getVanillaInstance }) => {
-        if ((window as any).testHelpers) {
-          (window as any).testHelpers.getEditorInstance = (windowId: string) => {
-            return getVanillaInstance(windowId);
-          };
-        }
-      });
+      if (result.success) {
+        console.log(`[VoiceTreeGraphView] Successfully saved positions to disk`);
+      } else {
+        console.error('[VoiceTreeGraphView] Failed to save positions:', result.error);
+      }
+    } catch (error) {
+      console.error('[VoiceTreeGraphView] Error saving positions:', error);
     }
   }
 
@@ -505,191 +408,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     const handleWheel = (e: WheelEvent) => e.preventDefault();
     this.container.addEventListener('wheel', handleWheel, { passive: false });
   }
-
-
-  // ============================================================================
-  // FUNCTIONAL GRAPH SUBSCRIPTION
-  // ============================================================================
-
-  /**
-   * Subscribe to functional graph state updates from main process.
-   * This is the PURE FP approach - graph state flows from main process,
-   * we project it to Cytoscape elements, and reconcile the DOM.
-   */
-  private subscribeToGraphUpdates(): void {
-    if (typeof window !== 'undefined' && window.electronAPI?.graph) {
-      this.unsubscribeGraphUpdates = window.electronAPI.graph.onStateChanged(
-        (graph: Graph) => {
-          console.log('[VoiceTreeGraphView] Graph state updated:',
-            Object.keys(graph.nodes).length, 'nodes');
-          this.currentGraphState = graph;
-          this.updateCytoscapeFromGraph(graph);
-        }
-      );
-    }
-  }
-
-  /**
-   * Get current graph state for FloatingWindowManager
-   */
-  private getCurrentGraphState(): Graph {
-    return this.currentGraphState;
-  }
-
-  /**
-   * Update Cytoscape from pure graph state.
-   * PURE PROJECTION: Graph → CytoscapeElements → Diff → DOM
-   */
-  private updateCytoscapeFromGraph(graph: Graph): void {
-    const cy = this.cy;
-
-    // PURE: Project graph to desired Cytoscape elements
-    const desiredElements = projectToCytoscape(graph);
-
-    // PURE: Compute diff between current and desired state
-    const diff = computeCytoscapeDiff(cy, desiredElements);
-
-    // IMPURE: Apply diff to Cytoscape DOM
-    this.applyCytoscapeDiff(diff);
-
-    // IMPURE: Update search index after graph changes (side effect at edge)
-    this.searchService.updateSearchData();
-
-    // IMPURE: Update stats overlay
-    this.handleStatsChanged();
-  }
-
-  /**
-   * IMPURE: Apply computed diff to Cytoscape DOM.
-   * This is the edge - pure logic has been separated into computeCytoscapeDiff.
-   * IDEMPOTENT: Empty diff has no effect. Same diff twice produces same result.
-   */
-  private applyCytoscapeDiff(diff: CytoscapeDiff): void {
-    const cy = this.cy;
-
-    cy.batch(() => {
-      // Remove first (to avoid orphaned outgoingEdges)
-      diff.edgesToRemove.forEach(id => {
-        cy.getElementById(id).remove();
-      });
-
-      diff.nodesToRemove.forEach(id => {
-        cy.getElementById(id).remove();
-      });
-
-      // Add/update nodes
-      diff.nodesToAdd.forEach(nodeElem => {
-        cy.add({
-          group: 'nodes' as const,
-          data: nodeElem.data
-        });
-      });
-
-      diff.nodesToUpdate.forEach(({ id, data }) => {
-        cy.getElementById(id).data(data);
-      });
-
-      // Add outgoingEdges
-      diff.edgesToAdd.forEach(edgeElem => {
-        cy.add({
-          group: 'edges' as const,
-          data: edgeElem.data
-        });
-      });
-    });
-
-    // Track last created node for "fit to last node" feature
-    // Use the last node in the nodesToAdd array
-    if (diff.nodesToAdd.length > 0) {
-      const lastAddedNode = diff.nodesToAdd[diff.nodesToAdd.length - 1];
-      this.navigationService.setLastCreatedNodeId(lastAddedNode.data.id);
-    }
-  }
-
-  // ============================================================================
-  // FILE EVENT HANDLERS - REMOVED
-  // ============================================================================
-  // File events are now handled by functional graph architecture:
-  // 1. FileWatchHandler detects filesystem changes
-  // 2. file-watch-handlers.ts intercepts and applies to functional graph
-  // 3. Graph updates broadcast via 'graph:stateChanged'
-  // 4. subscribeToGraphUpdates() receives and projects to Cytoscape
-  // 5. updateCytoscapeFromGraph() updates search index after graph projection
-  // 6. applyCytoscapeDiff() tracks last created node for "fit to last node" feature
-
-
-  // ============================================================================
-  // HELPER METHODS
-  // ============================================================================
-
-  /**
-   * Save node positions to disk via IPC
-   */
-  private async saveNodePositions(): Promise<void> {
-    try {
-      // Get watch directory
-      const watchStatus = await this.vaultProvider.getWatchStatus();
-      if (!watchStatus.isWatching || !watchStatus.directory) {
-        console.warn('[VoiceTreeGraphView] Not watching any directory');
-        return;
-      }
-
-      const cy = this.cy.getCore();
-      const positions: Record<string, { x: number; y: number }> = {};
-
-      // Collect positions from Cytoscape nodes
-      cy.nodes().forEach((node) => {
-        const nodeId = node.id();
-        const isFloatingWindow = node.data('isFloatingWindow');
-        const isGhost = nodeId.startsWith('ghost-');
-
-        // Skip floating windows and ghost nodes
-        if (isFloatingWindow || isGhost) {
-          return;
-        }
-
-        // Use node ID as filename (assumes nodeId = filename without .md)
-        const filename = `${nodeId}.md`;
-        const pos = node.position();
-        positions[filename] = { x: pos.x, y: pos.y };
-      });
-
-      console.log(`[VoiceTreeGraphView] Saving ${Object.keys(positions).length} node positions`);
-
-      // Save to disk via vault provider
-      const result = await this.vaultProvider.savePositions(
-        watchStatus.directory,
-        positions
-      );
-
-      if (result.success) {
-        console.log(`[VoiceTreeGraphView] Successfully saved positions to disk`);
-      } else {
-        console.error('[VoiceTreeGraphView] Failed to save positions:', result.error);
-      }
-    } catch (error) {
-      console.error('[VoiceTreeGraphView] Error saving positions:', error);
-    }
-  }
-
-  private handleStatsChanged(): void {
-    const cy = this.cy;
-    const stats = {
-      nodeCount: cy.nodes().length,
-      edgeCount: cy.edges().length
-    };
-
-    // Update UI overlays
-    if (this.statsOverlay) {
-      this.statsOverlay.textContent = `${stats.nodeCount} nodes • ${stats.edgeCount} edges`;
-      this.statsOverlay.style.display = stats.nodeCount > 0 ? 'block' : 'none';
-    }
-
-    if (this.emptyStateOverlay) {
-      this.emptyStateOverlay.style.display = stats.nodeCount === 0 ? 'flex' : 'none';
-    }
-  }
-
   private handleResizeMethod(): void {
     this.cy.resize();
     this.cy.fit();
@@ -717,41 +435,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     const cy = this.cy;
     return cy.$(':selected')
       .nodes()
-      .filter((n: any) => !n.data('isFloatingWindow'))
-      .map((n: any) => n.id());
-  }
-
-  refreshLayout(): void {
-    const cy = this.cy;
-
-    // Skip if no nodes
-    if (cy.nodes().length === 0) {
-      return;
-    }
-
-    // Directly instantiate ColaLayout (not registered with cytoscape.use())
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const layout = new (ColaLayout as any)({
-      cy: cy,
-      eles: cy.elements(),
-      animate: true,
-      animationDuration: 300,
-      randomize: false,
-      avoidOverlap: true,
-      handleDisconnected: true,
-      convergenceThreshold: 1,
-      maxSimulationTime: 3000,
-      unconstrIter: 3,
-      userConstIter: 50,
-      allConstIter: 30,
-      nodeSpacing: 30,
-      edgeLength: 200,
-      centerGraph: false,
-      fit: false,
-      nodeDimensionsIncludeLabels: true
-    });
-
-    layout.run();
+      .filter((n: cytoscape.NodeSingular) => !n.data('isFloatingWindow'))
+      .map((n: cytoscape.NodeSingular) => n.id());
   }
 
   fit(paddingPercentage = 3): void {
@@ -850,6 +535,39 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }, 800); // also after auto layout
   }
 
+  refreshLayout(): void {
+    const cy = this.cy;
+
+    // Skip if no nodes
+    if (cy.nodes().length === 0) {
+      return;
+    }
+
+    // Directly instantiate ColaLayout (not registered with cytoscape.use())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const layout = new (ColaLayout as any)({
+      cy: cy,
+      eles: cy.elements(),
+      animate: true,
+      animationDuration: 300,
+      randomize: false,
+      avoidOverlap: true,
+      handleDisconnected: true,
+      convergenceThreshold: 1,
+      maxSimulationTime: 3000,
+      unconstrIter: 3,
+      userConstIter: 50,
+      allConstIter: 30,
+      nodeSpacing: 30,
+      edgeLength: 200,
+      centerGraph: false,
+      fit: false,
+      nodeDimensionsIncludeLabels: true
+    });
+
+    layout.run();
+  }
+
   // ============================================================================
   // EVENT EMITTERS
   // ============================================================================
@@ -863,7 +581,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
   }
 
   onEdgeSelected(callback: (sourceId: string, targetId: string) => void): () => void {
-    return this.edgeSelectedEmitter.on(callback);
+    return this.edgeSelectedEmitter.on((data) => callback(data.source, data.target));
   }
 
   onLayoutComplete(callback: () => void): () => void {

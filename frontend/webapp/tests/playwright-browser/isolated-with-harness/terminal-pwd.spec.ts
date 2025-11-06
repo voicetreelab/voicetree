@@ -38,18 +38,18 @@ test.describe('Terminal - pwd command test', () => {
 
     console.log('PWD output:', output);
 
-    // Verify output contains a valid path
+    // Verify output contains a valid absolutePath
     expect(output).toBeTruthy();
-    expect(output).toMatch(/\//); // Should contain at least one slash (Unix path)
+    expect(output).toMatch(/\//); // Should contain at least one slash (Unix absolutePath)
 
-    // The output should be a valid path starting with /
+    // The output should be a valid absolutePath starting with /
     // On macOS it might be something like /Users/username/...
     // On Linux it might be /home/username/...
     const lines = output.split('\n').filter(line => line.trim());
     const pwdLine = lines.find(line => line.startsWith('/'));
 
     expect(pwdLine).toBeTruthy();
-    expect(pwdLine).toMatch(/^\/[\w\-/.]+/); // Basic path validation
+    expect(pwdLine).toMatch(/^\/[\w\-/.]+/); // Basic absolutePath validation
   });
 
   test('should handle multiple commands in sequence', async ({ page }) => {

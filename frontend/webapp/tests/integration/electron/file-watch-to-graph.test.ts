@@ -24,7 +24,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
-import { setupFileWatchHandlerForTests } from '../../../src/functional_graph/shell/main/file-watch-handler'
+import { setupFileWatchHandlerForTests } from '@/electron/file-watch-handler.ts'
 import type { Graph } from '@/functional_graph/pure/types'
 import type { BrowserWindow } from 'electron'
 
@@ -137,7 +137,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       expect(broadcastCalls[0].graph.nodes['test_node']).toBeDefined()
     })
 
-    it('should extract node ID from file path correctly', async () => {
+    it('should extract node ID from file absolutePath correctly', async () => {
       // GIVEN: Files with different naming patterns
       const testCases = [
         { filename: 'simple.md', expectedId: 'simple' },

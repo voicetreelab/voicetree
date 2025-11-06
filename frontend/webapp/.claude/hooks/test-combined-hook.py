@@ -21,7 +21,7 @@ BACKUP_FILE = TARGET_FILE.with_suffix(".ts.backup")
 HOOK_SCRIPT = Path(".claude/hooks/combined-hook.py")
 
 def run_hook(file_path: str) -> tuple[int, str, str]:
-    """Run the hook with the given file path and return (exit_code, stdout, stderr)"""
+    """Run the hook with the given file absolutePath and return (exit_code, stdout, stderr)"""
     hook_input = json.dumps({
         "tool_input": {
             "file_path": file_path

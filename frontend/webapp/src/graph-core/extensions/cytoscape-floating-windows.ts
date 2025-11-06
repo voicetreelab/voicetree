@@ -128,7 +128,7 @@ export function createWindowChrome(
   const windowElement = document.createElement('div');
   windowElement.id = `window-${id}`;
   windowElement.className = 'cy-floating-window';
-  windowElement.setAttribute('data-shadow-node-idAndFilePath', id);
+  windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', id);
 
   // Set initial dimensions
   windowElement.style.width = `${dimensions.width}px`;
@@ -325,7 +325,7 @@ function attachDragHandlers(
     windowElement.style.top = `${graphY}px`;
 
     // Update shadow node position so edge follows
-    const shadowNodeId = windowElement.getAttribute('data-shadow-node-idAndFilePath');
+    const shadowNodeId = windowElement.getAttribute('data-shadow-node-relativeFilePathIsID');
     if (shadowNodeId) {
       const shadowNode = cy.$(`#${shadowNodeId}`);
       if (shadowNode.length > 0) {

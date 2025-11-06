@@ -61,7 +61,7 @@ We've successfully configured ESLint with strict functional programming rules fo
 - `electron/graph/example-usage.ts`
 - `electron/graph/extract-linked-node-ids.ts`
 - `electron/graph/filename-utils.ts`
-- `electron/graph/load-graph-from-disk.ts`
+- `electron/graph/loadGraphFromDisk.ts`
 - `electron/graph/parse-markdown-to-node.ts`
 - `electron/handlers/file-watch-handlers.ts` (3 imports)
 - `electron/handlers/ipc-graph-handlers.ts` (2 imports)
@@ -75,7 +75,7 @@ import type { Graph } from '../../src/graph-core/functional/types'
 import type { Graph } from '@/graph-core/functional/types'
 ```
 
-**Note:** This requires configuring the `@/` path alias for electron files in tsconfig.
+**Note:** This requires configuring the `@/` absolutePath alias for electron files in tsconfig.
 
 ### 2. Unused Imports (6 errors) ❌
 
@@ -144,7 +144,7 @@ These are acceptable functional compromises for real-world code.
 ⚠️ `applyGraphActionsToDB.ts` - Unused imports, one throw statement
 ⚠️ `applyFSEventToGraph.ts` - Unused imports, one `let`
 ⚠️ `project-to-cytoscape.ts` - Unused imports
-⚠️ `load-graph-from-disk.ts` - Relative imports, for loops (acceptable)
+⚠️ `loadGraphFromDisk.ts` - Relative imports, for loops (acceptable)
 ⚠️ `parse-markdown-to-node.ts` - Relative imports
 ⚠️ `extract-linked-node-ids.ts` - Relative imports
 
@@ -170,7 +170,7 @@ These are acceptable functional compromises for real-world code.
 
 ## Next Steps
 
-1. Configure tsconfig path alias for `@/` to work in electron files
+1. Configure tsconfig absolutePath alias for `@/` to work in electron files
 2. Run auto-fix for unused imports: `npx eslint --fix`
 3. Manually fix remaining errors
 4. Add eslint to CI/CD to enforce FP rules going forward

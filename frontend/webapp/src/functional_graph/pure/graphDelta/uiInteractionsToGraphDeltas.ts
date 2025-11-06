@@ -1,5 +1,5 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {DeleteNode, Graph, GraphDelta, Node, NodeId} from '@/functional_graph/pure/types.ts'
+import type {Graph, GraphDelta, Node, NodeId} from '@/functional_graph/pure/types.ts'
 import {calculateInitialPositionForChild} from "@/functional_graph/pure/positioning/calculateInitialPosition.ts";
 
 /**
@@ -19,7 +19,7 @@ export function fromUICreateChildToUpsertNode(
 ): GraphDelta {
   // Create the new node with default values for an empty node
   const newNode: Node = {
-    idAndFilePath: parentNode.idAndFilePath + '_' + parentNode.outgoingEdges.length, //todo doesn't guarantee uniqueness, but tis good enough
+    relativeFilePathIsID: parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length, //todo doesn't guarantee uniqueness, but tis good enough
     outgoingEdges: [],
     content: '# New Node',
     nodeUIMetadata: {
@@ -31,7 +31,7 @@ export function fromUICreateChildToUpsertNode(
   // Create updated parent node with edge to new child
   const updatedParentNode: Node = {
     ...parentNode,
-    outgoingEdges: [...parentNode.outgoingEdges, newNode.idAndFilePath]
+    outgoingEdges: [...parentNode.outgoingEdges, newNode.relativeFilePathIsID]
   }
 
   // Return deltas for both the new child and the updated parent

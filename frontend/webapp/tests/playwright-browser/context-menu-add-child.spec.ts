@@ -214,10 +214,10 @@ test.describe('Context Menu - Create Child Node', () => {
             // Update mock graph state when delta is applied
             if (delta[0]?.type === 'UpsertNode') {
               const newNode = delta[0].nodeToUpsert;
-              mockGraph.nodes[newNode.idAndFilePath] = newNode;
+              mockGraph.nodes[newNode.relativeFilePathIsID] = newNode;
 
               // Update parent's outgoing edges
-              const parentUpdate = delta.find((d: any) => d.nodeToUpsert?.idAndFilePath === 'parent');
+              const parentUpdate = delta.find((d: any) => d.nodeToUpsert?.relativeFilePathIsID === 'parent');
               if (parentUpdate?.nodeToUpsert) {
                 mockGraph.nodes['parent'] = parentUpdate.nodeToUpsert;
               }

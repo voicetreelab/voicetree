@@ -32,7 +32,7 @@ title: "My Node"
 
     const result = parseMarkdownToGraphNode(content, 'my-file.md')
 
-    expect(result.idAndFilePath).toBe('my-file')
+    expect(result.relativeFilePathIsID).toBe('my-file')
   })
 
   it('should extract title from heading when not in frontmatter', () => {
@@ -104,7 +104,7 @@ Content here`
 
     const result = parseMarkdownToGraphNode(content, 'subfolder/nested/file.md')
 
-    expect(result.idAndFilePath).toBe('subfolder/nested/file')
+    expect(result.relativeFilePathIsID).toBe('subfolder/nested/file')
   })
 
   it('should handle different heading levels', () => {

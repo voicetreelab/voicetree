@@ -30,7 +30,7 @@ fi
 # 2. Run with production-like environment
 echo "Starting with restricted PATH..."
 
-# Save current Node path before restricting
+# Save current Node absolutePath before restricting
 NODE_PATH=$(which node)
 NODE_DIR=$(dirname "$NODE_PATH")
 

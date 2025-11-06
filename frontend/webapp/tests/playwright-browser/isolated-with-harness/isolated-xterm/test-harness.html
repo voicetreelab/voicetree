@@ -210,14 +210,14 @@
           window.currentTerminalId = result.terminalId;
 
           // Set up data listener
-          window.electronAPI.terminal.onData((idAndFilePath, data) => {
+          window.electronAPI.terminal.onData((relativeFilePathIsID, data) => {
             if (id === result.terminalId) {
               term.write(data);
             }
           });
 
           // Set up exit listener
-          window.electronAPI.terminal.onExit((idAndFilePath, code) => {
+          window.electronAPI.terminal.onExit((relativeFilePathIsID, code) => {
             if (id === result.terminalId) {
               term.writeln(`\r\nProcess exited with code ${code}`);
               statusEl.textContent = 'Terminal disconnected';

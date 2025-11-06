@@ -14,60 +14,84 @@ export const SPAWN_RADIUS = 200; // pixels from parent
 export const CHILD_ANGLE_CONE = 90; // degrees (± 45° from parent)
 
 /**
+ * Calculate midpoint between two positions on a circular scale [0, 1)
+ */
+function calculateMidpoint(current: number, next: number): number {
+  if (next > current) {
+    return (current + next) / 2;
+  } else {
+    // Wrapping case: 0.75 -> 0 becomes 0.75 -> 1.0 -> 0
+    const midpoint = (current + next + 1) / 2;
+    return midpoint >= 1 ? midpoint - 1 : midpoint;
+  }
+}
+
+/**
+ * Generate midpoints for a level of positions
+ */
+function generateMidpointsLevel(prevLevel: readonly number[]): readonly number[] {
+  return prevLevel.map((current, i) => {
+    const next = prevLevel[(i + 1) % prevLevel.length];
+    return calculateMidpoint(current, next);
+  });
+}
+
+/**
+ * Build levels recursively until we have enough positions
+ */
+function buildLevelsUntilCount(
+  levels: readonly (readonly number[])[],
+  totalPositions: number,
+  count: number
+): readonly (readonly number[])[] {
+  if (totalPositions >= count) {
+    return levels;
+  }
+
+  const prevLevel = levels[levels.length - 1];
+  const newLevel = generateMidpointsLevel(prevLevel);
+
+  return buildLevelsUntilCount(
+    [...levels, newLevel],
+    totalPositions + newLevel.length,
+    count
+  );
+}
+
+/**
+ * Flatten levels into a single array up to the count limit
+ */
+function flattenLevels(
+  levels: readonly (readonly number[])[],
+  count: number
+): readonly number[] {
+  return levels.flatMap(level => level).slice(0, count);
+}
+
+/**
  * Build an array of normalized positions [0, 1] using recursive subdivision
  * Returns positions level-by-level: quarters, then midpoints, then their midpoints, etc.
  */
-function buildSubdividedPositions(count: number): number[] {
+function buildSubdividedPositions(count: number): readonly number[] {
   if (count === 0) return [];
 
-  // Build positions level by level
-  const result: number[] = [];
-  const levels: number[][] = [];
-
   // Level 0: quarters
-  levels.push([0, 0.25, 0.5, 0.75]);
+  const initialLevels: readonly (readonly number[])[] = [[0, 0.25, 0.5, 0.75]];
+  const initialCount = 4;
 
-  // Keep adding levels until we have enough positions
-  let totalPositions = 4;
-  while (totalPositions < count) {
-    const prevLevel = levels[levels.length - 1];
-    const newLevel: number[] = [];
+  // Build levels recursively until we have enough positions
+  const allLevels = buildLevelsUntilCount(initialLevels, initialCount, count);
 
-    // Add midpoints between adjacent positions in previous level
-    for (let i = 0; i < prevLevel.length; i++) {
-      const current = prevLevel[i];
-      const next = prevLevel[(i + 1) % prevLevel.length];
+  // Flatten levels into result array, taking only what we need
+  return flattenLevels(allLevels, count);
+}
 
-      // Calculate midpoint (handle wrapping around 1.0)
-      let midpoint: number;
-      if (next > current) {
-        midpoint = (current + next) / 2;
-      } else {
-        // Wrapping case: 0.75 -> 0 becomes 0.75 -> 1.0 -> 0
-        midpoint = (current + next + 1) / 2;
-        if (midpoint >= 1) {
-          midpoint -= 1;
-        }
-      }
-
-      newLevel.push(midpoint);
-    }
-
-    levels.push(newLevel);
-    totalPositions += newLevel.length;
-  }
-
-  // Flatten levels into result array
-  for (const level of levels) {
-    for (const pos of level) {
-      result.push(pos);
-      if (result.length >= count) {
-        return result;
-      }
-    }
-  }
-
-  return result;
+/**
+ * Normalize an angle to [0, 360) range
+ */
+function normalizeAngle(angle: number): number {
+  const normalized = angle % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
 }
 
 /**
@@ -85,33 +109,17 @@ export function calculateChildAngle(
   parentAngle?: number
 ): number {
   // Determine angle range
-  let rangeMin: number;
-  let rangeSize: number;
-
-  if (parentAngle !== undefined) {
-    // Children constrained to parent angle ± 45° (90° cone)
-    rangeMin = parentAngle - 45;
-    rangeSize = CHILD_ANGLE_CONE;
-  } else {
-    // Root nodes: full 360° range
-    rangeMin = 0;
-    rangeSize = 360;
-  }
+  const rangeMin = parentAngle !== undefined ? parentAngle - 45 : 0;
+  const rangeSize = parentAngle !== undefined ? CHILD_ANGLE_CONE : 360;
 
   // Get normalized position [0, 1] for this child index
   const positions = buildSubdividedPositions(childIndex + 1);
   const normalizedPos = positions[childIndex];
 
   // Map to angle range and normalize to [0, 360)
-  let angle = rangeMin + (normalizedPos * rangeSize);
+  const angle = rangeMin + (normalizedPos * rangeSize);
 
-  // Normalize to [0, 360)
-  angle = angle % 360;
-  if (angle < 0) {
-    angle += 360;
-  }
-
-  return angle;
+  return normalizeAngle(angle);
 }
 
 /**
@@ -124,7 +132,7 @@ export function calculateChildAngle(
 export function polarToCartesian(
   angle: number,
   radius: number
-): { x: number; y: number } {
+): { readonly x: number; readonly y: number } {
   const radians = (angle * Math.PI) / 180;
   return {
     x: radius * Math.cos(radians),

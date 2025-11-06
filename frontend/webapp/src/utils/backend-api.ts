@@ -54,13 +54,13 @@ export interface BackendApiError {
  * This endpoint tells the backend which markdown tree directory to use for saving
  * and loading markdown files.
  *
- * @param directoryPath - Absolute path to the markdown tree directory
+ * @param directoryPath - Absolute absolutePath to the markdown tree directory
  * @returns Response with status and number of nodes loaded
  * @throws Error if the request fails or returns an error
  */
 export async function loadDirectory(directoryPath: string): Promise<LoadDirectoryResponse> {
   if (!directoryPath || directoryPath.trim() === '') {
-    throw new Error('Directory path cannot be empty');
+    throw new Error('Directory absolutePath cannot be empty');
   }
 
   try {

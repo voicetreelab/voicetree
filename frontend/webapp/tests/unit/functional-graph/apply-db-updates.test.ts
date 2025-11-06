@@ -45,7 +45,7 @@ describe('apply_db_updates_to_graph', () => {
     it('should add a new node to empty graph with correct ID, title, and content', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/my-note.md',
+        absolutePath: '/test/my-note.md',
         content: '# My Note Title\n\nSome content here',
         eventType: 'Added'
       }
@@ -64,7 +64,7 @@ describe('apply_db_updates_to_graph', () => {
     it('should parse links from content and add them as outgoingEdges', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/node-a.md',
+        absolutePath: '/test/node-a.md',
         content: '# Node A\n\nLinks to [[node-b]] and [[node-c]]',
         eventType: 'Added'
       }
@@ -79,7 +79,7 @@ describe('apply_db_updates_to_graph', () => {
     it('should handle content with no links (empty outgoingEdges array)', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/node-a.md',
+        absolutePath: '/test/node-a.md',
         content: '# Node A\n\nNo links here',
         eventType: 'Added'
       }
@@ -95,14 +95,14 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createEmptyGraph()
 
       const update1: FSUpdate = {
-        path: '/test/node-1.md',
+        absolutePath: '/test/node-1.md',
         content: '# Node 1',
         eventType: 'Added'
       }
       const graph1 = apply_db_updates_to_graph(graph, update1)(testEnv)
 
       const update2: FSUpdate = {
-        path: '/test/node-2.md',
+        absolutePath: '/test/node-2.md',
         content: '# Node 2',
         eventType: 'Added'
       }
@@ -118,7 +118,7 @@ describe('apply_db_updates_to_graph', () => {
       const existingGraph = createGraphWithNode('existing-node')
 
       const update: FSUpdate = {
-        path: '/test/existing-node.md',
+        absolutePath: '/test/existing-node.md',
         content: '# Updated Title\n\nNew content',
         eventType: 'Added'
       }
@@ -131,10 +131,10 @@ describe('apply_db_updates_to_graph', () => {
       expect(updatedGraph.nodes['existing-node'].content).toBe('# Updated Title\n\nNew content')
     })
 
-    it('should preserve relative path in node ID for nested files', () => {
+    it('should preserve relative absolutePath in node ID for nested files', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/tmp/test-vault/subfolder/nested-note.md',
+        absolutePath: '/tmp/test-vault/subfolder/nested-note.md',
         content: '# Nested Note\n\nContent in subfolder',
         eventType: 'Added'
       }
@@ -142,7 +142,7 @@ describe('apply_db_updates_to_graph', () => {
       const effect = apply_db_updates_to_graph(graph, update)
       const updatedGraph = effect(testEnv)
 
-      // Verify node ID includes the relative path
+      // Verify node ID includes the relative absolutePath
       expect(updatedGraph.nodes['subfolder/nested-note']).toBeDefined()
       expect(updatedGraph.nodes['subfolder/nested-note'].id).toBe('subfolder/nested-note')
       expect(updatedGraph.nodes['subfolder/nested-note'].title).toBe('Nested Note')
@@ -151,7 +151,7 @@ describe('apply_db_updates_to_graph', () => {
     it('should handle deeply nested paths correctly', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/tmp/test-vault/a/b/c/deep.md',
+        absolutePath: '/tmp/test-vault/a/b/c/deep.md',
         content: '# Deep Note',
         eventType: 'Added'
       }
@@ -159,7 +159,7 @@ describe('apply_db_updates_to_graph', () => {
       const effect = apply_db_updates_to_graph(graph, update)
       const updatedGraph = effect(testEnv)
 
-      // Verify full relative path is preserved
+      // Verify full relative absolutePath is preserved
       expect(updatedGraph.nodes['a/b/c/deep']).toBeDefined()
       expect(updatedGraph.nodes['a/b/c/deep'].id).toBe('a/b/c/deep')
     })
@@ -170,7 +170,7 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createGraphWithNode('my-note')
 
       const update: FSUpdate = {
-        path: '/test/my-note.md',
+        absolutePath: '/test/my-note.md',
         content: '# Updated Title\n\nUpdated content',
         eventType: 'Changed'
       }
@@ -199,7 +199,7 @@ describe('apply_db_updates_to_graph', () => {
       }
 
       const update: FSUpdate = {
-        path: '/test/node-a.md',
+        absolutePath: '/test/node-a.md',
         content: '# Node A\n\nNow links to [[node-c]] and [[node-d]]',
         eventType: 'Changed'
       }
@@ -223,7 +223,7 @@ describe('apply_db_updates_to_graph', () => {
       }
 
       const update: FSUpdate = {
-        path: '/test/node-a.md',
+        absolutePath: '/test/node-a.md',
         content: '# A Updated',
         eventType: 'Changed'
       }
@@ -239,7 +239,7 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createEmptyGraph()
 
       const update: FSUpdate = {
-        path: '/test/new-node.md',
+        absolutePath: '/test/new-node.md',
         content: '# New Node',
         eventType: 'Changed'
       }
@@ -257,7 +257,7 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createGraphWithNode('node-to-delete')
 
       const update: FSUpdate = {
-        path: '/test/node-to-delete.md',
+        absolutePath: '/test/node-to-delete.md',
         content: '',
         eventType: 'Deleted'
       }
@@ -280,7 +280,7 @@ describe('apply_db_updates_to_graph', () => {
       }
 
       const update: FSUpdate = {
-        path: '/test/node-a.md',
+        absolutePath: '/test/node-a.md',
         content: '',
         eventType: 'Deleted'
       }
@@ -306,7 +306,7 @@ describe('apply_db_updates_to_graph', () => {
       }
 
       const update: FSUpdate = {
-        path: '/test/node-a.md',
+        absolutePath: '/test/node-a.md',
         content: '',
         eventType: 'Deleted'
       }
@@ -333,7 +333,7 @@ describe('apply_db_updates_to_graph', () => {
       }
 
       const update: FSUpdate = {
-        path: '/test/node-a.md',
+        absolutePath: '/test/node-a.md',
         content: '',
         eventType: 'Deleted'
       }
@@ -350,7 +350,7 @@ describe('apply_db_updates_to_graph', () => {
     it('should be a pure function - same inputs produce same outputs', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/node.md',
+        absolutePath: '/test/node.md',
         content: '# Node',
         eventType: 'Added'
       }
@@ -370,7 +370,7 @@ describe('apply_db_updates_to_graph', () => {
       const originalEdges = { ...graph.edges }
 
       const update: FSUpdate = {
-        path: '/test/node.md',
+        absolutePath: '/test/node.md',
         content: '# Node',
         eventType: 'Added'
       }
@@ -400,7 +400,7 @@ describe('apply_db_updates_to_graph', () => {
 
       const graph = createEmptyGraph()
       const update: FSUpdate = {
-        path: '/test/node.md',
+        absolutePath: '/test/node.md',
         content: '# Node',
         eventType: 'Added'
       }

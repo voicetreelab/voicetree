@@ -15,7 +15,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import { focusTerminal, getTerminalContent } from './test-utils';
 
-// Use absolute path from project root
+// Use absolute absolutePath from project root
 const PROJECT_ROOT = path.resolve(process.cwd());
 
 interface ExtendedWindow extends Window {

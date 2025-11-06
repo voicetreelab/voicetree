@@ -82,7 +82,7 @@ export function ColaRefinementTestHarness() {
           selector: 'node',
           style: {
             'background-color': '#4a90e2',
-            'label': 'data(idAndFilePath)',
+            'label': 'data(relativeFilePathIsID)',
             'color': '#fff',
             'text-valign': 'center',
             'text-halign': 'center',

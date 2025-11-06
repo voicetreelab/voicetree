@@ -123,7 +123,7 @@ Child content`
         mockGraph = {
             nodes: {
                 'parent': {
-                    idAndFilePath: 'parent',
+                    relativeFilePathIsID: 'parent',
                     content: '# Parent Node\n\nParent content',
                     outgoingEdges: ['child1'],
                     nodeUIMetadata: {
@@ -132,7 +132,7 @@ Child content`
                     }
                 },
                 'child1': {
-                    idAndFilePath: 'child1',
+                    relativeFilePathIsID: 'child1',
                     content: '# Child 1\n\nChild content',
                     outgoingEdges: [],
                     nodeUIMetadata: {

@@ -79,7 +79,7 @@ async function getNodePositions(page: any) {
 
 test.describe('Cola Refinement Module', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to test harness with full path
+    // Navigate to test harness with full absolutePath
     await page.goto('/tests/e2e/isolated-with-harness/graph-core/cola-refinement-harness.html');
 
     // Wait for Cytoscape to initialize

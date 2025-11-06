@@ -1,7 +1,6 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type { Node } from '@/functional_graph/pure/types'
 import { extractFrontmatter } from '@/functional_graph/pure/markdown_parsing/extract-frontmatter'
-import { extractTitle } from '@/functional_graph/pure/markdown_parsing/extract-title'
 import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
 
 /**
@@ -14,7 +13,7 @@ import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filen
  * @returns Node with all fields populated
  *
  * Field resolution priority:
- * - idAndFilePath: frontmatter.node_id > filenameToNodeId(filename)
+ * - relativeFilePathIsID: frontmatter.node_id > filenameToNodeId(filename)
  * - title: frontmatter.title > extractTitle(content) > 'Untitled'
  * - content: full markdown content
  * - summary: frontmatter.summary > ''
@@ -32,7 +31,7 @@ import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filen
  *
  * const node = parseMarkdownToGraphNode(content, "test.md")
  * // node = {
- * //   idAndFilePath: "123",
+ * //   relativeFilePathIsID: "123",
  * //   title: "My Node",
  * //   content: content,
  * //   summary: "A test node",
@@ -44,8 +43,12 @@ export function parseMarkdownToGraphNode(content: string, filename: string): Nod
   const frontmatter = extractFrontmatter(content)
 
   return {
-    idAndFilePath: filenameToNodeId(filename),
+    relativeFilePathIsID: filenameToNodeId(filename),
+    outgoingEdges: [],
     content,
-    color: frontmatter.color ? O.some(frontmatter.color) : O.none
+    nodeUIMetadata: {
+      color: frontmatter.color ? O.some(frontmatter.color) : O.none,
+      position: { x: 0, y: 0 }
+    }
   }
 }

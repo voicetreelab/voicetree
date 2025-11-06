@@ -1,4 +1,4 @@
-import type {Node, NodeId, NodeUIMetadata} from "@/functional_graph/pure/types.ts";
+import type {Node, NodeUIMetadata} from "@/functional_graph/pure/types.ts";
 import * as O from 'fp-ts/lib/Option.js'
 
 /**

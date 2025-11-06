@@ -206,7 +206,7 @@ class TypeScriptConfigCache {
 
   /**
    * Get appropriate tsconfig for a file
-   * @param {string} filePath - File path to check
+   * @param {string} filePath - File absolutePath to check
    * @returns {string} Path to appropriate tsconfig file
    */
   getTsConfigForFile(filePath) {
@@ -274,7 +274,7 @@ class TypeScriptConfigCache {
 
   /**
    * Simple pattern matching for file paths
-   * @param {string} filePath - File path to test
+   * @param {string} filePath - File absolutePath to test
    * @param {string} pattern - Glob-like pattern
    * @returns {boolean} True if file matches pattern
    */
@@ -291,7 +291,7 @@ class TypeScriptConfigCache {
     // In tsconfig, a pattern like "src" means "src/**/*"
     // Check if this is a simple directory pattern (no wildcards)
     if (!pattern.includes('*') && !pattern.includes('?')) {
-      // It's a simple directory path - match any file under it
+      // It's a simple directory absolutePath - match any file under it
       return filePath.startsWith(pattern + '/') || filePath === pattern;
     }
 
@@ -457,8 +457,8 @@ class QualityChecker {
   }
 
   /**
-   * Detect file type from path
-   * @param {string} filePath - File path
+   * Detect file type from absolutePath
+   * @param {string} filePath - File absolutePath
    * @returns {string} File type
    */
   detectFileType(filePath) {
@@ -560,10 +560,10 @@ class QualityChecker {
   }
 
   /**
-   * Resolve relative import path to absolute path
+   * Resolve relative import absolutePath to absolute absolutePath
    * @param {string} fromFile - File doing the import
-   * @param {string} importPath - Relative import path
-   * @returns {string|null} Absolute file path or null if not found
+   * @param {string} importPath - Relative import absolutePath
+   * @returns {string|null} Absolute file absolutePath or null if not found
    */
   resolveImportPath(fromFile, importPath) {
     const dir = path.dirname(fromFile);
@@ -1061,7 +1061,7 @@ async function parseJsonInput() {
   if (!inputData.trim()) {
     log.warning('No JSON input provided. This hook expects JSON input from Claude Code.');
     log.info(
-      'For testing, provide JSON like: echo \'{"tool_name":"Edit","tool_input":{"file_path":"/path/to/file.ts"}}\' | node hook.js',
+      'For testing, provide JSON like: echo \'{"tool_name":"Edit","tool_input":{"file_path":"/absolutePath/to/file.ts"}}\' | node hook.js',
     );
     console.error(`\n${colors.yellow}👉 Hook executed but no input to process.${colors.reset}`);
     process.exit(0);
@@ -1077,9 +1077,9 @@ async function parseJsonInput() {
 }
 
 /**
- * Extract file path from tool input
+ * Extract file absolutePath from tool input
  * @param {Object} input - Tool input object
- * @returns {string|null} File path or null
+ * @returns {string|null} File absolutePath or null
  */
 function extractFilePath(input) {
   const { tool_input } = input;
@@ -1087,7 +1087,7 @@ function extractFilePath(input) {
     return null;
   }
 
-  return tool_input.file_path || tool_input.path || tool_input.notebook_path || null;
+  return tool_input.file_path || tool_input.absolutePath || tool_input.notebook_path || null;
 }
 
 /**
@@ -1166,7 +1166,7 @@ async function main() {
   const filePath = extractFilePath(input);
 
   if (!filePath) {
-    log.warning('No file path found in JSON input. Tool might not be file-related.');
+    log.warning('No file absolutePath found in JSON input. Tool might not be file-related.');
     log.debug(`JSON input was: ${JSON.stringify(input)}`);
     console.error(
       `\n${colors.yellow}👉 No file to check - tool may not be file-related.${colors.reset}`,
@@ -1225,7 +1225,7 @@ async function main() {
     console.error(
       `${colors.cyan}  → What CLAUDE.md pattern would have prevented this?${colors.reset}`,
     );
-    console.error(`${colors.cyan}  → Are you following JSDoc batching strategy?${colors.reset}`);
+    // console.error(`${colors.cyan}  → Are you following JSDoc batching strategy?${colors.reset}`);
     console.error(`${colors.yellow}📋 NEXT STEPS:${colors.reset}`);
     console.error(`${colors.yellow}  1. Fix the issues listed above${colors.reset}`);
     console.error(`${colors.yellow}  2. The hook will run again automatically${colors.reset}`);

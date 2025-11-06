@@ -14,7 +14,7 @@ describe('filename-utils', () => {
       expect(result).toBe('my-note')
     })
 
-    it('should handle filename with path', () => {
+    it('should handle filename with absolutePath', () => {
       const filename = 'subfolder/my-note.md'
 
       const result = filenameToNodeId(filename)
@@ -22,7 +22,7 @@ describe('filename-utils', () => {
       expect(result).toBe('subfolder/my-note')
     })
 
-    it('should handle deeply nested path', () => {
+    it('should handle deeply nested absolutePath', () => {
       const filename = 'folder/subfolder/deeply/nested/note.md'
 
       const result = filenameToNodeId(filename)
@@ -114,7 +114,7 @@ describe('filename-utils', () => {
       expect(result).toBe('my-note.md')
     })
 
-    it('should add .md extension to node ID with path', () => {
+    it('should add .md extension to node ID with absolutePath', () => {
       const nodeId = 'subfolder/my-note'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -122,7 +122,7 @@ describe('filename-utils', () => {
       expect(result).toBe('subfolder/my-note.md')
     })
 
-    it('should add .md extension to deeply nested path', () => {
+    it('should add .md extension to deeply nested absolutePath', () => {
       const nodeId = 'folder/subfolder/deeply/nested/note'
 
       const result = nodeIdToFilePathWithExtension(nodeId)

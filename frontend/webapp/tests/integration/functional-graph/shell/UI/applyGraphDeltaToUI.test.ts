@@ -48,7 +48,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // Create parent node first
             const parentNode: Node = {
-                idAndFilePath: 'parent',
+                relativeFilePathIsID: 'parent',
                 content: '# Parent Node',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -68,7 +68,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // Create child node with edge to parent
             const childNode: Node = {
-                idAndFilePath: 'child',
+                relativeFilePathIsID: 'child',
                 content: '# Child Node',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -121,7 +121,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Adding an orphan node (no outgoing edges)
             const orphanNode: Node = {
-                idAndFilePath: 'orphan',
+                relativeFilePathIsID: 'orphan',
                 content: '# Orphan Node',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -155,7 +155,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should remove a node from the graph', () => {
             // GIVEN: Graph with a node
             const node: Node = {
-                idAndFilePath: 'to-delete',
+                relativeFilePathIsID: 'to-delete',
                 content: '# Node to Delete',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -193,7 +193,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should update content and color but preserve position', () => {
             // GIVEN: Graph with a node
             const originalNode: Node = {
-                idAndFilePath: 'node-to-update',
+                relativeFilePathIsID: 'node-to-update',
                 content: '# Original Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -217,7 +217,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Updating the node with new content and color
             const updatedNode: Node = {
-                idAndFilePath: 'node-to-update',
+                relativeFilePathIsID: 'node-to-update',
                 content: '# Updated Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -256,7 +256,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Adding multiple nodes at once
             const node1: Node = {
-                idAndFilePath: 'bulk-1',
+                relativeFilePathIsID: 'bulk-1',
                 content: '# Bulk Node 1',
                 outgoingEdges: ['bulk-2'],
                 nodeUIMetadata: {
@@ -266,7 +266,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const node2: Node = {
-                idAndFilePath: 'bulk-2',
+                relativeFilePathIsID: 'bulk-2',
                 content: '# Bulk Node 2',
                 outgoingEdges: ['bulk-3'],
                 nodeUIMetadata: {
@@ -276,7 +276,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const node3: Node = {
-                idAndFilePath: 'bulk-3',
+                relativeFilePathIsID: 'bulk-3',
                 content: '# Bulk Node 3',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -309,7 +309,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should handle mixed operations (add, update, delete) in one delta', () => {
             // GIVEN: Graph with 2 nodes
             const existingNode: Node = {
-                idAndFilePath: 'existing',
+                relativeFilePathIsID: 'existing',
                 content: '# Existing',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -319,7 +319,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const nodeToDelete: Node = {
-                idAndFilePath: 'to-delete',
+                relativeFilePathIsID: 'to-delete',
                 content: '# Will be deleted',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -339,7 +339,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // WHEN: Applying mixed delta (add new, update existing, delete one)
             const newNode: Node = {
-                idAndFilePath: 'new',
+                relativeFilePathIsID: 'new',
                 content: '# New Node',
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -379,7 +379,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
         it('should not create duplicate edges', () => {
             // GIVEN: Two nodes with an edge
             const parent: Node = {
-                idAndFilePath: 'parent',
+                relativeFilePathIsID: 'parent',
                 content: '# Parent',
                 outgoingEdges: ['child'],
                 nodeUIMetadata: {
@@ -389,7 +389,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             const child: Node = {
-                idAndFilePath: 'child',
+                relativeFilePathIsID: 'child',
                 content: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {

@@ -343,7 +343,7 @@ test.describe('VoiceTreeGraphView Vanilla Implementation', () => {
     console.log(`✓ Node position: (${nodePosition!.x}, ${nodePosition!.y})`);
 
     // Find canvas element (use the layer2-node canvas which is the top interaction layer)
-    const canvas = await page.locator('#graph-container canvas[data-idAndFilePath="layer2-node"]');
+    const canvas = await page.locator('#graph-container canvas[data-relativeFilePathIsID="layer2-node"]');
     const canvasBox = await canvas.boundingBox();
     expect(canvasBox).not.toBeNull();
 

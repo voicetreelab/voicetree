@@ -10,17 +10,15 @@
  * - Diana (integrator): Use this interface to wire up VoiceTreeApp
  */
 
-import { NodeSingular } from 'cytoscape';
-
 /**
  * File event data structure from FileWatcherService
  */
 export interface FileEvent {
-  /** Full path to the file */
+  /** Full absolutePath to the file */
   fullPath: string;
   /** File content (markdown) */
   content: string;
-  /** Relative path from watch directory */
+  /** Relative absolutePath from watch directory */
   relativePath?: string;
 }
 
@@ -57,8 +55,6 @@ export interface VoiceTreeGraphViewOptions {
   onLoading?: (isLoading: boolean) => void;
   /** Initial dark mode state (default: false) */
   initialDarkMode?: boolean;
-  /** Use headless Cytoscape (for tests, default: false) */
-  headless?: boolean;
 }
 
 // FileWatcherService interface removed - VoiceTreeGraphView uses window.electronAPI directly

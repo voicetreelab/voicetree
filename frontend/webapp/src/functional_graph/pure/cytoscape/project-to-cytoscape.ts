@@ -25,7 +25,7 @@ export function projectToCytoscape(graph: Graph): CytoscapeElements {
   const nodes: readonly CytoscapeNodeElement[] = Object.values(graph.nodes).map(
     (node): CytoscapeNodeElement => ({
       data: {
-        id: node.idAndFilePath,
+        id: node.relativeFilePathIsID,
         label: node.title,
         content: node.content,
         summary: node.summary,

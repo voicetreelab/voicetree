@@ -33,7 +33,7 @@ const test = base.extend<{ appWindow: Page; electronApp: ElectronApplication }>(
 });
 
 test.describe('Real PTY Terminal Tests', () => {
-  test('should execute pwd command and return real path', async ({ appWindow }) => {
+  test('should execute pwd command and return real absolutePath', async ({ appWindow }) => {
     // Wait for app to initialize
     await appWindow.waitForTimeout(2000);
 
@@ -71,14 +71,14 @@ test.describe('Real PTY Terminal Tests', () => {
             outputData += data;
             console.log('Received data:', data);
 
-            // Look for path in output (after pwd command)
+            // Look for absolutePath in output (after pwd command)
             if (outputData.includes('pwd') && !gotPwd) {
-              // Extract the path from the output
+              // Extract the absolutePath from the output
               const lines = outputData.split(/\r?\n/);
               for (const line of lines) {
                 // Skip prompt lines and the pwd command itself
                 if (line && !line.includes('$') && !line.includes('pwd') && line.trim() !== '') {
-                  if (line.startsWith('/') || line.includes(':\\')) { // Unix or Windows path
+                  if (line.startsWith('/') || line.includes(':\\')) { // Unix or Windows absolutePath
                     pwdOutput = line.trim();
                     gotPwd = true;
                     resolve(pwdOutput);
@@ -125,9 +125,9 @@ test.describe('Real PTY Terminal Tests', () => {
     expect(terminalTest.outputReceived).toBe(true);
     expect(terminalTest.pwdOutput).not.toBe('TIMEOUT');
 
-    // Verify we got a real path
+    // Verify we got a real absolutePath
     expect(terminalTest.pwdOutput).toBeTruthy();
-    expect(terminalTest.pwdOutput).toMatch(/^(\/|[A-Z]:\\)/); // Unix path or Windows path
+    expect(terminalTest.pwdOutput).toMatch(/^(\/|[A-Z]:\\)/); // Unix absolutePath or Windows absolutePath
   });
 
   test('should execute ls command and show files', async ({ appWindow }) => {

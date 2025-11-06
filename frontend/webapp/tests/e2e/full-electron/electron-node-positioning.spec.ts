@@ -99,7 +99,7 @@ test.describe('Node Positioning E2E Tests', () => {
     expect(createResult.success).toBe(true);
     expect(createResult.filePath).toBeDefined();
 
-    // Get the expected node ID from the file path
+    // Get the expected node ID from the file absolutePath
     const expectedNodeId = await appWindow.evaluate((filePath) => {
       // Import normalizeFileId inline - matches VoiceTreeGraphView implementation
       const normalizeFileId = (filePath: string): string => {
@@ -114,7 +114,7 @@ test.describe('Node Positioning E2E Tests', () => {
     }, createResult.filePath);
 
     console.log('Expected new node ID:', expectedNodeId);
-    console.log('Created file path:', createResult.filePath);
+    console.log('Created file absolutePath:', createResult.filePath);
 
     console.log('=== Step 2: Wait for new node to be added to graph ===');
     await pollForNodeCount(appWindow, 2);

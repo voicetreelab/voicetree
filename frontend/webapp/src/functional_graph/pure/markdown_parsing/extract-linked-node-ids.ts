@@ -19,8 +19,8 @@ import { nodeIdToFilePathWithExtension } from './filename-utils.ts'
  * ```typescript
  * const content = "See [[Node A]] and [[Node B]] and [[Node A]] again"
  * const nodes = {
- *   "1": { idAndFilePath: "1", title: "Node A", ... },
- *   "2": { idAndFilePath: "2", title: "Node B", ... }
+ *   "1": { relativeFilePathIsID: "1", title: "Node A", ... },
+ *   "2": { relativeFilePathIsID: "2", title: "Node B", ... }
  * }
  *
  * extractLinkedNodeIds(content, nodes)
@@ -40,10 +40,10 @@ export function extractLinkedNodeIds(
 
       // Find node by title, node ID, or filename matching linkText
       const targetNode = Object.values(nodes).find(
-        (n) =>  n.idAndFilePath === linkText || nodeIdToFilePathWithExtension(n.idAndFilePath) === linkText
+        (n) =>  n.relativeFilePathIsID === linkText || nodeIdToFilePathWithExtension(n.relativeFilePathIsID) === linkText
       )
 
-      return targetNode?.idAndFilePath
+      return targetNode?.relativeFilePathIsID
     })
     .filter((id): id is NodeId => id !== undefined)
 

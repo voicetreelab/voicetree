@@ -9,10 +9,7 @@ import type {Graph, Node} from "@/functional_graph/pure/types.ts";
  */
 export function findParentNode(node: Node, graph: Graph): Node | undefined {
     // Search for a node that has this node in its outgoingEdges
-    for (const candidateNode of Object.values(graph.nodes)) {
-        if (candidateNode.outgoingEdges.includes(node.idAndFilePath)) {
-            return candidateNode;
-        }
-    }
-    return undefined;
+    return Object.values(graph.nodes).find((candidateNode) =>
+        candidateNode.outgoingEdges.includes(node.relativeFilePathIsID)
+    );
 }

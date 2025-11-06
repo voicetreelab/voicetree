@@ -9,6 +9,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { VoiceTreeGraphView } from '@/views/VoiceTreeGraphView';
 import { MemoryMarkdownVault } from '@/providers/MemoryMarkdownVault';
 import * as O from 'fp-ts/Option';
+import type { Core } from 'cytoscape';
+
 
 describe('VoiceTreeGraphView with Functional Graph', () => {
   let container: HTMLElement;
@@ -99,10 +101,10 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
 
   it('should subscribe to functional graph updates via electronAPI', () => {
     // Setup mock electronAPI
-    const mockCallbacks: Array<(graph: any) => void> = [];
+    const mockCallbacks: Array<(graph: unknown) => void> = [];
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: any) => void) => {
+        onStateChanged: (callback: (graph: unknown) => void) => {
           mockCallbacks.push(callback);
           return () => {
             const idx = mockCallbacks.indexOf(callback);
@@ -113,7 +115,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     };
 
     // Inject mock API
-    (window as any).electronAPI = mockElectronAPI;
+    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
 
     // Create new graph instance to trigger subscription
     const testContainer = document.createElement('div');
@@ -130,22 +132,86 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Cleanup
     testGraph.dispose();
     document.body.removeChild(testContainer);
-    delete (window as any).electronAPI;
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+  });
+
+  it('should render graph delta to cytoscape when CustomEvent is dispatched', async () => {
+    // Create container and view
+    const testContainer = document.createElement('div');
+    testContainer.style.width = '800px';
+    testContainer.style.height = '600px';
+    document.body.appendChild(testContainer);
+
+    const testVault = new MemoryMarkdownVault();
+    const testGraph = new VoiceTreeGraphView(testContainer, testVault, { headless: true });
+
+    // Get the cytoscape instance
+    const cy = (testGraph as unknown as { cy: Core }).cy;
+
+    // Initially should only have ghost root
+    const initialNodes = cy.nodes();
+    expect(initialNodes.length).toBe(1);
+    expect(initialNodes.first().id()).toBe('__GHOST_ROOT__');
+
+    // Create a GraphDelta with a single node
+    const delta = [
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'foo',
+          content: '# Foo',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            color: O.none,
+            position: { x: 100, y: 100 }
+          }
+        }
+      }
+    ];
+
+    // Dispatch the CustomEvent (simulating preload.ts behavior)
+    window.dispatchEvent(new CustomEvent('graph:stateChanged', { detail: delta }));
+
+    // Wait for the update to be processed
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Verify the cytoscape state has changed
+    const nodes = cy.nodes();
+    const nonGhostNodes = nodes.filter(node => !node.data('isGhostRoot'));
+    expect(nonGhostNodes.length).toBe(1);
+
+    // Verify the node was added with correct data
+    const fooNode = cy.getElementById('foo');
+    expect(fooNode.length).toBe(1);
+    expect(fooNode.data('content')).toBe('# Foo');
+    expect(fooNode.position().x).toBe(100);
+    expect(fooNode.position().y).toBe(100);
+
+    // Verify edges (should have ghost edge connecting ghost root to foo)
+    const edges = cy.edges();
+    expect(edges.length).toBe(1);
+    expect(edges.first().data('source')).toBe('__GHOST_ROOT__');
+    expect(edges.first().data('target')).toBe('foo');
+    expect(edges.first().data('isGhostEdge')).toBe(true);
+
+    // Cleanup
+    testGraph.dispose();
+    document.body.removeChild(testContainer);
   });
 
   it('should update cytoscape when receiving graph state from main process', async () => {
     // Setup mock electronAPI with state change emitter
-    let stateChangeCallback: ((graph: any) => void) | null = null;
+    let stateChangeCallback: ((graph: unknown) => void) | null = null;
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: any) => void) => {
+        onStateChanged: (callback: (graph: unknown) => void) => {
           stateChangeCallback = callback;
           return () => { stateChangeCallback = null; };
         }
       }
     };
 
-    (window as any).electronAPI = mockElectronAPI;
+    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
 
     // Create graph instance
     const testContainer = document.createElement('div');
@@ -185,43 +251,43 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
 
     // Verify cytoscape was updated (filtering out ghost root if present)
-    const cy = (testGraph as any).cy.getCore();
-    const nonGhostNodes = cy.nodes().filter((node: any) => !node.data('isGhostRoot'));
+    const cy = (testGraph as unknown as { cy: { getCore: () => Core } }).cy.getCore();
+    const nonGhostNodes = cy.nodes().filter(node => !node.data('isGhostRoot'));
     expect(nonGhostNodes.length).toBe(2);
     expect(cy.edges().length).toBe(1);
 
     // Cleanup
     testGraph.dispose();
     document.body.removeChild(testContainer);
-    delete (window as any).electronAPI;
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 
   // ==========================================================================
   // FLOATING EDITOR TESTS
   // ==========================================================================
 
-  it('should open floating editor when vault path is available', async () => {
+  it('should open floating editor when vault absolutePath is available', async () => {
     // Setup vault with watching started
     vault.simulateWatchingStarted({
       directory: '/test/vault',
       timestamp: new Date().toISOString(),
     });
 
-    // Verify getWatchDirectory returns the path
+    // Verify getWatchDirectory returns the absolutePath
     expect(vault.getWatchDirectory?.()).toBe('/test/vault');
 
     // Setup mock electronAPI with state change emitter
-    let stateChangeCallback: ((graph: any) => void) | null = null;
+    let stateChangeCallback: ((graph: unknown) => void) | null = null;
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: any) => void) => {
+        onStateChanged: (callback: (graph: unknown) => void) => {
           stateChangeCallback = callback;
           return () => { stateChangeCallback = null; };
         }
       }
     };
 
-    (window as any).electronAPI = mockElectronAPI;
+    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
 
     // Create graph instance
     const testGraph = new VoiceTreeGraphView(container, vault, { headless: true });
@@ -246,38 +312,38 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
 
     // Simulate node tap
-    const cy = (testGraph as any).cy.getCore();
+    const cy = (testGraph as unknown as { cy: { getCore: () => Core } }).cy.getCore();
     const node = cy.getElementById('test-node');
     expect(node.length).toBe(1);
 
-    // The test passes if we can verify the vault path is accessible
+    // The test passes if we can verify the vault absolutePath is accessible
     // In actual UI, this would open the floating editor
     const vaultPath = vault.getWatchDirectory?.();
     expect(vaultPath).toBe('/test/vault');
 
     // Cleanup
     testGraph.dispose();
-    delete (window as any).electronAPI;
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 
-  it('should NOT open floating editor when vault path is missing', async () => {
-    // Don't call simulateWatchingStarted, so vault path is undefined
+  it('should NOT open floating editor when vault absolutePath is missing', async () => {
+    // Don't call simulateWatchingStarted, so vault absolutePath is undefined
 
     // Verify getWatchDirectory returns undefined
     expect(vault.getWatchDirectory?.()).toBeUndefined();
 
     // Setup mock electronAPI
-    let stateChangeCallback: ((graph: any) => void) | null = null;
+    let stateChangeCallback: ((graph: unknown) => void) | null = null;
     const mockElectronAPI = {
       graph: {
-        onStateChanged: (callback: (graph: any) => void) => {
+        onStateChanged: (callback: (graph: unknown) => void) => {
           stateChangeCallback = callback;
           return () => { stateChangeCallback = null; };
         }
       }
     };
 
-    (window as any).electronAPI = mockElectronAPI;
+    (window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI = mockElectronAPI;
 
     // Create graph instance
     const testGraph = new VoiceTreeGraphView(container, vault, { headless: true });
@@ -301,12 +367,12 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Wait for graph update
     await new Promise(resolve => setTimeout(resolve, 10));
 
-    // The test passes if vault path is still undefined
+    // The test passes if vault absolutePath is still undefined
     const vaultPath = vault.getWatchDirectory?.();
     expect(vaultPath).toBeUndefined();
 
     // Cleanup
     testGraph.dispose();
-    delete (window as any).electronAPI;
+    delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   });
 });
