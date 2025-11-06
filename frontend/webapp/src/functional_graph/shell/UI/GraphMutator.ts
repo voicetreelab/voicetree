@@ -1,6 +1,6 @@
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
-import { GHOST_ROOT_ID } from '@/graph-core/constants';
-import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS, calculateParentAngle } from '@/graph-core/graphviz/layout/angularPositionSeeding';
+import { GHOST_ROOT_ID } from '@/graph-core/constants.ts';
+import { calculateChildAngle, polarToCartesian, SPAWN_RADIUS, calculateParentAngle } from '@/graph-core/graphviz/layout/angularPositionSeeding.ts';
 
 /**
  * GraphMutator - Deep module for all graph mutations
@@ -259,36 +259,7 @@ export class GraphMutator {
     return createdNodes;
   }
 
-  /**
-   * Calculate initial position for a new node using angular positioning
-   * Position at calculated angle relative to parent
-   */
-  private calculateInitialPosition(parentId?: string): { x: number; y: number } {
-    if (parentId) {
-      const parentNode = this.cy.getElementById(parentId);
-      if (parentNode.length > 0) {
-        const parentPos = parentNode.position();
-        const parentAngle = calculateParentAngle(parentNode, this.cy);
-
-        // Count existing siblings (children with same parentId)
-        const siblingCount = this.cy.nodes().filter(n => n.data('parentId') === parentId).length;
-
-        // Calculate angle for this child (will be the Nth child, 0-indexed)
-        const angle = calculateChildAngle(siblingCount, parentAngle);
-
-        // Convert to cartesian offset
-        const offset = polarToCartesian(angle, SPAWN_RADIUS);
-
-        return {
-          x: parentPos.x + offset.x,
-          y: parentPos.y + offset.y
-        };
-      }
-    }
-
-    // No parent - root node at origin
-    return { x: 0, y: 0 };
-  }
+    // pos moved to src/functional_graph/pure/positioning/calculateInitialPosition.ts
 
   /**
    * Ensure a node exists, creating a placeholder if necessary

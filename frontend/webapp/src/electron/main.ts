@@ -9,6 +9,7 @@ import TerminalManager from './terminal-manager.ts';
 import PositionManager from './position-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
 import '@/functional_graph/shell/main/ipc-graph-handlers.ts'; // Auto-registers IPC handlers
+import * as O from "fp-ts/lib/Option.js";
 
 // Fix PATH for macOS/Linux GUI apps
 // This ensures the Electron process and all child processes have access to
@@ -104,7 +105,7 @@ function createWindow() {
       return;
     }
 
-    const lastDirectory = await fileWatchManager.loadLastDirectory();
+    const lastDirectory = O.toNullable(await fileWatchManager.loadLastDirectory());
     if (lastDirectory) {
       console.log(`[AutoWatch] Found last directory: ${lastDirectory}`);
       console.log(`[AutoWatch] Auto-starting watch...`);

@@ -8,7 +8,6 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:test": "vite build",
-    "build:test-extension": "vite build --config vite.config.test-extension.ts",
     "lint": "eslint .",
     "check": "eslint . && tsc --noEmit",
     "preview": "vite preview",
@@ -20,9 +19,7 @@
     "test:electron": "electron-vite build --logLevel silent && playwright test --config=playwright-electron.config.ts",
     "test:browser": "playwright test tests/playwright-browser/isolated-with-harness/file-to-graph-pipeline-behavioral.spec.ts",
     "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
-    "electron:prod": "electron-vite build && src/electron .",
-    "electron:test": "NODE_ENV=development TEST_FILE_WATCHER=1 electron-vite build --logLevel silent && src/electron .",
-    "electron:terminal-test": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch --config electron.vite.terminal-test.config.ts",
+    "electron:prod": "electron-vite build && electron .",
     "electron:build": "electron-vite build",
     "electron:pack": "electron-vite build && electron-builder",
     "electron:dist": "electron-vite build && electron-builder --publish=never"
