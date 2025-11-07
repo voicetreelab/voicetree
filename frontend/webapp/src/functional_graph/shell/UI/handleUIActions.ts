@@ -1,4 +1,4 @@
-import type {GraphDelta} from "@/functional_graph/pure/types.ts";
+import type {GraphDelta, Node} from "@/functional_graph/pure/types.ts";
 import {fromUICreateChildToUpsertNode} from "@/functional_graph/pure/graphDelta/uiInteractionsToGraphDeltas.ts";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
@@ -17,7 +17,7 @@ export async function createNewChildNodeFromUI(
         return;
     }
     // Get parent node from graph
-    const parentNode = currentGraph.nodes[parentNodeId];
+    const parentNode : Node = currentGraph.nodes[parentNodeId];
 
     // Create GraphDelta (contains both child and updated parent with edge)
     const graphDelta: GraphDelta = fromUICreateChildToUpsertNode(currentGraph, parentNode);
@@ -25,8 +25,17 @@ export async function createNewChildNodeFromUI(
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
-    console.log('[ContextMenuService] Applied optimistic update for new child node');
-
     await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+}
+
+// Expose for testing
+declare global {
+    interface Window {
+        createNewChildNodeFromUI?: typeof createNewChildNodeFromUI;
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.createNewChildNodeFromUI = createNewChildNodeFromUI;
 }
 

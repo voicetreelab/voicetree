@@ -39,6 +39,7 @@ import { MIN_ZOOM, MAX_ZOOM, GHOST_ROOT_ID } from '@/graph-core/constants';
 import type { NodeDefinition } from '@/graph-core/types';
 import { setupBasicCytoscapeEventListeners, setupCytoscape } from './VoiceTreeGraphViewHelpers';
 import { applyGraphDeltaToUI } from '@/functional_graph/shell/UI/applyGraphDeltaToUI';
+import { clearCytoscapeState } from '@/functional_graph/shell/UI/clearCytoscapeState';
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -141,7 +142,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
    */
   private subscribeToGraphUpdates(): void {
     // Access electronAPI with type assertion since global Window type may not be recognized
-    const electronAPI = (window as { electronAPI?: { graph: { onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void } } }).electronAPI;
+    const electronAPI = (window as { electronAPI?: { graph: { onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void; onGraphClear: (callback: () => void) => () => void } } }).electronAPI;
 
     if (!electronAPI?.graph?.onGraphUpdate) {
       console.error('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
@@ -151,11 +152,29 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     const handleGraphDelta = (delta: GraphDelta): void => {
       console.log('[VoiceTreeGraphView] Received graph delta, length:', delta.length);
       console.trace('[VoiceTreeGraphView] Graph delta stack trace'); // DEBUG: Check if called repeatedly
+      if (this.emptyStateOverlay) {
+        this.emptyStateOverlay.style.display = 'none';
+      }
       applyGraphDeltaToUI(this.cy, delta);
     };
 
+    const handleGraphClear = (): void => {
+      console.log('[VoiceTreeGraphView] Received graph:clear event');
+      clearCytoscapeState(this.cy);
+      if (this.emptyStateOverlay) {
+        this.emptyStateOverlay.style.display = 'flex';
+      }
+    };
+
     // Subscribe to graph updates via electronAPI (returns cleanup function)
-    this.cleanupGraphSubscription = electronAPI.graph.onGraphUpdate(handleGraphDelta);
+    const cleanupUpdate = electronAPI.graph.onGraphUpdate(handleGraphDelta);
+    const cleanupClear = electronAPI.graph.onGraphClear?.(handleGraphClear);
+
+    // Store combined cleanup function
+    this.cleanupGraphSubscription = () => {
+      cleanupUpdate();
+      cleanupClear?.();
+    };
 
     // Auto-load previous folder if available
     this.autoLoadPreviousFolder();

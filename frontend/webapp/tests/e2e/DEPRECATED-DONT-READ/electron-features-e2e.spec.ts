@@ -28,8 +28,8 @@ import {
   clearBreathingAnimation,
   focusTerminal,
   getTerminalContent
-} from './test-utils';
-import { checkLayoutQuality } from './layout-utils';
+} from '../test-utils';
+import { checkLayoutQuality } from '../layout-utils';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 

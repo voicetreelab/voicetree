@@ -37,7 +37,7 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       },
-      timeout: 10000 // 10 second timeout
+      timeout: 5000 // 10 second timeout
     });
 
     await use(electronApp);
@@ -104,7 +104,7 @@ test.describe('Smoke Test', () => {
     console.log('✓ File watching started');
 
     // Wait for graph to load and broadcast to UI
-    await appWindow.waitForTimeout(1000);
+    await appWindow.waitForTimeout(200);
 
     // Verify graph was loaded into main process state
     const graph = await appWindow.evaluate(async () => {
@@ -116,7 +116,7 @@ test.describe('Smoke Test', () => {
     expect(graph).toBeDefined();
     const nodeCount = Object.keys(graph.nodes).length;
     console.log(`✓ Graph loaded into state with ${nodeCount} nodes`);
-    expect(nodeCount).toBeGreaterThan(0);
+    expect(nodeCount).toBeGreaterThan(1);
 
     // Verify graph was rendered in Cytoscape UI
     const cytoscapeState = await appWindow.evaluate(() => {
@@ -132,7 +132,7 @@ test.describe('Smoke Test', () => {
     console.log('  Sample labels:', cytoscapeState.nodeLabels.join(', '));
 
     // Smoke test: Just verify nodes are rendered (may include virtual nodes)
-    expect(cytoscapeState.nodeCount).toBeGreaterThan(0);
+    expect(cytoscapeState.nodeCount).toBeGreaterThan(1);
 
     console.log('✅ Smoke test passed!');
   });

@@ -66,6 +66,19 @@ async function saveLastDirectory(directoryPath: string): Promise<void> {
 
 export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     console.log('[loadFolder] Starting for path:', vaultPath);
+
+    const mainWindow = getMainWindow();
+    if (!mainWindow) {
+        console.error('No main window available');
+        return;
+    }
+
+    // Clear existing graph state in UI before loading new folder
+    if (!mainWindow.isDestroyed()) {
+        console.log('[loadFolder] Sending graph:clear event to UI');
+        mainWindow.webContents.send('graph:clear');
+    }
+
     // Load graph from disk (IO operation)
     const currentGraph: Graph = await loadGraphFromDisk(O.some(vaultPath));
     console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
@@ -77,12 +90,6 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     // Broadcast initial graph to UI (different event from incremental updates)
     const graphDelta : GraphDelta = mapNewGraphToDelta(currentGraph)
     console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
-
-    const mainWindow = getMainWindow();
-    if (!mainWindow) {
-        console.error('No main window available to broadcast graph delta');
-        return;
-    }
 
     applyGraphDeltaToMemStateAndUI(graphDelta, mainWindow)
     console.log('[loadFolder] Graph delta broadcast to UI');

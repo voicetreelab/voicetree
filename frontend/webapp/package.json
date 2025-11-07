@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "check": "eslint . && tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest --no-isolate run && playwright test tests/e2e/full-electron/electron-real-folder.spec.ts --config=playwright-electron.config.ts",
+    "test": "vitest --no-isolate run && playwright test tests/e2e/DEPRECATED-DONT-READ/electron-real-folder.spec.ts --config=playwright-electron.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:headless": "xvfb-run -a playwright test",
     "test:e2e:ui": "playwright test --ui",

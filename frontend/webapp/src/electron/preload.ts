@@ -101,6 +101,13 @@ const electronAPI: ElectronAPI = {
       const handler = (_event: unknown, delta: GraphDelta) => callback(delta);
       ipcRenderer.on('graph:stateChanged', handler);
       return () => ipcRenderer.off('graph:stateChanged', handler);
+    },
+
+    // Subscribe to graph clear events (returns unsubscribe function)
+    onGraphClear: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('graph:clear', handler);
+      return () => ipcRenderer.off('graph:clear', handler);
     }
   },
 

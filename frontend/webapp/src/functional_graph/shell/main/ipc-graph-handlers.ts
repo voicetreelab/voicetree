@@ -15,7 +15,7 @@ interface IpcHandlerDependencies {
 }
 
 export function registerAllIpcHandlers(deps: IpcHandlerDependencies) {
-
+  //FROM UI  TO DB
     // GRAPH UPDATE - handles all node actions (create, update, delete)
   ipcMain.handle('graph:applyDelta', async (_event, action: GraphDelta) => {
       console.log("! apply delta called in main")
