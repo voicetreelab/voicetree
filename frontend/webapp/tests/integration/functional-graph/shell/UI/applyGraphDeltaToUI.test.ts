@@ -12,7 +12,7 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/functional_graph/shell/UI/applyGraphDeltaToUI'
-import type { GraphDelta, Node } from '@/functional_graph/pure/types'
+import type { GraphDelta, GraphNode } from '@/functional_graph/pure/types'
 import { GHOST_ROOT_ID } from '@/graph-core/constants'
 
 describe('applyGraphDeltaToUI - Integration', () => {
@@ -47,9 +47,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(0)
 
             // Create parent node first
-            const parentNode: Node = {
+            const parentNode: GraphNode = {
                 relativeFilePathIsID: 'parent',
-                content: '# Parent Node',
+                content: '# Parent GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
@@ -67,9 +67,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, parentDelta)
 
             // Create child node with edge to parent
-            const childNode: Node = {
+            const childNode: GraphNode = {
                 relativeFilePathIsID: 'child',
-                content: '# Child Node',
+                content: '# Child GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
@@ -78,7 +78,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             }
 
             // Update parent to include edge to child
-            const parentWithEdge: Node = {
+            const parentWithEdge: GraphNode = {
                 ...parentNode,
                 outgoingEdges: ['child']
             }
@@ -120,9 +120,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(0)
 
             // WHEN: Adding an orphan node (no outgoing edges)
-            const orphanNode: Node = {
+            const orphanNode: GraphNode = {
                 relativeFilePathIsID: 'orphan',
-                content: '# Orphan Node',
+                content: '# Orphan GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
@@ -154,9 +154,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
     describe('Delete node', () => {
         it('should remove a node from the graph', () => {
             // GIVEN: Graph with a node
-            const node: Node = {
+            const node: GraphNode = {
                 relativeFilePathIsID: 'to-delete',
-                content: '# Node to Delete',
+                content: '# GraphNode to Delete',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
@@ -184,7 +184,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             applyGraphDeltaToUI(cy, deleteDelta)
 
-            // THEN: Node should be removed
+            // THEN: GraphNode should be removed
             expect(cy.getElementById('to-delete').length).toBe(0)
         })
     })
@@ -192,7 +192,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     describe('Update existing node metadata', () => {
         it('should update content and color but preserve position', () => {
             // GIVEN: Graph with a node
-            const originalNode: Node = {
+            const originalNode: GraphNode = {
                 relativeFilePathIsID: 'node-to-update',
                 content: '# Original Content',
                 outgoingEdges: [],
@@ -216,7 +216,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(originalPos.y).toBe(100)
 
             // WHEN: Updating the node with new content and color
-            const updatedNode: Node = {
+            const updatedNode: GraphNode = {
                 relativeFilePathIsID: 'node-to-update',
                 content: '# Updated Content',
                 outgoingEdges: [],
@@ -255,9 +255,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(0)
 
             // WHEN: Adding multiple nodes at once
-            const node1: Node = {
+            const node1: GraphNode = {
                 relativeFilePathIsID: 'bulk-1',
-                content: '# Bulk Node 1',
+                content: '# Bulk GraphNode 1',
                 outgoingEdges: ['bulk-2'],
                 nodeUIMetadata: {
                     color: O.none,
@@ -265,9 +265,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            const node2: Node = {
+            const node2: GraphNode = {
                 relativeFilePathIsID: 'bulk-2',
-                content: '# Bulk Node 2',
+                content: '# Bulk GraphNode 2',
                 outgoingEdges: ['bulk-3'],
                 nodeUIMetadata: {
                     color: O.some('#00ff00'),
@@ -275,9 +275,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            const node3: Node = {
+            const node3: GraphNode = {
                 relativeFilePathIsID: 'bulk-3',
-                content: '# Bulk Node 3',
+                content: '# Bulk GraphNode 3',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
@@ -308,7 +308,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
         it('should handle mixed operations (add, update, delete) in one delta', () => {
             // GIVEN: Graph with 2 nodes
-            const existingNode: Node = {
+            const existingNode: GraphNode = {
                 relativeFilePathIsID: 'existing',
                 content: '# Existing',
                 outgoingEdges: [],
@@ -318,7 +318,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            const nodeToDelete: Node = {
+            const nodeToDelete: GraphNode = {
                 relativeFilePathIsID: 'to-delete',
                 content: '# Will be deleted',
                 outgoingEdges: [],
@@ -338,9 +338,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(2)
 
             // WHEN: Applying mixed delta (add new, update existing, delete one)
-            const newNode: Node = {
+            const newNode: GraphNode = {
                 relativeFilePathIsID: 'new',
-                content: '# New Node',
+                content: '# New GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
@@ -348,7 +348,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            const updatedExisting: Node = {
+            const updatedExisting: GraphNode = {
                 ...existingNode,
                 content: '# Updated Existing'
             }
@@ -378,7 +378,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     describe('Edge handling', () => {
         it('should not create duplicate edges', () => {
             // GIVEN: Two nodes with an edge
-            const parent: Node = {
+            const parent: GraphNode = {
                 relativeFilePathIsID: 'parent',
                 content: '# Parent',
                 outgoingEdges: ['child'],
@@ -388,7 +388,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 }
             }
 
-            const child: Node = {
+            const child: GraphNode = {
                 relativeFilePathIsID: 'child',
                 content: '# Child',
                 outgoingEdges: [],

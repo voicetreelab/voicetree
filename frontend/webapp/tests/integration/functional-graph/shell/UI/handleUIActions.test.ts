@@ -23,7 +23,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             nodes: {
                 'parent': {
                     id: 'parent',
-                    content: '# Parent Node',
+                    content: '# Parent GraphNode',
                     outgoingEdges: ['child1'],
                     nodeUIMetadata: {
                         color: O.none,
@@ -48,7 +48,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             elements: [
                 {
                     group: 'nodes' as const,
-                    data: { id: 'parent', label: 'parent', content: '# Parent Node', summary: '' },
+                    data: { id: 'parent', label: 'parent', content: '# Parent GraphNode', summary: '' },
                     position: { x: 100, y: 100 }
                 },
                 {
@@ -110,7 +110,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             expect.objectContaining({
                 nodeToUpsert: expect.objectContaining({
                     id: newNodeId,
-                    content: '# New Node'
+                    content: '# New GraphNode'
                 }),
                 createsIncomingEdges: ['parent']
             })

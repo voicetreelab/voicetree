@@ -241,7 +241,7 @@ export async function checkBreathingAnimation(
     if (!cy) throw new Error('Cytoscape not initialized');
 
     const node = id ? cy.getElementById(id) : cy.nodes().first();
-    if (!node || node.length === 0) throw new Error('Node not found');
+    if (!node || node.length === 0) throw new Error('GraphNode not found');
 
     const widthSamples: number[] = [];
     const colorSamples: string[] = [];

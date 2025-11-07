@@ -3,9 +3,9 @@
  *
  * BEHAVIOR TESTED:
  * - INPUT: GraphDelta with UpsertNode action
- * - OUTPUT: Node file written to disk
+ * - OUTPUT: GraphNode file written to disk
  * - INPUT: GraphDelta with DeleteNode action
- * - OUTPUT: Node file removed from disk
+ * - OUTPUT: GraphNode file removed from disk
  *
  * This tests the integration of:
  * - applyGraphDeltaToDB shell function
@@ -23,7 +23,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { applyGraphDeltaToDB } from '@/functional_graph/shell/main/writePath/applyGraphDeltaToDB.ts'
 import { setGraph, setVaultPath, clearVaultPath } from '@/functional_graph/shell/state/graph-store'
-import type { Graph, GraphDelta, UpsertNodeAction, DeleteNode, Node } from '@/functional_graph/pure/types'
+import type { Graph, GraphDelta, UpsertNodeAction, DeleteNode, GraphNode } from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
@@ -53,13 +53,13 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // GIVEN: Empty graph and a UpsertNode delta
       const graph: Graph = { nodes: {} }
 
-      const testNode: Node = {
+      const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
-        content: '# Test Integration Node\n\nThis is test content for integration testing.',
+        content: '# Test Integration GraphNode\n\nThis is test content for integration testing.',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.none,
-          position: { x: 0, y: 0 }
+          position: O.none
         }
       }
 
@@ -82,7 +82,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
       // AND: File should have correct content
       const fileContent = await fs.readFile(TEST_FILE_PATH, 'utf-8')
-      expect(fileContent).toContain('# Test Integration Node')
+      expect(fileContent).toContain('# Test Integration GraphNode')
       expect(fileContent).toContain('This is test content for integration testing.')
     })
 
@@ -90,16 +90,16 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // GIVEN: Graph and node with outgoing edges
       const graph: Graph = { nodes: {} }
 
-      const testNode: Node = {
+      const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
-        content: '# Node With Links\n\nThis node links to [[1_VoiceTree_Website_Development_and_Node_Display_Bug]] and [[2_VoiceTree_Node_ID_Duplication_Bug]].',
+        content: '# GraphNode With Links\n\nThis node links to [[1_VoiceTree_Website_Development_and_Node_Display_Bug]] and [[2_VoiceTree_Node_ID_Duplication_Bug]].',
         outgoingEdges: [
           '1_VoiceTree_Website_Development_and_Node_Display_Bug',
           '2_VoiceTree_Node_ID_Duplication_Bug'
         ],
         nodeUIMetadata: {
           color: O.some('#FF5733'),
-          position: { x: 100, y: 200 }
+          position: O.some({ x: 100, y: 200 })
         }
       }
 
@@ -130,13 +130,13 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       const graph: Graph = { nodes: {} }
 
       // First create the file
-      const testNode: Node = {
+      const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
-        content: '# Node To Delete\n\nThis node will be deleted.',
+        content: '# GraphNode To Delete\n\nThis node will be deleted.',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.none,
-          position: { x: 0, y: 0 }
+          position: O.none
         }
       }
 
@@ -176,13 +176,13 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       const graph: Graph = { nodes: {} }
 
       // STEP 1: Create node
-      const createNode: Node = {
+      const createNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
         content: '# Original Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.none,
-          position: { x: 0, y: 0 }
+          position: O.none
         }
       }
 
@@ -195,7 +195,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       expect(fileContent).toContain('# Original Content')
 
       // STEP 2: Update node
-      const updateNode: Node = {
+      const updateNode: GraphNode = {
         ...createNode,
         content: '# Updated Content\n\nThis content has been updated.'
       }
@@ -236,7 +236,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           outgoingEdges: [],
           nodeUIMetadata: {
             color: O.none,
-            position: { x: 0, y: 0 }
+            position: O.none
           }
         }
       }]

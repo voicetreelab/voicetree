@@ -31,7 +31,7 @@ const test = base.extend<{
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-test-'));
 
     // Create a simple parent node
-    const parentContent = '# Parent Node\n\nThis is the parent.';
+    const parentContent = '# Parent GraphNode\n\nThis is the parent.';
     await fs.writeFile(path.join(tmpDir, 'parent.md'), parentContent, 'utf-8');
 
     console.log('[Test] Created test vault at:', tmpDir);
@@ -112,7 +112,7 @@ const test = base.extend<{
   }
 });
 
-test.describe('Add Child Node - Duplicate Bug Test', () => {
+test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
   test('should only create ONE node when adding child via context menu', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(15000);
     console.log('=== Testing add child node duplicate bug ===');
@@ -139,7 +139,7 @@ test.describe('Add Child Node - Duplicate Bug Test', () => {
 
     console.log('=====================================');
     console.log('[Test] INITIAL STATE');
-    console.log('  Node count:', initialState.nodeCount);
+    console.log('  GraphNode count:', initialState.nodeCount);
     console.log('  Nodes:', JSON.stringify(initialState.nodes, null, 2));
     console.log('=====================================');
 
@@ -219,13 +219,13 @@ test.describe('Add Child Node - Duplicate Bug Test', () => {
     // Pretty print both states
     console.log('=====================================');
     console.log('[Test] GRAPH STATE (Main Process)');
-    console.log('  Node count:', finalState.graphNodeCount);
-    console.log('  Node IDs:', finalState.graphNodeIds);
-    console.log('  Node details:', JSON.stringify(finalState.graphNodeDetails, null, 2));
+    console.log('  GraphNode count:', finalState.graphNodeCount);
+    console.log('  GraphNode IDs:', finalState.graphNodeIds);
+    console.log('  GraphNode details:', JSON.stringify(finalState.graphNodeDetails, null, 2));
     console.log('=====================================');
     console.log('[Test] CYTOSCAPE STATE (UI)');
-    console.log('  Node count:', finalState.cytoscapeNodeCount);
-    console.log('  Node IDs:', finalState.cytoscapeNodeIds);
+    console.log('  GraphNode count:', finalState.cytoscapeNodeCount);
+    console.log('  GraphNode IDs:', finalState.cytoscapeNodeIds);
     console.log('  All node IDs (incl ghost):', finalState.allCytoscapeNodeIds);
     console.log('=====================================');
 

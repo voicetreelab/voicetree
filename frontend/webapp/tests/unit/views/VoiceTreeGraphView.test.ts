@@ -281,7 +281,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'node1',
-          content: '# Node 1\n\nContent',
+          content: '# GraphNode 1\n\nContent',
           outgoingEdges: ['node2'],
           nodeUIMetadata: {
             color: O.none,
@@ -293,7 +293,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'node2',
-          content: '# Node 2\n\nContent',
+          content: '# GraphNode 2\n\nContent',
           outgoingEdges: [],
           nodeUIMetadata: {
             color: O.none,
@@ -356,7 +356,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'test-node',
-          content: '# Test Node\n\nSome content',
+          content: '# Test GraphNode\n\nSome content',
           outgoingEdges: [],
           nodeUIMetadata: {
             color: O.none,
@@ -414,7 +414,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'test-node',
-          content: '# Test Node\n\nSome content',
+          content: '# Test GraphNode\n\nSome content',
           outgoingEdges: [],
           nodeUIMetadata: {
             color: O.none,

@@ -24,8 +24,8 @@ describe('ContextMenuService', () => {
     cy = cytoscape({
       container: container,
       elements: [
-        { data: { id: 'node1', label: 'Node 1' } },
-        { data: { id: 'node2', label: 'Node 2' } },
+        { data: { id: 'node1', label: 'GraphNode 1' } },
+        { data: { id: 'node2', label: 'GraphNode 2' } },
         { data: { id: 'edge1', source: 'node1', target: 'node2' } },
       ],
       style: [
@@ -281,7 +281,7 @@ describe('ContextMenuService', () => {
       // Get commands after position is stored
       const commands = newCommandsFunction();
 
-      // Verify we have an "Add Node Here" command
+      // Verify we have an "Add GraphNode Here" command
       expect(commands).toHaveLength(1);
       expect(commands[0].enabled).toBe(true);
 
@@ -357,7 +357,7 @@ describe('ContextMenuService', () => {
         nodes: {
           'parent_node': {
             id: 'parent_node',
-            content: '# Parent Node',
+            content: '# Parent GraphNode',
             outgoingEdges: [],
             nodeUIMetadata: {
               color: { _tag: 'None' },
@@ -389,7 +389,7 @@ describe('ContextMenuService', () => {
           group: 'nodes',
           data: expect.objectContaining({
             id: 'parent_node_0',
-            content: '# New Node'
+            content: '# New GraphNode'
           })
         })
       );
@@ -410,7 +410,7 @@ describe('ContextMenuService', () => {
         expect.objectContaining({
           nodeToCreate: expect.objectContaining({
             id: 'parent_node_0',
-            content: '# New Node'
+            content: '# New GraphNode'
           }),
           createsIncomingEdges: ['parent_node']
         })

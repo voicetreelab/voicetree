@@ -84,7 +84,7 @@ flowchart TB
     
     subgraph "Test Assertions"
         L --> M[Verify Tree Growth]
-        M --> N[Check Node Creation]
+        M --> N[Check GraphNode Creation]
         N --> O[Validate Structure]
     end
     

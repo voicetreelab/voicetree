@@ -1,10 +1,10 @@
 ---
 node_id: 23
-title: Integration Test for Append Relative Node Agent (23)
+title: Integration Test for Append Relative GraphNode Agent (23)
 ---
-### Initial integration test for Append Relative Node Agent, running with local lambda, is the first step in the testing strategy, leveraging identified boundaries and specific test files.
+### Initial integration test for Append Relative GraphNode Agent, running with local lambda, is the first step in the testing strategy, leveraging identified boundaries and specific test files.
 
-We have the integration test for the Append Relative Node Agent, which is step one of our testing strategy. This test uses a file that we already have, and it runs with the local lambda. We've identified the boundaries, and we have two important test files: the Cloud Function Isolation Test and the Tree Action Set End-to-End Test.
+We have the integration test for the Append Relative GraphNode Agent, which is step one of our testing strategy. This test uses a file that we already have, and it runs with the local lambda. We've identified the boundaries, and we have two important test files: the Cloud Function Isolation Test and the Tree Action Set End-to-End Test.
 
 
 -----------------

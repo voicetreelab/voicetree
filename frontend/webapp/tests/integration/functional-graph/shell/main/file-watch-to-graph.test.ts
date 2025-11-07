@@ -98,11 +98,11 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
     vi.clearAllMocks()
   })
 
-  describe('BEHAVIOR: File created → Node added to graph + broadcast', () => {
+  describe('BEHAVIOR: File created → GraphNode added to graph + broadcast', () => {
     it('should add node to graph when file-added event is triggered', async () => {
       // GIVEN: Empty graph and a markdown file created on disk
       const filePath = path.join(tempVault, 'test_node.md')
-      const fileContent = '# Test Node\n\nThis is a test node.'
+      const fileContent = '# Test GraphNode\n\nThis is a test node.'
       await fs.writeFile(filePath, fileContent, 'utf-8')
 
       expect(getGraph().nodes).toEqual({})
@@ -116,7 +116,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       // THEN: Graph state should include the new node
       const updatedGraph = getGraph()
       expect(updatedGraph.nodes['test_node']).toBeDefined()
-      expect(updatedGraph.nodes['test_node'].title).toBe('Test Node')
+      expect(updatedGraph.nodes['test_node'].title).toBe('Test GraphNode')
       expect(updatedGraph.nodes['test_node'].content).toBe(fileContent)
       expect(updatedGraph.nodes['test_node'].id).toBe('test_node')
 
@@ -126,7 +126,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
         expect.objectContaining({
           nodes: expect.objectContaining({
             test_node: expect.objectContaining({
-              title: 'Test Node'
+              title: 'Test GraphNode'
             })
           })
         })
@@ -157,7 +157,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
           content: fileContent
         })
 
-        // THEN: Node ID should be extracted correctly
+        // THEN: GraphNode ID should be extracted correctly
         const node = getGraph().nodes[testCase.expectedId]
         expect(node).toBeDefined()
         expect(node.id).toBe(testCase.expectedId)
@@ -167,7 +167,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
     it('should parse markdown links as outgoingEdges', async () => {
       // GIVEN: Two nodes, one linking to the other
       const file1Path = path.join(tempVault, 'node1.md')
-      const file1Content = '# Node 1\n\nFirst node.'
+      const file1Content = '# GraphNode 1\n\nFirst node.'
       await fs.writeFile(file1Path, file1Content, 'utf-8')
 
       mockFileWatchManager.sendToRenderer('file-added', {
@@ -176,7 +176,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       })
 
       const file2Path = path.join(tempVault, 'node2.md')
-      const file2Content = '# Node 2\n\nThis links to [[node1]].'
+      const file2Content = '# GraphNode 2\n\nThis links to [[node1]].'
       await fs.writeFile(file2Path, file2Content, 'utf-8')
 
       // WHEN: Second file with link is added
@@ -210,7 +210,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
         content: fileContent
       })
 
-      // THEN: Node should have default title
+      // THEN: GraphNode should have default title
       const node = getGraph().nodes['no_title']
       expect(node).toBeDefined()
       expect(node.title).toBe('Untitled')
@@ -218,7 +218,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
     })
   })
 
-  describe('BEHAVIOR: File modified → Node updated in graph + broadcast', () => {
+  describe('BEHAVIOR: File modified → GraphNode updated in graph + broadcast', () => {
     it('should update node content when file-changed event is triggered', async () => {
       // GIVEN: A node exists in the graph
       const filePath = path.join(tempVault, 'update_test.md')
@@ -243,7 +243,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
         content: updatedContent
       })
 
-      // THEN: Node should be updated in graph
+      // THEN: GraphNode should be updated in graph
       const updatedNode = getGraph().nodes['update_test']
       expect(updatedNode.title).toBe('Updated Title')
       expect(updatedNode.content).toBe(updatedContent)
@@ -256,24 +256,24 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
     it('should update outgoingEdges when links are added or removed', async () => {
       // GIVEN: Two nodes with no links
       const file1Path = path.join(tempVault, 'node1.md')
-      await fs.writeFile(file1Path, '# Node 1\n\nNo links.', 'utf-8')
+      await fs.writeFile(file1Path, '# GraphNode 1\n\nNo links.', 'utf-8')
       mockFileWatchManager.sendToRenderer('file-added', {
         fullPath: file1Path,
-        content: '# Node 1\n\nNo links.'
+        content: '# GraphNode 1\n\nNo links.'
       })
 
       const file2Path = path.join(tempVault, 'node2.md')
-      await fs.writeFile(file2Path, '# Node 2\n\nNo links.', 'utf-8')
+      await fs.writeFile(file2Path, '# GraphNode 2\n\nNo links.', 'utf-8')
       mockFileWatchManager.sendToRenderer('file-added', {
         fullPath: file2Path,
-        content: '# Node 2\n\nNo links.'
+        content: '# GraphNode 2\n\nNo links.'
       })
 
       // Initially no outgoingEdges
       expect(getGraph().edges['node2'] || []).toHaveLength(0)
 
       // WHEN: node2 is updated to add a link to node1
-      const updatedContent = '# Node 2\n\nNow links to [[node1]].'
+      const updatedContent = '# GraphNode 2\n\nNow links to [[node1]].'
       await fs.writeFile(file2Path, updatedContent, 'utf-8')
 
       mockFileWatchManager.sendToRenderer('file-changed', {
@@ -286,7 +286,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
       expect(graph.edges['node2']).toContain('node1')
 
       // WHEN: node2 is updated to remove the link
-      const noLinkContent = '# Node 2\n\nLink removed.'
+      const noLinkContent = '# GraphNode 2\n\nLink removed.'
       await fs.writeFile(file2Path, noLinkContent, 'utf-8')
 
       mockFileWatchManager.sendToRenderer('file-changed', {
@@ -305,7 +305,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
 
       // WHEN: file-changed event is triggered for a file that doesn't exist in graph
       const filePath = path.join(tempVault, 'new_node.md')
-      const fileContent = '# New Node\n\nCreated via change event.'
+      const fileContent = '# New GraphNode\n\nCreated via change event.'
       await fs.writeFile(filePath, fileContent, 'utf-8')
 
       mockFileWatchManager.sendToRenderer('file-changed', {
@@ -313,14 +313,14 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
         content: fileContent
       })
 
-      // THEN: Node should be added (graceful handling)
+      // THEN: GraphNode should be added (graceful handling)
       const node = getGraph().nodes['new_node']
       expect(node).toBeDefined()
-      expect(node.title).toBe('New Node')
+      expect(node.title).toBe('New GraphNode')
     })
   })
 
-  describe('BEHAVIOR: File deleted → Node removed from graph + broadcast', () => {
+  describe('BEHAVIOR: File deleted → GraphNode removed from graph + broadcast', () => {
     it('should remove node when file-deleted event is triggered', async () => {
       // GIVEN: A node exists in the graph
       const filePath = path.join(tempVault, 'delete_test.md')
@@ -341,7 +341,7 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
         fullPath: filePath
       })
 
-      // THEN: Node should be removed from graph
+      // THEN: GraphNode should be removed from graph
       expect(getGraph().nodes['delete_test']).toBeUndefined()
 
       // AND: Broadcast should be called with updated graph (twice: add + delete)
@@ -352,17 +352,17 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
     it('should remove outgoingEdges pointing to deleted node', async () => {
       // GIVEN: Two nodes with an edge between them
       const file1Path = path.join(tempVault, 'node1.md')
-      await fs.writeFile(file1Path, '# Node 1\n\nFirst node.', 'utf-8')
+      await fs.writeFile(file1Path, '# GraphNode 1\n\nFirst node.', 'utf-8')
       mockFileWatchManager.sendToRenderer('file-added', {
         fullPath: file1Path,
-        content: '# Node 1\n\nFirst node.'
+        content: '# GraphNode 1\n\nFirst node.'
       })
 
       const file2Path = path.join(tempVault, 'node2.md')
-      await fs.writeFile(file2Path, '# Node 2\n\nLinks to [[node1]].', 'utf-8')
+      await fs.writeFile(file2Path, '# GraphNode 2\n\nLinks to [[node1]].', 'utf-8')
       mockFileWatchManager.sendToRenderer('file-added', {
         fullPath: file2Path,
-        content: '# Node 2\n\nLinks to [[node1]].'
+        content: '# GraphNode 2\n\nLinks to [[node1]].'
       })
 
       expect(getGraph().edges['node2']).toContain('node1')
@@ -387,17 +387,17 @@ describe('File Watch → Graph Updates - Behavioral Integration', () => {
     it('should remove outgoing outgoingEdges from deleted node', async () => {
       // GIVEN: Two nodes, node2 links to node1
       const file1Path = path.join(tempVault, 'node1.md')
-      await fs.writeFile(file1Path, '# Node 1\n\nFirst node.', 'utf-8')
+      await fs.writeFile(file1Path, '# GraphNode 1\n\nFirst node.', 'utf-8')
       mockFileWatchManager.sendToRenderer('file-added', {
         fullPath: file1Path,
-        content: '# Node 1\n\nFirst node.'
+        content: '# GraphNode 1\n\nFirst node.'
       })
 
       const file2Path = path.join(tempVault, 'node2.md')
-      await fs.writeFile(file2Path, '# Node 2\n\nLinks to [[node1]].', 'utf-8')
+      await fs.writeFile(file2Path, '# GraphNode 2\n\nLinks to [[node1]].', 'utf-8')
       mockFileWatchManager.sendToRenderer('file-added', {
         fullPath: file2Path,
-        content: '# Node 2\n\nLinks to [[node1]].'
+        content: '# GraphNode 2\n\nLinks to [[node1]].'
       })
 
       expect(getGraph().edges['node2']).toBeDefined()

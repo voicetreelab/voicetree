@@ -1,6 +1,6 @@
 ---
 node_id: 1
-title: VoiceTree Website Development and Node Display Bug (1)
+title: VoiceTree Website Development and GraphNode Display Bug (1)
 ---
 ### Ongoing development for the VoiceTree website.
 

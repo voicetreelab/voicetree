@@ -21,8 +21,8 @@ describe('apply_db_updates_to_graph', () => {
   const createGraphWithNode = (nodeId: string): Graph => {
     const node: GraphNode = {
       id: nodeId,
-      title: 'Test Node',
-      content: '# Test Node\n\nSome content',
+      title: 'Test GraphNode',
+      content: '# Test GraphNode\n\nSome content',
       summary: 'Test node summary',
       color: O.none
     }
@@ -65,7 +65,7 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
         absolutePath: '/test/node-a.md',
-        content: '# Node A\n\nLinks to [[node-b]] and [[node-c]]',
+        content: '# GraphNode A\n\nLinks to [[node-b]] and [[node-c]]',
         eventType: 'Added'
       }
 
@@ -80,7 +80,7 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
         absolutePath: '/test/node-a.md',
-        content: '# Node A\n\nNo links here',
+        content: '# GraphNode A\n\nNo links here',
         eventType: 'Added'
       }
 
@@ -96,14 +96,14 @@ describe('apply_db_updates_to_graph', () => {
 
       const update1: FSUpdate = {
         absolutePath: '/test/node-1.md',
-        content: '# Node 1',
+        content: '# GraphNode 1',
         eventType: 'Added'
       }
       const graph1 = apply_db_updates_to_graph(graph, update1)(testEnv)
 
       const update2: FSUpdate = {
         absolutePath: '/test/node-2.md',
-        content: '# Node 2',
+        content: '# GraphNode 2',
         eventType: 'Added'
       }
       const graph2 = apply_db_updates_to_graph(graph1, update2)(testEnv)
@@ -187,8 +187,8 @@ describe('apply_db_updates_to_graph', () => {
         nodes: {
           'node-a': {
             id: 'node-a',
-            title: 'Node A',
-            content: '# Node A\n\nLinks to [[node-b]]',
+            title: 'GraphNode A',
+            content: '# GraphNode A\n\nLinks to [[node-b]]',
             summary: '',
             color: O.none
           }
@@ -200,7 +200,7 @@ describe('apply_db_updates_to_graph', () => {
 
       const update: FSUpdate = {
         absolutePath: '/test/node-a.md',
-        content: '# Node A\n\nNow links to [[node-c]] and [[node-d]]',
+        content: '# GraphNode A\n\nNow links to [[node-c]] and [[node-d]]',
         eventType: 'Changed'
       }
 
@@ -240,7 +240,7 @@ describe('apply_db_updates_to_graph', () => {
 
       const update: FSUpdate = {
         absolutePath: '/test/new-node.md',
-        content: '# New Node',
+        content: '# New GraphNode',
         eventType: 'Changed'
       }
 
@@ -248,7 +248,7 @@ describe('apply_db_updates_to_graph', () => {
 
       // Should have added the node
       expect(updatedGraph.nodes['new-node']).toBeDefined()
-      expect(updatedGraph.nodes['new-node'].title).toBe('New Node')
+      expect(updatedGraph.nodes['new-node'].title).toBe('New GraphNode')
     })
   })
 
@@ -264,7 +264,7 @@ describe('apply_db_updates_to_graph', () => {
 
       const updatedGraph = apply_db_updates_to_graph(graph, update)(testEnv)
 
-      // Node should be removed
+      // GraphNode should be removed
       expect(updatedGraph.nodes['node-to-delete']).toBeUndefined()
       expect(Object.keys(updatedGraph.nodes)).toHaveLength(0)
     })
@@ -351,7 +351,7 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
         absolutePath: '/test/node.md',
-        content: '# Node',
+        content: '# GraphNode',
         eventType: 'Added'
       }
 
@@ -371,7 +371,7 @@ describe('apply_db_updates_to_graph', () => {
 
       const update: FSUpdate = {
         absolutePath: '/test/node.md',
-        content: '# Node',
+        content: '# GraphNode',
         eventType: 'Added'
       }
 
@@ -401,7 +401,7 @@ describe('apply_db_updates_to_graph', () => {
       const graph = createEmptyGraph()
       const update: FSUpdate = {
         absolutePath: '/test/node.md',
-        content: '# Node',
+        content: '# GraphNode',
         eventType: 'Added'
       }
 

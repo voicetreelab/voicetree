@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { apply_graph_deltas_to_db } from '../../../src/functional_graph/pure/applyGraphActionsToDB'
-import { Graph, CreateNode, UpdateNode, DeleteNode, Node, Env } from '../../../src/functional_graph/pure/types'
+import { Graph, CreateNode, UpdateNode, DeleteNode, GraphNode, Env } from '../../../src/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { tmpdir } from 'os'
@@ -37,7 +37,7 @@ describe('apply_graph_updates', () => {
     nodes: {
       [nodeId]: {
         id: nodeId,
-        title: 'Test Node',
+        title: 'Test GraphNode',
         content,
         summary: 'Test summary',
         color: O.none
@@ -52,7 +52,7 @@ describe('apply_graph_updates', () => {
       const action: CreateNode = {
         type: 'CreateNode',
         nodeId: 'node-1',
-        content: '# New Node\n\nThis is content',
+        content: '# New GraphNode\n\nThis is content',
         position: O.none
       }
 
@@ -69,8 +69,8 @@ describe('apply_graph_updates', () => {
         // Verify the node was added to the graph
         expect(updatedGraph.nodes['node-1']).toBeDefined()
         expect(updatedGraph.nodes['node-1'].relativeFilePathIsID).toBe('node-1')
-        expect(updatedGraph.nodes['node-1'].content).toBe('# New Node\n\nThis is content')
-        expect(updatedGraph.nodes['node-1'].title).toBe('New Node')
+        expect(updatedGraph.nodes['node-1'].content).toBe('# New GraphNode\n\nThis is content')
+        expect(updatedGraph.nodes['node-1'].title).toBe('New GraphNode')
       }
     })
 
@@ -181,7 +181,7 @@ describe('apply_graph_updates', () => {
       }
 
       // Should throw per fail-fast design philosophy
-      expect(() => apply_graph_deltas_to_db(graph, action)).toThrow('Node non-existent not found for update')
+      expect(() => apply_graph_deltas_to_db(graph, action)).toThrow('GraphNode non-existent not found for update')
     })
 
     it('should not modify the original graph', async () => {
@@ -241,14 +241,14 @@ describe('apply_graph_updates', () => {
         nodes: {
           'node-1': {
             relativeFilePathIsID: 'node-1',
-            title: 'Node 1',
+            title: 'GraphNode 1',
             content: 'Content',
             summary: 'Summary',
             color: O.none
           },
           'node-2': {
             relativeFilePathIsID: 'node-2',
-            title: 'Node 2',
+            title: 'GraphNode 2',
             content: 'Content',
             summary: 'Summary',
             color: O.none

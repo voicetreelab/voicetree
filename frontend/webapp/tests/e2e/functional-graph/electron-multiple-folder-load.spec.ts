@@ -117,7 +117,7 @@ test.describe('Multiple Folder Load Tests', () => {
     });
 
     console.log(`First folder: ${firstFolderState.nodeCount} nodes`);
-    console.log('Node IDs:', firstFolderState.nodeIds);
+    console.log('GraphNode IDs:', firstFolderState.nodeIds);
 
     // example_small has 6 markdown files
     expect(firstFolderState.nodeCount).toBe(6);
