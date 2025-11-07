@@ -34,6 +34,8 @@ export function fromUICreateChildToUpsertNode(
     outgoingEdges: [...parentNode.outgoingEdges, newNode.relativeFilePathIsID]
   }
 
+  console.log("new node / parent node", newNode.relativeFilePathIsID, parentNode.relativeFilePathIsID)
+
   // Return deltas for both the new child and the updated parent
   return [
     {

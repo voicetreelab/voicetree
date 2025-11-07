@@ -13,7 +13,7 @@ import { test as base, expect, _electron as electron, ElectronApplication, Page 
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { focusTerminal, getTerminalContent } from './test-utils';
+import { focusTerminal, getTerminalContent } from '../test-utils';
 
 // Use absolute absolutePath from project root
 const PROJECT_ROOT = path.resolve(process.cwd());

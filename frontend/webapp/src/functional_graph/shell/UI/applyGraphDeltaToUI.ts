@@ -2,6 +2,7 @@ import type {Core} from "cytoscape";
 import type {GraphDelta} from "@/functional_graph/pure/types.ts";
 import {GHOST_ROOT_ID} from "@/graph-core/constants.ts";
 import * as O from 'fp-ts/lib/Option.js';
+import {prettyPrintGraphDelta} from "@/functional_graph/pure/prettyPrint.ts";
 
 /**
  * Apply a GraphDelta to the Cytoscape UI
@@ -13,11 +14,13 @@ import * as O from 'fp-ts/lib/Option.js';
  * - Deleting nodes
  */
 export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
-    console.log('[applyGraphDeltaToUI] Starting, delta length:', delta.length);
+    console.log("applyGraphDeltaToUI", delta.length);
+    console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
     cy.batch(() => {
         // Ensure ghost root exists before processing deltas
         ensureGhostRoot(cy);
 
+        // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
                 const node = nodeDelta.nodeToUpsert;
@@ -43,22 +46,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                             y: node.nodeUIMetadata.position.y
                         }
                     });
-
-                    // Connect to ghost root if no parent (orphan node)
-                    if (node.outgoingEdges.length === 0) {
-                        const ghostEdgeId = `${GHOST_ROOT_ID}->${nodeId}`;
-                        if (!cy.getElementById(ghostEdgeId).length) {
-                            cy.add({
-                                group: 'edges' as const,
-                                data: {
-                                    id: ghostEdgeId,
-                                    source: GHOST_ROOT_ID,
-                                    target: nodeId,
-                                    isGhostEdge: true
-                                }
-                            });
-                        }
-                    }
                 } else {
                     // Update existing node metadata (but NOT position)
                     existingNode.data('content', node.content);
@@ -69,31 +56,57 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         : undefined;
                     existingNode.data('color', color);
                 }
-
-                // Add edges for all outgoing connections (if they don't exist)
-                node.outgoingEdges.forEach((targetId) => {
-                    const edgeId = `${nodeId}->${targetId}`;
-                    if (!cy.getElementById(edgeId).length) {
-                        // Ensure target node exists (create placeholder if needed)
-                        ensureNodeExists(cy, targetId, nodeId);
-
-                        cy.add({
-                            group: 'edges' as const,
-                            data: {
-                                id: edgeId,
-                                source: nodeId,
-                                target: targetId
-                            }
-                        });
-                    }
-                });
-
             } else if (nodeDelta.type === 'DeleteNode') {
                 const nodeId = nodeDelta.nodeId;
                 const nodeToRemove = cy.getElementById(nodeId);
                 if (nodeToRemove.length > 0) {
                     nodeToRemove.remove();
                 }
+            }
+        });
+
+        // PASS 2: Create all edges (now that all nodes exist)
+        delta.forEach((nodeDelta) => {
+            if (nodeDelta.type === 'UpsertNode') {
+                const node = nodeDelta.nodeToUpsert;
+                const nodeId = node.relativeFilePathIsID;
+
+                // Connect to ghost root if no parent (orphan node)
+                if (node.outgoingEdges.length === 0) {
+                    const ghostEdgeId = `${GHOST_ROOT_ID}->${nodeId}`;
+                    if (!cy.getElementById(ghostEdgeId).length) {
+                        cy.add({
+                            group: 'edges' as const,
+                            data: {
+                                id: ghostEdgeId,
+                                source: GHOST_ROOT_ID,
+                                target: nodeId,
+                                isGhostEdge: true
+                            }
+                        });
+                    }
+                }
+
+                // Add edges for all outgoing connections (if they don't exist)
+                node.outgoingEdges.forEach((targetId) => {
+                    const edgeId = `${nodeId}->${targetId}`;
+                    if (!cy.getElementById(edgeId).length) {
+                        // Only create edge if target node exists
+                        const targetNode = cy.getElementById(targetId);
+                        if (targetNode.length > 0) {
+                            cy.add({
+                                group: 'edges' as const,
+                                data: {
+                                    id: edgeId,
+                                    source: nodeId,
+                                    target: targetId
+                                }
+                            });
+                        } else {
+                            console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${targetId}: target node does not exist`);
+                        }
+                    }
+                });
             }
         });
     });
@@ -113,33 +126,6 @@ function ensureGhostRoot(cy: Core): void {
                 isGhostRoot: true
             },
             position: { x: 0, y: 0 }
-        });
-    }
-}
-
-/**
- * Ensure a target node exists, creating a placeholder if necessary
- */
-function ensureNodeExists(cy: Core, targetId: string, referenceNodeId: string): void {
-    if (!cy.getElementById(targetId).length) {
-        // Position placeholder near reference node
-        const referenceNode = cy.getElementById(referenceNodeId);
-        const placeholderPos = referenceNode.length > 0
-            ? {
-                x: referenceNode.position().x + 150,
-                y: referenceNode.position().y
-            }
-            : { x: cy.width() / 2, y: cy.height() / 2 };
-
-        cy.add({
-            data: {
-                id: targetId,
-                label: targetId,
-                linkedNodeIds: [],
-                content: '',
-                summary: ''
-            },
-            position: placeholderPos
         });
     }
 }

@@ -1,14 +1,13 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { createBuildEnv, getBuildConfig } from './build-config.ts';
+import { getBuildConfig } from './build-config.ts';
 
 /**
  * Get the tools directory absolutePath in Application Support
  * Returns the user-writable location where agent tools are stored
  */
 export function getToolsDirectory(): string {
-  const env = createBuildEnv();
-  const config = getBuildConfig(env);
+  const config = getBuildConfig();
   return config.toolsDest;
 }
 
@@ -17,8 +16,7 @@ export function getToolsDirectory(): string {
  * Returns the user-writable location where backend modules are stored
  */
 export function getBackendDirectory(): string {
-  const env = createBuildEnv();
-  const config = getBuildConfig(env);
+  const config = getBuildConfig();
   return config.backendDest;
 }
 
@@ -50,8 +48,7 @@ async function copyDir(src: string, dest: string): Promise<void> {
  * Uses centralized build-config for all absolutePath resolution
  */
 export async function setupToolsDirectory(): Promise<void> {
-  const env = createBuildEnv();
-  const config = getBuildConfig(env);
+  const config = getBuildConfig();
 
   // Skip entirely in test mode
   if (!config.shouldCopyTools) {

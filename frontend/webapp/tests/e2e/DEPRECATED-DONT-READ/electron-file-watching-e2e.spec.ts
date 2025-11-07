@@ -25,9 +25,9 @@ import {
   createMarkdownFile,
   getNodeData,
   checkGraphIntegrity,
-  triggerExpandNode,
+  triggerCreateChildNode,
   getMarkdownFiles
-} from './test-utils';
+} from '../test-utils';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 
@@ -90,7 +90,7 @@ test.describe('Electron File Watching E2E Tests', () => {
 
     // Trigger expand node action (mimics user clicking + icon in context menu)
     console.log('[Test] Triggering expand node for:', firstNodeId);
-    await triggerExpandNode(appWindow, firstNodeId);
+    await triggerCreateChildNode(appWindow, firstNodeId);
 
     // Wait for new file to be created and detected by file watcher
     // Should go from 1 node to 2 nodes

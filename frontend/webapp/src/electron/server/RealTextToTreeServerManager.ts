@@ -4,7 +4,7 @@ import { promises as fs, createWriteStream } from 'fs';
 import http from 'http';
 import { spawn, ChildProcess } from 'child_process';
 import { findAvailablePort } from '../port-utils.ts';
-import { createBuildEnv, getBuildConfig } from '../build-config.ts';
+import { getBuildConfig } from '../build-config.ts';
 import type { ITextToTreeServerManager } from './ITextToTreeServerManager.ts';
 
 /**
@@ -71,8 +71,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       this.logStream.write(`Full environment:\n${JSON.stringify(process.env, null, 2)}\n`);
 
       // Get build configuration
-      const env = createBuildEnv();
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
       // Spawn configuration based on dev vs prod
       const command = config.pythonCommand;

@@ -88,6 +88,9 @@ export interface ElectronAPI {
 
     // Subscribe to graph delta updates (returns unsubscribe function)
     onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void;
+
+    // Subscribe to graph clear events (returns unsubscribe function)
+    onGraphClear: (callback: () => void) => () => void;
   };
 
   // General IPC communication methods

@@ -22,7 +22,7 @@ vi.mock('electron', () => ({
 }));
 
 // Import after mocking
-import { createBuildEnv, getBuildConfig, type BuildEnv } from '../../src/electron/build-config';
+import { getBuildConfig } from '@/electron/build-config';
 
 describe('build-config', () => {
   const mockUserDataPath = '/Users/test/Library/Application Support/Electron';
@@ -40,70 +40,27 @@ describe('build-config', () => {
     delete process.env.HEADLESS_TEST;
   });
 
-  describe('createBuildEnv', () => {
-    it('should detect development environment', () => {
-      process.env.NODE_ENV = 'development';
-
-      const env = createBuildEnv();
-
-      expect(env.nodeEnv).toBe('development');
-      expect(env.isPackaged).toBe(false);
-      expect(env.isTest).toBe(false);
-      expect(env.appPath).toBe(mockAppPath);
-      expect(env.userDataPath).toBe(mockUserDataPath);
-    });
-
-    it('should detect test environment', () => {
-      process.env.HEADLESS_TEST = '1';
-
-      const env = createBuildEnv();
-
-      expect(env.isTest).toBe(true);
-    });
-
-    it('should compute repo root correctly in dev mode', () => {
-      const env = createBuildEnv();
-
-      expect(env.rootDir).toBe(repoRoot);
-    });
-
-    it('should use process.resourcesPath for packaged app', () => {
-      mockApp.isPackaged = true;
-      process.resourcesPath = '/Applications/VoiceTree.app/Contents/Resources';
-
-      const env = createBuildEnv();
-
-      expect(env.isPackaged).toBe(true);
-      expect(env.rootDir).toBe('/Applications/VoiceTree.app/Contents');
-    });
-  });
-
   describe('getBuildConfig - Development Mode', () => {
-    it('should use repo source for tools in development', () => {
+    beforeEach(() => {
       process.env.NODE_ENV = 'development';
-      const env = createBuildEnv();
+    });
 
-      const config = getBuildConfig(env);
+    it('should use repo source for tools in development', () => {
+      const config = getBuildConfig();
 
       expect(config.toolsSource).toBe(path.join(repoRoot, 'tools'));
       expect(config.backendSource).toBe(path.join(repoRoot, 'backend'));
     });
 
     it('should use Application Support for destination', () => {
-      process.env.NODE_ENV = 'development';
-      const env = createBuildEnv();
-
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
       expect(config.toolsDest).toBe(path.join(mockUserDataPath, 'tools'));
       expect(config.backendDest).toBe(path.join(mockUserDataPath, 'backend'));
     });
 
     it('should configure Python to run directly from source', () => {
-      process.env.NODE_ENV = 'development';
-      const env = createBuildEnv();
-
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
       expect(config.pythonCommand).toBe('python');
       expect(config.pythonArgs).toEqual(['server.py']);
@@ -113,21 +70,20 @@ describe('build-config', () => {
     });
 
     it('should enable tool copying in development', () => {
-      process.env.NODE_ENV = 'development';
-      const env = createBuildEnv();
-
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
       expect(config.shouldCopyTools).toBe(true);
     });
   });
 
   describe('getBuildConfig - Production Mode (Unpackaged)', () => {
-    it('should use dist/resources for tools in production build', () => {
+    beforeEach(() => {
       process.env.NODE_ENV = 'production';
-      const env = createBuildEnv();
+      mockApp.isPackaged = false;
+    });
 
-      const config = getBuildConfig(env);
+    it('should use repo for tools in production build', () => {
+      const config = getBuildConfig();
 
       // In production but not packaged, still uses repo
       expect(config.toolsSource).toBe(path.join(repoRoot, 'tools'));
@@ -135,10 +91,7 @@ describe('build-config', () => {
     });
 
     it('should configure compiled Python binary', () => {
-      process.env.NODE_ENV = 'production';
-      const env = createBuildEnv();
-
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
       const expectedBinaryPath = path.join(repoRoot, 'dist', 'resources', 'server', 'voicetree-server');
       expect(config.pythonCommand).toBe(expectedBinaryPath);
@@ -150,25 +103,30 @@ describe('build-config', () => {
   });
 
   describe('getBuildConfig - Production Mode (Packaged)', () => {
+    const mockResourcesPath = '/Applications/VoiceTree.app/Contents/Resources';
+
     beforeEach(() => {
       mockApp.isPackaged = true;
       process.env.NODE_ENV = 'production';
-      process.resourcesPath = '/Applications/VoiceTree.app/Contents/Resources';
+      // Mock process.resourcesPath
+      Object.defineProperty(process, 'resourcesPath', {
+        value: mockResourcesPath,
+        writable: true,
+        configurable: true
+      });
     });
 
     it('should use process.resourcesPath for tools in packaged app', () => {
-      const env = createBuildEnv();
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
-      expect(config.toolsSource).toBe(path.join(process.resourcesPath, 'tools'));
-      expect(config.backendSource).toBe(path.join(process.resourcesPath, 'backend'));
+      expect(config.toolsSource).toBe(path.join(mockResourcesPath, 'tools'));
+      expect(config.backendSource).toBe(path.join(mockResourcesPath, 'backend'));
     });
 
     it('should use process.resourcesPath for server binary', () => {
-      const env = createBuildEnv();
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
-      const expectedBinaryPath = path.join(process.resourcesPath, 'server', 'voicetree-server');
+      const expectedBinaryPath = path.join(mockResourcesPath, 'server', 'voicetree-server');
       expect(config.serverBinaryPath).toBe(expectedBinaryPath);
       expect(config.pythonCommand).toBe(expectedBinaryPath);
     });
@@ -177,9 +135,8 @@ describe('build-config', () => {
   describe('getBuildConfig - Test Mode', () => {
     it('should skip tool copying in test mode', () => {
       process.env.HEADLESS_TEST = '1';
-      const env = createBuildEnv();
 
-      const config = getBuildConfig(env);
+      const config = getBuildConfig();
 
       expect(config.shouldCopyTools).toBe(false);
     });
@@ -187,13 +144,11 @@ describe('build-config', () => {
 
   describe('Path Consistency', () => {
     it('should maintain same destination paths across all modes', () => {
-      const devEnv = createBuildEnv();
       process.env.NODE_ENV = 'development';
-      const devConfig = getBuildConfig(devEnv);
+      const devConfig = getBuildConfig();
 
       process.env.NODE_ENV = 'production';
-      const prodEnv = createBuildEnv();
-      const prodConfig = getBuildConfig(prodEnv);
+      const prodConfig = getBuildConfig();
 
       // Destinations should be same regardless of mode
       expect(devConfig.toolsDest).toBe(prodConfig.toolsDest);
@@ -201,16 +156,20 @@ describe('build-config', () => {
     });
 
     it('should change source paths based on packaging', () => {
+      const mockResourcesPath = '/Applications/VoiceTree.app/Contents/Resources';
+
       // Unpackaged
       mockApp.isPackaged = false;
-      const unpackagedEnv = createBuildEnv();
-      const unpackagedConfig = getBuildConfig(unpackagedEnv);
+      const unpackagedConfig = getBuildConfig();
 
       // Packaged
       mockApp.isPackaged = true;
-      process.resourcesPath = '/Applications/VoiceTree.app/Contents/Resources';
-      const packagedEnv = createBuildEnv();
-      const packagedConfig = getBuildConfig(packagedEnv);
+      Object.defineProperty(process, 'resourcesPath', {
+        value: mockResourcesPath,
+        writable: true,
+        configurable: true
+      });
+      const packagedConfig = getBuildConfig();
 
       // Source should differ
       expect(unpackagedConfig.toolsSource).not.toBe(packagedConfig.toolsSource);
@@ -221,17 +180,18 @@ describe('build-config', () => {
   describe('Edge Cases', () => {
     it('should default to production if NODE_ENV not set', () => {
       delete process.env.NODE_ENV;
-      const env = createBuildEnv();
+      const config = getBuildConfig();
 
-      expect(env.nodeEnv).toBe('production');
+      // Should use production config (has serverBinaryPath)
+      expect(config.serverBinaryPath).not.toBeNull();
+      expect(config.shouldCompilePython).toBe(true);
     });
 
     it('should handle missing environment variables gracefully', () => {
       delete process.env.NODE_ENV;
       delete process.env.HEADLESS_TEST;
 
-      expect(() => createBuildEnv()).not.toThrow();
-      expect(() => getBuildConfig(createBuildEnv())).not.toThrow();
+      expect(() => getBuildConfig()).not.toThrow();
     });
   });
 });

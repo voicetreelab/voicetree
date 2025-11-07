@@ -83,7 +83,7 @@ export async function pollForNodeCount(
     const count = await appWindow.evaluate(() => {
       const w = window as ExtendedWindow;
       // Filter out ghost root node (has isGhostRoot: true in data)
-      return w.cytoscapeInstance?.nodes().filter((node: any) => !node.data('isGhostRoot')).length || 0;
+      return w.cytoscapeInstance?.nodes().filter((node: NodeSingular) => !node.data('isGhostRoot')).length || 0;
     });
     if (count === expectedCount) return count;
     await appWindow.waitForTimeout(200);
@@ -395,39 +395,6 @@ export async function waitForLayout(appWindow: Page, timeout = 5000): Promise<vo
 }
 
 /**
- * Trigger expand node action via context menu (mimics user clicking expand/+ icon)
- * This simulates the exact user workflow: tap-hold to open menu, then click expand
- */
-export async function triggerExpandNode(appWindow: Page, nodeId: string): Promise<void> {
-  await appWindow.evaluate((id) => {
-    const w = window as ExtendedWindow;
-    const cy = w.cytoscapeInstance;
-    if (!cy) throw new Error('Cytoscape not initialized');
-
-    const node = cy.getElementById(id);
-    if (!node || node.length === 0) throw new Error(`Node ${id} not found`);
-
-    // Trigger cxttapstart event (context menu trigger) as if user long-pressed/right-clicked
-    node.emit('cxttapstart');
-
-    // The context menu should now be open. The expand action is registered in the menu.
-    // To simulate clicking the expand button, we need to trigger the onCreateChildNode callback
-    // that was registered when the context menu was set up.
-
-    // The menu is set up in voice-tree-graph-viz-layout.tsx with an onCreateChildNode handler
-    // We can access it through the cytoscapeCore reference
-    const cytoscapeCore = (window as any).cytoscapeCore;
-    if (cytoscapeCore && cytoscapeCore.contextMenuService) {
-      // Access the config and call onCreateChildNode directly
-      const config = cytoscapeCore.contextMenuService.config;
-      if (config && config.onExpandNode) {
-        config.onExpandNode(node);
-      }
-    }
-  }, nodeId);
-}
-
-/**
  * Get all markdown files in a directory (recursively)
  */
 export async function getMarkdownFiles(dir: string): Promise<string[]> {
@@ -444,4 +411,28 @@ export async function getMarkdownFiles(dir: string): Promise<string[]> {
     })
   );
   return files.flat();
+}
+
+/**
+ * Trigger create child node action (mimics user clicking "Create Child" in context menu)
+ * Calls the real createNewChildNodeFromUI function with node.id() from cytoscape
+ */
+export async function triggerCreateChildNode(appWindow: Page, nodeId: string): Promise<void> {
+  await appWindow.evaluate(async (id) => {
+    const w = window as ExtendedWindow;
+    const cy = w.cytoscapeInstance;
+    if (!cy) throw new Error('Cytoscape not initialized');
+
+    const node = cy.getElementById(id);
+    if (!node || node.length === 0) throw new Error(`Node ${id} not found`);
+
+    // Call the real createNewChildNodeFromUI function (exposed globally for testing)
+    const createFn = (window as unknown as { createNewChildNodeFromUI?: (nodeId: string, cy: unknown) => Promise<void> }).createNewChildNodeFromUI;
+    if (!createFn) {
+      throw new Error('createNewChildNodeFromUI not found on window - make sure it is exposed for testing');
+    }
+
+    // Call with node.id() and cy instance, just like ContextMenuService does
+    await createFn(node.id(), cy);
+  }, nodeId);
 }

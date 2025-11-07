@@ -5,8 +5,7 @@
  * This prevents scattered conditional logic across the codebase.
  *
  * Usage:
- *   const env = createBuildEnv()
- *   const config = getBuildConfig(env)
+ *   const config = getBuildConfig()
  *   // Use config.toolsSource, config.pythonBinary, etc.
  */
 
@@ -19,12 +18,10 @@ import path from 'path';
 
 export type NodeEnv = 'development' | 'production' | 'test';
 
-export type BuildEnv = {
+type CommonEnv = {
   readonly nodeEnv: NodeEnv;
   readonly isPackaged: boolean;
   readonly isTest: boolean;
-  readonly rootDir: string;      // VoiceTree repo root
-  readonly appPath: string;       // Electron app.getAppPath()
   readonly userDataPath: string;  // Application Support directory
 };
 
@@ -47,105 +44,102 @@ export type BuildConfig = {
 };
 
 // ============================================================================
-// Environment Detection (Pure Functions)
+// Configuration Computation
 // ============================================================================
 
 /**
- * Create BuildEnv from current Electron environment
- * This is the ONLY function with side effects (reads from app/process)
+ * Compute all build configuration from current environment
+ * Reads from app/process to determine dev vs prod configuration
  */
-export function createBuildEnv(): BuildEnv {
+export function getBuildConfig(): BuildConfig {
+  const commonEnv = getCommonEnv();
+  return commonEnv.nodeEnv === 'development'
+    ? getBuildConfigDev(commonEnv)
+    : getBuildConfigProd(commonEnv);
+}
+
+/**
+ * Get common environment values used by both dev and prod configs
+ */
+function getCommonEnv(): CommonEnv {
   const nodeEnv = (process.env.NODE_ENV || 'production') as NodeEnv;
   const isTest = process.env.HEADLESS_TEST === '1' || nodeEnv === 'test';
   const isPackaged = app.isPackaged;
-  const appPath = app.getAppPath();
-
-  // Compute repo root from app absolutePath
-  // In dev: appPath = /absolutePath/to/VoiceTree/frontend/webapp
-  // In packaged: appPath = /absolutePath/to/VoiceTree.app/Contents/Resources/app.asar
-  const rootDir = isPackaged
-    ? path.dirname(process.resourcesPath)
-    : path.resolve(appPath, '../..');
-
   const userDataPath = app.getPath('userData');
 
   return {
     nodeEnv,
     isPackaged,
     isTest,
-    rootDir,
-    appPath,
     userDataPath
   };
-}
-
-// ============================================================================
-// Configuration Computation (Pure Functions)
-// ============================================================================
-
-/**
- * Compute all build configuration from environment
- * Pure function - same env always produces same config
- */
-export function getBuildConfig(env: BuildEnv): BuildConfig {
-  return env.nodeEnv === 'development'
-    ? getBuildConfigDev(env)
-    : getBuildConfigProd(env);
 }
 
 /**
  * Development configuration - run Python directly from source
  */
-function getBuildConfigDev(env: BuildEnv): BuildConfig {
+function getBuildConfigDev(commonEnv: CommonEnv): BuildConfig {
+  // In dev: appPath = /path/to/VoiceTree/frontend/webapp
+  const appPath = app.getAppPath();
+  const rootDir = path.resolve(appPath, '../..');
+
   return {
     // Python: Run directly from source
     pythonCommand: 'python',
     pythonArgs: ['server.py'],
-    pythonCwd: path.join(env.rootDir, 'backend'),
+    pythonCwd: rootDir,
     shouldCompilePython: false,
     serverBinaryPath: null,
 
     // Tools: Copy from repo source
-    toolsSource: path.join(env.rootDir, 'tools'),
-    toolsDest: path.join(env.userDataPath, 'tools'),
-    backendSource: path.join(env.rootDir, 'backend'),
-    backendDest: path.join(env.userDataPath, 'backend'),
-    shouldCopyTools: !env.isTest,
+    toolsSource: path.join(rootDir, 'tools'),
+    toolsDest: path.join(commonEnv.userDataPath, 'tools'),
+    backendSource: path.join(rootDir, 'backend'),
+    backendDest: path.join(commonEnv.userDataPath, 'backend'),
+    shouldCopyTools: !commonEnv.isTest,
   };
 }
 
 /**
  * Production configuration - run compiled binary
  */
-function getBuildConfigProd(env: BuildEnv): BuildConfig {
+function getBuildConfigProd(commonEnv: CommonEnv): BuildConfig {
+  // Compute repo root from app path
+  // In packaged: appPath = /path/to/VoiceTree.app/Contents/Resources/app.asar
+  // In unpackaged prod: appPath = /path/to/VoiceTree/frontend/webapp
+  const appPath = app.getAppPath();
+  const rootDir = commonEnv.isPackaged
+    ? path.dirname(process.resourcesPath)
+    : path.resolve(appPath, '../..');
+
   // Binary location depends on packaging state
-  const serverBinaryPath = env.isPackaged
+  const serverBinaryPath = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'server', 'voicetree-server')
-    : path.join(env.rootDir, 'dist', 'resources', 'server', 'voicetree-server');
+    : path.join(rootDir, 'dist', 'resources', 'server', 'voicetree-server');
 
   // Tools source depends on packaging state
-  const toolsSource = env.isPackaged
+  const toolsSource = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'tools')
-    : path.join(env.rootDir, 'tools');
+    : path.join(rootDir, 'tools');
 
-  const backendSource = env.isPackaged
+  const backendSource = commonEnv.isPackaged
     ? path.join(process.resourcesPath, 'backend')
-    : path.join(env.rootDir, 'backend');
+    : path.join(rootDir, 'backend');
 
   return {
     // Python: Run compiled binary
     pythonCommand: serverBinaryPath,
     pythonArgs: [],
-    pythonCwd: env.rootDir,
+    pythonCwd: rootDir,
     shouldCompilePython: true,
     serverBinaryPath,
 
     // Tools: Copy from packaged resources or build output
     toolsSource,
-    toolsDest: path.join(env.userDataPath, 'tools'),
+    toolsDest: path.join(commonEnv.userDataPath, 'tools'),
     backendSource,
-    backendDest: path.join(env.userDataPath, 'backend'),
-    shouldCopyTools: !env.isTest,
+    backendDest: path.join(commonEnv.userDataPath, 'backend'),
+    shouldCopyTools: !commonEnv.isTest,
   };
 }
 
@@ -158,8 +152,7 @@ function getBuildConfigProd(env: BuildEnv): BuildConfig {
  * Usage from bash: node -e "require('./electron/build-config').printConfig()"
  */
 export function printConfig(): void {
-  const env = createBuildEnv();
-  const config = getBuildConfig(env);
+  const config = getBuildConfig();
   console.log(JSON.stringify(config, null, 2));
 }
 

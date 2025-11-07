@@ -23,7 +23,7 @@ import {
   stopWatching,
   pollForNodeCount,
   createMarkdownFile
-} from './test-utils';
+} from '../test-utils';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
 const SPAWN_RADIUS = 200; // From angularPositionSeeding.ts
