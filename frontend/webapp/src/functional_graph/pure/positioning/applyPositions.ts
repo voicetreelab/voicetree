@@ -11,23 +11,23 @@
 
 // SEEN SET TO AVOID CYCLES
 
-import type { Graph, NodeId, Position } from '@/functional_graph/pure/types.ts'
+import type { Graph, GraphNode, NodeId, Position } from '@/functional_graph/pure/types.ts'
 import * as O from 'fp-ts/lib/Option.js'
-import { calculateInitialPositionForChild } from './calculateInitialPosition.ts'
 import { findFirstParentNode } from '@/functional_graph/pure/findFirstParentNode.ts'
+import { calculateInitialPositionForChild } from './calculateInitialPosition.ts'
 
+const GHOST_ROOT_ID: NodeId = '__GHOST_ROOT__'
 const GHOST_ROOT_POSITION: Position = { x: 0, y: 0 }
-const ROOT_SPREAD_ANGLE = Math.PI * 2 // Full circle for root nodes
-const ROOT_SPAWN_RADIUS = 200 // Distance from origin for root nodes
 
 /**
  * Apply positions to all nodes in the graph that don't have a position.
  *
  * Algorithm:
  * 1. Find all root nodes (nodes with no parent)
- * 2. Position root nodes in a circle around origin (mimicking a ghost root at origin)
- * 3. Preorder traversal from each root to position children
- * 4. Uses a seen set to avoid cycles
+ * 2. Create a ghost root node at origin with edges to all root nodes
+ * 3. Preorder traversal from ghost root positions all nodes naturally
+ * 4. Remove ghost root from final result
+ * 5. Uses a seen set to avoid cycles
  *
  * @param graph - The graph to apply positions to
  * @returns A new graph with all nodes positioned
@@ -35,16 +35,38 @@ const ROOT_SPAWN_RADIUS = 200 // Distance from origin for root nodes
 export function applyPositions(graph: Graph): Graph {
     const rootNodes = findRootNodes(graph)
 
-    // Position root nodes in a circle around the ghost root at origin
-    const graphWithRootPositions = positionRootNodes(graph, rootNodes)
+    // Create ghost root node with outgoing edges to all root nodes
+    const ghostRootNode: GraphNode = {
+        relativeFilePathIsID: GHOST_ROOT_ID,
+        outgoingEdges: rootNodes,
+        content: '',
+        nodeUIMetadata: {
+            color: O.none,
+            position: O.some(GHOST_ROOT_POSITION)
+        }
+    }
 
-    // Preorder traversal from each root
-    const graphWithAllPositions = rootNodes.reduce(
-        (accGraph, rootId) => traverseAndPosition(accGraph, rootId, new Set<NodeId>()).graph,
-        graphWithRootPositions
-    )
+    // Add ghost root to graph temporarily
+    const graphWithGhostRoot: Graph = {
+        nodes: {
+            ...graph.nodes,
+            [GHOST_ROOT_ID]: ghostRootNode
+        }
+    }
 
-    return graphWithAllPositions
+    // Traverse from ghost root - this will position all nodes
+    const graphWithAllPositions = traverseAndPosition(
+        graphWithGhostRoot,
+        GHOST_ROOT_ID,
+        new Set<NodeId>(),
+        undefined // ghost root has no parent or sibling index
+    ).graph
+
+    // Remove ghost root from final result
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [GHOST_ROOT_ID]: _, ...finalNodes } = graphWithAllPositions.nodes
+
+    return { nodes: finalNodes }
 }
 
 /**
@@ -57,101 +79,88 @@ function findRootNodes(graph: Graph): readonly NodeId[] {
 }
 
 /**
- * Position root nodes in a circle around the origin (ghost root)
+ * Preorder traversal to position nodes
+ * Returns both the updated graph and the updated seen set
+ * @param childIndexInParent - The index of this node among its parent's children (undefined for ghost root)
  */
-function positionRootNodes(graph: Graph, rootIds: readonly NodeId[]): Graph {
-    if (rootIds.length === 0) {
-        return graph
+function traverseAndPosition(
+    tree: Graph,
+    nodeId: NodeId,
+    seen: ReadonlySet<NodeId>,
+    childIndexInParent: number | undefined
+): { readonly graph: Graph; readonly seen: ReadonlySet<NodeId> } {
+
+    // PRE ORDER RECURSIVE TRAVERSAL OF GRAPH (WHICH WE ASSUME SI TREE)
+
+    // base case: already visited (cycle detection)
+    if (seen.has(nodeId)) {
+        return { graph: tree, seen }
     }
 
-    const updatedNodes = rootIds.reduce((nodes, rootId, index) => {
-        const node = nodes[rootId]
-        if (!node) return nodes
+    // Mark as seen
+    const updatedSeen: ReadonlySet<NodeId> = new Set(seen).add(nodeId)
 
-        // Skip if already has a position
-        if (O.isSome(node.nodeUIMetadata.position)) {
-            return nodes
-        }
+    // Get current node
+    const node = tree.nodes[nodeId]
+    if (!node) {
+        return { graph: tree, seen: updatedSeen }
+    }
 
-        // Calculate angle for this root node
-        const angle = (index / rootIds.length) * ROOT_SPREAD_ANGLE
+    // PREORDER: Process current node - ensure it has a position
+    const graphAfterPositioningCurrentNode = nodeId === GHOST_ROOT_ID
+        ? tree  // Don't position ghost root
+        : positionNodeIfNeeded(node, nodeId, tree, childIndexInParent)
 
-        // Position in circle around origin
-        const position: Position = {
-            x: GHOST_ROOT_POSITION.x + Math.cos(angle) * ROOT_SPAWN_RADIUS,
-            y: GHOST_ROOT_POSITION.y + Math.sin(angle) * ROOT_SPAWN_RADIUS
-        }
-
-        return {
-            ...nodes,
-            [rootId]: {
-                ...node,
-                nodeUIMetadata: {
-                    ...node.nodeUIMetadata,
-                    position: O.some(position)
-                }
+    // RECURSIVE CASE: Process all children using reduce with index
+    return node.outgoingEdges.reduce(
+        (acc, childId, childIndex) => {
+            const childResult = traverseAndPosition(acc.graph, childId, acc.seen, childIndex)
+            return {
+                graph: childResult.graph,
+                seen: childResult.seen
             }
-        }
-    }, graph.nodes)
-
-    return { nodes: updatedNodes }
+        },
+        { graph: graphAfterPositioningCurrentNode, seen: updatedSeen }
+    )
 }
 
 /**
- * Preorder traversal to position nodes
- * Returns both the updated graph and the updated seen set
+ * Position a node based on its parent's position and child index
  */
-function traverseAndPosition(
-    graph: Graph,
+function positionNodeIfNeeded(
+    node: GraphNode,
     nodeId: NodeId,
-    seen: Set<NodeId>
-): { readonly graph: Graph; readonly seen: Set<NodeId> } {
-    // Check for cycles
-    if (seen.has(nodeId)) {
-        return { graph, seen }
+    tree: Graph,
+    childIndexInParent: number | undefined
+): Graph {
+    const parentNode = findFirstParentNode(node, tree)
+
+    if (!parentNode || childIndexInParent === undefined) {
+        return tree
     }
 
-    const newSeen = new Set(seen).add(nodeId)
-
-    const node = graph.nodes[nodeId]
-    if (!node) {
-        return { graph, seen: newSeen }
-    }
-
-    // Position children using reduce (preorder: visit node before children)
-    const result = node.outgoingEdges.reduce(
-        (acc, childId) => {
-            const childNode = acc.graph.nodes[childId]
-            if (!childNode) return acc
-
-            // If child doesn't have a position, calculate and set one
-            const graphWithPosition = O.isNone(childNode.nodeUIMetadata.position)
-                ? (() => {
-                    const calculatedPosition = calculateInitialPositionForChild(node, acc.graph)
-
-                    // Only apply if calculation succeeded (parent had position)
-                    return O.isSome(calculatedPosition)
-                        ? {
-                            nodes: {
-                                ...acc.graph.nodes,
-                                [childId]: {
-                                    ...childNode,
-                                    nodeUIMetadata: {
-                                        ...childNode.nodeUIMetadata,
-                                        position: calculatedPosition
-                                    }
-                                }
-                            }
-                        }
-                        : acc.graph
-                })()
-                : acc.graph
-
-            // Recurse to children
-            return traverseAndPosition(graphWithPosition, childId, acc.seen)
-        },
-        { graph, seen: newSeen }
+    const newPosition = calculateInitialPositionForChild(
+        parentNode,
+        tree,
+        childIndexInParent
     )
 
-    return result
+    if (O.isNone(newPosition)) {
+        return tree
+    }
+
+    const updatedNode: GraphNode = {
+        ...node,
+        nodeUIMetadata: {
+            ...node.nodeUIMetadata,
+            position: newPosition
+        }
+    }
+
+    return {
+        nodes: {
+            ...tree.nodes,
+            [nodeId]: updatedNode
+        }
+    }
 }
