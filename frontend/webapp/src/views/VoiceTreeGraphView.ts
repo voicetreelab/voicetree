@@ -143,8 +143,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Access electronAPI with type assertion since global Window type may not be recognized
     const electronAPI = (window as { electronAPI?: { graph: { onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void } } }).electronAPI;
 
-    if (!electronAPI?.graph.onGraphUpdate) {
-      console.warn('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
+    if (!electronAPI?.graph?.onGraphUpdate) {
+      console.error('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
       return;
     }
 

@@ -1,11 +1,5 @@
-import cytoscape, { type Stylesheet } from 'cytoscape';
+import cytoscape from 'cytoscape';
 import {
-  MIN_NODE_SIZE,
-  MAX_NODE_SIZE,
-  MIN_FONT_SIZE,
-  MAX_FONT_SIZE,
-  MIN_TEXT_WIDTH,
-  MAX_TEXT_WIDTH,
   DEFAULT_TEXT_WIDTH,
   GHOST_ROOT_ID,
 } from '@/graph-core/constants';
@@ -99,7 +93,7 @@ export class StyleService {
     };
   }
 
-  getDefaultStylesheet(): Stylesheet[] {
+  getDefaultStylesheet(): Array<{ selector: string; style: Record<string, unknown> }> {
     return [
       // Base node styles
       {
@@ -108,8 +102,8 @@ export class StyleService {
           'background-color': this.fillColor,
           'color': this.textColor,
           'font-family': this.font,
-          'text-valign': 'bottom' as cytoscape.Css.TextVAlign,
-          'text-halign': 'center' as cytoscape.Css.TextHAlign,
+          'text-valign': 'bottom',
+          'text-halign': 'center',
           'text-margin-y': 3,
           'shape': 'ellipse',
           'border-width': 1,
@@ -187,11 +181,6 @@ export class StyleService {
           'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
           'target-arrow-color': '#666',
           'arrow-scale': 0.7,
-          'shadow-blur': 2,
-          'shadow-color': '#333',
-          'shadow-opacity': 0.3,
-          'shadow-offset-x': 0,
-          'shadow-offset-y': 0,
           'font-size': 11,
           'font-family': this.font,
           'color': this.textColor,
@@ -349,7 +338,7 @@ export class StyleService {
     ];
   }
 
-  getFrontmatterStylesheet(): Stylesheet[] {
+  getFrontmatterStylesheet(): Array<{ selector: string; style: Record<string, unknown> }> {
     // YAML frontmatter-based styling
     return [
       {
@@ -367,7 +356,7 @@ export class StyleService {
       {
         selector: 'node[shape]',
         style: {
-          'shape': 'data(shape)' as cytoscape.Css.NodeShape,
+          'shape': 'data(shape)',
         }
       },
       {
@@ -392,7 +381,7 @@ export class StyleService {
     ];
   }
 
-  getCombinedStylesheet(): Stylesheet[] {
+  getCombinedStylesheet(): Array<{ selector: string; style: Record<string, unknown> }> {
     return [
       ...this.getDefaultStylesheet(),
       ...this.getFrontmatterStylesheet(),

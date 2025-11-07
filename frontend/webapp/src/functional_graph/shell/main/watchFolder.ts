@@ -1,4 +1,4 @@
-import {loadGraphFromDisk} from "@/functional_graph/shell/main/loadGraphFromDisk.ts";
+import {loadGraphFromDisk} from "@/functional_graph/shell/main/readAndDBEventsPath/loadGraphFromDisk.ts";
 import type {FilePath, Graph, GraphDelta} from "@/functional_graph/pure/types.ts";
 import {setGraph, setVaultPath} from "@/functional_graph/shell/state/graph-store.ts";
 import {app} from "electron";
@@ -7,11 +7,11 @@ import * as O from "fp-ts/lib/Option.js";
 import {promises as fs} from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
 import type {FSUpdate} from "@/functional_graph/pure/types.ts";
-import {handleFSEventWithStateAndUISides} from "@/functional_graph/shell/main/handleFSEventWithStateAndUISides.ts";
+import {handleFSEventWithStateAndUISides} from "@/functional_graph/shell/main/readAndDBEventsPath/handleFSEventWithStateAndUISides.ts";
 import {mapNewGraphToDelta} from "@/functional_graph/pure/graphDelta/mapNewGraphtoDelta.ts";
-import {applyGraphDeltaToStateAndUI} from "@/functional_graph/shell/main/applyGraphDeltaToStateAndUI.ts";
+import {applyGraphDeltaToMemStateAndUI} from "@/functional_graph/shell/main/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI.ts";
 import {getMainWindow} from "@/functional_graph/shell/state/app-electron-state.ts";
-import {notifyTextToTreeServerOfDirectory} from "@/functional_graph/shell/main/notifyTextToTreeServerOfDirectory.ts";
+import {notifyTextToTreeServerOfDirectory} from "@/functional_graph/shell/main/readAndDBEventsPath/notifyTextToTreeServerOfDirectory.ts";
 
 // THIS FUNCTION takes absolutePath
 // returns graph
@@ -24,6 +24,8 @@ let watcher: FSWatcher | null = null;
 
 // eslint-disable-next-line functional/no-let
 let watchedDirectory: FilePath | null = null;
+
+//todo move this state to src/functional_graph/shell/state/app-electron-state.ts
 
 export async function initialLoad(): Promise<void>  {
     const lastDirectory = await loadLastDirectory();
@@ -82,7 +84,7 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
         return;
     }
 
-    applyGraphDeltaToStateAndUI(graphDelta, mainWindow)
+    applyGraphDeltaToMemStateAndUI(graphDelta, mainWindow)
     console.log('[loadFolder] Graph delta broadcast to UI');
 
     // Setup file watcher

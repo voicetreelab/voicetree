@@ -107,14 +107,14 @@ test.describe('Smoke Test', () => {
     await appWindow.waitForTimeout(1000);
 
     // Verify graph was loaded into main process state
-    const graphStateResult = await appWindow.evaluate(async () => {
+    const graph = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.graph.getState();
     });
 
-    expect(graphStateResult.success).toBe(true);
-    const nodeCount = Object.keys(graphStateResult.graph.nodes).length;
+    expect(graph).toBeDefined();
+    const nodeCount = Object.keys(graph.nodes).length;
     console.log(`✓ Graph loaded into state with ${nodeCount} nodes`);
     expect(nodeCount).toBeGreaterThan(0);
 

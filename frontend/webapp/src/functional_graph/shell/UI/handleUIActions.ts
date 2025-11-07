@@ -1,7 +1,8 @@
-import type {Graph, GraphDelta} from "@/functional_graph/pure/types.ts";
+import type {GraphDelta} from "@/functional_graph/pure/types.ts";
 import {fromUICreateChildToUpsertNode} from "@/functional_graph/pure/graphDelta/uiInteractionsToGraphDeltas.ts";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
+import type {} from '@/types/electron'; // Import to load global Window extensions
 
 
 export async function createNewChildNodeFromUI(
@@ -10,8 +11,11 @@ export async function createNewChildNodeFromUI(
 ): Promise<void> {
 
     // Get current graph state
-    const currentGraph: Graph = await window.electronAPI?.graph.getState() // todo, in memory renderer cache?
-
+    const currentGraph = await window.electronAPI?.graph.getState() // todo, in memory renderer cache?
+    if (!currentGraph) {
+        console.error("NO GRAPH IN STATE")
+        return;
+    }
     // Get parent node from graph
     const parentNode = currentGraph.nodes[parentNodeId];
 

@@ -3,7 +3,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
-import { loadGraphFromDisk } from '@/functional_graph/shell/main/loadGraphFromDisk.ts'
+import { loadGraphFromDisk } from '@/functional_graph/shell/main/readAndDBEventsPath/loadGraphFromDisk.ts'
 
 describe('loadGraphFromDisk', () => {
   let testVaultPath: string

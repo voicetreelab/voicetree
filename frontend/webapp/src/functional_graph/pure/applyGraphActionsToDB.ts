@@ -32,7 +32,7 @@ const toError = (reason: unknown): Error =>
  *
  * @returns Filesystem write effect that returns computed graph (but don't update state with it!)
  */
-export function apply_graph_deltas(
+export function apply_graph_deltas_to_db(
   graph: Graph,
   deltas: GraphDelta
 ): FSWriteEffect<Graph> {

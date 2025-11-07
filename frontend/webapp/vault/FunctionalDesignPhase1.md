@@ -35,8 +35,8 @@ data FSUpdate = FSUpdate
 
 ```haskell
 -- 1. User actions → update graph + persist
-apply_graph_deltas :: Graph -> GraphDelta -> (Graph, DBIO ())
-apply_graph_deltas graph action =
+apply_graph_deltas_to_db :: Graph -> GraphDelta -> (Graph, DBIO ())
+apply_graph_deltas_to_db graph action =
   let newGraph = applyActionToGraph graph action
       dbEffect = persistAction action  -- writes to FS, async
   in (newGraph, dbEffect)
@@ -129,7 +129,7 @@ main = do
   -- Handle user actions from renderer
   ipcHandle "graph:applyUpdate" $ \action -> do
     graph <- readIORef (graph manager)
-    let (newGraph, dbEffect) = apply_graph_deltas graph action
+    let (newGraph, dbEffect) = apply_graph_deltas_to_db graph action
     writeIORef (graph manager) newGraph
     runDBIO dbEffect
 
@@ -164,7 +164,7 @@ onGraphStateChanged callback =
 ## Rollout Strategy
 
 1. **Add types** (GraphState, GraphDelta) - no behavior change
-2. **Implement apply_graph_deltas** in main - parallel to existing code
+2. **Implement apply_graph_deltas_to_db** in main - parallel to existing code
 3. **Implement apply_db_updates_to_graph** - runs alongside FileEventManager
 4. **Add projection layer** in renderer - coexists with direct mutations
 5. **Gradually migrate** user actions to send NodeActions
@@ -173,7 +173,7 @@ onGraphStateChanged callback =
 
 ## Success Criteria
 
-- ✓ All graph mutations go through `apply_graph_deltas` or `apply_db_updates_to_graph`
+- ✓ All graph mutations go through `apply_graph_deltas_to_db` or `apply_db_updates_to_graph`
 - ✓ Renderer never directly mutates Cytoscape for graph data (only UI state)
 - ✓ Filesystem is source of truth, Graph is cached projection
 - ✓ All tests pass with new architecture

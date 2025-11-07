@@ -25,7 +25,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import { setupFileWatchHandlerForTests } from '@/electron/file-watch-handler.ts'
-import type { Graph } from '@/functional_graph/pure/types'
+import type { Graph } from '@/functional_graph/pure/types.ts'
 import type { BrowserWindow } from 'electron'
 
 // State managed by mocked globals
