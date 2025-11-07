@@ -15,7 +15,6 @@ function App() {
     watchDirectory,
     error,
     startWatching,
-    stopWatching,
     clearError,
     isElectron
   } = useFolderWatcher();
@@ -60,15 +59,12 @@ function App() {
       <div className="flex gap-2 mb-2">
         {isElectron ? (
           <Button
-            onClick={isWatching ? stopWatching : startWatching}
+            onClick={startWatching}
             disabled={isLoading}
             size="sm"
-            variant={isWatching ? "destructive" : "default"}
+            variant="default"
           >
-            {isLoading
-              ? (isWatching ? 'Stopping...' : 'Starting...')
-              : (isWatching ? 'Stop Watching' : 'Open Folder')
-            }
+            {isLoading ? 'Opening...' : 'Open New Folder'}
           </Button>
         ) : (
           <div className="text-xs text-gray-500">

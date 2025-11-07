@@ -1,8 +1,12 @@
-import type {GraphDelta, Node} from "@/functional_graph/pure/types.ts";
-import {fromUICreateChildToUpsertNode} from "@/functional_graph/pure/graphDelta/uiInteractionsToGraphDeltas.ts";
+import type {GraphDelta, GraphNode, NodeId} from "@/functional_graph/pure/types.ts";
+import {
+    fromContentChangeToGraphDelta,
+    fromUICreateChildToUpsertNode
+} from "@/functional_graph/pure/graphDelta/uiInteractionsToGraphDeltas.ts";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
-import type {} from '@/types/electron'; // Import to load global Window extensions
+import type {} from '@/types/electron';
+import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts"; // Import to load global Window extensions
 
 
 export async function createNewChildNodeFromUI(
@@ -17,10 +21,10 @@ export async function createNewChildNodeFromUI(
         return;
     }
     // Get parent node from graph
-    const parentNode : Node = currentGraph.nodes[parentNodeId];
+    const parentNode : GraphNode = currentGraph.nodes[parentNodeId];
 
     // Create GraphDelta (contains both child and updated parent with edge)
-    const graphDelta: GraphDelta = fromUICreateChildToUpsertNode(currentGraph, parentNode);
+    const graphDelta: GraphDelta = fromUICreateChildToUpsertNode(currentGraph, parentNode); //todo this only actually needs parent and grandparent, maybe we can have derived backlinks
 
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
@@ -28,14 +32,18 @@ export async function createNewChildNodeFromUI(
     await window.electronAPI?.graph.applyGraphDelta(graphDelta);
 }
 
-// Expose for testing
-declare global {
-    interface Window {
-        createNewChildNodeFromUI?: typeof createNewChildNodeFromUI;
-    }
-}
+export async function modifyNodeContentFromUI(
+    nodeId: NodeId,
+    newContent: string,
+): Promise<void> {
 
-if (typeof window !== 'undefined') {
-    window.createNewChildNodeFromUI = createNewChildNodeFromUI;
+    // Get current graph state
+    const currentNode = await getNodeFromUI(nodeId);
+
+    // Create GraphDelta (contains both child and updated parent with edge)
+    const graphDelta: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent);
+
+    // NO OPTIMISTIC UI update. let fs event handle.
+    await window.electronAPI?.graph.applyGraphDelta(graphDelta);
 }
 

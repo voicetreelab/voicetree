@@ -910,7 +910,7 @@ class QualityChecker {
   }
 
   /**
-   * Check for Node.js specific patterns and issues
+   * Check for GraphNode.js specific patterns and issues
    * @returns {Promise<void>}
    */
   async checkNodePatterns() {
@@ -919,7 +919,7 @@ class QualityChecker {
       return;
     }
 
-    log.info('Checking Node.js specific patterns...');
+    log.info('Checking GraphNode.js specific patterns...');
 
     try {
       const content = await fs.readFile(this.filePath, 'utf8');
@@ -980,7 +980,7 @@ class QualityChecker {
       }
 
       if (!foundIssues) {
-        log.success('Node.js patterns look good');
+        log.success('GraphNode.js patterns look good');
       }
     } catch (error) {
       log.debug(`Node.js patterns check error: ${error.message}`);

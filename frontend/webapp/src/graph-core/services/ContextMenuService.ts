@@ -15,7 +15,7 @@ cytoscape.use(cxtmenu);
 export interface ContextMenuDependencies {
     getContentForNode: (nodeId: string) => string | undefined;
     getFilePathForNode: (nodeId: string) => string | undefined;
-    createFloatingEditor: (nodeId: string, filePath: string, content: string, pos: Position) => void;
+    createFloatingEditor: (node : NodeSingular) => void;
     createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => void;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
@@ -154,11 +154,11 @@ export class ContextMenuService {
     private getCanvasCommands(): MenuCommand[] {
         const commands: MenuCommand[] = [];
 
-        // Add Node Here
+        // Add GraphNode Here
         if (this.deps && this.lastCanvasClickPosition) {
             const position = this.lastCanvasClickPosition;
             commands.push({
-                content: this.createSvgIcon('plus', 'Add Node Here'),
+                content: this.createSvgIcon('plus', 'Add GraphNode Here'),
                 select: async () => {
                     console.log('[ContextMenuService] Creating node at position:', position);
                     await this.deps!.handleAddNodeAtPosition(position);

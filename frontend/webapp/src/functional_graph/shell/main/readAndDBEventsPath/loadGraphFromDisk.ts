@@ -6,6 +6,9 @@ import type { Graph, NodeId } from '@/functional_graph/pure/types.ts'
 import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown_parsing/parse-markdown-to-node.ts'
 import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids.ts'
 import { enforceFileLimit } from './fileLimitEnforce.ts'
+import { setOutgoingEdges } from '@/functional_graph/pure/graph-edge-operations'
+import { applyPositions } from '@/functional_graph/pure/positioning/applyPositions.ts'
+import {reverseGraphEdges} from "@/functional_graph/pure/graph-transformations.ts";
 
 /**
  * Loads a graph from the filesystem.
@@ -17,7 +20,7 @@ import { enforceFileLimit } from './fileLimitEnforce.ts'
  *
  * Algorithm:
  * 1. Scan vault directory recursively for .md files
- * 2. Read each file and parse into Node (preliminary, without outgoingEdges)
+ * 2. Read each file and parse into GraphNode (preliminary, without outgoingEdges)
  * 3. Build final nodes with outgoingEdges extracted from wikilinks in content
  * 4. Return Graph with nodes containing their outgoingEdges
  *
@@ -45,9 +48,10 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Gr
     const preliminaryNodes = await loadNodes(vaultPath.value, files)
 
     // Step 3: Build final nodes with outgoingEdges from wikilinks
-    const nodesWithEdges = buildNodesWithEdges(preliminaryNodes)
+    const graph : Graph = {nodes : buildNodesWithEdges(preliminaryNodes) };
 
-    return { nodes: nodesWithEdges }
+    // Step 4: Apply positions to all nodes that don't have a position
+    return reverseGraphEdges(applyPositions(reverseGraphEdges(graph)));
 }
 
 /**
@@ -85,7 +89,7 @@ async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> 
  *
  * @param vaultPath - Absolute absolutePath to vault directory
  * @param files - Array of relative file paths
- * @returns Record mapping node ID to Node
+ * @returns Record mapping node ID to GraphNode
  */
 async function loadNodes(
   vaultPath: string,
@@ -115,7 +119,7 @@ function buildNodesWithEdges(
 ): Record<NodeId, Graph['nodes'][NodeId]> {
   const nodeEntries = Object.entries(nodes).map(([nodeId, node]) => {
     const outgoingEdges = extractLinkedNodeIds(node.content, nodes)
-    const nodeWithEdges = { ...node, outgoingEdges }
+    const nodeWithEdges = setOutgoingEdges(node, outgoingEdges)
     return [nodeId, nodeWithEdges] as const
   })
 

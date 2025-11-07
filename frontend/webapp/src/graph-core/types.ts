@@ -1,4 +1,4 @@
-// Canonical Node type - matches Python Node class (backend/markdown_tree_manager/markdown_tree_ds.py)
+// Canonical GraphNode type - matches Python GraphNode class (backend/markdown_tree_manager/markdown_tree_ds.py)
 // NOTE: node_id is always stored as string (e.g., "1", "14_1", "4_2") for simplicity
 export interface Node {
   // Core identity
@@ -29,7 +29,7 @@ export interface Node {
 
 // Canonical MarkdownTree container - matches Python MarkdownTree class
 export interface MarkdownTree {
-  tree: Map<string, Node>;   // dict[node_id, Node] in Python (keys always strings)
+  tree: Map<string, Node>;   // dict[node_id, GraphNode] in Python (keys always strings)
   nextNodeId: number;        // next_node_id for ID generation (only for numeric IDs)
   outputDir: string;         // output_dir for markdown files
 }

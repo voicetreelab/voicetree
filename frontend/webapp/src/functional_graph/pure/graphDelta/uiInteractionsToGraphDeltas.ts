@@ -1,6 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, Node, NodeId} from '@/functional_graph/pure/types.ts'
+import type {Graph, GraphDelta, GraphNode} from '@/functional_graph/pure/types.ts'
 import {calculateInitialPositionForChild} from "@/functional_graph/pure/positioning/calculateInitialPosition.ts";
+import {addOutgoingEdge} from "@/functional_graph/pure/graph-edge-operations.ts";
 
 /**
  * Pure action creator functions.
@@ -14,25 +15,22 @@ import {calculateInitialPositionForChild} from "@/functional_graph/pure/position
 // human
 // Creates a new child node and returns deltas for both the child and updated parent
 export function fromUICreateChildToUpsertNode(
-  g: Graph,
-  parentNode: Node
+  graph: Graph,
+  parentNode: GraphNode
 ): GraphDelta {
   // Create the new node with default values for an empty node
-  const newNode: Node = {
+  const newNode: GraphNode = {
     relativeFilePathIsID: parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length, //todo doesn't guarantee uniqueness, but tis good enough
     outgoingEdges: [],
-    content: '# New Node',
+    content: '# New GraphNode',
     nodeUIMetadata: {
       color: O.none,
-      position: calculateInitialPositionForChild(parentNode, g)
+      position: calculateInitialPositionForChild(parentNode, graph)
     },
   }
 
   // Create updated parent node with edge to new child
-  const updatedParentNode: Node = {
-    ...parentNode,
-    outgoingEdges: [...parentNode.outgoingEdges, newNode.relativeFilePathIsID]
-  }
+  const updatedParentNode: GraphNode = addOutgoingEdge(parentNode, newNode.relativeFilePathIsID)
 
   console.log("new node / parent node", newNode.relativeFilePathIsID, parentNode.relativeFilePathIsID)
 
@@ -50,14 +48,13 @@ export function fromUICreateChildToUpsertNode(
 }
 
 
-export function createUpdateNodeAction(
-  nodeId: NodeId,
+export function fromContentChangeToGraphDelta(
+  Node: GraphNode,
   content: string,
-  graph : Graph
 ): GraphDelta {
     return [{
         type: 'UpsertNode',
-        nodeToUpsert: {...graph.nodes[nodeId], content}
+        nodeToUpsert: {...Node, content}
     }]
 }
 

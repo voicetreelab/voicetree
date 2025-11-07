@@ -7,17 +7,23 @@
  * - Context menu setup and callbacks
  * - Window chrome creation and mounting
  * - Click-outside handlers
- * - Node creation workflows
+ * - GraphNode creation workflows
  *
  * This class owns all floating window state and operations.
  */
 
-import type { Core, NodeSingular } from 'cytoscape';
-import { createWindowChrome, getOrCreateOverlay, mountComponent } from '@/graph-core/extensions/cytoscape-floating-windows';
-import type { Position } from './IVoiceTreeGraphView';
-import type { HotkeyManager } from './HotkeyManager';
-import type { Graph, NodeId } from '@/functional_graph/pure/types';
-import { nodeIdToFilePathWithExtension } from '@/functional_graph/pure/markdown_parsing/filename-utils';
+import type {Core, NodeSingular} from 'cytoscape';
+import {
+    createWindowChrome,
+    getOrCreateOverlay,
+    mountComponent
+} from '@/graph-core/extensions/cytoscape-floating-windows';
+import type {Position} from './IVoiceTreeGraphView';
+import type {HotkeyManager} from './HotkeyManager';
+import type {Graph, NodeId} from '@/functional_graph/pure/types';
+import {nodeIdToFilePathWithExtension} from '@/functional_graph/pure/markdown_parsing/filename-utils';
+import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
+import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
 
 /**
  * Function type for getting current graph state
@@ -78,7 +84,7 @@ export class FloatingWindowManager {
 
     // Listen for node hover when command is held
     this.cy.on('mouseover', 'node', (event) => {
-      console.log('[CommandHover] Node mouseover, commandKeyHeld:', this.commandKeyHeld);
+      console.log('[CommandHover] GraphNode mouseover, commandKeyHeld:', this.commandKeyHeld);
       if (!this.commandKeyHeld) return;
 
       const node = event.target;
@@ -100,12 +106,14 @@ export class FloatingWindowManager {
   /**
    * Create a floating editor window
    */
-  createFloatingEditor(
-    nodeId: string,
-    filePath: string,
-    content: string,
-    nodePos: Position
-  ): void {
+  async createFloatingEditor(
+      cyNode: NodeSingular,
+  ): Promise<void> {
+      const nodeId = cyNode.id();
+      const node = await getNodeFromUI(nodeId);
+      const content = node.content;
+      const nodePos = cyNode.position(); // todo, floatingWindow node should use same node creation logic ?
+
     const editorId = `editor-${nodeId}`;
     console.log('[FloatingWindowManager] Creating floating editor:', editorId);
 
@@ -135,16 +143,8 @@ export class FloatingWindowManager {
         initialContent: content,
         onSave: async (newContent: string) => {
           console.log('[FloatingWindowManager] Saving editor content');
-          if ((window as any).electronAPI?.saveFileContent) {
-            const result = await (window as any).electronAPI.saveFileContent(filePath, newContent);
-            if (!result.success) {
-              throw new Error(result.error || 'Failed to save file');
-            }
-          } else {
-            throw new Error('Save functionality not available');
-          }
-        }
-      });
+          await modifyNodeContentFromUI(nodeId, newContent);
+      }});
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating floating editor:', error);
     }
@@ -332,7 +332,7 @@ export class FloatingWindowManager {
           const node = cy.getElementById(newNodeId);
 
           if (node.length > 0) {
-            // Node found, open editor
+            // GraphNode found, open editor
             const content = `---
 node_id: ${result.nodeId}
 title: New Node (${result.nodeId})

@@ -176,7 +176,7 @@ async function initializeGraph() {
     // Add event listeners for interactivity
     cy.on('tap', 'node', function(evt) {
       const node = evt.target;
-      console.log('Node clicked:', {
+      console.log('GraphNode clicked:', {
         id: node.data('id'),
         label: node.data('label'),
         content: node.data('content'),

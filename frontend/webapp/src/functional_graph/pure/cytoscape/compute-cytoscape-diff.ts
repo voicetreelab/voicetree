@@ -54,13 +54,13 @@ export function computeCytoscapeDiff(
     readonly nodesToUpdate: readonly { readonly id: string; readonly data: Partial<CytoscapeNodeElement['data']> }[]
   }>((acc, nodeElem) => {
     if (currentNodeIds.has(nodeElem.data.id)) {
-      // Node exists - mark for update
+      // GraphNode exists - mark for update
       return {
         ...acc,
         nodesToUpdate: [...acc.nodesToUpdate, { id: nodeElem.data.id, data: nodeElem.data }]
       }
     } else {
-      // Node doesn't exist - mark for add
+      // GraphNode doesn't exist - mark for add
       return {
         ...acc,
         nodesToAdd: [...acc.nodesToAdd, nodeElem]

@@ -1,6 +1,6 @@
 ---
 node_id: 2
-title: VoiceTree Node ID Duplication Bug (2)
+title: VoiceTree GraphNode ID Duplication Bug (2)
 ---
 ### A bug where VoiceTree nodes display duplicated names or IDs needs to be fixed during website development.
 

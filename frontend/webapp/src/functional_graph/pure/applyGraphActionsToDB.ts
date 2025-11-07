@@ -2,7 +2,7 @@ import type {
     Graph,
     GraphDelta,
     FSWriteEffect,
-    Node as GraphNode,
+    GraphNode as GraphNode,
     Env,
     NodeId
 } from '@/functional_graph/pure/types'

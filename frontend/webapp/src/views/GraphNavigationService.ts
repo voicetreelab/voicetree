@@ -106,9 +106,9 @@ export class GraphNavigationService {
       setTimeout(() => {
         node.removeClass('highlighted');
       }, 1000);
-      console.log('[GraphNavigationService] Node fitted and highlighted');
+      console.log('[GraphNavigationService] GraphNode fitted and highlighted');
     } else {
-      console.warn('[GraphNavigationService] Node not found for relativeFilePathIsID:', nodeId);
+      console.warn('[GraphNavigationService] GraphNode not found for relativeFilePathIsID:', nodeId);
     }
   }
 }

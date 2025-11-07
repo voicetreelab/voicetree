@@ -29,7 +29,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 const isNewNode = existingNode.length === 0;
 
                 if (isNewNode) {
-                    // Add new node with position
+                    // Add new node with position (or default to origin if none)
+                    const pos = O.getOrElse(() => ({ x: 0, y: 0 }))(node.nodeUIMetadata.position);
                     cy.add({
                         group: 'nodes' as const,
                         data: {
@@ -42,13 +43,17 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                                 : undefined
                         },
                         position: {
-                            x: node.nodeUIMetadata.position.x,
-                            y: node.nodeUIMetadata.position.y
+                            x: pos.x,
+                            y: pos.y
                         }
                     });
                 } else {
                     // Update existing node metadata (but NOT position)
-                    existingNode.data('content', node.content);
+
+                    // TODO SEND NODE CONTENT TO NODE EDITOR
+                    // window.markdownEditors[nodeID].updatContent(node.content)
+
+
                     existingNode.data('label', nodeId);
                     existingNode.data('summary', '');
                     const color = O.isSome(node.nodeUIMetadata.color)
@@ -110,6 +115,10 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
             }
         });
     });
+    if (delta.length > 2 ) {
+        cy.fit()
+        // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY IF WE HAVE POSITIONS DERIVED FROM ANGULAR
+    }
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 }
 
@@ -125,7 +134,7 @@ function ensureGhostRoot(cy: Core): void {
                 linkedNodeIds: [],
                 isGhostRoot: true
             },
-            position: { x: 0, y: 0 }
+            position: { x: 0, y: 0 } // Ghost root always at origin
         });
     }
 }
