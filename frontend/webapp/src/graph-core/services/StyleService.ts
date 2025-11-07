@@ -115,7 +115,7 @@ export class StyleService {
         }
       },
 
-      // Node labels - support both 'name' and 'label' fields
+      // GraphNode labels - support both 'name' and 'label' fields
       {
         selector: 'node[label]',
         style: {

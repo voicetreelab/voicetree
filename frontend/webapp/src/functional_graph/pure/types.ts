@@ -36,11 +36,11 @@ export interface NodeUIMetadata {
     // we could make markdown title # small <-- best CHOSEN
     // or use another markdown character to represent title,
     readonly color: O.Option<string>
-    readonly position: Position
+    readonly position: O.Option<Position>
     // width/height is derived from node degree
 
 }
-export interface Node {
+export interface GraphNode {
     // CORE GRAPH STRUCTURE
     readonly outgoingEdges: readonly NodeId[] // Adjacency list to children / outgoing outgoingEdges
     // incomingEdges is derived
@@ -57,7 +57,7 @@ export interface Node {
 }
 
 export interface Graph {
-    readonly nodes: Record<NodeId, Node>
+    readonly nodes: Record<NodeId, GraphNode>
 }
 
 // ============================================================================
@@ -86,7 +86,7 @@ export interface UpdateNodeContent {
 
 export interface UpsertNodeAction {
     readonly type: 'UpsertNode'
-    readonly nodeToUpsert: Node
+    readonly nodeToUpsert: GraphNode
 }
 
 export interface DeleteNode {

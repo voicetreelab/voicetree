@@ -1,4 +1,5 @@
 import type {Graph, GraphDelta} from '@/functional_graph/pure/types'
+import {removeOutgoingEdge} from '@/functional_graph/pure/graph-edge-operations'
 
 /**
  * Apply a GraphDelta to a Graph, producing a new Graph.
@@ -41,10 +42,8 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
             const nodesWithCleanedEdges = Object.fromEntries(
                 Object.entries(remainingNodes).map(([nodeId, node]) => {
                     // Filter out edges pointing to deleted node
-                    const cleanedEdges = node.outgoingEdges.filter(
-                        edgeTarget => edgeTarget !== nodeDelta.nodeId
-                    )
-                    return [nodeId, { ...node, outgoingEdges: cleanedEdges }]
+                    const cleanedNode = removeOutgoingEdge(node, nodeDelta.nodeId)
+                    return [nodeId, cleanedNode]
                 })
             )
 

@@ -1,4 +1,4 @@
-import type { NodeId, Node } from '@/functional_graph/pure/types'
+import type { NodeId, GraphNode } from '@/functional_graph/pure/types'
 import { nodeIdToFilePathWithExtension } from './filename-utils.ts'
 
 /**
@@ -17,10 +17,10 @@ import { nodeIdToFilePathWithExtension } from './filename-utils.ts'
  *
  * @example
  * ```typescript
- * const content = "See [[Node A]] and [[Node B]] and [[Node A]] again"
+ * const content = "See [[GraphNode A]] and [[GraphNode B]] and [[GraphNode A]] again"
  * const nodes = {
- *   "1": { relativeFilePathIsID: "1", title: "Node A", ... },
- *   "2": { relativeFilePathIsID: "2", title: "Node B", ... }
+ *   "1": { relativeFilePathIsID: "1", title: "GraphNode A", ... },
+ *   "2": { relativeFilePathIsID: "2", title: "GraphNode B", ... }
  * }
  *
  * extractLinkedNodeIds(content, nodes)
@@ -29,14 +29,17 @@ import { nodeIdToFilePathWithExtension } from './filename-utils.ts'
  */
 export function extractLinkedNodeIds(
   content: string,
-  nodes: Record<NodeId, Node>
+  nodes: Record<NodeId, GraphNode>
 ): readonly NodeId[] {
   const wikilinkRegex = /\[\[([^\]]+)\]\]/g
   const matches = [...content.matchAll(wikilinkRegex)]
 
   const linkedIds = matches
     .map((match) => {
-      const linkText = match[1].trim()
+      const rawLinkText = match[1].trim()
+
+      // Strip relative path prefixes (./ or ../) to handle relative wikilinks
+      const linkText = rawLinkText.replace(/^\.\.?\//g, '')
 
       // Find node by title, node ID, or filename matching linkText
       const targetNode = Object.values(nodes).find(

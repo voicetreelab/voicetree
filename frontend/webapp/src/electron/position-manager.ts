@@ -89,7 +89,7 @@ class PositionManager {
    * Loads existing positions, updates the specified one, and saves back
    * @param directoryPath - The watched directory
    * @param filename - Relative filename (e.g., "_1.md")
-   * @param position - Node position {x, y}
+   * @param position - GraphNode position {x, y}
    */
   async updatePosition(directoryPath: string, filename: string, position: NodePosition): Promise<void> {
     try {

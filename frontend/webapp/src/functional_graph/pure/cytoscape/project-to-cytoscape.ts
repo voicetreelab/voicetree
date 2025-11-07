@@ -21,7 +21,7 @@ export function projectToCytoscape(graph: Graph): CytoscapeElements {
   // Pure projection: Graph → CytoscapeElements
   // This function is PURE, IDEMPOTENT, and IMMUTABLE
 
-  // Project nodes: Map pure Node to Cytoscape representation
+  // Project nodes: Map pure GraphNode to Cytoscape representation
   const nodes: readonly CytoscapeNodeElement[] = Object.values(graph.nodes).map(
     (node): CytoscapeNodeElement => ({
       data: {

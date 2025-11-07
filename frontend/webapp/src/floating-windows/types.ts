@@ -27,7 +27,7 @@ export interface FloatingWindow {
   };
   // Graph coordinate fields for zoom-independent positioning
   graphAnchor?: {
-    x: number;  // Node position in graph coordinates
+    x: number;  // GraphNode position in graph coordinates
     y: number;
   };
   graphOffset?: {

@@ -9,7 +9,7 @@ import type { NodeId } from '@/functional_graph/pure/types'
  * This allows nodes with the same filename in different folders to have unique IDs.
  *
  * @param filename - The filename (with or without absolutePath)
- * @returns Node ID (filename without .md extension, absolutePath preserved)
+ * @returns GraphNode ID (filename without .md extension, absolutePath preserved)
  *
  * @example
  * ```typescript

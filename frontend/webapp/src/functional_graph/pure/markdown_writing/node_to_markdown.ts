@@ -1,8 +1,8 @@
-import type {Node, NodeUIMetadata} from "@/functional_graph/pure/types.ts";
+import type {GraphNode, NodeUIMetadata} from "@/functional_graph/pure/types.ts";
 import * as O from 'fp-ts/lib/Option.js'
 
 /**
- * Converts a Node to markdown file content with frontmatter and wikilinks
+ * Converts a GraphNode to markdown file content with frontmatter and wikilinks
  *
  * Format:
  * ---
@@ -15,11 +15,11 @@ import * as O from 'fp-ts/lib/Option.js'
  * [[child1]]
  * [[child2]]
  */
-export function fromNodeToMarkdownContent(node: Node): string {
+export function fromNodeToMarkdownContent(node: GraphNode): string {
     // 1. Construct frontmatter from nodeUIMetadata
     const frontmatter = buildFrontmatter(node.nodeUIMetadata);
 
-    // 2. Node content
+    // 2. GraphNode content
     const content = node.content;
 
     // 3. Append outgoing edges as wikilinks
@@ -36,9 +36,12 @@ function buildFrontmatter(metadata: NodeUIMetadata): string {
         (color: string) => `color: ${color}\n`
     )(metadata.color);
 
-    const position = `position:\n  x: ${metadata.position.x}\n  y: ${metadata.position.y}`;
+    const positionLine = O.fold(
+        () => '',
+        (pos: {readonly x: number; readonly y: number}) => `position:\n  x: ${pos.x}\n  y: ${pos.y}\n`
+    )(metadata.position);
 
-    return `---\n${colorLine}${position}\n---\n`;
+    return `---\n${colorLine}${positionLine}---\n`;
 }
 
 

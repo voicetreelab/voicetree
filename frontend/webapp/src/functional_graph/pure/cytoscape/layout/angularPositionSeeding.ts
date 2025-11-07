@@ -5,10 +5,11 @@
  * Nodes spawn from their parent at calculated angles: 0°, 90°, 180°, 270°,
  * then midpoints (45°, 135°, etc.), recursively subdividing as needed.
  *
- * Pure functions that operate on the functional Node type without cytoscape dependencies.
+ * Pure functions that operate on the functional GraphNode type without cytoscape dependencies.
  */
 
-import type { Node } from '@/functional_graph/pure/types';
+import type { GraphNode } from '@/functional_graph/pure/types';
+import * as O from 'fp-ts/lib/Option.js';
 
 export const SPAWN_RADIUS = 200; // pixels from parent
 export const CHILD_ANGLE_CONE = 90; // degrees (± 45° from parent)
@@ -148,20 +149,28 @@ export function polarToCartesian(
  *
  * @param parentNode - The parent node
  * @param grandparentNode - The grandparent node (undefined for root nodes)
- * @returns Angle in degrees [0, 360), or undefined if parent is a root node
+ * @returns Angle in degrees [0, 360), or undefined if parent is a root node or positions are not available
  */
 export function calculateParentAngle(
-  parentNode: Node,
-  grandparentNode: Node | undefined
+  parentNode: GraphNode,
+  grandparentNode: GraphNode | undefined
 ): number | undefined {
   // If no grandparent, parent is a root node with no angle constraint
   if (!grandparentNode) {
     return undefined;
   }
 
-  // Get positions from nodeUIMetadata
-  const grandparentPos = grandparentNode.nodeUIMetadata.position;
-  const parentPos = parentNode.nodeUIMetadata.position;
+  // Get positions from nodeUIMetadata - return undefined if either position is None
+  const grandparentPosOption = grandparentNode.nodeUIMetadata.position;
+  const parentPosOption = parentNode.nodeUIMetadata.position;
+
+  if (!O.isSome(grandparentPosOption) || !O.isSome(parentPosOption)) {
+    return undefined;
+  }
+
+  // Extract values from Some<Position>
+  const grandparentPos = grandparentPosOption.value;
+  const parentPos = parentPosOption.value;
 
   // Calculate vector from grandparent to parent
   const dx = parentPos.x - grandparentPos.x;

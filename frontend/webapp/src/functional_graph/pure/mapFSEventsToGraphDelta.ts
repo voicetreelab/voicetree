@@ -1,7 +1,8 @@
-import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, Node, NodeId, FSUpdate} from '@/functional_graph/pure/types'
+import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeId, FSUpdate} from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
+import { setOutgoingEdges } from '@/functional_graph/pure/graph-edge-operations'
 
 /**
  * Maps filesystem events to graph deltas.
@@ -59,16 +60,19 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string): Gr
 function handleUpsert(fsUpdate: FSUpdate, vaultPath: string): GraphDelta {
   const nodeId = extractNodeIdFromPath(fsUpdate.absolutePath, vaultPath)
 
-  // Create node from file content
-  const node: Node = {
+  // Create base node from file content
+  const baseNode: GraphNode = {
     relativeFilePathIsID: nodeId,
     content: fsUpdate.content,
-    outgoingEdges: parseLinksFromContent(fsUpdate.content),
+    outgoingEdges: [],
     nodeUIMetadata: {
       color: O.none,
-      position: { x: 0, y: 0 } // Default position, will be updated by layout algorithm
+      position: O.none // Position will be calculated by layout algorithm
     }
   }
+
+  // Set edges from wikilinks using centralized edge operation
+  const node = setOutgoingEdges(baseNode, parseLinksFromContent(fsUpdate.content))
 
   const upsertAction: UpsertNodeAction = {
     type: 'UpsertNode',
@@ -85,7 +89,7 @@ function handleUpsert(fsUpdate: FSUpdate, vaultPath: string): GraphDelta {
  *
  * @param filePath - Absolute absolutePath to the file (e.g., "/absolutePath/to/vault/subfolder/MyNote.md")
  * @param vaultPath - Absolute absolutePath to the vault (e.g., "/absolutePath/to/vault")
- * @returns Node ID with relative absolutePath preserved (e.g., "subfolder/MyNote")
+ * @returns GraphNode ID with relative absolutePath preserved (e.g., "subfolder/MyNote")
  */
 function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeId {
   // Normalize paths to handle trailing slashes
