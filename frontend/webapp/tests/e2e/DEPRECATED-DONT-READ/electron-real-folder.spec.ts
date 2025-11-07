@@ -206,7 +206,7 @@ test.describe('Real Folder E2E Tests', () => {
     });
 
     console.log(`Graph state: ${initialGraph.nodeCount} nodes, ${initialGraph.edgeCount} edges`);
-    console.log('Node labels:', initialGraph.nodeLabels);
+    console.log('GraphNode labels:', initialGraph.nodeLabels);
 
     // Verify expected files are loaded
     // Note: Labels are now extracted from markdown titles (e.g., "# Introduction")
@@ -336,12 +336,12 @@ It demonstrates that the file watcher detects new files in real-time.`);
     });
 
     console.log(`Node count after adding new-concept: ${updatedGraph.nodeCount} (expected ${nodeCountBeforeAdd + 1})`);
-    console.log('Node labels:', updatedGraph.nodeLabels);
+    console.log('GraphNode labels:', updatedGraph.nodeLabels);
 
     // Verify new-concept node exists  (using title from markdown)
     expect(updatedGraph.nodeLabels).toContain('New Concept');
 
-    // Node count should have increased (allowing for possible placeholder cleanup)
+    // GraphNode count should have increased (allowing for possible placeholder cleanup)
     expect(updatedGraph.nodeCount).toBeGreaterThanOrEqual(nodeCountBeforeAdd);
 
     // Check that outgoingEdges were created for the wiki-links (using title labels)
@@ -1034,8 +1034,8 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
       };
     });
 
-    console.log('Node with lowest degree:', nodeSizeData.lowest);
-    console.log('Node with highest degree:', nodeSizeData.highest);
+    console.log('GraphNode with lowest degree:', nodeSizeData.lowest);
+    console.log('GraphNode with highest degree:', nodeSizeData.highest);
 
     // Verify degree data is set
     expect(nodeSizeData.lowest.degree).toBeGreaterThanOrEqual(0);
@@ -1048,7 +1048,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     // Verify border-width scaling: higher degree -> thicker border
     expect(nodeSizeData.highest.borderWidth).toBeGreaterThanOrEqual(nodeSizeData.lowest.borderWidth);
 
-    console.log('✓ Node size scales correctly with degree');
+    console.log('✓ GraphNode size scales correctly with degree');
     console.log(`  Low degree (${nodeSizeData.lowest.degree}): ${Math.round(nodeSizeData.lowest.width)}x${Math.round(nodeSizeData.lowest.height)}px, border: ${nodeSizeData.lowest.borderWidth}px`);
     console.log(`  High degree (${nodeSizeData.highest.degree}): ${Math.round(nodeSizeData.highest.width)}x${Math.round(nodeSizeData.highest.height)}px, border: ${nodeSizeData.highest.borderWidth}px`);
 
@@ -1056,7 +1056,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     await appWindow.screenshot({ path: 'test-results/degree-scaling-visualization.png' });
     console.log('✓ Screenshot saved to test-results/degree-scaling-visualization.png');
 
-    console.log('✓ Node degree scaling test completed');
+    console.log('✓ GraphNode degree scaling test completed');
   });
 
   test('should sync external file changes to open editors (bidirectional sync)', async ({ appWindow }) => {
@@ -1222,7 +1222,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
   });
 
   test('should add node via right-click context menu at graph position and open editor with file sync', async ({ appWindow }) => {
-    console.log('=== Testing Right-Click Add Node with Editor and File Sync (BEHAVIORAL TEST) ===');
+    console.log('=== Testing Right-Click Add GraphNode with Editor and File Sync (BEHAVIORAL TEST) ===');
     console.log('This test simulates the full right-click workflow: node creation + positioning + editor opening + file sync');
 
     // Start watching the fixture vault
@@ -1262,7 +1262,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     });
     console.log(`Target position for new node: (${clickPosition.x}, ${clickPosition.y})`);
 
-    console.log('=== Step 3: Simulate right-click "Add Node Here" action ===');
+    console.log('=== Step 3: Simulate right-click "Add GraphNode Here" action ===');
     console.log('(Invoking testHelpers.addNodeAtPosition to trigger the full workflow)');
 
     // Use the test helper to trigger the complete add-node-at-position workflow
@@ -1478,7 +1478,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     await appWindow.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
 
     // Wait for ninja-keys modal to appear
-    await appWindow.waitForTimeout(500);
+    await appWindow.waitForTimeout(300);
 
     const ninjaKeysVisible = await appWindow.evaluate(() => {
       const ninjaKeys = document.querySelector('ninja-keys');

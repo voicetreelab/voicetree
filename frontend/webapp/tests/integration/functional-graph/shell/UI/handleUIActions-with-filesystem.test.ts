@@ -124,7 +124,7 @@ Child content`
             nodes: {
                 'parent': {
                     relativeFilePathIsID: 'parent',
-                    content: '# Parent Node\n\nParent content',
+                    content: '# Parent GraphNode\n\nParent content',
                     outgoingEdges: ['child1'],
                     nodeUIMetadata: {
                         color: O.none,
@@ -151,7 +151,7 @@ Child content`
             elements: [
                 {
                     group: 'nodes' as const,
-                    data: { id: 'parent', label: 'parent', content: '# Parent Node', summary: '' },
+                    data: { id: 'parent', label: 'parent', content: '# Parent GraphNode', summary: '' },
                     position: { x: 100, y: 100 }
                 },
                 {
@@ -225,7 +225,7 @@ Child content`
 
         // AND: File should have correct content
         const fileContent = await fs.readFile(newFilePath, 'utf-8')
-        expect(fileContent).toContain('# New Node')
+        expect(fileContent).toContain('# New GraphNode')
     })
 
     it('should create file with correct position metadata eventually', async () => {

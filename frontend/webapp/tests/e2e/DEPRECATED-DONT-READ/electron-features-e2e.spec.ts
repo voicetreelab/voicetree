@@ -95,7 +95,7 @@ test.describe('Electron Features E2E Tests', () => {
 
     // Create test markdown file AFTER watching starts
     const testFile = path.join(tempDir, 'test-node.md');
-    await fs.writeFile(testFile, '# Test Node\n\nFor terminal testing.');
+    await fs.writeFile(testFile, '# Test GraphNode\n\nFor terminal testing.');
 
     // Wait for graph to load
     await expect.poll(async () => {
@@ -192,20 +192,20 @@ test.describe('Electron Features E2E Tests', () => {
     await startWatching(appWindow, tempDir);
 
     // Island 1: 4 nodes (A -> B -> C -> D)
-    await createMarkdownFile(tempDir, 'A.md', '# Node A\n\nLinks to [[B]].');
-    await createMarkdownFile(tempDir, 'B.md', '# Node B\n\nLinks to [[C]].');
-    await createMarkdownFile(tempDir, 'C.md', '# Node C\n\nLinks to [[D]].');
-    await createMarkdownFile(tempDir, 'D.md', '# Node D\n\nFourth node.');
+    await createMarkdownFile(tempDir, 'A.md', '# GraphNode A\n\nLinks to [[B]].');
+    await createMarkdownFile(tempDir, 'B.md', '# GraphNode B\n\nLinks to [[C]].');
+    await createMarkdownFile(tempDir, 'C.md', '# GraphNode C\n\nLinks to [[D]].');
+    await createMarkdownFile(tempDir, 'D.md', '# GraphNode D\n\nFourth node.');
 
     // Island 2: 3 nodes (E -> F -> G)
-    await createMarkdownFile(tempDir, 'E.md', '# Node E\n\nLinks to [[F]].');
-    await createMarkdownFile(tempDir, 'F.md', '# Node F\n\nLinks to [[G]].');
-    await createMarkdownFile(tempDir, 'G.md', '# Node G\n\nThird node.');
+    await createMarkdownFile(tempDir, 'E.md', '# GraphNode E\n\nLinks to [[F]].');
+    await createMarkdownFile(tempDir, 'F.md', '# GraphNode F\n\nLinks to [[G]].');
+    await createMarkdownFile(tempDir, 'G.md', '# GraphNode G\n\nThird node.');
 
     // Island 3: 3 nodes (H -> I -> J)
-    await createMarkdownFile(tempDir, 'H.md', '# Node H\n\nLinks to [[I]].');
-    await createMarkdownFile(tempDir, 'I.md', '# Node I\n\nLinks to [[J]].');
-    await createMarkdownFile(tempDir, 'J.md', '# Node J\n\nThird node.');
+    await createMarkdownFile(tempDir, 'H.md', '# GraphNode H\n\nLinks to [[I]].');
+    await createMarkdownFile(tempDir, 'I.md', '# GraphNode I\n\nLinks to [[J]].');
+    await createMarkdownFile(tempDir, 'J.md', '# GraphNode J\n\nThird node.');
 
     // Wait for chokidar's ready event to fire and bulk load to complete
     // Chokidar needs time to finish its initial scan after files are created
@@ -276,7 +276,7 @@ test.describe('Electron Features E2E Tests', () => {
     await startWatching(appWindow, tempDir);
 
     console.log('=== Creating first file and checking breathing animation ===');
-    await createMarkdownFile(tempDir, 'first-node.md', '# First Node\n\nFirst node.');
+    await createMarkdownFile(tempDir, 'first-node.md', '# First GraphNode\n\nFirst node.');
     await pollForNodeCount(appWindow, 1);
 
     // Wait a bit for animation to start
@@ -342,7 +342,7 @@ test.describe('Electron Features E2E Tests', () => {
     console.log('✓ Hover stops animation');
 
     console.log('=== Testing updated node breathing animation ===');
-    await createMarkdownFile(tempDir, 'second-node.md', '# Second Node\n\nInitial content.');
+    await createMarkdownFile(tempDir, 'second-node.md', '# Second GraphNode\n\nInitial content.');
     await pollForNodeCount(appWindow, 2);
     await appWindow.waitForTimeout(1000);
 
@@ -353,7 +353,7 @@ test.describe('Electron Features E2E Tests', () => {
     // Update file
     await fs.writeFile(
       path.join(tempDir, 'second-node.md'),
-      '# Second Node\n\nInitial content.\n\n## New Section\n\nAppended!'
+      '# Second GraphNode\n\nInitial content.\n\n## New Section\n\nAppended!'
     );
     await appWindow.waitForTimeout(500);
 
@@ -370,8 +370,8 @@ test.describe('Electron Features E2E Tests', () => {
     console.log('=== Testing Dark/Light Mode Toggle ===');
 
     await startWatching(appWindow, tempDir);
-    await createMarkdownFile(tempDir, 'node1.md', '# Node 1\n\nLinks to [[node2]].');
-    await createMarkdownFile(tempDir, 'node2.md', '# Node 2\n\nSecond node.');
+    await createMarkdownFile(tempDir, 'node1.md', '# GraphNode 1\n\nLinks to [[node2]].');
+    await createMarkdownFile(tempDir, 'node2.md', '# GraphNode 2\n\nSecond node.');
     await pollForGraphState(appWindow, { nodes: 2, edges: 1 });
 
     console.log('=== Step 1: Check initial colors (light mode) ===');
@@ -407,7 +407,7 @@ test.describe('Electron Features E2E Tests', () => {
     console.log('=== Testing Export Button Functionality ===');
 
     await startWatching(appWindow, tempDir);
-    await createMarkdownFile(tempDir, 'node1.md', '# Node 1\n\nTest node for export.');
+    await createMarkdownFile(tempDir, 'node1.md', '# GraphNode 1\n\nTest node for export.');
 
     // Just wait for at least one node to appear
     await expect.poll(async () => {
@@ -458,12 +458,12 @@ test.describe('Electron Features E2E Tests', () => {
   });
 
   test('should create new node when right-clicking canvas via context menu and open editor', async ({ appWindow, tempDir }) => {
-    console.log('=== Testing Right-Click Canvas Context Menu Add Node Functionality ===');
+    console.log('=== Testing Right-Click Canvas Context Menu Add GraphNode Functionality ===');
 
     await startWatching(appWindow, tempDir);
 
     // Create initial node to have something in the graph
-    await createMarkdownFile(tempDir, 'initial-node.md', '# Initial Node\n\nStarting node.');
+    await createMarkdownFile(tempDir, 'initial-node.md', '# Initial GraphNode\n\nStarting node.');
     await pollForNodeCount(appWindow, 1);
 
     console.log('=== Step 1: Record initial node count and file count ===');
@@ -500,24 +500,24 @@ test.describe('Electron Features E2E Tests', () => {
 
     console.log('Triggered right-click at position:', canvasPosition);
 
-    console.log('=== Step 2b: Wait for context menu and click "Add Node Here" ===');
+    console.log('=== Step 2b: Wait for context menu and click "Add GraphNode Here" ===');
     // Wait for the context menu to appear
     await appWindow.waitForTimeout(500);
 
-    // Click on the "Add Node Here" menu item
+    // Click on the "Add GraphNode Here" menu item
     await appWindow.evaluate(() => {
       const w = (window as ExtendedWindow);
       const cy = w.cytoscapeInstance;
       if (!cy) return;
 
-      // Find the cxtmenu element and click the first command (Add Node Here)
+      // Find the cxtmenu element and click the first command (Add GraphNode Here)
       const menuElement = document.querySelector('.cxtmenu');
       if (menuElement) {
         // Click on the first menu command
         const firstCommand = menuElement.querySelector('.cxtmenu-item') as HTMLElement;
         if (firstCommand) {
           firstCommand.click();
-          console.log('Clicked Add Node Here menu item');
+          console.log('Clicked Add GraphNode Here menu item');
         }
       }
     });
@@ -606,7 +606,7 @@ test.describe('Electron Features E2E Tests', () => {
     if (newFile) {
       const content = await fs.readFile(path.join(tempDir, newFile), 'utf-8');
       expect(content).toContain('node_id:');
-      expect(content).toContain('title: New Node');
+      expect(content).toContain('title: New GraphNode');
       console.log('✓ Markdown file created with correct content:', newFile);
     }
 
@@ -645,12 +645,12 @@ test.describe('Electron Features E2E Tests', () => {
   });
 
   test('should fit graph to last created node when pressing Space key', async ({ appWindow, tempDir }) => {
-    console.log('=== Testing Space Key Fit to Last Node ===');
+    console.log('=== Testing Space Key Fit to Last GraphNode ===');
 
     await startWatching(appWindow, tempDir);
 
     console.log('=== Step 1: Create first node ===');
-    await createMarkdownFile(tempDir, 'first-node.md', '# First Node\n\nFirst node.');
+    await createMarkdownFile(tempDir, 'first-node.md', '# First GraphNode\n\nFirst node.');
     await pollForNodeCount(appWindow, 1);
     await appWindow.waitForTimeout(500);
 
@@ -701,7 +701,7 @@ test.describe('Electron Features E2E Tests', () => {
     expect(distanceToFirstNode).toBeLessThan(100); // Space key should properly fit to node
 
     console.log('=== Step 3: Create second node at different position ===');
-    await createMarkdownFile(tempDir, 'second-node.md', '# Second Node\n\nLinks to [[first-node]].');
+    await createMarkdownFile(tempDir, 'second-node.md', '# Second GraphNode\n\nLinks to [[first-node]].');
     await pollForNodeCount(appWindow, 2);
     await appWindow.waitForTimeout(500);
 

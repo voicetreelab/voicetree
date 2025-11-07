@@ -32,7 +32,7 @@ graph TB
         A[TreeActionDeciderWorkflow] -->|transcript_text<br/>existing_nodes<br/>history| B[AppendToRelevantNodeAgent]
         B -->|LLM Call 1| C[Segmentation<br/>gemini-2.5-flash-lite]
         C -->|segments| D[Routing Logic]
-        D -->|routable segments| E[Identify Target Node<br/>gemini-2.5-flash]
+        D -->|routable segments| E[Identify Target GraphNode<br/>gemini-2.5-flash]
         E -->|target_nodes| F[Action Converter]
         F -->|AppendAgentResult| A
     end

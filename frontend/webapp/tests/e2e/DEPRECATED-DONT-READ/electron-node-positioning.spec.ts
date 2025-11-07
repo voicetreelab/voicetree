@@ -1,5 +1,5 @@
 /**
- * BEHAVIORAL SPEC: Node Positioning E2E Test
+ * BEHAVIORAL SPEC: GraphNode Positioning E2E Test
  *
  * This test verifies all three node positioning modes:
  * 1. Right-click add node - Creates node with position saved to disk immediately in `.voicetree/graph_data.json`
@@ -73,13 +73,13 @@ const test = base.extend<{
   }
 });
 
-test.describe('Node Positioning E2E Tests', () => {
+test.describe('GraphNode Positioning E2E Tests', () => {
   test('Test Case 1: Right-click explicit positioning', async ({ appWindow, tempDir }) => {
     console.log('=== Test Case 1: Right-Click Explicit Positioning ===');
 
     // Load a test directory with an existing node
     await startWatching(appWindow, tempDir);
-    await createMarkdownFile(tempDir, 'initial-node.md', '# Initial Node\n\nStarting node.');
+    await createMarkdownFile(tempDir, 'initial-node.md', '# Initial GraphNode\n\nStarting node.');
     await pollForNodeCount(appWindow, 1);
 
     console.log('=== Step 1: Create node at position (500, 300) via electronAPI ===');
@@ -287,9 +287,9 @@ test.describe('Node Positioning E2E Tests', () => {
     console.log('=== Step 1: Load directory and add nodes ===');
     await startWatching(appWindow, tempDir);
 
-    await createMarkdownFile(tempDir, 'node1.md', '# Node 1\n\nFirst node.');
-    await createMarkdownFile(tempDir, 'node2.md', '# Node 2\n\nSecond node.');
-    await createMarkdownFile(tempDir, 'node3.md', '# Node 3\n\nThird node.');
+    await createMarkdownFile(tempDir, 'node1.md', '# GraphNode 1\n\nFirst node.');
+    await createMarkdownFile(tempDir, 'node2.md', '# GraphNode 2\n\nSecond node.');
+    await createMarkdownFile(tempDir, 'node3.md', '# GraphNode 3\n\nThird node.');
 
     await pollForNodeCount(appWindow, 3);
 

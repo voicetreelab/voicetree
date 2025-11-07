@@ -1,5 +1,5 @@
 /**
- * BEHAVIORAL SPEC: Command-Hover Mode for Node Editor
+ * BEHAVIORAL SPEC: Command-Hover Mode for GraphNode Editor
  *
  * 1. Holding Command/Ctrl and hovering over a node opens a floating markdown editor
  * 2. Editor is positioned near the node but does NOT create a shadow node (non-anchoring)
@@ -47,7 +47,7 @@ const test = base.extend<{
   }
 });
 
-test.describe('Command-Hover Mode for Node Editor', () => {
+test.describe('Command-Hover Mode for GraphNode Editor', () => {
 
   test('should open hover editor when Command is held and node is hovered', async ({ appWindow }) => {
     // Create a test node with content
@@ -57,7 +57,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
         group: 'nodes',
         data: {
           id: 'test-node-1',
-          label: 'Test Node 1',
+          label: 'Test GraphNode 1',
           content: '# Test Content\n\nThis is a test node.',
           filePath: '/test/test-node-1.md'
         },
@@ -117,7 +117,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
         group: 'nodes',
         data: {
           id: 'test-node-2',
-          label: 'Test Node 2',
+          label: 'Test GraphNode 2',
           content: '# Content',
           filePath: '/test/test-node-2.md'
         },
@@ -175,7 +175,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
         group: 'nodes',
         data: {
           id: 'test-node-3',
-          label: 'Test Node 3',
+          label: 'Test GraphNode 3',
           content: '# Content',
           filePath: '/test/test-node-3.md'
         },
@@ -225,7 +225,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
         group: 'nodes',
         data: {
           id: 'test-node-4',
-          label: 'Test Node 4',
+          label: 'Test GraphNode 4',
           content: '# Content',
           filePath: '/test/test-node-4.md'
         },
@@ -270,7 +270,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
       const cy = (window as any).cytoscapeInstance;
       cy.add({
         group: 'nodes',
-        data: { id: 'test-node-5', label: 'Test Node 5' },
+        data: { id: 'test-node-5', label: 'Test GraphNode 5' },
         position: { x: 450, y: 250 }
       });
     });
@@ -304,8 +304,8 @@ test.describe('Command-Hover Mode for Node Editor', () => {
         group: 'nodes',
         data: {
           id: 'test-node-6a',
-          label: 'Node A',
-          content: '# Node A Content',
+          label: 'GraphNode A',
+          content: '# GraphNode A Content',
           filePath: '/test/test-node-6a.md'
         },
         position: { x: 300, y: 300 }
@@ -314,8 +314,8 @@ test.describe('Command-Hover Mode for Node Editor', () => {
         group: 'nodes',
         data: {
           id: 'test-node-6b',
-          label: 'Node B',
-          content: '# Node B Content',
+          label: 'GraphNode B',
+          content: '# GraphNode B Content',
           filePath: '/test/test-node-6b.md'
         },
         position: { x: 500, y: 300 }
@@ -545,7 +545,7 @@ test.describe('Command-Hover Mode for Node Editor', () => {
     await appWindow.mouse.up();
     await appWindow.waitForTimeout(200);
 
-    // Node should have moved
+    // GraphNode should have moved
     const newPos = await appWindow.evaluate(() => {
       const cy = (window as any).cytoscapeInstance;
       const node = cy.$('#test-node-9');

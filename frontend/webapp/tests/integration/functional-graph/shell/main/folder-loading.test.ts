@@ -371,7 +371,7 @@ describe('Folder Loading - Integration Tests', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
-      // THEN: Node should be removed from graph
+      // THEN: GraphNode should be removed from graph
       const graphAfterDelete = getGraph()
       expect(graphAfterDelete.nodes['test-new-file']).toBeUndefined()
 

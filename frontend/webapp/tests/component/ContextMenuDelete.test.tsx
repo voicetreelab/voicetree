@@ -28,8 +28,8 @@ describe('Context Menu Delete Functionality', () => {
 
     // Create test nodes
     const elements = [
-      { data: { id: 'test-node', label: 'Test Node' } },
-      { data: { id: 'another-node', label: 'Another Node' } },
+      { data: { id: 'test-node', label: 'Test GraphNode' } },
+      { data: { id: 'another-node', label: 'Another GraphNode' } },
       { data: { id: 'edge1', source: 'test-node', target: 'another-node' } }
     ];
 
@@ -211,7 +211,7 @@ describe('Context Menu Delete Functionality', () => {
     expect(window.confirm).toHaveBeenCalled();
     expect(window.electronAPI!.deleteFile).not.toHaveBeenCalled();
 
-    // Node should still exist
+    // GraphNode should still exist
     expect(cy.getElementById('test-node').length).toBe(1);
   });
 
@@ -302,7 +302,7 @@ describe('Context Menu Delete Functionality', () => {
       expect(window.alert).toHaveBeenCalledWith('Failed to delete file: Permission denied');
     });
 
-    // Node should still exist
+    // GraphNode should still exist
     expect(cy.getElementById('test-node').length).toBe(1);
   });
 

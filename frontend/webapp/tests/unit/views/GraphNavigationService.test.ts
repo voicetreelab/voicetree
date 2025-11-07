@@ -18,9 +18,9 @@ describe('GraphNavigationService', () => {
     cy = cytoscape({
       container,
       elements: [
-        { data: { id: 'node1', label: 'Node 1' }, position: { x: 100, y: 100 } },
-        { data: { id: 'node2', label: 'Node 2' }, position: { x: 200, y: 200 } },
-        { data: { id: 'node3', label: 'Node 3' }, position: { x: 300, y: 300 } },
+        { data: { id: 'node1', label: 'GraphNode 1' }, position: { x: 100, y: 100 } },
+        { data: { id: 'node2', label: 'GraphNode 2' }, position: { x: 200, y: 200 } },
+        { data: { id: 'node3', label: 'GraphNode 3' }, position: { x: 300, y: 300 } },
       ],
       headless: true
     });

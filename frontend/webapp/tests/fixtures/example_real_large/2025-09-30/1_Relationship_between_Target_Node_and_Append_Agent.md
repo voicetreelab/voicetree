@@ -1,10 +1,10 @@
 ---
 node_id: 1
-title: Relationship between Target Node and Append Agent (1)
+title: Relationship between Target GraphNode and Append Agent (1)
 ---
-### The Append Agent finds the Target Node, essentially being the same concept.
+### The Append Agent finds the Target GraphNode, essentially being the same concept.
 
-The 'Append Agent' finds the 'Target Node'; they are essentially the same thing. Extracting the target node and append agent.
+The 'Append Agent' finds the 'Target GraphNode'; they are essentially the same thing. Extracting the target node and append agent.
 append_agent_result: AppendAgentResult = await self.append_agent.run(  
     transcript_text=text_chunk,  
     existing_nodes_formatted=relevant_nodes_formatted,  

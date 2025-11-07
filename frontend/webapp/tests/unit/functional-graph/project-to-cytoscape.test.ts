@@ -24,7 +24,7 @@ describe('projectToCytoscape', () => {
         nodes: {
           'node1': {
             id: 'node1',
-            title: 'Test Node',
+            title: 'Test GraphNode',
             content: 'Test content',
             summary: 'Test summary',
             color: O.none
@@ -39,7 +39,7 @@ describe('projectToCytoscape', () => {
       expect(result.nodes[0]).toEqual({
         data: {
           id: 'node1',
-          label: 'Test Node',
+          label: 'Test GraphNode',
           content: 'Test content',
           summary: 'Test summary',
           color: undefined
@@ -53,14 +53,14 @@ describe('projectToCytoscape', () => {
         nodes: {
           'node1': {
             id: 'node1',
-            title: 'First Node',
+            title: 'First GraphNode',
             content: 'First content',
             summary: 'First summary',
             color: O.some('#FF0000')
           },
           'node2': {
             id: 'node2',
-            title: 'Second Node',
+            title: 'Second GraphNode',
             content: 'Second content',
             summary: 'Second summary',
             color: O.none
@@ -80,11 +80,11 @@ describe('projectToCytoscape', () => {
       expect(nodeIds).toContain('node2')
 
       const node1 = result.nodes.find(n => n.data.id === 'node1')
-      expect(node1?.data.label).toBe('First Node')
+      expect(node1?.data.label).toBe('First GraphNode')
       expect(node1?.data.color).toBe('#FF0000')
 
       const node2 = result.nodes.find(n => n.data.id === 'node2')
-      expect(node2?.data.label).toBe('Second Node')
+      expect(node2?.data.label).toBe('Second GraphNode')
       expect(node2?.data.color).toBeUndefined()
     })
   })
@@ -95,14 +95,14 @@ describe('projectToCytoscape', () => {
         nodes: {
           'node1': {
             id: 'node1',
-            title: 'Source Node',
+            title: 'Source GraphNode',
             content: 'Source content',
             summary: 'Source summary',
             color: O.none
           },
           'node2': {
             id: 'node2',
-            title: 'Target Node',
+            title: 'Target GraphNode',
             content: 'Target content',
             summary: 'Target summary',
             color: O.none
@@ -171,21 +171,21 @@ describe('projectToCytoscape', () => {
         nodes: {
           'node1': {
             id: 'node1',
-            title: 'Node 1',
+            title: 'GraphNode 1',
             content: 'Content',
             summary: 'Summary',
             color: O.none
           },
           'node2': {
             id: 'node2',
-            title: 'Node 2',
+            title: 'GraphNode 2',
             content: 'Content',
             summary: 'Summary',
             color: O.none
           },
           'node3': {
             id: 'node3',
-            title: 'Node 3',
+            title: 'GraphNode 3',
             content: 'Content',
             summary: 'Summary',
             color: O.none
@@ -273,7 +273,7 @@ describe('projectToCytoscape', () => {
         nodes: {
           'root': {
             id: 'root',
-            title: 'Root Node',
+            title: 'Root GraphNode',
             content: 'Root content',
             summary: 'Root summary',
             color: O.some('#FF0000')

@@ -428,7 +428,7 @@ test.describe('Floating Window Refactor - Synchronous Chrome Creation', () => {
       // Add a parent node
       cy.add({
         group: 'nodes',
-        data: { id: 'parent-node', label: 'Parent Node' },
+        data: { id: 'parent-node', label: 'Parent GraphNode' },
         position: { x: 300, y: 300 }
       });
 

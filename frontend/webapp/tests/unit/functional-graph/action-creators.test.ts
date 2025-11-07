@@ -9,22 +9,22 @@ import {
 describe('action-creators', () => {
   describe('createCreateNodeAction', () => {
     it('should create a CreateNode action without position', () => {
-      const action = createCreateNodeAction('node1', '# Test Node')
+      const action = createCreateNodeAction('node1', '# Test GraphNode')
 
       expect(action).toEqual({
         type: 'CreateNode',
         nodeId: 'node1',
-        content: '# Test Node',
+        content: '# Test GraphNode',
         position: O.none
       })
     })
 
     it('should create a CreateNode action with position', () => {
-      const action = createCreateNodeAction('node1', '# Test Node', { x: 100, y: 200 })
+      const action = createCreateNodeAction('node1', '# Test GraphNode', { x: 100, y: 200 })
 
       expect(action.type).toBe('CreateNode')
       expect(action.nodeId).toBe('node1')
-      expect(action.content).toBe('# Test Node')
+      expect(action.content).toBe('# Test GraphNode')
       expect(O.isSome(action.position)).toBe(true)
       if (O.isSome(action.position)) {
         expect(action.position.value).toEqual({ x: 100, y: 200 })
