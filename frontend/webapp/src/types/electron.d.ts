@@ -84,7 +84,7 @@ export interface ElectronAPI {
     applyGraphDelta: (action: GraphDelta) => Promise<unknown>;
 
     // Query current graph state
-    getState: () => Promise<{ success: boolean; graph: Graph }>;
+    getState: () => Promise<Graph>;
 
     // Subscribe to graph delta updates (returns unsubscribe function)
     onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void;

@@ -1,11 +1,11 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import type { GraphDelta } from '@/functional_graph/pure/types'
 import { getGraph } from '@/functional_graph/shell/state/graph-store.ts'
-import { applyGraphDeltaToStateAndUI } from "@/functional_graph/shell/main/applyGraphDeltaToStateAndUI.ts"
 import { loadFolder, stopWatching, isWatching, getWatchedDirectory, initialLoad } from '@/functional_graph/shell/main/watchFolder.ts'
 import fs from 'fs'
 import type TerminalManager from '@/electron/terminal-manager.ts'
 import type PositionManager from '@/electron/position-manager.ts'
+import { applyGraphDeltaToDB } from '@/functional_graph/shell/main/writePath/applyGraphDeltaToDB.ts'
 
 interface IpcHandlerDependencies {
   readonly terminalManager: TerminalManager
@@ -15,20 +15,16 @@ interface IpcHandlerDependencies {
 }
 
 export function registerAllIpcHandlers(deps: IpcHandlerDependencies) {
-  // GRAPH UPDATE - handles all node actions (create, update, delete)
+
+    // GRAPH UPDATE - handles all node actions (create, update, delete)
   ipcMain.handle('graph:applyDelta', async (_event, action: GraphDelta) => {
-    const window = BrowserWindow.fromWebContents(_event.sender)
-    if (window) {
-      applyGraphDeltaToStateAndUI(action, window)
-    }
+      console.log("! apply delta called in main")
+      await applyGraphDeltaToDB(getGraph(), action)
   })
 
   // QUERY GRAPH STATE
   ipcMain.handle('graph:getState', async () => {
-    return {
-      success: true,
-      graph: getGraph()
-    }
+    return getGraph()
   })
 
   // Backend server port

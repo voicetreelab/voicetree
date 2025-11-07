@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
-import { apply_graph_deltas } from '../../../src/functional_graph/pure/applyGraphActionsToDB'
+import { apply_graph_deltas_to_db } from '../../../src/functional_graph/pure/applyGraphActionsToDB'
 import { Graph, CreateNode, UpdateNode, DeleteNode, Node, Env } from '../../../src/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
@@ -57,7 +57,7 @@ describe('apply_graph_updates', () => {
       }
 
       // Create effect (pure - no execution)
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
 
       // Execute effect with environment
       const result = await effect(testEnv)()
@@ -83,7 +83,7 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -101,7 +101,7 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -119,7 +119,7 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       // Original graph should be unchanged
@@ -142,7 +142,7 @@ describe('apply_graph_updates', () => {
         content: '# Updated Title\n\nNew content'
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -163,7 +163,7 @@ describe('apply_graph_updates', () => {
         content: '# Updated'
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -181,7 +181,7 @@ describe('apply_graph_updates', () => {
       }
 
       // Should throw per fail-fast design philosophy
-      expect(() => apply_graph_deltas(graph, action)).toThrow('Node non-existent not found for update')
+      expect(() => apply_graph_deltas_to_db(graph, action)).toThrow('Node non-existent not found for update')
     })
 
     it('should not modify the original graph', async () => {
@@ -194,7 +194,7 @@ describe('apply_graph_updates', () => {
         content: '# Updated'
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       // Original graph should be unchanged
@@ -219,7 +219,7 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -265,7 +265,7 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -284,7 +284,7 @@ describe('apply_graph_updates', () => {
         nodeId: 'non-existent'
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       // Fail fast - deleting non-existent file should fail
@@ -304,7 +304,7 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
       const result = await effect(testEnv)()
 
       // Original graph should still have the node
@@ -328,7 +328,7 @@ describe('apply_graph_updates', () => {
         position: O.none
       }
 
-      const effect = apply_graph_deltas(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, action)
 
       // Should be a function (Reader)
       expect(typeof effect).toBe('function')
@@ -356,9 +356,9 @@ describe('apply_graph_updates', () => {
       }
 
       // All should return valid effects without throwing
-      expect(() => apply_graph_deltas(graph, createAction)).not.toThrow()
-      expect(() => apply_graph_deltas(graph, updateAction)).not.toThrow()
-      expect(() => apply_graph_deltas(graph, deleteAction)).not.toThrow()
+      expect(() => apply_graph_deltas_to_db(graph, createAction)).not.toThrow()
+      expect(() => apply_graph_deltas_to_db(graph, updateAction)).not.toThrow()
+      expect(() => apply_graph_deltas_to_db(graph, deleteAction)).not.toThrow()
     })
 
     it('should use Reader pattern (environment provided at execution)', async () => {
@@ -389,7 +389,7 @@ describe('apply_graph_updates', () => {
         }
 
         // Same effect, different environments
-        const effect = apply_graph_deltas(graph, action)
+        const effect = apply_graph_deltas_to_db(graph, action)
 
         // Can execute with different environments
         const result1 = await effect(env1)()

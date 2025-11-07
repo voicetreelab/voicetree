@@ -10,7 +10,7 @@
  *
  * Architecture:
  * - fromUICreateChildToUpsertNode creates GraphDelta with [childNode, updatedParentNode]
- * - apply_graph_deltas writes both nodes to filesystem
+ * - apply_graph_deltas_to_db writes both nodes to filesystem
  * - File watch handlers would normally update graph state (not tested here)
  */
 

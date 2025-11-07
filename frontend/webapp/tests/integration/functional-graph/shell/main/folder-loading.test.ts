@@ -21,9 +21,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { loadFolder, stopWatching, isWatching } from '@/functional_graph/shell/main/watchFolder'
-import { getGraph, setGraph, setVaultPath } from '@/functional_graph/shell/state/graph-store'
-import type { GraphDelta } from '@/functional_graph/pure/types'
+import { loadFolder, stopWatching, isWatching } from '@/functional_graph/shell/main/watchFolder.ts'
+import { getGraph, setGraph, setVaultPath } from '@/functional_graph/shell/state/graph-store.ts'
+import type { GraphDelta } from '@/functional_graph/pure/types.ts'
 import path from 'path'
 import { promises as fs } from 'fs'
 import type { BrowserWindow } from 'electron'
@@ -168,7 +168,7 @@ describe('Folder Loading - Integration Tests', () => {
   })
 
   describe('BEHAVIOR: Load and switch between directories', () => {
-    it('should load small → large → small and maintain correct state throughout', async () => {
+    it('should load small → large → small and maintain correct state throughout +++ TESTING MANUAL FILE CHANGES', async () => {
       // STEP 1: Load example_small (simulating auto-load on startup)
       await loadFolder(EXAMPLE_SMALL_PATH)
 
@@ -334,7 +334,7 @@ describe('Folder Loading - Integration Tests', () => {
       await fs.writeFile(newFilePath, newFileContent, 'utf-8')
 
       // Import and call the FS event handler directly to simulate watcher detection
-      const { handleFSEventWithStateAndUISides } = await import('@/functional_graph/shell/main/handleFSEventWithStateAndUISides')
+      const { handleFSEventWithStateAndUISides } = await import('@/functional_graph/shell/main/readAndDBEventsPath/handleFSEventWithStateAndUISides.ts')
 
       const addEvent = {
         absolutePath: newFilePath,

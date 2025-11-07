@@ -27,3 +27,7 @@ export const setVaultPath = (path: FilePath): void => {
     currentVaultPath = O.some(path);
 };
 
+export const clearVaultPath = (): void => {
+    currentVaultPath = O.none;
+};
+
