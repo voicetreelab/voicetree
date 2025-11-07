@@ -144,7 +144,7 @@ Line 3 with [[3]]`
   })
 
   describe('path matching edge cases', () => {
-    it('should match absolute paths to node IDs', () => {
+    it('should match absolute paths to node IDs, preferring longer matches', () => {
       const content = 'See [[/Users/bobbobby/repos/vaults/vscode_spike/_179.md]]'
       const nodes = {
         '_179': createNode('_179'),
@@ -153,9 +153,8 @@ Line 3 with [[3]]`
 
       const result = extractLinkedNodeIds(content, nodes)
 
-      // TODO: Need to decide how to choose between multiple matches (_179 vs vscode_spike/_179)
-      // For now, we take the longer match (vscode_spike/_179) since it has more path context
-      expect(result).toContain('_179')
+      // Prefers longer match (vscode_spike/_179) over shorter (_179) for better specificity
+      expect(result).toEqual(['vscode_spike/_179'])
     })
 
     it('should match absolute paths with partial path overlap', () => {
@@ -166,9 +165,7 @@ Line 3 with [[3]]`
 
       const result = extractLinkedNodeIds(content, nodes)
 
-      // TODO: Need to decide how to choose between multiple matches
-      // For now, we should prefer longer matches with more path context
-      expect(result.length).toBeGreaterThan(0)
+      expect(result).toEqual(['vscode_spike/_179'])
     })
 
     it('should handle relative paths from different bases', () => {
@@ -183,7 +180,7 @@ Line 3 with [[3]]`
       expect(result).toEqual(['other_folder/node', 'subfolder/node2'])
     })
 
-    it('should match paths with different levels of specificity', () => {
+    it('should match paths with different levels of specificity, preferring longest match', () => {
       const content = 'Link to [[/full/path/to/vault/folder/file.md]]'
       const nodes = {
         'file': createNode('file'),
@@ -193,13 +190,11 @@ Line 3 with [[3]]`
 
       const result = extractLinkedNodeIds(content, nodes)
 
-      // TODO: Need to decide how to choose between multiple matches (file vs folder/file vs vault/folder/file)
-      // For now, we take the longer match (vault/folder/file) since it has more matching path components
-      expect(result.length).toBeGreaterThan(0)
-      // Should ideally prefer 'vault/folder/file' over 'folder/file' over 'file'
+      // Prefers 'vault/folder/file' over 'folder/file' over 'file'
+      expect(result).toEqual(['vault/folder/file'])
     })
 
-    it('should handle absolute paths without extensions', () => {
+    it('should handle absolute paths without extensions, preferring longer match', () => {
       const content = 'See [[/Users/bobbobby/repos/vaults/project/_179]]'
       const nodes = {
         '_179': createNode('_179'),
@@ -208,9 +203,8 @@ Line 3 with [[3]]`
 
       const result = extractLinkedNodeIds(content, nodes)
 
-      // TODO: Need to decide disambiguation strategy
-      // For now, prefer longer matches with more path context
-      expect(result.length).toBeGreaterThan(0)
+      // Prefers longer match with more path context
+      expect(result).toEqual(['project/_179'])
     })
 
     it('should match relative paths that resolve to same file', () => {
@@ -246,9 +240,9 @@ Line 3 with [[3]]`
 
       const result = extractLinkedNodeIds(content, nodes)
 
-      // TODO: Implement logic to prefer 'deeply/nested/file' over 'nested/file' over 'file'
+      // Prefers 'deeply/nested/file' over 'nested/file' over 'file'
       // The longer match provides more specificity and reduces ambiguity
-      expect(result.length).toBeGreaterThan(0)
+      expect(result).toEqual(['deeply/nested/file'])
     })
 
     it('should handle mixed absolute and relative paths in same content', () => {
@@ -278,9 +272,9 @@ Line 3 with [[3]]`
 
       const result = extractLinkedNodeIds(content, nodes)
 
-      // TODO: Need disambiguation strategy when multiple nodes could match
-      // Options: prefer root-level, use context, or require user to be more specific
-      expect(result.length).toBeGreaterThan(0)
+      // When only filename is provided, matches the shortest path (root-level preferred)
+      // This is because extractPathSegments returns ['README'] and it matches 'README' node first
+      expect(result).toEqual(['README'])
     })
   })
 })

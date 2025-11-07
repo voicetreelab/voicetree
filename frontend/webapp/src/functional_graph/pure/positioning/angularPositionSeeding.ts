@@ -8,10 +8,10 @@
  * Pure functions that operate on the functional GraphNode type without cytoscape dependencies.
  */
 
-import type { GraphNode } from '@/functional_graph/pure/types';
+import type { GraphNode } from '@/functional_graph/pure/types.ts';
 import * as O from 'fp-ts/lib/Option.js';
 
-export const SPAWN_RADIUS = 200; // pixels from parent
+export const SPAWN_RADIUS = 400; // pixels from parent
 export const CHILD_ANGLE_CONE = 90; // degrees (± 45° from parent)
 
 /**

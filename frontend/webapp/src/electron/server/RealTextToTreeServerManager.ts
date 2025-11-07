@@ -1,10 +1,11 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { promises as fs, createWriteStream } from 'fs';
+import type { WriteStream } from 'fs';
 import http from 'http';
 import { spawn, ChildProcess } from 'child_process';
-import { findAvailablePort } from '../port-utils.ts';
-import { getBuildConfig } from '../build-config.ts';
+import { findAvailablePort } from '@/electron/port-utils.ts';
+import { getBuildConfig } from '@/electron/build-config.ts';
 import type { ITextToTreeServerManager } from './ITextToTreeServerManager.ts';
 
 /**
@@ -16,7 +17,7 @@ import type { ITextToTreeServerManager } from './ITextToTreeServerManager.ts';
 export class RealTextToTreeServerManager implements ITextToTreeServerManager {
   private serverProcess: ChildProcess | null = null;
   private actualPort: number | null = null;
-  private logStream: any = null;
+  private logStream: WriteStream | null = null;
 
   async start(): Promise<number> {
     // Add timeout wrapper
@@ -39,7 +40,9 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
     const debugLog = (message: string) => {
       const timestamp = new Date().toISOString();
       const logMessage = `[${timestamp}] ${message}\n`;
-      this.logStream.write(logMessage);
+      if (this.logStream) {
+        this.logStream.write(logMessage);
+      }
       console.log(message);
     };
 
@@ -112,9 +115,11 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
 
       return port;
 
-    } catch (error: any) {
-      debugLog(`[TextToTreeServer] Error during server startup: ${error}`);
-      debugLog(`[TextToTreeServer] Stack trace: ${error.stack}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : '';
+      debugLog(`[TextToTreeServer] Error during server startup: ${errorMessage}`);
+      debugLog(`[TextToTreeServer] Stack trace: ${errorStack}`);
       this.logStream?.end();
       throw error; // Re-throw to signal startup failure
     }
@@ -158,7 +163,7 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       await fs.access(serverPath);
       const stats = await fs.stat(serverPath);
       debugLog(`[TextToTreeServer] Server file exists, size: ${stats.size} bytes`);
-    } catch (error) {
+    } catch {
       debugLog('[TextToTreeServer] Server executable not found at: ' + serverPath);
       debugLog('[TextToTreeServer] Run build_server.sh first to build the server');
       throw new Error(`Server executable not found at ${serverPath}`);
@@ -244,11 +249,12 @@ export class RealTextToTreeServerManager implements ITextToTreeServerManager {
       try {
         http.get(`http://localhost:${port}/health`, (res) => {
           debugLog(`[TextToTreeServer] Health check response code: ${res.statusCode}`);
-        }).on('error', (err: any) => {
+        }).on('error', (err: Error) => {
           debugLog(`[TextToTreeServer] Health check failed: ${err.message}`);
         });
       } catch (error) {
-        debugLog(`[TextToTreeServer] Health check error: ${error}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        debugLog(`[TextToTreeServer] Health check error: ${errorMessage}`);
       }
     }, 2000);
   }

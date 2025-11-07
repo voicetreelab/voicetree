@@ -35,7 +35,7 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
     } = params;
 
     // Enable auto-layout
-    // enableAutoLayout(cy);
+    enableAutoLayout(cy);
     console.log('[VoiceTreeGraphView] Auto-layout enabled with Cola');
 
     // Listen to layout completion

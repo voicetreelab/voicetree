@@ -26,14 +26,14 @@ export interface AutoLayoutOptions {
 
 const DEFAULT_OPTIONS: AutoLayoutOptions = {
   animate: true,
-  maxSimulationTime: 750,
+  maxSimulationTime: 3750,
   avoidOverlap: true,
-  nodeSpacing: 30,
-  handleDisconnected: false, // shouldn't matter with ghost root node
-  convergenceThreshold: 3,
-  // unconstrIter: 3,
-  // userConstIter: 50,
-  // allConstIter: 30,
+  nodeSpacing: 10,
+  handleDisconnected: true, // shouldn't matter with ghost root node
+  convergenceThreshold: 0.1,
+  unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
+  userConstIter: 50,
+  allConstIter: 30,
   edgeLength: 200,
   // edgeSymDiffLength: undefined,
   // edgeJaccardLength: undefined

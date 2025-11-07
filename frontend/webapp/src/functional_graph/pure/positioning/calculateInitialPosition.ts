@@ -5,7 +5,7 @@ import {
     calculateParentAngle,
     polarToCartesian,
     SPAWN_RADIUS
-} from "@/functional_graph/pure/cytoscape/layout/angularPositionSeeding.ts";
+} from "@/functional_graph/pure/positioning/angularPositionSeeding.ts";
 import {findFirstParentNode} from "@/functional_graph/pure/findFirstParentNode.ts";
 
 /**
@@ -16,20 +16,25 @@ import {findFirstParentNode} from "@/functional_graph/pure/findFirstParentNode.t
  *
  * @param parentNode - The parent node that the child will spawn from
  * @param graph - The graph to search for grandparent node
+ * @param childIndex - Optional specific index for this child (0-indexed). If not provided, uses siblingCount (for adding new child)
  * @returns Position for the new child node, or None if parent has no position
  */
-export function calculateInitialPositionForChild(parentNode: GraphNode, graph: Graph): O.Option<Position> {
+export function calculateInitialPositionForChild(
+    parentNode: GraphNode,
+    graph: Graph,
+    childIndex?: number
+): O.Option<Position> {
     // Get parent's position
     return O.chain((parentPos: Position) => {
         // Find grandparent to determine parent's angle constraint
         const grandparentNode = findFirstParentNode(parentNode, graph);
         const parentAngle = calculateParentAngle(parentNode, grandparentNode);
 
-        // Count existing children (siblings for the new node)
-        const siblingCount = parentNode.outgoingEdges.length;
+        // Use provided child index, or count existing children for new child
+        const indexToUse = childIndex !== undefined ? childIndex : parentNode.outgoingEdges.length;
 
         // Calculate angle for this child (will be the Nth child, 0-indexed)
-        const angle = calculateChildAngle(siblingCount, parentAngle);
+        const angle = calculateChildAngle(indexToUse, parentAngle);
 
         // Convert to cartesian offset
         const offset = polarToCartesian(angle, SPAWN_RADIUS);
