@@ -13,27 +13,15 @@ import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/functional_graph/shell/UI/applyGraphDeltaToUI'
 import type { GraphDelta, GraphNode } from '@/functional_graph/pure/types'
-import { GHOST_ROOT_ID } from '@/graph-core/constants'
 
 describe('applyGraphDeltaToUI - Integration', () => {
     let cy: Core
 
     beforeEach(() => {
-        // Initialize headless cytoscape with ghost root
+        // Initialize headless cytoscape
         cy = cytoscape({
             headless: true,
-            elements: [
-                {
-                    group: 'nodes' as const,
-                    data: {
-                        id: GHOST_ROOT_ID,
-                        label: '',
-                        linkedNodeIds: [],
-                        isGhostRoot: true
-                    },
-                    position: { x: 0, y: 0 }
-                }
-            ]
+            elements: []
         })
     })
 
@@ -43,8 +31,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
     describe('Add new node with parent', () => {
         it('should add a new node with an edge to its parent', () => {
-            // GIVEN: Empty graph with just ghost root
-            expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(0)
+            // GIVEN: Empty graph
+            expect(cy.nodes()).toHaveLength(0)
 
             // Create parent node first
             const parentNode: GraphNode = {
@@ -53,7 +41,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 100, y: 100 }
+                    position: O.some({ x: 100, y: 100 })
                 }
             }
 
@@ -73,7 +61,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 200, y: 200 }
+                    position: O.some({ x: 200, y: 200 })
                 }
             }
 
@@ -115,9 +103,9 @@ describe('applyGraphDeltaToUI - Integration', () => {
     })
 
     describe('Add orphan node (no parent)', () => {
-        it('should add orphan node and connect it to ghost root', () => {
-            // GIVEN: Empty graph with ghost root
-            expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(0)
+        it('should add orphan node without edges', () => {
+            // GIVEN: Empty graph
+            expect(cy.nodes()).toHaveLength(0)
 
             // WHEN: Adding an orphan node (no outgoing edges)
             const orphanNode: GraphNode = {
@@ -126,7 +114,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 300, y: 300 }
+                    position: O.some({ x: 300, y: 300 })
                 }
             }
 
@@ -142,12 +130,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // THEN: Orphan node should exist
             expect(cy.getElementById('orphan').length).toBe(1)
 
-            // AND: Should be connected to ghost root
-            const ghostEdge = cy.getElementById(`${GHOST_ROOT_ID}->orphan`)
-            expect(ghostEdge.length).toBe(1)
-            expect(ghostEdge.data('source')).toBe(GHOST_ROOT_ID)
-            expect(ghostEdge.data('target')).toBe('orphan')
-            expect(ghostEdge.data('isGhostEdge')).toBe(true)
+            // AND: Should have no edges (orphan)
+            expect(cy.edges().length).toBe(0)
         })
     })
 
@@ -160,7 +144,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 100, y: 100 }
+                    position: O.some({ x: 100, y: 100 })
                 }
             }
 
@@ -198,7 +182,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 100, y: 100 }
+                    position: O.some({ x: 100, y: 100 })
                 }
             }
 
@@ -222,7 +206,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.some('#ff0000'),
-                    position: { x: 500, y: 500 } // Different position
+                    position: O.some({ x: 500, y: 500 }) // Different position
                 }
             }
 
@@ -252,7 +236,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     describe('Bulk operations', () => {
         it('should handle multiple node additions in one delta', () => {
             // GIVEN: Empty graph
-            expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(0)
+            expect(cy.nodes()).toHaveLength(0)
 
             // WHEN: Adding multiple nodes at once
             const node1: GraphNode = {
@@ -261,7 +245,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: ['bulk-2'],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 100, y: 100 }
+                    position: O.some({ x: 100, y: 100 })
                 }
             }
 
@@ -271,7 +255,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: ['bulk-3'],
                 nodeUIMetadata: {
                     color: O.some('#00ff00'),
-                    position: { x: 200, y: 200 }
+                    position: O.some({ x: 200, y: 200 })
                 }
             }
 
@@ -281,7 +265,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 300, y: 300 }
+                    position: O.some({ x: 300, y: 300 })
                 }
             }
 
@@ -314,7 +298,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 100, y: 100 }
+                    position: O.some({ x: 100, y: 100 })
                 }
             }
 
@@ -324,7 +308,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 200, y: 200 }
+                    position: O.some({ x: 200, y: 200 })
                 }
             }
 
@@ -335,7 +319,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             applyGraphDeltaToUI(cy, setupDelta)
 
-            expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(2)
+            expect(cy.nodes()).toHaveLength(2)
 
             // WHEN: Applying mixed delta (add new, update existing, delete one)
             const newNode: GraphNode = {
@@ -344,7 +328,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 300, y: 300 }
+                    position: O.some({ x: 300, y: 300 })
                 }
             }
 
@@ -362,7 +346,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             applyGraphDeltaToUI(cy, mixedDelta)
 
             // THEN: Should have 2 nodes (existing updated + new, deleted removed)
-            expect(cy.nodes().filter(n => n.id() !== GHOST_ROOT_ID)).toHaveLength(2)
+            expect(cy.nodes()).toHaveLength(2)
 
             // AND: New node should exist
             expect(cy.getElementById('new').length).toBe(1)
@@ -384,7 +368,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: ['child'],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 100, y: 100 }
+                    position: O.some({ x: 100, y: 100 })
                 }
             }
 
@@ -394,7 +378,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     color: O.none,
-                    position: { x: 200, y: 200 }
+                    position: O.some({ x: 200, y: 200 })
                 }
             }
 

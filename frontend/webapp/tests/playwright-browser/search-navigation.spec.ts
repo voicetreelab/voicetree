@@ -18,16 +18,31 @@ test.describe('Search Navigation (Browser)', () => {
   test('should open search with cmd-f and navigate to selected node', async ({ page }) => {
     console.log('\n=== Starting ninja-keys search navigation test (Browser) ===');
 
-    console.log('=== Step 1: Navigate to app ===');
-    await page.goto('http://localhost:5173'); // Vite dev server URL
+    // Listen for console messages (errors, warnings, logs)
+    page.on('console', msg => {
+      const type = msg.type();
+      const text = msg.text();
+      console.log(`[Browser ${type}] ${text}`);
+    });
 
-    // Wait for React to render
-    await page.waitForSelector('#root', { timeout: 10000 });
+    // Listen for page errors (uncaught exceptions)
+    page.on('pageerror', error => {
+      console.error('[Browser Error]', error.message);
+      console.error(error.stack);
+    });
 
-    console.log('=== Step 2: Mock Electron API ===');
-    // Mock the electron API before the app tries to use it
-    await page.evaluate(() => {
-      (window as ExtendedWindow).electronAPI = {
+    console.log('=== Step 1: Mock Electron API BEFORE navigation ===');
+    // Mock the electron API BEFORE the app loads using addInitScript
+    await page.addInitScript(() => {
+      // Create a comprehensive mock of the Electron API
+      const mockElectronAPI = {
+        // Backend server configuration
+        getBackendPort: async () => 5001,
+
+        // Directory selection
+        openDirectoryDialog: async () => ({ success: false }),
+
+        // File watching controls
         startFileWatching: async (dir: string) => {
           console.log('[Mock] startFileWatching called with:', dir);
           return { success: true, directory: dir };
@@ -35,10 +50,75 @@ test.describe('Search Navigation (Browser)', () => {
         stopFileWatching: async () => {
           console.log('[Mock] stopFileWatching called');
           return { success: true };
-        }
+        },
+        getWatchStatus: async () => ({ isWatching: false, directory: null }),
+        loadPreviousFolder: async () => ({ success: false }),
+
+        // File watching event listeners (no-op callbacks)
+        onWatchingStarted: () => {},
+        onInitialFilesLoaded: () => {},
+        onFileAdded: () => {},
+        onFileChanged: () => {},
+        onFileDeleted: () => {},
+        onDirectoryAdded: () => {},
+        onDirectoryDeleted: () => {},
+        onInitialScanComplete: () => {},
+        onFileWatchError: () => {},
+        onFileWatchInfo: () => {},
+        onFileWatchingStopped: () => {},
+
+        // Remove event listeners
+        removeAllListeners: () => {},
+
+        // File content management
+        saveFileContent: async () => ({ success: true }),
+        deleteFile: async () => ({ success: true }),
+        createChildNode: async () => ({ success: true }),
+        createStandaloneNode: async () => ({ success: true }),
+
+        // Terminal API
+        terminal: {
+          spawn: async () => ({ success: false }),
+          write: async () => {},
+          resize: async () => {},
+          kill: async () => {},
+          onData: () => {},
+          onExit: () => {}
+        },
+
+        // Position management API
+        positions: {
+          save: async () => ({ success: true }),
+          load: async () => ({ success: false, positions: {} })
+        },
+
+        // Backend log streaming
+        onBackendLog: () => {},
+
+        // Functional graph API
+        graph: {
+          applyGraphDelta: async () => ({ success: true }),
+          getState: async () => ({ nodes: [], edges: [] }),
+          onGraphUpdate: () => () => {},
+          onGraphClear: () => () => {}
+        },
+
+        // General IPC communication methods
+        invoke: async () => {},
+        on: () => {},
+        off: () => {}
       };
+
+      (window as ExtendedWindow).electronAPI = mockElectronAPI;
     });
-    console.log('✓ Electron API mocked');
+    console.log('✓ Electron API mock prepared');
+
+    console.log('=== Step 2: Navigate to app ===');
+    await page.goto('/'); // Vite dev server URL
+
+    // Wait for React to render
+    await page.waitForSelector('#root', { timeout: 5000 });
+    console.log('✓ React rendered');
 
     console.log('=== Step 3: Wait for Cytoscape to initialize ===');
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
@@ -80,6 +160,19 @@ test.describe('Search Navigation (Browser)', () => {
       cy.add({ group: 'edges', data: { source: 'test-node-2', target: 'test-node-3' } });
 
       console.log('[Test] Added test nodes and edges to graph');
+
+      // Update ninja-keys search data manually
+      const ninjaKeysElement = document.querySelector('ninja-keys');
+      if (ninjaKeysElement) {
+        (ninjaKeysElement as unknown as { data: Array<{ id: string; title: string; description?: string }> }).data = testNodes.map(node => ({
+          id: node.id,
+          title: node.label,
+          description: ''
+        }));
+        console.log('[Test] ninja-keys search data updated with new nodes');
+      } else {
+        console.warn('[Test] Could not find ninja-keys element');
+      }
     });
 
     const nodeCount = await page.evaluate(() => {

@@ -191,10 +191,9 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Get the cytoscape instance
     const cy = (testGraph as unknown as { cy: Core }).cy;
 
-    // Initially should only have ghost root
+    // Initially should be empty
     const initialNodes = cy.nodes();
-    expect(initialNodes.length).toBe(1);
-    expect(initialNodes.first().id()).toBe('__GHOST_ROOT__');
+    expect(initialNodes.length).toBe(0);
 
     // Create a GraphDelta with a single node
     const delta = [
@@ -221,8 +220,7 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
 
     // Verify the cytoscape state has changed
     const nodes = cy.nodes();
-    const nonGhostNodes = nodes.filter(node => !node.data('isGhostRoot'));
-    expect(nonGhostNodes.length).toBe(1);
+    expect(nodes.length).toBe(1);
 
     // Verify the node was added with correct data
     const fooNode = cy.getElementById('foo');
@@ -231,12 +229,9 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     expect(fooNode.position().x).toBe(100);
     expect(fooNode.position().y).toBe(100);
 
-    // Verify edges (should have ghost edge connecting ghost root to foo)
+    // Verify no edges (orphan node has no edges)
     const edges = cy.edges();
-    expect(edges.length).toBe(1);
-    expect(edges.first().data('source')).toBe('__GHOST_ROOT__');
-    expect(edges.first().data('target')).toBe('foo');
-    expect(edges.first().data('isGhostEdge')).toBe(true);
+    expect(edges.length).toBe(0);
 
     // Cleanup
     testGraph.dispose();
@@ -308,10 +303,9 @@ describe('VoiceTreeGraphView with Functional Graph', () => {
     // Wait for next tick to allow batched updates
     await new Promise(resolve => setTimeout(resolve, 10));
 
-    // Verify cytoscape was updated (filtering out ghost root if present)
+    // Verify cytoscape was updated
     const cy = (testGraph as unknown as { cy: Core }).cy;
-    const nonGhostNodes = cy.nodes().filter(node => !node.data('isGhostRoot'));
-    expect(nonGhostNodes.length).toBe(2);
+    expect(cy.nodes().length).toBe(2);
     expect(cy.edges().length).toBe(1);
 
     // Cleanup

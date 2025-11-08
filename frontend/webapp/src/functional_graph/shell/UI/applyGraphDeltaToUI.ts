@@ -1,6 +1,5 @@
 import type {Core} from "cytoscape";
 import type {GraphDelta} from "@/functional_graph/pure/types.ts";
-import {GHOST_ROOT_ID} from "@/graph-core/constants.ts";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta} from "@/functional_graph/pure/prettyPrint.ts";
 
@@ -10,16 +9,13 @@ import {prettyPrintGraphDelta} from "@/functional_graph/pure/prettyPrint.ts";
  * Handles:
  * - Creating new nodes with positions
  * - Updating existing nodes' metadata (except positions)
- * - Creating edges (including to ghost root for orphan nodes)
+ * - Creating edges
  * - Deleting nodes
  */
 export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     console.log("applyGraphDeltaToUI", delta.length);
     console.log('[applyGraphDeltaToUI] Starting\n' + prettyPrintGraphDelta(delta));
     cy.batch(() => {
-        // Ensure ghost root exists before processing deltas
-        ensureGhostRoot(cy);
-
         // PASS 1: Create/update all nodes and handle deletions
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
@@ -76,22 +72,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 const node = nodeDelta.nodeToUpsert;
                 const nodeId = node.relativeFilePathIsID;
 
-                // Connect to ghost root if no parent (orphan node)
-                if (node.outgoingEdges.length === 0) {
-                    const ghostEdgeId = `${GHOST_ROOT_ID}->${nodeId}`;
-                    if (!cy.getElementById(ghostEdgeId).length) {
-                        cy.add({
-                            group: 'edges' as const,
-                            data: {
-                                id: ghostEdgeId,
-                                source: GHOST_ROOT_ID,
-                                target: nodeId,
-                                isGhostEdge: true
-                            }
-                        });
-                    }
-                }
-
                 // Add edges for all outgoing connections (if they don't exist)
                 node.outgoingEdges.forEach((targetId) => {
                     const edgeId = `${nodeId}->${targetId}`;
@@ -121,21 +101,3 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
     }
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 }
-
-/**
- * Ensure ghost root node exists in the graph
- */
-function ensureGhostRoot(cy: Core): void {
-    if (!cy.getElementById(GHOST_ROOT_ID).length) {
-        cy.add({
-            data: {
-                id: GHOST_ROOT_ID,
-                label: '',
-                linkedNodeIds: [],
-                isGhostRoot: true
-            },
-            position: { x: 0, y: 0 } // Ghost root always at origin
-        });
-    }
-}
-

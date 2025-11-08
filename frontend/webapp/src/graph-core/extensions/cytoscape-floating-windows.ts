@@ -9,6 +9,8 @@ import type cytoscape from 'cytoscape';
 import { TerminalVanilla } from '@/floating-windows/TerminalVanilla';
 import { CodeMirrorEditorView } from '@/floating-windows/CodeMirrorEditorView';
 import { TestComponent } from '@/floating-windows/TestComponent';
+import type { NodeMetadata } from '@/floating-windows/types';
+import {boolean} from "fp-ts";
 
 export interface FloatingWindowConfig {
   id: string;
@@ -19,7 +21,7 @@ export interface FloatingWindowConfig {
   resizable?: boolean;
   initialContent?: string;
   onSave?: (content: string) => Promise<void>;
-  nodeMetadata?: Record<string, unknown>;
+  nodeMetadata?: NodeMetadata;
   previewMode?: 'edit' | 'live' | 'preview';
   // Shadow node dimensions for layout algorithm (defaults based on component type)
   shadowNodeDimensions?: { width: number; height: number };
@@ -450,88 +452,90 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
 }
 
 /**
- * Register the floating windows extension with Cytoscape
+ * Add a floating window to the graph
+ * This is a standalone function that creates a floating window anchored to a shadow node
+ *
+ * @param cy - Cytoscape core instance
+ * @param config - Floating window configuration
+ * @returns The shadow node that anchors the window
  */
-export function registerFloatingWindows(
-  cytoscape: typeof import('cytoscape')
-) {
-  console.log('[FloatingWindows] Registering extension...');
+export function addFloatingWindow(
+  cy: cytoscape.Core,
+  config: FloatingWindowConfig
+  // isAnchored : boolean with default true
+): cytoscape.NodeSingular {
+  console.log('[FloatingWindows] addFloatingWindow called with config:', config);
+  const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
 
-  // Add the addFloatingWindow method to Core prototype
-  cytoscape('core', 'addFloatingWindow', function(this: cytoscape.Core, config: FloatingWindowConfig) {
-    console.log('[FloatingWindows] addFloatingWindow called with config:', config);
-    const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
+  // Validate component exists early (fail-fast principle)
+  const validComponents = ['Terminal', 'MarkdownEditor', 'TestComponent'];
+  if (!validComponents.includes(component)) {
+    throw new Error(`Component "${component}" not found. Available components: ${validComponents.join(', ')}`);
+  }
 
-    // Validate component exists early (fail-fast principle)
-    const validComponents = ['Terminal', 'MarkdownEditor', 'TestComponent'];
-    if (!validComponents.includes(component)) {
-      throw new Error(`Component "${component}" not found. Available components: ${validComponents.join(', ')}`);
-    }
+  // 1. Get or create overlay
+  const overlay = getOrCreateOverlay(cy);
 
-    // 1. Get or create overlay
-    const overlay = getOrCreateOverlay(this);
+  // 2. Create shadow node (invisible anchor in graph space)
+  // Ensure parentId is set if parentNodeId exists (for layout algorithm compatibility)
+  const shadowNodeData: Record<string, unknown> = { id, ...nodeData };
+  if (nodeData.parentNodeId && !shadowNodeData.parentId) {
+    shadowNodeData.parentId = nodeData.parentNodeId;
+  }
 
-    // 2. Create shadow node (invisible anchor in graph space)
-    // Ensure parentId is set if parentNodeId exists (for layout algorithm compatibility)
-    const shadowNodeData: Record<string, unknown> = { id, ...nodeData };
-    if (nodeData.parentNodeId && !shadowNodeData.parentId) {
-      shadowNodeData.parentId = nodeData.parentNodeId;
-    }
-
-    const shadowNode = this.add({
-      group: 'nodes',
-      data: shadowNodeData,
-      position
-    });
-
-    // 3. Style shadow node (invisible but interactive)
-    // Set dimensions for layout algorithm - defaults based on component type
-    const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
-    shadowNode.style({
-      'opacity': 0,
-      'events': 'yes',
-      'width': dimensions.width,
-      'height': dimensions.height
-    });
-
-    // 4. Create edge from parent node to shadow node if parentNodeId exists
-    if (nodeData.parentNodeId) {
-      this.add({
-        group: 'edges',
-        data: {
-          id: `edge-${nodeData.parentNodeId}-${id}`,
-          source: nodeData.parentNodeId,
-          target: id
-        }
-      });
-    }
-
-    // 5. Create window chrome SYNCHRONOUSLY with vanilla DOM
-    // This is the key fix - chrome exists immediately in DOM
-    const { windowElement, contentContainer } = createWindowChrome(this, config, shadowNode);
-
-    // 6. Add window to overlay (must be in DOM before React mount)
-    overlay.appendChild(windowElement);
-
-    // 7. Initial position sync
-    updateWindowPosition(shadowNode, windowElement);
-
-    // 8. Listen to node position changes
-    shadowNode.on('position', () => {
-      updateWindowPosition(shadowNode, windowElement);
-    });
-
-    // 9. Initial dimension sync (DOM element is source of truth)
-    // Use requestAnimationFrame to ensure browser has calculated layout first
-    requestAnimationFrame(() => {
-      updateShadowNodeDimensions(shadowNode, windowElement);
-    });
-
-    // 10. Mount React component ASYNCHRONOUSLY to content container
-    // This happens after the chrome is already in the DOM and testable
-    mountComponent(contentContainer, component, id, config);
-
-    // Return the shadow node for further manipulation
-    return shadowNode;
+  const shadowNode = cy.add({
+    group: 'nodes',
+    data: shadowNodeData,
+    position
   });
+
+  // 3. Style shadow node (invisible but interactive)
+  // Set dimensions for layout algorithm - defaults based on component type
+  const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
+  shadowNode.style({
+    'opacity': 0,
+    'events': 'yes',
+    'width': dimensions.width,
+    'height': dimensions.height
+  });
+
+  // 4. Create edge from parent node to shadow node if parentNodeId exists
+  if (nodeData.parentNodeId) {
+    cy.add({
+      group: 'edges',
+      data: {
+        id: `edge-${nodeData.parentNodeId}-${id}`,
+        source: nodeData.parentNodeId,
+        target: id
+      }
+    });
+  }
+
+  // 5. Create window chrome SYNCHRONOUSLY with vanilla DOM
+  // This is the key fix - chrome exists immediately in DOM
+  const { windowElement, contentContainer } = createWindowChrome(cy, config, shadowNode);
+
+  // 6. Add window to overlay (must be in DOM before React mount)
+  overlay.appendChild(windowElement);
+
+  // 7. Initial position sync
+  updateWindowPosition(shadowNode, windowElement);
+
+  // 8. Listen to node position changes
+  shadowNode.on('position', () => {
+    updateWindowPosition(shadowNode, windowElement);
+  });
+
+  // 9. Initial dimension sync (DOM element is source of truth)
+  // Use requestAnimationFrame to ensure browser has calculated layout first
+  requestAnimationFrame(() => {
+    updateShadowNodeDimensions(shadowNode, windowElement);
+  });
+
+  // 10. Mount React component ASYNCHRONOUSLY to content container
+  // This happens after the chrome is already in the DOM and testable
+  mountComponent(contentContainer, component, id, config);
+
+  // Return the shadow node for further manipulation
+  return shadowNode;
 }

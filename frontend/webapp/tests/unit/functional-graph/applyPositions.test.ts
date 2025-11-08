@@ -24,7 +24,7 @@ describe('applyPositions', () => {
       expect(O.isSome(rootNode?.nodeUIMetadata.position)).toBe(true)
       if (O.isSome(rootNode?.nodeUIMetadata.position)) {
         const pos = rootNode.nodeUIMetadata.position.value
-        // Single root should be positioned at SPAWN_RADIUS (400) from ghost root at origin
+        // Single root should be positioned at SPAWN_RADIUS (400) from positioning origin at origin
         const distance = Math.sqrt(pos.x * pos.x + pos.y * pos.y)
         expect(distance).toBeCloseTo(400, 1)
       }

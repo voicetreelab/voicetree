@@ -36,8 +36,8 @@ export function computeCytoscapeDiff(
 
   // Scan current Cytoscape state
   cy.nodes().forEach(node => {
-    // Skip special nodes (ghost root, floating windows, etc.)
-    if (!node.data('isGhostRoot') && !node.data('isFloatingWindow')) {
+    // Skip special nodes (floating windows, etc.)
+    if (!node.data('isFloatingWindow')) {
       currentNodeIds.add(node.id())
     }
   })

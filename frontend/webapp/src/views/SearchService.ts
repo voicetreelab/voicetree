@@ -56,7 +56,7 @@ export class SearchService {
       console.log('[SearchService] Selected event fired:', e);
       const customEvent = e as CustomEvent;
       console.log('[SearchService] Event detail:', customEvent.detail);
-      const nodeId = customEvent.detail?.id;
+      const nodeId = customEvent.detail?.action?.id || customEvent.detail?.id;
       console.log('[SearchService] Extracted nodeId:', nodeId);
       if (nodeId) {
         console.log('[SearchService] Calling onNodeSelect with:', nodeId);
@@ -99,10 +99,10 @@ export class SearchService {
       const label = node.data('label') || nodeId;
       const content = node.data('content') || '';
 
-      // Extract first line of content for description (max 100 chars)
+      // Extract first line of content for description (max 300 chars)
       const firstLine = content.split('\n')[0].trim();
-      const description = firstLine.length > 100
-        ? firstLine.substring(0, 100) + '...'
+      const description = firstLine.length > 300
+        ? firstLine.substring(0, 300) + '...'
         : firstLine;
 
       return {

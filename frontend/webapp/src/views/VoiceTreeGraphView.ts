@@ -35,8 +35,7 @@ import { getResponsivePadding } from '@/utils/responsivePadding';
 import type { IMarkdownVaultProvider, Disposable as VaultDisposable } from '@/providers/IMarkdownVaultProvider';
 import { SpeedDialMenuView } from './SpeedDialMenuView';
 import type { Graph, GraphDelta } from '@/functional_graph/pure/types';
-import { MIN_ZOOM, MAX_ZOOM, GHOST_ROOT_ID } from '@/graph-core/constants';
-import type { NodeDefinition } from '@/graph-core/types';
+import { MIN_ZOOM, MAX_ZOOM } from '@/graph-core/constants';
 import { setupBasicCytoscapeEventListeners, setupCytoscape } from './VoiceTreeGraphViewHelpers';
 import { applyGraphDeltaToUI } from '@/functional_graph/shell/UI/applyGraphDeltaToUI';
 import { clearCytoscapeState } from '@/functional_graph/shell/UI/clearCytoscapeState';
@@ -306,21 +305,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Initialize StyleService
     this.styleService = new StyleService();
 
-    // Add ghost root node as the first element to ensure it exists before any edges reference it
-    const ghostRootNode: NodeDefinition = {
-      data: {
-        id: GHOST_ROOT_ID,
-        label: '',
-        linkedNodeIds: [],
-        isGhostRoot: true
-      },
-      position: { x: 0, y: 0 }
-    };
-
-    // Initialize cytoscape with ghost root node
+    // Initialize cytoscape
     // Try with container first, fall back to headless if it fails (e.g., in JSDOM)
     let cytoscapeOptions: CytoscapeOptions = {
-      elements: [ghostRootNode],
+      elements: [],
       style: this.styleService.getCombinedStylesheet(),
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,

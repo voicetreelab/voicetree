@@ -14,6 +14,7 @@
 
 import type {Core, NodeSingular} from 'cytoscape';
 import {
+    addFloatingWindow,
     createWindowChrome,
     getOrCreateOverlay,
     mountComponent
@@ -125,7 +126,7 @@ export class FloatingWindowManager {
     }
 
     try {
-      this.cy.addFloatingWindow({
+      addFloatingWindow(this.cy, {
         id: editorId,
         component: 'MarkdownEditor',
         title: `Editor: ${nodeId}`,
@@ -182,7 +183,7 @@ export class FloatingWindowManager {
     }
 
     try {
-      this.cy.addFloatingWindow({
+      addFloatingWindow(this.cy, {
         id: terminalId,
         component: 'Terminal',
         title: `Terminal: ${nodeId}`,
@@ -234,6 +235,7 @@ export class FloatingWindowManager {
         {
           id: hoverId,
           component: 'MarkdownEditor',
+          title: `Hover: ${nodeId}`,
           position: {
             x: nodePos.x + 50,
             y: nodePos.y
@@ -241,8 +243,8 @@ export class FloatingWindowManager {
           initialContent: content,
           onSave: async (newContent: string) => {
             console.log('[FloatingWindowManager] Saving hover editor content');
-            if ((window as any).electronAPI?.saveFileContent) {
-              const result = await (window as any).electronAPI.saveFileContent(filePath, newContent);
+            if (window.electronAPI?.saveFileContent) {
+              const result = await window.electronAPI.saveFileContent(filePath, newContent);
               if (!result.success) {
                 throw new Error(result.error || 'Failed to save file');
               }
@@ -265,10 +267,11 @@ export class FloatingWindowManager {
       mountComponent(contentContainer, 'MarkdownEditor', hoverId, {
         id: hoverId,
         component: 'MarkdownEditor',
+        title: `Hover: ${nodeId}`,
         initialContent: content,
         onSave: async (newContent: string) => {
-          if ((window as any).electronAPI?.saveFileContent) {
-            await (window as any).electronAPI.saveFileContent(filePath, newContent);
+          if (window.electronAPI?.saveFileContent) {
+            await window.electronAPI.saveFileContent(filePath, newContent);
           }
         }
       });
@@ -308,13 +311,13 @@ export class FloatingWindowManager {
    */
   async handleAddNodeAtPosition(position: Position): Promise<void> {
     try {
-      if (!(window as any).electronAPI?.createStandaloneNode) {
+      if (!window.electronAPI?.createStandaloneNode) {
         console.error('[FloatingWindowManager] Electron API not available');
         return;
       }
 
       // Pass position directly to Electron - it will save it immediately
-      const result = await (window as any).electronAPI.createStandaloneNode(position);
+      const result = await window.electronAPI.createStandaloneNode(position);
       if (result.success && result.nodeId && result.filePath) {
         console.log('[FloatingWindowManager] Successfully created standalone node:', result.nodeId);
 
@@ -333,15 +336,7 @@ export class FloatingWindowManager {
 
           if (node.length > 0) {
             // GraphNode found, open editor
-            const content = `---
-node_id: ${result.nodeId}
-title: New Node (${result.nodeId})
----
-### New Node
-
-Edit this node to add content.
-`;
-            this.createFloatingEditor(newNodeId, result.filePath!, content, position);
+            this.createFloatingEditor(node);
           } else if (attempts < maxAttempts) {
             setTimeout(() => waitForNode(attempts + 1, maxAttempts), 100);
           } else {

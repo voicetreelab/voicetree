@@ -33,11 +33,6 @@ export class ZoomCollapseService {
             const source = edge.source();
             const target = edge.target();
 
-            // Skip ghost root outgoingEdges
-            if (source.data('isGhostRoot') || target.data('isGhostRoot')) {
-                return;
-            }
-
             // Calculate pixel distance
             const sourcePos = source.renderedPosition();
             const targetPos = target.renderedPosition();

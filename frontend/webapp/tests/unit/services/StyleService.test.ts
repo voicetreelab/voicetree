@@ -178,17 +178,17 @@ describe('StyleService', () => {
       // Create a mock Cytoscape instance with nodes
       const mockNodes = [
         {
-          data: (key?: string) => key === 'isGhostRoot' ? false : undefined,
+          data: (key?: string) => undefined,
           degree: () => 0,
           style: vi.fn()
         },
         {
-          data: (key?: string) => key === 'isGhostRoot' ? false : undefined,
+          data: (key?: string) => undefined,
           degree: () => 30,
           style: vi.fn()
         },
         {
-          data: (key?: string) => key === 'isGhostRoot' ? false : undefined,
+          data: (key?: string) => undefined,
           degree: () => 60,
           style: vi.fn()
         }

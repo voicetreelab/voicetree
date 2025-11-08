@@ -177,7 +177,7 @@ export interface IVoiceTreeGraphView {
    * Get current node and edge counts
    *
    * Behavior:
-   * - Returns counts excluding ghost root and floating window shadow nodes
+   * - Returns counts excluding floating window shadow nodes
    *
    * @returns Object with nodeCount and edgeCount
    */

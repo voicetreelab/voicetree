@@ -29,7 +29,7 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   maxSimulationTime: 3750,
   avoidOverlap: true,
   nodeSpacing: 10,
-  handleDisconnected: true, // shouldn't matter with ghost root node
+  handleDisconnected: true, // handles disconnected components
   convergenceThreshold: 0.1,
   unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
   userConstIter: 50,
@@ -69,7 +69,8 @@ export function enableAutoLayout(cy: Core, options: AutoLayoutOptions = {}): () 
     console.log('[AutoLayout] Running Cola layout on', cy.nodes().length, 'nodes');
     layoutRunning = true;
 
-    const layout = new ColaLayout({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const layout = new (ColaLayout as any)({
       cy: cy,
       eles: cy.elements(),
       animate: colaOptions.animate,
