@@ -2,6 +2,7 @@ import type {FSEvent, GraphDelta} from "@/functional_graph/pure/types.ts";
 import {mapFSEventsToGraphDelta} from "@/functional_graph/pure/mapFSEventsToGraphDelta.ts";
 import type {BrowserWindow} from "electron";
 import {applyGraphDeltaToMemStateAndUI} from "@/functional_graph/shell/main/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI.ts";
+import {getGraph} from "@/functional_graph/shell/state/graph-store.ts";
 
 /**
  * Handle filesystem events by:
@@ -22,8 +23,11 @@ export function handleFSEventWithStateAndUISides(
     vaultPath: string,
     mainWindow: BrowserWindow
 ): void {
-    // 1. Map filesystem event to graph delta (pure)
-    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath);
+    // 1. Get current graph state to resolve wikilinks
+    const currentGraph = getGraph();
+
+    // 2. Map filesystem event to graph delta (pure)
+    const delta: GraphDelta = mapFSEventsToGraphDelta(fsEvent, vaultPath, currentGraph);
 
     applyGraphDeltaToMemStateAndUI(delta, mainWindow);
 }

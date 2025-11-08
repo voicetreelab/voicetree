@@ -1,8 +1,9 @@
-import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeId, FSUpdate} from '@/functional_graph/pure/types'
+import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeId, FSUpdate, Graph} from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
 import { setOutgoingEdges } from '@/functional_graph/pure/graph-edge-operations'
+import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids'
 
 /**
  * Maps filesystem events to graph deltas.
@@ -12,20 +13,22 @@ import { setOutgoingEdges } from '@/functional_graph/pure/graph-edge-operations'
  * - Added/Changed files → UpsertNode actions
  * - Deleted files → DeleteNode actions
  *
- * Function signature: (FSEvent, vaultPath) -> GraphDelta
+ * Function signature: (FSEvent, vaultPath, currentGraph) -> GraphDelta
  *
  * @param fsEvent - Filesystem event (add, change, or delete)
  * @param vaultPath - Absolute path to vault (used to compute relative node IDs)
+ * @param currentGraph - Current graph state (used to resolve wikilinks to node IDs)
  * @returns GraphDelta representing the state change
  *
  * @example
  * ```typescript
  * const fsUpdate: FSUpdate = { absolutePath: '/vault/note.md', content: '# Title', eventType: 'Added' }
- * const delta = mapFSEventsToGraphDelta(fsUpdate, '/vault')
+ * const currentGraph = { nodes: { ... } }
+ * const delta = mapFSEventsToGraphDelta(fsUpdate, '/vault', currentGraph)
  * // delta = [{ type: 'UpsertNode', nodeToUpsert: {...} }]
  * ```
  */
-export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string): GraphDelta {
+export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, currentGraph: Graph): GraphDelta {
   // Check if this is an FSUpdate (has content property) or FSDelete
   if ('content' in fsEvent) {
     // This is FSUpdate
@@ -41,7 +44,7 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string): Gr
       return [deleteAction]
     } else {
       // Added or Changed - both are treated as upserts
-      return handleUpsert(fsUpdate, vaultPath)
+      return handleUpsert(fsUpdate, vaultPath, currentGraph)
     }
   } else {
     // This is FSDelete
@@ -57,7 +60,7 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string): Gr
 /**
  * Handle add/change events by creating an upsert action.
  */
-function handleUpsert(fsUpdate: FSUpdate, vaultPath: string): GraphDelta {
+function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph): GraphDelta {
   const nodeId = extractNodeIdFromPath(fsUpdate.absolutePath, vaultPath)
 
   // Create base node from file content
@@ -71,8 +74,9 @@ function handleUpsert(fsUpdate: FSUpdate, vaultPath: string): GraphDelta {
     }
   }
 
-  // Set edges from wikilinks using centralized edge operation
-  const node = setOutgoingEdges(baseNode, parseLinksFromContent(fsUpdate.content))
+  // Set edges from wikilinks using extractLinkedNodeIds (same as initial load)
+  // This ensures consistent normalization (.md stripping, ./ prefix handling, etc.)
+  const node = setOutgoingEdges(baseNode, extractLinkedNodeIds(fsUpdate.content, currentGraph.nodes))
 
   const upsertAction: UpsertNodeAction = {
     type: 'UpsertNode',
@@ -102,14 +106,4 @@ function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeId {
 
   // Convert to node ID (remove .md extension)
   return filenameToNodeId(relativePath)
-}
-
-/**
- * Parse markdown links from content to extract outgoing edges.
- * E.g., "[[OtherNote]]" -> ["OtherNote"]
- */
-function parseLinksFromContent(content: string): readonly NodeId[] {
-  const linkRegex = /\[\[([^\]]+)\]\]/g
-  const matches = [...content.matchAll(linkRegex)]
-  return matches.map((match) => match[1])
 }
