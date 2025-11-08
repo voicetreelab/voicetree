@@ -10,7 +10,6 @@ import {enableAutoLayout} from '@/graph-core/graphviz/layout/autoLayout';
 export interface SetupCytoscapeParams {
     cy: Core;
     savePositionsTimeout: { current: NodeJS.Timeout | null };
-    saveNodePositions: () => void;
     onLayoutComplete: () => void;
     onNodeSelected: (nodeId: string) => void;
     getCurrentGraphState: () => Graph;
@@ -24,8 +23,6 @@ export interface SetupCytoscapeParams {
 export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService {
     const {
         cy,
-        savePositionsTimeout,
-        saveNodePositions,
         onLayoutComplete,
         onNodeSelected,
         floatingWindowManager
@@ -38,21 +35,21 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
     // Listen to layout completion
     cy.on('layoutstop', () => {
         console.log('[VoiceTreeGraphView] Layout stopped, saving positions...');
-        saveNodePositions();
+        // saveNodePositions();
         onLayoutComplete();
     });
 
-    // Save positions when user finishes dragging nodes
-    cy.on('free', 'node', () => {
-        console.log('[VoiceTreeGraphView] GraphNode drag ended, saving positions...');
-        // Debounce to avoid too many saves
-        if (savePositionsTimeout.current) {
-            clearTimeout(savePositionsTimeout.current);
-        }
-        savePositionsTimeout.current = setTimeout(() => {
-            saveNodePositions();
-        }, 1000); // Wait 1 second after last drag
-    });
+    // // Save positions when user finishes dragging nodes DISABLED
+    // cy.on('free', 'node', () => {
+    //     console.log('[VoiceTreeGraphView] GraphNode drag ended, saving positions...');
+    //     // Debounce to avoid too many saves
+    //     // if (savePositionsTimeout.current) {
+    //     //     clearTimeout(savePositionsTimeout.current);
+    //     // }
+    //     // savePositionsTimeout.current = setTimeout(() => {
+    //     //     saveNodePositions();
+    //     // }, 1000); // Wait 1 second after last drag
+    // });
 
     // Setup tap handler for nodes
     console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');

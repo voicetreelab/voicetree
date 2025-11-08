@@ -14,17 +14,15 @@
 
 import type {Core, NodeSingular} from 'cytoscape';
 import {
-    addFloatingWindow,
-    createWindowChrome,
-    getOrCreateOverlay,
-    getVanillaInstance,
-    mountComponent
+    createFloatingEditor,
+    createFloatingTerminal,
+    anchorToNode,
+    getVanillaInstance
 } from '@/graph-core/extensions/cytoscape-floating-windows';
 import type {Position} from './IVoiceTreeGraphView';
 import type {HotkeyManager} from './HotkeyManager';
 import type {Graph, GraphDelta, NodeId} from '@/functional_graph/pure/types';
 import {nodeIdToFilePathWithExtension} from '@/functional_graph/pure/markdown_parsing/filename-utils';
-import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
 import type {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView';
 
@@ -88,16 +86,15 @@ export class FloatingWindowManager {
       const node = event.target;
       const nodeId = node.id();
 
-      // Get node content and file path
+      // Get node content
       const content = this.getContentForNode(nodeId);
-      const filePath = await this.getFilePathForNode(nodeId);
 
-      console.log('[CommandHover] content:', !!content, 'filePath:', filePath);
+      console.log('[CommandHover] content:', !!content);
 
-      if (!content || !filePath) return;
+      if (!content) return;
 
       // Open hover editor
-      this.openHoverEditor(nodeId, filePath, content, node.position());
+      this.openHoverEditor(nodeId, content, node.position());
     });
   }
 
@@ -110,7 +107,6 @@ export class FloatingWindowManager {
       const nodeId = cyNode.id();
       const node = await getNodeFromUI(nodeId);
       const content = node.content;
-      const nodePos = cyNode.position(); // todo, floatingWindow node should use same node creation logic ?
 
     const editorId = `editor-${nodeId}`;
     console.log('[FloatingWindowManager] Creating floating editor:', editorId);
@@ -125,46 +121,29 @@ export class FloatingWindowManager {
     // Register mapping from node ID to editor ID for content updates
     this.nodeIdToEditorId.set(nodeId, editorId);
 
-    // TODO HERE CALL CREATE MARKDOWN EDITOR
-    //   const editor = new CodeMirrorEditorView(
-    //       contentContainer, // TODO WHAT CAN WE PASSS IN HERE? nothing, and then set container later?
-      // todo, does it actually even need a container ? doesn't look like it uses it except for dark mode
-    //       config.initialContent || '',
-    //       {
-    //           autosaveDelay: 300
-    //       }
-    //   );
-
     try {
-      addFloatingWindow(this.cy, {
+      // Create floating editor window
+      const floatingWindow = createFloatingEditor(this.cy, {
         id: editorId,
-        component: 'MarkdownEditor', //TODO MAKE THIS ACTUALLY TAKE THE CodeMirrorEditorView | Terminal
         title: `Editor: ${nodeId}`,
-        position: {
-          x: nodePos.x,
-          y: nodePos.y + 50
-        },
-        nodeData: {
-          isFloatingWindow: true,
-          isShadowNode: true,
-          parentNodeId: nodeId,
-          laidOut: false
-        },
-        resizable: true,
-        initialContent: content,
-        onSave: async (newContent: string) => { // TODO THIS WILL BE given to new CodeMirrorEditorView
-          console.log('[FloatingWindowManager] Saving editor content');
-          await modifyNodeContentFromUI(nodeId, newContent);
-        },
+        content: content,
+        nodeId: nodeId,
         onClose: () => {
           // Clean up mapping when editor is closed
           this.nodeIdToEditorId.delete(nodeId);
-        }
+        },
+        resizable: true
+      });
+
+      // Anchor to parent node
+      anchorToNode(floatingWindow, cyNode, {
+        isFloatingWindow: true,
+        isShadowNode: true,
+        laidOut: false
       });
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating floating editor:', error);
     }
-    // todo, here now anchor it to a node.
   }
 
   /**
@@ -237,31 +216,30 @@ export class FloatingWindowManager {
     }
 
     // Check if parent node exists
-    const parentNodeExists = this.cy.getElementById(nodeId).length > 0;
-
-    const nodeData: Record<string, unknown> = {
-      isFloatingWindow: true,
-      isShadowNode: true,
-      laidOut: false
-    };
-
-    if (parentNodeExists) {
-      nodeData.parentNodeId = nodeId;
-    }
+    const parentNode = this.cy.getElementById(nodeId);
+    const parentNodeExists = parentNode.length > 0;
 
     try {
-      addFloatingWindow(this.cy, {
+      // Create floating terminal window
+      const floatingWindow = createFloatingTerminal(this.cy, {
         id: terminalId,
-        component: 'Terminal',
         title: `Terminal: ${nodeId}`,
-        position: {
-          x: nodePos.x + 100,
-          y: nodePos.y
-        },
-        nodeData,
-        resizable: true,
-        nodeMetadata: nodeMetadata
+        nodeMetadata: nodeMetadata,
+        resizable: true
       });
+
+      if (parentNodeExists) {
+        // Anchor to parent node
+        anchorToNode(floatingWindow, parentNode, {
+          isFloatingWindow: true,
+          isShadowNode: true,
+          laidOut: false
+        });
+      } else {
+        // Manual positioning if no parent
+        floatingWindow.windowElement.style.left = `${nodePos.x + 100}px`;
+        floatingWindow.windowElement.style.top = `${nodePos.y}px`;
+      }
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating floating terminal:', error);
     }
@@ -282,7 +260,6 @@ export class FloatingWindowManager {
 
   private openHoverEditor(
     nodeId: string,
-    filePath: string,
     content: string,
     nodePos: Position
   ): void {
@@ -293,59 +270,21 @@ export class FloatingWindowManager {
     console.log('[FloatingWindowManager] Creating command-hover editor:', hoverId);
 
     try {
-      // Get overlay
-      const overlay = getOrCreateOverlay(this.cy);
-
-      // Create window chrome WITHOUT shadow node
-      const { windowElement, contentContainer } = createWindowChrome(
-        this.cy,
-        {
-          id: hoverId,
-          component: 'MarkdownEditor',
-          title: `Hover: ${nodeId}`,
-          position: {
-            x: nodePos.x + 50,
-            y: nodePos.y
-          },
-          initialContent: content,
-          onSave: async (newContent: string) => {
-            console.log('[FloatingWindowManager] Saving hover editor content');
-            if (window.electronAPI?.saveFileContent) {
-              const result = await window.electronAPI.saveFileContent(filePath, newContent);
-              if (!result.success) {
-                throw new Error(result.error || 'Failed to save file');
-              }
-            } else {
-              throw new Error('Save functionality not available');
-            }
-          }
-        },
-        undefined  // No shadow node!
-      );
-
-      // Add to overlay
-      overlay.appendChild(windowElement);
+      // Create floating editor (no anchoring)
+      const floatingWindow = createFloatingEditor(this.cy, {
+        id: hoverId,
+        title: `Hover: ${nodeId}`,
+        content: content,
+        nodeId: nodeId
+      });
 
       // Set position manually (no shadow node to sync with)
-      windowElement.style.left = `${nodePos.x + 50}px`;
-      windowElement.style.top = `${nodePos.y}px`;
-
-      // Mount the component
-      mountComponent(contentContainer, 'MarkdownEditor', hoverId, {
-        id: hoverId,
-        component: 'MarkdownEditor',
-        title: `Hover: ${nodeId}`,
-        initialContent: content,
-        onSave: async (newContent: string) => {
-          if (window.electronAPI?.saveFileContent) {
-            await window.electronAPI.saveFileContent(filePath, newContent);
-          }
-        }
-      });
+      floatingWindow.windowElement.style.left = `${nodePos.x + 50}px`;
+      floatingWindow.windowElement.style.top = `${nodePos.y}px`;
 
       // Close on click outside
       const handleClickOutside = (e: MouseEvent) => {
-        if (!windowElement.contains(e.target as Node)) {
+        if (!floatingWindow.windowElement.contains(e.target as Node)) {
           console.log('[CommandHover] Click outside detected, closing editor');
           this.closeHoverEditor();
           document.removeEventListener('mousedown', handleClickOutside);
@@ -358,7 +297,7 @@ export class FloatingWindowManager {
       }, 100);
 
       // Store reference
-      this.currentHoverEditor = windowElement;
+      this.currentHoverEditor = floatingWindow.windowElement;
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating hover editor:', error);
     }

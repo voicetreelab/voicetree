@@ -384,7 +384,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.contextMenuService = setupCytoscape({
             cy: this.cy,
             savePositionsTimeout: {current: this.savePositionsTimeout},
-            saveNodePositions: () => this.saveNodePositions(),
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
             onNodeSelected: (nodeId) => this.nodeSelectedEmitter.emit(nodeId),
             getCurrentGraphState: () => this.getCurrentGraphState(),
