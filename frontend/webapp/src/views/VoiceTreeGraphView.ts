@@ -171,6 +171,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         const handleGraphClear = (): void => {
             console.log('[VoiceTreeGraphView] Received graph:clear event');
             clearCytoscapeState(this.cy);
+
+            // Close all open floating editors
+            this.floatingWindowManager.closeAllEditors();
+
             if (this.emptyStateOverlay) {
                 this.emptyStateOverlay.style.display = 'flex';
             }
