@@ -10,7 +10,6 @@ import { TerminalVanilla } from '@/floating-windows/TerminalVanilla';
 import { CodeMirrorEditorView } from '@/floating-windows/CodeMirrorEditorView';
 import { TestComponent } from '@/floating-windows/TestComponent';
 import type { NodeMetadata } from '@/floating-windows/types';
-import {boolean} from "fp-ts";
 
 export interface FloatingWindowConfig {
   id: string;
@@ -25,6 +24,8 @@ export interface FloatingWindowConfig {
   previewMode?: 'edit' | 'live' | 'preview';
   // Shadow node dimensions for layout algorithm (defaults based on component type)
   shadowNodeDimensions?: { width: number; height: number };
+  // Cleanup callback when window is closed
+  onClose?: () => void;
 }
 
 // Store vanilla JS component instances for cleanup
@@ -178,6 +179,10 @@ export function createWindowChrome(
 
   // Attach close handler
   closeButton.addEventListener('click', () => {
+    // Call cleanup callback if provided
+    if (config.onClose) {
+      config.onClose();
+    }
     // Find and remove shadow node
     const shadowNode = cy.$(`#${id}`);
     if (shadowNode.length > 0) {

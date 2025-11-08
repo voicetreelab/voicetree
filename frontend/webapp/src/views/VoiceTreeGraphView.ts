@@ -156,9 +156,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         }
 
         const handleGraphDelta = (delta: GraphDelta): void => {
-
-            // TODO THIS
-
             console.log('[VoiceTreeGraphView] Received graph delta, length:', delta.length);
             console.trace('[VoiceTreeGraphView] Graph delta stack trace'); // DEBUG: Check if called repeatedly
             if (this.emptyStateOverlay) {
@@ -166,6 +163,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             }
             applyGraphDeltaToUI(this.cy, delta);
             this.searchService.updateSearchData();
+
+            // Update floating editor windows with new content from external changes
+            this.floatingWindowManager.updateFloatingEditors(delta);
         };
 
         const handleGraphClear = (): void => {
@@ -405,56 +405,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         return this.currentGraphState;
     }
 
-    /**
-     * Save node positions to disk via IPC
-     */
-    private async saveNodePositions(): Promise<void> {
-        try {
-            // Get watch directory
-            const watchStatus = await this.vaultProvider.getWatchStatus();
-            if (!watchStatus.isWatching || !watchStatus.directory) {
-                console.warn('[VoiceTreeGraphView] Not watching any directory');
-                return;
-            }
-
-            const positions: Record<string, { x: number; y: number }> = {};
-
-            // Collect positions from Cytoscape nodes
-            this.cy.nodes().forEach((node) => {
-                const nodeId = node.id();
-                const isFloatingWindow = node.data('isFloatingWindow');
-                const isGhost = nodeId.startsWith('ghost-');
-
-                // Skip floating windows and ghost nodes
-                if (isFloatingWindow || isGhost) {
-                    return;
-                }
-
-                // Use node ID as filename (assumes nodeId = filename without .md)
-                const filename = `${nodeId}.md`;
-                const pos = node.position();
-                positions[filename] = {x: pos.x, y: pos.y};
-            });
-
-            console.log(`[VoiceTreeGraphView] Saving ${Object.keys(positions).length} node positions`);
-
-            // Save to disk via vault provider
-            const result = await this.vaultProvider.savePositions(
-                watchStatus.directory,
-                positions
-            );
-
-            if (result.success) {
-                console.log(`[VoiceTreeGraphView] Successfully saved positions to disk`);
-            } else {
-                console.error('[VoiceTreeGraphView] Failed to save positions:', result.error);
-            }
-        } catch (error) {
-            console.error('[VoiceTreeGraphView] Error saving positions:', error);
-        }
-    }
-
-
     private setupEventListeners(): void {
         // Bind handlers
         this.handleResize = this.handleResizeMethod.bind(this);
@@ -466,7 +416,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         const handleBeforeUnload = () => {
             console.log('[VoiceTreeGraphView] Window closing, saving positions...');
             // Use synchronous IPC if available, otherwise just log
-            this.saveNodePositions();
+            // todo this.saveNodePositions();
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
 
@@ -616,39 +566,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 cy.fit(terminalNode, 50); // 50px padding
             }
         }, 800); // also after auto layout
-    }
-
-    refreshLayout(): void {
-        const cy = this.cy;
-
-        // Skip if no nodes
-        if (cy.nodes().length === 0) {
-            return;
-        }
-
-        // Directly instantiate ColaLayout (not registered with cytoscape.use())
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const layout = new (ColaLayout as any)({
-            cy: cy,
-            eles: cy.elements(),
-            animate: true,
-            animationDuration: 300,
-            randomize: false,
-            avoidOverlap: true,
-            handleDisconnected: true,
-            convergenceThreshold: 1,
-            maxSimulationTime: 3000,
-            unconstrIter: 3,
-            userConstIter: 50,
-            allConstIter: 30,
-            nodeSpacing: 30,
-            edgeLength: 200,
-            centerGraph: false,
-            fit: false,
-            nodeDimensionsIncludeLabels: true
-        });
-
-        layout.run();
     }
 
     // ============================================================================

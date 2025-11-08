@@ -17,14 +17,16 @@ import {
     addFloatingWindow,
     createWindowChrome,
     getOrCreateOverlay,
+    getVanillaInstance,
     mountComponent
 } from '@/graph-core/extensions/cytoscape-floating-windows';
 import type {Position} from './IVoiceTreeGraphView';
 import type {HotkeyManager} from './HotkeyManager';
-import type {Graph, NodeId} from '@/functional_graph/pure/types';
+import type {Graph, GraphDelta, NodeId} from '@/functional_graph/pure/types';
 import {nodeIdToFilePathWithExtension} from '@/functional_graph/pure/markdown_parsing/filename-utils';
 import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
+import type {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView';
 
 /**
  * Function type for getting current graph state
@@ -51,6 +53,9 @@ export class FloatingWindowManager {
 
   // Store positions for newly created nodes (before they're in the graph)
   private pendingPositions = new Map<string, Position>();
+
+  // Track which editors are open for each node (for external content updates)
+  private nodeIdToEditorId = new Map<NodeId, string>();
 
   constructor(
     cy: Core,
@@ -125,6 +130,9 @@ export class FloatingWindowManager {
       return;
     }
 
+    // Register mapping from node ID to editor ID for content updates
+    this.nodeIdToEditorId.set(nodeId, editorId);
+
     try {
       addFloatingWindow(this.cy, {
         id: editorId,
@@ -145,9 +153,57 @@ export class FloatingWindowManager {
         onSave: async (newContent: string) => {
           console.log('[FloatingWindowManager] Saving editor content');
           await modifyNodeContentFromUI(nodeId, newContent);
-      }});
+        },
+        onClose: () => {
+          // Clean up mapping when editor is closed
+          this.nodeIdToEditorId.delete(nodeId);
+        }
+      });
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating floating editor:', error);
+    }
+  }
+
+  /**
+   * Update floating editors based on graph delta
+   * For each node upsert, check if there's an open editor and update its content
+   */
+  updateFloatingEditors(delta: GraphDelta): void {
+    for (const nodeDelta of delta) {
+      if (nodeDelta.type === 'UpsertNode') {
+        const nodeId = nodeDelta.nodeToUpsert.relativeFilePathIsID;
+        const newContent = nodeDelta.nodeToUpsert.content;
+        const editorId = this.nodeIdToEditorId.get(nodeId);
+
+        if (editorId) {
+          // Get the editor instance from vanillaInstances
+          const editorInstance = getVanillaInstance(editorId);
+
+          if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
+            const editor = editorInstance as CodeMirrorEditorView;
+
+            // Only update if content has changed to avoid cursor jumps
+            if (editor.getValue() !== newContent) {
+              console.log('[FloatingWindowManager] Updating editor content for node:', nodeId);
+              editor.setValue(newContent);
+            }
+          }
+        }
+      } else if (nodeDelta.type === 'DeleteNode') {
+        // Handle node deletion - close the editor if open
+        const nodeId = nodeDelta.nodeId;
+        const editorId = this.nodeIdToEditorId.get(nodeId);
+
+        if (editorId) {
+          console.log('[FloatingWindowManager] Closing editor for deleted node:', nodeId);
+          // Close the editor by removing its shadow node
+          const shadowNode = this.cy.$(`#${editorId}`);
+          if (shadowNode.length > 0) {
+            shadowNode.remove();
+          }
+          this.nodeIdToEditorId.delete(nodeId);
+        }
+      }
     }
   }
 
