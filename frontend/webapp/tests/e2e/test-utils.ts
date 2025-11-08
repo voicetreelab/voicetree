@@ -71,7 +71,7 @@ export async function getGraphState(appWindow: Page): Promise<{ nodes: number; e
 }
 
 /**
- * Poll for expected node count (excludes ghost root node)
+ * Poll for expected node count
  */
 export async function pollForNodeCount(
   appWindow: Page,
@@ -82,8 +82,7 @@ export async function pollForNodeCount(
   while (Date.now() - startTime < timeout) {
     const count = await appWindow.evaluate(() => {
       const w = window as ExtendedWindow;
-      // Filter out ghost root node (has isGhostRoot: true in data)
-      return w.cytoscapeInstance?.nodes().filter((node: NodeSingular) => !node.data('isGhostRoot')).length || 0;
+      return w.cytoscapeInstance?.nodes().length || 0;
     });
     if (count === expectedCount) return count;
     await appWindow.waitForTimeout(200);

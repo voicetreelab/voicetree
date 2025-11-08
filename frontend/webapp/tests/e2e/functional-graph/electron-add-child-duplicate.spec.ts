@@ -125,11 +125,9 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       const nodes = cy.nodes().map((n: NodeSingular) => ({
         id: n.id(),
         label: n.data('label'),
-        isGhostRoot: n.data('isGhostRoot')
       }));
 
-      // Filter out ghost root for counting
-      const realNodes = nodes.filter(n => !n.isGhostRoot);
+      const realNodes = nodes;
 
       return {
         nodeCount: realNodes.length,
@@ -184,11 +182,9 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       const cytoscapeNodes = cy.nodes().map((n: NodeSingular) => ({
         id: n.id(),
         label: n.data('label'),
-        isGhostRoot: n.data('isGhostRoot')
       }));
 
-      // Filter out ghost root for counting
-      const realCytoscapeNodes = cytoscapeNodes.filter(n => !n.isGhostRoot);
+      const realCytoscapeNodes = cytoscapeNodes;
 
       // Pretty print Graph state
       const graphNodeIds = Object.keys(graphState.nodes).sort();

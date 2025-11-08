@@ -1,7 +1,6 @@
 import cytoscape from 'cytoscape';
 import {
   DEFAULT_TEXT_WIDTH,
-  GHOST_ROOT_ID,
 } from '@/graph-core/constants';
 
 export class StyleService {
@@ -235,29 +234,6 @@ export class StyleService {
         }
       },
 
-      // Ghost root node - invisible for layout purposes only
-      {
-        selector: `node[id = "${GHOST_ROOT_ID}"]`,
-        style: {
-          'opacity': 0,
-          'width': 0,
-          'height': 0,
-          'events': 'no',
-          'display': 'element', // Keep in layout calculations but invisible
-        }
-      },
-
-      // Ghost outgoingEdges - invisible connections to ghost root
-      {
-        selector: 'edge[isGhostEdge]',
-        style: {
-          'opacity': 0,
-          'width': 0,
-          'events': 'no',
-          'display': 'element', // Keep in layout calculations but invisible
-        }
-      },
-
       // Breathing animation states - pinned nodes (orange)
       {
         selector: 'node.breathing-pinned-expand',
@@ -403,9 +379,6 @@ export class StyleService {
       typeof val === 'number' && !isNaN(val) && isFinite(val) && val >= 0;
 
     nodesToUpdate.forEach(node => {
-      // Skip ghost root node
-      if (node.data('isGhostRoot')) return;
-
       let degree = node.degree();
 
       // Defensive check: ensure degree is a valid number, default to 0 if not

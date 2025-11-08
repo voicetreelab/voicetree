@@ -107,8 +107,7 @@ test.describe('Multiple Folder Load Tests', () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      // Filter out ghost root node
-      const realNodes = cy.nodes().filter((n: NodeSingular) => !n.data('isGhostRoot'));
+      const realNodes = cy.nodes().filter((n: NodeSingular) => true);
 
       return {
         nodeCount: realNodes.length,
@@ -161,8 +160,7 @@ test.describe('Multiple Folder Load Tests', () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      // Filter out ghost root node
-      const realNodes = cy.nodes().filter((n: NodeSingular) => !n.data('isGhostRoot'));
+      const realNodes = cy.nodes().filter((n: NodeSingular) => true);
 
       return {
         nodeCount: realNodes.length,
@@ -214,8 +212,7 @@ test.describe('Multiple Folder Load Tests', () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      // Check if graph is empty (only ghost root)
-      const realNodes = cy.nodes().filter((n: NodeSingular) => !n.data('isGhostRoot'));
+      const realNodes = cy.nodes().filter((n: NodeSingular) => true);
       const isEmpty = realNodes.length === 0;
 
       // Check placeholder visibility
@@ -254,7 +251,7 @@ test.describe('Multiple Folder Load Tests', () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      const realNodes = cy.nodes().filter((n: NodeSingular) => !n.data('isGhostRoot'));
+      const realNodes = cy.nodes().filter((n: NodeSingular) => true);
       const hasNodes = realNodes.length > 0;
 
       const emptyStateOverlay = document.querySelector('.absolute.inset-0.flex.items-center.justify-center');

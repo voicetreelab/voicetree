@@ -7,7 +7,6 @@
  */
 
 import type { Core, NodeSingular } from 'cytoscape';
-import { GHOST_ROOT_ID } from '@/graph-core/constants';
 
 export const SPAWN_RADIUS = 200; // pixels from parent
 export const CHILD_ANGLE_CONE = 90; // degrees (± 45° from parent)
@@ -138,8 +137,8 @@ export function calculateParentAngle(
 ): number | undefined {
   const grandparentId = parentNode.data('parentId');
 
-  // If no grandparent or grandparent is ghost root, parent is a root node
-  if (!grandparentId || grandparentId === GHOST_ROOT_ID) {
+  // If no grandparent, parent is a root node
+  if (!grandparentId) {
     return undefined; // No angle constraint
   }
 
