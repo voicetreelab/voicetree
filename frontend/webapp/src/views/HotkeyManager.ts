@@ -181,7 +181,7 @@ export class HotkeyManager {
     }
 
     // Also notify all modifier callbacks that modifiers are released
-    for (const [modifier, callbacks] of this.modifierCallbacks.entries()) {
+    for (const callbacks of this.modifierCallbacks.values()) {
       callbacks.forEach(cb => cb(false));
     }
   }
@@ -230,13 +230,22 @@ export class HotkeyManager {
       // Track modifier keys
       this.handleModifierKeyUp(e);
 
-      // FIX: Reset ALL hotkeys that use this key, regardless of current modifier state
-      // This handles the case where Meta is released before the hotkey key
+      // FIX: Reset ALL hotkeys that use this key OR modifier, regardless of current modifier state
+      // This handles the case where either the main key OR a modifier is released before the other
       const releasedKey = e.key;
+      const releasedModifier = this.getModifierFromEvent(e);
 
       for (const [hotkeyKey, hotkey] of this.hotkeys.entries()) {
-        // Check if this hotkey uses the released key
-        if (hotkey.config.key === releasedKey && hotkey.isPressed) {
+        if (!hotkey.isPressed) continue;
+
+        // Check if this hotkey uses the released key as its main key
+        const usesReleasedKey = hotkey.config.key === releasedKey;
+
+        // Check if this hotkey uses the released modifier
+        const usesReleasedModifier = releasedModifier &&
+          hotkey.config.modifiers?.includes(releasedModifier);
+
+        if (usesReleasedKey || usesReleasedModifier) {
           console.log(`[HotkeyManager] Hotkey released: ${hotkeyKey}`);
           hotkey.isPressed = false;
 

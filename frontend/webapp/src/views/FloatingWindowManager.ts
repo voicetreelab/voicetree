@@ -165,6 +165,25 @@ export class FloatingWindowManager {
   }
 
   /**
+   * Close all open floating editors
+   * Called when graph is cleared
+   */
+  closeAllEditors(): void {
+    console.log('[FloatingWindowManager] Closing all editors');
+    const editorIds = Array.from(this.nodeIdToEditorId.values());
+
+    for (const editorId of editorIds) {
+      const shadowNode = this.cy.$(`#${editorId}`);
+      if (shadowNode.length > 0) {
+        shadowNode.remove();
+      }
+    }
+
+    // Clear the mapping
+    this.nodeIdToEditorId.clear();
+  }
+
+  /**
    * Update floating editors based on graph delta
    * For each node upsert, check if there's an open editor and update its content
    */
