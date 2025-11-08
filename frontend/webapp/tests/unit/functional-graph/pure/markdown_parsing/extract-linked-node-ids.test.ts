@@ -124,4 +124,24 @@ describe('extractLinkedNodeIds', () => {
 
     expect(result).toEqual([])
   })
+
+  it('BUG REPRODUCTION: should strip .md extension from wikilinks (integration test scenario)', () => {
+    // This test reproduces the exact scenario from the failing integration test:
+    // fileWatching.test.ts > "should create edge when appending wikilink WITH .md extension"
+    //
+    // Expected behavior: [[test-new-file.md]] should create edge to "test-new-file" (without .md)
+    // Actual behavior: Edge is created to "test-new-file.md" (with .md)
+    //
+    // This unit test passes (extractLinkedNodeIds works correctly),
+    // so the bug must be in how edges are created from the extracted IDs
+    const content = 'See [[test-new-file.md]]'
+    const nodes = {
+      'test-new-file': createNode('test-new-file')
+    }
+
+    const result = extractLinkedNodeIds(content, nodes)
+
+    // Should strip .md extension
+    expect(result).toEqual(['test-new-file'])
+  })
 })

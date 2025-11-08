@@ -99,6 +99,9 @@ describe('File Watching - Edge Management Tests', () => {
       await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
+      // Wait for watcher to fully initialize
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent = '# Test New File\n\nThis is a test file.'
 
@@ -141,29 +144,39 @@ describe('File Watching - Edge Management Tests', () => {
         await new Promise(resolve => setTimeout(resolve, pollInterval))
         const currentGraph = getGraph()
         const sourceNode = currentGraph.nodes['5_Immediate_Test_Observation_No_Output']
-        // Check for edge with or without .md since system may normalize differently
-        if (sourceNode?.outgoingEdges?.includes('test-new-file') ||
-            sourceNode?.outgoingEdges?.includes('test-new-file.md')) {
+        if (sourceNode?.outgoingEdges?.includes('test-new-file')) {
           edgeAdded = true
           break
         }
       }
 
-      // THEN: Edge should be created (system normalizes to 'test-new-file')
-      expect(edgeAdded).toBe(true)
+      // THEN: Edge should be created (IDs always have .md extension stripped)
       const graph = getGraph()
       const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
+
+      // DEBUG: Show what's actually in the graph if edge wasn't added
+      if (!edgeAdded) {
+        const debugInfo = {
+          outgoingEdges: sourceNode?.outgoingEdges,
+          allNodes: Object.keys(graph.nodes),
+          testNodeExists: !!graph.nodes['test-new-file'],
+          contentUpdated: sourceNode?.content?.includes('test-new-file')
+        }
+        throw new Error(`Edge was not added. Debug info: ${JSON.stringify(debugInfo, null, 2)}`)
+      }
+
+      expect(edgeAdded).toBe(true)
       expect(sourceNode.outgoingEdges).toBeDefined()
-      // Accept edge with or without .md extension
-      const hasEdge = sourceNode.outgoingEdges.includes('test-new-file') ||
-                      sourceNode.outgoingEdges.includes('test-new-file.md')
-      expect(hasEdge).toBe(true)
+      expect(sourceNode.outgoingEdges).toContain('test-new-file')
     }, 15000)
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
       // GIVEN: Load folder and create a new file
       await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
+
+      // Wait for watcher to fully initialize
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent = '# Test New File\n\nThis is a test file.'
@@ -225,6 +238,9 @@ describe('File Watching - Edge Management Tests', () => {
       // GIVEN: Load folder and create a new file with a wikilink
       await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
+
+      // Wait for watcher to fully initialize
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent = '# Test New File\n\nThis is a test file.'

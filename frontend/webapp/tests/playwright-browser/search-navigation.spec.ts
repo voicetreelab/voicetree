@@ -5,12 +5,18 @@
 
 import { test, expect } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
+import type { GraphDelta } from '@/functional_graph/pure/types';
 
 interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: {
     startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
     stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+    graph?: {
+      onGraphUpdate?: (callback: (delta: GraphDelta) => void) => () => void;
+      onGraphClear?: (callback: () => void) => () => void;
+      _updateCallback?: (delta: GraphDelta) => void;
+    };
   };
 }
 
@@ -99,8 +105,18 @@ test.describe('Search Navigation (Browser)', () => {
         graph: {
           applyGraphDelta: async () => ({ success: true }),
           getState: async () => ({ nodes: [], edges: [] }),
-          onGraphUpdate: () => () => {},
-          onGraphClear: () => () => {}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onGraphUpdate: (callback: (delta: any) => void) => {
+            console.log('[Mock] onGraphUpdate callback registered');
+            // Store the callback so tests can trigger it
+            mockElectronAPI.graph._updateCallback = callback;
+            return () => {
+              console.log('[Mock] onGraphUpdate cleanup called');
+            };
+          },
+          onGraphClear: () => () => {},
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          _updateCallback: undefined as ((delta: any) => void) | undefined
         },
 
         // General IPC communication methods
@@ -120,58 +136,98 @@ test.describe('Search Navigation (Browser)', () => {
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('✓ React rendered');
 
+    // Wait for graph update handler to be registered
+    await page.waitForTimeout(500);
+    console.log('✓ Graph update handler should be registered');
+
     console.log('=== Step 3: Wait for Cytoscape to initialize ===');
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
     console.log('✓ Cytoscape initialized');
 
-    console.log('=== Step 4: Setup test graph with mock nodes ===');
+    console.log('=== Step 4: Setup test graph via electronAPI graph update ===');
+    // Trigger the graph update through the electronAPI callback mechanism
+    // This simulates how the real app receives graph updates
     await page.evaluate(() => {
-      const cy = (window as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
+      const electronAPI = (window as ExtendedWindow).electronAPI;
+      if (!electronAPI) throw new Error('electronAPI not available');
 
-      // Clear any existing nodes
-      cy.elements().remove();
-
-      // Add test nodes
-      const testNodes = [
-        { id: 'test-node-1', label: 'Introduction' },
-        { id: 'test-node-2', label: 'Architecture' },
-        { id: 'test-node-3', label: 'Core Principles' },
-        { id: 'test-node-4', label: 'API Design' },
-        { id: 'test-node-5', label: 'Testing Guide' }
+      // Create GraphDelta with test nodes
+      const graphDelta = [
+        {
+          type: 'UpsertNode' as const,
+          nodeToUpsert: {
+            relativeFilePathIsID: 'test-node-1.md',
+            content: '# Introduction\nThis is the introduction node.',
+            outgoingEdges: ['test-node-2.md'],
+            nodeUIMetadata: {
+              color: { _tag: 'None' } as const,
+              position: { _tag: 'Some', value: { x: 100, y: 100 } } as const
+            }
+          }
+        },
+        {
+          type: 'UpsertNode' as const,
+          nodeToUpsert: {
+            relativeFilePathIsID: 'test-node-2.md',
+            content: '# Architecture\nArchitecture documentation.',
+            outgoingEdges: ['test-node-3.md'],
+            nodeUIMetadata: {
+              color: { _tag: 'None' } as const,
+              position: { _tag: 'Some', value: { x: 300, y: 150 } } as const
+            }
+          }
+        },
+        {
+          type: 'UpsertNode' as const,
+          nodeToUpsert: {
+            relativeFilePathIsID: 'test-node-3.md',
+            content: '# Core Principles\nCore principles guide.',
+            outgoingEdges: [],
+            nodeUIMetadata: {
+              color: { _tag: 'None' } as const,
+              position: { _tag: 'Some', value: { x: 500, y: 200 } } as const
+            }
+          }
+        },
+        {
+          type: 'UpsertNode' as const,
+          nodeToUpsert: {
+            relativeFilePathIsID: 'test-node-4.md',
+            content: '# API Design\nAPI design patterns.',
+            outgoingEdges: [],
+            nodeUIMetadata: {
+              color: { _tag: 'None' } as const,
+              position: { _tag: 'Some', value: { x: 700, y: 250 } } as const
+            }
+          }
+        },
+        {
+          type: 'UpsertNode' as const,
+          nodeToUpsert: {
+            relativeFilePathIsID: 'test-node-5.md',
+            content: '# Testing Guide\nHow to test the system.',
+            outgoingEdges: [],
+            nodeUIMetadata: {
+              color: { _tag: 'None' } as const,
+              position: { _tag: 'Some', value: { x: 900, y: 300 } } as const
+            }
+          }
+        }
       ];
 
-      testNodes.forEach((node, index) => {
-        cy.add({
-          group: 'nodes',
-          data: {
-            id: node.id,
-            label: node.label
-          },
-          position: {
-            x: 100 + index * 200,
-            y: 100 + index * 50
-          }
-        });
-      });
+      // Trigger the graph update callback that was registered during initialization
+      // This will call handleGraphDelta which applies the delta AND updates search
+      // Access the internal callback that was registered via onGraphUpdate
+      // We need to get the callback that was stored when VoiceTreeGraphView subscribed
+      const mockGraphAPI = electronAPI.graph as {
+        _updateCallback?: (delta: typeof graphDelta) => void
+      };
 
-      // Add some edges
-      cy.add({ group: 'edges', data: { source: 'test-node-1', target: 'test-node-2' } });
-      cy.add({ group: 'edges', data: { source: 'test-node-2', target: 'test-node-3' } });
-
-      console.log('[Test] Added test nodes and edges to graph');
-
-      // Update ninja-keys search data manually
-      const ninjaKeysElement = document.querySelector('ninja-keys');
-      if (ninjaKeysElement) {
-        (ninjaKeysElement as unknown as { data: Array<{ id: string; title: string; description?: string }> }).data = testNodes.map(node => ({
-          id: node.id,
-          title: node.label,
-          description: ''
-        }));
-        console.log('[Test] ninja-keys search data updated with new nodes');
+      if (mockGraphAPI._updateCallback) {
+        mockGraphAPI._updateCallback(graphDelta);
+        console.log('[Test] Triggered graph update via electronAPI callback');
       } else {
-        console.warn('[Test] Could not find ninja-keys element');
+        console.error('[Test] No graph update callback registered!');
       }
     });
 
@@ -230,8 +286,9 @@ test.describe('Search Navigation (Browser)', () => {
     console.log(`  Target node: ${targetNode.label} (${targetNode.id})`);
 
     console.log('=== Step 8: Type search query into ninja-keys ===');
-    // Type a few characters from the node label
-    const searchQuery = targetNode.label.substring(0, Math.min(5, targetNode.label.length));
+    // Type a few characters from the node ID (which is now the filename like "test-node-1.md")
+    // We search for "test-node" which should match the node ID
+    const searchQuery = 'test-node';
     await page.keyboard.type(searchQuery);
 
     // Wait for search results to update

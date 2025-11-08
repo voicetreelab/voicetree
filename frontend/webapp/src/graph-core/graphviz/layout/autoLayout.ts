@@ -32,7 +32,7 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   handleDisconnected: true, // handles disconnected components
   convergenceThreshold: 0.1,
   unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
-  userConstIter: 50,
+  userConstIter: 5,
   allConstIter: 30,
   edgeLength: 200,
   // edgeSymDiffLength: undefined,
