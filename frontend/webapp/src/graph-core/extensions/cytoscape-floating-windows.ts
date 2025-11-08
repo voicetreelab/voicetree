@@ -10,6 +10,7 @@ import { TerminalVanilla } from '@/floating-windows/TerminalVanilla';
 import { CodeMirrorEditorView } from '@/floating-windows/CodeMirrorEditorView';
 import { TestComponent } from '@/floating-windows/TestComponent';
 import type { NodeMetadata } from '@/floating-windows/types';
+import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 
 export interface FloatingWindowConfig {
   id: string;
@@ -25,6 +26,19 @@ export interface FloatingWindowConfig {
   shadowNodeDimensions?: { width: number; height: number };
   // Cleanup callback when window is closed
   onClose?: () => void;
+}
+
+/**
+ * FloatingWindow object returned by component creation functions
+ * Provides access to DOM elements and cleanup
+ */
+export interface FloatingWindow {
+  id: string;
+  cy: cytoscape.Core;
+  windowElement: HTMLElement;
+  contentContainer: HTMLElement;
+  titleBar: HTMLElement;
+  cleanup: () => void;
 }
 
 // Store vanilla JS component instances for cleanup
@@ -113,14 +127,12 @@ function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domEleme
 /**
  * Create the window chrome (frame) synchronously with vanilla DOM
  * This includes: window container, title bar, close button, and content container
- * Returns the main window element and the content container for React mounting
- * @param shadowNode - Optional shadow node for anchoring. If omitted, window is positioned manually.
+ * Returns the main window element, content container, and title bar
  */
 export function createWindowChrome(
   cy: cytoscape.Core,
-  config: FloatingWindowConfig,
-  shadowNode?: cytoscape.NodeSingular
-): { windowElement: HTMLElement; contentContainer: HTMLElement } {
+  config: FloatingWindowConfig
+): { windowElement: HTMLElement; contentContainer: HTMLElement; titleBar: HTMLElement } {
   const { id, title, resizable = false, component } = config;
 
   // Get initial dimensions for this component type
@@ -209,70 +221,7 @@ export function createWindowChrome(
   windowElement.appendChild(titleBar);
   windowElement.appendChild(contentContainer);
 
-  // Attach drag handlers to title bar (only if we have shadow node for position sync)
-  if (shadowNode) {
-    attachDragHandlers(cy, titleBar, windowElement);
-  }
-
-  // Set up ResizeObserver to sync window size to shadow node
-  // This ensures layout algorithm knows the real window dimensions
-  if (typeof ResizeObserver !== 'undefined' && shadowNode) {
-    const resizeObserver = new ResizeObserver(() => {
-      console.log('[FloatingWindow] ResizeObserver callback fired!');
-
-      // Sync dimensions from DOM element to shadow node
-      updateShadowNodeDimensions(shadowNode, windowElement);
-
-      // DEBUG: Log dimensions and positions after resize
-      const shadowNodePos = shadowNode.position();
-      const shadowNodeStyle = shadowNode.style();
-      const windowRect = windowElement.getBoundingClientRect();
-      const pan = cy.pan();
-      const zoom = cy.zoom();
-
-      const windowAbsolutePos = { x: windowRect.left, y: windowRect.top };
-      const windowRelativePos = {
-        x: parseFloat(windowElement.style.left) || 0,
-        y: parseFloat(windowElement.style.top) || 0
-      };
-
-      console.log('[FloatingWindow Resize Debug]', {
-        shadowNode: {
-          id: shadowNode.id(),
-          dimensions: { width: shadowNodeStyle['width'], height: shadowNodeStyle['height'] },
-          position: { graph: shadowNodePos }
-        },
-        floatingWindow: {
-          dimensions: {
-            width: windowElement.offsetWidth,
-            height: windowElement.offsetHeight,
-            clientWidth: windowElement.clientWidth,
-            clientHeight: windowElement.clientHeight
-          },
-          position: {
-            absolute: windowAbsolutePos,
-            relative: windowRelativePos,
-            computed: {
-              left: windowElement.style.left,
-              top: windowElement.style.top,
-              transform: windowElement.style.transform
-            }
-          }
-        },
-        viewport: { pan, zoom }
-      });
-
-      // Emit custom event for layout manager to listen to
-      cy.trigger('floatingwindow:resize', [{ nodeId: shadowNode.id() }]);
-    });
-
-    resizeObserver.observe(windowElement);
-
-    // Store observer for cleanup
-    windowElement.setAttribute('data-resize-observer', 'attached');
-  }
-
-  return { windowElement, contentContainer };
+  return { windowElement, contentContainer, titleBar };
 }
 
 /**
@@ -454,47 +403,316 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
   }
 }
 
+// /**
+//  * Add a floating window to the graph
+//  * This is a standalone function that creates a floating window anchored to a shadow node
+//  *
+//  * @param cy - Cytoscape core instance
+//  * @param config - Floating window configuration
+//  * @returns The shadow node that anchors the window
+//  */
+// export function addFloatingWindow(
+//   cy: cytoscape.Core,
+//   config: FloatingWindowConfig
+//   // isAnchored : boolean
+// ): cytoscape.NodeSingular {
+//   console.log('[FloatingWindows] addFloatingWindow called with config:', config);
+//   const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
+//
+//   // Validate component exists early (fail-fast principle)
+//   const validComponents = ['Terminal', 'MarkdownEditor', 'TestComponent'];
+//   if (!validComponents.includes(component)) {
+//     throw new Error(`Component "${component}" not found. Available components: ${validComponents.join(', ')}`);
+//   }
+//
+//   // 1. Get or create overlay
+//   const overlay = getOrCreateOverlay(cy);
+//
+//   // 2. Create shadow node (invisible anchor in graph space)
+//   // Ensure parentId is set if parentNodeId exists (for layout algorithm compatibility)
+//   const shadowNodeData: Record<string, unknown> = { id, ...nodeData };
+//   if (nodeData.parentNodeId && !shadowNodeData.parentId) {
+//     shadowNodeData.parentId = nodeData.parentNodeId;
+//   }
+//
+//   const shadowNode = cy.add({
+//     group: 'nodes',
+//     data: shadowNodeData,
+//     position
+//   });
+//
+//   // 3. Style shadow node (invisible but interactive)
+//   // Set dimensions for layout algorithm - defaults based on component type
+//   const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
+//   shadowNode.style({
+//     'opacity': 0,
+//     'events': 'yes',
+//     'width': dimensions.width,
+//     'height': dimensions.height
+//   });
+//
+//   // 4. Create edge from parent node to shadow node if parentNodeId exists
+//   if (nodeData.parentNodeId) {
+//     cy.add({
+//       group: 'edges',
+//       data: {
+//         id: `edge-${nodeData.parentNodeId}-${id}`,
+//         source: nodeData.parentNodeId,
+//         target: id
+//       }
+//     });
+//   }
+//
+//   // 5. Create window chrome SYNCHRONOUSLY with vanilla DOM
+//   // This is the key fix - chrome exists immediately in DOM
+//   const { windowElement, contentContainer, titleBar } = createWindowChrome(cy, config);
+//
+//   // 6. Add window to overlay (must be in DOM before React mount)
+//   overlay.appendChild(windowElement);
+//
+//   // 7. Attach drag handlers to title bar
+//   attachDragHandlers(cy, titleBar, windowElement);
+//
+//   // 8. Set up ResizeObserver to sync window size to shadow node
+//   if (typeof ResizeObserver !== 'undefined') {
+//     const resizeObserver = new ResizeObserver(() => {
+//       console.log('[FloatingWindow] ResizeObserver callback fired!');
+//
+//       // Sync dimensions from DOM element to shadow node
+//       updateShadowNodeDimensions(shadowNode, windowElement);
+//
+//       // Emit custom event for layout manager to listen to
+//       cy.trigger('floatingwindow:resize', [{ nodeId: shadowNode.id() }]);
+//     });
+//
+//     resizeObserver.observe(windowElement);
+//   }
+//
+//   // 9. Initial position sync
+//   updateWindowPosition(shadowNode, windowElement);
+//
+//   // 10. Listen to node position changes
+//   shadowNode.on('position', () => {
+//     updateWindowPosition(shadowNode, windowElement);
+//   });
+//
+//   // 11. Initial dimension sync (DOM element is source of truth)
+//   // Use requestAnimationFrame to ensure browser has calculated layout first
+//   requestAnimationFrame(() => {
+//     updateShadowNodeDimensions(shadowNode, windowElement);
+//   });
+//
+//   // 12. Mount component ASYNCHRONOUSLY to content container
+//   // This happens after the chrome is already in the DOM and testable
+//   mountComponent(contentContainer, component, id, config);
+//
+//   // Return the shadow node for further manipulation
+//   return shadowNode;
+// }
+
 /**
- * Add a floating window to the graph
- * This is a standalone function that creates a floating window anchored to a shadow node
- *
- * @param cy - Cytoscape core instance
- * @param config - Floating window configuration
- * @returns The shadow node that anchors the window
+ * Create a floating editor window (no anchoring)
+ * Returns FloatingWindow object that can be anchored or positioned manually
  */
-export function addFloatingWindow(
+export function createFloatingEditor(
   cy: cytoscape.Core,
-  config: FloatingWindowConfig
-  // isAnchored : boolean
-): cytoscape.NodeSingular {
-  console.log('[FloatingWindows] addFloatingWindow called with config:', config);
-  const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
-
-  // Validate component exists early (fail-fast principle)
-  const validComponents = ['Terminal', 'MarkdownEditor', 'TestComponent'];
-  if (!validComponents.includes(component)) {
-    throw new Error(`Component "${component}" not found. Available components: ${validComponents.join(', ')}`);
+  config: {
+    id: string;
+    title: string;
+    content: string;
+    nodeId: string;
+    onClose?: () => void;
+    resizable?: boolean;
   }
+): FloatingWindow {
+  const { id, title, content, nodeId, onClose, resizable = true } = config;
 
-  // 1. Get or create overlay
+  // Get overlay
   const overlay = getOrCreateOverlay(cy);
 
-  // 2. Create shadow node (invisible anchor in graph space)
-  // Ensure parentId is set if parentNodeId exists (for layout algorithm compatibility)
-  const shadowNodeData: Record<string, unknown> = { id, ...nodeData };
-  if (nodeData.parentNodeId && !shadowNodeData.parentId) {
-    shadowNodeData.parentId = nodeData.parentNodeId;
+  // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
+  const { windowElement, contentContainer, titleBar } = createWindowChrome(cy, {
+    id,
+    title,
+    component: 'MarkdownEditor',
+    resizable,
+    initialContent: content
+  });
+
+  // Create CodeMirror editor instance
+  const editor = new CodeMirrorEditorView(
+    contentContainer,
+    content,
+    {
+      autosaveDelay: 300
+    }
+  );
+
+  // Setup auto-save with modifyNodeContentFromUI
+  editor.onChange(async (newContent) => {
+    console.log('[createFloatingEditor] Saving editor content for node:', nodeId);
+    await modifyNodeContentFromUI(nodeId, newContent);
+  });
+
+  // Store for cleanup
+  vanillaInstances.set(id, editor);
+
+  // Create cleanup wrapper that can be extended by anchorToNode
+  const floatingWindow: FloatingWindow = {
+    id,
+    cy,
+    windowElement,
+    contentContainer,
+    titleBar,
+    cleanup: () => {
+      const vanillaInstance = vanillaInstances.get(id);
+      if (vanillaInstance) {
+        vanillaInstance.dispose();
+        vanillaInstances.delete(id);
+      }
+      windowElement.remove();
+      if (onClose) {
+        onClose();
+      }
+    }
+  };
+
+  // Update close button to call floatingWindow.cleanup (so anchorToNode can wrap it)
+  const closeButton = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
+  if (closeButton) {
+    // Remove old handler and add new one
+    const newCloseButton = closeButton.cloneNode(true) as HTMLElement;
+    closeButton.parentNode?.replaceChild(newCloseButton, closeButton);
+    newCloseButton.addEventListener('click', () => floatingWindow.cleanup());
   }
+
+  // Set initial position to offscreen to avoid flash at 0,0
+  windowElement.style.left = '-9999px';
+  windowElement.style.top = '-9999px';
+
+  // Add to overlay
+  overlay.appendChild(windowElement);
+
+  return floatingWindow;
+}
+
+/**
+ * Create a floating terminal window (no anchoring)
+ * Returns FloatingWindow object that can be anchored or positioned manually
+ */
+export function createFloatingTerminal(
+  cy: cytoscape.Core,
+  config: {
+    id: string;
+    title: string;
+    nodeMetadata: NodeMetadata;
+    onClose?: () => void;
+    resizable?: boolean;
+  }
+): FloatingWindow {
+  const { id, title, nodeMetadata, onClose, resizable = true } = config;
+
+  // Get overlay
+  const overlay = getOrCreateOverlay(cy);
+
+  // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
+  const { windowElement, contentContainer, titleBar } = createWindowChrome(cy, {
+    id,
+    title,
+    component: 'Terminal',
+    resizable,
+    nodeMetadata
+  });
+
+  // Create Terminal instance
+  const terminal = new TerminalVanilla({
+    container: contentContainer,
+    nodeMetadata
+  });
+
+  // Store for cleanup
+  vanillaInstances.set(id, terminal);
+
+  // Create cleanup wrapper that can be extended by anchorToNode
+  const floatingWindow: FloatingWindow = {
+    id,
+    cy,
+    windowElement,
+    contentContainer,
+    titleBar,
+    cleanup: () => {
+      const vanillaInstance = vanillaInstances.get(id);
+      if (vanillaInstance) {
+        vanillaInstance.dispose();
+        vanillaInstances.delete(id);
+      }
+      windowElement.remove();
+      if (onClose) {
+        onClose();
+      }
+    }
+  };
+
+  // Update close button to call floatingWindow.cleanup (so anchorToNode can wrap it)
+  const closeButton = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
+  if (closeButton) {
+    // Remove old handler and add new one
+    const newCloseButton = closeButton.cloneNode(true) as HTMLElement;
+    closeButton.parentNode?.replaceChild(newCloseButton, closeButton);
+    newCloseButton.addEventListener('click', () => floatingWindow.cleanup());
+  }
+
+  // Set initial position to offscreen to avoid flash at 0,0
+  windowElement.style.left = '-9999px';
+  windowElement.style.top = '-9999px';
+
+  // Add to overlay
+  overlay.appendChild(windowElement);
+
+  return floatingWindow;
+}
+
+/**
+ * Anchor a floating window to a parent node
+ * Creates an invisible shadow node and sets up bidirectional synchronization:
+ * - Window drag → shadow position
+ * - Shadow position → window position
+ * - Window resize → shadow dimensions
+ *
+ * @param floatingWindow - The floating window to anchor
+ * @param parentNode - The parent node to anchor to
+ * @param shadowNodeData - Optional data for the shadow node (e.g., {isFloatingWindow: true, laidOut: false})
+ * @returns The created shadow node
+ */
+export function anchorToNode(
+  floatingWindow: FloatingWindow,
+  parentNode: cytoscape.NodeSingular,
+  shadowNodeData?: Record<string, unknown>
+): cytoscape.NodeSingular {
+  const { id, cy, windowElement, titleBar } = floatingWindow;
+
+  // 1. Create shadow node at parent's position
+  const parentPos = parentNode.position();
+  const nodeData: Record<string, unknown> = {
+    id,
+    parentId: parentNode.id(),
+    parentNodeId: parentNode.id(),
+    ...shadowNodeData
+  };
 
   const shadowNode = cy.add({
     group: 'nodes',
-    data: shadowNodeData,
-    position
+    data: nodeData,
+    position: parentPos
   });
 
+  // 2. Get initial dimensions from rendered window
+  const dimensions = {
+    width: windowElement.offsetWidth,
+    height: windowElement.offsetHeight
+  };
+
   // 3. Style shadow node (invisible but interactive)
-  // Set dimensions for layout algorithm - defaults based on component type
-  const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
   shadowNode.style({
     'opacity': 0,
     'events': 'yes',
@@ -502,43 +720,48 @@ export function addFloatingWindow(
     'height': dimensions.height
   });
 
-  // 4. Create edge from parent node to shadow node if parentNodeId exists
-  if (nodeData.parentNodeId) {
-    cy.add({
-      group: 'edges',
-      data: {
-        id: `edge-${nodeData.parentNodeId}-${id}`,
-        source: nodeData.parentNodeId,
-        target: id
-      }
-    });
-  }
-
-  // 5. Create window chrome SYNCHRONOUSLY with vanilla DOM
-  // This is the key fix - chrome exists immediately in DOM
-  const { windowElement, contentContainer } = createWindowChrome(cy, config, shadowNode);
-
-  // 6. Add window to overlay (must be in DOM before React mount)
-  overlay.appendChild(windowElement);
-
-  // 7. Initial position sync
-  updateWindowPosition(shadowNode, windowElement);
-
-  // 8. Listen to node position changes
-  shadowNode.on('position', () => {
-    updateWindowPosition(shadowNode, windowElement);
+  // 4. Create edge from parent to shadow
+  cy.add({
+    group: 'edges',
+    data: {
+      id: `edge-${parentNode.id()}-${id}`,
+      source: parentNode.id(),
+      target: id
+    }
   });
 
-  // 9. Initial dimension sync (DOM element is source of truth)
-  // Use requestAnimationFrame to ensure browser has calculated layout first
+  // 5. Set up ResizeObserver (window resize → shadow dimensions)
+  if (typeof ResizeObserver !== 'undefined') {
+    const resizeObserver = new ResizeObserver(() => {
+      updateShadowNodeDimensions(shadowNode, windowElement);
+      cy.trigger('floatingwindow:resize', [{ nodeId: shadowNode.id() }]);
+    });
+    resizeObserver.observe(windowElement);
+  }
+
+  // 6. Set up position sync (shadow position → window position)
+  const syncPosition = () => {
+    updateWindowPosition(shadowNode, windowElement);
+  };
+  shadowNode.on('position', syncPosition);
+  syncPosition(); // Initial sync
+
+  // 7. Attach drag handlers (window drag → shadow position)
+  attachDragHandlers(cy, titleBar, windowElement);
+
+  // 8. Initial dimension sync (use requestAnimationFrame to ensure layout is calculated)
   requestAnimationFrame(() => {
     updateShadowNodeDimensions(shadowNode, windowElement);
   });
 
-  // 10. Mount React component ASYNCHRONOUSLY to content container
-  // This happens after the chrome is already in the DOM and testable
-  mountComponent(contentContainer, component, id, config);
+  // 9. Update cleanup to also remove shadow node
+  const originalCleanup = floatingWindow.cleanup;
+  floatingWindow.cleanup = () => {
+    if (shadowNode.inside()) {
+      shadowNode.remove();
+    }
+    originalCleanup();
+  };
 
-  // Return the shadow node for further manipulation
   return shadowNode;
 }
