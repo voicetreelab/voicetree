@@ -169,17 +169,6 @@ export class FloatingWindowManager {
    * Called when graph is cleared
    */
   closeAllEditors(): void {
-    console.log('[FloatingWindowManager] Closing all editors');
-    const editorIds = Array.from(this.nodeIdToEditorId.values());
-
-    for (const editorId of editorIds) {
-      const shadowNode = this.cy.$(`#${editorId}`);
-      if (shadowNode.length > 0) {
-        shadowNode.remove();
-      }
-    }
-
-    // Clear the mapping
     this.nodeIdToEditorId.clear();
   }
 
