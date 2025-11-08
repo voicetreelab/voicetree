@@ -26,13 +26,11 @@ import '@/graph-core'; // Import to trigger extension registration
 import {StyleService} from '@/graph-core/services/StyleService';
 import {BreathingAnimationService} from '@/graph-core/services/BreathingAnimationService';
 import {ContextMenuService} from '@/graph-core/services/ContextMenuService';
-import ColaLayout from '@/graph-core/graphviz/layout/cola';
 import {FloatingWindowManager} from './FloatingWindowManager';
 import {HotkeyManager} from './HotkeyManager';
 import {SearchService} from './SearchService';
 import {GraphNavigationService} from './GraphNavigationService';
 import {getResponsivePadding} from '@/utils/responsivePadding';
-import type {IMarkdownVaultProvider, Disposable as VaultDisposable} from '@/providers/IMarkdownVaultProvider';
 import {SpeedDialMenuView} from './SpeedDialMenuView';
 import type {Graph, GraphDelta} from '@/functional_graph/pure/types';
 import {MIN_ZOOM, MAX_ZOOM} from '@/graph-core/constants';
@@ -48,7 +46,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private cy!: Core; // Initialized in render() called from constructor
     private container: HTMLElement;
     private options: VoiceTreeGraphViewOptions;
-    private vaultProvider: IMarkdownVaultProvider;
 
     // Services
     private styleService!: StyleService; // Initialized in render()
@@ -64,9 +61,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // State
     private _isDarkMode = false;
     private currentGraphState: Graph = {nodes: {}};
-
-    // Vault event disposables
-    private vaultDisposables: VaultDisposable[] = [];
 
     // Graph subscription cleanup
     private cleanupGraphSubscription: (() => void) | null = null;
@@ -92,12 +86,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     constructor(
         container: HTMLElement,
-        vaultProvider: IMarkdownVaultProvider,
         options: VoiceTreeGraphViewOptions = {}
     ) {
         super();
         this.container = container;
-        this.vaultProvider = vaultProvider;
         this.options = options;
 
         // Initialize dark mode
@@ -111,7 +103,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.floatingWindowManager = new FloatingWindowManager(
             this.cy,
             () => this.getCurrentGraphState(),
-            () => this.vaultProvider.getWatchDirectory?.(),
             this.hotkeyManager
         );
         this.navigationService = new GraphNavigationService(this.cy);
@@ -397,7 +388,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
             onNodeSelected: (nodeId) => this.nodeSelectedEmitter.emit(nodeId),
             getCurrentGraphState: () => this.getCurrentGraphState(),
-            getVaultProvider: () => this.vaultProvider,
             floatingWindowManager: this.floatingWindowManager
         });
     }
@@ -523,9 +513,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Creates a floating terminal with pre-pasted backup command
      * Command: mkdir -p "{watchDir}/../backups" && mv "{watchDir}" "{watchDir}/../backups/"
      */
-    createBackupTerminal(): void {
-        // Get watch directory from vault provider
-        const watchDir = this.vaultProvider.getWatchDirectory?.();
+    async createBackupTerminal(): Promise<void> {
+        // Get watch directory from IPC
+        const status = await window.electronAPI?.getWatchStatus();
+        const watchDir = status?.directory;
 
         if (!watchDir) {
             console.warn('[backup] No watched directory available');
@@ -611,10 +602,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.cleanupGraphSubscription();
             this.cleanupGraphSubscription = null;
         }
-
-        // Dispose vault event listeners
-        this.vaultDisposables.forEach(disposable => disposable.dispose());
-        this.vaultDisposables = [];
 
         // Dispose managers
         this.hotkeyManager.dispose();

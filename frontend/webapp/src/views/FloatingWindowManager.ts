@@ -34,17 +34,11 @@ import type {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView
 type GetGraphState = () => Graph;
 
 /**
- * Function type for getting vault path
- */
-type GetVaultPath = () => string | undefined;
-
-/**
  * Manages all floating windows (editors, terminals) for the graph
  */
 export class FloatingWindowManager {
   private cy: Core;
   private getGraphState: GetGraphState;
-  private getVaultPath: GetVaultPath;
   private hotkeyManager: HotkeyManager;
 
   // Command-hover mode state
@@ -60,12 +54,10 @@ export class FloatingWindowManager {
   constructor(
     cy: Core,
     getGraphState: GetGraphState,
-    getVaultPath: GetVaultPath,
     hotkeyManager: HotkeyManager
   ) {
     this.cy = cy;
     this.getGraphState = getGraphState;
-    this.getVaultPath = getVaultPath;
     this.hotkeyManager = hotkeyManager;
   }
 
@@ -89,7 +81,7 @@ export class FloatingWindowManager {
     });
 
     // Listen for node hover when command is held
-    this.cy.on('mouseover', 'node', (event) => {
+    this.cy.on('mouseover', 'node', async (event) => {
       console.log('[CommandHover] GraphNode mouseover, commandKeyHeld:', this.commandKeyHeld);
       if (!this.commandKeyHeld) return;
 
@@ -98,7 +90,7 @@ export class FloatingWindowManager {
 
       // Get node content and file path
       const content = this.getContentForNode(nodeId);
-      const filePath = this.getFilePathForNode(nodeId);
+      const filePath = await this.getFilePathForNode(nodeId);
 
       console.log('[CommandHover] content:', !!content, 'filePath:', filePath);
 
@@ -133,10 +125,20 @@ export class FloatingWindowManager {
     // Register mapping from node ID to editor ID for content updates
     this.nodeIdToEditorId.set(nodeId, editorId);
 
+    // TODO HERE CALL CREATE MARKDOWN EDITOR
+    //   const editor = new CodeMirrorEditorView(
+    //       contentContainer, // TODO WHAT CAN WE PASSS IN HERE? nothing, and then set container later?
+      // todo, does it actually even need a container ? doesn't look like it uses it except for dark mode
+    //       config.initialContent || '',
+    //       {
+    //           autosaveDelay: 300
+    //       }
+    //   );
+
     try {
       addFloatingWindow(this.cy, {
         id: editorId,
-        component: 'MarkdownEditor',
+        component: 'MarkdownEditor', //TODO MAKE THIS ACTUALLY TAKE THE CodeMirrorEditorView | Terminal
         title: `Editor: ${nodeId}`,
         position: {
           x: nodePos.x,
@@ -150,7 +152,7 @@ export class FloatingWindowManager {
         },
         resizable: true,
         initialContent: content,
-        onSave: async (newContent: string) => {
+        onSave: async (newContent: string) => { // TODO THIS WILL BE given to new CodeMirrorEditorView
           console.log('[FloatingWindowManager] Saving editor content');
           await modifyNodeContentFromUI(nodeId, newContent);
         },
@@ -162,6 +164,7 @@ export class FloatingWindowManager {
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating floating editor:', error);
     }
+    // todo, here now anchor it to a node.
   }
 
   /**
@@ -434,8 +437,9 @@ export class FloatingWindowManager {
    * Get absolute file path for a node ID
    * Constructs path from vaultPath + nodeId.md
    */
-  getFilePathForNode(nodeId: NodeId): string | undefined {
-    const vaultPath = this.getVaultPath();
+  async getFilePathForNode(nodeId: NodeId): Promise<string | undefined> {
+    const status = await window.electronAPI?.getWatchStatus();
+    const vaultPath = status?.directory;
     if (!vaultPath) {
       console.warn('[FloatingWindowManager] No vault path available');
       return undefined;

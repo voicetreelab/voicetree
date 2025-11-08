@@ -4,7 +4,6 @@ import { useFolderWatcher } from "./hooks/useFolderWatcher.tsx";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { VoiceTreeGraphView } from "./views/VoiceTreeGraphView";
-import { ElectronMarkdownVault } from "./providers/ElectronMarkdownVault";
 import { useEffect, useRef } from "react";
 
 function App() {
@@ -107,15 +106,8 @@ function App() {
 
     console.log('[App] Initializing VoiceTreeGraphView');
     console.trace('[App] VoiceTreeGraphView initialization stack trace'); // DEBUG: Track if called multiple times
-    const vaultProvider = new ElectronMarkdownVault();
 
-    // Subscribe to watching-started event to store vault directory
-    // This is critical for floating editors to work - they need the vault absolutePath
-    const watchingSubscription = vaultProvider.onWatchingStarted((event) => {
-      console.log('[App] Vault watching started:', event.directory);
-    });
-
-    const graphView = new VoiceTreeGraphView(graphContainerRef.current, vaultProvider, {
+    const graphView = new VoiceTreeGraphView(graphContainerRef.current, {
       initialDarkMode: false
     });
 
@@ -123,7 +115,6 @@ function App() {
     return () => {
       console.log('[App] Disposing VoiceTreeGraphView');
       console.trace('[App] VoiceTreeGraphView disposal stack trace'); // DEBUG: Track cleanup
-      watchingSubscription.dispose();
       graphView.dispose();
     };
   }, []); // Empty deps - only run once on mount

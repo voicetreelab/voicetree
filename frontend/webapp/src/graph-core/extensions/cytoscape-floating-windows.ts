@@ -21,7 +21,6 @@ export interface FloatingWindowConfig {
   initialContent?: string;
   onSave?: (content: string) => Promise<void>;
   nodeMetadata?: NodeMetadata;
-  previewMode?: 'edit' | 'live' | 'preview';
   // Shadow node dimensions for layout algorithm (defaults based on component type)
   shadowNodeDimensions?: { width: number; height: number };
   // Cleanup callback when window is closed
@@ -392,7 +391,6 @@ export function mountComponent(
       contentContainer,
       config.initialContent || '',
       {
-        previewMode: config.previewMode || 'edit',
         autosaveDelay: 300
       }
     );
@@ -467,7 +465,7 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
 export function addFloatingWindow(
   cy: cytoscape.Core,
   config: FloatingWindowConfig
-  // isAnchored : boolean with default true
+  // isAnchored : boolean
 ): cytoscape.NodeSingular {
   console.log('[FloatingWindows] addFloatingWindow called with config:', config);
   const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
