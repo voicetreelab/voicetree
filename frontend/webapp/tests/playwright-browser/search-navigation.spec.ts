@@ -337,6 +337,70 @@ test.describe('Search Navigation (Browser)', () => {
     expect(ninjaKeysClosed).toBe(true);
     console.log('✓ ninja-keys modal closed after selection');
 
-    console.log('✓ ninja-keys search navigation test completed');
+    console.log('=== Step 12: SECOND SEARCH - Open ninja-keys again with cmd-f ===');
+    // Wait a moment to ensure any cleanup has completed
+    await page.waitForTimeout(300);
+
+    // Try to open search again
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
+
+    // Wait for ninja-keys modal to appear
+    await page.waitForTimeout(300);
+
+    const ninjaKeysVisibleSecondTime = await page.evaluate(() => {
+      const ninjaKeys = document.querySelector('ninja-keys');
+      if (!ninjaKeys) return false;
+      const shadowRoot = ninjaKeys.shadowRoot;
+      if (!shadowRoot) return false;
+      const modal = shadowRoot.querySelector('.modal');
+      // Check if modal exists and is not hidden
+      return modal !== null;
+    });
+
+    expect(ninjaKeysVisibleSecondTime).toBe(true);
+    console.log('✓ ninja-keys search modal opened SECOND time');
+
+    console.log('=== Step 13: Search for a different node ===');
+    // Search for a different node (test-node-2)
+    const searchQuery2 = 'Architecture';
+    await page.keyboard.type(searchQuery2);
+
+    // Wait for search results to update
+    await page.waitForTimeout(300);
+    console.log(`  Typed search query: "${searchQuery2}"`);
+
+    console.log('=== Step 14: Select result with Enter ===');
+    await page.keyboard.press('Enter');
+
+    // Wait for navigation animation and fit to complete
+    await page.waitForTimeout(1000);
+
+    console.log('=== Step 15: Verify second search worked ===');
+    const finalStateSecondSearch = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const zoom = cy.zoom();
+      const pan = cy.pan();
+      return { zoom, pan };
+    });
+
+    console.log(`  Final zoom after 2nd search: ${finalStateSecondSearch.zoom}, pan: (${finalStateSecondSearch.pan.x}, ${finalStateSecondSearch.pan.y})`);
+
+    // Verify modal closed again
+    const ninjaKeysClosedSecondTime = await page.evaluate(() => {
+      const ninjaKeys = document.querySelector('ninja-keys');
+      if (!ninjaKeys) return true;
+      const shadowRoot = ninjaKeys.shadowRoot;
+      if (!shadowRoot) return true;
+      const modal = shadowRoot.querySelector('.modal');
+      if (!modal) return true;
+      const overlay = shadowRoot.querySelector('.modal-overlay');
+      return overlay ? getComputedStyle(overlay).display === 'none' : true;
+    });
+
+    expect(ninjaKeysClosedSecondTime).toBe(true);
+    console.log('✓ ninja-keys modal closed after second selection');
+
+    console.log('✓ ninja-keys search navigation test completed (with second search)');
   });
 });

@@ -92,12 +92,13 @@ export class SearchService {
    * Update search data from current Cytoscape nodes
    */
   updateSearchData(): void {
+      // todo, make this take a Graph object instead.
     const nodes = this.cy.nodes();
 
     const searchData: NinjaAction[] = nodes.map((node) => {
       const nodeId = node.id();
       const label = node.data('label') || nodeId;
-      const content = node.data('content') || '';
+      const content = node.data('content') || ''; //todo are we setting content in node?
 
       // Extract first line of content for description (max 300 chars)
       const firstLine = content.split('\n')[0].trim();
