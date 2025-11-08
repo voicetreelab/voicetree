@@ -60,9 +60,11 @@ export class SearchService {
       console.log('[SearchService] Extracted nodeId:', nodeId);
       if (nodeId) {
         console.log('[SearchService] Calling onNodeSelect with:', nodeId);
-        // Close the search modal before triggering selection to prevent focus issues
-        this.close();
+        // Call selection handler immediately
         this.onNodeSelect(nodeId);
+        // Close modal after a small delay to allow hotkey release events to complete
+        // This prevents the close() focus change from triggering resetAllHotkeys() prematurely
+        setTimeout(() => this.close(), 50);
       } else {
         console.warn('[SearchService] No nodeId found in event detail');
       }
