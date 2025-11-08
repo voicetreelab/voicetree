@@ -14,8 +14,8 @@ cytoscape.use(cxtmenu);
 
 export interface ContextMenuDependencies {
     getContentForNode: (nodeId: string) => string | undefined;
-    getFilePathForNode: (nodeId: string) => string | undefined;
-    createFloatingEditor: (node : NodeSingular) => void;
+    getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
+    createFloatingEditor: (node : NodeSingular) => Promise<void>;
     createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => void;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
@@ -179,16 +179,10 @@ export class ContextMenuService {
         // Open in Editor
         commands.push({
             content: this.createSvgIcon('edit', 'Edit'),
-            select: () => {
-                const content = this.deps!.getContentForNode(nodeId);
-                const filePath = this.deps!.getFilePathForNode(nodeId);
-
-                if (content && filePath) {
-                    const targetNode = this.cy!.getElementById(nodeId);
-                    if (targetNode.length > 0) {
-                        const pos = targetNode.position();
-                        this.deps!.createFloatingEditor(nodeId, filePath, content, pos);
-                    }
+            select: async () => {
+                const targetNode = this.cy!.getElementById(nodeId);
+                if (targetNode.length > 0) {
+                    await this.deps!.createFloatingEditor(targetNode);
                 }
             },
             enabled: true,
@@ -207,8 +201,8 @@ export class ContextMenuService {
         // Terminal
         commands.push({
             content: this.createSvgIcon('terminal', 'Terminal'),
-            select: () => {
-                const filePath = this.deps!.getFilePathForNode(nodeId);
+            select: async () => {
+                const filePath = await this.deps!.getFilePathForNode(nodeId);
                 const nodeMetadata = {
                     id: nodeId,
                     name: nodeId.replace(/_/g, ' '),
@@ -228,7 +222,7 @@ export class ContextMenuService {
         commands.push({
             content: this.createSvgIcon('trash', 'Delete'),
             select: async () => {
-                const filePath = this.deps!.getFilePathForNode(nodeId);
+                const filePath = await this.deps!.getFilePathForNode(nodeId);
                 const electronAPI = (window as { electronAPI?: { deleteFile: (path: string) => Promise<{ success: boolean; error?: string }> } }).electronAPI;
 
                 if (filePath && electronAPI?.deleteFile) {
@@ -257,8 +251,8 @@ export class ContextMenuService {
         // Copy name
         commands.push({
             content: this.createSvgIcon('copy', 'Copy'),
-            select: () => {
-                const absolutePath = this.deps!.getFilePathForNode(nodeId);
+            select: async () => {
+                const absolutePath = await this.deps!.getFilePathForNode(nodeId);
                 navigator.clipboard.writeText(absolutePath || nodeId);
             },
             enabled: true,

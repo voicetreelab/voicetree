@@ -1,4 +1,3 @@
-import '@/graph-core/styles/floating-windows.css';
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
@@ -23,7 +22,6 @@ import { FloatingWindowFullscreen } from '@/utils/FloatingWindowFullscreen';
  * Configuration options for CodeMirrorEditorView
  */
 export interface CodeMirrorEditorOptions {
-  previewMode?: 'edit' | 'live' | 'preview';
   darkMode?: boolean;
   autosaveDelay?: number;
 }

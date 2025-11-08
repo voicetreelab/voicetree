@@ -3,7 +3,6 @@
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph} from '@/functional_graph/pure/types';
-import type {IMarkdownVaultProvider} from '@/providers/IMarkdownVaultProvider';
 import type {FloatingWindowManager} from '@/views/FloatingWindowManager';
 import {ContextMenuService} from '@/graph-core/services/ContextMenuService';
 import {enableAutoLayout} from '@/graph-core/graphviz/layout/autoLayout';
@@ -15,7 +14,6 @@ export interface SetupCytoscapeParams {
     onLayoutComplete: () => void;
     onNodeSelected: (nodeId: string) => void;
     getCurrentGraphState: () => Graph;
-    getVaultProvider: () => IMarkdownVaultProvider;
     floatingWindowManager: FloatingWindowManager;
 }
 
@@ -30,7 +28,6 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         saveNodePositions,
         onLayoutComplete,
         onNodeSelected,
-        getVaultProvider,
         floatingWindowManager
     } = params;
 
@@ -86,56 +83,6 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         handleAddNodeAtPosition: (position) =>
             floatingWindowManager.handleAddNodeAtPosition(position)
     });
-
-    // Expose for testing
-    if (typeof window !== 'undefined') {
-        (window as unknown as { cytoscapeInstance: Core }).cytoscapeInstance = cy;
-        (window as unknown as { cytoscapeCore: Core }).cytoscapeCore = cy;
-
-        // Expose test markdown_parsing for e2e tests
-        (window as unknown as { testHelpers: unknown }).testHelpers = {
-            createTerminal: (nodeId: string) => {
-                const vaultProvider = getVaultProvider();
-                const vaultPath = vaultProvider.getWatchDirectory?.();
-                const filePath = vaultPath ? `${vaultPath}/${nodeId}.md` : undefined;
-                const nodeMetadata = {
-                    id: nodeId,
-                    name: nodeId.replace(/_/g, ' '),
-                    filePath: filePath
-                };
-
-                const node = cy.getElementById(nodeId);
-                if (node.length > 0) {
-                    const nodePos = node.position();
-                    floatingWindowManager.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
-                }
-            },
-            addNodeAtPosition: async (position: { x: number; y: number }) => {
-                // For testing: directly invoke the context menu handler
-                const contextMenu = (cy as unknown as {
-                    contextMenus: {
-                        _config?: { onAddNodeAtPosition?: (pos: { x: number; y: number }) => Promise<void> }
-                    }
-                }).contextMenus;
-                if (contextMenu?._config?.onAddNodeAtPosition) {
-                    await contextMenu._config.onAddNodeAtPosition(position);
-                } else {
-                    console.error('[TestHelpers] onAddNodeAtPosition handler not found');
-                }
-            },
-            getEditorInstance: undefined // Will be set below
-        };
-
-        // Import and expose getVanillaInstance for testing
-        import('@/graph-core/extensions/cytoscape-floating-windows').then(({getVanillaInstance}) => {
-            const testHelpers = (window as unknown as { testHelpers?: { getEditorInstance?: unknown } }).testHelpers;
-            if (testHelpers) {
-                testHelpers.getEditorInstance = (windowId: string) => {
-                    return getVanillaInstance(windowId);
-                };
-            }
-        });
-    }
 
     return contextMenuService;
 }
