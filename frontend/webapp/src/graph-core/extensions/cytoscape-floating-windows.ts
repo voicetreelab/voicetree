@@ -589,7 +589,7 @@ export function createFloatingTerminal(
 
 /**
  * Anchor a floating window to a parent node
- * Creates an invisible shadow node and sets up bidirectional synchronization:
+ * Creates an invisible child shadow node and sets up bidirectional synchronization:
  * - Window drag → shadow position
  * - Shadow position → window position
  * - Window resize → shadow dimensions
@@ -597,29 +597,42 @@ export function createFloatingTerminal(
  * @param floatingWindow - The floating window to anchor
  * @param parentNode - The parent node to anchor to
  * @param shadowNodeData - Optional data for the shadow node (e.g., {isFloatingWindow: true, laidOut: false})
- * @returns The created shadow node
+ * @returns The created child shadow node
  */
 export function anchorToNode(
     floatingWindow: FloatingWindow,
     parentNode: cytoscape.NodeSingular,
     shadowNodeData?: Record<string, unknown>
 ): cytoscape.NodeSingular {
-    const {id, cy, windowElement, titleBar} = floatingWindow;
+    const {cy, windowElement, titleBar} = floatingWindow;
 
-    // 1. Create shadow node at parent's position
+    // 1. Create child shadow node ID based on parent node
+    const parentNodeId = parentNode.id();
+    const childShadowId = `shadow-child-${parentNodeId}`;
+
+    // 2. Position child shadow node offset from parent (+50, +50)
     const parentPos = parentNode.position();
+    const childPosition = {
+        x: parentPos.x + 50,
+        y: parentPos.y + 50
+    };
+
+    // 3. Create child shadow node with parent relationship
     const nodeData: Record<string, unknown> = {
-        id,
-        parentId: parentNode.id(),
-        parentNodeId: parentNode.id(),
+        id: childShadowId,
+        parentId: parentNodeId,
+        parentNodeId: parentNodeId,
         ...shadowNodeData
     };
 
     const shadowNode = cy.add({
         group: 'nodes',
         data: nodeData,
-        position: parentPos
+        position: childPosition
     });
+
+    // Update window element's data attribute to point to shadow node
+    windowElement.setAttribute('data-shadow-node-relativeFilePathIsID', childShadowId);
 
     // 2. Get initial dimensions from rendered window
     const dimensions = {
@@ -639,7 +652,7 @@ export function anchorToNode(
     cy.add({
         group: 'edges',
         data: {
-            id: `edge-${parentNode.id()}-${id}`,
+            id: `edge-${parentNode.id()}-${shadowNode.id()}`,
             source: parentNode.id(),
             target: shadowNode.id()
         }
