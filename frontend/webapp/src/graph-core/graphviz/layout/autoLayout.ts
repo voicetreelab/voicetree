@@ -31,9 +31,9 @@ const DEFAULT_OPTIONS: AutoLayoutOptions = {
   nodeSpacing: 10,
   handleDisconnected: true, // handles disconnected components
   convergenceThreshold: 0.1,
-  unconstrIter: 10, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
-  userConstIter: 5,
-  allConstIter: 30,
+  unconstrIter: 100, // TODO SOMETHINIG ABOUT THIS IS VERY IMPORTANT LAYOUT BREAK WITHOUT
+  userConstIter: 50,
+  allConstIter: 300,
   edgeLength: 200,
   // edgeSymDiffLength: undefined,
   // edgeJaccardLength: undefined
