@@ -13,9 +13,8 @@ export interface Position {
 cytoscape.use(cxtmenu);
 
 export interface ContextMenuDependencies {
-    getContentForNode: (nodeId: string) => string | undefined;
     getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
-    createFloatingEditor: (node : NodeSingular) => Promise<void>;
+    createAnchoredFloatingEditor: (node : NodeSingular) => Promise<void>;
     createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => void;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
@@ -182,7 +181,7 @@ export class ContextMenuService {
             select: async () => {
                 const targetNode = this.cy!.getElementById(nodeId);
                 if (targetNode.length > 0) {
-                    await this.deps!.createFloatingEditor(targetNode);
+                    await this.deps!.createAnchoredFloatingEditor(targetNode);
                 }
             },
             enabled: true,
@@ -191,9 +190,10 @@ export class ContextMenuService {
         // Create child node
         commands.push({
             content: this.createSvgIcon('expand', 'Create Child'),
-            select: () => {
+            select: async () => {
                 console.log('[ContextMenuService] adding child node to:', nodeId);
                 createNewChildNodeFromUI(nodeId, this.cy!);
+                await this.deps!.createAnchoredFloatingEditor(nodeId);
             },
             enabled: true,
         });

@@ -39,18 +39,6 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         onLayoutComplete();
     });
 
-    // // Save positions when user finishes dragging nodes DISABLED
-    // cy.on('free', 'node', () => {
-    //     console.log('[VoiceTreeGraphView] GraphNode drag ended, saving positions...');
-    //     // Debounce to avoid too many saves
-    //     // if (savePositionsTimeout.current) {
-    //     //     clearTimeout(savePositionsTimeout.current);
-    //     // }
-    //     // savePositionsTimeout.current = setTimeout(() => {
-    //     //     saveNodePositions();
-    //     // }, 1000); // Wait 1 second after last drag
-    // });
-
     // Setup tap handler for nodes
     console.log('[VoiceTreeGraphView] Registering tap handler for floating windows');
     cy.on('tap', 'node', (event) => {
@@ -67,9 +55,8 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
     const contextMenuService = new ContextMenuService();
     // Initialize context menu with cy instance and dependencies
     contextMenuService.initialize(cy, {
-        getContentForNode: (nodeId: string) => floatingWindowManager.getContentForNode(nodeId),
         getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
-        createFloatingEditor: (node : NodeSingular) =>
+        createAnchoredFloatingEditor: (node : NodeSingular) =>
             floatingWindowManager.createAnchoredFloatingEditor(node),
         createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
             floatingWindowManager.createFloatingTerminal(nodeId, metadata as {

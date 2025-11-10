@@ -54,9 +54,8 @@ describe('ContextMenuService', () => {
 
     // Create mock dependencies
     mockDeps = {
-      getContentForNode: vi.fn((nodeId: string) => `Content for ${nodeId}`),
       getFilePathForNode: vi.fn((nodeId: string) => `/path/to/${nodeId}.md`),
-      createFloatingEditor: vi.fn(),
+      createAnchoredFloatingEditor: vi.fn(),
       createFloatingTerminal: vi.fn(),
       handleAddNodeAtPosition: vi.fn().mockResolvedValue(undefined),
     };
@@ -164,7 +163,7 @@ describe('ContextMenuService', () => {
 
       // Execute the Edit command
       commands[0].select();
-      expect(mockDeps.createFloatingEditor).toHaveBeenCalledWith(
+      expect(mockDeps.createAnchoredFloatingEditor).toHaveBeenCalledWith(
         'node1',
         '/absolutePath/to/node1.md',
         'Content for node1',
