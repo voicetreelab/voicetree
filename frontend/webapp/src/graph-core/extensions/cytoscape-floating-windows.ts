@@ -335,11 +335,13 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
  * @param cy - Cytoscape instance
  * @param nodeId - ID of the node to edit (used to fetch content and derive editor ID)
  * @param editorRegistry - Map to register editor ID for external content updates
+ * @param awaitingUISavedContent - Map to track content being saved from UI to prevent feedback loop
  */
 export async function createFloatingEditor(
     cy: cytoscape.Core,
     nodeId: string,
-    editorRegistry: Map<string, string>
+    editorRegistry: Map<string, string>,
+    awaitingUISavedContent: Map<NodeId, string>
 ): Promise<FloatingWindow | undefined> {
     // Derive editor ID from node ID
     const id = `editor-${nodeId}`;
@@ -389,6 +391,8 @@ export async function createFloatingEditor(
     // Setup auto-save with modifyNodeContentFromUI
     editor.onChange(async (newContent) => {
         console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
+        // Track this content so we can ignore it when it comes back from filesystem
+        awaitingUISavedContent.set(nodeId, newContent);
         await modifyNodeContentFromUI(nodeId, newContent, cy);
     });
 
