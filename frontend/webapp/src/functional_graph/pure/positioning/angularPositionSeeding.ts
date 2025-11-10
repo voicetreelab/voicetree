@@ -11,8 +11,8 @@
 import type { GraphNode } from '@/functional_graph/pure/types.ts';
 import * as O from 'fp-ts/lib/Option.js';
 
-export const SPAWN_RADIUS = 400; // pixels from parent
-export const CHILD_ANGLE_CONE = 90; // degrees (± 45° from parent)
+export const SPAWN_RADIUS = 500; // pixels from parent
+export const CHILD_ANGLE_CONE = 180; // degrees (± 45° from parent)
 
 /**
  * Calculate midpoint between two positions on a circular scale [0, 1)
