@@ -263,6 +263,165 @@ Some more content here.`;
 
     console.log('✓ Link duplication test completed');
   });
+
+  test('should NOT restore a link when removed from markdown in floating editor', async ({ appWindow }) => {
+    console.log('=== Testing link removal bug ===');
+
+    // 1. Create a test markdown file with a link
+    const testNodeId = 'test-node-remove-link';
+    const linkedNodeId = 'target-node';
+
+    const initialContent = `---
+---
+# Test Node
+
+This node has a link: [[${linkedNodeId}]]
+
+End of content.`;
+
+    const testFilePath = path.join(TEST_VAULT_PATH, `${testNodeId}.md`);
+    await fs.writeFile(testFilePath, initialContent, 'utf-8');
+    console.log('✓ Created test file with link');
+
+    // Create the linked node too
+    const linkedFilePath = path.join(TEST_VAULT_PATH, `${linkedNodeId}.md`);
+    await fs.writeFile(linkedFilePath, '---\n---\n# Target Node\n\nTarget.', 'utf-8');
+    console.log('✓ Created target node file');
+
+    // 2. Start watching the vault
+    await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.startFileWatching(vaultPath);
+    }, TEST_VAULT_PATH);
+
+    await appWindow.waitForTimeout(1000);
+    console.log('✓ Started file watching');
+
+    // 3. Wait for node to load in graph
+    await expect.poll(async () => {
+      return appWindow.evaluate((nId) => {
+        const cy = (window as ExtendedWindow).cytoscapeInstance;
+        if (!cy) return false;
+        return cy.getElementById(nId).length > 0;
+      }, testNodeId);
+    }, {
+      message: `Waiting for ${testNodeId} node to load`,
+      timeout: 10000
+    }).toBe(true);
+
+    console.log('✓ Node loaded in graph');
+
+    // Verify edge exists in graph
+    const edgeExistsInitially = await appWindow.evaluate(({ sourceId, targetId }) => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return false;
+      const edges = cy.edges(`[source = "${sourceId}"][target = "${targetId}"]`);
+      return edges.length > 0;
+    }, { sourceId: testNodeId, targetId: linkedNodeId });
+
+    expect(edgeExistsInitially).toBe(true);
+    console.log('✓ Edge exists in graph initially');
+
+    // 4. Open the floating editor
+    await appWindow.evaluate((nId) => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const node = cy.getElementById(nId);
+      if (node.length === 0) throw new Error(`${nId} node not found`);
+      node.trigger('tap');
+    }, testNodeId);
+
+    const editorWindowId = `window-editor-${testNodeId}`;
+    await expect.poll(async () => {
+      return appWindow.evaluate((winId) => {
+        const editorWindow = document.getElementById(winId);
+        return editorWindow !== null;
+      }, editorWindowId);
+    }, {
+      message: 'Waiting for editor window to appear',
+      timeout: 5000
+    }).toBe(true);
+
+    console.log('✓ Editor window opened');
+
+    // Wait for CodeMirror to render
+    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
+    console.log('✓ CodeMirror editor rendered');
+
+    // 5. REMOVE the wikilink from the content
+    await appWindow.evaluate(({ windowId, linkedId }: { windowId: string; linkedId: string }) => {
+      const editorElement = document.querySelector(`#${windowId} .cm-content`) as HTMLElement | null;
+      if (!editorElement) throw new Error('Editor content element not found');
+
+      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+      if (!cmView) throw new Error('CodeMirror view not found');
+
+      // Get current content
+      const currentContent = cmView.state.doc.toString();
+
+      // Remove the wikilink
+      const linkPattern = `[[${linkedId}]]`;
+      const newContent = currentContent.replace(linkPattern, '');
+
+      // Replace entire document
+      cmView.dispatch({
+        changes: { from: 0, to: cmView.state.doc.length, insert: newContent }
+      });
+
+      console.log('Removed wikilink from editor');
+    }, { windowId: editorWindowId, linkedId: linkedNodeId });
+
+    console.log('✓ Removed wikilink from content in editor');
+
+    // 6. Wait for auto-save and file watcher cycle
+    await appWindow.waitForTimeout(500);
+    console.log('✓ Waited for auto-save');
+
+    // 7. Wait 3 seconds to let feedback loop manifest if bug exists
+    console.log('⏳ Waiting 3 seconds to observe if link reappears...');
+    await appWindow.waitForTimeout(3000);
+
+    // 8. Read file content and verify link is GONE (not restored)
+    const contentAfterEdit = await fs.readFile(testFilePath, 'utf-8');
+    const linkPattern = new RegExp(`\\[\\[${linkedNodeId}\\]\\]`, 'g');
+    const finalLinkCount = (contentAfterEdit.match(linkPattern) || []).length;
+
+    console.log('\nFile content after link removal:');
+    console.log('---START---');
+    console.log(contentAfterEdit);
+    console.log('---END---');
+
+    console.log(`📊 Final link count: ${finalLinkCount}`);
+
+    // THE KEY ASSERTION: Link should be GONE (count = 0)
+    if (finalLinkCount > 0) {
+      console.error(`❌ BUG REPRODUCED: Link was RESTORED after removal!`);
+      console.error(`Expected 0 occurrences of [[${linkedNodeId}]], but found ${finalLinkCount}`);
+    } else {
+      console.log(`✅ Link successfully removed (count is 0)`);
+    }
+
+    // This assertion will FAIL with the current buggy code
+    expect(finalLinkCount).toBe(0);
+
+    // 9. Also verify edge is removed from graph
+    // Wait for file watcher to process the change and update the graph UI
+    console.log('⏳ Waiting for file watcher to update graph UI...');
+    await appWindow.waitForTimeout(5000);
+
+    const edgeExistsAfterRemoval = await appWindow.evaluate(({ sourceId, targetId }) => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return false;
+      const edges = cy.edges(`[source = "${sourceId}"][target = "${targetId}"]`);
+      return edges.length > 0;
+    }, { sourceId: testNodeId, targetId: linkedNodeId });
+
+    expect(edgeExistsAfterRemoval).toBe(false);
+    console.log('✓ Edge removed from graph correctly');
+
+    console.log('✓ Link removal test completed');
+  });
 });
 
 export { test };

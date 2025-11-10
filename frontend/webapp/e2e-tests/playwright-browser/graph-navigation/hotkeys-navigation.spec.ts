@@ -1,0 +1,247 @@
+/**
+ * Browser-based test for hotkey navigation
+ * Tests:
+ * - Space key: fit to last created node
+ * - Cmd+] / Cmd+[: cycle through terminals
+ */
+
+import { test, expect } from '@playwright/test';
+import {
+  setupMockElectronAPI,
+  createTestGraphDelta,
+  sendGraphDelta,
+  waitForCytoscapeReady,
+  getNodeCount,
+  type ExtendedWindow
+} from '@e2e/playwright-browser/graph-delta-test-utils';
+
+test.describe('Hotkey Navigation (Browser)', () => {
+  test('should fit to last created node when pressing Space', async ({ page }) => {
+    console.log('\n=== Starting Space hotkey test (Browser) ===');
+
+    // Listen for console messages
+    page.on('console', msg => {
+      const type = msg.type();
+      const text = msg.text();
+      console.log(`[Browser ${type}] ${text}`);
+    });
+
+    page.on('pageerror', error => {
+      console.error('[Browser Error]', error.message);
+      console.error(error.stack);
+    });
+
+    console.log('=== Step 1: Mock Electron API ===');
+    await setupMockElectronAPI(page);
+
+    console.log('=== Step 2: Navigate to app ===');
+    await page.goto('/');
+    await page.waitForSelector('#root', { timeout: 5000 });
+    await page.waitForTimeout(500);
+
+    console.log('=== Step 3: Wait for Cytoscape ===');
+    await waitForCytoscapeReady(page);
+
+    console.log('=== Step 4: Setup test graph ===');
+    const graphDelta = createTestGraphDelta();
+    await sendGraphDelta(page, graphDelta);
+
+    const nodeCount = await getNodeCount(page);
+    expect(nodeCount).toBe(5);
+    console.log(`✓ Test graph setup with ${nodeCount} nodes`);
+
+    console.log('=== Step 5: Add a new node (will be "last created") ===');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      // Add a new node that will be the "last created"
+      cy.add({
+        group: 'nodes',
+        data: {
+          id: 'last-created-node.md',
+          label: 'Last Created Node',
+          fileBasename: 'Last Created Node'
+        },
+        position: { x: 500, y: 500 }
+      });
+
+      // Update navigation service's last created node
+      const navService = (window as ExtendedWindow & { navigationService?: { setLastCreatedNodeId: (id: string) => void } }).navigationService;
+      if (navService) {
+        navService.setLastCreatedNodeId('last-created-node.md');
+      }
+    });
+
+    console.log('✓ Added last created node');
+
+    console.log('=== Step 6: Fit to all nodes first (zoom out) ===');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      cy.fit(); // Fit to all nodes
+    });
+
+    await page.waitForTimeout(300);
+
+    const initialState = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      return { zoom: cy.zoom(), pan: cy.pan() };
+    });
+    console.log(`Initial zoom: ${initialState.zoom}, pan: (${initialState.pan.x}, ${initialState.pan.y})`);
+
+    console.log('=== Step 7: Press Space key ===');
+    await page.keyboard.press('Space');
+
+    // Wait for animation to complete
+    await page.waitForTimeout(500);
+
+    console.log('=== Step 8: Verify viewport changed (fitted to last node) ===');
+    const finalState = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      return { zoom: cy.zoom(), pan: cy.pan() };
+    });
+
+    console.log(`Final zoom: ${finalState.zoom}, pan: (${finalState.pan.x}, ${finalState.pan.y})`);
+
+    // Check that zoom or pan changed
+    const zoomChanged = Math.abs(finalState.zoom - initialState.zoom) > 0.01;
+    const panChanged = Math.abs(finalState.pan.x - initialState.pan.x) > 1 ||
+                       Math.abs(finalState.pan.y - initialState.pan.y) > 1;
+
+    expect(zoomChanged || panChanged).toBe(true);
+    console.log('✓ Space key successfully fitted to last created node');
+  });
+
+  test('should cycle through terminals with Cmd+] and Cmd+[', async ({ page }) => {
+    console.log('\n=== Starting Cmd+] / Cmd+[ hotkey test (Browser) ===');
+
+    page.on('console', msg => {
+      const type = msg.type();
+      const text = msg.text();
+      console.log(`[Browser ${type}] ${text}`);
+    });
+
+    page.on('pageerror', error => {
+      console.error('[Browser Error]', error.message);
+      console.error(error.stack);
+    });
+
+    console.log('=== Step 1: Mock Electron API ===');
+    await setupMockElectronAPI(page);
+
+    console.log('=== Step 2: Navigate to app ===');
+    await page.goto('/');
+    await page.waitForSelector('#root', { timeout: 5000 });
+    await page.waitForTimeout(500);
+
+    console.log('=== Step 3: Wait for Cytoscape ===');
+    await waitForCytoscapeReady(page);
+
+    console.log('=== Step 4: Setup test graph ===');
+    const graphDelta = createTestGraphDelta();
+    await sendGraphDelta(page, graphDelta);
+
+    console.log('=== Step 5: Add terminal nodes ===');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      // Add three terminal shadow nodes (mimicking real terminal structure)
+      cy.add([
+        {
+          group: 'nodes',
+          data: {
+            id: 'shadow-child-terminal-1',
+            label: 'Terminal 1',
+            isShadowNode: true,
+            windowType: 'terminal'
+          },
+          position: { x: 100, y: 100 }
+        },
+        {
+          group: 'nodes',
+          data: {
+            id: 'shadow-child-terminal-2',
+            label: 'Terminal 2',
+            isShadowNode: true,
+            windowType: 'terminal'
+          },
+          position: { x: 300, y: 100 }
+        },
+        {
+          group: 'nodes',
+          data: {
+            id: 'shadow-child-terminal-3',
+            label: 'Terminal 3',
+            isShadowNode: true,
+            windowType: 'terminal'
+          },
+          position: { x: 500, y: 100 }
+        }
+      ]);
+    });
+
+    console.log('✓ Added 3 terminal nodes');
+
+    console.log('=== Step 6: Fit to all nodes ===');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      cy.fit();
+    });
+
+    await page.waitForTimeout(300);
+
+    const initialState = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      return { zoom: cy.zoom(), pan: cy.pan() };
+    });
+    console.log(`Initial zoom: ${initialState.zoom}, pan: (${initialState.pan.x}, ${initialState.pan.y})`);
+
+    console.log('=== Step 7: Press Cmd+] (next terminal) ===');
+    await page.keyboard.press('Meta+BracketRight');
+
+    await page.waitForTimeout(500);
+
+    const afterNextState = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      return { zoom: cy.zoom(), pan: cy.pan() };
+    });
+
+    console.log(`After Cmd+] zoom: ${afterNextState.zoom}, pan: (${afterNextState.pan.x}, ${afterNextState.pan.y})`);
+
+    // Check that viewport changed
+    let zoomChanged = Math.abs(afterNextState.zoom - initialState.zoom) > 0.01;
+    let panChanged = Math.abs(afterNextState.pan.x - initialState.pan.x) > 1 ||
+                     Math.abs(afterNextState.pan.y - initialState.pan.y) > 1;
+
+    expect(zoomChanged || panChanged).toBe(true);
+    console.log('✓ Cmd+] successfully cycled to next terminal');
+
+    console.log('=== Step 8: Press Cmd+[ (previous terminal) ===');
+    await page.keyboard.press('Meta+BracketLeft');
+
+    await page.waitForTimeout(500);
+
+    const afterPrevState = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      return { zoom: cy.zoom(), pan: cy.pan() };
+    });
+
+    console.log(`After Cmd+[ zoom: ${afterPrevState.zoom}, pan: (${afterPrevState.pan.x}, ${afterPrevState.pan.y})`);
+
+    // Check that viewport changed from previous state
+    zoomChanged = Math.abs(afterPrevState.zoom - afterNextState.zoom) > 0.01;
+    panChanged = Math.abs(afterPrevState.pan.x - afterNextState.pan.x) > 1 ||
+                 Math.abs(afterPrevState.pan.y - afterNextState.pan.y) > 1;
+
+    expect(zoomChanged || panChanged).toBe(true);
+    console.log('✓ Cmd+[ successfully cycled to previous terminal');
+  });
+});

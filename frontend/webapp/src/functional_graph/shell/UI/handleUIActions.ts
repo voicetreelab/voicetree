@@ -1,14 +1,14 @@
 import type {
     GraphDelta,
     GraphNode,
-    NodeDelta,
     NodeId,
     Position,
     UpsertNodeAction
 } from "@/functional_graph/pure/types.ts";
 import {
     fromContentChangeToGraphDelta,
-    fromUICreateChildToUpsertNode
+    fromUICreateChildToUpsertNode,
+    createDeleteNodeAction
 } from "@/functional_graph/pure/graphDelta/uiInteractionsToGraphDeltas.ts";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
@@ -79,15 +79,38 @@ export async function createNewEmptyOrphanNodeFromUI(
 export async function modifyNodeContentFromUI(
     nodeId: NodeId,
     newContent: string,
+    cy?: Core,
 ): Promise<void> {
 
     // Get current graph state
     const currentNode = await getNodeFromUI(nodeId);
+    const currentGraph = await window.electronAPI?.graph.getState();
+    if (!currentGraph) {
+        console.error("NO GRAPH IN STATE");
+        return;
+    }
 
-    // Create GraphDelta (contains both child and updated parent with edge)
-    const graphDelta: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent);
+    // Create GraphDelta with updated edges based on new content
+    const graphDelta: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent, currentGraph);
 
-    // NO OPTIMISTIC UI update. let fs event handle.
+    // Optimistic UI update for edge changes (if cy provided)
+    if (cy) {
+        applyGraphDeltaToUI(cy, graphDelta);
+    }
+
+    await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+}
+
+export async function deleteNodeFromUI(
+    nodeId: NodeId,
+    cy: Core
+): Promise<void> {
+    // Create GraphDelta for deletion
+    const graphDelta: GraphDelta = createDeleteNodeAction(nodeId);
+
+    // Optimistic UI update: immediately remove node from cytoscape
+    applyGraphDeltaToUI(cy, graphDelta);
+
     await window.electronAPI?.graph.applyGraphDelta(graphDelta);
 }
 

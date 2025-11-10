@@ -12,7 +12,7 @@
  * This class owns all floating window state and operations.
  */
 
-import type {Core, NodeSingular} from 'cytoscape';
+import type {Core} from 'cytoscape';
 import {
     createFloatingEditor,
     createFloatingTerminal,
@@ -36,26 +36,21 @@ type GetGraphState = () => Graph;
  */
 export class FloatingWindowManager {
     private cy: Core;
-    private getGraphState: GetGraphState;
     private hotkeyManager: HotkeyManager;
 
     // Command-hover mode state
     private commandKeyHeld = false;
     private currentHoverEditor: HTMLElement | null = null;
 
-    // Store positions for newly created nodes (before they're in the graph)
-    private pendingPositions = new Map<string, Position>();
-
     // Track which editors are open for each node (for external content updates)
     private nodeIdToEditorId = new Map<NodeId, string>();
 
     constructor(
         cy: Core,
-        getGraphState: GetGraphState,
+        _getGraphState: GetGraphState,
         hotkeyManager: HotkeyManager
     ) {
         this.cy = cy;
-        this.getGraphState = getGraphState;
         this.hotkeyManager = hotkeyManager;
     }
 
@@ -213,6 +208,7 @@ export class FloatingWindowManager {
                 anchorToNode(floatingWindow, nodeId, {
                     isFloatingWindow: true,
                     isShadowNode: true,
+                    windowType: 'terminal',
                     laidOut: false
                 });
             } else {
@@ -248,12 +244,11 @@ export class FloatingWindowManager {
         console.log('[FloatingWindowManager] Creating command-hover editor for node:', nodeId);
 
         try {
-            // Create floating editor (nodeId for content, hoverId for the editor instance)
+            // Create floating editor (same ID whether hover or anchored - mutually exclusive)
             const floatingWindow = await createFloatingEditor(
                 this.cy,
                 nodeId,
-                this.nodeIdToEditorId,
-                undefined
+                this.nodeIdToEditorId
             );
 
             if (!floatingWindow) {

@@ -2,7 +2,7 @@ import type {Core, NodeSingular} from 'cytoscape';
 // @ts-expect-error - cytoscape-cxtmenu doesn't have proper TypeScript definitions
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
-import {createNewChildNodeFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
+import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 import type {NodeId} from "@/functional_graph/pure/types.ts";
 
 export interface Position {
@@ -188,63 +188,24 @@ export class ContextMenuService {
         // Create child node
         commands.push({
             content: this.createSvgIcon('expand', 'Create Child'),
-            select: async () => {
-                console.log('[ContextMenuService] adding child node to:', nodeId);
-                const childId : NodeId = await createNewChildNodeFromUI(nodeId, this.cy!);
-                await this.deps!.createAnchoredFloatingEditor(childId);
-            },
+            select:
+                this.createChildNodeFromContextMenu(nodeId),
             enabled: true,
         });
 
         // Terminal
         commands.push({
             content: this.createSvgIcon('terminal', 'Terminal'),
-            select: async () => {
-                const filePath = await this.deps!.getFilePathForNode(nodeId);
-                const nodeMetadata = {
-                    id: nodeId,
-                    name: nodeId.replace(/_/g, ' '),
-                    filePath: filePath
-                };
-
-                const targetNode = this.cy!.getElementById(nodeId);
-                if (targetNode.length > 0) {
-                    const nodePos = targetNode.position();
-                    this.deps!.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
-                }
-            },
+            select:
+                this.createTerminalFromContextMenu(nodeId),
             enabled: true,
         });
 
         // Delete node
         commands.push({
             content: this.createSvgIcon('trash', 'Delete'),
-            select: async () => {
-                const filePath = await this.deps!.getFilePathForNode(nodeId);
-                const electronAPI = (window as {
-                    electronAPI?: { deleteFile: (path: string) => Promise<{ success: boolean; error?: string }> }
-                }).electronAPI;
-
-                if (filePath && electronAPI?.deleteFile) {
-                    if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
-                        return;
-                    }
-
-                    try {
-                        const result = await electronAPI.deleteFile(filePath);
-                        if (result.success) {
-                            // Graph will handle the delete event from the file watcher
-                            this.cy!.getElementById(nodeId).remove();
-                        } else {
-                            console.error('[ContextMenuService] Failed to delete file:', result.error);
-                            alert(`Failed to delete file: ${result.error}`);
-                        }
-                    } catch (error) {
-                        console.error('[ContextMenuService] Error deleting file:', error);
-                        alert(`Error deleting file: ${error}`);
-                    }
-                }
-            },
+            select:
+                this.deleteNode(nodeId),
             enabled: true,
         });
 
@@ -259,6 +220,46 @@ export class ContextMenuService {
         });
 
         return commands;
+    }
+
+    private createChildNodeFromContextMenu(nodeId: string) {
+        return async () => {
+            console.log('[ContextMenuService] adding child node to:', nodeId);
+            const childId: NodeId = await createNewChildNodeFromUI(nodeId, this.cy!);
+            await this.deps!.createAnchoredFloatingEditor(childId);
+        };
+    }
+
+    private createTerminalFromContextMenu(nodeId: string) {
+        return async () => {
+            const filePath = await this.deps!.getFilePathForNode(nodeId);
+            const nodeMetadata = {
+                id: nodeId,
+                name: nodeId.replace(/_/g, ' '),
+                filePath: filePath
+            };
+
+            const targetNode = this.cy!.getElementById(nodeId);
+            if (targetNode.length > 0) {
+                const nodePos = targetNode.position();
+                this.deps!.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
+            }
+        };
+    }
+
+    private deleteNode(nodeId: string) {
+        return async () =>  {
+            if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
+                return;
+            }
+
+            try {
+                await deleteNodeFromUI(nodeId, this.cy!);
+            } catch (error) {
+                console.error('[ContextMenuService] Error deleting node:', error);
+                alert(`Error deleting node: ${error}`);
+            }
+        };
     }
 
     private createSvgIcon(type: string, tooltip: string): HTMLElement {

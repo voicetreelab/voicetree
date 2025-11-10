@@ -59,17 +59,29 @@ export class GraphNavigationService {
   cycleTerminal(direction: 1 | -1): void {
     const cy = this.cy;
     const terminalNodes = cy.nodes().filter(
-      (node: any) =>
-        node.data('id')?.startsWith('terminal-') &&
+      (node) =>
+        node.data('windowType') === 'terminal' &&
         node.data('isShadowNode') === true
     );
 
+    console.log('[GraphNavigationService] cycleTerminal called:', {
+      direction,
+      totalNodes: cy.nodes().length,
+      terminalNodesFound: terminalNodes.length,
+      allNodeIds: cy.nodes().map((n) => ({
+        id: n.id(),
+        isShadowNode: n.data('isShadowNode'),
+        windowType: n.data('windowType')
+      }))
+    });
+
     if (terminalNodes.length === 0) {
+      console.warn('[GraphNavigationService] No terminal nodes found. Create a terminal first!');
       return;
     }
 
     // Sort terminals
-    const sortedTerminals = terminalNodes.toArray().sort((a: any, b: any) =>
+    const sortedTerminals = terminalNodes.toArray().sort((a, b) =>
       a.id().localeCompare(b.id())
     );
 

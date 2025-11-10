@@ -91,7 +91,7 @@ test.describe('Command Hover Editor (Browser)', () => {
     console.log('✓ Mouseover with Meta key triggered');
 
     console.log('=== Step 7: Verify hover editor appears with content ===');
-    const hoverEditorSelector = '#window-hover-hover-test-node\\.md';
+    const hoverEditorSelector = '#window-editor-hover-test-node\\.md';
     await page.waitForSelector(hoverEditorSelector, { timeout: 3000 });
     console.log('✓ Hover editor window appeared');
 
