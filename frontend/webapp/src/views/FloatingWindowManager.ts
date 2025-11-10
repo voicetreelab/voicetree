@@ -92,35 +92,43 @@ export class FloatingWindowManager {
 
   /**
    * Create a floating editor window
+   * Creates a child shadow node and anchors the editor to it
    */
   async createAnchoredFloatingEditor(
       cyNode: NodeSingular,
   ): Promise<void> {
-      const nodeId = cyNode.id();
-      const editorId = `editor-${nodeId}`;
+      const parentNodeId = cyNode.id();
+      const editorId = `editor-${parentNodeId}`;
 
     try {
+      // Create child shadow node to anchor editor to
+      const childShadowNode = this.createChildShadowNode(this.cy, cyNode);
+
       // Create floating editor window with cleanup callback
       const floatingWindow = await createFloatingEditor(
         this.cy,
-        nodeId,
+        parentNodeId,
         () => {
           // Clean up mapping when editor is closed
-          this.nodeIdToEditorId.delete(nodeId);
+          this.nodeIdToEditorId.delete(parentNodeId);
+          // Remove child shadow node
+          childShadowNode.remove();
         }
       );
 
       // Return early if editor already exists
       if (!floatingWindow) {
         console.log('[FloatingWindowManager] Editor already exists');
+        // Clean up shadow node if editor wasn't created
+        childShadowNode.remove();
         return;
       }
 
       // Register mapping from node ID to editor ID for content updates
-      this.nodeIdToEditorId.set(nodeId, editorId);
+      this.nodeIdToEditorId.set(parentNodeId, editorId);
 
-      // Anchor to parent node
-      anchorToNode(floatingWindow, cyNode, {
+      // Anchor editor to child shadow node
+      anchorToNode(floatingWindow, childShadowNode, {
         isFloatingWindow: true,
         isShadowNode: true,
         laidOut: false
@@ -128,6 +136,53 @@ export class FloatingWindowManager {
     } catch (error) {
       console.error('[FloatingWindowManager] Error creating floating editor:', error);
     }
+  }
+
+  /**
+   * Create a child shadow node positioned offset from parent
+   * Used to anchor floating windows to the graph
+   */
+  private createChildShadowNode(cy: Core, parentNode: NodeSingular): NodeSingular {
+    const parentNodeId = parentNode.id();
+    const childShadowId = `shadow-child-${parentNodeId}`;
+
+    // Position child node offset from parent
+    const parentPos = parentNode.position();
+    const childPosition = {
+      x: parentPos.x + 50,
+      y: parentPos.y + 50
+    };
+
+    // Create shadow node with parent relationship
+    const shadowNode = cy.add({
+      group: 'nodes',
+      data: {
+        id: childShadowId,
+        parentId: parentNodeId
+      },
+      position: childPosition
+    });
+
+    // Style as invisible but interactive
+    // Use default dimensions for floating windows
+    shadowNode.style({
+      'opacity': 0,
+      'events': 'yes',
+      'width': 300,
+      'height': 400
+    });
+
+    // Create edge from parent to shadow child
+    cy.add({
+      group: 'edges',
+      data: {
+        id: `edge-${parentNodeId}-${childShadowId}`,
+        source: parentNodeId,
+        target: childShadowId
+      }
+    });
+
+    return shadowNode;
   }
 
   /**

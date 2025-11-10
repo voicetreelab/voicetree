@@ -94,7 +94,7 @@ export default tseslint.config([
       '@typescript-eslint/no-require-imports': 'off',
       // Allow any in test files for mock types
       '@typescript-eslint/no-explicit-any': 'warn',
-      // Relax functional rules in tests
+      // Relax functional rules in e2e-tests
       'functional/no-let': 'off',
       'functional/immutable-data': 'off',
       'functional/no-loop-statements': 'off'

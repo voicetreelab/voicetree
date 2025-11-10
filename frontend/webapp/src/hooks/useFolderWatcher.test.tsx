@@ -41,7 +41,7 @@ Object.defineProperty(window, 'electronAPI', {
 describe('useFolderWatcher (Electron version)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear event listeners between tests
+    // Clear event listeners between e2e-tests
     Object.keys(eventListeners).forEach(key => {
       eventListeners[key] = [];
     });

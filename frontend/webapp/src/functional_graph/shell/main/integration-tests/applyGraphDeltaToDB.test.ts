@@ -7,7 +7,7 @@
  * - INPUT: GraphDelta with DeleteNode action
  * - OUTPUT: GraphNode file removed from disk
  *
- * This tests the integration of:
+ * This e2e-tests the integration of:
  * - applyGraphDeltaToDB shell function
  * - apply_graph_deltas_to_db pure core effect
  * - Filesystem write/delete operations

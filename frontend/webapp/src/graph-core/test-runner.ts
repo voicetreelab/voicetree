@@ -2,18 +2,18 @@ import { MarkdownParser } from './data/load_markdown/MarkdownParser';
 import { CytoscapeCore } from './graphviz/CytoscapeCore';
 import { LayoutManager, SeedParkRelaxStrategy, TidyLayoutStrategy } from './graphviz/layout';
 
-// Import all markdown files from the tests directory
+// Import all markdown files from the e2e-tests directory
 // Support different fixture sets via URL parameter: ?fixture=example_small or ?fixture=example_real_large
 const urlParams = new URLSearchParams(window.location.search);
 const fixtureSet = urlParams.get('fixture') || 'example_small';
 
 const markdownModules = fixtureSet === 'example_real_large'
-  ? import.meta.glob('../../tests/fixtures/example_real_large/**/*.md', {
+  ? import.meta.glob('../../e2e-tests/fixtures/example_real_large/**/*.md', {
       query: '?raw',
       import: 'default',
       eager: true
     })
-  : import.meta.glob('../../tests/fixtures/example_small/*.md', {
+  : import.meta.glob('../../e2e-tests/fixtures/example_small/*.md', {
       query: '?raw',
       import: 'default',
       eager: true

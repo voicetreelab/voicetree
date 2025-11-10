@@ -40,7 +40,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@test": path.resolve(__dirname, "./tests"),
+      "@test": path.resolve(__dirname, "./e2e-tests"),
       // Alias CSS imports from @material to prevent import errors
       '@material/mwc-icon/mwc-icon-host.css': path.resolve(__dirname, 'src/utils/empty-css-export.ts')
     },
@@ -71,9 +71,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: "./tests/setup.ts",
-    include: ["src/**/*.test.{ts,tsx}", "tests/unit/**/*.test.{ts,tsx}", "tests/component/**/*.test.{ts,tsx}", "tests/integration/**/*.test.{ts,tsx}", "tests/performance/**/*.test.{ts,tsx}"],
-    exclude: ["node_modules/**", "dist/**", "tests/e2e/**"],
+    setupFiles: "./e2e-tests/setup.ts",
+    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["node_modules/**", "dist/**", "e2e-tests/**"],
     reporters: [
       ['default', {summary: false, verbose: false}],
     ],

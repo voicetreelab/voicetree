@@ -1,6 +1,0 @@
-SYNTAX TREE NODES:
-Document, Document, ATXHeading3, HeaderMark, Paragraph
-
-Has HeaderMark: true
-
-Visible Ranges: 1 ranges: 0-28

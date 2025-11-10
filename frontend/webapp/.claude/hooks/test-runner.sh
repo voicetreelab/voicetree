@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run tests for modified file
+# Run e2e-tests for modified file
 
 # Parse JSON input to get file absolutePath
 file_path=$(python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('tool_input', {}).get('file_path', ''))")
@@ -15,7 +15,7 @@ cd /Users/bobbobby/repos/VoiceTree/frontend/webapp
 filename=$(basename "$file_path")
 basename_no_ext="${filename%.*}"
 
-# Search for matching test files in tests/ folder
+# Search for matching test files in e2e-tests/ folder
 test_files=$(find tests -type f \( -name "${basename_no_ext}.test.*" -o -name "${basename_no_ext}.spec.*" \))
 
 # If no test files found, exit successfully
@@ -34,7 +34,7 @@ if [ $test_code -eq 142 ]; then
     exit 2
 fi
 
-# If tests failed, output to stderr and block Claude
+# If e2e-tests failed, output to stderr and block Claude
 if [ $test_code -ne 0 ]; then
     echo "Test failures for $file_path:" >&2
     echo "$test_output" >&2

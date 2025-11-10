@@ -229,7 +229,7 @@ export class BreathingAnimationService {
   }
 
   /**
-   * Legacy methods for backward compatibility (used by tests and pinned nodes).
+   * Legacy methods for backward compatibility (used by e2e-tests and pinned nodes).
    * These wrap the new event-driven approach.
    */
   addBreathingAnimation(nodes: NodeSingular | import('cytoscape').NodeCollection, type: AnimationType = AnimationType.NEW_NODE): void {

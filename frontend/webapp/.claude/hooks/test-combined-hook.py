@@ -167,7 +167,7 @@ def main():
     backup_file()
 
     try:
-        # Run tests
+        # Run e2e-tests
         results = []
 
         # Test 1: Lint failure
@@ -193,10 +193,10 @@ def main():
         print(f"Passed: {passed}/{total}")
 
         if all(results):
-            print("\n✓ All tests PASSED")
+            print("\n✓ All e2e-tests PASSED")
             return 0
         else:
-            print("\n✗ Some tests FAILED")
+            print("\n✗ Some e2e-tests FAILED")
             return 1
 
     except Exception as e:

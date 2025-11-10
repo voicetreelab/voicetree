@@ -1,6 +1,6 @@
 /**
  * TestComponent - Vanilla JS test component for floating windows
- * Used in unit and e2e tests
+ * Used in unit and e2e e2e-tests
  */
 
 export interface TestComponentOptions {

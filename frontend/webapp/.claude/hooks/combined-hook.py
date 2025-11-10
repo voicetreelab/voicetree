@@ -68,7 +68,7 @@ try:
     if not tests_passed or not checks_passed:
         msg_parts = []
         if not tests_passed:
-            msg_parts.append("tests")
+            msg_parts.append("e2e-tests")
         if not checks_passed:
             msg_parts.append("checks")
         failed_sections = " and ".join(msg_parts)

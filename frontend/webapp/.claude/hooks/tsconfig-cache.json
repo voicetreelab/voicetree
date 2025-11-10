@@ -1,7 +1,7 @@
 {
   "hashes": {
     "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.app.json": "7dbd2f1939565a9c63f8a205c322c08afe0702a8eeede04b679380256948f6c2",
-    "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.test.json": "0da20734a7d6dbc7c163f11ab7380d37ef02ff59f6f0178b298ae6fe46ccf8b6",
+    "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.test.json": "7d5cba75544cb0e8aa586f0bc341011f923b2f8f93ee66d4c4f75cabdfa8acb0",
     "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.json": "081df96f510b4b99a3586d34f2a90afb05f7b342e243d24af327424c03907007"
   },
   "mappings": {
@@ -12,25 +12,25 @@
     "src/**/*.test.ts": {
       "configPath": "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.test.json",
       "excludes": [
-        "tests/electron/**"
+        "e2e-tests/electron/**"
       ]
     },
     "src/**/*.test.tsx": {
       "configPath": "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.test.json",
       "excludes": [
-        "tests/electron/**"
+        "e2e-tests/electron/**"
       ]
     },
-    "tests/**/*.ts": {
+    "e2e-tests/**/*.ts": {
       "configPath": "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.test.json",
       "excludes": [
-        "tests/electron/**"
+        "e2e-tests/electron/**"
       ]
     },
-    "tests/**/*.tsx": {
+    "e2e-tests/**/*.tsx": {
       "configPath": "/Users/bobbobby/repos/VoiceTree/frontend/webapp/tsconfig.test.json",
       "excludes": [
-        "tests/electron/**"
+        "e2e-tests/electron/**"
       ]
     }
   }
