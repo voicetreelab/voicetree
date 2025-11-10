@@ -3,6 +3,7 @@ import type {Core, NodeSingular} from 'cytoscape';
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
 import {createNewChildNodeFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
+import type {NodeId} from "@/functional_graph/pure/types.ts";
 
 export interface Position {
     x: number;
@@ -14,7 +15,7 @@ cytoscape.use(cxtmenu);
 
 export interface ContextMenuDependencies {
     getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
-    createAnchoredFloatingEditor: (nodeId : NodeId) => Promise<void>;
+    createAnchoredFloatingEditor: (nodeId: NodeId) => Promise<void>;
     createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => void;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
@@ -179,9 +180,7 @@ export class ContextMenuService {
         commands.push({
             content: this.createSvgIcon('edit', 'Edit'),
             select: async () => {
-                if (targetNode.length > 0) {
-                    await this.deps!.createAnchoredFloatingEditor(nodeId);
-                }
+                await this.deps!.createAnchoredFloatingEditor(nodeId);
             },
             enabled: true,
         });
@@ -191,8 +190,8 @@ export class ContextMenuService {
             content: this.createSvgIcon('expand', 'Create Child'),
             select: async () => {
                 console.log('[ContextMenuService] adding child node to:', nodeId);
-                createNewChildNodeFromUI(nodeId, this.cy!);
-                await this.deps!.createAnchoredFloatingEditor(nodeId);
+                const childId : NodeId = await createNewChildNodeFromUI(nodeId, this.cy!);
+                await this.deps!.createAnchoredFloatingEditor(childId);
             },
             enabled: true,
         });
@@ -222,7 +221,9 @@ export class ContextMenuService {
             content: this.createSvgIcon('trash', 'Delete'),
             select: async () => {
                 const filePath = await this.deps!.getFilePathForNode(nodeId);
-                const electronAPI = (window as { electronAPI?: { deleteFile: (path: string) => Promise<{ success: boolean; error?: string }> } }).electronAPI;
+                const electronAPI = (window as {
+                    electronAPI?: { deleteFile: (path: string) => Promise<{ success: boolean; error?: string }> }
+                }).electronAPI;
 
                 if (filePath && electronAPI?.deleteFile) {
                     if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
@@ -264,7 +265,7 @@ export class ContextMenuService {
         // Defensive check for DOM availability
         if (typeof document === 'undefined') {
             // Return a minimal placeholder in non-DOM environments
-            return { textContent: type } as HTMLElement;
+            return {textContent: type} as HTMLElement;
         }
 
         const div = document.createElement('div');

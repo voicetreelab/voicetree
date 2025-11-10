@@ -1,4 +1,11 @@
-import type {GraphDelta, GraphNode, NodeId, Position} from "@/functional_graph/pure/types.ts";
+import type {
+    GraphDelta,
+    GraphNode,
+    NodeDelta,
+    NodeId,
+    Position,
+    UpsertNodeAction
+} from "@/functional_graph/pure/types.ts";
 import {
     fromContentChangeToGraphDelta,
     fromUICreateChildToUpsertNode
@@ -13,26 +20,26 @@ import * as O from "fp-ts/Option";
 export async function createNewChildNodeFromUI(
     parentNodeId: string,
     cy: Core
-): Promise<void> {
+): Promise<NodeId> {
 
     // Get current graph state
     const currentGraph = await window.electronAPI?.graph.getState() // todo, in memory renderer cache?
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
-        return;
+        return "-1"; //todo cleaner
     }
     // Get parent node from graph
     const parentNode : GraphNode = currentGraph.nodes[parentNodeId];
 
     // Create GraphDelta (contains both child and updated parent with edge)
     const graphDelta: GraphDelta = fromUICreateChildToUpsertNode(currentGraph, parentNode); //todo this only actually needs parent and grandparent, maybe we can have derived backlinks
+    const newNode : GraphNode = (graphDelta[0] as UpsertNodeAction).nodeToUpsert;
 
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.graph.applyGraphDelta(graphDelta);
-
-    //todo, to create floating editor anchored, we need...
+    return newNode.relativeFilePathIsID;
 }
 
 function randomChars(number: number): string {

@@ -153,10 +153,16 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
                 this.emptyStateOverlay.style.display = 'none';
             }
             applyGraphDeltaToUI(this.cy, delta);
+
+            // fit to first few nodes added
+            if (this.cy.nodes().size() <= 3){
+                this.cy.fit()
+            }
             this.searchService.updateSearchData();
 
             // Update floating editor windows with new content from external changes
             this.floatingWindowManager.updateFloatingEditors(delta);
+
         };
 
         const handleGraphClear = (): void => {

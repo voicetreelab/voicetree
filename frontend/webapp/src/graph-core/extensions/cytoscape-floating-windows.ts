@@ -12,6 +12,7 @@ import {TestComponent} from '@/floating-windows/TestComponent';
 import type {NodeMetadata} from '@/floating-windows/types';
 import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
+import type {NodeId} from "@/functional_graph/pure/types.ts";
 
 export interface FloatingWindowConfig {
     id: string;
@@ -594,24 +595,34 @@ export function createFloatingTerminal(
  * - Window resize → shadow dimensions
  *
  * @param floatingWindow - The floating window to anchor
- * @param parentNode - The parent node to anchor to
+ * @param parentNodeId - The ID of the parent node to anchor to
  * @param shadowNodeData - Optional data for the shadow node (e.g., {isFloatingWindow: true, laidOut: false})
  * @returns The created child shadow node
  */
 export function anchorToNode(
     floatingWindow: FloatingWindow,
-    parentNodeId: cytoscape.NodeSingular,
+    parentNodeId: NodeId,
     shadowNodeData?: Record<string, unknown>
 ): cytoscape.NodeSingular {
     const {cy, windowElement, titleBar} = floatingWindow;
 
+    console.log('[anchorToNode] Called with parentNodeId:', parentNodeId, 'type:', typeof parentNodeId);
+
     const parentNode = cy.getElementById(parentNodeId);
+    console.log('[anchorToNode] Parent node found:', parentNode.length > 0, 'length:', parentNode.length);
+
+    // Validate parent node exists
+    if (parentNode.length === 0) {
+        console.error('[anchorToNode] Parent node not found in graph:', parentNodeId);
+        throw new Error(`Parent node "${parentNodeId}" not found in graph. Cannot anchor floating window.`);
+    }
+
     // 1. Create child shadow node ID based on parent node
-    const parentNodeId = parentNode.id();
     const childShadowId = `shadow-child-${parentNodeId}`;
 
     // 2. Position child shadow node offset from parent (+50, +50)
     const parentPos = parentNode.position();
+    console.log('[anchorToNode] Parent position:', parentPos);
     const childPosition = {
         x: parentPos.x + 50,
         y: parentPos.y + 50
