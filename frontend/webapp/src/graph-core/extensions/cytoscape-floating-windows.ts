@@ -11,6 +11,7 @@ import { CodeMirrorEditorView } from '@/floating-windows/CodeMirrorEditorView';
 import { TestComponent } from '@/floating-windows/TestComponent';
 import type { NodeMetadata } from '@/floating-windows/types';
 import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
+import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
 
 export interface FloatingWindowConfig {
   id: string;
@@ -403,129 +404,25 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
   }
 }
 
-// /**
-//  * Add a floating window to the graph
-//  * This is a standalone function that creates a floating window anchored to a shadow node
-//  *
-//  * @param cy - Cytoscape core instance
-//  * @param config - Floating window configuration
-//  * @returns The shadow node that anchors the window
-//  */
-// export function addFloatingWindow(
-//   cy: cytoscape.Core,
-//   config: FloatingWindowConfig
-//   // isAnchored : boolean
-// ): cytoscape.NodeSingular {
-//   console.log('[FloatingWindows] addFloatingWindow called with config:', config);
-//   const { id, component, position = { x: 0, y: 0 }, nodeData = {} } = config;
-//
-//   // Validate component exists early (fail-fast principle)
-//   const validComponents = ['Terminal', 'MarkdownEditor', 'TestComponent'];
-//   if (!validComponents.includes(component)) {
-//     throw new Error(`Component "${component}" not found. Available components: ${validComponents.join(', ')}`);
-//   }
-//
-//   // 1. Get or create overlay
-//   const overlay = getOrCreateOverlay(cy);
-//
-//   // 2. Create shadow node (invisible anchor in graph space)
-//   // Ensure parentId is set if parentNodeId exists (for layout algorithm compatibility)
-//   const shadowNodeData: Record<string, unknown> = { id, ...nodeData };
-//   if (nodeData.parentNodeId && !shadowNodeData.parentId) {
-//     shadowNodeData.parentId = nodeData.parentNodeId;
-//   }
-//
-//   const shadowNode = cy.add({
-//     group: 'nodes',
-//     data: shadowNodeData,
-//     position
-//   });
-//
-//   // 3. Style shadow node (invisible but interactive)
-//   // Set dimensions for layout algorithm - defaults based on component type
-//   const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
-//   shadowNode.style({
-//     'opacity': 0,
-//     'events': 'yes',
-//     'width': dimensions.width,
-//     'height': dimensions.height
-//   });
-//
-//   // 4. Create edge from parent node to shadow node if parentNodeId exists
-//   if (nodeData.parentNodeId) {
-//     cy.add({
-//       group: 'edges',
-//       data: {
-//         id: `edge-${nodeData.parentNodeId}-${id}`,
-//         source: nodeData.parentNodeId,
-//         target: id
-//       }
-//     });
-//   }
-//
-//   // 5. Create window chrome SYNCHRONOUSLY with vanilla DOM
-//   // This is the key fix - chrome exists immediately in DOM
-//   const { windowElement, contentContainer, titleBar } = createWindowChrome(cy, config);
-//
-//   // 6. Add window to overlay (must be in DOM before React mount)
-//   overlay.appendChild(windowElement);
-//
-//   // 7. Attach drag handlers to title bar
-//   attachDragHandlers(cy, titleBar, windowElement);
-//
-//   // 8. Set up ResizeObserver to sync window size to shadow node
-//   if (typeof ResizeObserver !== 'undefined') {
-//     const resizeObserver = new ResizeObserver(() => {
-//       console.log('[FloatingWindow] ResizeObserver callback fired!');
-//
-//       // Sync dimensions from DOM element to shadow node
-//       updateShadowNodeDimensions(shadowNode, windowElement);
-//
-//       // Emit custom event for layout manager to listen to
-//       cy.trigger('floatingwindow:resize', [{ nodeId: shadowNode.id() }]);
-//     });
-//
-//     resizeObserver.observe(windowElement);
-//   }
-//
-//   // 9. Initial position sync
-//   updateWindowPosition(shadowNode, windowElement);
-//
-//   // 10. Listen to node position changes
-//   shadowNode.on('position', () => {
-//     updateWindowPosition(shadowNode, windowElement);
-//   });
-//
-//   // 11. Initial dimension sync (DOM element is source of truth)
-//   // Use requestAnimationFrame to ensure browser has calculated layout first
-//   requestAnimationFrame(() => {
-//     updateShadowNodeDimensions(shadowNode, windowElement);
-//   });
-//
-//   // 12. Mount component ASYNCHRONOUSLY to content container
-//   // This happens after the chrome is already in the DOM and testable
-//   mountComponent(contentContainer, component, id, config);
-//
-//   // Return the shadow node for further manipulation
-//   return shadowNode;
-// }
-
 /**
  * Create a floating editor window (no anchoring)
  * Returns FloatingWindow object that can be anchored or positioned manually
  */
-export function createFloatingEditor(
+export async function createFloatingEditor(
   cy: cytoscape.Core,
   config: {
     id: string;
-    title: string;
-    content: string;
     nodeId: string;
     onClose?: () => void;
     resizable?: boolean;
   }
-): FloatingWindow {
-  const { id, title, content, nodeId, onClose, resizable = true } = config;
+): Promise<FloatingWindow> {
+  const { id, nodeId, onClose, resizable = true } = config;
+
+  // Derive title and content from nodeId
+  const node = await getNodeFromUI(nodeId);
+  const content = node.content;
+  const title = `Editor: ${nodeId}`;
 
   // Get overlay
   const overlay = getOrCreateOverlay(cy);
@@ -550,7 +447,7 @@ export function createFloatingEditor(
 
   // Setup auto-save with modifyNodeContentFromUI
   editor.onChange(async (newContent) => {
-    console.log('[createFloatingEditor] Saving editor content for node:', nodeId);
+    console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
     await modifyNodeContentFromUI(nodeId, newContent);
   });
 
@@ -587,8 +484,8 @@ export function createFloatingEditor(
   }
 
   // Set initial position to offscreen to avoid flash at 0,0
-  windowElement.style.left = '-9999px';
-  windowElement.style.top = '-9999px';
+  // windowElement.style.left = '-9999px';
+  // windowElement.style.top = '-9999px';
 
   // Add to overlay
   overlay.appendChild(windowElement);

@@ -101,7 +101,7 @@ export class FloatingWindowManager {
   /**
    * Create a floating editor window
    */
-  async createFloatingEditor(
+  async createAnchoredFloatingEditor(
       cyNode: NodeSingular,
   ): Promise<void> {
       const nodeId = cyNode.id();
@@ -274,7 +274,7 @@ export class FloatingWindowManager {
       const floatingWindow = createFloatingEditor(this.cy, {
         id: hoverId,
         title: `Hover: ${nodeId}`,
-        content: content,
+        content: content, // derivable from nodeId
         nodeId: nodeId
       });
 
@@ -342,7 +342,7 @@ export class FloatingWindowManager {
 
           if (node.length > 0) {
             // GraphNode found, open editor
-            this.createFloatingEditor(node);
+            this.createAnchoredFloatingEditor(node);
           } else if (attempts < maxAttempts) {
             setTimeout(() => waitForNode(attempts + 1, maxAttempts), 100);
           } else {
