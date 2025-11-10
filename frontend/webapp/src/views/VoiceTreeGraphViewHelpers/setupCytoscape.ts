@@ -59,8 +59,8 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         // Emit node selected event
         onNodeSelected(node.id());
 
-        console.log('[VoiceTreeGraphView] Calling createFloatingEditor');
-        floatingWindowManager.createFloatingEditor(node).then(() => console.log('[VoiceTreeGraphView] Created editor'));
+        console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
+        floatingWindowManager.createAnchoredFloatingEditor(node).then(() => console.log('[VoiceTreeGraphView] Created editor'));
     });
 
     // Setup context menu (with defensive DOM checks)
@@ -70,7 +70,7 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         getContentForNode: (nodeId: string) => floatingWindowManager.getContentForNode(nodeId),
         getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
         createFloatingEditor: (node : NodeSingular) =>
-            floatingWindowManager.createFloatingEditor(node),
+            floatingWindowManager.createAnchoredFloatingEditor(node),
         createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
             floatingWindowManager.createFloatingTerminal(nodeId, metadata as {
                 id: string;
