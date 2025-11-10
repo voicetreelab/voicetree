@@ -22,7 +22,8 @@ import {findFirstParentNode} from "@/functional_graph/pure/graph-operations /fin
 export function calculateInitialPositionForChild(
     parentNode: GraphNode,
     graph: Graph,
-    childIndex?: number
+    childIndex?: number,
+    spawnRadius: number = SPAWN_RADIUS
 ): O.Option<Position> {
     // Get parent's position
     return O.chain((parentPos: Position) => {
@@ -37,7 +38,7 @@ export function calculateInitialPositionForChild(
         const angle = calculateChildAngle(indexToUse, parentAngle);
 
         // Convert to cartesian offset
-        const offset = polarToCartesian(angle, SPAWN_RADIUS);
+        const offset = polarToCartesian(angle, spawnRadius);
 
         return O.some({
             x: parentPos.x + offset.x,

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useFolderWatcher } from '../../../src/hooks/useFolderWatcher';
+import { useFolderWatcher } from './useFolderWatcher';
 
 // Mock Electron API - only the IPC methods useFolderWatcher actually uses
 const eventListeners: Record<string, ((data?: unknown) => void)[]> = {};

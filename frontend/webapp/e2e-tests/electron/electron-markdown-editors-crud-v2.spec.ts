@@ -16,7 +16,7 @@ import type { EditorView } from '@codemirror/view';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example_real_large/2025-09-30');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large/2025-09-30');
 
 // Type definitions
 interface ExtendedWindow extends Window {
@@ -213,9 +213,15 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await appWindow.waitForTimeout(200);
 
     // Verify file content changed on disk BEFORE closing
+    // Note: The system adds frontmatter with position
+    // Wikilinks are extracted from content, not preserved from old edges
     const savedContentBeforeClose = await fs.readFile(testFilePath, 'utf-8');
     console.log('Saved file content length (before close):', savedContentBeforeClose.length);
-    expect(savedContentBeforeClose).toBe(testContent);
+
+    // Verify the test content is present in the saved file
+    expect(savedContentBeforeClose).toContain(testContent);
+    // Verify frontmatter is present
+    expect(savedContentBeforeClose).toMatch(/^---\nposition:/);
     console.log('✓ File content saved correctly to disk BEFORE close');
 
     // CRITICAL TEST: Click the ACTUAL close button (not just remove shadow node)
@@ -231,15 +237,10 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // CRITICAL VERIFICATION: File should STILL have the saved content after close
     const savedContentAfterClose = await fs.readFile(testFilePath, 'utf-8');
     console.log('Saved file content length (after close):', savedContentAfterClose.length);
-    console.log('Content matches?', savedContentAfterClose === testContent);
 
-    if (savedContentAfterClose !== testContent) {
-      console.error('❌ BUG REPRODUCED: File was reverted after close!');
-      console.error('Expected:', testContent.substring(0, 100));
-      console.error('Got:', savedContentAfterClose.substring(0, 100));
-    }
-
-    expect(savedContentAfterClose).toBe(testContent);
+    // Verify the content hasn't been reverted
+    expect(savedContentAfterClose).toContain(testContent);
+    expect(savedContentAfterClose).toMatch(/^---\nposition:/);
     console.log('✓ File content STILL correct after clicking close button');
 
     // Re-open the editor to verify content persisted
@@ -250,14 +251,12 @@ test.describe('Markdown Editor CRUD Tests', () => {
       node.trigger('tap');
     }, nodeId);
 
-    const shadowNodeId = `editor-${nodeId}`;
+    // Wait for editor window to re-appear in DOM
     await expect.poll(async () => {
-      return appWindow.evaluate((shadowId) => {
-        const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return false;
-        const shadowNode = cy.getElementById(shadowId);
-        return shadowNode.length > 0;
-      }, shadowNodeId);
+      return appWindow.evaluate((winId) => {
+        const editorWindow = document.getElementById(winId);
+        return editorWindow !== null;
+      }, editorWindowId);
     }, {
       message: 'Waiting for editor to re-open',
       timeout: 5000
@@ -277,7 +276,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
       return cmView.state.doc.toString();
     }, editorWindowId);
 
-    expect(editorContent).toBe(testContent);
+    // Editor shows content without frontmatter (frontmatter is stripped when displaying)
+    expect(editorContent).toContain(testContent);
     console.log('✓ Editor shows saved content after reopening');
 
     // Restore original file content (reset for clean git state)
@@ -462,24 +462,21 @@ test.describe('Markdown Editor CRUD Tests', () => {
       node.trigger('tap');
     }, nodeId);
 
-    // Wait for editor to open
-    const shadowNodeId = `editor-${nodeId}`;
+    // Wait for editor window to appear in DOM
+    const editorWindowId = `window-editor-${nodeId}`;
     await expect.poll(async () => {
-      return appWindow.evaluate((shadowId) => {
-        const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return false;
-        const shadowNode = cy.getElementById(shadowId);
-        return shadowNode.length > 0;
-      }, shadowNodeId);
+      return appWindow.evaluate((winId) => {
+        const editorWindow = document.getElementById(winId);
+        return editorWindow !== null;
+      }, editorWindowId);
     }, {
-      message: 'Waiting for editor to open',
+      message: 'Waiting for editor window to appear',
       timeout: 5000
     }).toBe(true);
 
     console.log('✓ Editor opened');
 
     // Wait for CodeMirror editor to render
-    const editorWindowId = `window-editor-${nodeId}`;
     await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Get initial editor content using direct DOM access
@@ -497,7 +494,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor shows original content');
 
     // Make an EXTERNAL change to the file (simulating external editor or another process)
-    const externallyChangedContent = '# Identify Relevant Test\n\n**EXTERNAL CHANGE** - This file was changed by an external process!\n\nThe editor should automatically sync to show this change.';
+    // Note: We need to include frontmatter since the system expects it
+    const externallyChangedContent = '---\n---\n# Identify Relevant Test\n\n**EXTERNAL CHANGE** - This file was changed by an external process!\n\nThe editor should automatically sync to show this change.';
     await fs.writeFile(testFilePath, externallyChangedContent, 'utf-8');
     console.log('✓ File changed externally');
 
@@ -518,6 +516,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('Editor content after external change:', updatedEditorContent?.substring(0, 50) + '...');
 
     // This is the key assertion - editor should show the externally changed content
+    // The editor displays the full file content including frontmatter
     expect(updatedEditorContent).toBe(externallyChangedContent);
     console.log('✓ Editor synced with external file change');
 

@@ -9,16 +9,22 @@
  * 5. Verify the backend integration works end-to-end
  */
 
-import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
+import { test as base, expect, _electron as electron } from '@playwright/test';
+import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example_real_large');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large');
 
 // Type definitions
-interface ExtendedWindow extends Window {
-  cytoscapeInstance?: any;
+interface CytoscapeInstance {
+  nodes: () => { length: number };
+  edges: () => { length: number };
+}
+
+interface ExtendedWindow {
+  cytoscapeInstance?: CytoscapeInstance;
   electronAPI?: {
     getBackendPort: () => Promise<number>;
     startFileWatching: (dir?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
@@ -52,13 +58,13 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
           await api.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
-    } catch (error) {
+    } catch {
       console.log('Note: Could not stop file watching during cleanup');
     }
 
@@ -90,8 +96,7 @@ const test = base.extend<{
 test.describe('Backend API Integration E2E', () => {
 
   test('should dynamically discover backend port and successfully call /load-directory', async ({
-    appWindow,
-    electronApp
+    appWindow
   }) => {
     console.log('\n=== E2E Test: Dynamic Port Discovery and Backend Integration ===');
 
@@ -115,7 +120,7 @@ test.describe('Backend API Integration E2E', () => {
     // Poll health endpoint with retries (server takes time to start)
     const maxRetries = 20;
     const retryDelay = 500; // ms
-    let healthCheck: any = null;
+    let healthCheck: { ok: boolean; status?: number; statusText?: string; error?: string } | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       healthCheck = await appWindow.evaluate(async (port) => {
@@ -126,10 +131,10 @@ test.describe('Backend API Integration E2E', () => {
             status: response.status,
             statusText: response.statusText
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           return {
             ok: false,
-            error: error.message
+            error: error instanceof Error ? error.message : String(error)
           };
         }
       }, backendPort);
@@ -146,8 +151,9 @@ test.describe('Backend API Integration E2E', () => {
     }
 
     console.log('Health check result:', healthCheck);
-    expect(healthCheck.ok).toBe(true);
-    expect(healthCheck.status).toBe(200);
+    expect(healthCheck).not.toBeNull();
+    expect(healthCheck?.ok).toBe(true);
+    expect(healthCheck?.status).toBe(200);
     console.log(`✓ Backend server is healthy on port ${backendPort}`);
 
     console.log('=== STEP 3: Start file watching (triggers backend API in main process) ===');
@@ -176,18 +182,18 @@ test.describe('Backend API Integration E2E', () => {
     const backendStatus = await appWindow.evaluate(async (port) => {
       try {
         const response = await fetch(`http://localhost:${port}/health`);
-        const data = await response.json();
+        const data = await response.json() as { status: string; message?: string };
         console.log(`[Test] Backend health response:`, data);
         return {
           ok: response.ok,
           status: response.status,
           data
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`[Test] Backend health check error:`, error);
         return {
           ok: false,
-          error: error.message
+          error: error instanceof Error ? error.message : String(error)
         };
       }
     }, backendPort);
@@ -197,7 +203,7 @@ test.describe('Backend API Integration E2E', () => {
 
     // Verify backend responded (stub returns {"status": "ok", "message": "Stub backend healthy"})
     expect(backendStatus.data).toBeDefined();
-    expect(backendStatus.data.status).toBe('ok');
+    expect(backendStatus.data?.status).toBe('ok');
     console.log(`✓ Backend health check successful (${JSON.stringify(backendStatus.data)})`);
 
     // Note: Stub backend doesn't load nodes, but real backend would.
@@ -257,7 +263,7 @@ test.describe('Backend API Integration E2E', () => {
     // Poll health endpoint with retries (server takes time to start)
     const maxRetries = 20;
     const retryDelay = 500; // ms
-    let firstHealthCheck: any = null;
+    let firstHealthCheck: { ok: boolean; status?: number; error?: string } | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       firstHealthCheck = await appWindow.evaluate(async (port) => {
@@ -268,10 +274,10 @@ test.describe('Backend API Integration E2E', () => {
             ok: response.ok,
             status: response.status
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           return {
             ok: false,
-            error: error.message
+            error: error instanceof Error ? error.message : String(error)
           };
         }
       }, backendPort);
@@ -288,7 +294,8 @@ test.describe('Backend API Integration E2E', () => {
     }
 
     console.log('First health check (direct fetch):', firstHealthCheck);
-    expect(firstHealthCheck.ok).toBe(true);
+    expect(firstHealthCheck).not.toBeNull();
+    expect(firstHealthCheck?.ok).toBe(true);
     console.log('✓ Direct API call succeeded');
 
     console.log('=== STEP 3: Start file watching (uses backend-api.ts) ===');

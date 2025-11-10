@@ -12,7 +12,6 @@ import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
 import type { ElectronAPI } from '@/types/electron';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { triggerCreateChildNode } from '@test/electron/test-utils';
 
 // Type definitions
 interface ExtendedWindow extends Window {
@@ -145,8 +144,9 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     const parentNodeExists = initialState.nodes.some(n => n.id === 'parent');
     expect(parentNodeExists).toBe(true);
 
-    // Trigger the REAL add child action from context menu
-    // This calls the actual context menu handler which:
+    // Manually replicate the createNewChildNodeFromUI logic
+    // (since the function is not exposed on window in current implementation)
+    // This simulates what happens when user clicks "Create Child" in context menu:
     // 1. Gets graph state
     // 2. Creates GraphDelta
     // 3. Applies optimistic UI update
@@ -154,8 +154,55 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     // 5. Backend writes file
     // 6. File watcher detects file
     // 7. File watcher MAY create duplicate node (THE BUG!)
-    console.log('[Test] Triggering create child node via context menu...');
-    await triggerCreateChildNode(appWindow, 'parent');
+    console.log('[Test] Triggering create child node (simulating context menu action)...');
+    await appWindow.evaluate(async () => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+
+      // Get current graph state
+      const currentGraph = await api.graph.getState();
+      if (!currentGraph) throw new Error('No graph state');
+
+      // Get parent node
+      const parentNode = currentGraph.nodes['parent'];
+      if (!parentNode) throw new Error('Parent node not found');
+
+      // Create child node (replicating fromUICreateChildToUpsertNode logic)
+      const childId = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length;
+      const newNode = {
+        relativeFilePathIsID: childId,
+        outgoingEdges: [],
+        content: '# New GraphNode',
+        nodeUIMetadata: {
+          color: { _tag: 'None' } as const,
+          position: { _tag: 'None' } as const // Will be positioned by layout
+        }
+      };
+
+      // Create updated parent with edge to child
+      const updatedParent = {
+        ...parentNode,
+        outgoingEdges: [...parentNode.outgoingEdges, childId]
+      };
+
+      // Create GraphDelta
+      const graphDelta = [
+        {
+          type: 'UpsertNode' as const,
+          nodeToUpsert: newNode
+        },
+        {
+          type: 'UpsertNode' as const,
+          nodeToUpsert: updatedParent
+        }
+      ];
+
+      // Send to backend (which will update UI and write to file system)
+      await api.graph.applyGraphDelta(graphDelta);
+    });
 
     console.log('[Test] Waiting 2 seconds for file system events to propagate...');
 

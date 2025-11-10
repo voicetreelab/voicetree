@@ -26,7 +26,7 @@ export function fromUICreateChildToUpsertNode(
     content: '# New GraphNode',
     nodeUIMetadata: {
       color: O.none,
-      position: calculateInitialPositionForChild(parentNode, graph)
+      position: calculateInitialPositionForChild(parentNode, graph, undefined, 200)
     },
   }
 

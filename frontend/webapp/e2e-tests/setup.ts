@@ -10,7 +10,7 @@ vi.mock('*.css', () => ({}));
 vi.mock('ninja-keys', () => {
   // Define custom element for ninja-keys
   class NinjaKeysElement extends HTMLElement {
-    data: any[] = [];
+    data: unknown[] = [];
 
     open() {
       this.dispatchEvent(new Event('opened'));
@@ -107,39 +107,42 @@ Object.defineProperty(window, "localStorage", {
 });
 
 // Mock HTMLCanvasElement.getContext for SoundWaveVisualizer e2e-tests
-HTMLCanvasElement.prototype.getContext = (() => {
-  return {
-    fillRect: () => {},
-    clearRect: () => {},
-    getImageData: () => ({
-      data: new Array(4),
-    }),
-    putImageData: () => {},
-    createImageData: () => [],
-    setTransform: () => {},
-    drawImage: () => {},
-    save: () => {},
-    fillText: () => {},
-    restore: () => {},
-    beginPath: () => {},
-    moveTo: () => {},
-    lineTo: () => {},
-    closePath: () => {},
-    stroke: () => {},
-    translate: () => {},
-    scale: () => {},
-    rotate: () => {},
-    arc: () => {},
-    fill: () => {},
-    measureText: () => ({ width: 0 }),
-    transform: () => {},
-    rect: () => {},
-    clip: () => {},
-    roundRect: () => {},
-    fillStyle: "",
-    globalAlpha: 1,
-  };
-}) as unknown as CanvasRenderingContext2D;
+HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string) => {
+  if (contextId === '2d') {
+    return {
+      fillRect: () => {},
+      clearRect: () => {},
+      getImageData: () => ({
+        data: new Array(4),
+      }),
+      putImageData: () => {},
+      createImageData: () => [],
+      setTransform: () => {},
+      drawImage: () => {},
+      save: () => {},
+      fillText: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      closePath: () => {},
+      stroke: () => {},
+      translate: () => {},
+      scale: () => {},
+      rotate: () => {},
+      arc: () => {},
+      fill: () => {},
+      measureText: () => ({ width: 0 }),
+      transform: () => {},
+      rect: () => {},
+      clip: () => {},
+      roundRect: () => {},
+      fillStyle: "",
+      globalAlpha: 1,
+    } as unknown as CanvasRenderingContext2D;
+  }
+  return null;
+}) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 // Mock Web Audio API
 window.AudioContext = class AudioContext {
@@ -210,3 +213,12 @@ Object.defineProperty(navigator, 'webdriver', {
 
 // Mock HTMLElement.scrollTo for useAutoScroll e2e-tests
 HTMLElement.prototype.scrollTo = vi.fn();
+
+// Mock window.electronAPI for tests that use Electron IPC
+Object.defineProperty(window, 'electronAPI', {
+  value: {
+    getBackendPort: vi.fn(() => Promise.resolve(8001)),
+  },
+  writable: true,
+  configurable: true
+});

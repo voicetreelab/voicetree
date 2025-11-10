@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GraphNavigationService } from '@/views/GraphNavigationService';
-import cytoscape, { type Core } from 'cytoscape';
+import cytoscape, { type Core, type Collection } from 'cytoscape';
 import '@/graph-core'; // Import to trigger extension registration
 
 describe('GraphNavigationService', () => {
@@ -45,7 +45,7 @@ describe('GraphNavigationService', () => {
       // Should have called fit with the node
       expect(fitSpy).toHaveBeenCalled();
       const callArgs = fitSpy.mock.calls[0];
-      expect(callArgs[0].id()).toBe('node2');
+      expect(((callArgs?.[0] as Collection).first()?.id() ?? "")).toBe('node2');
       // Should have padding argument (number, even if 0 in headless mode)
       expect(typeof callArgs[1]).toBe('number');
     });
@@ -74,23 +74,24 @@ describe('GraphNavigationService', () => {
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
 
-      expect(fitSpy.mock.calls[0][0].id()).toBe('node1');
+      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
 
       service.setLastCreatedNodeId('node3');
       service.fitToLastNode();
 
-      expect(fitSpy.mock.calls[1][0].id()).toBe('node3');
+      expect(((fitSpy.mock.calls[1]?.[0] as Collection).first()?.id() ?? "")).toBe('node3');
     });
   });
 
   describe('cycleTerminal', () => {
     beforeEach(() => {
       // Use cy directly
-      // Add terminal nodes (shadow nodes with terminal- prefix)
+      // Add terminal nodes (shadow nodes with windowType: 'terminal')
       cy.add([
         {
           data: {
             id: 'terminal-node1',
+            windowType: 'terminal',
             isShadowNode: true,
             label: 'Terminal 1'
           },
@@ -99,6 +100,7 @@ describe('GraphNavigationService', () => {
         {
           data: {
             id: 'terminal-node2',
+            windowType: 'terminal',
             isShadowNode: true,
             label: 'Terminal 2'
           },
@@ -107,6 +109,7 @@ describe('GraphNavigationService', () => {
         {
           data: {
             id: 'terminal-node3',
+            windowType: 'terminal',
             isShadowNode: true,
             label: 'Terminal 3'
           },
@@ -123,8 +126,8 @@ describe('GraphNavigationService', () => {
 
       // Increments from 0 to 1, fits to terminal at index 1
       expect(fitSpy).toHaveBeenCalled();
-      const fittedNode = fitSpy.mock.calls[0][0];
-      expect(fittedNode.id()).toBe('terminal-node2');
+      const fittedNode = fitSpy.mock.calls[0]?.[0] as Collection;
+      expect(fittedNode.first()?.id()).toBe('terminal-node2');
     });
 
     it('should cycle through all terminals in forward direction', () => {
@@ -132,13 +135,13 @@ describe('GraphNavigationService', () => {
       const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
-      expect(fitSpy.mock.calls[0][0].id()).toBe('terminal-node2'); // index 0->1
+      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node2'); // index 0->1
 
       service.cycleTerminal(1);
-      expect(fitSpy.mock.calls[1][0].id()).toBe('terminal-node3'); // index 1->2
+      expect(((fitSpy.mock.calls[1]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node3'); // index 1->2
 
       service.cycleTerminal(1);
-      expect(fitSpy.mock.calls[2][0].id()).toBe('terminal-node1'); // index 2->0 (wrap)
+      expect(((fitSpy.mock.calls[2]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1'); // index 2->0 (wrap)
     });
 
     it('should wrap around to first terminal after last one in forward direction', () => {
@@ -149,11 +152,11 @@ describe('GraphNavigationService', () => {
       service.cycleTerminal(1); // 0->1: terminal-node2
       service.cycleTerminal(1); // 1->2: terminal-node3
       service.cycleTerminal(1); // 2->0: terminal-node1
-      expect(fitSpy.mock.calls[2][0].id()).toBe('terminal-node1');
+      expect(((fitSpy.mock.calls[2]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1');
 
       // Next cycle should wrap to second terminal
       service.cycleTerminal(1); // 0->1: terminal-node2
-      expect(fitSpy.mock.calls[3][0].id()).toBe('terminal-node2');
+      expect(((fitSpy.mock.calls[3]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node2');
     });
 
     it('should cycle to previous terminal in backward direction', () => {
@@ -164,8 +167,8 @@ describe('GraphNavigationService', () => {
       service.cycleTerminal(-1);
 
       expect(fitSpy).toHaveBeenCalled();
-      const fittedNode = fitSpy.mock.calls[0][0];
-      expect(fittedNode.id()).toBe('terminal-node3');
+      const fittedNode = (fitSpy.mock.calls[0]?.[0] as Collection);
+      expect(fittedNode.first()?.id()).toBe('terminal-node3');
     });
 
     it('should cycle through all terminals in backward direction', () => {
@@ -173,13 +176,13 @@ describe('GraphNavigationService', () => {
       const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(-1);
-      expect(fitSpy.mock.calls[0][0].id()).toBe('terminal-node3');
+      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node3');
 
       service.cycleTerminal(-1);
-      expect(fitSpy.mock.calls[1][0].id()).toBe('terminal-node2');
+      expect(((fitSpy.mock.calls[1]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node2');
 
       service.cycleTerminal(-1);
-      expect(fitSpy.mock.calls[2][0].id()).toBe('terminal-node1');
+      expect(((fitSpy.mock.calls[2]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1');
     });
 
     it('should wrap around to last terminal after first one in backward direction', () => {
@@ -188,22 +191,22 @@ describe('GraphNavigationService', () => {
 
       // Cycle backward to wrap to last
       service.cycleTerminal(-1);
-      expect(fitSpy.mock.calls[0][0].id()).toBe('terminal-node3');
+      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node3');
 
       // Continue backward through all
       service.cycleTerminal(-1);
       service.cycleTerminal(-1);
-      expect(fitSpy.mock.calls[2][0].id()).toBe('terminal-node1');
+      expect(((fitSpy.mock.calls[2]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1');
 
       // Wrap around again
       service.cycleTerminal(-1);
-      expect(fitSpy.mock.calls[3][0].id()).toBe('terminal-node3');
+      expect(((fitSpy.mock.calls[3]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node3');
     });
 
     it('should do nothing when no terminal nodes exist', () => {
       // Use cy directly
       // Remove all terminal nodes
-      cy.remove('node[id ^= "terminal-"]');
+      cy.remove('node[windowType = "terminal"]');
 
       const fitSpy = vi.spyOn(cy, 'fit');
 
@@ -212,19 +215,20 @@ describe('GraphNavigationService', () => {
       expect(fitSpy).not.toHaveBeenCalled();
     });
 
-    it('should only cycle through nodes with terminal- prefix and isShadowNode=true', () => {
+    it('should only cycle through nodes with windowType=terminal and isShadowNode=true', () => {
       // Use cy directly
-      // Add a node with terminal prefix but not a shadow node
+      // Add a node with windowType terminal but not a shadow node
       cy.add({
         data: {
           id: 'terminal-fake',
+          windowType: 'terminal',
           isShadowNode: false,
           label: 'Not a real terminal'
         },
         position: { x: 500, y: 100 }
       });
 
-      // Add a shadow node without terminal prefix
+      // Add a shadow node without windowType terminal
       cy.add({
         data: {
           id: 'shadow-other',
@@ -242,7 +246,7 @@ describe('GraphNavigationService', () => {
       service.cycleTerminal(1); // 1->2: terminal-node3
       service.cycleTerminal(1); // 2->0: terminal-node1
 
-      const fittedIds = fitSpy.mock.calls.map(call => call[0].id());
+      const fittedIds = fitSpy.mock.calls.map((call => (call?.[0] as Collection).first()?.id() ?? ""));
       expect(fittedIds).toEqual(['terminal-node2', 'terminal-node3', 'terminal-node1']);
     });
 
@@ -254,13 +258,13 @@ describe('GraphNavigationService', () => {
       const fitSpy = vi.spyOn(cy, 'fit');
 
       service.cycleTerminal(1);
-      expect(fitSpy.mock.calls[0][0].id()).toBe('terminal-node1');
+      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1');
 
       service.cycleTerminal(1);
-      expect(fitSpy.mock.calls[1][0].id()).toBe('terminal-node1');
+      expect(((fitSpy.mock.calls[1]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1');
 
       service.cycleTerminal(-1);
-      expect(fitSpy.mock.calls[2][0].id()).toBe('terminal-node1');
+      expect(((fitSpy.mock.calls[2]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-node1');
     });
   });
 
@@ -272,7 +276,7 @@ describe('GraphNavigationService', () => {
       service.handleSearchSelect('node2');
 
       expect(fitSpy).toHaveBeenCalled();
-      expect(fitSpy.mock.calls[0][0].id()).toBe('node2');
+      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('node2');
     });
 
     it('should highlight selected node by adding highlighted class', () => {
@@ -332,8 +336,8 @@ describe('GraphNavigationService', () => {
       // Use cy directly
       // Add terminals
       cy.add([
-        { data: { id: 'terminal-a', isShadowNode: true }, position: { x: 400, y: 100 } },
-        { data: { id: 'terminal-b', isShadowNode: true }, position: { x: 400, y: 200 } }
+        { data: { id: 'terminal-a', windowType: 'terminal', isShadowNode: true }, position: { x: 400, y: 100 } },
+        { data: { id: 'terminal-b', windowType: 'terminal', isShadowNode: true }, position: { x: 400, y: 200 } }
       ]);
 
       const fitSpy = vi.spyOn(cy, 'fit');
@@ -341,27 +345,27 @@ describe('GraphNavigationService', () => {
       // Set last node and fit to it
       service.setLastCreatedNodeId('node1');
       service.fitToLastNode();
-      expect(fitSpy.mock.calls[0][0].id()).toBe('node1');
+      expect(((fitSpy.mock.calls[0]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
 
       // Cycle terminal - should not affect last node
       // Starting from index 0, increments to 1 (terminal-b)
       service.cycleTerminal(1); // 0->1: terminal-b
-      expect(fitSpy.mock.calls[1][0].id()).toBe('terminal-b');
+      expect(((fitSpy.mock.calls[1]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-b');
 
       // Fit to last node again - should still be node1
       service.fitToLastNode();
-      expect(fitSpy.mock.calls[2][0].id()).toBe('node1');
+      expect(((fitSpy.mock.calls[2]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
 
       // Handle search select - should not affect either
       service.handleSearchSelect('node2');
-      expect(fitSpy.mock.calls[3][0].id()).toBe('node2');
+      expect(((fitSpy.mock.calls[3]?.[0] as Collection).first()?.id() ?? "")).toBe('node2');
 
       // Last node and terminal cycling should still work independently
       service.fitToLastNode();
-      expect(fitSpy.mock.calls[4][0].id()).toBe('node1');
+      expect(((fitSpy.mock.calls[4]?.[0] as Collection).first()?.id() ?? "")).toBe('node1');
 
       service.cycleTerminal(1); // 1->0: terminal-a
-      expect(fitSpy.mock.calls[5][0].id()).toBe('terminal-a');
+      expect(((fitSpy.mock.calls[5]?.[0] as Collection).first()?.id() ?? "")).toBe('terminal-a');
     });
   });
 });

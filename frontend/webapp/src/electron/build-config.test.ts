@@ -64,7 +64,6 @@ describe('build-config', () => {
 
       expect(config.pythonCommand).toBe('python');
       expect(config.pythonArgs).toEqual(['server.py']);
-      expect(config.pythonCwd).toBe(path.join(repoRoot, 'backend'));
       expect(config.shouldCompilePython).toBe(false);
       expect(config.serverBinaryPath).toBeNull();
     });

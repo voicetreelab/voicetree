@@ -29,11 +29,11 @@ export async function createNewChildNodeFromUI(
         return "-1"; //todo cleaner
     }
     // Get parent node from graph
-    const parentNode : GraphNode = currentGraph.nodes[parentNodeId];
+    const parentNode: GraphNode = currentGraph.nodes[parentNodeId];
 
     // Create GraphDelta (contains both child and updated parent with edge)
     const graphDelta: GraphDelta = fromUICreateChildToUpsertNode(currentGraph, parentNode); //todo this only actually needs parent and grandparent, maybe we can have derived backlinks
-    const newNode : GraphNode = (graphDelta[0] as UpsertNodeAction).nodeToUpsert;
+    const newNode: GraphNode = (graphDelta[0] as UpsertNodeAction).nodeToUpsert;
 
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
@@ -43,8 +43,8 @@ export async function createNewChildNodeFromUI(
 }
 
 function randomChars(number: number): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    return Array.from({ length: number }, () =>
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    return Array.from({length: number}, () =>
         chars.charAt(Math.floor(Math.random() * chars.length))
     ).join('');
 }
@@ -62,12 +62,12 @@ export async function createNewEmptyOrphanNodeFromUI(
             position: O.of(pos)
         },
     }
-    const graphDelta : GraphDelta = [
+    const graphDelta: GraphDelta = [
         {
             type: 'UpsertNode',
             nodeToUpsert: newNode
         },
-        ]
+    ]
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
@@ -79,7 +79,7 @@ export async function createNewEmptyOrphanNodeFromUI(
 export async function modifyNodeContentFromUI(
     nodeId: NodeId,
     newContent: string,
-    cy?: Core,
+    cy: Core,
 ): Promise<void> {
 
     // Get current graph state
@@ -93,10 +93,8 @@ export async function modifyNodeContentFromUI(
     // Create GraphDelta with updated edges based on new content
     const graphDelta: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent, currentGraph);
 
-    // Optimistic UI update for edge changes (if cy provided)
-    if (cy) {
-        applyGraphDeltaToUI(cy, graphDelta);
-    }
+    // Optimistic UI update for edge changes
+    applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.graph.applyGraphDelta(graphDelta);
 }

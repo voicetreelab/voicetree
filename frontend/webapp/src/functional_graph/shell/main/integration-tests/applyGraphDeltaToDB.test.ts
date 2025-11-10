@@ -28,7 +28,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
 
-const EXAMPLE_SMALL_PATH = path.resolve(__dirname, '../../../../fixtures/example_small')
+const EXAMPLE_SMALL_PATH = path.resolve(__dirname, '../../../../../e2e-tests/fixtures/example_small')
 const TEST_NODE_ID = 'test-integration-node'
 const TEST_FILE_PATH = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md`)
 
@@ -41,11 +41,9 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
   afterEach(async () => {
     // Clean up test file if it exists
-    try {
-      await fs.unlink(TEST_FILE_PATH)
-    } catch {
+    await fs.unlink(TEST_FILE_PATH).catch(() => {
       // File might not exist, that's ok
-    }
+    })
   })
 
   describe('BEHAVIOR: Apply UpsertNode delta writes file to disk', () => {

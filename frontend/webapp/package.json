@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "check": "eslint . && tsc --noEmit",
     "preview": "vite preview",
+    "pretest": "bash scripts/setup-test-fixtures.sh",
     "test": "vitest --no-isolate run && playwright test e2e-tests/electron/electron-real-folder.spec.ts --config=playwright-electron.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:headless": "xvfb-run -a playwright test",
