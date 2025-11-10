@@ -26,12 +26,17 @@ export function fromNodeToMarkdownContent(node: GraphNode): string {
     // 2. Merge frontmatter: nodeUIMetadata takes precedence over content frontmatter
     const mergedFrontmatter = mergeFrontmatter(contentFrontmatter, node.nodeUIMetadata);
 
-    // 3. Append outgoing edges as wikilinks
-    const wikilinks = node.outgoingEdges.length > 0
-        ? '\n' + node.outgoingEdges.map(nodeId => `[[${nodeId}]]`).join('\n')
-        : '';
+    // 3. Append outgoing edges as wikilinks (only if nodeId not already in content)
+    // KISS: Simple check - if nodeId appears anywhere in content, don't append
+    // Edge case: nodeId in text but not as link will be skipped, but that's acceptable
+    const wikilinks = node.outgoingEdges
+        .filter(nodeId => !contentWithoutFrontmatter.includes(nodeId))
+        .map(nodeId => `[[${nodeId}]]`)
+        .join('\n');
 
-    return `${mergedFrontmatter}${contentWithoutFrontmatter}${wikilinks}`;
+    const wikilinksSuffix = wikilinks.length > 0 ? '\n' + wikilinks : '';
+
+    return `${mergedFrontmatter}${contentWithoutFrontmatter}${wikilinksSuffix}`;
 }
 
 /**

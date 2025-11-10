@@ -1,4 +1,4 @@
-import type {GraphDelta, GraphNode, NodeId} from "@/functional_graph/pure/types.ts";
+import type {GraphDelta, GraphNode, NodeId, Position} from "@/functional_graph/pure/types.ts";
 import {
     fromContentChangeToGraphDelta,
     fromUICreateChildToUpsertNode
@@ -6,7 +6,8 @@ import {
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
 import type {} from '@/types/electron';
-import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts"; // Import to load global Window extensions
+import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
+import * as O from "fp-ts/Option";
 
 
 export async function createNewChildNodeFromUI(
@@ -30,6 +31,42 @@ export async function createNewChildNodeFromUI(
     applyGraphDeltaToUI(cy, graphDelta);
 
     await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+
+    //todo, to create floating editor anchored, we need...
+}
+
+function randomChars(number: number): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    return Array.from({ length: number }, () =>
+        chars.charAt(Math.floor(Math.random() * chars.length))
+    ).join('');
+}
+
+export async function createNewEmptyOrphanNodeFromUI(
+    pos: Position,
+    cy: Core
+): Promise<NodeId> {
+    const newNode: GraphNode = {
+        relativeFilePathIsID: Date.now().toString() + randomChars(3), // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
+        outgoingEdges: [],
+        content: '# New Node',
+        nodeUIMetadata: {
+            color: O.none,
+            position: O.of(pos)
+        },
+    }
+    const graphDelta : GraphDelta = [
+        {
+            type: 'UpsertNode',
+            nodeToUpsert: newNode
+        },
+        ]
+    // Optimistic UI update: immediately add node + edge to cytoscape
+    applyGraphDeltaToUI(cy, graphDelta);
+
+    await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+
+    return newNode.relativeFilePathIsID;
 }
 
 export async function modifyNodeContentFromUI(
