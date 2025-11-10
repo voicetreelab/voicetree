@@ -33,5 +33,6 @@
       "@wasm/*": ["./tidy/wasm_dist/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "build", "out"]
 }

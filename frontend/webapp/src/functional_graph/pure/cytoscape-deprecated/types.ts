@@ -1,3 +1,24 @@
+import * as O from 'fp-ts/lib/Option.js'
+
+// ============================================================================
+// DEPRECATED Graph Types (for legacy cytoscape code)
+// ============================================================================
+
+export type NodeId = string
+
+export interface GraphNode {
+    readonly id: NodeId
+    readonly title: string
+    readonly content: string
+    readonly summary: string
+    readonly color: O.Option<string>
+}
+
+export interface Graph {
+    readonly nodes: Record<NodeId, GraphNode>
+    readonly edges: Record<NodeId, readonly NodeId[]>
+}
+
 // ============================================================================
 // Cytoscape Projection Types
 // ============================================================================

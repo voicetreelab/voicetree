@@ -133,7 +133,7 @@ export function mermaidRender() {
             return RangeSet.of(replaceMermaidBlocks(state), true);
         },
 
-        update(decorations, transaction) {
+        update(_decorations, transaction) {
             // Rebuild decorations on document changes
             return RangeSet.of(replaceMermaidBlocks(transaction.state), true);
         },

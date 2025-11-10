@@ -23,6 +23,19 @@ color: "#FF0000"
     })
   })
 
+  it('should handle single-quoted title with special characters', () => {
+    const content = `---
+node_id: 3
+title: 'Bug: Auto-open Markdown Editor (3)'
+---
+### The manual editor's auto-open Markdown editor functionality is not working`
+
+    const result = extractFrontmatter(content)
+
+    expect(result.title).toBe('Bug: Auto-open Markdown Editor (3)')
+    expect(result.node_id).toBe('3')
+  })
+
   it('should handle missing frontmatter', () => {
     const content = '# Just a heading\n\nNo frontmatter here'
 

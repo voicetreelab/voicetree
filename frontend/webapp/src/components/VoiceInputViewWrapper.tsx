@@ -15,8 +15,7 @@ export default function VoiceInputViewWrapper() {
     if (!containerRef.current) return;
 
     // Initialize VoiceInputView
-    const apiEndpoint = 'http://localhost:8001/send-text';
-    voiceInputRef.current = new VoiceInputView(containerRef.current, apiEndpoint);
+    voiceInputRef.current = new VoiceInputView(containerRef.current);
 
     // Subscribe to events (for debugging/logging)
     const unsubscribeTranscription = voiceInputRef.current.onTranscription((text) => {

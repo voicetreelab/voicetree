@@ -1,12 +1,13 @@
-import { app } from 'electron';
 import path from 'path';
 import { promises as fs } from 'fs';
-import pty from 'node-pty';
+import pty, { type IPty } from 'node-pty';
+import type { WebContents } from 'electron';
 
 interface NodeMetadata {
   filePath?: string;
   extraEnv?: Record<string, string>;
   initialCommand?: string;
+  executeCommand?: boolean;
 }
 
 interface TerminalSpawnResult {
@@ -39,14 +40,14 @@ interface TerminalOperationResult {
  * - Error terminal handling
  */
 export default class TerminalManager {
-  private terminals = new Map<string, any>();
+  private terminals = new Map<string, IPty>();
   private terminalToWindow = new Map<string, number>();
 
   /**
    * Spawn a new PTY terminal with optional node metadata for environment variables
    */
   async spawn(
-    sender: Electron.WebContents,
+    sender: WebContents,
     nodeMetadata: NodeMetadata | undefined,
     getWatchedDirectory: () => string | null,
     getToolsDirectory: () => string
@@ -106,9 +107,12 @@ export default class TerminalManager {
       // Write initial command if provided (without newline, so it's not executed)
       if (nodeMetadata?.initialCommand) {
         console.log(`[TerminalManager] Writing initial command: ${nodeMetadata.initialCommand}`);
+        const command = nodeMetadata.executeCommand
+          ? nodeMetadata.initialCommand + '\r'
+          : nodeMetadata.initialCommand;
         // Wait a bit for shell prompt to appear before writing
         setTimeout(() => {
-          ptyProcess.write(nodeMetadata.initialCommand);
+          ptyProcess.write(command);
         }, 200);
       }
 
@@ -138,11 +142,11 @@ export default class TerminalManager {
       console.log(`[TerminalManager] Terminal ${terminalId} spawned successfully with PID: ${ptyProcess.pid}`);
       console.log(`[TerminalManager] sender.id at spawn time: ${sender.id}, isDestroyed: ${sender.isDestroyed()}`);
       return { success: true, terminalId };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to spawn terminal:', error);
 
       // Send error message to display in terminal
-      const errorMessage = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error.message}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
+      const errorMessage = `\r\n\x1b[31mError: Failed to spawn terminal\x1b[0m\r\n${error instanceof Error ? error.message : String(error)}\r\n\r\nMake sure node-pty is properly installed and rebuilt for Electron:\r\nnpx electron-rebuild\r\n`;
 
       // Create a fake terminal ID for error display
       const terminalId = `error-${Date.now()}`;
@@ -177,9 +181,9 @@ export default class TerminalManager {
       // Write to PTY
       ptyProcess.write(data);
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Failed to write to terminal ${terminalId}:`, error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
@@ -201,9 +205,9 @@ export default class TerminalManager {
       ptyProcess.resize(cols, rows);
       console.log(`Terminal ${terminalId} resized to ${cols}x${rows}`);
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Failed to resize terminal ${terminalId}:`, error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
@@ -227,9 +231,9 @@ export default class TerminalManager {
       this.terminals.delete(terminalId);
       this.terminalToWindow.delete(terminalId);
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Failed to kill terminal ${terminalId}:`, error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
