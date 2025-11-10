@@ -36,7 +36,7 @@ flowchart LR
 - Can now deploy Cloud Functions to vocetree-alpha project
 - Ready to convert append agent to serverless function
 - All gcloud commands will use this configuration by default
-- Can switch configs with: gcloud config configurations activate [name]
+- Can switch configs with: gcloud config configurations activate [nodeId]
 
 ** Next Steps**
 1. Enable Cloud Functions API: `gcloud services enable cloudfunctions.googleapis.com`

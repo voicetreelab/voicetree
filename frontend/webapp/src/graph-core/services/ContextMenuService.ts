@@ -14,7 +14,7 @@ cytoscape.use(cxtmenu);
 
 export interface ContextMenuDependencies {
     getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
-    createAnchoredFloatingEditor: (node : NodeSingular) => Promise<void>;
+    createAnchoredFloatingEditor: (nodeId : NodeId) => Promise<void>;
     createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => void;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
@@ -179,9 +179,8 @@ export class ContextMenuService {
         commands.push({
             content: this.createSvgIcon('edit', 'Edit'),
             select: async () => {
-                const targetNode = this.cy!.getElementById(nodeId);
                 if (targetNode.length > 0) {
-                    await this.deps!.createAnchoredFloatingEditor(targetNode);
+                    await this.deps!.createAnchoredFloatingEditor(nodeId);
                 }
             },
             enabled: true,
