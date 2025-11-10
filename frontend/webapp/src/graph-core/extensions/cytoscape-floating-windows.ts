@@ -8,7 +8,6 @@
 import type cytoscape from 'cytoscape';
 import {TerminalVanilla} from '@/floating-windows/TerminalVanilla';
 import {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView';
-import {TestComponent} from '@/floating-windows/TestComponent';
 import type {NodeMetadata} from '@/floating-windows/types';
 import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
@@ -305,83 +304,6 @@ function attachDragHandlers(
 }
 
 /**
- * Mount React content component to the content container
- * Simplified to only handle content rendering - no wrapper, no title bar
- */
-export function mountComponent(
-    contentContainer: HTMLElement,
-    component: string | React.ReactElement,
-    windowId: string,
-    config: FloatingWindowConfig
-) {
-    console.log('[FloatingWindows] mountComponent called for:', windowId, 'component:', component);
-
-    // Special case: Terminal uses vanilla JS (no React!)
-    if (typeof component === 'string' && component === 'Terminal') {
-        console.log('[FloatingWindows] Mounting Terminal with vanilla JS (NO REACT)');
-
-        // Create vanilla Terminal instance directly in the content container
-        const terminal = new TerminalVanilla({
-            container: contentContainer,
-            nodeMetadata: config.nodeMetadata
-        });
-
-        // Store for cleanup
-        vanillaInstances.set(windowId, terminal);
-
-        console.log('[FloatingWindows] Terminal mounted successfully (vanilla JS)');
-        return;
-    }
-
-    // Special case: MarkdownEditor uses vanilla JS CodeMirror
-    if (component === 'MarkdownEditor') {
-        console.log('[FloatingWindows] Mounting MarkdownEditor with vanilla JS');
-
-        // Create vanilla CodeMirror editor instance directly in the content container
-        const editor = new CodeMirrorEditorView(
-            contentContainer,
-            config.initialContent || '',
-            {
-                autosaveDelay: 300
-            }
-        );
-
-        // Setup auto-save if onSave callback provided
-        if (config.onSave) {
-            editor.onChange((content) => {
-                config.onSave!(content).catch((error) => {
-                    console.error('[CodeMirrorEditorView] Auto-save failed:', error);
-                });
-            });
-        }
-
-        // Store for cleanup
-        vanillaInstances.set(windowId, editor);
-
-        console.log('[FloatingWindows] MarkdownEditor mounted successfully (vanilla JS)');
-        return;
-    }
-
-    // Special case: TestComponent for testing
-    if (component === 'TestComponent') {
-        console.log('[FloatingWindows] Mounting TestComponent with vanilla JS');
-
-        const testComponent = new TestComponent({
-            container: contentContainer
-        });
-
-        // Store for cleanup
-        vanillaInstances.set(windowId, testComponent);
-
-        console.log('[FloatingWindows] TestComponent mounted successfully (vanilla JS)');
-        return;
-    }
-
-    // Unknown component
-    throw new Error(`[FloatingWindows] Unknown component: ${component}. Available: Terminal, MarkdownEditor, TestComponent`);
-}
-
-/**
  * Get default shadow node dimensions based on component type
  * Terminals are larger, editors are medium, other components are small
  */
@@ -392,7 +314,7 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
             // Target: 100 cols × ~9px ≈ 900px + margins (~20px) = 920px
             // Target: 30 rows × ~17px ≈ 510px + title bar (~40px) = 550px
             // Using 800px width to provide ~100 cols and reduce line wrapping (helps with scrolling bug)
-            return {width: 800, height: 600};
+            return {width: 600, height: 400};
         case 'MarkdownEditor':
             // Editors are medium - typical size ~500x300
             return {width: 400, height: 400};
@@ -411,18 +333,15 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
  * Returns undefined if an editor for this node already exists
  *
  * @param cy - Cytoscape instance
- * @param nodeId - ID of the node to edit (used to fetch content)
- * @param onClose - Optional callback when editor is closed
- * @param customId - Optional custom ID for the editor (defaults to `editor-${nodeId}`)
- * @param parentNode - Optional parent node to create shadow child and anchor to
- * @param editorRegistry - Optional map to register editor ID for external content updates
+ * @param nodeId - ID of the node to edit (used to fetch content and derive editor ID)
+ * @param editorRegistry - Map to register editor ID for external content updates
  */
 export async function createFloatingEditor(
     cy: cytoscape.Core,
     nodeId: string,
     editorRegistry: Map<string, string>
 ): Promise<FloatingWindow | undefined> {
-    // Derive editor ID from node ID (or use custom ID)
+    // Derive editor ID from node ID
     const id = `editor-${nodeId}`;
 
     // Check if already exists
@@ -440,7 +359,10 @@ export async function createFloatingEditor(
 
     // Derive title and content from nodeId
     const node = await getNodeFromUI(nodeId);
-    const content = node.content;
+    let content = "loading..."
+    if (node){
+        content = node.content;
+    }
     const title = `Editor: ${nodeId}`;
 
     // Get overlay
@@ -467,7 +389,7 @@ export async function createFloatingEditor(
     // Setup auto-save with modifyNodeContentFromUI
     editor.onChange(async (newContent) => {
         console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
-        await modifyNodeContentFromUI(nodeId, newContent);
+        await modifyNodeContentFromUI(nodeId, newContent, cy);
     });
 
     // Store for cleanup
@@ -578,8 +500,8 @@ export function createFloatingTerminal(
     }
 
     // Set initial position to offscreen to avoid flash at 0,0
-    windowElement.style.left = '-9999px';
-    windowElement.style.top = '-9999px';
+    // windowElement.style.left = '-9999px';
+    // windowElement.style.top = '-9999px';
 
     // Add to overlay
     overlay.appendChild(windowElement);

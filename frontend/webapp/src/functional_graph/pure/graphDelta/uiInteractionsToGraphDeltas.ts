@@ -2,6 +2,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode} from '@/functional_graph/pure/types.ts'
 import {calculateInitialPositionForChild} from "@/functional_graph/pure/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/functional_graph/pure/graph-operations /graph-edge-operations.ts";
+import {extractLinkedNodeIds} from "@/functional_graph/pure/markdown-parsing/extract-linked-node-ids.ts";
 
 /**
  * Pure action creator functions.
@@ -51,10 +52,15 @@ export function fromUICreateChildToUpsertNode(
 export function fromContentChangeToGraphDelta(
   Node: GraphNode,
   content: string,
+  graph: Graph,
 ): GraphDelta {
+    // Extract wikilinks from new content and update outgoingEdges
+    // This ensures markdown is the source of truth for edges
+    const newOutgoingEdges = extractLinkedNodeIds(content, graph.nodes);
+
     return [{
         type: 'UpsertNode',
-        nodeToUpsert: {...Node, content}
+        nodeToUpsert: {...Node, content, outgoingEdges: newOutgoingEdges}
     }]
 }
 

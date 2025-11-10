@@ -1,9 +1,9 @@
 import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeId, FSUpdate, Graph} from '@/functional_graph/pure/types'
-import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { filenameToNodeId } from '@/functional_graph/pure/markdown-parsing/filename-utils'
 import { setOutgoingEdges } from '@/functional_graph/pure/graph-operations /graph-edge-operations.ts'
 import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown-parsing/extract-linked-node-ids'
+import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown-parsing/parse-markdown-to-node'
 
 /**
  * Maps filesystem events to graph deltas.
@@ -62,21 +62,20 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
  */
 function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph): GraphDelta {
   const nodeId = extractNodeIdFromPath(fsUpdate.absolutePath, vaultPath)
+  const filename = path.basename(fsUpdate.absolutePath)
 
-  // Create base node from file content
-  const baseNode: GraphNode = {
-    relativeFilePathIsID: nodeId,
-    content: fsUpdate.content,
-    outgoingEdges: [],
-    nodeUIMetadata: {
-      color: O.none,
-      position: O.none // Position will be calculated by layout algorithm
-    }
+  // Parse markdown to node, which extracts frontmatter (color, position, etc.)
+  const baseNode = parseMarkdownToGraphNode(fsUpdate.content, filename)
+
+  // Ensure the node ID matches the path-derived ID (in case frontmatter has different node_id)
+  const nodeWithCorrectId: GraphNode = {
+    ...baseNode,
+    relativeFilePathIsID: nodeId
   }
 
   // Set edges from wikilinks using extractLinkedNodeIds (same as initial load)
   // This ensures consistent normalization (.md stripping, ./ prefix handling, etc.)
-  const node = setOutgoingEdges(baseNode, extractLinkedNodeIds(fsUpdate.content, currentGraph.nodes))
+  const node = setOutgoingEdges(nodeWithCorrectId, extractLinkedNodeIds(fsUpdate.content, currentGraph.nodes))
 
   const upsertAction: UpsertNodeAction = {
     type: 'UpsertNode',

@@ -49,7 +49,7 @@ export class TerminalVanilla {
       scrollback: 1000,
         scrollOnEraseInDisplay : true,
         scrollOnUserInput: true,
-        fontSize: 9,
+        fontSize: 10,
         allowProposedApi: true, // Required for Unicode11Addon
     });
 

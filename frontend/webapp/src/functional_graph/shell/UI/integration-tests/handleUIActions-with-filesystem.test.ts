@@ -14,30 +14,25 @@
  * - File watch handlers would normally update graph state (not tested here)
  */
 
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
+/* eslint-disable functional/no-this-expressions */
+/* eslint-disable functional/no-throw-statements */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
-import { createNewChildNodeFromUI } from '@/functional_graph/shell/UI/handleUIActions'
+import { createNewChildNodeFromUI, deleteNodeFromUI } from '@/functional_graph/shell/UI/handleUIActions'
 import type { Graph, GraphDelta } from '@/functional_graph/pure/types'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import type { IpcMainInvokeEvent } from 'electron'
+import { setVaultPath, setGraph } from '@/functional_graph/shell/state/graph-store'
 
-// State managed by mocked globals
+// State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
 let tempVault: string = ''
-
-const getGraph = (): Graph => {
-    if (!currentGraph) {
-        throw new Error('Graph not initialized')
-    }
-    return currentGraph
-}
-
-const setGraph = (graph: Graph): void => {
-    currentGraph = graph
-}
 
 // Mock Electron's ipcMain
 const ipcMain = {
@@ -53,6 +48,9 @@ const ipcMain = {
 // Mock electron module
 vi.mock('electron', () => ({
     ipcMain,
+    dialog: {
+        showOpenDialog: vi.fn()
+    },
     app: {
         whenReady: () => Promise.resolve(),
         on: vi.fn(),
@@ -60,39 +58,58 @@ vi.mock('electron', () => ({
     }
 }))
 
-// Mock main module globals
-vi.mock('@/electron/main.ts', () => ({
-    getGraph: () => {
-        if (!currentGraph) {
-            throw new Error('Graph not initialized')
+// Mock graph store - properly intercept vault path
+vi.mock('@/functional_graph/shell/state/graph-store.ts', () => {
+    return {
+        getGraph: () => {
+            if (!currentGraph) {
+                throw new Error('Graph not initialized')
+            }
+            return currentGraph
+        },
+        setGraph: (graph: Graph) => {
+            currentGraph = graph
+        },
+        getVaultPath: () => {
+            return tempVault ? O.of(tempVault) : O.none
+        },
+        setVaultPath: (path: string) => {
+            tempVault = path
+        },
+        clearVaultPath: () => {
+            tempVault = ''
         }
-        return currentGraph
-    },
-    setGraph: (graph: Graph) => {
-        currentGraph = graph
-    },
-    getVaultPath: () => tempVault,
-    getMainWindow: () => ({
-        webContents: {
-            send: vi.fn()
-        }
-    })
-}))
+    }
+})
+
+// Import IPC handlers once at module level
+let handlersImported = false
+async function ensureHandlersImported(): Promise<void> {
+    if (!handlersImported) {
+        const { registerAllIpcHandlers } = await import('@/functional_graph/shell/main/ipc-graph-handlers')
+        registerAllIpcHandlers({
+            terminalManager: {} as any,
+            positionManager: {} as any,
+            getBackendPort: () => null,
+            getToolsDirectory: () => ''
+        })
+        handlersImported = true
+    }
+}
 
 describe('createNewChildNodeFromUI - Integration with Filesystem', () => {
     let cy: Core
     let mockGraph: Graph
-    let handlersImported = false
 
     beforeEach(async () => {
         // Import IPC handlers once - they auto-register on import
-        if (!handlersImported) {
-            await import('@/functional_graph/shell/main/ipc-graph-handlers')
-            handlersImported = true
-        }
+        await ensureHandlersImported()
         // Create temporary vault directory
         tempVault = path.join('/tmp', `test-vault-ui-${Date.now()}`)
         await fs.mkdir(tempVault, { recursive: true })
+
+        // Set vault path in graph store
+        setVaultPath(tempVault)
 
         // Create initial markdown files with frontmatter and wikilinks
         await fs.writeFile(
@@ -128,7 +145,7 @@ Child content`
                     outgoingEdges: ['child1'],
                     nodeUIMetadata: {
                         color: O.none,
-                        position: { x: 100, y: 100 }
+                        position: O.of({ x: 100, y: 100 })
                     }
                 },
                 'child1': {
@@ -137,13 +154,14 @@ Child content`
                     outgoingEdges: [],
                     nodeUIMetadata: {
                         color: O.none,
-                        position: { x: 200, y: 200 }
+                        position: O.of({ x: 200, y: 200 })
                     }
                 }
             }
         }
 
         currentGraph = mockGraph
+        setGraph(mockGraph)
 
         // Initialize headless cytoscape
         cy = cytoscape({
@@ -268,5 +286,166 @@ Child content`
         // Parent should now have both edges
         expect(updatedParentContent).toContain('[[child1]]')
         expect(updatedParentContent).toContain('[[parent_1]]')
+    })
+})
+
+describe('deleteNodeFromUI - Integration with Filesystem', () => {
+    let cy: Core
+    let mockGraph: Graph
+
+    beforeEach(async () => {
+        // Import IPC handlers once - they auto-register on import
+        await ensureHandlersImported()
+        // Create temporary vault directory
+        tempVault = path.join('/tmp', `test-vault-delete-${Date.now()}`)
+        await fs.mkdir(tempVault, { recursive: true })
+
+        // Set vault path in graph store
+        setVaultPath(tempVault)
+
+        // Create initial markdown files
+        await fs.writeFile(
+            path.join(tempVault, 'parent.md'),
+            `---
+position:
+  x: 100
+  y: 100
+---
+# Parent Node
+
+Parent content
+[[child1]]`
+        )
+        await fs.writeFile(
+            path.join(tempVault, 'child1.md'),
+            `---
+position:
+  x: 200
+  y: 200
+---
+# Child 1
+
+Child content`
+        )
+
+        // Create graph state
+        mockGraph = {
+            nodes: {
+                'parent': {
+                    relativeFilePathIsID: 'parent',
+                    content: '# Parent Node\n\nParent content',
+                    outgoingEdges: ['child1'],
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.of({ x: 100, y: 100 })
+                    }
+                },
+                'child1': {
+                    relativeFilePathIsID: 'child1',
+                    content: '# Child 1\n\nChild content',
+                    outgoingEdges: [],
+                    nodeUIMetadata: {
+                        color: O.none,
+                        position: O.of({ x: 200, y: 200 })
+                    }
+                }
+            }
+        }
+
+        currentGraph = mockGraph
+        setGraph(mockGraph)
+
+        // Initialize headless cytoscape
+        cy = cytoscape({
+            headless: true,
+            elements: [
+                {
+                    group: 'nodes' as const,
+                    data: { id: 'parent', label: 'parent', content: '# Parent Node', summary: '' },
+                    position: { x: 100, y: 100 }
+                },
+                {
+                    group: 'nodes' as const,
+                    data: { id: 'child1', label: 'child1', content: '# Child 1', summary: '' },
+                    position: { x: 200, y: 200 }
+                },
+                {
+                    group: 'edges' as const,
+                    data: { id: 'parent-child1', source: 'parent', target: 'child1' }
+                }
+            ]
+        })
+
+        // Setup window.electronAPI to call through IPC
+        global.window = {
+            electronAPI: {
+                graph: {
+                    getState: async () => {
+                        const handler = ipcMain._handlers.get('graph:getState')
+                        if (handler) {
+                            const result = await handler({} as IpcMainInvokeEvent)
+                            return result.graph
+                        }
+                        throw new Error('graph:getState handler not registered')
+                    },
+                    applyGraphDelta: async (actions: GraphDelta) => {
+                        const handler = ipcMain._handlers.get('graph:applyDelta')
+                        if (handler) {
+                            return await handler({} as IpcMainInvokeEvent, actions)
+                        }
+                        throw new Error('graph:applyDelta handler not registered')
+                    }
+                }
+            }
+        } as any
+    })
+
+    afterEach(async () => {
+        cy.destroy()
+
+        // Cleanup temp vault
+        await fs.rm(tempVault, { recursive: true, force: true })
+
+        vi.clearAllMocks()
+    })
+
+    it('should delete node from cytoscape immediately (optimistic UI)', async () => {
+        // GIVEN: Graph with 2 nodes
+        expect(cy.nodes()).toHaveLength(2)
+        expect(cy.getElementById('child1').length).toBe(1)
+
+        // WHEN: Deleting child1 node
+        await deleteNodeFromUI('child1', cy)
+
+        // THEN: Node should be removed from cytoscape immediately
+        expect(cy.nodes()).toHaveLength(1)
+        expect(cy.getElementById('child1').length).toBe(0)
+        expect(cy.getElementById('parent').length).toBe(1)
+    })
+
+    it('should delete node file from disk', async () => {
+        // GIVEN: Both files exist on disk
+        const child1Path = path.join(tempVault, 'child1.md')
+        const initialExists = await fs.access(child1Path).then(() => true).catch(() => false)
+        expect(initialExists).toBe(true)
+
+        // WHEN: Deleting child1 node
+        await deleteNodeFromUI('child1', cy)
+
+        // THEN: File should be deleted from disk
+        const fileExists = await fs.access(child1Path).then(() => true).catch(() => false)
+        expect(fileExists).toBe(false)
+    })
+
+    it('should remove edges connected to deleted node', async () => {
+        // GIVEN: Graph with parent->child1 edge
+        expect(cy.edges()).toHaveLength(1)
+        expect(cy.getElementById('parent-child1').length).toBe(1)
+
+        // WHEN: Deleting child1 node
+        await deleteNodeFromUI('child1', cy)
+
+        // THEN: Edge should be removed automatically (cytoscape removes edges when node is removed)
+        expect(cy.edges()).toHaveLength(0)
     })
 })

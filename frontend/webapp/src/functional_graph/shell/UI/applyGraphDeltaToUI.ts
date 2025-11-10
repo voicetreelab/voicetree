@@ -27,6 +27,12 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 if (isNewNode) {
                     // Add new node with position (or default to origin if none)
                     const pos = O.getOrElse(() => ({ x: 0, y: 0 }))(node.nodeUIMetadata.position);
+                    const colorValue = O.isSome(node.nodeUIMetadata.color)
+                        ? node.nodeUIMetadata.color.value
+                        : undefined;
+
+                    console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
+
                     cy.add({
                         group: 'nodes' as const,
                         data: {
@@ -34,9 +40,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                             label: nodeId,
                             content: node.content,
                             summary: '',
-                            color: O.isSome(node.nodeUIMetadata.color)
-                                ? node.nodeUIMetadata.color.value
-                                : undefined
+                            color: colorValue
                         },
                         position: {
                             x: pos.x,
@@ -45,11 +49,6 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     });
                 } else {
                     // Update existing node metadata (but NOT position)
-
-                    // TODO SEND NODE CONTENT TO NODE EDITOR
-                    // window.markdownEditors[nodeID].updatContent(node.content)
-
-
                     existingNode.data('label', nodeId);
                     existingNode.data('summary', '');
                     const color = O.isSome(node.nodeUIMetadata.color)
@@ -66,19 +65,34 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
             }
         });
 
-        // PASS 2: Create all edges (now that all nodes exist)
+        // PASS 2: Sync edges for each node (add missing, remove stale)
         delta.forEach((nodeDelta) => {
             if (nodeDelta.type === 'UpsertNode') {
                 const node = nodeDelta.nodeToUpsert;
                 const nodeId = node.relativeFilePathIsID;
 
+                // Get current edges from this node in Cytoscape
+                const currentEdges = cy.edges(`[source = "${nodeId}"]`);
+                const currentTargets = new Set(currentEdges.map(edge => edge.data('target')));
+                const desiredTargets = new Set(node.outgoingEdges);
+
+                // Remove edges that are no longer in outgoingEdges
+                currentEdges.forEach((edge) => {
+                    const target = edge.data('target');
+                    if (!desiredTargets.has(target)) {
+                        console.log(`[applyGraphDeltaToUI] Removing stale edge: ${nodeId}->${target}`);
+                        edge.remove();
+                    }
+                });
+
                 // Add edges for all outgoing connections (if they don't exist)
                 node.outgoingEdges.forEach((targetId) => {
-                    const edgeId = `${nodeId}->${targetId}`;
-                    if (!cy.getElementById(edgeId).length) {
+                    if (!currentTargets.has(targetId)) {
+                        const edgeId = `${nodeId}->${targetId}`;
                         // Only create edge if target node exists
                         const targetNode = cy.getElementById(targetId);
                         if (targetNode.length > 0) {
+                            console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId}`);
                             cy.add({
                                 group: 'edges' as const,
                                 data: {

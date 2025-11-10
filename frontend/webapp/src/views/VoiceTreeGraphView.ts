@@ -154,6 +154,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             }
             applyGraphDeltaToUI(this.cy, delta);
 
+            // Track last created node for "fit to last node" hotkey (Space)
+            const lastUpsertedNode = delta.filter(d => d.type === 'UpsertNode').pop();
+            if (lastUpsertedNode && lastUpsertedNode.type === 'UpsertNode') {
+                this.navigationService.setLastCreatedNodeId(lastUpsertedNode.nodeToUpsert.relativeFilePathIsID);
+            }
+
             // fit to first few nodes added
             if (this.cy.nodes().size() <= 3){
                 this.cy.fit()
@@ -349,6 +355,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Expose cytoscape instance to window for testing
         (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = this.cy;
 
+        // Expose navigationService to window for testing
+        (window as unknown as { navigationService: unknown }).navigationService = this.navigationService;
+
+        // Expose voiceTreeGraphView to window for testing
+        (window as unknown as { voiceTreeGraphView: VoiceTreeGraphView }).voiceTreeGraphView = this;
+
         // Initialize animation service with cy instance (sets up event listeners)
         this.animationService = new BreathingAnimationService(this.cy);
 
@@ -478,6 +490,35 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         const cy = this.cy;
         // Use responsive padding instead of fixed pixels (default was 50px on 1440p)
         cy.fit(undefined, getResponsivePadding(cy, paddingPercentage));
+    }
+
+    refreshLayout(): void {
+        // Re-run the Cola layout algorithm
+        const cy = this.cy;
+
+        // Skip if no nodes
+        if (cy.nodes().length === 0) {
+            return;
+        }
+
+        // Use the same approach as autoLayout.ts
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ColaLayout = (cy as any).constructor.layouts.cola;
+        const layout = new ColaLayout({
+            cy: cy,
+            eles: cy.elements(),
+            animate: true,
+            randomize: false,
+            avoidOverlap: true,
+            handleDisconnected: true,
+            maxSimulationTime: 2000,
+            nodeSpacing: 20,
+            edgeLength: 200,
+            fit: false,
+            nodeDimensionsIncludeLabels: true
+        });
+
+        layout.run();
     }
 
     toggleDarkMode(): void {
