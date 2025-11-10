@@ -45,6 +45,9 @@ export class FloatingWindowManager {
     // Track which editors are open for each node (for external content updates)
     private nodeIdToEditorId = new Map<NodeId, string>();
 
+    // Track content that we're saving from the UI to prevent feedback loop
+    private awaitingUISavedContent = new Map<NodeId, string>();
+
     constructor(
         cy: Core,
         _getGraphState: GetGraphState,
@@ -99,7 +102,8 @@ export class FloatingWindowManager {
             const floatingWindow = await createFloatingEditor(
                 this.cy,
                 nodeId,
-                this.nodeIdToEditorId
+                this.nodeIdToEditorId,
+                this.awaitingUISavedContent
             ); // todo, we can early position the editor and the anchor node with positionChild logic
 
             // Return early if editor already exists
@@ -141,6 +145,23 @@ export class FloatingWindowManager {
                 const editorId = this.nodeIdToEditorId.get(nodeId);
 
                 if (editorId) {
+                    // Check if this is our own save coming back from the filesystem
+                    const awaiting = this.awaitingUISavedContent.get(nodeId);
+                    if (awaiting === newContent) {
+                        console.log('[FloatingWindowManager] Ignoring our own save for node:', nodeId);
+                        this.awaitingUISavedContent.delete(nodeId);
+                        // TODO
+                        //    Edge Case to Be Aware Of
+                        //
+                        //   1. Very Slow Filesystem (>600ms latency)
+                        //   If filesystem takes longer than the debounce interval, you could get:
+                        //   - Save "A" → store "A"
+                        //   - Save "AB" → store "AB" (overwrites)
+                        //   - FS event "A" arrives late → doesn't match "AB" → might update
+                        //   incorrectly
+                        continue;
+                    }
+
                     // Get the editor instance from vanillaInstances
                     const editorInstance = getVanillaInstance(editorId);
 
@@ -151,6 +172,8 @@ export class FloatingWindowManager {
                         if (editor.getValue() !== newContent) {
                             console.log('[FloatingWindowManager] Updating editor content for node:', nodeId);
                             editor.setValue(newContent);
+                            // Clean up the map entry when applying external changes
+                            this.awaitingUISavedContent.delete(nodeId);
                         }
                     }
                 }
@@ -248,7 +271,8 @@ export class FloatingWindowManager {
             const floatingWindow = await createFloatingEditor(
                 this.cy,
                 nodeId,
-                this.nodeIdToEditorId
+                this.nodeIdToEditorId,
+                this.awaitingUISavedContent
             );
 
             if (!floatingWindow) {
