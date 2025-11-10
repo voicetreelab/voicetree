@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import VoiceTreeTranscribe from '@/renderers/voicetree-transcribe';
+import VoiceTreeTranscribe from '@/renderers/voicetree-transcribe.tsx';
 import { type Token } from '@soniox/speech-to-text-web';
 
 // Mock the dependencies
@@ -50,7 +50,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
 
   it('should only send incremental text to backend, not accumulated text', async () => {
     // Import the mock after setting it up
-    const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient')).default;
+    const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient.tsx')).default;
 
     // Create a sequence of tokens that simulates real transcription
     const tokenSequences: Token[][] = [
@@ -129,7 +129,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
   });
 
   it('should handle manual text input separately from voice tokens', async () => {
-    const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient')).default;
+    const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient.tsx')).default;
 
     // Start with some voice tokens
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -196,7 +196,7 @@ describe('VoiceTree Incremental Sending Integration', () => {
   });
 
   it('should reset and resend when transcription restarts', async () => {
-    const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient')).default;
+    const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient.tsx')).default;
 
     let mockState = {
       state: 'Running' as const,

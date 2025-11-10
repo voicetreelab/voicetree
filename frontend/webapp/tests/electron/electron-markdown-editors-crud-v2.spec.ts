@@ -12,6 +12,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
+import type { EditorView } from '@codemirror/view';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -25,11 +26,11 @@ interface ExtendedWindow extends Window {
     stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
     getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
   };
-  testHelpers?: {
-    createTerminal: (nodeId: string) => void;
-    addNodeAtPosition: (position: { x: number; y: number }) => Promise<void>;
-    getEditorInstance: (windowId: string) => { getValue: () => string; setValue: (content: string) => void } | undefined;
-  };
+}
+
+// Helper type for CodeMirror access
+interface CodeMirrorElement extends HTMLElement {
+  cmView?: { view: EditorView };
 }
 
 // Extend test with Electron app
@@ -141,41 +142,46 @@ test.describe('Markdown Editor CRUD Tests', () => {
       return await api.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
-    // Wait for graph to load with architecture node
+    // Wait for file watching to start successfully
+    await appWindow.waitForTimeout(1000);
+
+    // Wait for graph to load with test node
+    const nodeId = '10_Setting_up_Agent_in_Feedback_Loop';
     await expect.poll(async () => {
-      return appWindow.evaluate(() => {
+      return appWindow.evaluate((nId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return false;
-        return cy.getElementById('architecture').length > 0;
-      });
+        return cy.getElementById(nId).length > 0;
+      }, nodeId);
     }, {
-      message: 'Waiting for architecture node to load',
+      message: `Waiting for ${nodeId} node to load`,
       timeout: 10000
     }).toBe(true);
 
     // Read original file content for restoration later
-    const testFilePath = path.join(FIXTURE_VAULT_PATH, 'architecture.md');
+    const testFilePath = path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content length:', originalContent.length);
 
-    // Click on the 'architecture' node to open editor
-    await appWindow.evaluate(() => {
+    // Click on the node to open editor
+    await appWindow.evaluate((nId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      const node = cy.getElementById('architecture');
-      if (node.length === 0) throw new Error('architecture node not found');
+      const node = cy.getElementById(nId);
+      if (node.length === 0) throw new Error(`${nId} node not found`);
 
       // Trigger tap event to open editor
       node.trigger('tap');
-    });
+    }, nodeId);
 
-    // Wait for editor window to appear in DOM (editors don't use shadow nodes)
+    // Wait for editor window to appear in DOM
+    const editorWindowId = `window-editor-${nodeId}`;
     await expect.poll(async () => {
-      return appWindow.evaluate(() => {
-        const editorWindow = document.getElementById('window-editor-architecture');
+      return appWindow.evaluate((winId) => {
+        const editorWindow = document.getElementById(winId);
         return editorWindow !== null;
-      });
+      }, editorWindowId);
     }, {
       message: 'Waiting for editor window to appear',
       timeout: 5000
@@ -184,25 +190,26 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror editor to render
-    await appWindow.waitForSelector('#window-editor-architecture .cm-editor', { timeout: 5000 });
+    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
 
-    // Modify content in the editor
-    const testContent = '# Architecture\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nSee [[core-principles]] for details.';
+    // Modify content in the editor using direct CodeMirror DOM access
+    const testContent = '# Setting up Agent in Feedback Loop\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nThis is a test to verify file sync works correctly.';
 
-    await appWindow.evaluate((newContent) => {
-      const w = (window as ExtendedWindow);
-      const editor = w.testHelpers?.getEditorInstance('editor-architecture');
-      if (editor) {
-        editor.setValue(newContent);
-      } else {
-        throw new Error('Editor instance not found for editor-architecture');
-      }
-    }, testContent);
+    await appWindow.evaluate(({ windowId, newContent }: { windowId: string; newContent: string }) => {
+      const editorElement = document.querySelector(`#${windowId} .cm-content`) as HTMLElement | null;
+      if (!editorElement) throw new Error('Editor content element not found');
+
+      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+      if (!cmView) throw new Error('CodeMirror view not found');
+
+      cmView.dispatch({
+        changes: { from: 0, to: cmView.state.doc.length, insert: newContent }
+      });
+    }, { windowId: editorWindowId, newContent: testContent });
 
     console.log('✓ Content modified in editor');
 
-    // Wait for auto-save to complete (no button click needed!)
-    // Auto-save triggers immediately on content change
+    // Wait for auto-save to complete
     await appWindow.waitForTimeout(200);
 
     // Verify file content changed on disk BEFORE closing
@@ -212,13 +219,12 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ File content saved correctly to disk BEFORE close');
 
     // CRITICAL TEST: Click the ACTUAL close button (not just remove shadow node)
-    // This is where the bug happens - close button might save stale content
     console.log('Clicking close button...');
-    await appWindow.evaluate(() => {
-      const closeButton = document.querySelector('#window-editor-architecture .cy-floating-window-close') as HTMLButtonElement;
+    await appWindow.evaluate((winId) => {
+      const closeButton = document.querySelector(`#${winId} .cy-floating-window-close`) as HTMLButtonElement | null;
       if (!closeButton) throw new Error('Close button not found!');
       closeButton.click();
-    });
+    }, editorWindowId);
 
     await appWindow.waitForTimeout(200); // Wait for close and any save operations
 
@@ -237,34 +243,39 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ File content STILL correct after clicking close button');
 
     // Re-open the editor to verify content persisted
-    await appWindow.evaluate(() => {
+    await appWindow.evaluate((nId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const node = cy.getElementById('architecture');
+      const node = cy.getElementById(nId);
       node.trigger('tap');
-    });
+    }, nodeId);
 
+    const shadowNodeId = `editor-${nodeId}`;
     await expect.poll(async () => {
-      return appWindow.evaluate(() => {
+      return appWindow.evaluate((shadowId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return false;
-        const shadowNode = cy.getElementById('editor-architecture');
+        const shadowNode = cy.getElementById(shadowId);
         return shadowNode.length > 0;
-      });
+      }, shadowNodeId);
     }, {
       message: 'Waiting for editor to re-open',
-      timeout: 500
+      timeout: 5000
     }).toBe(true);
 
     // Wait for CodeMirror editor to render again
-    await appWindow.waitForSelector('#window-editor-architecture .cm-editor', { timeout: 500 });
+    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
 
-    // Verify the editor shows the saved content
-    const editorContent = await appWindow.evaluate(() => {
-      const w = (window as ExtendedWindow);
-      const editor = w.testHelpers?.getEditorInstance('editor-architecture');
-      return editor?.getValue() || null;
-    });
+    // Verify the editor shows the saved content using direct DOM access
+    const editorContent = await appWindow.evaluate((winId) => {
+      const editorElement = document.querySelector(`#${winId} .cm-content`) as HTMLElement | null;
+      if (!editorElement) return null;
+
+      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+      if (!cmView) return null;
+
+      return cmView.state.doc.toString();
+    }, editorWindowId);
 
     expect(editorContent).toBe(testContent);
     console.log('✓ Editor shows saved content after reopening');
@@ -293,17 +304,18 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     await appWindow.waitForTimeout(3000);
 
+    const nodeId = 'introduction';
     // Read original file content for restoration
-    const testFilePath = path.join(FIXTURE_VAULT_PATH, 'introduction.md');
+    const testFilePath = path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
 
-    // Get initial edge count for 'introduction' node
-    const initialEdges = await appWindow.evaluate(() => {
+    // Get initial edge count for node
+    const initialEdges = await appWindow.evaluate((nId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      const node = cy.getElementById('introduction');
-      if (node.length === 0) throw new Error('introduction node not found');
+      const node = cy.getElementById(nId);
+      if (node.length === 0) throw new Error(`${nId} node not found`);
 
       const connectedEdges = node.connectedEdges();
       return {
@@ -314,26 +326,27 @@ test.describe('Markdown Editor CRUD Tests', () => {
           target: e.target().id()
         }))
       };
-    });
+    }, nodeId);
 
-    console.log('Initial outgoingEdges for introduction node:', initialEdges.nodeEdgeCount);
+    console.log(`Initial outgoingEdges for ${nodeId} node:`, initialEdges.nodeEdgeCount);
     console.log('Initial total outgoingEdges:', initialEdges.totalEdges);
 
-    // Click on the 'introduction' node to open editor
-    await appWindow.evaluate(() => {
+    // Click on the node to open editor
+    await appWindow.evaluate((nId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const node = cy.getElementById('introduction');
-      if (node.length === 0) throw new Error('introduction node not found for tap');
+      const node = cy.getElementById(nId);
+      if (node.length === 0) throw new Error(`${nId} node not found for tap`);
       node.trigger('tap');
-    });
+    }, nodeId);
 
-    // Wait for editor to open in DOM (editors don't use shadow nodes)
+    // Wait for editor to open in DOM
+    const editorWindowId = `window-editor-${nodeId}`;
     await expect.poll(async () => {
-      return appWindow.evaluate(() => {
-        const editorWindow = document.getElementById('window-editor-introduction');
+      return appWindow.evaluate((winId) => {
+        const editorWindow = document.getElementById(winId);
         return editorWindow !== null;
-      });
+      }, editorWindowId);
     }, {
       message: 'Waiting for editor to open',
       timeout: 5000
@@ -342,33 +355,34 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor opened');
 
     // Wait for CodeMirror editor to render
-    await appWindow.waitForSelector('#window-editor-introduction .cm-editor', { timeout: 5000 });
+    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
 
-    // Add a new wikilink to the content (link to 'README' which exists but isn't linked from introduction)
+    // Add a new wikilink to the content
     const newContent = originalContent + '\n\nNew section linking to [[README]] for testing.';
 
-    await appWindow.evaluate((content) => {
-      const w = (window as ExtendedWindow);
-      const editor = w.testHelpers?.getEditorInstance('editor-introduction');
-      if (editor) {
-        editor.setValue(content);
-      } else {
-        throw new Error('Editor instance not found for editor-introduction');
-      }
-    }, newContent);
+    await appWindow.evaluate(({ windowId, content }: { windowId: string; content: string }) => {
+      const editorElement = document.querySelector(`#${windowId} .cm-content`) as HTMLElement | null;
+      if (!editorElement) throw new Error('Editor content element not found');
+
+      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+      if (!cmView) throw new Error('CodeMirror view not found');
+
+      cmView.dispatch({
+        changes: { from: 0, to: cmView.state.doc.length, insert: content }
+      });
+    }, { windowId: editorWindowId, content: newContent });
 
     console.log('✓ Added wikilink to README');
 
-    // Wait for auto-save to complete (no button click needed!)
-    // Auto-save triggers immediately on content change
+    // Wait for auto-save to complete
     await appWindow.waitForTimeout(2000);
 
     // Verify new edge was created
-    const updatedEdges = await appWindow.evaluate(() => {
+    const updatedEdges = await appWindow.evaluate((nId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      const node = cy.getElementById('introduction');
+      const node = cy.getElementById(nId);
       const connectedEdges = node.connectedEdges();
 
       return {
@@ -383,13 +397,13 @@ test.describe('Markdown Editor CRUD Tests', () => {
         }),
         hasREADMEEdge: connectedEdges.some((e) => {
           const edge = e as EdgeSingular;
-          return (edge.source().id() === 'introduction' && edge.target().id() === 'README') ||
-            (edge.source().id() === 'README' && edge.target().id() === 'introduction');
+          return (edge.source().id() === nId && edge.target().id() === 'README') ||
+            (edge.source().id() === 'README' && edge.target().id() === nId);
         })
       };
-    });
+    }, nodeId);
 
-    console.log('Updated outgoingEdges for introduction node:', updatedEdges.nodeEdgeCount);
+    console.log(`Updated outgoingEdges for ${nodeId} node:`, updatedEdges.nodeEdgeCount);
     console.log('Updated total outgoingEdges:', updatedEdges.totalEdges);
     console.log('Has README edge:', updatedEdges.hasREADMEEdge);
 
@@ -418,40 +432,45 @@ test.describe('Markdown Editor CRUD Tests', () => {
       return await api.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
-    // Wait for api-design node to load
+    // Wait for file watching to start successfully
+    await appWindow.waitForTimeout(1000);
+
+    // Wait for test node to load
+    const nodeId = '11_Identify_Relevant_Test_for_Tree_Action_Decider_Workflow';
     await expect.poll(async () => {
-      return appWindow.evaluate(() => {
+      return appWindow.evaluate((nId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return false;
-        return cy.getElementById('api-design').length > 0;
-      });
+        return cy.getElementById(nId).length > 0;
+      }, nodeId);
     }, {
-      message: 'Waiting for api-design node to load',
+      message: `Waiting for ${nodeId} node to load`,
       timeout: 10000
     }).toBe(true);
 
     // Read original file content for restoration
-    const testFilePath = path.join(FIXTURE_VAULT_PATH, 'api-design.md');
+    const testFilePath = path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content:', originalContent.substring(0, 50) + '...');
 
-    // Open the editor for api-design node
-    await appWindow.evaluate(() => {
+    // Open the editor for the node
+    await appWindow.evaluate((nId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const node = cy.getElementById('api-design');
-      if (node.length === 0) throw new Error('api-design node not found');
+      const node = cy.getElementById(nId);
+      if (node.length === 0) throw new Error(`${nId} node not found`);
       node.trigger('tap');
-    });
+    }, nodeId);
 
     // Wait for editor to open
+    const shadowNodeId = `editor-${nodeId}`;
     await expect.poll(async () => {
-      return appWindow.evaluate(() => {
+      return appWindow.evaluate((shadowId) => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return false;
-        const shadowNode = cy.getElementById('editor-api-design');
+        const shadowNode = cy.getElementById(shadowId);
         return shadowNode.length > 0;
-      });
+      }, shadowNodeId);
     }, {
       message: 'Waiting for editor to open',
       timeout: 5000
@@ -460,20 +479,25 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor opened');
 
     // Wait for CodeMirror editor to render
-    await appWindow.waitForSelector('#window-editor-api-design .cm-editor', { timeout: 5000 });
+    const editorWindowId = `window-editor-${nodeId}`;
+    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
 
-    // Get initial editor content
-    const initialEditorContent = await appWindow.evaluate(() => {
-      const w = (window as ExtendedWindow);
-      const editor = w.testHelpers?.getEditorInstance('editor-api-design');
-      return editor?.getValue() || null;
-    });
+    // Get initial editor content using direct DOM access
+    const initialEditorContent = await appWindow.evaluate((winId) => {
+      const editorElement = document.querySelector(`#${winId} .cm-content`) as HTMLElement | null;
+      if (!editorElement) return null;
+
+      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+      if (!cmView) return null;
+
+      return cmView.state.doc.toString();
+    }, editorWindowId);
 
     expect(initialEditorContent).toBe(originalContent);
     console.log('✓ Editor shows original content');
 
     // Make an EXTERNAL change to the file (simulating external editor or another process)
-    const externallyChangedContent = '# API Design\n\n**EXTERNAL CHANGE** - This file was changed by an external process!\n\nThe editor should automatically sync to show this change.';
+    const externallyChangedContent = '# Identify Relevant Test\n\n**EXTERNAL CHANGE** - This file was changed by an external process!\n\nThe editor should automatically sync to show this change.';
     await fs.writeFile(testFilePath, externallyChangedContent, 'utf-8');
     console.log('✓ File changed externally');
 
@@ -481,11 +505,15 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await appWindow.waitForTimeout(2000);
 
     // Check if editor content was updated to match the external change
-    const updatedEditorContent = await appWindow.evaluate(() => {
-      const w = (window as ExtendedWindow);
-      const editor = w.testHelpers?.getEditorInstance('editor-api-design');
-      return editor?.getValue() || null;
-    });
+    const updatedEditorContent = await appWindow.evaluate((winId) => {
+      const editorElement = document.querySelector(`#${winId} .cm-content`) as HTMLElement | null;
+      if (!editorElement) return null;
+
+      const cmView = (editorElement as CodeMirrorElement).cmView?.view;
+      if (!cmView) return null;
+
+      return cmView.state.doc.toString();
+    }, editorWindowId);
 
     console.log('Editor content after external change:', updatedEditorContent?.substring(0, 50) + '...');
 
