@@ -2,7 +2,7 @@
 
 ## Different Link Formats
 - Basic: [[introduction]]
-- With absolutePath: [[concepts/architecture]]
+- With path: [[concepts/architecture]]
 - Parent directory: [[../README]]
 - Non-existent: [[ghost-file]]
 - Self-reference: [[complex-links]]

@@ -1,5 +1,5 @@
 /**
- * Test utilities for working with GraphDelta and mocked Electron API in browser tests
+ * Test utilities for working with GraphDelta and mocked Electron API in browser e2e-tests
  */
 import type { Page } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
@@ -93,7 +93,7 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onGraphUpdate: (callback: (delta: any) => void) => {
           console.log('[Mock] onGraphUpdate callback registered');
-          // Store the callback so tests can trigger it
+          // Store the callback so e2e-tests can trigger it
           mockElectronAPI.graph._updateCallback = callback;
           return () => {
             console.log('[Mock] onGraphUpdate cleanup called');

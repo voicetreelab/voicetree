@@ -5,16 +5,17 @@
     "paths": {
       "@/*": ["./src/*"],
       "@wasm/*": ["./tidy/wasm_dist/*"],
-      "@test/*": ["./tests/*"]
+      "@test/*": ["./e2e-tests/*"],
+      "@e2e/*": ["./e2e-tests/*"]
     }
   },
   "include": [
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
-    "tests/**/*.ts",
-    "tests/**/*.tsx"
+    "e2e-tests/**/*.ts",
+    "e2e-tests/**/*.tsx"
   ],
   "exclude": [
-    "tests/electron/**"
+    "e2e-tests/electron/**"
   ]
 }

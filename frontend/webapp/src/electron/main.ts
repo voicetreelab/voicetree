@@ -123,7 +123,7 @@ function createWindow() {
   // Control window visibility after content is ready
   mainWindow.once('ready-to-show', () => {
     if (process.env.MINIMIZE_TEST === '1') {
-      // For tests: show window without stealing focus, then minimize
+      // For e2e-tests: show window without stealing focus, then minimize
       mainWindow.showInactive();
       mainWindow.hide() // THIS IS THE FINAL THING THAT ACTUALLY WORKED?????????
       // mainWindow.minimize(); // THIS IS ANNOYING IT CAUSES VISUAL ANMIATION
@@ -148,7 +148,7 @@ registerAllIpcHandlers({
 
 // App event handlers
 app.whenReady().then(async () => {
-  // Hide dock icon on macOS when running tests to prevent focus stealing
+  // Hide dock icon on macOS when running e2e-tests to prevent focus stealing
   if (process.env.MINIMIZE_TEST === '1' && process.platform === 'darwin' && app.dock) {
     app.dock.hide();
   }

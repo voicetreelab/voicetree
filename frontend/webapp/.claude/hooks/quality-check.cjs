@@ -518,7 +518,7 @@ class QualityChecker {
 
     await Promise.all(checkPromises);
 
-    // Check for related tests (not critical, so separate)
+    // Check for related e2e-tests (not critical, so separate)
     await this.suggestRelatedTests();
 
     return {
@@ -1006,7 +1006,7 @@ class QualityChecker {
         await fs.access(`${baseName}.${ext}`);
         hasTests = true;
         log.warning(`💡 Related test found: ${path.basename(baseName)}.${ext}`);
-        log.warning('   Consider running the tests to ensure nothing broke');
+        log.warning('   Consider running the e2e-tests to ensure nothing broke');
         break;
       } catch {
         // File doesn't exist, continue
@@ -1024,7 +1024,7 @@ class QualityChecker {
           await fs.access(path.join(dir, '__tests__', `${baseFileName}.${ext}`));
           hasTests = true;
           log.warning(`💡 Related test found: __tests__/${baseFileName}.${ext}`);
-          log.warning('   Consider running the tests to ensure nothing broke');
+          log.warning('   Consider running the e2e-tests to ensure nothing broke');
           break;
         } catch {
           // File doesn't exist, continue
@@ -1034,7 +1034,7 @@ class QualityChecker {
 
     if (!hasTests) {
       log.warning(`💡 No test file found for ${path.basename(this.filePath)}`);
-      log.warning('   Consider adding tests for better code quality');
+      log.warning('   Consider adding e2e-tests for better code quality');
     }
 
     // Special reminders for specific file types

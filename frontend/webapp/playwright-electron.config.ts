@@ -1,17 +1,17 @@
 import { defineConfig } from '@playwright/test';
 
 /**
- * Playwright configuration for Electron E2E tests
+ * Playwright configuration for Electron E2E e2e-tests
  * This configuration is specifically for testing the Electron application
  * with real file system operations and the complete IPC pipeline.
  */
 export default defineConfig({
-  testDir: './tests/electron',
-  testMatch: '**/electron-*.spec.ts', // Only run electron-specific tests
-  fullyParallel: false, // Run tests sequentially for Electron
+  testDir: './e2e-tests/electron',
+  testMatch: '**/electron-*.spec.ts', // Only run electron-specific e2e-tests
+  fullyParallel: false, // Run e2e-tests sequentially for Electron
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 1, // Single worker for Electron tests
+  workers: 1, // Single worker for Electron e2e-tests
   // Suppress noisy internal warnings
   quiet: process.env.PLAYWRIGHT_QUIET !== 'false',
   reporter: [
@@ -34,5 +34,5 @@ export default defineConfig({
     }
   ],
 
-  // No web server needed for Electron tests
+  // No web server needed for Electron e2e-tests
 });

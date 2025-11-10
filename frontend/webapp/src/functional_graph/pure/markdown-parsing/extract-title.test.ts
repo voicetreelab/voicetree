@@ -104,7 +104,7 @@ describe('extractTitle', () => {
     const result = extractTitle(content)
 
     // The simple regex matches any heading, even in code blocks
-    // This tests actual behavior, not desired behavior
+    // This e2e-tests actual behavior, not desired behavior
     expect(result).toBe('Not a heading')
   })
 

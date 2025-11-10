@@ -6,7 +6,7 @@
  * - OUTPUT: Graph with correct edges extracted from wikilinks
  * - SIDE EFFECTS: None (pure loading test)
  *
- * This tests the integration of:
+ * This e2e-tests the integration of:
  * - Loading markdown files from disk
  * - Parsing markdown content to extract wikilinks
  * - Resolving wikilinks to node IDs

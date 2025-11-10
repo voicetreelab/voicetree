@@ -396,7 +396,7 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
       // Editors are medium - typical size ~500x300
       return { width: 400, height: 400 };
     case 'TestComponent':
-      // Test component - small size for tests
+      // Test component - small size for e2e-tests
       return { width: 200, height: 150 };
     default:
       // Default for unknown components

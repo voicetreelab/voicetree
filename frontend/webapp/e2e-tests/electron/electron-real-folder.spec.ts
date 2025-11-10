@@ -4,7 +4,7 @@
  * 2. Creating/deleting markdown files adds/removes nodes from the graph
  * 3. Bulk loads use tree layout; incremental nodes are positioned without overlap
  *
- * NOTE: Markdown editor CRUD tests (clicking nodes, adding wikilinks, bidirectional sync)
+ * NOTE: Markdown editor CRUD e2e-tests (clicking nodes, adding wikilinks, bidirectional sync)
  * are in electron-markdown-editors-crud.spec.ts
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
@@ -775,8 +775,8 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     console.log(`  High degree (${nodeSizeData.highest.degree}): ${Math.round(nodeSizeData.highest.width)}x${Math.round(nodeSizeData.highest.height)}px, border: ${nodeSizeData.highest.borderWidth}px`);
 
     // Take screenshot for visual verification
-    await appWindow.screenshot({ path: 'test-results/degree-scaling-visualization.png' });
-    console.log('✓ Screenshot saved to test-results/degree-scaling-visualization.png');
+    await appWindow.screenshot({ path: 'e2e-tests/test-results/degree-scaling-visualization.png' });
+    console.log('✓ Screenshot saved to e2e-tests/test-results/degree-scaling-visualization.png');
 
     console.log('✓ GraphNode degree scaling test completed');
   });
@@ -794,7 +794,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     await appWindow.waitForTimeout(3000); // Wait for initial scan
 
     // Test box selection by programmatically selecting nodes
-    // This tests that boxSelectionEnabled is set and the boxend event fires
+    // This e2e-tests that boxSelectionEnabled is set and the boxend event fires
     const selectionResult = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');

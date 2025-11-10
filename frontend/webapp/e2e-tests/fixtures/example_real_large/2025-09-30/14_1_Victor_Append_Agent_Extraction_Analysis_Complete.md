@@ -134,21 +134,21 @@ flowchart TB
 
 **Primary Validation Test** (Run after each extraction step):
 ```bash
-uv run pytest backend/tests/integration_tests/text_to_graph_pipeline/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/test_AppendtoRelevantNodeAgent.py -v -s
+uv run pytest backend/e2e-tests/integration_tests/text_to_graph_pipeline/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/test_AppendtoRelevantNodeAgent.py -v -s
 ```
 
 **Prompt-Level Tests** (For faster iteration):
 ```bash
 # Test segmentation prompt
-uv run pytest backend/tests/integration_tests/text_to_graph_pipeline/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/segmentation/test_segmentation.py -v
+uv run pytest backend/e2e-tests/integration_tests/text_to_graph_pipeline/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/segmentation/test_segmentation.py -v
 
 # Test target identification prompt
-uv run pytest backend/tests/integration_tests/text_to_graph_pipeline/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/identify_target_node/test_identify_target_node_hard.py -v
+uv run pytest backend/e2e-tests/integration_tests/text_to_graph_pipeline/agentic_workflows/agents_and_prompts_tests/AppendToRelevantNodeAgent/identify_target_node/test_identify_target_node_hard.py -v
 ```
 
 **Final Integration Test** (After Cloud Run deployment):
 ```bash
-uv run pytest backend/tests/integration_tests/text_to_graph_pipeline/agentic_workflows/test_real_examples.py -v
+uv run pytest backend/e2e-tests/integration_tests/text_to_graph_pipeline/agentic_workflows/test_real_examples.py -v
 ```
 
 **Why NOT use `test_real_examples.py` for feedback loop:**

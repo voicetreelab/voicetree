@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
 
 /**
- * Test utilities for file-to-graph pipeline tests
+ * Test utilities for file-to-graph pipeline e2e-tests
  * Handles multiple VoiceTreeGraphVizLayout instances gracefully
  */
 

@@ -17,7 +17,7 @@ export async function initializeBackendConnection(): Promise<void> {
     backendPort = await window.electronAPI.getBackendPort();
     console.log(`[Backend API] Connected to port ${backendPort}`);
   } else {
-    // Fallback for main process or non-Electron environments (tests, browser)
+    // Fallback for main process or non-Electron environments (e2e-tests, browser)
     backendPort = 8001;
     console.log(`[Backend API] Running in main process or non-Electron mode, using fallback port ${backendPort}`);
   }

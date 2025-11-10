@@ -101,7 +101,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
 
     // Screenshot
     await appWindow.screenshot({
-      path: 'tests/screenshots/electron-command-hover-editor-opened.png'
+      path: 'e2e-tests/screenshots/electron-command-hover-editor-opened.png'
     });
 
     // Cleanup
@@ -410,7 +410,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
 
     // Screenshot before pan
     await appWindow.screenshot({
-      path: 'tests/screenshots/electron-command-hover-before-pan.png'
+      path: 'e2e-tests/screenshots/electron-command-hover-before-pan.png'
     });
 
     // Pan the graph
@@ -441,7 +441,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
 
     // Screenshot after pan
     await appWindow.screenshot({
-      path: 'tests/screenshots/electron-command-hover-after-pan.png'
+      path: 'e2e-tests/screenshots/electron-command-hover-after-pan.png'
     });
 
     // Cleanup
@@ -503,7 +503,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
 
     // Screenshot with content
     await appWindow.screenshot({
-      path: 'tests/screenshots/electron-command-hover-with-content.png'
+      path: 'e2e-tests/screenshots/electron-command-hover-with-content.png'
     });
 
     // Cleanup

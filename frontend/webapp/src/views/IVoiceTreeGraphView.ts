@@ -5,7 +5,7 @@
  * which wraps Cytoscape.js and handles file watching, node updates, and user interactions.
  *
  * This contract is the source of truth for:
- * - Hugo (test writer): Write tests against this interface
+ * - Hugo (test writer): Write e2e-tests against this interface
  * - Iris (implementer): Implement this interface exactly
  * - Diana (integrator): Use this interface to wire up VoiceTreeApp
  */

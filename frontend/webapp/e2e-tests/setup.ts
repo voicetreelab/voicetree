@@ -29,7 +29,7 @@ vi.mock('ninja-keys', () => {
   return {};
 });
 
-// Mock console methods to suppress error logs during tests
+// Mock console methods to suppress error logs during e2e-tests
 beforeAll(() => {
   // Store original console methods
   const originalError = console.error;
@@ -106,7 +106,7 @@ Object.defineProperty(window, "localStorage", {
   writable: true,
 });
 
-// Mock HTMLCanvasElement.getContext for SoundWaveVisualizer tests
+// Mock HTMLCanvasElement.getContext for SoundWaveVisualizer e2e-tests
 HTMLCanvasElement.prototype.getContext = (() => {
   return {
     fillRect: () => {},
@@ -190,7 +190,7 @@ Object.defineProperty(navigator, "mediaDevices", {
   },
 });
 
-// Mock navigator.clipboard for user-event tests
+// Mock navigator.clipboard for user-event e2e-tests
 Object.defineProperty(navigator, 'clipboard', {
   value: {
     writeText: vi.fn().mockResolvedValue(undefined),
@@ -208,5 +208,5 @@ Object.defineProperty(navigator, 'webdriver', {
   configurable: true
 });
 
-// Mock HTMLElement.scrollTo for useAutoScroll tests
+// Mock HTMLElement.scrollTo for useAutoScroll e2e-tests
 HTMLElement.prototype.scrollTo = vi.fn();

@@ -40,7 +40,7 @@ const test = base.extend<{
       args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
       env: {
         ...process.env,
-        NODE_ENV: 'test', // Use stub backend (simpler, faster, still tests port discovery)
+        NODE_ENV: 'test', // Use stub backend (simpler, faster, still e2e-tests port discovery)
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       }

@@ -9,7 +9,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@test/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { GraphDelta } from '@/functional_graph/pure/types.ts';
 
 test.describe('Floating Anchored Editor (Browser)', () => {
@@ -93,20 +93,31 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(editorContent).toContain('This is test content for the floating editor');
     console.log('✓ Content verified in editor');
 
-    console.log('=== Step 7: Get initial shadow node dimensions ===');
+    console.log('=== Step 7: Verify child shadow node exists and get dimensions ===');
     const initialDims = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const shadowNode = cy.$('#editor-test-editor-node\\.md');
-      if (shadowNode.length === 0) throw new Error('Shadow node not found');
+      // The editor is now anchored to a child shadow node
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
+      if (childShadowNode.length === 0) throw new Error('Child shadow node not found');
+
+      // Verify parent relationship
+      const parentId = childShadowNode.data('parentId');
+      if (parentId !== 'test-editor-node.md') {
+        throw new Error(`Expected parentId to be 'test-editor-node.md', got '${parentId}'`);
+      }
+
       return {
-        width: shadowNode.width(),
-        height: shadowNode.height()
+        width: childShadowNode.width(),
+        height: childShadowNode.height(),
+        parentId: parentId
       };
     });
-    console.log(`  Initial shadow node dims: ${initialDims.width}x${initialDims.height}`);
+    console.log(`  Child shadow node dims: ${initialDims.width}x${initialDims.height}`);
+    console.log(`  Child shadow node parent: ${initialDims.parentId}`);
     expect(initialDims.width).toBeGreaterThan(0);
     expect(initialDims.height).toBeGreaterThan(0);
+    expect(initialDims.parentId).toBe('test-editor-node.md');
 
     console.log('=== Step 8: Resize window smaller ===');
     const resizeHandle = await page.locator(`${editorSelector} .cy-floating-window-resize-handle`);
@@ -124,10 +135,10 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const smallerDims = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const shadowNode = cy.$('#editor-test-editor-node\\.md');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
       return {
-        width: shadowNode.width(),
-        height: shadowNode.height()
+        width: childShadowNode.width(),
+        height: childShadowNode.height()
       };
     });
     console.log(`  Smaller shadow node dims: ${smallerDims.width}x${smallerDims.height}`);
@@ -147,10 +158,10 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const biggerDims = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const shadowNode = cy.$('#editor-test-editor-node\\.md');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
       return {
-        width: shadowNode.width(),
-        height: shadowNode.height()
+        width: childShadowNode.width(),
+        height: childShadowNode.height()
       };
     });
     console.log(`  Bigger shadow node dims: ${biggerDims.width}x${biggerDims.height}`);
@@ -170,10 +181,10 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const finalSmallerDims = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const shadowNode = cy.$('#editor-test-editor-node\\.md');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
       return {
-        width: shadowNode.width(),
-        height: shadowNode.height()
+        width: childShadowNode.width(),
+        height: childShadowNode.height()
       };
     });
     console.log(`  Final smaller shadow node dims: ${finalSmallerDims.width}x${finalSmallerDims.height}`);
@@ -209,19 +220,19 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(newNodePos.x).toBe(600);
     expect(newNodePos.y).toBe(600);
 
-    // Verify shadow node also moved (it should be anchored to the node)
-    const shadowNodePos = await page.evaluate(() => {
+    // Verify child shadow node also moved (it should be a child of the parent node)
+    const childShadowNodePos = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const shadowNode = cy.$('#editor-test-editor-node\\.md');
-      return shadowNode.position();
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
+      return childShadowNode.position();
     });
-    console.log(`  Shadow node pos: (${shadowNodePos.x}, ${shadowNodePos.y})`);
-    // Shadow should be near the anchor node (with some offset)
-    expect(Math.abs(shadowNodePos.x - newNodePos.x)).toBeLessThan(500);
-    expect(Math.abs(shadowNodePos.y - newNodePos.y)).toBeLessThan(500);
+    console.log(`  Child shadow node pos: (${childShadowNodePos.x}, ${childShadowNodePos.y})`);
+    // Child shadow should be near the parent node (with some offset)
+    expect(Math.abs(childShadowNodePos.x - newNodePos.x)).toBeLessThan(500);
+    expect(Math.abs(childShadowNodePos.y - newNodePos.y)).toBeLessThan(500);
 
-    console.log('=== Step 12: Close editor ===');
+    console.log('=== Step 12: Close editor and verify cleanup ===');
     const closeButton = await page.locator(`${editorSelector} .cy-floating-window-close`);
     await closeButton.click();
     await page.waitForTimeout(300);
@@ -233,6 +244,16 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     }, editorSelector);
     expect(editorGone).toBe(true);
     console.log('✓ Editor window closed');
+
+    // Verify child shadow node is also removed
+    const childShadowNodeRemoved = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
+      return childShadowNode.length === 0;
+    });
+    expect(childShadowNodeRemoved).toBe(true);
+    console.log('✓ Child shadow node removed');
 
     console.log('=== Step 13: Reopen editor ===');
     await page.evaluate(() => {

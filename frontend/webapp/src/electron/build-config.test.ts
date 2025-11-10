@@ -1,5 +1,5 @@
 /**
- * Unit tests for centralized build configuration
+ * Unit e2e-tests for centralized build configuration
  * Tests that build-config correctly computes paths for dev/prod/packaged modes
  */
 

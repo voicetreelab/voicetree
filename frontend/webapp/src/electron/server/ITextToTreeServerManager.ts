@@ -9,7 +9,7 @@
  * in FileWatchHandler and the frontend renderer.
  *
  * Implementations:
- * - StubTextToTreeServerManager: Lightweight HTTP server for tests
+ * - StubTextToTreeServerManager: Lightweight HTTP server for e2e-tests
  * - RealTextToTreeServerManager: Python backend process manager
  */
 export interface ITextToTreeServerManager {

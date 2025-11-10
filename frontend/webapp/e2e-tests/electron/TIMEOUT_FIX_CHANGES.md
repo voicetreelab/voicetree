@@ -156,12 +156,12 @@ console.log(`✓ Complex links created ${graphWithComplexLinks!.connectedEdgeCou
 
 **Before:**
 ```typescript
-testDir: './tests/e2e',
+testDir: './e2e-tests/e2e',
 ```
 
 **After:**
 ```typescript
-testDir: './tests/electron',
+testDir: './e2e-tests/electron',
 ```
 
 **Reason:** Tests were reorganized into `tests/electron/` directory.

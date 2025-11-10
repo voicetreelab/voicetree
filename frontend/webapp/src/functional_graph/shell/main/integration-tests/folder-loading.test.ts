@@ -6,7 +6,7 @@
  * - OUTPUT: Graph state correctly populated
  * - SIDE EFFECTS: Broadcast to renderer with graph delta
  *
- * This tests the integration of:
+ * This e2e-tests the integration of:
  * - Loading a graph from disk
  * - Updating graph state
  * - Broadcasting deltas to the UI

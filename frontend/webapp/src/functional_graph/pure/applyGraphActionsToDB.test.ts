@@ -16,12 +16,12 @@ describe('apply_graph_updates', () => {
     broadcast: vi.fn()
   }
 
-  // Create test vault directory before all tests
+  // Create test vault directory before all e2e-tests
   beforeAll(async () => {
     await fs.mkdir(testVaultPath, { recursive: true })
   })
 
-  // Clean up test vault directory after all tests
+  // Clean up test vault directory after all e2e-tests
   afterAll(async () => {
     await fs.rm(testVaultPath, { recursive: true, force: true })
   })

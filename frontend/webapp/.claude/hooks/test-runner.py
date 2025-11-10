@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test runner hook for Claude Code.
-Runs tests and provides concise feedback, blocking Claude if tests fail.
+Runs e2e-tests and provides concise feedback, blocking Claude if e2e-tests fail.
 """
 import json
 import subprocess
@@ -40,13 +40,13 @@ def has_source_code_changes():
         # Return True if any source code changes exist
         return bool(unstaged_changes or staged_changes)
     except Exception as e:
-        # If we can't determine changes, run tests to be safe
-        print(f"Warning: Could not check for changes ({e}), running tests anyway")
+        # If we can't determine changes, run e2e-tests to be safe
+        print(f"Warning: Could not check for changes ({e}), running e2e-tests anyway")
         return True
 
 
 def run_unit_tests():
-    """Run unit tests (vitest) and capture output."""
+    """Run unit e2e-tests (vitest) and capture output."""
     start_time = time.time()
     try:
         result = subprocess.run(
@@ -60,17 +60,17 @@ def run_unit_tests():
         return result.returncode, result.stdout, result.stderr, elapsed_time
     except subprocess.TimeoutExpired:
         elapsed_time = time.time() - start_time
-        return -1, "", "Unit tests timed out after 90 seconds", elapsed_time
+        return -1, "", "Unit e2e-tests timed out after 90 seconds", elapsed_time
     except Exception as e:
         elapsed_time = time.time() - start_time
-        return -1, "", f"Error running unit tests: {e}", elapsed_time
+        return -1, "", f"Error running unit e2e-tests: {e}", elapsed_time
 
 
 def run_e2e_test():
     """Run the system e2e test and capture output."""
     start_time = time.time()
     try:
-        # First build the app for electron tests
+        # First build the app for electron e2e-tests
         build_result = subprocess.run(
             ["npm", "run", "build:test"],
             cwd=str(PROJECT_ROOT),
@@ -85,7 +85,7 @@ def run_e2e_test():
 
         # Run the specific e2e test
         result = subprocess.run(
-            ["npx", "playwright", "test", "tests/e2e/full-app/electron-real-folder.spec.ts", "--config=playwright-electron.config.ts"],
+            ["npx", "playwright", "test", "e2e-tests/e2e/full-app/electron-real-folder.spec.ts", "--config=playwright-electron.config.ts"],
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
@@ -146,7 +146,7 @@ def main():
     total_time = 0
     all_passed = True
 
-    # Run unit tests
+    # Run unit e2e-tests
     exit_code, stdout, stderr, elapsed_time = run_unit_tests()
     total_time += elapsed_time
 
@@ -155,7 +155,7 @@ def main():
 
     if exit_code != 0:
         all_passed = False
-        print(f"❌ Unit tests failed ({elapsed_time:.1f}s)", file=sys.stderr)
+        print(f"❌ Unit e2e-tests failed ({elapsed_time:.1f}s)", file=sys.stderr)
         for line in unit_summary:
             print(f"  • {line}", file=sys.stderr)
 
@@ -187,10 +187,10 @@ def main():
                         print(f"  • {line.strip()}", file=sys.stderr)
                         break
 
-    # Add timing warning if total tests took longer than 60 seconds (only show on failures)
+    # Add timing warning if total e2e-tests took longer than 60 seconds (only show on failures)
     if total_time > 60 and not all_passed:
-        print(f"\n⚠️  WARNING: All tests took {total_time:.1f} seconds (> 1 minute)", file=sys.stderr)
-        print("   Consider optimizing test performance or splitting tests", file=sys.stderr)
+        print(f"\n⚠️  WARNING: All e2e-tests took {total_time:.1f} seconds (> 1 minute)", file=sys.stderr)
+        print("   Consider optimizing test performance or splitting e2e-tests", file=sys.stderr)
 
     # Final summary
     if all_passed:
@@ -199,7 +199,7 @@ def main():
     else:
         # Failure - output to stderr and exit with code 2
         print(f"\n{'='*50}", file=sys.stderr)
-        print(f"❌ Some tests failed! Total time: {total_time:.1f}s", file=sys.stderr)
+        print(f"❌ Some e2e-tests failed! Total time: {total_time:.1f}s", file=sys.stderr)
         print("\nTests must pass before stopping. Please review and fix the failures.", file=sys.stderr)
         sys.exit(2)
 
