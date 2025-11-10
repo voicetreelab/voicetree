@@ -2,6 +2,7 @@ import type {Core} from "cytoscape";
 import type {GraphDelta} from "@/functional_graph/pure/types.ts";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta} from "@/functional_graph/pure/graph-operations /prettyPrint.ts";
+import {markdownToTitle} from "@/functional_graph/pure/markdown-parsing/markdown-to-title";
 
 /**
  * Apply a GraphDelta to the Cytoscape UI
@@ -33,11 +34,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
 
                     console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
 
+                    const label = markdownToTitle(node);
+
                     cy.add({
                         group: 'nodes' as const,
                         data: {
                             id: nodeId,
-                            label: nodeId,
+                            label: label,
                             content: node.content,
                             summary: '',
                             color: colorValue
@@ -49,7 +52,8 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     });
                 } else {
                     // Update existing node metadata (but NOT position)
-                    existingNode.data('label', nodeId);
+                    const label = markdownToTitle(node);
+                    existingNode.data('label', label);
                     existingNode.data('summary', '');
                     const color = O.isSome(node.nodeUIMetadata.color)
                         ? node.nodeUIMetadata.color.value
@@ -80,8 +84,21 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 currentEdges.forEach((edge) => {
                     const target = edge.data('target');
                     if (!desiredTargets.has(target)) {
-                        console.log(`[applyGraphDeltaToUI] Removing stale edge: ${nodeId}->${target}`);
-                        edge.remove();
+                        if (!target.includes("shadow")){
+                            // Only remove edge if target node doesn't exist in UI
+                            // This prevents race condition where file watcher processes parent before child exists
+                            const targetNode = cy.getElementById(target);
+                            if (targetNode.length === 0) {
+                                console.log(`[applyGraphDeltaToUI] Removing stale edge: ${nodeId}->${target}`);
+                                edge.remove();
+                            } else {
+                                console.log(`[applyGraphDeltaToUI] Keeping edge to existing node: ${nodeId}->${target} (race condition protection)`);
+                            }
+                        }
+                        else {
+                            // todo, make shadow node part of the pure Graph type system / DSL itself.
+                            console.log("Not removing shadow node.")
+                        }
                     }
                 });
 

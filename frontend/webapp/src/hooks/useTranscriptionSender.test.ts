@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useTranscriptionSender } from '@/hooks/useTranscriptionSender';
 import { type Token } from '@soniox/speech-to-text-web';
 
@@ -43,9 +43,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
         await result.current.sendIncrementalTokens(firstTokens);
       });
 
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledTimes(1);
-      });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
 
       // Verify first send contains "Hello world"
       const firstCall = mockFetch.mock.calls[0];
@@ -64,9 +62,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
         await result.current.sendIncrementalTokens(updatedTokens);
       });
 
-      await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledTimes(2);
-      });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
 
       // Verify second send contains only the NEW text
       const secondCall = mockFetch.mock.calls[1];
@@ -136,9 +132,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
           await result.current.sendIncrementalTokens(update.tokens);
         });
 
-        await waitFor(() => {
-          expect(mockFetch).toHaveBeenCalledTimes(index + 1);
-        });
+        expect(mockFetch).toHaveBeenCalledTimes(index + 1);
 
         const call = mockFetch.mock.calls[index];
         const body = JSON.parse(call[1].body);
@@ -300,9 +294,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
         await result.current.sendManualText('Test text');
       });
 
-      await waitFor(() => {
-        expect(result.current.bufferLength).toBe(250);
-      });
+      expect(result.current.bufferLength).toBe(250);
     });
 
     it('should set and clear processing state correctly', async () => {
@@ -319,13 +311,14 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
 
       mockFetch.mockReturnValueOnce(controlledPromise);
 
-      // Start sending (don't await immediately to check intermediate state)
-      const sendPromise = result.current.sendManualText('Test');
-
-      // Should be processing now
-      await waitFor(() => {
-        expect(result.current.isProcessing).toBe(true);
+      // Start sending without awaiting to check intermediate state
+      let sendPromise: Promise<void>;
+      act(() => {
+        sendPromise = result.current.sendManualText('Test');
       });
+
+      // Should be processing now (state update happens synchronously)
+      expect(result.current.isProcessing).toBe(true);
 
       // Resolve the request
       resolvePromise!({
@@ -335,7 +328,7 @@ describe('useTranscriptionSender - Behavioral Tests', () => {
 
       // Wait for the send to complete
       await act(async () => {
-        await sendPromise;
+        await sendPromise!;
       });
 
       // Should not be processing anymore

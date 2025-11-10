@@ -45,7 +45,7 @@ color: blue
 
     // Check that content is preserved correctly
     expect(content).toContain('node_id: 123');
-    expect(content).toContain('title: Test GraphNode');
+    expect(content).toContain('title: Test Node');
     expect(content).toContain('# Main content here');
 
     // Verify the structure: opening ---, content, closing ---,main content

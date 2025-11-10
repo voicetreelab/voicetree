@@ -106,25 +106,10 @@ declare global {
     // Graph-related properties exposed for testing
     cy: CytoscapeCore | null;
     cytoscapeCore: CytoscapeCore | null;
+    cytoscapeInstance: CytoscapeCore | null;
     layoutManager: LayoutManager | null;
     // Test helper functions
     loadTestData: () => void;
     simulateFileLoad: (files: File[]) => void;
   }
-}
-
-// File observer specific IPC interfaces
-export interface DirectoryPickerResult {
-  canceled: boolean;
-  directoryPath?: string;
-}
-
-export interface FileWatcherStartResult {
-  success: boolean;
-  error?: string;
-}
-
-export interface FileWatcherStopResult {
-  success: boolean;
-  error?: string;
 }
