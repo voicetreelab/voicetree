@@ -16,7 +16,7 @@ import getAPIKey from '@/utils/get-api-key';
  * Usage:
  * ```typescript
  * const container = document.getElementById('voice-input-container');
- * const view = new VoiceInputView(container, 'http://localhost:8001/api');
+ * const view = new VoiceInputView(container);
  *
  * view.onTranscription((text) => console.log('Transcribed:', text));
  * view.onError((error) => console.error('Error:', error));
@@ -31,7 +31,6 @@ import getAPIKey from '@/utils/get-api-key';
 export class VoiceInputView extends Disposable {
   // Core instances
   private container: HTMLElement;
-  private _apiEndpoint: string; // Reserved for future backend integration
   private sonioxClient: SonioxClient | null = null;
 
   // State
@@ -52,13 +51,11 @@ export class VoiceInputView extends Disposable {
    * Create a new VoiceInputView
    *
    * @param container HTMLElement to render UI into
-   * @param apiEndpoint Backend API endpoint for sending transcriptions
    */
-  constructor(container: HTMLElement, apiEndpoint: string) {
+  constructor(container: HTMLElement) {
     super();
 
     this.container = container;
-    this._apiEndpoint = apiEndpoint;
 
     // Initialize Soniox SDK
     this.initializeSonioxClient();

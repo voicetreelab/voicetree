@@ -236,7 +236,9 @@ export class ContextMenuService {
             const nodeMetadata = {
                 id: nodeId,
                 name: nodeId.replace(/_/g, ' '),
-                filePath: filePath
+                filePath: filePath,
+                initialCommand: './claude.sh',
+                executeCommand: true
             };
 
             const targetNode = this.cy!.getElementById(nodeId);

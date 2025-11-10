@@ -1,7 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import fixPath from 'fix-path';
-import { initialLoad } from '@/functional_graph/shell/main/watchFolder.ts';
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager.ts';
 import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager.ts';
 import TerminalManager from './terminal-manager.ts';

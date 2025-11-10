@@ -1,19 +1,19 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
-import { apply_graph_deltas_to_db } from '../../../src/functional_graph/pure/applyGraphActionsToDB'
-import { Graph, CreateNode, UpdateNode, DeleteNode, GraphNode, Env } from '../../../src/functional_graph/pure/types'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { apply_graph_deltas_to_db } from '@/functional_graph/pure/applyGraphActionsToDB'
+import type { Graph, DeleteNode, Env, UpsertNodeAction, GraphNode } from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { tmpdir } from 'os'
 import path from 'path'
 import { promises as fs } from 'fs'
+import { markdownToTitle } from '@/functional_graph/pure/markdown-parsing/markdown-to-title'
 
 describe('apply_graph_updates', () => {
   const testVaultPath = path.join(tmpdir(), 'test-vault-reader-monad')
 
   // Mock environment for testing
   const testEnv: Env = {
-    vaultPath: testVaultPath,
-    broadcast: vi.fn()
+    vaultPath: testVaultPath
   }
 
   // Create test vault directory before all e2e-tests
@@ -28,36 +28,38 @@ describe('apply_graph_updates', () => {
 
   // Helper to create an empty graph
   const emptyGraph = (): Graph => ({
-    nodes: {},
-    edges: {}
+    nodes: {}
+  })
+
+  // Helper to create a test node
+  const createTestNode = (nodeId: string, content: string): GraphNode => ({
+    relativeFilePathIsID: nodeId,
+    content,
+    outgoingEdges: [],
+    nodeUIMetadata: {
+      color: O.none,
+      position: O.none
+    }
   })
 
   // Helper to create a graph with a single node
   const graphWithNode = (nodeId: string, content: string): Graph => ({
     nodes: {
-      [nodeId]: {
-        id: nodeId,
-        title: 'Test GraphNode',
-        content,
-        summary: 'Test summary',
-        color: O.none
-      }
-    },
-    edges: {}
+      [nodeId]: createTestNode(nodeId, content)
+    }
   })
 
-  describe('CreateNode', () => {
+  describe('UpsertNode (Create)', () => {
     it('should create a new node in the graph', async () => {
       const graph = emptyGraph()
-      const action: CreateNode = {
-        type: 'CreateNode',
-        nodeId: 'node-1',
-        content: '# New GraphNode\n\nThis is content',
-        position: O.none
+      const newNode = createTestNode('node-1', '# New Node\n\nThis is content')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: newNode
       }
 
       // Create effect (pure - no execution)
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
 
       // Execute effect with environment
       const result = await effect(testEnv)()
@@ -69,57 +71,59 @@ describe('apply_graph_updates', () => {
         // Verify the node was added to the graph
         expect(updatedGraph.nodes['node-1']).toBeDefined()
         expect(updatedGraph.nodes['node-1'].relativeFilePathIsID).toBe('node-1')
-        expect(updatedGraph.nodes['node-1'].content).toBe('# New GraphNode\n\nThis is content')
-        expect(updatedGraph.nodes['node-1'].title).toBe('New GraphNode')
+        expect(updatedGraph.nodes['node-1'].content).toBe('# New Node\n\nThis is content')
+
+        // Title is computed via markdownToTitle
+        const title = markdownToTitle(updatedGraph.nodes['node-1'])
+        expect(title).toBe('New Node')
       }
     })
 
     it('should extract title from markdown header', async () => {
       const graph = emptyGraph()
-      const action: CreateNode = {
-        type: 'CreateNode',
-        nodeId: 'node-2',
-        content: '# My Title\n\nContent here',
-        position: O.none
+      const newNode = createTestNode('node-2', '# My Title\n\nContent here')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: newNode
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
-        expect(result.right.nodes['node-2'].title).toBe('My Title')
+        const title = markdownToTitle(result.right.nodes['node-2'])
+        expect(title).toBe('My Title')
       }
     })
 
-    it('should use default title when no markdown header present', async () => {
+    it('should use filename-based title when no markdown header present', async () => {
       const graph = emptyGraph()
-      const action: CreateNode = {
-        type: 'CreateNode',
-        nodeId: 'node-3',
-        content: 'Just plain text',
-        position: O.none
+      const newNode = createTestNode('node-3', 'Just plain text')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: newNode
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
-        expect(result.right.nodes['node-3'].title).toBe('Untitled')
+        const title = markdownToTitle(result.right.nodes['node-3'])
+        expect(title).toBe('node 3')
       }
     })
 
     it('should not modify the original graph', async () => {
       const graph = emptyGraph()
-      const action: CreateNode = {
-        type: 'CreateNode',
-        nodeId: 'node-4',
-        content: '# Test',
-        position: O.none
+      const newNode = createTestNode('node-4', '# Test')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: newNode
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       // Original graph should be unchanged
@@ -133,16 +137,16 @@ describe('apply_graph_updates', () => {
     })
   })
 
-  describe('UpdateNode', () => {
+  describe('UpsertNode (Update)', () => {
     it('should update an existing node with new content', async () => {
       const graph = graphWithNode('node-1', '# Old Title\n\nOld content')
-      const action: UpdateNode = {
-        type: 'UpdateNode',
-        nodeId: 'node-1',
-        content: '# Updated Title\n\nNew content'
+      const updatedNode = createTestNode('node-1', '# Updated Title\n\nNew content')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: updatedNode
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -151,19 +155,20 @@ describe('apply_graph_updates', () => {
 
         // Verify node was updated
         expect(updatedGraph.nodes['node-1'].content).toBe('# Updated Title\n\nNew content')
-        expect(updatedGraph.nodes['node-1'].title).toBe('Updated Title')
+        const title = markdownToTitle(updatedGraph.nodes['node-1'])
+        expect(title).toBe('Updated Title')
       }
     })
 
     it('should preserve node relativeFilePathIsID when updating', async () => {
       const graph = graphWithNode('node-1', '# Original')
-      const action: UpdateNode = {
-        type: 'UpdateNode',
-        nodeId: 'node-1',
-        content: '# Updated'
+      const updatedNode = createTestNode('node-1', '# Updated')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: updatedNode
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -172,29 +177,16 @@ describe('apply_graph_updates', () => {
       }
     })
 
-    it('should throw when updating non-existent node (fail fast)', () => {
-      const graph = emptyGraph()
-      const action: UpdateNode = {
-        type: 'UpdateNode',
-        nodeId: 'non-existent',
-        content: '# Some content'
-      }
-
-      // Should throw per fail-fast design philosophy
-      expect(() => apply_graph_deltas_to_db(graph, action)).toThrow('GraphNode non-existent not found for update')
-    })
-
     it('should not modify the original graph', async () => {
       const graph = graphWithNode('node-1', '# Original')
       const originalContent = graph.nodes['node-1'].content
-
-      const action: UpdateNode = {
-        type: 'UpdateNode',
-        nodeId: 'node-1',
-        content: '# Updated'
+      const updatedNode = createTestNode('node-1', '# Updated')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: updatedNode
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       // Original graph should be unchanged
@@ -219,7 +211,7 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
@@ -232,7 +224,7 @@ describe('apply_graph_updates', () => {
       }
     })
 
-    it('should remove node from outgoingEdges when deleted', async () => {
+    it('should remove edges pointing to deleted node', async () => {
       // First create the files so they exist to be deleted
       await fs.writeFile(path.join(testVaultPath, 'node-1.md'), 'Content', 'utf-8')
       await fs.writeFile(path.join(testVaultPath, 'node-2.md'), 'Content', 'utf-8')
@@ -241,22 +233,22 @@ describe('apply_graph_updates', () => {
         nodes: {
           'node-1': {
             relativeFilePathIsID: 'node-1',
-            title: 'GraphNode 1',
             content: 'Content',
-            summary: 'Summary',
-            color: O.none
+            outgoingEdges: ['node-2'],
+            nodeUIMetadata: {
+              color: O.none,
+              position: O.none
+            }
           },
           'node-2': {
             relativeFilePathIsID: 'node-2',
-            title: 'GraphNode 2',
             content: 'Content',
-            summary: 'Summary',
-            color: O.none
+            outgoingEdges: [],
+            nodeUIMetadata: {
+              color: O.none,
+              position: O.none
+            }
           }
-        },
-        edges: {
-          'node-1': ['node-2'],
-          'node-2': []
         }
       }
 
@@ -265,15 +257,17 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
         const updatedGraph = result.right
 
-        // Verify node-1's outgoingEdges are removed
-        expect(updatedGraph.edges['node-1']).toBeUndefined()
+        // Verify node-1 is removed
+        expect(updatedGraph.nodes['node-1']).toBeUndefined()
+        // node-2 should still exist
+        expect(updatedGraph.nodes['node-2']).toBeDefined()
       }
     })
 
@@ -284,7 +278,7 @@ describe('apply_graph_updates', () => {
         nodeId: 'non-existent'
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       // Fail fast - deleting non-existent file should fail
@@ -304,7 +298,7 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
       const result = await effect(testEnv)()
 
       // Original graph should still have the node
@@ -319,35 +313,26 @@ describe('apply_graph_updates', () => {
   })
 
   describe('Function signature and structure', () => {
-    it('should return AppEffect (ReaderTaskEither)', () => {
+    it('should return FSWriteEffect (ReaderTaskEither)', () => {
       const graph = emptyGraph()
-      const action: CreateNode = {
-        type: 'CreateNode',
-        nodeId: 'test',
-        content: '# Test',
-        position: O.none
+      const newNode = createTestNode('test', '# Test')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: newNode
       }
 
-      const effect = apply_graph_deltas_to_db(graph, action)
+      const effect = apply_graph_deltas_to_db(graph, [action])
 
       // Should be a function (Reader)
       expect(typeof effect).toBe('function')
     })
 
-    it('should handle all three action types', () => {
+    it('should handle both action types', () => {
       const graph = graphWithNode('node-1', '# Test')
 
-      const createAction: CreateNode = {
-        type: 'CreateNode',
-        nodeId: 'node-2',
-        content: '# New',
-        position: O.none
-      }
-
-      const updateAction: UpdateNode = {
-        type: 'UpdateNode',
-        nodeId: 'node-1',
-        content: '# Updated'
+      const upsertAction: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: createTestNode('node-2', '# New')
       }
 
       const deleteAction: DeleteNode = {
@@ -355,10 +340,9 @@ describe('apply_graph_updates', () => {
         nodeId: 'node-1'
       }
 
-      // All should return valid effects without throwing
-      expect(() => apply_graph_deltas_to_db(graph, createAction)).not.toThrow()
-      expect(() => apply_graph_deltas_to_db(graph, updateAction)).not.toThrow()
-      expect(() => apply_graph_deltas_to_db(graph, deleteAction)).not.toThrow()
+      // Both should return valid effects without throwing
+      expect(() => apply_graph_deltas_to_db(graph, [upsertAction])).not.toThrow()
+      expect(() => apply_graph_deltas_to_db(graph, [deleteAction])).not.toThrow()
     })
 
     it('should use Reader pattern (environment provided at execution)', async () => {
@@ -368,41 +352,36 @@ describe('apply_graph_updates', () => {
       await fs.mkdir(vault1Path, { recursive: true })
       await fs.mkdir(vault2Path, { recursive: true })
 
-      try {
-        // Test with different environments
-        const env1: Env = {
-          vaultPath: vault1Path,
-          broadcast: vi.fn()
-        }
-
-        const env2: Env = {
-          vaultPath: vault2Path,
-          broadcast: vi.fn()
-        }
-
-        const graph = emptyGraph()
-        const action: CreateNode = {
-          type: 'CreateNode',
-          nodeId: 'test',
-          content: '# Test',
-          position: O.none
-        }
-
-        // Same effect, different environments
-        const effect = apply_graph_deltas_to_db(graph, action)
-
-        // Can execute with different environments
-        const result1 = await effect(env1)()
-        const result2 = await effect(env2)()
-
-        // Both should succeed
-        expect(E.isRight(result1)).toBe(true)
-        expect(E.isRight(result2)).toBe(true)
-      } finally {
-        // Clean up
-        await fs.rm(vault1Path, { recursive: true, force: true })
-        await fs.rm(vault2Path, { recursive: true, force: true })
+      // Test with different environments
+      const env1: Env = {
+        vaultPath: vault1Path
       }
+
+      const env2: Env = {
+        vaultPath: vault2Path
+      }
+
+      const graph = emptyGraph()
+      const newNode = createTestNode('test', '# Test')
+      const action: UpsertNodeAction = {
+        type: 'UpsertNode',
+        nodeToUpsert: newNode
+      }
+
+      // Same effect, different environments
+      const effect = apply_graph_deltas_to_db(graph, [action])
+
+      // Can execute with different environments
+      const result1 = await effect(env1)()
+      const result2 = await effect(env2)()
+
+      // Both should succeed
+      expect(E.isRight(result1)).toBe(true)
+      expect(E.isRight(result2)).toBe(true)
+
+      // Clean up
+      await fs.rm(vault1Path, { recursive: true, force: true })
+      await fs.rm(vault2Path, { recursive: true, force: true })
     })
   })
 })

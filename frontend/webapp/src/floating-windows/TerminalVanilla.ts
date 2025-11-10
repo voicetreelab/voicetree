@@ -1,5 +1,4 @@
 import { Terminal as XTerm } from '@xterm/xterm';
-import type { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
@@ -21,7 +20,6 @@ export class TerminalVanilla {
   private term: XTerm | null = null;
   private terminalId: string | null = null;
   private fitAddon: FitAddon | null = null;
-  private searchAddon: SearchAddon | null = null;
   private container: HTMLElement;
   private nodeMetadata?: NodeMetadata;
   private resizeObserver: ResizeObserver | null = null;
@@ -82,7 +80,6 @@ export class TerminalVanilla {
     // Load search addon for find-in-terminal functionality
     const searchAddon = new SearchAddon();
     term.loadAddon(searchAddon);
-    this.searchAddon = searchAddon;
 
     // Load Unicode11 addon for better Unicode support
     const unicode11Addon = new Unicode11Addon();
@@ -160,34 +157,6 @@ export class TerminalVanilla {
     }
   }
 
-  /**
-   * Reconstructs a complete logical line from potentially wrapped physical buffer lines.
-   *
-   * When terminal content exceeds the terminal width, xterm.js wraps it across multiple
-   * physical buffer lines. This utility walks backwards from a given line index to find
-   * all wrapped segments and reconstructs the original logical line.
-   *
-   * This is critical for proper scroll calculations and line-based operations in narrow terminals.
-   *
-   * @param lineIndex The buffer line index to start from
-   * @param buffer The terminal buffer (active or alternate)
-   * @returns Object containing the complete line data and the starting line index
-   */
-  private getFullBufferLineAsString(lineIndex: number, buffer: Terminal['buffer']['active']): { lineData: string | undefined; lineIndex: number } {
-    let line = buffer.getLine(lineIndex);
-    if (!line) {
-      return { lineData: undefined, lineIndex };
-    }
-    let lineData = line.translateToString(true);
-    while (lineIndex > 0 && line.isWrapped) {
-      line = buffer.getLine(--lineIndex);
-      if (!line) {
-        break;
-      }
-      lineData = line.translateToString(false) + lineData;
-    }
-    return { lineData, lineIndex };
-  }
 
   /**
    * Enter fullscreen mode

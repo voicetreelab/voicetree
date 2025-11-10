@@ -1,10 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error
 import '@/graph-core/styles/floating-windows.css'; // VERY IMPORTANT
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, ViewUpdate, ViewPlugin } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
-import { foldGutter, foldCode, syntaxHighlighting, codeFolding, foldEffect, foldable, foldService, LanguageDescription, defaultHighlightStyle } from '@codemirror/language';
+import { foldGutter, syntaxHighlighting, foldEffect, foldable, foldService, LanguageDescription, defaultHighlightStyle } from '@codemirror/language';
 import { syntaxTree } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { yamlFrontmatter } from '@codemirror/lang-yaml';

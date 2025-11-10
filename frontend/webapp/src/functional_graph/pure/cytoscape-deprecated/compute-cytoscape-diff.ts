@@ -3,7 +3,7 @@ import type {
   CytoscapeNodeElement,
   CytoscapeEdgeElement,
   CytoscapeDiff
-} from '@/functional_graph/pure/types'
+} from './types'
 import type cytoscape from 'cytoscape'
 
 /**

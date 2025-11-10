@@ -71,16 +71,13 @@ This is in a subfolder.`
   })
 
   it('should load empty graph from empty directory', async () => {
-    const loadGraph = loadGraphFromDisk(emptyVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(emptyVaultPath))
 
     expect(Object.keys(graph.nodes)).toHaveLength(0)
-    expect(Object.keys(graph.edges)).toHaveLength(0)
   })
 
   it('should load all nodes from vault', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
     expect(Object.keys(graph.nodes)).toHaveLength(4)
     expect(graph.nodes['1']).toBeDefined()
@@ -90,72 +87,62 @@ This is in a subfolder.`
   })
 
   it('should parse node properties from frontmatter', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
     const node1 = graph.nodes['1']
-    expect(node1.title).toBe('GraphNode One')
-    expect(node1.summary).toBe('First node')
-    expect(O.isSome(node1.color)).toBe(true)
-    if (O.isSome(node1.color)) {
-      expect(node1.color.value).toBe('#FF0000')
+    expect(node1.content).toContain('title: "Node One"')
+    expect(node1.content).toContain('summary: "First node"')
+    expect(O.isSome(node1.nodeUIMetadata.color)).toBe(true)
+    if (O.isSome(node1.nodeUIMetadata.color)) {
+      expect(node1.nodeUIMetadata.color.value).toBe('#FF0000')
     }
   })
 
   it('should use filename as node_id when missing from frontmatter', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
-    expect(graph.nodes['node3']).toBeDefined()
-    expect(graph.nodes['node3'].id).toBe('node3')
+    expect(graph.nodes['node3.md']).toBeDefined()
+    expect(graph.nodes['node3.md'].relativeFilePathIsID).toBe('node3.md')
   })
 
   it('should extract title from heading when not in frontmatter', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
-    expect(graph.nodes['node3'].title).toBe('GraphNode Three')
+    expect(graph.nodes['node3.md'].content).toContain('# Node Three')
   })
 
   it('should build outgoingEdges from wikilinks', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
-    expect(graph.edges['1']).toEqual(['2'])
-    expect(graph.edges['2']).toEqual(['1', 'node3'])
+    expect(graph.nodes['1'].outgoingEdges).toEqual(['2'])
+    expect(graph.nodes['2'].outgoingEdges).toContain('1')
+    expect(graph.nodes['2'].outgoingEdges).toContain('node3.md')
   })
 
   it('should handle nodes with no links', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
-    expect(graph.edges['node3']).toEqual([])
+    expect(graph.nodes['node3.md'].outgoingEdges).toEqual([])
   })
 
   it('should handle nested directory structure', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
     expect(graph.nodes['nested']).toBeDefined()
-    expect(graph.nodes['nested'].title).toBe('Nested GraphNode')
+    expect(graph.nodes['nested'].content).toContain('# Nested')
   })
 
   it('should preserve full content including frontmatter', async () => {
-    const loadGraph = loadGraphFromDisk(testVaultPath)
-    const graph = await loadGraph()
+    const graph = await loadGraphFromDisk(O.some(testVaultPath))
 
     expect(graph.nodes['1'].content).toContain('node_id: "1"')
     expect(graph.nodes['1'].content).toContain('This is node one')
   })
 
   it('should be a pure IO function (same input -> same IO)', async () => {
-    const loadGraph1 = loadGraphFromDisk(testVaultPath)
-    const loadGraph2 = loadGraphFromDisk(testVaultPath)
-
-    const graph1 = await loadGraph1()
-    const graph2 = await loadGraph2()
+    const graph1 = await loadGraphFromDisk(O.some(testVaultPath))
+    const graph2 = await loadGraphFromDisk(O.some(testVaultPath))
 
     expect(Object.keys(graph1.nodes).sort()).toEqual(Object.keys(graph2.nodes).sort())
-    expect(Object.keys(graph1.edges).sort()).toEqual(Object.keys(graph2.edges).sort())
   })
 })

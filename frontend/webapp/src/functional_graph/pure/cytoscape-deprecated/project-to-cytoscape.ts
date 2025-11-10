@@ -3,7 +3,7 @@ import type {
     CytoscapeElements,
     CytoscapeNodeElement,
     CytoscapeEdgeElement
-} from '@/functional_graph/pure/types'
+} from './types'
 import * as O from 'fp-ts/lib/Option.js'
 
 /**
@@ -25,7 +25,7 @@ export function projectToCytoscape(graph: Graph): CytoscapeElements {
   const nodes: readonly CytoscapeNodeElement[] = Object.values(graph.nodes).map(
     (node): CytoscapeNodeElement => ({
       data: {
-        id: node.relativeFilePathIsID,
+        id: node.id,
         label: node.title,
         content: node.content,
         summary: node.summary,
