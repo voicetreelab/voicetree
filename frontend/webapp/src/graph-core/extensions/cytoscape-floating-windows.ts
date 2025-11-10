@@ -419,8 +419,7 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
 export async function createFloatingEditor(
     cy: cytoscape.Core,
     nodeId: string,
-    editorRegistry: Map<string, string>,
-    parentNode?: cytoscape.NodeSingular
+    editorRegistry: Map<string, string>
 ): Promise<FloatingWindow | undefined> {
     // Derive editor ID from node ID (or use custom ID)
     const id = `editor-${nodeId}`;
@@ -601,11 +600,12 @@ export function createFloatingTerminal(
  */
 export function anchorToNode(
     floatingWindow: FloatingWindow,
-    parentNode: cytoscape.NodeSingular,
+    parentNodeId: cytoscape.NodeSingular,
     shadowNodeData?: Record<string, unknown>
 ): cytoscape.NodeSingular {
     const {cy, windowElement, titleBar} = floatingWindow;
 
+    const parentNode = cy.getElementById(parentNodeId);
     // 1. Create child shadow node ID based on parent node
     const parentNodeId = parentNode.id();
     const childShadowId = `shadow-child-${parentNodeId}`;

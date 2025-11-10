@@ -96,18 +96,15 @@ export class FloatingWindowManager {
      * Creates a child shadow node and anchors the editor to it
      */
     async createAnchoredFloatingEditor(
-        cyNode: NodeSingular,
+        nodeId: NodeId
     ): Promise<void> {
-        const parentNodeId = cyNode.id();
-
         try {
             // Create floating editor window with parent node and editor registry
             // This will automatically create shadow node, anchor, and handle cleanup
             const floatingWindow = await createFloatingEditor(
                 this.cy,
-                parentNodeId,
-                this.nodeIdToEditorId,
-                cyNode
+                nodeId,
+                this.nodeIdToEditorId
             );
             // Return early if editor already exists
             if (!floatingWindow) {
@@ -115,7 +112,7 @@ export class FloatingWindowManager {
                 return;
             }
 
-            anchorToNode(floatingWindow, cyNode, {
+            anchorToNode(floatingWindow, nodeId, {
                 isFloatingWindow: true,
                 isShadowNode: true,
                 laidOut: false
@@ -303,9 +300,9 @@ export class FloatingWindowManager {
     async handleAddNodeAtPosition(position: Position): Promise<void> {
         try {
             // Pass position directly to Electron - it will save it immediately
-            const name = await createNewEmptyOrphanNodeFromUI(position, this.cy);
-            await this.createAnchoredFloatingEditor(this.cy.getElementById(name));
-            console.log('[FloatingWindowManager] Creating node:', name);
+            const nodeId = await createNewEmptyOrphanNodeFromUI(position, this.cy);
+            await this.createAnchoredFloatingEditor(nodeId);
+            console.log('[FloatingWindowManager] Creating node:', nodeId);
         } catch (error) {
             console.error('[FloatingWindowManager] Error creating standalone node:', error);
         }

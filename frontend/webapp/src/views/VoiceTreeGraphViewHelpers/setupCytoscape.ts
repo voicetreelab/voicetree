@@ -48,7 +48,7 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         onNodeSelected(node.id());
 
         console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
-        floatingWindowManager.createAnchoredFloatingEditor(node).then(() => console.log('[VoiceTreeGraphView] Created editor'));
+        floatingWindowManager.createAnchoredFloatingEditor(node.id()).then(() => console.log('[VoiceTreeGraphView] Created editor'));
     });
 
     // Setup context menu (with defensive DOM checks)
@@ -56,8 +56,8 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
     // Initialize context menu with cy instance and dependencies
     contextMenuService.initialize(cy, {
         getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
-        createAnchoredFloatingEditor: (node : NodeSingular) =>
-            floatingWindowManager.createAnchoredFloatingEditor(node),
+        createAnchoredFloatingEditor: (nodeId : NodeId) =>
+            floatingWindowManager.createAnchoredFloatingEditor(nodeId),
         createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
             floatingWindowManager.createFloatingTerminal(nodeId, metadata as {
                 id: string;
