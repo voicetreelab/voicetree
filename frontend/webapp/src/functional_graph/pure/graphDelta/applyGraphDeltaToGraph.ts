@@ -1,5 +1,5 @@
 import type {Graph, GraphDelta} from '@/functional_graph/pure/types'
-import {removeOutgoingEdge} from '@/functional_graph/pure/graph-edge-operations'
+import {removeOutgoingEdge} from '@/functional_graph/pure/graph-operations /graph-edge-operations.ts'
 
 /**
  * Apply a GraphDelta to a Graph, producing a new Graph.

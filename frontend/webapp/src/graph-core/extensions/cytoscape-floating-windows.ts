@@ -407,17 +407,31 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
 /**
  * Create a floating editor window (no anchoring)
  * Returns FloatingWindow object that can be anchored or positioned manually
+ * Returns undefined if an editor for this node already exists
+ *
+ * @param cy - Cytoscape instance
+ * @param nodeId - ID of the node to edit (used to fetch content)
+ * @param onClose - Optional callback when editor is closed
+ * @param customId - Optional custom ID for the editor (defaults to `editor-${nodeId}`)
  */
 export async function createFloatingEditor(
   cy: cytoscape.Core,
-  config: {
-    id: string;
-    nodeId: string;
-    onClose?: () => void;
-    resizable?: boolean;
+  nodeId: string,
+  onClose?: () => void,
+  customId?: string
+): Promise<FloatingWindow | undefined> {
+  // Derive editor ID from node ID (or use custom ID)
+  const id = customId || `editor-${nodeId}`;
+
+  // Check if already exists
+  const existing = cy.nodes(`#${id}`);
+  if (existing && existing.length > 0) {
+    console.log('[createFloatingEditor] Editor already exists:', id);
+    return undefined;
   }
-): Promise<FloatingWindow> {
-  const { id, nodeId, onClose, resizable = true } = config;
+
+  // Always resizable
+  const resizable = true;
 
   // Derive title and content from nodeId
   const node = await getNodeFromUI(nodeId);

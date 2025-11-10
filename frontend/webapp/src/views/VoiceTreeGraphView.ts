@@ -340,6 +340,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             this.cy = cytoscape(cytoscapeOptions);
         }
 
+        // Expose cytoscape instance to window for testing
+        (window as unknown as { cytoscapeInstance: unknown }).cytoscapeInstance = this.cy;
+
         // Initialize animation service with cy instance (sets up event listeners)
         this.animationService = new BreathingAnimationService(this.cy);
 

@@ -11,8 +11,8 @@ import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
 import { pipe } from 'fp-ts/lib/function.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { fromNodeToMarkdownContent } from '@/functional_graph/pure/markdown_writing/node_to_markdown'
-import { nodeIdToFilePathWithExtension } from '@/functional_graph/pure/markdown_parsing/filename-utils'
+import { fromNodeToMarkdownContent } from '@/functional_graph/pure/markdown-writing/node_to_markdown'
+import { nodeIdToFilePathWithExtension } from '@/functional_graph/pure/markdown-parsing/filename-utils'
 import {applyGraphDeltaToGraph} from "@/functional_graph/pure/graphDelta/applyGraphDeltaToGraph.ts";
 
 /**

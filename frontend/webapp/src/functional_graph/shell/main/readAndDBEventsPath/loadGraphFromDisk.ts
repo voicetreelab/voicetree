@@ -3,12 +3,12 @@ import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
 import type { Graph, NodeId } from '@/functional_graph/pure/types.ts'
-import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown_parsing/parse-markdown-to-node.ts'
-import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids.ts'
+import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown-parsing/parse-markdown-to-node.ts'
+import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown-parsing/extract-linked-node-ids.ts'
 import { enforceFileLimit } from './fileLimitEnforce.ts'
-import { setOutgoingEdges } from '@/functional_graph/pure/graph-edge-operations'
+import { setOutgoingEdges } from '@/functional_graph/pure/graph-operations /graph-edge-operations.ts'
 import { applyPositions } from '@/functional_graph/pure/positioning/applyPositions.ts'
-import {reverseGraphEdges} from "@/functional_graph/pure/graph-transformations.ts";
+import {reverseGraphEdges} from "@/functional_graph/pure/graph-operations /graph-transformations.ts";
 
 /**
  * Loads a graph from the filesystem.

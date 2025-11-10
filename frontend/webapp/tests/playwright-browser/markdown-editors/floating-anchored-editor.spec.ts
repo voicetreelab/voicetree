@@ -13,7 +13,7 @@ import {
 import type { GraphDelta } from '@/functional_graph/pure/types.ts';
 
 test.describe('Floating Anchored Editor (Browser)', () => {
-  test('should create editor, show content, follow anchor node drag, close and reopen', async ({ page }) => {
+  test('should create editor, show content, resize, drag, close and reopen', async ({ page }) => {
     console.log('\n=== Starting floating anchored editor test (Browser) ===');
 
     // Listen for console messages
@@ -93,8 +93,8 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(editorContent).toContain('This is test content for the floating editor');
     console.log('✓ Content verified in editor');
 
-    console.log('=== Step 7: Verify shadow node exists and has dimensions ===');
-    const shadowNodeDims = await page.evaluate(() => {
+    console.log('=== Step 7: Get initial shadow node dimensions ===');
+    const initialDims = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
       const shadowNode = cy.$('#editor-test-editor-node\\.md');
@@ -104,11 +104,83 @@ test.describe('Floating Anchored Editor (Browser)', () => {
         height: shadowNode.height()
       };
     });
-    console.log(`  Shadow node dims: ${shadowNodeDims.width}x${shadowNodeDims.height}`);
-    expect(shadowNodeDims.width).toBeGreaterThan(0);
-    expect(shadowNodeDims.height).toBeGreaterThan(0);
+    console.log(`  Initial shadow node dims: ${initialDims.width}x${initialDims.height}`);
+    expect(initialDims.width).toBeGreaterThan(0);
+    expect(initialDims.height).toBeGreaterThan(0);
 
-    console.log('=== Step 8: Drag anchor node and verify shadow follows ===');
+    console.log('=== Step 8: Resize window smaller ===');
+    const resizeHandle = await page.locator(`${editorSelector} .cy-floating-window-resize-handle`);
+    const editorBox = await page.locator(editorSelector).boundingBox();
+    if (!editorBox) throw new Error('Could not get editor bounding box');
+
+    // Drag resize handle to make it smaller
+    await resizeHandle.hover();
+    await page.mouse.down();
+    await page.mouse.move(editorBox.x + editorBox.width - 100, editorBox.y + editorBox.height - 100);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    console.log('✓ Resized smaller');
+
+    const smallerDims = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const shadowNode = cy.$('#editor-test-editor-node\\.md');
+      return {
+        width: shadowNode.width(),
+        height: shadowNode.height()
+      };
+    });
+    console.log(`  Smaller shadow node dims: ${smallerDims.width}x${smallerDims.height}`);
+    expect(smallerDims.width).toBeLessThan(initialDims.width);
+    expect(smallerDims.height).toBeLessThan(initialDims.height);
+
+    console.log('=== Step 9: Resize window bigger ===');
+    await resizeHandle.hover();
+    await page.mouse.down();
+    const newBox = await page.locator(editorSelector).boundingBox();
+    if (!newBox) throw new Error('Could not get editor bounding box');
+    await page.mouse.move(newBox.x + newBox.width + 150, newBox.y + newBox.height + 150);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    console.log('✓ Resized bigger');
+
+    const biggerDims = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const shadowNode = cy.$('#editor-test-editor-node\\.md');
+      return {
+        width: shadowNode.width(),
+        height: shadowNode.height()
+      };
+    });
+    console.log(`  Bigger shadow node dims: ${biggerDims.width}x${biggerDims.height}`);
+    expect(biggerDims.width).toBeGreaterThan(smallerDims.width);
+    expect(biggerDims.height).toBeGreaterThan(smallerDims.height);
+
+    console.log('=== Step 10: Resize back to smaller ===');
+    await resizeHandle.hover();
+    await page.mouse.down();
+    const bigBox = await page.locator(editorSelector).boundingBox();
+    if (!bigBox) throw new Error('Could not get editor bounding box');
+    await page.mouse.move(bigBox.x + bigBox.width - 100, bigBox.y + bigBox.height - 100);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    console.log('✓ Resized back to smaller');
+
+    const finalSmallerDims = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+      const shadowNode = cy.$('#editor-test-editor-node\\.md');
+      return {
+        width: shadowNode.width(),
+        height: shadowNode.height()
+      };
+    });
+    console.log(`  Final smaller shadow node dims: ${finalSmallerDims.width}x${finalSmallerDims.height}`);
+    expect(finalSmallerDims.width).toBeLessThan(biggerDims.width);
+    expect(finalSmallerDims.height).toBeLessThan(biggerDims.height);
+
+    console.log('=== Step 11: Drag anchor node and verify shadow follows ===');
     const initialNodePos = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
@@ -149,7 +221,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(Math.abs(shadowNodePos.x - newNodePos.x)).toBeLessThan(500);
     expect(Math.abs(shadowNodePos.y - newNodePos.y)).toBeLessThan(500);
 
-    console.log('=== Step 9: Close editor ===');
+    console.log('=== Step 12: Close editor ===');
     const closeButton = await page.locator(`${editorSelector} .cy-floating-window-close`);
     await closeButton.click();
     await page.waitForTimeout(300);
@@ -162,7 +234,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(editorGone).toBe(true);
     console.log('✓ Editor window closed');
 
-    console.log('=== Step 10: Reopen editor ===');
+    console.log('=== Step 13: Reopen editor ===');
     await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');

@@ -1,9 +1,9 @@
 import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeId, FSUpdate, Graph} from '@/functional_graph/pure/types'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
-import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
-import { setOutgoingEdges } from '@/functional_graph/pure/graph-edge-operations'
-import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids'
+import { filenameToNodeId } from '@/functional_graph/pure/markdown-parsing/filename-utils'
+import { setOutgoingEdges } from '@/functional_graph/pure/graph-operations /graph-edge-operations.ts'
+import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown-parsing/extract-linked-node-ids'
 
 /**
  * Maps filesystem events to graph deltas.
