@@ -1,4 +1,4 @@
-import type { Graph, GraphNode, GraphDelta } from './types';
+import type { Graph, GraphNode, GraphDelta } from '../types.ts';
 import * as O from 'fp-ts/lib/Option.js';
 
 /**

@@ -6,7 +6,7 @@ import {
     polarToCartesian,
     SPAWN_RADIUS
 } from "@/functional_graph/pure/positioning/angularPositionSeeding.ts";
-import {findFirstParentNode} from "@/functional_graph/pure/findFirstParentNode.ts";
+import {findFirstParentNode} from "@/functional_graph/pure/graph-operations /findFirstParentNode.ts";
 
 /**
  * Calculate initial position for a new child node (pure function)

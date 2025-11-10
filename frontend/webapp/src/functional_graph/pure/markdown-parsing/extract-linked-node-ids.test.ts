@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown_parsing/extract-linked-node-ids.ts'
+import { extractLinkedNodeIds } from '@/functional_graph/pure/markdown-parsing/extract-linked-node-ids.ts'
 import type { GraphNode } from '@/functional_graph/pure/types.ts'
 
 describe('extractLinkedNodeIds', () => {

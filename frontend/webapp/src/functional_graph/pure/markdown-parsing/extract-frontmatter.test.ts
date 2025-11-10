@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractFrontmatter } from '@/functional_graph/pure/markdown_parsing/extract-frontmatter.ts'
+import { extractFrontmatter } from '@/functional_graph/pure/markdown-parsing/extract-frontmatter.ts'
 
 describe('extractFrontmatter', () => {
   it('should extract all frontmatter fields', () => {

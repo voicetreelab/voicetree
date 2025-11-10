@@ -1,7 +1,5 @@
 import * as O from 'fp-ts/lib/Option.js'
 import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
-import * as R from 'fp-ts/lib/Reader.js'
-
 /**
  * Core pure model for the functional graph architecture
  */
@@ -64,26 +62,6 @@ export interface Graph {
 // Actions (User-initiated changes)
 // ============================================================================
 
-
-export interface CreateEmptyNodeFromUIInteraction {
-    readonly type: 'CreateNodeFromUIInteraction'
-    readonly createsIncomingEdges: readonly NodeId[] // from parent to child
-}
-// note, we could just pass this straight in to apply graph action to db
-// but keeping it separate for now to have a bit more customisability
-
-export interface UpdateNodeContent {
-    readonly type: 'UpdateNode'
-    readonly nodeId: NodeId
-    readonly content: string
-} // mapped to UpsertNodeAction
-
-
-// so we hvae two options.
-// in frontend impure edge, at ui interaction, we can either send through a UpdateNodeContent to backend
-// or we can call getNode(nodeId) from backend, map to an Upsert, and then call an UpsertNodeContent.
-
-
 export interface UpsertNodeAction {
     readonly type: 'UpsertNode'
     readonly nodeToUpsert: GraphNode
@@ -132,57 +110,3 @@ export interface FSDelete {readonly absolutePath: FilePath}
  * - Either: can succeed with A or fail with Error
  */
 export type FSWriteEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
-
-/**
- * Generic app effect (alias for backwards compatibility)
- * Prefer FSWriteEffect for filesystem operations
- */
-export type AppEffect<A> = FSWriteEffect<A>
-
-/**
- * Pure Reader effect: needs environment but is synchronous
- *
- * Used for pure computations that need config (vaultPath) but don't perform IO.
- * File watch handlers use this to update graph state from filesystem events.
- */
-export type EnvReader<A> = R.Reader<Env, A>
-
-// ============================================================================
-// Cytoscape Projection Types
-// ============================================================================
-
-export interface CytoscapeNodeElement {
-    readonly data: {
-        readonly id: string
-        readonly label: string
-        readonly content: string
-        readonly summary: string
-        readonly color: string | undefined
-    }
-}
-
-export interface CytoscapeEdgeElement {
-    readonly data: {
-        readonly id: string
-        readonly source: string
-        readonly target: string
-        readonly label?: string
-    }
-}
-
-export interface CytoscapeElements {
-    readonly nodes: ReadonlyArray<CytoscapeNodeElement>
-    readonly edges: ReadonlyArray<CytoscapeEdgeElement>
-}
-
-/**
- * Diff between current Cytoscape state and desired state.
- * Describes what operations are needed to reconcile the DOM.
- */
-export interface CytoscapeDiff {
-    readonly nodesToAdd: ReadonlyArray<CytoscapeNodeElement>
-    readonly nodesToUpdate: ReadonlyArray<{ readonly id: string; readonly data: Partial<CytoscapeNodeElement['data']> }>
-    readonly nodesToRemove: ReadonlyArray<string>
-    readonly edgesToAdd: ReadonlyArray<CytoscapeEdgeElement>
-    readonly edgesToRemove: ReadonlyArray<string>
-}

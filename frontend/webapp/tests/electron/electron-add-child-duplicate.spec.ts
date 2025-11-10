@@ -12,7 +12,7 @@ import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
 import type { ElectronAPI } from '@/types/electron';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { triggerCreateChildNode } from '@/../tests/e2e/test-utils';
+import { triggerCreateChildNode } from '@test/electron/test-utils';
 
 // Type definitions
 interface ExtendedWindow extends Window {

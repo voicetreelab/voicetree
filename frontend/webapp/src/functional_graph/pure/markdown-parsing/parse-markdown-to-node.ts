@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type { GraphNode } from '@/functional_graph/pure/types'
-import { extractFrontmatter } from '@/functional_graph/pure/markdown_parsing/extract-frontmatter'
-import { filenameToNodeId } from '@/functional_graph/pure/markdown_parsing/filename-utils'
+import { extractFrontmatter } from '@/functional_graph/pure/markdown-parsing/extract-frontmatter'
+import { filenameToNodeId } from '@/functional_graph/pure/markdown-parsing/filename-utils'
 
 /**
  * Parses markdown content into a GraphNode.

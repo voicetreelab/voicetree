@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CodeMirrorEditorView } from '@/components/floating-windows/CodeMirrorEditorView';
+import { CodeMirrorEditorView } from '@/floating-windows/CodeMirrorEditorView';
 
 describe('Frontmatter Parsing', () => {
   let container: HTMLElement;

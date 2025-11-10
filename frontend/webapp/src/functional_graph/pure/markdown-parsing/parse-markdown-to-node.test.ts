@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown_parsing/parse-markdown-to-node.ts'
+import { parseMarkdownToGraphNode } from '@/functional_graph/pure/markdown-parsing/parse-markdown-to-node.ts'
 
 describe('parseMarkdownToGraphNode', () => {
   it('should parse node with complete frontmatter including color', () => {

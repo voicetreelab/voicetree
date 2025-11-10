@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   filenameToNodeId,
   nodeIdToFilePathWithExtension
-} from '@/functional_graph/pure/markdown_parsing/filename-utils.ts'
+} from '@/functional_graph/pure/markdown-parsing/filename-utils.ts'
 
 describe('filename-utils', () => {
   describe('filenameToNodeId', () => {

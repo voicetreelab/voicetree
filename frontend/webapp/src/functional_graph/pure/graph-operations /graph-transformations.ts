@@ -3,8 +3,8 @@
  * These functions transform entire graphs, operating on all nodes at once.
  */
 
-import type { Graph, GraphNode, NodeId } from './types'
-import { setOutgoingEdges } from './graph-edge-operations'
+import type { Graph, GraphNode, NodeId } from '../types.ts'
+import { setOutgoingEdges } from './graph-edge-operations.ts'
 
 /**
  * Reverses all edges in a graph.

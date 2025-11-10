@@ -10,23 +10,21 @@
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
 
-import { test as base, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
+import { test as base, expect, _electron as electron } from '@playwright/test';
+import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
+import type { ElectronAPI } from '@/types/electron';
 
-// Use absolute paths
+// Use absolute paths for fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example_real_large/2025-09-30');
 
 // Type definitions
 interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
-  electronAPI?: {
-    startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
-    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-    getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
-  };
+  electronAPI?: ElectronAPI;
   testHelpers?: {
     createTerminal: (nodeId: string) => void;
     addNodeAtPosition: (position: { x: number; y: number }) => Promise<void>;
@@ -67,14 +65,14 @@ const test = base.extend<{
     try {
       const window = await electronApp.firstWindow();
       await window.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
+        const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
           await api.stopFileWatching();
         }
       });
       // Wait for pending file system events to drain
       await window.waitForTimeout(300);
-    } catch (error) {
+    } catch {
       // Window might already be closed, that's okay
       console.log('Note: Could not stop file watching during cleanup (window may be closed)');
     }
@@ -116,7 +114,7 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await window.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
     await window.waitForTimeout(1000);
 
     await use(window);
@@ -136,7 +134,7 @@ test.describe('Real Folder E2E Tests', () => {
       });
       // Brief wait to let file watcher fully stop
       await appWindow.waitForTimeout(200);
-    } catch (error) {
+    } catch {
       // Window might be closed, that's okay
     }
 
@@ -209,13 +207,10 @@ test.describe('Real Folder E2E Tests', () => {
     console.log('GraphNode labels:', initialGraph.nodeLabels);
 
     // Verify expected files are loaded
-    // Note: Labels are now extracted from markdown titles (e.g., "# Introduction")
-    // which are capitalized, not from filenames
-    expect(initialGraph.nodeCount).toBeGreaterThanOrEqual(5); // We created at least 5 files
-    expect(initialGraph.nodeLabels).toContain('Introduction');
-    expect(initialGraph.nodeLabels).toContain('Architecture');
-    expect(initialGraph.nodeLabels).toContain('Core Principles');
-    expect(initialGraph.nodeLabels).toContain('Main Project');
+    // Note: Labels are extracted from frontmatter title or filename
+    expect(initialGraph.nodeCount).toBeGreaterThanOrEqual(5); // Fixture has 56 files
+    expect(initialGraph.nodeLabels).toContain('10_Setting_up_Agent_in_Feedback_Loop');
+    expect(initialGraph.nodeLabels).toContain('11_Identify_Relevant_Test_for_Tree_Action_Decider_Workflow');
 
     // Verify outgoingEdges exist (wiki-links create outgoingEdges)
     expect(initialGraph.edgeCount).toBeGreaterThan(0);
@@ -509,13 +504,13 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     });
 
     expect(graphWithComplexLinks).not.toBeNull();
-    expect(graphWithComplexLinks.nodeExists).toBe(true);
+    expect(graphWithComplexLinks!.nodeExists).toBe(true);
 
     // Should have connections to multiple files mentioned in the content
-    expect(graphWithComplexLinks.connectedEdgeCount).toBeGreaterThan(2);
+    expect(graphWithComplexLinks!.connectedEdgeCount).toBeGreaterThan(2);
 
-    console.log(`✓ Complex links created ${graphWithComplexLinks.connectedEdgeCount} edges`);
-    console.log('Connections:', graphWithComplexLinks.connections);
+    console.log(`✓ Complex links created ${graphWithComplexLinks!.connectedEdgeCount} edges`);
+    console.log('Connections:', graphWithComplexLinks!.connections);
 
     // Clean up
     await fs.unlink(complexLinkFile);
@@ -814,7 +809,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
       // Select first 3 nodes programmatically to simulate box selection result
       const nodesToSelect = allNodes.slice(0, 3);
-      nodesToSelect.forEach((n: NodeSingular) => n.select());
+      nodesToSelect.forEach((n: NodeSingular) => { n.select(); });
 
       // Trigger boxend event manually to test the event handler
       cy.trigger('boxend');
@@ -913,7 +908,6 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     console.log('✓ Add node workflow triggered');
 
     console.log('=== Step 4: Wait for new node to appear in graph ===');
-    let newNodeId: string | undefined;
     await expect.poll(async () => {
       return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -973,7 +967,7 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
 
     expect(positionCheck.success).toBe(true);
     expect(positionCheck.nodeId).toBeTruthy();
-    newNodeId = positionCheck.nodeId!;
+    const newNodeId = positionCheck.nodeId!;
     console.log(`✓ Node ${newNodeId} positioned within acceptable radius: ${positionCheck.message}`);
 
     console.log('=== Step 6: Verify markdown editor opened automatically ===');
@@ -1038,11 +1032,11 @@ Check out [[introduction]], [[architecture]], and [[core-principles]] for more i
     const filePath = path.join(FIXTURE_VAULT_PATH, expectedFileName);
 
     // Poll for file existence with timeout (auto-save can take some time)
-    const fileExists = await test.expect.poll(async () => {
+    await test.expect.poll(async () => {
       try {
         await fs.access(filePath);
         return true;
-      } catch (e) {
+      } catch {
         return false;
       }
     }, {

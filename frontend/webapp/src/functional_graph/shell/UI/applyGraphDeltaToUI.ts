@@ -1,7 +1,7 @@
 import type {Core} from "cytoscape";
 import type {GraphDelta} from "@/functional_graph/pure/types.ts";
 import * as O from 'fp-ts/lib/Option.js';
-import {prettyPrintGraphDelta} from "@/functional_graph/pure/prettyPrint.ts";
+import {prettyPrintGraphDelta} from "@/functional_graph/pure/graph-operations /prettyPrint.ts";
 
 /**
  * Apply a GraphDelta to the Cytoscape UI

@@ -1,7 +1,7 @@
 import type {GraphNode, NodeUIMetadata} from "@/functional_graph/pure/types.ts";
 import * as O from 'fp-ts/lib/Option.js'
 import matter from 'gray-matter'
-import type {Frontmatter} from '@/functional_graph/pure/markdown_parsing/extract-frontmatter.ts'
+import type {Frontmatter} from '@/functional_graph/pure/markdown-parsing/extract-frontmatter.ts'
 
 /**
  * Converts a GraphNode to markdown file content with frontmatter and wikilinks

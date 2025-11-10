@@ -22,8 +22,7 @@ import {
 import type {Position} from './IVoiceTreeGraphView';
 import type {HotkeyManager} from './HotkeyManager';
 import type {Graph, GraphDelta, NodeId} from '@/functional_graph/pure/types';
-import {nodeIdToFilePathWithExtension} from '@/functional_graph/pure/markdown_parsing/filename-utils';
-import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
+import {nodeIdToFilePathWithExtension} from '@/functional_graph/pure/markdown-parsing/filename-utils';
 import type {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView';
 
 /**
@@ -86,15 +85,8 @@ export class FloatingWindowManager {
       const node = event.target;
       const nodeId = node.id();
 
-      // Get node content
-      const content = this.getContentForNode(nodeId);
-
-      console.log('[CommandHover] content:', !!content);
-
-      if (!content) return;
-
       // Open hover editor
-      this.openHoverEditor(nodeId, content, node.position());
+      await this.openHoverEditor(nodeId, node.position());
     });
   }
 
@@ -105,35 +97,27 @@ export class FloatingWindowManager {
       cyNode: NodeSingular,
   ): Promise<void> {
       const nodeId = cyNode.id();
-      const node = await getNodeFromUI(nodeId);
-      const content = node.content;
-
-    const editorId = `editor-${nodeId}`;
-    console.log('[FloatingWindowManager] Creating floating editor:', editorId);
-
-    // Check if already exists
-    const existing = this.cy.nodes(`#${editorId}`);
-    if (existing && existing.length > 0) {
-      console.log('[FloatingWindowManager] Editor already exists');
-      return;
-    }
-
-    // Register mapping from node ID to editor ID for content updates
-    this.nodeIdToEditorId.set(nodeId, editorId);
+      const editorId = `editor-${nodeId}`;
 
     try {
-      // Create floating editor window
-      const floatingWindow = createFloatingEditor(this.cy, {
-        id: editorId,
-        title: `Editor: ${nodeId}`,
-        content: content,
-        nodeId: nodeId,
-        onClose: () => {
+      // Create floating editor window with cleanup callback
+      const floatingWindow = await createFloatingEditor(
+        this.cy,
+        nodeId,
+        () => {
           // Clean up mapping when editor is closed
           this.nodeIdToEditorId.delete(nodeId);
-        },
-        resizable: true
-      });
+        }
+      );
+
+      // Return early if editor already exists
+      if (!floatingWindow) {
+        console.log('[FloatingWindowManager] Editor already exists');
+        return;
+      }
+
+      // Register mapping from node ID to editor ID for content updates
+      this.nodeIdToEditorId.set(nodeId, editorId);
 
       // Anchor to parent node
       anchorToNode(floatingWindow, cyNode, {
@@ -258,25 +242,31 @@ export class FloatingWindowManager {
   // PRIVATE HELPERS
   // ============================================================================
 
-  private openHoverEditor(
+  private async openHoverEditor(
     nodeId: string,
-    content: string,
     nodePos: Position
-  ): void {
+  ): Promise<void> {
     // Close any existing hover editor
     this.closeHoverEditor();
 
-    const hoverId = `hover-${nodeId}`;
-    console.log('[FloatingWindowManager] Creating command-hover editor:', hoverId);
+    console.log('[FloatingWindowManager] Creating command-hover editor for node:', nodeId);
 
     try {
-      // Create floating editor (no anchoring)
-      const floatingWindow = createFloatingEditor(this.cy, {
-        id: hoverId,
-        title: `Hover: ${nodeId}`,
-        content: content, // derivable from nodeId
-        nodeId: nodeId
-      });
+      // Create floating editor with custom ID to avoid collision with regular editors
+      const hoverId = `hover-${nodeId}`;
+
+      // Create floating editor (nodeId for content, hoverId for the editor instance)
+      const floatingWindow = await createFloatingEditor(
+        this.cy,
+        nodeId,
+        undefined,
+        hoverId
+      );
+
+      if (!floatingWindow) {
+        console.log('[FloatingWindowManager] Failed to create hover editor');
+        return;
+      }
 
       // Set position manually (no shadow node to sync with)
       floatingWindow.windowElement.style.left = `${nodePos.x + 50}px`;

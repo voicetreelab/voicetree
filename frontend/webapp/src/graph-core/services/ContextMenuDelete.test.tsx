@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import cytoscape from 'cytoscape';
-import { ContextMenuService } from '@/graph-core/services/ContextMenuService';
+import { ContextMenuService } from '@/graph-core/services/ContextMenuService.ts';
 
 // Mock cytoscape-cxtmenu
 vi.mock('cytoscape-cxtmenu', () => ({
   default: vi.fn(),
 }));
 
+
+// TODO. WE DONT USE REACT ANYMORE?
 describe('Context Menu Delete Functionality', () => {
   let container: HTMLDivElement;
   let cy: cytoscape.Core;

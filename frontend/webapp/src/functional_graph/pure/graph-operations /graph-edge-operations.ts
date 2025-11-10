@@ -7,7 +7,7 @@
  * See: PARENT_LOOKUP_OPTIMIZATION_HANDOVER.md
  */
 
-import type { GraphNode, NodeId } from './types'
+import type { GraphNode, NodeId } from '../types.ts'
 
 /**
  * Adds a single outgoing edge to a node.

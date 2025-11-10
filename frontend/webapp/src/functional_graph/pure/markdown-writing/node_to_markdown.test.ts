@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fromNodeToMarkdownContent } from '@/functional_graph/pure/markdown_writing/node_to_markdown.ts'
+import { fromNodeToMarkdownContent } from '@/functional_graph/pure/markdown-writing/node_to_markdown.ts'
 import type { GraphNode } from '@/functional_graph/pure/types.ts'
 import * as O from 'fp-ts/lib/Option.js'
 

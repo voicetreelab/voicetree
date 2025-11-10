@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode} from '@/functional_graph/pure/types.ts'
 import {calculateInitialPositionForChild} from "@/functional_graph/pure/positioning/calculateInitialPosition.ts";
-import {addOutgoingEdge} from "@/functional_graph/pure/graph-edge-operations.ts";
+import {addOutgoingEdge} from "@/functional_graph/pure/graph-operations /graph-edge-operations.ts";
 
 /**
  * Pure action creator functions.

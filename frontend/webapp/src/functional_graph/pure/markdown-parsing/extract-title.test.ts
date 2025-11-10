@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractTitle } from '@/functional_graph/pure/markdown_parsing/extract-title.ts'
+import { extractTitle } from '@/functional_graph/pure/markdown-parsing/extract-title.ts'
 
 describe('extractTitle', () => {
   it('should extract level 1 heading', () => {
