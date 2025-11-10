@@ -105,7 +105,8 @@ export class FloatingWindowManager {
                 this.cy,
                 nodeId,
                 this.nodeIdToEditorId
-            );
+            ); // todo, we can early position the editor and the anchor node with positionChild logic
+
             // Return early if editor already exists
             if (!floatingWindow) {
                 console.log('[FloatingWindowManager] Editor already exists');
@@ -209,7 +210,7 @@ export class FloatingWindowManager {
 
             if (parentNodeExists) {
                 // Anchor to parent node
-                anchorToNode(floatingWindow, parentNode, {
+                anchorToNode(floatingWindow, nodeId, {
                     isFloatingWindow: true,
                     isShadowNode: true,
                     laidOut: false
