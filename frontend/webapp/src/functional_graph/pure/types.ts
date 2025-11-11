@@ -29,10 +29,7 @@ export interface Position {
 }
 
 export interface NodeUIMetadata {
-    // readonly title: string //todo, derived from content? first #+, otherwise file slug
-    // todo complexity is that we don't want markdown title to be big if it's also visually on graph
-    // we could make markdown title # small <-- best CHOSEN
-    // or use another markdown character to represent title,
+    readonly title: string // Computed from frontmatter title, first heading, or filename
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
     // width/height is derived from node degree
