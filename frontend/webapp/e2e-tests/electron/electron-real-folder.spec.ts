@@ -207,10 +207,10 @@ test.describe('Real Folder E2E Tests', () => {
     console.log('GraphNode labels:', initialGraph.nodeLabels);
 
     // Verify expected files are loaded
-    // Note: Labels are extracted from frontmatter title or filename
+    // Note: Labels are extracted from frontmatter title > first heading > filename
     expect(initialGraph.nodeCount).toBeGreaterThanOrEqual(5); // Fixture has 56 files
-    expect(initialGraph.nodeLabels).toContain('10_Setting_up_Agent_in_Feedback_Loop');
-    expect(initialGraph.nodeLabels).toContain('11_Identify_Relevant_Test_for_Tree_Action_Decider_Workflow');
+    expect(initialGraph.nodeLabels).toContain('Setting up Agent in Feedback Loop'); // From heading in file 10
+    expect(initialGraph.nodeLabels).toContain('Identify Relevant Test'); // From heading in file 11
 
     // Verify outgoingEdges exist (wiki-links create outgoingEdges)
     expect(initialGraph.edgeCount).toBeGreaterThan(0);
@@ -307,7 +307,7 @@ It demonstrates that the file watcher detects new files in real-time.`);
         if (!cy) return false;
 
         const labels = cy.nodes().map((n: NodeSingular) => n.data('label'));
-        return labels.includes('new-concept'); // Label from filename (not heading)
+        return labels.includes('New Concept'); // Label from heading
       });
     }, {
       message: 'Waiting for new-concept node to appear',
@@ -333,15 +333,15 @@ It demonstrates that the file watcher detects new files in real-time.`);
     console.log(`Node count after adding new-concept: ${updatedGraph.nodeCount} (expected ${nodeCountBeforeAdd + 1})`);
     console.log('GraphNode labels:', updatedGraph.nodeLabels);
 
-    // Verify new-concept node exists (using label from filename)
-    expect(updatedGraph.nodeLabels).toContain('new-concept');
+    // Verify new-concept node exists (using label from heading)
+    expect(updatedGraph.nodeLabels).toContain('New Concept');
 
     // GraphNode count should have increased (allowing for possible placeholder cleanup)
     expect(updatedGraph.nodeCount).toBeGreaterThanOrEqual(nodeCountBeforeAdd);
 
-    // Check that outgoingEdges were created for the wiki-links (using labels from filenames)
+    // Check that outgoingEdges were created for the wiki-links (using labels from frontmatter/headings)
     const newConceptEdges = updatedGraph.edges.filter(e =>
-      e.source === 'new-concept' || e.target === 'new-concept'
+      e.source === 'New Concept' || e.target === 'New Concept'
     );
     expect(newConceptEdges.length).toBeGreaterThan(0);
     console.log('✓ File addition detected and graph updated');
@@ -358,7 +358,7 @@ It demonstrates that the file watcher detects new files in real-time.`);
         if (!cy) return true; // Still processing
 
         const labels = cy.nodes().map((n: NodeSingular) => n.data('label'));
-        return !labels.includes('new-concept'); // Label from filename
+        return !labels.includes('New Concept'); // Label from heading
       });
     }, {
       message: 'Waiting for new-concept node to be removed',
@@ -384,24 +384,24 @@ It demonstrates that the file watcher detects new files in real-time.`);
     // Node count should be close to original (within 1-2 nodes due to potential placeholder nodes)
     expect(finalGraph.nodeCount).toBeGreaterThanOrEqual(nodeCountBeforeAdd - 2);
     expect(finalGraph.nodeCount).toBeLessThanOrEqual(nodeCountBeforeAdd + 2);
-    expect(finalGraph.nodeLabels).not.toContain('new-concept');
+    expect(finalGraph.nodeLabels).not.toContain('New Concept');
     console.log('✓ File deletion detected and graph updated');
 
     console.log('=== STEP 6: Verify wiki-link relationships ===');
 
     // Check for wiki-link edges that reliably exist from fixture files
-    // Note: Labels come from filenames (without .md extension), not markdown headings
+    // Note: Labels come from frontmatter title > first heading > filename
 
     // 14_1_Victor_Append_Agent_Extraction_Analysis_Complete.md links to 14_Assign_Agent_to_Identify_Boundaries.md
     const hasVictorToAssignLink = finalGraph.edges.some(e =>
-      e.source === '14_1_Victor_Append_Agent_Extraction_Analysis_Complete' &&
-      e.target === '14_Assign_Agent_to_Identify_Boundaries'
+      e.source === '(Victor) Append Agent Extraction Analysis Complete (14_1)' &&
+      e.target === 'Assign Agent to Identify Boundaries (14)'
     );
 
     // 17_Create_G_Cloud_Configuration.md links to 4_Setup_G_Cloud_CLI.md
     const hasCloudConfigToSetupLink = finalGraph.edges.some(e =>
-      e.source === '17_Create_G_Cloud_Configuration' &&
-      e.target === '4_Setup_G_Cloud_CLI'
+      e.source === 'Create G Cloud Configuration (17)' &&
+      e.target === 'Setup G Cloud CLI (4)'
     );
 
     expect(hasVictorToAssignLink).toBe(true);
@@ -462,7 +462,7 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
         const cy = (window as ExtendedWindow).cytoscapeInstance;
         if (!cy) return false;
         const labels = cy.nodes().map((n: NodeSingular) => n.data('label'));
-        return labels.includes('complex-links'); // Label from filename
+        return labels.includes('Complex Links Test'); // Label from heading
       });
     }, {
       message: 'Waiting for complex-links file to be processed',
@@ -475,7 +475,7 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
       if (!cy) throw new Error('Cytoscape not available');
 
       const complexNode = cy.nodes().filter((n: NodeSingular) =>
-        n.data('label') === 'complex-links' // Label from filename
+        n.data('label') === 'Complex Links Test' // Label from heading
       );
 
       if (complexNode.length === 0) return null;
@@ -600,13 +600,13 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
 
       // Wait for file to be detected and laid out
       await expect.poll(async () => {
-        return appWindow.evaluate((filename) => {
+        return appWindow.evaluate((index) => {
           const cy = (window as ExtendedWindow).cytoscapeInstance;
           if (!cy) return false;
           const labels = cy.nodes().map((n: NodeSingular) => n.data('label'));
-          const nodeId = filename.replace('.md', '');
-          return labels.includes(nodeId);
-        }, file.name);
+          const expectedLabel = `Incremental Test ${index + 1}`; // From heading
+          return labels.includes(expectedLabel);
+        }, i);
       }, {
         message: `Waiting for ${file.name} to appear in graph`,
         timeout: 10000
@@ -628,16 +628,22 @@ Check out [[17_Create_G_Cloud_Configuration]], [[16_Resolve_G_Cloud_CLI_MFA_Bloc
         y: n.position().y
       }));
 
-      // Get the 3 new nodes specifically
-      const newNodeIds = [
-        'incremental-test-1',
-        'incremental-test-2',
-        'incremental-test-3'
+      // Get the 3 new nodes specifically (by label, which comes from heading)
+      const newNodeLabels = [
+        'Incremental Test 1',
+        'Incremental Test 2',
+        'Incremental Test 3'
       ];
 
-      const newNodePositions = positions.filter(p =>
-        newNodeIds.includes(p.id)
+      const newNodes = cy.nodes().filter((n: NodeSingular) =>
+        newNodeLabels.includes(n.data('label'))
       );
+
+      const newNodePositions = newNodes.map((n: NodeSingular) => ({
+        id: n.id(),
+        x: n.position().x,
+        y: n.position().y
+      }));
 
       // Check Y-coordinates for new nodes
       const newYCoords = newNodePositions.map(p => p.y);
