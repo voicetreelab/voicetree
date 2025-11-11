@@ -53,7 +53,7 @@ def test_send_text_endpoint():
 
 def check_markdown_tree_update():
     """Check if new markdown files were created in the tree."""
-    vault_path = Path("/Users/bobbobby/repos/VoiceTree/markdownTreeVault")
+    vault_path = Path("/markdownTreeVault")
 
     # Get current date folder
     from datetime import datetime
