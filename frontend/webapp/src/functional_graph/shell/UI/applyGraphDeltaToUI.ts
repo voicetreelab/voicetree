@@ -2,6 +2,7 @@ import type {Core} from "cytoscape";
 import type {GraphDelta} from "@/functional_graph/pure/types.ts";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta} from "@/functional_graph/pure/graph-operations /prettyPrint.ts";
+import posthog from "posthog-js";
 
 /**
  * Apply a GraphDelta to the Cytoscape UI
@@ -126,5 +127,17 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
         cy.fit()
         // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY IF WE HAVE POSITIONS DERIVED FROM ANGULAR
     }
+    //analytics
+
+    delta.forEach((nodeDelta) => {
+        // TODO, MAP GRAPHDELTA TO GRAPHDELTA WITH CONTENT REMOVED AND TITLES ANONYMIZED
+        if (nodeDelta.type === 'UpsertNode') {
+            posthog.capture('graphDelta', { type: 'Upsert', name: nodeDelta.nodeToUpsert.relativeFilePathIsID });
+        }
+        else if (nodeDelta.type === 'DeleteNode') {
+            posthog.capture('graphDelta', { type: 'Delete', name: nodeDelta.nodeId });
+        }
+    });
+
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);
 }

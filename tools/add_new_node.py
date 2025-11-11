@@ -115,10 +115,13 @@ def addNewNode(parent_file, name, markdown_content, relationship_to, color_overr
     else:
         title_with_agent = f"{name} ({new_node_id})"
     
+    # Escape single quotes in title for YAML safety (double them)
+    yaml_safe_title = title_with_agent.replace("'", "''")
+
     frontmatter_lines = [
         "---",
         f"node_id: {new_node_id}",
-        f"title: {title_with_agent}",
+        f"title: '{yaml_safe_title}'",
         f"color: {color}"
     ]
     

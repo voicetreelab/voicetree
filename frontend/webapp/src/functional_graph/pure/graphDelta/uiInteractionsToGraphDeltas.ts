@@ -23,9 +23,10 @@ export function fromUICreateChildToUpsertNode(
   const newNode: GraphNode = {
     relativeFilePathIsID: parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length, //todo doesn't guarantee uniqueness, but tis good enough
     outgoingEdges: [],
-    content: '# New GraphNode',
+    content: '# Title',
     nodeUIMetadata: {
       color: O.none,
+        title: "Child of " + parentNode.nodeUIMetadata.title,
       position: calculateInitialPositionForChild(parentNode, graph, undefined, 200)
     },
   }

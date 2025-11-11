@@ -18,8 +18,7 @@ color: "#FF0000"
       title: 'My Node',
       summary: 'A test node',
       color: '#FF0000',
-      position: undefined,
-      error_parsing: undefined
+      position: undefined
     })
   })
 
@@ -46,8 +45,7 @@ title: 'Bug: Auto-open Markdown Editor (3)'
       title: undefined,
       summary: undefined,
       color: undefined,
-      position: undefined,
-      error_parsing: undefined
+      position: undefined
     })
   })
 
@@ -65,8 +63,7 @@ title: "Partial Node"
       title: 'Partial Node',
       summary: undefined,
       color: undefined,
-      position: undefined,
-      error_parsing: undefined
+      position: undefined
     })
   })
 
@@ -82,8 +79,7 @@ title: "Partial Node"
       title: undefined,
       summary: undefined,
       color: undefined,
-      position: undefined,
-      error_parsing: undefined
+      position: undefined
     })
   })
 
@@ -103,12 +99,11 @@ another: 123
       title: 'Extra Fields',
       summary: undefined,
       color: undefined,
-      position: undefined,
-      error_parsing: undefined
+      position: undefined
     })
   })
 
-  it('should gracefully handle malformed YAML frontmatter', () => {
+  it('should recover from malformed YAML frontmatter with unquoted colons', () => {
     const content = `---
 node_id: "123"
 title: Invalid YAML: missing quotes cause problems
@@ -116,9 +111,28 @@ summary: This is not properly quoted
 ---
 # Content`
 
-    // Should catch malformed YAML and return error_parsing field
+    // Should return empty frontmatter when YAML has unquoted colons
     const result = extractFrontmatter(content)
-    expect(result.error_parsing).toBeDefined()
+    expect(result).toEqual({})
+  })
+
+  it('should parse frontmatter with parentheses without colons', () => {
+    const content = `---
+node_id: "456"
+title: (Sam) Some Title Without Colons (v2)
+summary: Valid YAML with parens
+---
+# Content`
+
+    // Parentheses are fine as long as there's no unquoted colon
+    const result = extractFrontmatter(content)
+    expect(result).toEqual({
+      node_id: '456',
+      title: '(Sam) Some Title Without Colons (v2)',
+      summary: 'Valid YAML with parens',
+      color: undefined,
+      position: undefined
+    })
   })
 
   it('should normalize numeric node_id to string', () => {
@@ -135,8 +149,7 @@ title: "Numeric ID"
       title: 'Numeric ID',
       summary: undefined,
       color: undefined,
-      position: undefined,
-      error_parsing: undefined
+      position: undefined
     })
   })
 
@@ -158,8 +171,7 @@ position:
       title: 'Positioned Node',
       summary: undefined,
       color: '#FF0000',
-      position: { x: 100, y: 200 },
-      error_parsing: undefined
+      position: { x: 100, y: 200 }
     })
   })
 
@@ -177,8 +189,7 @@ title: "No Position"
       title: 'No Position',
       summary: undefined,
       color: undefined,
-      position: undefined,
-      error_parsing: undefined
+      position: undefined
     })
   })
 
@@ -192,7 +203,6 @@ position: "invalid"
     const result = extractFrontmatter(content)
 
     expect(result.position).toBeUndefined()
-    expect(result.error_parsing).toBeUndefined()
   })
 
   it('should handle partial position data', () => {
@@ -206,6 +216,5 @@ position:
     const result = extractFrontmatter(content)
 
     expect(result.position).toBeUndefined()
-    expect(result.error_parsing).toBeUndefined()
   })
 })

@@ -84,6 +84,8 @@ declare global {
   // Vite environment variables
   interface ImportMetaEnv {
     readonly VITE_SONIOX_API_KEY?: string;
+    readonly VITE_POSTHOG_API_KEY?: string;
+    readonly VITE_POSTHOG_HOST?: string;
   }
 
   interface ImportMeta {

@@ -64,8 +64,11 @@ async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> 
   async function scan(dirPath: string, relativePath = ''): Promise<readonly string[]> {
     const entries = await fs.readdir(dirPath, { withFileTypes: true })
 
+    // Sort entries by name for deterministic ordering
+    const sortedEntries = entries.sort((a, b) => a.name.localeCompare(b.name))
+
     const results = await Promise.all(
-      entries.map(async (entry) => {
+      sortedEntries.map(async (entry) => {
         const fullPath = path.join(dirPath, entry.name)
         const relPath = relativePath ? path.join(relativePath, entry.name) : entry.name
 
