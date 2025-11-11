@@ -47,16 +47,18 @@ import { markdownToTitle } from '@/functional_graph/pure/markdown-parsing/markdo
  * ```
  */
 /**
- * Safely extract frontmatter, returning Either with error or frontmatter
+ * Safely extract frontmatter, returning empty object on error
  */
 function safeFrontmatterExtraction(content: string, filename: string) : Frontmatter {
-  return E.tryCatch(
+  const frontmatterEither = E.tryCatch(
     () => extractFrontmatter(content),
     (error) => {
-      console.warn(`[parseMarkdownToGraphNode] Invalid YAML frontmatter in ${filename}, using fallback title:`, error)
-      return {"key" : "value"} as Frontmatter // todo
+      console.warn(`[parseMarkdownToGraphNode] Invalid YAML frontmatter in ${filename}, using fallback:`, error)
+      return error
     }
   )
+
+  return E.getOrElse(() => ({} as Frontmatter))(frontmatterEither)
 }
 
 export function parseMarkdownToGraphNode(content: string, filename: string): GraphNode {
@@ -64,7 +66,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string): Gra
   const frontmatter = safeFrontmatterExtraction(content, filename)
 
   // Compute title using markdownToTitle
-  const title = markdownToTitle(frontmatter, content, filename) // todo
+  const title = markdownToTitle(frontmatter, content, filename)
 
   // Return node with computed title
   return {
