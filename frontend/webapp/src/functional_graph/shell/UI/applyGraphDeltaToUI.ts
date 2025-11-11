@@ -2,7 +2,6 @@ import type {Core} from "cytoscape";
 import type {GraphDelta} from "@/functional_graph/pure/types.ts";
 import * as O from 'fp-ts/lib/Option.js';
 import {prettyPrintGraphDelta} from "@/functional_graph/pure/graph-operations /prettyPrint.ts";
-import {markdownToTitle} from "@/functional_graph/pure/markdown-parsing/markdown-to-title";
 
 /**
  * Apply a GraphDelta to the Cytoscape UI
@@ -34,13 +33,11 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
 
                     console.log(`[applyGraphDeltaToUI] Creating node ${nodeId} with color:`, colorValue);
 
-                    const label = markdownToTitle(node);
-
                     cy.add({
                         group: 'nodes' as const,
                         data: {
                             id: nodeId,
-                            label: label,
+                            label: node.nodeUIMetadata.title,
                             content: node.content,
                             summary: '',
                             color: colorValue
@@ -52,8 +49,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     });
                 } else {
                     // Update existing node metadata (but NOT position)
-                    const label = markdownToTitle(node);
-                    existingNode.data('label', label);
+                    existingNode.data('label', node.nodeUIMetadata.title);
                     existingNode.data('summary', '');
                     const color = O.isSome(node.nodeUIMetadata.color)
                         ? node.nodeUIMetadata.color.value
