@@ -1,10 +1,12 @@
 import type { Core, NodeSingular } from 'cytoscape';
 
-export enum AnimationType {
-  PINNED = 'pinned',
-  NEW_NODE = 'new_node',
-  APPENDED_CONTENT = 'appended_content',
-}
+export const AnimationType = {
+  PINNED: 'pinned',
+  NEW_NODE: 'new_node',
+  APPENDED_CONTENT: 'appended_content',
+} as const;
+
+export type AnimationType = typeof AnimationType[keyof typeof AnimationType];
 
 interface AnimationConfig {
   duration: number;
@@ -177,7 +179,10 @@ export class BreathingAnimationService {
     }
 
     // Reset border to default by removing inline style overrides
-    node.removeStyle('border-width border-color border-opacity border-style');
+    node.removeStyle('border-width');
+    node.removeStyle('border-color');
+    node.removeStyle('border-opacity');
+    node.removeStyle('border-style');
 
     // Clean up data
     node.removeData('animationType');

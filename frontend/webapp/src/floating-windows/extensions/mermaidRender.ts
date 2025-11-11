@@ -1,10 +1,7 @@
-import {Decoration, WidgetType, EditorView} from '@codemirror/view';
-import {RangeSet, StateField} from '@codemirror/state';
+import {Decoration, WidgetType, EditorView, type DecorationSet} from '@codemirror/view';
+import {RangeSet, StateField, type EditorState, type Range} from '@codemirror/state';
 import {syntaxTree} from '@codemirror/language';
 import mermaid from 'mermaid';
-
-import type {DecorationSet} from '@codemirror/view';
-import type {EditorState, Range} from '@codemirror/state';
 
 // Initialize Mermaid with default config
 mermaid.initialize({
@@ -19,11 +16,13 @@ mermaid.initialize({
  * Similar to RenderBlockWidget from codemirror-rich-markdoc
  */
 class MermaidBlockWidget extends WidgetType {
+    readonly source: string;
     private rendered: string | null = null;
     private renderPromise: Promise<void> | null = null;
 
-    constructor(public source: string) {
+    constructor(source: string) {
         super();
+        this.source = source;
 
         // Extract just the diagram source (remove ```mermaid and ```)
         const lines = source.split('\n');

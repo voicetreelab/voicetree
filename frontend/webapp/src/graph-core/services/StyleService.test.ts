@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { StyleService } from '@/graph-core/services/StyleService';
+import type { Core } from 'cytoscape';
 
 describe('StyleService', () => {
   let styleService: StyleService;
@@ -178,17 +179,17 @@ describe('StyleService', () => {
       // Create a mock Cytoscape instance with nodes
       const mockNodes = [
         {
-          data: (key?: string) => undefined,
+          data: () => undefined,
           degree: () => 0,
           style: vi.fn()
         },
         {
-          data: (key?: string) => undefined,
+          data: () => undefined,
           degree: () => 30,
           style: vi.fn()
         },
         {
-          data: (key?: string) => undefined,
+          data: () => undefined,
           degree: () => 60,
           style: vi.fn()
         }
@@ -196,7 +197,7 @@ describe('StyleService', () => {
 
       const mockCy = {
         nodes: () => mockNodes
-      } as any;
+      } as unknown as Core;
 
       styleService.updateNodeSizes(mockCy);
 

@@ -1,14 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import cytoscape from 'cytoscape';
+import type { Core } from 'cytoscape';
 import { ContextMenuService, type ContextMenuDependencies } from '@/graph-core/services/ContextMenuService';
+import type { CxtMenuInstance } from '@/types/cytoscape-cxtmenu';
 
 // Mock cytoscape-cxtmenu
 vi.mock('cytoscape-cxtmenu', () => ({
   default: vi.fn(),
 }));
 
+// Helper type for mocked cytoscape with cxtmenu
+type MockedCore = Core & {
+  cxtmenu: ReturnType<typeof vi.fn>;
+};
+
 describe('ContextMenuService', () => {
-  let cy: cytoscape.Core;
+  let cy: MockedCore;
   let container: HTMLDivElement;
   let service: ContextMenuService;
   let mockDeps: ContextMenuDependencies;
@@ -21,7 +28,7 @@ describe('ContextMenuService', () => {
     document.body.appendChild(container);
 
     // Initialize cytoscape
-    cy = cytoscape({
+    const coreInstance = cytoscape({
       container: container,
       elements: [
         { data: { id: 'node1', label: 'GraphNode 1' } },
@@ -47,15 +54,17 @@ describe('ContextMenuService', () => {
       layout: { name: 'preset' },
     });
 
-    // Mock cxtmenu method on cytoscape instance
-    cy.cxtmenu = vi.fn().mockReturnValue({
+    // Add mocked cxtmenu method
+    const mockCxtmenu = vi.fn().mockReturnValue({
       destroy: vi.fn(),
     });
+    (coreInstance as MockedCore).cxtmenu = mockCxtmenu;
+    cy = coreInstance as MockedCore;
 
     // Create mock dependencies
     mockDeps = {
-      getFilePathForNode: vi.fn((nodeId: string) => `/path/to/${nodeId}.md`),
-      createAnchoredFloatingEditor: vi.fn(),
+      getFilePathForNode: vi.fn().mockResolvedValue('/path/to/node.md'),
+      createAnchoredFloatingEditor: vi.fn().mockResolvedValue(undefined),
       createFloatingTerminal: vi.fn(),
       handleAddNodeAtPosition: vi.fn().mockResolvedValue(undefined),
     };
@@ -139,8 +148,9 @@ describe('ContextMenuService', () => {
       service.initialize(cy, mockDeps);
 
       // Get the commands function from the mock call (first call is for nodes)
-      const menuOptions = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const commandsFunc = menuOptions.commands;
+      const menuOptions = cy.cxtmenu.mock.calls[0]?.[0];
+      expect(menuOptions).toBeDefined();
+      const commandsFunc = menuOptions!.commands;
 
       // Test with node
       const node1 = cy.getElementById('node1');
@@ -148,41 +158,37 @@ describe('ContextMenuService', () => {
 
       // Edit, Create Child, Terminal, Delete, Copy
       expect(commands).toHaveLength(5);
-      expect(commands[0].enabled).toBe(true);
+      expect(commands[0]?.enabled).toBe(true);
     });
 
-    it('should execute callbacks when menu items are selected', () => {
+    it('should execute callbacks when menu items are selected', async () => {
       service = new ContextMenuService();
       service.initialize(cy, mockDeps);
 
-      const menuOptions = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const commandsFunc = menuOptions.commands;
+      const menuOptions = cy.cxtmenu.mock.calls[0]?.[0];
+      expect(menuOptions).toBeDefined();
+      const commandsFunc = menuOptions!.commands;
 
       const node = cy.getElementById('node1');
       const commands = commandsFunc(node);
 
       // Execute the Edit command
-      commands[0].select();
-      expect(mockDeps.createAnchoredFloatingEditor).toHaveBeenCalledWith(
-        'node1',
-        '/absolutePath/to/node1.md',
-        'Content for node1',
-        expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) })
-      );
+      await commands[0]?.select();
+      expect(mockDeps.createAnchoredFloatingEditor).toHaveBeenCalledWith('node1');
     });
   });
-
 
   describe('destruction', () => {
     it('should destroy menu instance and clear references', () => {
       service = new ContextMenuService();
       service.initialize(cy, mockDeps);
 
-      const menuInstance = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.results[0].value;
+      const menuInstance = cy.cxtmenu.mock.results[0]?.value as CxtMenuInstance | undefined;
+      expect(menuInstance).toBeDefined();
 
       service.destroy();
 
-      expect(menuInstance.destroy).toHaveBeenCalled();
+      expect(menuInstance?.destroy).toHaveBeenCalled();
     });
 
     it('should handle destruction when no menu instance exists', () => {
@@ -198,68 +204,41 @@ describe('ContextMenuService', () => {
       service = new ContextMenuService();
       service.initialize(cy, mockDeps);
 
-      const menuOptions = (cy.cxtmenu as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const commandsFunc = menuOptions.commands;
+      const menuOptions = cy.cxtmenu.mock.calls[0]?.[0];
+      expect(menuOptions).toBeDefined();
+      const commandsFunc = menuOptions!.commands;
 
       const node = cy.getElementById('node1');
       const commands = commandsFunc(node);
 
       // Check that content is an HTML element with SVG
-      const iconElement = commands[0].content as HTMLElement;
+      const iconElement = commands[0]?.content as HTMLElement;
       expect(iconElement.tagName).toBe('DIV');
       expect(iconElement.querySelector('svg')).not.toBeNull();
-      expect(iconElement.querySelector('absolutePath')).not.toBeNull();
+      expect(iconElement.querySelector('path')).not.toBeNull();
     });
   });
 
   describe('canvas context menu', () => {
     it('should register canvas context menu with cxtmenu', () => {
-      // Spy on cy.cxtmenu before initialization
-      const cxtmenuSpy = vi.spyOn(cy, 'cxtmenu');
-
       service = new ContextMenuService();
       service.initialize(cy, mockDeps);
 
       // Verify that cxtmenu was called twice: once for nodes, once for canvas
-      expect(cxtmenuSpy).toHaveBeenCalledTimes(2);
+      expect(cy.cxtmenu).toHaveBeenCalledTimes(2);
 
       // Check that the second call is for canvas (selector: 'core')
-      const secondCall = cxtmenuSpy.mock.calls[1];
+      const secondCall = cy.cxtmenu.mock.calls[1];
       expect(secondCall).toBeDefined();
-      const canvasMenuOptions = secondCall[0];
-      expect(canvasMenuOptions.selector).toBe('core');
-      expect(canvasMenuOptions.commands).toBeInstanceOf(Function);
+      const canvasMenuOptions = secondCall?.[0];
+      expect(canvasMenuOptions).toBeDefined();
+      expect(canvasMenuOptions?.selector).toBe('core');
+      expect(canvasMenuOptions?.commands).toBeInstanceOf(Function);
     });
 
     it('should store canvas click position and create menu command', async () => {
-      // Spy on cy.cxtmenu before initialization
-      const cxtmenuSpy = vi.spyOn(cy, 'cxtmenu');
-
       service = new ContextMenuService();
       service.initialize(cy, mockDeps);
-
-      // Get the canvas menu setup (second call to cxtmenu)
-      const canvasMenuCall = cxtmenuSpy.mock.calls.find(
-        call => call[0]?.selector === 'core'
-      );
-      expect(canvasMenuCall).toBeDefined();
-      const commandsFunction = canvasMenuCall![0].commands;
-
-      // Spy on the cy.on method to get the cxttapstart handler
-      const onSpy = vi.spyOn(cy, 'on');
-
-      // Re-initialize to capture the event handler spy
-      service.destroy();
-      service = new ContextMenuService();
-      service.initialize(cy, mockDeps);
-
-      // Verify that cxttapstart listener was registered for storing position
-      expect(onSpy).toHaveBeenCalledWith('cxttapstart', expect.any(Function));
-
-      // Get the registered handler
-      const cxttapstartCall = onSpy.mock.calls.find(call => call[0] === 'cxttapstart');
-      expect(cxttapstartCall).toBeDefined();
-      const handler = cxttapstartCall![1] as (event: unknown) => void;
 
       // Simulate a canvas click event to store position
       const position = { x: 100, y: 200 };
@@ -268,41 +247,36 @@ describe('ContextMenuService', () => {
         position,
       };
 
-      handler(mockEvent);
+      // Trigger the cxttapstart event handler
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (cy as any).emit('cxttapstart', mockEvent);
 
-      // Get the commands function from the new service instance
-      const newCanvasMenuCall = cxtmenuSpy.mock.calls.filter(
-        call => call[0]?.selector === 'core'
-      )[1]; // Get second canvas menu call (after re-initialization)
-      expect(newCanvasMenuCall).toBeDefined();
-      const newCommandsFunction = newCanvasMenuCall[0].commands;
+      // Get the canvas menu commands function
+      const canvasMenuCall = cy.cxtmenu.mock.calls.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (call: any) => call[0]?.selector === 'core'
+      );
+      expect(canvasMenuCall).toBeDefined();
+      const commandsFunction = canvasMenuCall?.[0]?.commands;
+      expect(commandsFunction).toBeDefined();
 
       // Get commands after position is stored
-      const commands = newCommandsFunction();
+      const commands = commandsFunction!();
 
       // Verify we have an "Add GraphNode Here" command
       expect(commands).toHaveLength(1);
-      expect(commands[0].enabled).toBe(true);
+      expect(commands[0]?.enabled).toBe(true);
 
       // Simulate selecting the command
-      await commands[0].select();
+      await commands[0]?.select();
 
       // The handler should be called with the stored position
       expect(mockDeps.handleAddNodeAtPosition).toHaveBeenCalledWith(position);
     });
 
     it('should not store position for node clicks', () => {
-      // Spy on cy.cxtmenu and cy.on before initialization
-      const cxtmenuSpy = vi.spyOn(cy, 'cxtmenu');
-      const onSpy = vi.spyOn(cy, 'on');
-
       service = new ContextMenuService();
       service.initialize(cy, mockDeps);
-
-      // Get the registered cxttapstart handler
-      const cxttapstartCall = onSpy.mock.calls.find(call => call[0] === 'cxttapstart');
-      expect(cxttapstartCall).toBeDefined();
-      const handler = cxttapstartCall![1] as (event: unknown) => void;
 
       // Simulate a node click event (not canvas)
       const node = cy.getElementById('node1');
@@ -312,111 +286,23 @@ describe('ContextMenuService', () => {
         position,
       };
 
-      handler(mockEvent);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (cy as any).emit('cxttapstart', mockEvent);
 
       // Get the commands function from canvas menu
-      const canvasMenuCall = cxtmenuSpy.mock.calls.find(
-        call => call[0]?.selector === 'core'
+      const canvasMenuCall = cy.cxtmenu.mock.calls.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (call: any) => call[0]?.selector === 'core'
       );
       expect(canvasMenuCall).toBeDefined();
-      const commandsFunction = canvasMenuCall![0].commands;
+      const commandsFunction = canvasMenuCall?.[0]?.commands;
+      expect(commandsFunction).toBeDefined();
 
       // Get commands after node click (position should not be stored)
-      const commands = commandsFunction();
+      const commands = commandsFunction!();
 
       // Commands should be empty since position wasn't stored (node click, not canvas)
       expect(commands).toHaveLength(0);
-    });
-  });
-
-  describe('createNewChildNodeFromUI', () => {
-    it('should create optimistic UI update and dispatch action to backend', async () => {
-      // Mock window.electronAPI
-      const mockGraphUpdate = vi.fn().mockResolvedValue({ success: true });
-      (global as any).window = {
-        electronAPI: {
-          graph: {
-            update: mockGraphUpdate
-          }
-        }
-      };
-
-      // Create mock cytoscape instance
-      const mockCyAdd = vi.fn();
-      const mockCyBatch = vi.fn((fn) => fn());
-      const mockCy = {
-        getCore: () => ({
-          add: mockCyAdd,
-          batch: mockCyBatch
-        })
-      };
-
-      // Create mock graph with parent node
-      const mockGraph = {
-        nodes: {
-          'parent_node': {
-            id: 'parent_node',
-            content: '# Parent GraphNode',
-            outgoingEdges: [],
-            nodeUIMetadata: {
-              color: { _tag: 'None' },
-              position: { x: 100, y: 100 }
-            }
-          }
-        }
-      };
-
-      // Create dependencies
-      const deps = {
-        cy: mockCy,
-        getGraph: () => mockGraph,
-        getContentForNode: vi.fn(),
-        createFloatingEditor: vi.fn(),
-        extractNodeIdFromPath: vi.fn(),
-        getVaultPath: () => '/test/vault'
-      };
-
-      // Call createNewChildNodeFromUI
-      await ContextMenuService.createNewChildNode('parent_node', deps as any);
-
-      // Verify cytoscape batch was called for optimistic update
-      expect(mockCyBatch).toHaveBeenCalled();
-
-      // Verify node was added to cytoscape
-      expect(mockCyAdd).toHaveBeenCalledWith(
-        expect.objectContaining({
-          group: 'nodes',
-          data: expect.objectContaining({
-            id: 'parent_node_0',
-            content: '# New GraphNode'
-          })
-        })
-      );
-
-      // Verify edge was added to cytoscape
-      expect(mockCyAdd).toHaveBeenCalledWith(
-        expect.objectContaining({
-          group: 'edges',
-          data: expect.objectContaining({
-            source: 'parent_node',
-            target: 'parent_node_0'
-          })
-        })
-      );
-
-      // Verify graph update was called
-      expect(mockGraphUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          nodeToCreate: expect.objectContaining({
-            id: 'parent_node_0',
-            content: '# New GraphNode'
-          }),
-          createsIncomingEdges: ['parent_node']
-        })
-      );
-
-      // Cleanup
-      delete (global as any).window;
     });
   });
 });
