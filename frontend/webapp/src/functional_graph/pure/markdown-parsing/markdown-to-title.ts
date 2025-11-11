@@ -1,5 +1,5 @@
-import type { GraphNode } from '@/functional_graph/pure/types';
-import { extractFrontmatter } from './extract-frontmatter';
+import type {FilePath, NodeId} from '@/functional_graph/pure/types';
+import type {Frontmatter} from "@/functional_graph/pure/markdown-parsing/extract-frontmatter.ts";
 
 /**
  * Compute the display title for a graph node
@@ -11,7 +11,6 @@ import { extractFrontmatter } from './extract-frontmatter';
  * 2. First markdown heading (if < 100 chars)
  * 3. Filename with _ and - replaced by spaces
  *
- * @param node - The graph node to compute title for
  * @returns A human-readable title string
  *
  * @example
@@ -29,11 +28,7 @@ import { extractFrontmatter } from './extract-frontmatter';
  * markdownToTitle(node3) // => "my example file"
  * ```
  */
-export function markdownToTitle(node: GraphNode): string {
-    const content = node.content;
-
-    // 1. Check for frontmatter title
-    const frontmatter = extractFrontmatter(content);
+export function markdownToTitle(frontmatter: Frontmatter, content: string, filePath: FilePath): string {
     if (frontmatter.title) {
         return frontmatter.title;
     }
@@ -48,7 +43,7 @@ export function markdownToTitle(node: GraphNode): string {
     }
 
     // 3. Use filename, clean up _ and -
-    const filename = node.relativeFilePathIsID.split('/').pop() || node.relativeFilePathIsID;
+    const filename = filePath.split('/').pop() || filePath;
     const withoutExtension = filename.replace(/\.md$/, '');
     return withoutExtension.replace(/[_-]/g, ' ');
 }
