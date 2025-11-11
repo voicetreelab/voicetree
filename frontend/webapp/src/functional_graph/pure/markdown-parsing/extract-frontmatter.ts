@@ -1,5 +1,4 @@
 import matter from 'gray-matter'
-import * as E from 'fp-ts/lib/Either.js'
 
 /**
  * Frontmatter extracted from markdown files
@@ -10,7 +9,6 @@ export interface Frontmatter {
     readonly summary?: string
     readonly color?: string
     readonly position?: { readonly x: number; readonly y: number }
-    readonly error_parsing?: string
 }
 
 /**
@@ -33,47 +31,13 @@ function parsePosition(position: unknown): { readonly x: number; readonly y: num
 }
 
 /**
- * Safely parses YAML frontmatter, returning Either<Error, Frontmatter>
- */
-function safeParseFrontmatter(content: string): E.Either<Error, Frontmatter> {
-    return E.tryCatch(
-        () => {
-            const parsed = matter(content)
-            return {
-                node_id: normalizeToString(parsed.data.node_id),
-                title: normalizeToString(parsed.data.title),
-                summary: normalizeToString(parsed.data.summary),
-                color: normalizeToString(parsed.data.color),
-                position: parsePosition(parsed.data.position),
-                error_parsing: undefined
-            }
-        },
-        (error) => error as Error
-    )
-}
-
-/**
- * Creates error frontmatter with error message
- */
-function errorFrontmatter(error: Error): Frontmatter {
-    return {
-        node_id: undefined,
-        title: undefined,
-        summary: undefined,
-        color: undefined,
-        position: undefined,
-        error_parsing: error.message
-    }
-}
-
-/**
  * Extracts frontmatter from markdown content.
  *
  * Pure function: same input -> same output, no side effects
- * Gracefully handles malformed YAML by returning frontmatter with error_parsing field.
+ * Returns empty frontmatter if YAML is malformed (functional recovery without try-catch).
  *
  * @param content - The full markdown content including frontmatter
- * @returns Frontmatter object with optional fields. If YAML is malformed, error_parsing contains the error message.
+ * @returns Frontmatter object with optional fields
  *
  * @example
  * ```typescript
@@ -93,11 +57,14 @@ function errorFrontmatter(error: Error): Frontmatter {
  * ```
  */
 export function extractFrontmatter(content: string): Frontmatter {
-    const result = safeParseFrontmatter(content)
-
-    return E.isLeft(result)
-        ? errorFrontmatter(result.left)
-        : result.right
+    const parsed = matter(content)
+    return {
+        node_id: normalizeToString(parsed.data.node_id),
+        title: normalizeToString(parsed.data.title),
+        summary: normalizeToString(parsed.data.summary),
+        color: normalizeToString(parsed.data.color),
+        position: parsePosition(parsed.data.position)
+    }
 }
 
 /**

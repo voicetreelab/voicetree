@@ -1,7 +1,9 @@
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 import type { GraphNode } from '@/functional_graph/pure/types'
-import { extractFrontmatter } from '@/functional_graph/pure/markdown-parsing/extract-frontmatter'
+import { extractFrontmatter, type Frontmatter } from '@/functional_graph/pure/markdown-parsing/extract-frontmatter'
 import { filenameToNodeId } from '@/functional_graph/pure/markdown-parsing/filename-utils'
+import { markdownToTitle } from '@/functional_graph/pure/markdown-parsing/markdown-to-title'
 
 /**
  * Parses markdown content into a GraphNode.
@@ -44,14 +46,33 @@ import { filenameToNodeId } from '@/functional_graph/pure/markdown-parsing/filen
  * // }
  * ```
  */
-export function parseMarkdownToGraphNode(content: string, filename: string): GraphNode {
-  const frontmatter = extractFrontmatter(content)
+/**
+ * Safely extract frontmatter, returning Either with error or frontmatter
+ */
+function safeFrontmatterExtraction(content: string, filename: string) : Frontmatter {
+  return E.tryCatch(
+    () => extractFrontmatter(content),
+    (error) => {
+      console.warn(`[parseMarkdownToGraphNode] Invalid YAML frontmatter in ${filename}, using fallback title:`, error)
+      return {"key" : "value"} as Frontmatter // todo
+    }
+  )
+}
 
+export function parseMarkdownToGraphNode(content: string, filename: string): GraphNode {
+  // Try to extract frontmatter, but don't let invalid YAML break the entire app
+  const frontmatter = safeFrontmatterExtraction(content, filename)
+
+  // Compute title using markdownToTitle
+  const title = markdownToTitle(frontmatter, content, filename) // todo
+
+  // Return node with computed title
   return {
     relativeFilePathIsID: filenameToNodeId(filename),
     outgoingEdges: [],
     content,
     nodeUIMetadata: {
+      title,
       color: frontmatter.color ? O.some(frontmatter.color) : O.none,
       position: frontmatter.position ? O.some(frontmatter.position) : O.none
     }
