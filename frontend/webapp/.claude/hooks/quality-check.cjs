@@ -1034,7 +1034,7 @@ class QualityChecker {
 
     if (!hasTests) {
       log.warning(`💡 No test file found for ${path.basename(this.filePath)}`);
-      log.warning('   Consider adding e2e-tests for better code quality');
+      log.warning('   Consider adding co-located test for better code quality');
     }
 
     // Special reminders for specific file types

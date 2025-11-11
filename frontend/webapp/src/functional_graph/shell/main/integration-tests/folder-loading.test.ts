@@ -30,15 +30,17 @@ import type { BrowserWindow } from 'electron'
 
 // Track IPC broadcasts
 interface BroadcastCall {
-  channel: string
-  delta: GraphDelta
+  readonly channel: string
+  readonly delta: GraphDelta
 }
 
-const EXAMPLE_SMALL_PATH = path.resolve(__dirname, '../../../../fixtures/example_small')
-const EXAMPLE_LARGE_PATH = path.resolve(__dirname, '../../../../fixtures/example_real_large')
+// Use absolute paths relative to project root
+const PROJECT_ROOT = path.resolve(__dirname, '../../../../../')
+const EXAMPLE_SMALL_PATH = path.join(PROJECT_ROOT, 'e2e-tests/fixtures/example_small')
+const EXAMPLE_LARGE_PATH = path.join(PROJECT_ROOT, 'e2e-tests/fixtures/example_real_large')
 
 // Expected counts (based on actual fixtures)
-const EXPECTED_SMALL_NODE_COUNT = 6
+const EXPECTED_SMALL_NODE_COUNT = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
 const EXPECTED_LARGE_NODE_COUNT = 56
 
 // State for mocks
@@ -82,12 +84,11 @@ describe('Folder Loading - Integration Tests', () => {
   afterEach(async () => {
     await stopWatching()
 
-    // Clean up test file if it exists
+    // Clean up test file if it exists - functional approach without try-catch
     const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
-    try {
+    const fileExists = await fs.access(testFilePath).then(() => true).catch(() => false)
+    if (fileExists) {
       await fs.unlink(testFilePath)
-    } catch {
-      // File might not exist, that's ok
     }
 
     vi.clearAllMocks()
@@ -350,7 +351,7 @@ describe('Folder Loading - Integration Tests', () => {
         eventType: 'Added' as const
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       handleFSEventWithStateAndUISides(addEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
       // THEN: Graph should contain the new node
@@ -376,7 +377,7 @@ describe('Folder Loading - Integration Tests', () => {
         eventType: 'Deleted' as const
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       handleFSEventWithStateAndUISides(deleteEvent, EXAMPLE_SMALL_PATH, mockMainWindow as unknown as BrowserWindow)
 
       // THEN: GraphNode should be removed from graph
@@ -464,6 +465,32 @@ describe('Folder Loading - Integration Tests', () => {
         // outgoingEdges should be an array
         expect(Array.isArray(node.outgoingEdges)).toBe(true)
       })
+    })
+  })
+
+  describe('BEHAVIOR: Recover from malformed YAML frontmatter', () => {
+    it('should load files with bad YAML frontmatter and fall back to heading/filename', async () => {
+      // WHEN: Load directory containing file with bad YAML
+      await loadFolder(EXAMPLE_SMALL_PATH)
+
+      // THEN: Should still load all nodes including the one with bad YAML
+      const graph = getGraph()
+      expect(Object.keys(graph.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
+
+      // AND: The bad YAML file should be present
+      const badYamlNode = graph.nodes['7_Bad_YAML_Frontmatter_Test']
+      expect(badYamlNode).toBeDefined()
+
+      // AND: Should have content (not skipped due to parse error)
+      expect(badYamlNode.content).toBeDefined()
+      expect(badYamlNode.content.length).toBeGreaterThan(0)
+
+      // AND: Should have used fallback title (from heading, not the unparseable frontmatter)
+      expect(badYamlNode.nodeUIMetadata.title).toBeDefined()
+      // The title should be from the heading "Bad YAML Frontmatter Test"
+      // NOT from the broken frontmatter title
+      expect(badYamlNode.nodeUIMetadata.title).not.toBe('(Sam) Proposed Fix: Expose VoiceTreeGraphView (55)')
+      expect(badYamlNode.nodeUIMetadata.title).toBe('Bad YAML Frontmatter Test')
     })
   })
 })

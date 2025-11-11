@@ -544,7 +544,7 @@ export function anchorToNode(
     }
 
     // 1. Create child shadow node ID based on parent node
-    const childShadowId = `shadow-child-${parentNodeId}`;
+    const childShadowId = `shadow-child-${parentNodeId}-${floatingWindow.id}`;
 
     // 2. Position child shadow node offset from parent (+50, +50)
     const parentPos = parentNode.position();

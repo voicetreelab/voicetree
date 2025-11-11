@@ -211,6 +211,51 @@ Content`,
         })
     })
 
+    describe('Regression: Real-world content from production', () => {
+        it('should extract title from production frontmatter with node_id and position', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: '12_Manually_Creating_Task_Tree_Nodes',
+                content: `---
+node_id: 12
+title: Manually Creating Task Tree Nodes (12)
+---
+### Users can manually create nodes in the task tree.
+
+Users can manually create nodes in the task tree, often preferred over speaking.`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const title = markdownToTitle(node)
+            expect(title).toBe('Manually Creating Task Tree Nodes (12)')
+        })
+
+        it('should extract title from frontmatter with quoted value', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: '9_Ethical_Concern_Objectifying_Colleagues',
+                content: `---
+node_id: 9
+title: "Ethical Concern: Objectifying Colleagues (9)"
+position:
+  x: 1153.2814824381885
+  y: -653.281482438188
+---
+### Raises an ethical concern about the objectification of colleagues.`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const title = markdownToTitle(node)
+            expect(title).toBe('Ethical Concern: Objectifying Colleagues (9)')
+        })
+    })
+
     describe('Edge cases', () => {
         it('should handle empty content', () => {
             const node: GraphNode = {

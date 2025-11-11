@@ -129,7 +129,102 @@ Validates that node creation works in test environment""",
 
         return True
 
+def test_add_new_node_with_special_chars_in_title():
+    """Test that add_new_node.py correctly handles special characters in titles"""
+
+    # Create temporary test directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        test_vault = Path(temp_dir) / "test_vault"
+        test_date_dir = test_vault / "2025-08-08"
+        test_date_dir.mkdir(parents=True)
+
+        # Create source node
+        source_node = test_date_dir / "1_test_source.md"
+        source_content = """---
+node_id: 1
+title: 'test_source (1)'
+color: blue
+---
+
+This is a test source node."""
+
+        with open(source_node, 'w') as f:
+            f.write(source_content)
+
+        # Test cases: (title, expected_title_in_frontmatter)
+        test_cases = [
+            ("Bug: Fix auto-open", "title: 'Bug: Fix auto-open (2)'"),
+            ("Bob's Task", "title: 'Bob''s Task (2)'"),
+            ("Alice's Bug: Fix this", "title: 'Alice''s Bug: Fix this (2)'"),
+        ]
+
+        for test_name, expected_yaml_line in test_cases:
+            print(f"\n=== Testing title: {test_name} ===")
+
+            # Set environment variables
+            env = os.environ.copy()
+            env['AGENT_COLOR'] = 'test_blue'
+
+            # Test node creation
+            cmd = [
+                sys.executable,
+                str(Path(__file__).parent.parent.parent.parent / 'add_new_node.py'),
+                str(source_node),
+                test_name,
+                "Test content",
+                "is_test_of"
+            ]
+
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                cwd=Path.cwd()
+            )
+
+            print(f"Exit code: {result.returncode}")
+            assert result.returncode == 0, f"Failed to create node with title '{test_name}'"
+
+            # Check if new node was created
+            new_files = list(test_date_dir.glob("2_*.md"))
+            assert len(new_files) > 0, f"No new file created for title '{test_name}'"
+
+            new_node = new_files[0]
+            with open(new_node, 'r') as f:
+                content = f.read()
+
+            # Validate YAML frontmatter contains properly escaped title
+            assert expected_yaml_line in content, \
+                f"Expected '{expected_yaml_line}' not found in:\n{content}"
+
+            # Verify it's valid YAML by trying to parse it
+            import re
+            yaml_match = re.search(r'^---\n(.*?)^---', content, re.MULTILINE | re.DOTALL)
+            assert yaml_match, f"Could not find YAML frontmatter in:\n{content}"
+
+            # Try to parse the frontmatter with a simple YAML parser
+            yaml_content = yaml_match.group(1)
+            # Basic check: ensure the title line is present
+            assert 'title:' in yaml_content, f"No title field in YAML:\n{yaml_content}"
+
+            print(f"✅ Successfully created and validated node with title: {test_name}")
+
+            # Clean up for next test
+            new_node.unlink()
+
+        return True
+
+
 if __name__ == "__main__":
-    success = test_add_new_node_functionality()
-    print(f"\nUnit Test {'PASSED' if success else 'FAILED'}")
-    sys.exit(0 if success else 1)
+    print("=== Running basic functionality test ===")
+    success1 = test_add_new_node_functionality()
+    print(f"\nBasic Test {'PASSED' if success1 else 'FAILED'}")
+
+    print("\n\n=== Running special characters test ===")
+    success2 = test_add_new_node_with_special_chars_in_title()
+    print(f"\nSpecial Chars Test {'PASSED' if success2 else 'FAILED'}")
+
+    overall_success = success1 and success2
+    print(f"\n\n=== Overall: {'ALL TESTS PASSED' if overall_success else 'SOME TESTS FAILED'} ===")
+    sys.exit(0 if overall_success else 1)

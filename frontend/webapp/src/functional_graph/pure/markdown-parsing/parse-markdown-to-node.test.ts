@@ -95,4 +95,24 @@ Content here`
 
     expect(result.outgoingEdges).toEqual([])
   })
+
+  it('should gracefully handle invalid YAML frontmatter and fall back to heading', () => {
+    // This is the problematic YAML from the user's error: incomplete explicit mapping pair
+    const content = `---
+title: (Ruby) Implementation Complete: Command-Hover Editor (16)
+bad_key: unquoted value with : colon causes problems
+---
+# Fallback Heading
+
+Content here`
+
+    // Should not throw, should return a valid node
+    const result = parseMarkdownToGraphNode(content, 'bad-yaml.md')
+
+    expect(result.relativeFilePathIsID).toBe('bad-yaml')
+    expect(result.content).toBe(content)
+    expect(result.outgoingEdges).toEqual([])
+    // Should fall back to heading when YAML fails
+    expect(result.nodeUIMetadata.title).toBe('Fallback Heading')
+  })
 })
