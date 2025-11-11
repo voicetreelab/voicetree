@@ -19,7 +19,7 @@ const defaults = {
   handleDisconnected: true, // if true, avoids disconnected components from overlapping
   convergenceThreshold: 0.01, // when the alpha value (system energy) falls below this value, the layout stops
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  nodeSpacing: function( _node ){ return 10; }, // extra spacing around nodes
+  nodeSpacing: function( _node: unknown ){ return 10; }, // extra spacing around nodes
   flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
   alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
   gapInequalities: undefined, // list of inequality constraints for the gap between the nodes, e.g. [{"axis":"y", "left":node1, "right":node2, "gap":25}]

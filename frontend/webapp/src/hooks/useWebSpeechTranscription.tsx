@@ -24,13 +24,13 @@ export default function useWebSpeechTranscription() {
     setState('Starting');
 
     try {
-      const SpeechRecognition = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition || (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-      if (!SpeechRecognition) {
+      if (!SpeechRecognitionAPI) {
         throw new Error('Web Speech API is not supported in this browser');
       }
 
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionAPI();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';

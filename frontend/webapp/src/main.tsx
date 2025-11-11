@@ -1,6 +1,6 @@
 // import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-// @ts-ignore
+// @ts-expect-error - CSS import handled by Vite
 import './index.css'
 import App from './App.tsx'
 

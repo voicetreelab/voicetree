@@ -198,8 +198,15 @@ describe('VoiceTree Incremental Sending Integration', () => {
   it('should reset and resend when transcription restarts', async () => {
     const useVoiceTreeClient = (await import('@/hooks/useVoiceTreeClient.tsx')).default;
 
-    let mockState = {
-      state: 'Running' as const,
+    let mockState: {
+      state: 'Idle' | 'Starting' | 'Running' | 'Stopping' | 'Stopped';
+      finalTokens: Token[];
+      nonFinalTokens: Token[];
+      startTranscription: ReturnType<typeof vi.fn>;
+      stopTranscription: ReturnType<typeof vi.fn>;
+      error: null;
+    } = {
+      state: 'Running',
       finalTokens: [{ text: 'First session', is_final: true, confidence: 1.0 }],
       nonFinalTokens: [],
       startTranscription: vi.fn(),

@@ -1,7 +1,7 @@
 // Get API key for speech recognition service
-export default async function getAPIKey() {
+export default async function getAPIKey(): Promise<string> {
   // Check if running in development with Vite
-  if (import.meta.env?.VITE_SONIOX_API_KEY) {
+  if (import.meta.env.VITE_SONIOX_API_KEY) {
     return import.meta.env.VITE_SONIOX_API_KEY;
   }
 
