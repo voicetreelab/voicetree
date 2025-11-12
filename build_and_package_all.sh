@@ -111,6 +111,13 @@ rm -rf dist/electron
 
 # Build the distributable from frontend
 cd frontend/webapp
+
+# Load environment variables for code signing and notarization
+if [ -f ".env" ]; then
+  echo "Loading Apple code signing credentials from .env..."
+  export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID)=' .env | xargs)
+fi
+
 npm run electron:dist
 
 # Step 7: Report results
