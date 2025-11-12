@@ -1,6 +1,5 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, nativeImage } from 'electron';
 import path from 'path';
-import { existsSync } from 'fs';
 import fixPath from 'fix-path';
 import electronUpdater from 'electron-updater';
 import log from 'electron-log';
@@ -206,6 +205,13 @@ registerAllIpcHandlers({
 
 // App event handlers
 app.whenReady().then(async () => {
+  // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
+  if (process.platform === 'darwin' && app.dock) {
+    const dockIconPath = path.join(__dirname, '../../build/icon.png');
+    const dockIcon = nativeImage.createFromPath(dockIconPath);
+    app.dock.setIcon(dockIcon);
+  }
+
   // Hide dock icon on macOS when running e2e-tests to prevent focus stealing
   if (process.env.MINIMIZE_TEST === '1' && process.platform === 'darwin' && app.dock) {
     app.dock.hide();
