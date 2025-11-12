@@ -63,7 +63,7 @@ async def test_complex_tree_creation():
     # Use Cloud Function mode
     cloud_function_url = os.getenv('CLOUD_FUNCTION_URL', 'http://localhost:8080')
     print(f"Using Cloud Function at: {cloud_function_url}")
-    agent = TreeActionDeciderWorkflow(decision_tree, use_cloud_function=True, cloud_function_url=cloud_function_url)
+    agent = TreeActionDeciderWorkflow(decision_tree, use_cloud_functions=True, cloud_function_url=cloud_function_url)
 
     # Get initial tree size
     initial_size = len(decision_tree.tree)
@@ -178,7 +178,7 @@ async def test_single_transcript():
     # Use Cloud Function mode
     cloud_function_url = os.getenv('CLOUD_FUNCTION_URL', 'http://localhost:8080')
     print(f"Using Cloud Function at: {cloud_function_url}")
-    agent = TreeActionDeciderWorkflow(decision_tree, use_cloud_function=True, cloud_function_url=cloud_function_url)
+    agent = TreeActionDeciderWorkflow(decision_tree, use_cloud_functions=True, cloud_function_url=cloud_function_url)
 
     # Get initial tree size
     initial_size = len(decision_tree.tree)
