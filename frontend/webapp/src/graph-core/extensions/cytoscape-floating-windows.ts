@@ -12,6 +12,7 @@ import type {NodeMetadata} from '@/floating-windows/types';
 import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
 import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
 import type {NodeId} from "@/functional_graph/pure/types.ts";
+import posthog from 'posthog-js';
 
 export interface FloatingWindowConfig {
     id: string;
@@ -474,6 +475,9 @@ export function createFloatingTerminal(
     // Store for cleanup
     vanillaInstances.set(id, terminal);
 
+    // Analytics: Track terminal opened
+    posthog.capture('terminal_opened', { terminalId: id });
+
     // Create cleanup wrapper that can be extended by anchorToNode
     const floatingWindow: FloatingWindow = {
         id,
@@ -482,6 +486,9 @@ export function createFloatingTerminal(
         contentContainer,
         titleBar,
         cleanup: () => {
+            // Analytics: Track terminal closed
+            posthog.capture('terminal_closed', { terminalId: id });
+
             const vanillaInstance = vanillaInstances.get(id);
             if (vanillaInstance) {
                 vanillaInstance.dispose();
