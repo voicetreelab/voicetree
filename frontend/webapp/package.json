@@ -1,7 +1,7 @@
 {
   "name": "voicetree-webapp",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -23,7 +23,8 @@
     "electron:prod": "electron-vite build && electron .",
     "electron:build": "electron-vite build",
     "electron:pack": "electron-vite build && electron-builder",
-    "electron:dist": "electron-vite build && electron-builder --publish=never"
+    "electron:dist": "electron-vite build && electron-builder --publish=never",
+    "electron:publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && electron-builder --mac --publish=always"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.0",
@@ -58,6 +59,8 @@
     "cytoscape": "^3.33.1",
     "cytoscape-cola": "^2.5.1",
     "cytoscape-cxtmenu": "^3.5.0",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2",
     "fix-path": "^5.0.0",
     "fp-ts": "^2.16.11",
     "gray-matter": "^4.0.3",
@@ -112,6 +115,11 @@
   "build": {
     "appId": "com.voicetree.webapp",
     "productName": "VoiceTree",
+    "publish": {
+      "provider": "github",
+      "owner": "voicetreelab",
+      "repo": "voicetree"
+    },
     "directories": {
       "output": "../../dist/electron"
     },
@@ -119,7 +127,9 @@
       "dist/**/*",
       "dist-electron/**/*",
       "package.json",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "build/icon.png",
+      "build/icon.icns"
     ],
     "extraResources": [
       {
@@ -136,13 +146,23 @@
       }
     ],
     "mac": {
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": {
+        "teamId": "VDCXHMX982"
+      }
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "build/icon.png"
     }
   }
 }

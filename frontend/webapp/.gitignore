@@ -8,3 +8,5 @@ vscode/**/*
 **/chroma.sqlite3
 src/fixtures/example_small/**/*
 src/fixtures/example_real_large/**/*
+.env
+.env.local
