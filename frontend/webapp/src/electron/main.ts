@@ -1,6 +1,11 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import { existsSync } from 'fs';
 import fixPath from 'fix-path';
+import electronUpdater from 'electron-updater';
+import log from 'electron-log';
+
+const { autoUpdater } = electronUpdater;
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager.ts';
 import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager.ts';
 import TerminalManager from './terminal-manager.ts';
@@ -13,6 +18,53 @@ import { registerAllIpcHandlers } from '@/functional_graph/shell/main/ipc-graph-
 // This ensures the Electron process and all child processes have access to
 // binaries installed via Homebrew, npm, etc. that are in the user's shell PATH
 fixPath();
+
+// Set app name (shows in macOS menu bar, taskbar, etc.)
+app.setName('VoiceTree');
+
+// ============================================================================
+// Auto-Update Configuration
+// ============================================================================
+// Configure auto-updater logging
+autoUpdater.logger = log;
+if (autoUpdater.logger && 'transports' in autoUpdater.logger) {
+  (autoUpdater.logger as typeof log).transports.file.level = 'info';
+}
+
+// Send update status messages to renderer process
+function sendUpdateStatusToWindow(text: string) {
+  log.info(text);
+  const mainWindow = BrowserWindow.getAllWindows()[0];
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-message', text);
+  }
+}
+
+// Auto-update event handlers
+autoUpdater.on('checking-for-update', () => {
+  sendUpdateStatusToWindow('Checking for updates...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  sendUpdateStatusToWindow(`Update available: ${info.version}`);
+});
+
+autoUpdater.on('update-not-available', () => {
+  sendUpdateStatusToWindow('App is up to date.');
+});
+
+autoUpdater.on('error', (err) => {
+  sendUpdateStatusToWindow(`Error in auto-updater: ${err.toString()}`);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  const message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+  sendUpdateStatusToWindow(message);
+});
+
+autoUpdater.on('update-downloaded', () => {
+  sendUpdateStatusToWindow('Update downloaded. Will install on quit.');
+});
 
 // Suppress Electron security warnings in development and test environments
 // These warnings are only shown in dev mode and don't appear in production
@@ -44,10 +96,17 @@ let textToTreeServerPort: number | null = null;
 // ============================================================================
 
 function createWindow() {
+  // Note: BrowserWindow icon property only works on Windows/Linux
+  // macOS uses app.dock.setIcon() instead
+  const iconPath = process.platform === 'darwin'
+    ? path.join(__dirname, '../../build/icon.png')
+    : path.join(__dirname, '../../build/icon.png');
+
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
+    ...(process.platform !== 'darwin' && { icon: iconPath }),
     // titleBarStyle: 'hiddenInset', //todo enable this later, but we need soemthing to be able to drag the window by and double click to maximize.
     ...(process.env.MINIMIZE_TEST === '1' && {
       focusable: false,
@@ -161,6 +220,11 @@ app.whenReady().then(async () => {
   console.log(`[App] Server started on port ${textToTreeServerPort}`);
 
   createWindow();
+
+  // Check for updates (production only, not in dev or test mode)
+  if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test' && !process.env.MINIMIZE_TEST) {
+    autoUpdater.checkForUpdatesAndNotify();
+  }
 });
 
 // Handle hot reload and app quit scenarios
