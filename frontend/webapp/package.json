@@ -1,5 +1,8 @@
 {
   "name": "voicetree-webapp",
+  "productName": "VoiceTree",
+  "description": "Transform voice into navigable concept graphs",
+  "author": "Manu Masson",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -123,6 +126,7 @@
     "directories": {
       "output": "../../dist/electron"
     },
+    "afterPack": "./scripts/after-pack.cjs",
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
