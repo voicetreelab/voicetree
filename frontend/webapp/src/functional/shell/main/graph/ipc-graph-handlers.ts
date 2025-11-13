@@ -47,7 +47,8 @@ export function registerAllIpcHandlers(deps: IpcHandlerDependencies) {
       const result = await dialog.showOpenDialog({
         properties: ['openDirectory', 'createDirectory'],
         title: 'Select Directory to Watch for Markdown Files',
-        buttonLabel: 'Watch Directory'
+        buttonLabel: 'Watch Directory',
+        defaultPath: getWatchedDirectory() || process.env.HOME || '/'
       })
 
       if (result.canceled || result.filePaths.length === 0) {

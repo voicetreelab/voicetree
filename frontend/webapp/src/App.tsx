@@ -1,5 +1,4 @@
 import VoiceTreeTranscribe from "./renderers/voicetree-transcribe";
-import Sidebar from "./components/sidebar";
 import { useFolderWatcher } from "./hooks/useFolderWatcher.tsx";
 import { Button } from "./components/ui/button";
 import { Alert, AlertDescription } from "./components/ui/alert";
@@ -140,9 +139,7 @@ function App() {
 
       {/* Bottom Section: Graph (fills remaining space) */}
       <div className="flex-1 min-h-0 border-r pr-4">
-        <Sidebar>
-          <div ref={graphContainerRef} className="h-full w-full" />
-        </Sidebar>
+        <div ref={graphContainerRef} className="h-full w-full" />
       </div>
     </div>
   );

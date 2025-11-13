@@ -2,6 +2,7 @@
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
 import type { GraphDelta, Graph } from '@/functional/pure/graph/types.ts';
+import type { Settings } from '@/functional/pure/settings';
 
 // Re-export NodeMetadata for use in terminal API
 export type { NodeMetadata } from '@/floating-windows/types';
@@ -73,6 +74,12 @@ export interface ElectronAPI {
   positions: {
     save: (directoryPath: string, positions: Record<string, { x: number; y: number }>) => Promise<{ success: boolean; error?: string }>;
     load: (directoryPath: string) => Promise<{ success: boolean; positions: Record<string, { x: number; y: number }>; error?: string }>;
+  };
+
+  // Types management operations
+  settings: {
+    load: () => Promise<Settings>;
+    save: (settings: Settings) => Promise<{ success: boolean; error?: string }>;
   };
 
   // Backend log streaming

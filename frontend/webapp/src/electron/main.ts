@@ -12,6 +12,7 @@ import PositionManager from './position-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
 import { setMainWindow } from '@/functional/shell/state/app-electron-state.ts';
 import { registerAllIpcHandlers } from '@/functional/shell/main/graph/ipc-graph-handlers.ts';
+import { registerSettingsHandlers } from '@/functional/shell/main/settings/ipc-settings-handler.ts';
 
 // Fix PATH for macOS/Linux GUI apps
 // This ensures the Electron process and all child processes have access to
@@ -124,23 +125,6 @@ function createWindow() {
   // Set global main window reference (used by handlers)
   setMainWindow(mainWindow);
 
-  // Auto-start watching last directory if it exists
-  // Uses 'on' instead of 'once' to handle page refreshes (cmd+r)
-  // TODO: Handle edge cases:
-  // - Last directory no longer exists (deleted/moved)
-  // - Permission issues accessing last directory
-  // - Race condition with manual watch start
-  // mainWindow.webContents.on('did-finish-load', async () => {
-  //   // Skip auto-loading in test mode to avoid blocking app startup
-  //   if (process.env.NODE_ENV === 'test' || process.env.HEADLESS_TEST === '1') {
-  //     console.log('[AutoWatch] Skipping auto-load in test mode');
-  //     return;
-  //   }
-  //
-  //   // Load last directory and set up file watching using functional approach
-  //   // await initialLoad(); THIS IS INSTEAD CALLED FROM UI
-  // });
-
   // Pipe renderer console logs to electron terminal
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     // Filter out Electron security warnings in dev mode
@@ -202,6 +186,9 @@ registerAllIpcHandlers({
   getBackendPort: () => textToTreeServerPort,
   getToolsDirectory
 });
+
+// Register settings handlers
+registerSettingsHandlers();
 
 // App event handlers
 app.whenReady().then(async () => {

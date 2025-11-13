@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { GraphDelta } from "@/functional/pure/graph/types.ts";
 import type { ElectronAPI } from '@/types/electron';
+import type { Settings } from '@/functional/pure/settings';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -81,6 +82,12 @@ const electronAPI: ElectronAPI = {
   positions: {
     save: (directoryPath, positions) => ipcRenderer.invoke('positions:save', directoryPath, positions),
     load: (directoryPath) => ipcRenderer.invoke('positions:load', directoryPath)
+  },
+
+  // Types management API
+  settings: {
+    load: () => ipcRenderer.invoke('settings:load'),
+    save: (settings: Settings) => ipcRenderer.invoke('settings:save', settings)
   },
 
   // Backend log streaming

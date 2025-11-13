@@ -38,6 +38,7 @@ echo "Step 7: Fixing Python.framework structure (replace duplicates with symlink
 # PyInstaller creates duplicate directories instead of proper macOS framework symlink structure:
 #   - Versions/Current/ is a duplicate directory (should be symlink to 3.13)
 #   - Python is a duplicate binary (should be symlink to Versions/Current/Python)
+#   - Resources is a duplicate directory (should be symlink to Versions/Current/Resources)
 # This causes "bundle format is ambiguous" error during code signing
 # Fix 1: Replace Versions/Current directory with symlink to 3.13
 rm -rf dist/resources/server/_internal/Python.framework/Versions/Current
@@ -45,6 +46,9 @@ ln -s 3.13 dist/resources/server/_internal/Python.framework/Versions/Current
 # Fix 2: Replace Python binary with symlink to Versions/Current/Python
 rm -f dist/resources/server/_internal/Python.framework/Python
 ln -s Versions/Current/Python dist/resources/server/_internal/Python.framework/Python
+# Fix 3: Replace Resources directory with symlink to Versions/Current/Resources
+rm -rf dist/resources/server/_internal/Python.framework/Resources
+ln -s Versions/Current/Resources dist/resources/server/_internal/Python.framework/Resources
 echo "✅ Created proper framework symlink structure"
 
 # Step 8: Display results

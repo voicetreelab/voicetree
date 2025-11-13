@@ -119,6 +119,59 @@ class TestConnectOrphansE2E:
             print("\n=== After Applying Actions ===")
             print(f"Modified/created {len(modified_nodes)} nodes")
 
+            # VALIDATE MARKDOWN FILES: Check that child nodes' markdown files contain parent wikilinks
+            print("\n=== Validating Markdown Files ===")
+            for action in create_actions:
+                if action.children_to_link:
+                    # Get the newly created parent node ID
+                    parent_node_id = None
+                    for node_id in modified_nodes:
+                        if node_id in tree.tree and tree.tree[node_id].title == action.new_node_name:
+                            parent_node_id = node_id
+                            break
+
+                    assert parent_node_id is not None, f"Could not find created parent node '{action.new_node_name}'"
+                    parent_node = tree.tree[parent_node_id]
+                    parent_filename = parent_node.filename
+
+                    print(f"\nValidating children of parent '{action.new_node_name}' (ID: {parent_node_id}):")
+
+                    # Check each child's markdown file
+                    for child_id in action.children_to_link:
+                        assert child_id in tree.tree, f"Child node {child_id} not found in tree"
+                        child_node = tree.tree[child_id]
+                        child_markdown_path = os.path.join(tree.output_dir, child_node.filename)
+
+                        print(f"  Checking child '{child_node.title}' (ID: {child_id})")
+                        print(f"    Markdown file: {child_markdown_path}")
+
+                        # Read the markdown file
+                        assert os.path.exists(child_markdown_path), \
+                            f"Markdown file not found: {child_markdown_path}"
+
+                        with open(child_markdown_path, 'r') as f:
+                            markdown_content = f.read()
+
+                        # Check for the _Links: section
+                        assert "_Links:_" in markdown_content, \
+                            f"Child {child_id} markdown missing '_Links:_' section"
+
+                        # Check for Parent: section after _Links:
+                        links_section = markdown_content.split("_Links:_")[1]
+                        assert "Parent:" in links_section, \
+                            f"Child {child_id} markdown missing 'Parent:' section after '_Links:_'"
+
+                        # Check for parent wikilink in the format: [[parent_filename]]
+                        parent_wikilink = f"[[{parent_filename}]]"
+                        assert parent_wikilink in links_section, \
+                            f"Child {child_id} markdown does not contain parent wikilink '{parent_wikilink}'.\n" \
+                            f"Expected to find parent link to '{parent_filename}' in Links section.\n" \
+                            f"Links section content:\n{links_section}"
+
+                        print(f"    ✓ Parent wikilink found: {parent_wikilink}")
+
+            print("\n=== Markdown Validation Complete ===\n")
+
             # Verify relationships are properly set by trying to format nodes
             # This would have caught the bug where relationships dict wasn't updated
             from backend.markdown_tree_manager.graph_flattening.tree_to_markdown import (

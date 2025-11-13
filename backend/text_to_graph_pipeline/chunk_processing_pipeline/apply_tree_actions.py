@@ -45,52 +45,6 @@ class TreeActionApplier:
         """Clear the set of nodes to update"""
         self.nodes_to_update.clear()
 
-    def _apply_optimization_actions(self, actions: list[UpdateAction]) -> set[int]:
-        """
-        Apply optimization actions (UPDATE) from the optimizer
-
-        Args:
-            actions: List of UpdateAction objects to apply
-
-        Returns:
-            Set of node IDs that were updated
-        """
-        self.nodes_to_update.clear()
-        logging.info(f"Applying {len(actions)} optimization actions")
-
-        for action in actions:
-            if isinstance(action, UpdateAction):
-                self._apply_update_action(action)
-            else:
-                logging.warning(f"Unexpected action type in optimization actions: {type(action)}")
-
-        return self.nodes_to_update.copy()
-
-    def _apply_mixed_actions(self, actions: list[Union[UpdateAction, CreateAction, AppendAction]]) -> set[int]:
-        """
-        Apply a mixed list of actions (UPDATE, CREATE) to handle complex operations like SPLIT
-
-        Args:
-            actions: List of mixed action types to apply
-
-        Returns:
-            Set of node IDs that were updated
-        """
-        self.nodes_to_update.clear()
-        logging.info(f"Applying {len(actions)} mixed actions")
-
-        for action in actions:
-            if isinstance(action, UpdateAction):
-                self._apply_update_action(action)
-            elif isinstance(action, CreateAction):
-                self._apply_create_action(action)
-            elif isinstance(action, AppendAction):
-                self._apply_append_action(action)
-            else:
-                logging.warning(f"Unknown action type: {type(action)}")
-
-        return self.nodes_to_update.copy()
-
     def _apply_update_action(self, action: UpdateAction):
         """
         Apply an UPDATE action to modify node content and summary
@@ -199,6 +153,17 @@ class TreeActionApplier:
                 self._apply_append_action(action)
             else:
                 raise ValueError(f"Unknown action type: {action.action}")
+
+        # Write markdown for all modified nodes at end to ensure consistency
+        if self.nodes_to_update:
+            logging.info(f"Writing markdown for {len(self.nodes_to_update)} modified nodes")
+            self.decision_tree._write_markdown_for_nodes(list(self.nodes_to_update))
+
+        # TODO we now have a very ugly system for writing to markdown
+
+        # some actions write within the method, some write at the end (orphan connection
+
+        # todo we should take a more functional approach, writer monad,
 
         logging.info(f"DEBUG TreeActionApplier: Returning modified nodes: {self.nodes_to_update}")
         return self.nodes_to_update.copy()

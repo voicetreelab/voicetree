@@ -232,12 +232,16 @@ export class ContextMenuService {
 
     private createTerminalFromContextMenu(nodeId: string) {
         return async () => {
+            // Load settings to get the agentCommand
+            const settings = await window.electronAPI.settings.load();
+            const agentCommand = settings.agentCommand || './claude.sh'; // Fallback to default
+
             const filePath = await this.deps!.getFilePathForNode(nodeId);
             const nodeMetadata = {
                 id: nodeId,
                 name: nodeId.replace(/_/g, ' '),
                 filePath: filePath,
-                initialCommand: './claude.sh',
+                initialCommand: agentCommand,
                 executeCommand: true
             };
 
