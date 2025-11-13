@@ -10,6 +10,7 @@ import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManage
 import TerminalManager from './terminal-manager.ts';
 import PositionManager from './position-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
+import { setupOnboardingDirectory } from './onboarding-setup.ts';
 import { setMainWindow } from '@/functional/shell/state/app-electron-state.ts';
 import { registerAllIpcHandlers } from '@/functional/shell/main/graph/ipc-graph-handlers.ts';
 import { registerSettingsHandlers } from '@/functional/shell/main/settings/ipc-settings-handler.ts';
@@ -206,6 +207,9 @@ app.whenReady().then(async () => {
 
   // Set up agent tools directory on first launch (skipped in test mode)
   await setupToolsDirectory();
+
+  // Set up onboarding directory on first launch (skipped in test mode)
+  await setupOnboardingDirectory();
 
   // Start the server and store the port it's using
   // Factory automatically chooses StubServer (test) or RealServer (production)

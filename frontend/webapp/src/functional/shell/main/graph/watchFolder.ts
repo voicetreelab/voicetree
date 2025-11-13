@@ -12,6 +12,7 @@ import {mapNewGraphToDelta} from "@/functional/pure/graph/graphDelta/mapNewGraph
 import {applyGraphDeltaToMemStateAndUI} from "@/functional/shell/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI.ts";
 import {getMainWindow} from "@/functional/shell/state/app-electron-state.ts";
 import {notifyTextToTreeServerOfDirectory} from "@/functional/shell/main/graph/readAndDBEventsPath/notifyTextToTreeServerOfDirectory.ts";
+import {getOnboardingDirectory} from "@/electron/onboarding-setup.ts";
 
 // THIS FUNCTION takes absolutePath
 // returns graph
@@ -31,6 +32,10 @@ export async function initialLoad(): Promise<void>  {
     const lastDirectory = await loadLastDirectory();
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value)
+    } else {
+        // First run: load onboarding directory
+        const onboardingPath = getOnboardingDirectory();
+        await loadFolder(onboardingPath);
     }
 }
 
