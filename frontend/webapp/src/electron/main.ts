@@ -10,8 +10,8 @@ import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManage
 import TerminalManager from './terminal-manager.ts';
 import PositionManager from './position-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
-import { setMainWindow } from '@/functional_graph/shell/state/app-electron-state.ts';
-import { registerAllIpcHandlers } from '@/functional_graph/shell/main/ipc-graph-handlers.ts';
+import { setMainWindow } from '@/functional/shell/state/app-electron-state.ts';
+import { registerAllIpcHandlers } from '@/functional/shell/main/graph/ipc-graph-handlers.ts';
 
 // Fix PATH for macOS/Linux GUI apps
 // This ensures the Electron process and all child processes have access to

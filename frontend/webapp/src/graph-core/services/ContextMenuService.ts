@@ -2,8 +2,8 @@ import type {Core, NodeSingular} from 'cytoscape';
 // @ts-expect-error - cytoscape-cxtmenu doesn't have proper TypeScript definitions
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
-import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
-import type {NodeId} from "@/functional_graph/pure/types.ts";
+import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/functional/shell/UI/graph/handleUIActions.ts";
+import type {NodeId} from "@/functional/pure/graph/types.ts";
 
 export interface Position {
     x: number;

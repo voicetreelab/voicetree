@@ -2,7 +2,7 @@
  * Setup cytoscape layout, event handlers, context menu, and test helpers
  */
 import type {Core, NodeSingular} from 'cytoscape';
-import type {Graph, NodeId} from '@/functional_graph/pure/types';
+import type {Graph, NodeId} from '@/functional/pure/graph/types.ts';
 import type {FloatingWindowManager} from '@/views/FloatingWindowManager';
 import {ContextMenuService} from '@/graph-core/services/ContextMenuService';
 import {enableAutoLayout} from '@/graph-core/graphviz/layout/autoLayout';

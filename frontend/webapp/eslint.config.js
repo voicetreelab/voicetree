@@ -33,14 +33,14 @@ export default tseslint.config([
   // Functional programming rules for functional architecture files
   {
     files: [
-      'src/functional_graph/**/*.ts',
+      'src/functional/**/*.ts',
       'src/graph-core/functional/**/*.ts',
       'electron/graph/**/*.ts',
       'electron/handlers/**/*.ts'
     ],
     // Exclude imperative shells (GraphStateManager is allowed to use classes)
     ignores: [
-      'src/functional_graph/shell/renderer/GraphStateManager.ts',
+      'src/functional/shell/renderer/GraphStateManager.ts',
       'src/graph-core/functional/GraphStateManager.ts'
     ],
     plugins: {
