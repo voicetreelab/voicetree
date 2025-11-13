@@ -130,7 +130,7 @@ export function polarToCartesian(
   };
 }
 
-// MOVING TO src/functional_graph/pure/cytoscape/layout/positioning.ts
+// MOVING TO src/functional/pure/cytoscape/layout/positioning.ts
 export function calculateParentAngle(
   parentNode: NodeSingular,
   cy: Core

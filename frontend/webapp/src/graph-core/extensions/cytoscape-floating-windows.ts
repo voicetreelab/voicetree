@@ -9,9 +9,9 @@ import type cytoscape from 'cytoscape';
 import {TerminalVanilla} from '@/floating-windows/TerminalVanilla';
 import {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView';
 import type {NodeMetadata} from '@/floating-windows/types';
-import {modifyNodeContentFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
-import {getNodeFromUI} from "@/functional_graph/shell/UI/getNodeFromUI.ts";
-import type {NodeId} from "@/functional_graph/pure/types.ts";
+import {modifyNodeContentFromUI} from "@/functional/shell/UI/graph/handleUIActions.ts";
+import {getNodeFromUI} from "@/functional/shell/UI/graph/getNodeFromUI.ts";
+import type {NodeId} from "@/functional/pure/graph/types.ts";
 import posthog from 'posthog-js';
 
 export interface FloatingWindowConfig {

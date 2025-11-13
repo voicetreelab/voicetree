@@ -25,7 +25,7 @@ import {
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { Page } from '@playwright/test';
-import type { GraphDelta, GraphNode } from '@/functional_graph/pure/types';
+import type { GraphDelta, GraphNode } from '@/functional/pure/graph/types';
 import type { EditorView } from '@codemirror/view';
 
 // Helper type for CodeMirror access

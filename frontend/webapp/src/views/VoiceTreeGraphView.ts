@@ -32,11 +32,11 @@ import {SearchService} from './SearchService';
 import {GraphNavigationService} from './GraphNavigationService';
 import {getResponsivePadding} from '@/utils/responsivePadding';
 import {SpeedDialMenuView} from './SpeedDialMenuView';
-import type {Graph, GraphDelta} from '@/functional_graph/pure/types';
+import type {Graph, GraphDelta} from '@/functional/pure/graph/types.ts';
 import {MIN_ZOOM, MAX_ZOOM} from '@/graph-core/constants';
 import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGraphViewHelpers';
-import {applyGraphDeltaToUI} from '@/functional_graph/shell/UI/applyGraphDeltaToUI';
-import {clearCytoscapeState} from '@/functional_graph/shell/UI/clearCytoscapeState';
+import {applyGraphDeltaToUI} from '@/functional/shell/UI/graph/applyGraphDeltaToUI.ts';
+import {clearCytoscapeState} from '@/functional/shell/UI/graph/clearCytoscapeState.ts';
 
 /**
  * Main VoiceTreeGraphView implementation

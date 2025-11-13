@@ -3,7 +3,7 @@
  */
 import type { Page } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { GraphDelta } from '@/functional_graph/pure/types';
+import type { GraphDelta } from '@/functional/pure/graph/types';
 
 export interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;

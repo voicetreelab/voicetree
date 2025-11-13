@@ -11,7 +11,7 @@ import {
   getNodeCount,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
-import type { GraphDelta } from '@/functional_graph/pure/types';
+import type { GraphDelta } from '@/functional/pure/graph/types';
 
 test.describe('Frontmatter Color Parsing (Browser)', () => {
   test('should render nodes with colors from frontmatter metadata', async ({ page }) => {

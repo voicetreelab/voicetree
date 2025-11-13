@@ -10,7 +10,7 @@ import {
   waitForCytoscapeReady,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
-import type { GraphDelta } from '@/functional_graph/pure/types.ts';
+import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
 test.describe('Floating Anchored Editor (Browser)', () => {
   test('should create editor anchored to child shadow node, show content, follow parent node, and cleanup on close', async ({ page }) => {

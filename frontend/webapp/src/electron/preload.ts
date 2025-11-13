@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { GraphDelta } from "@/functional_graph/pure/types.ts";
+import type { GraphDelta } from "@/functional/pure/graph/types.ts";
 import type { ElectronAPI } from '@/types/electron';
 
 // Expose protected methods that allow the renderer process to use

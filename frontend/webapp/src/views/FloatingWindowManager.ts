@@ -21,10 +21,10 @@ import {
 } from '@/graph-core/extensions/cytoscape-floating-windows';
 import type {Position} from './IVoiceTreeGraphView';
 import type {HotkeyManager} from './HotkeyManager';
-import type {Graph, GraphDelta, NodeId} from '@/functional_graph/pure/types';
-import {nodeIdToFilePathWithExtension} from '@/functional_graph/pure/markdown-parsing/filename-utils';
+import type {Graph, GraphDelta, NodeId} from '@/functional/pure/graph/types.ts';
+import {nodeIdToFilePathWithExtension} from '@/functional/pure/graph/markdown-parsing/filename-utils';
 import type {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView';
-import {createNewEmptyOrphanNodeFromUI} from "@/functional_graph/shell/UI/handleUIActions.ts";
+import {createNewEmptyOrphanNodeFromUI} from "@/functional/shell/UI/graph/handleUIActions.ts";
 
 /**
  * Function type for getting current graph state

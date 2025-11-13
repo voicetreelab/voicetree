@@ -10,7 +10,7 @@ import {
   waitForCytoscapeReady,
   type ExtendedWindow
 } from '@test/playwright-browser/graph-delta-test-utils.ts';
-import type { GraphDelta } from '@/functional_graph/pure/types.ts';
+import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
 test.describe('Command Hover Editor (Browser)', () => {
   test('should show editor on Cmd+hover, display content, close on click outside, and reopen', async ({ page }) => {

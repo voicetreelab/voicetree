@@ -10,7 +10,7 @@ import {
   waitForCytoscapeReady,
   type ExtendedWindow
 } from '@test/playwright-browser/graph-delta-test-utils.ts';
-import type { GraphDelta } from '@/functional_graph/pure/types.ts';
+import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
 test.describe('External Content Update (Browser)', () => {
   test('should update floating editor content when graph delta event arrives', async ({ page }) => {

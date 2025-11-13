@@ -1,7 +1,7 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
-import type { GraphDelta, Graph } from '@/functional_graph/pure/types';
+import type { GraphDelta, Graph } from '@/functional/pure/graph/types.ts';
 
 // Re-export NodeMetadata for use in terminal API
 export type { NodeMetadata } from '@/floating-windows/types';

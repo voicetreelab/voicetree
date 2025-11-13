@@ -44,7 +44,7 @@ Add a graph-level derived index that maintains incoming edges for O(1) parent lo
 #### 1. Add Graph container type
 
 ```typescript
-// src/functional_graph/pure/types.ts
+// src/functional/pure/types.ts
 
 export interface Graph {
   readonly nodes: ReadonlyMap<NodeId, GraphNode>

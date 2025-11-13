@@ -15,10 +15,10 @@ import {
   waitForCytoscapeReady,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
-import type { GraphDelta } from '@/functional_graph/pure/types.ts';
+import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
 import type { Page } from '@playwright/test';
-import type { GraphNode } from '@/functional_graph/pure/types';
+import type { GraphNode } from '@/functional/pure/graph/types';
 
 interface ExtendedWindowWithAll extends ExtendedWindow {
   electronAPI?: {
