@@ -27,20 +27,25 @@ echo "Step 5: Building executable with PyInstaller..."
 # PyInstaller must run INSIDE the venv to see all dependencies
 .venv-server/bin/python -m PyInstaller server.spec --clean
 
-# Step 6: Fix Python.framework structure for code signing
-echo "Step 6: Fixing Python.framework structure (replace duplicate with symlink)..."
-# PyInstaller creates both Python.framework/Python and Python.framework/Versions/3.13/Python
-# This causes "bundle format is ambiguous" error during code signing
-# Replace the duplicate binary with a proper symlink to match macOS framework structure
-rm -f dist/voicetree-server/_internal/Python.framework/Python
-ln -s Versions/Current/Python dist/voicetree-server/_internal/Python.framework/Python
-echo "✅ Created proper framework symlink structure"
-
-# Step 7: Copy to root dist resources
-echo "Step 7: Copying executable to root dist/resources/server..."
+# Step 6: Copy to root dist resources
+echo "Step 6: Copying executable to root dist/resources/server..."
 mkdir -p ./dist/resources/server
 cp -r ./dist/voicetree-server/* ./dist/resources/server/
 echo "Copied to dist/resources/server/"
+
+# Step 7: Fix Python.framework structure for code signing
+echo "Step 7: Fixing Python.framework structure (replace duplicates with symlinks)..."
+# PyInstaller creates duplicate directories instead of proper macOS framework symlink structure:
+#   - Versions/Current/ is a duplicate directory (should be symlink to 3.13)
+#   - Python is a duplicate binary (should be symlink to Versions/Current/Python)
+# This causes "bundle format is ambiguous" error during code signing
+# Fix 1: Replace Versions/Current directory with symlink to 3.13
+rm -rf dist/resources/server/_internal/Python.framework/Versions/Current
+ln -s 3.13 dist/resources/server/_internal/Python.framework/Versions/Current
+# Fix 2: Replace Python binary with symlink to Versions/Current/Python
+rm -f dist/resources/server/_internal/Python.framework/Python
+ln -s Versions/Current/Python dist/resources/server/_internal/Python.framework/Python
+echo "✅ Created proper framework symlink structure"
 
 # Step 8: Display results
 echo ""

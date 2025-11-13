@@ -118,6 +118,13 @@ if [ -f ".env" ]; then
   export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID)=' .env | xargs)
 fi
 
+# Update file modification times to satisfy codesign timestamp validation
+echo "Updating file timestamps for codesign..."
+cd ../..
+find dist/resources -type f -exec touch {} +
+cd frontend/webapp
+echo "✅ File timestamps updated"
+
 npm run electron:dist
 
 # Step 7: Report results
