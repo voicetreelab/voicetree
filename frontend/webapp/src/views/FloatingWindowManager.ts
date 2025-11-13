@@ -12,7 +12,7 @@
  * This class owns all floating window state and operations.
  */
 
-import type {Core} from 'cytoscape';
+import {type Core} from 'cytoscape';
 import {
     createFloatingEditor,
     createFloatingTerminal,
@@ -267,6 +267,12 @@ export class FloatingWindowManager {
                 return;
             }
 
+            // Check if electronAPI is available
+            if (!window.electronAPI) {
+                console.error('[FloatingWindowManager] electronAPI not available');
+                return;
+            }
+
             // Load current settings from IPC
             const settings = await window.electronAPI.settings.load() as Settings;
             const settingsJson = JSON.stringify(settings, null, 2);
@@ -300,8 +306,10 @@ export class FloatingWindowManager {
                     const parsedSettings = JSON.parse(newContent) as Settings;
 
                     // Save to IPC
-                    await window.electronAPI.settings.save(parsedSettings);
-                    console.log('[FloatingWindowManager] Settings saved successfully');
+                    if (window.electronAPI) {
+                        await window.electronAPI.settings.save(parsedSettings);
+                        console.log('[FloatingWindowManager] Settings saved successfully');
+                    }
                 } catch (error) {
                     // Show error to user for invalid JSON
                     console.error('[FloatingWindowManager] Invalid JSON in settings:', error);
@@ -313,11 +321,17 @@ export class FloatingWindowManager {
             const vanillaInstances = new Map<string, { dispose: () => void }>();
             vanillaInstances.set(settingsId, editor);
 
-            // Position window in center of screen
+            // Position window in center of current viewport (same as backup terminal)
+            const cy = this.cy;
+            const pan = cy.pan();
+            const zoom = cy.zoom();
+            const centerX = (cy.width() / 2 - pan.x) / zoom;
+            const centerY = (cy.height() / 2 - pan.y) / zoom;
+
             const windowWidth = 600;
             const windowHeight = 400;
-            windowElement.style.left = `${window.innerWidth / 2 - windowWidth / 2}px`;
-            windowElement.style.top = `${window.innerHeight / 2 - windowHeight / 2}px`;
+            windowElement.style.left = `${centerX - windowWidth / 2}px`;
+            windowElement.style.top = `${centerY - windowHeight / 2}px`;
             windowElement.style.width = `${windowWidth}px`;
             windowElement.style.height = `${windowHeight}px`;
 

@@ -139,7 +139,10 @@ function App() {
 
       {/* Bottom Section: Graph (fills remaining space) */}
       <div className="flex-1 min-h-0 border-r pr-4">
-        <div ref={graphContainerRef} className="h-full w-full" />
+        {/* Relative positioning context for floating windows */}
+        <div className="h-full w-full relative">
+          <div ref={graphContainerRef} className="h-full w-full" />
+        </div>
       </div>
     </div>
   );

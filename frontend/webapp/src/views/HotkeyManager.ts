@@ -138,12 +138,12 @@ export class HotkeyManager {
       this.stopRepeating(hotkey);
     }
 
-    // Remove event listeners
+    // Remove event listeners (must use same options as addEventListener)
     if (this.keyDownHandler) {
-      document.removeEventListener('keydown', this.keyDownHandler);
+      document.removeEventListener('keydown', this.keyDownHandler, { capture: true });
     }
     if (this.keyUpHandler) {
-      document.removeEventListener('keyup', this.keyUpHandler);
+      document.removeEventListener('keyup', this.keyUpHandler, { capture: true });
     }
     if (this.blurHandler) {
       window.removeEventListener('blur', this.blurHandler);
@@ -188,6 +188,11 @@ export class HotkeyManager {
 
   private setupListeners(): void {
     this.keyDownHandler = (e: KeyboardEvent) => {
+      // DEBUG: Log ALL keydown events to diagnose issue
+      if (e.key === '[' || e.key === ']' || e.key === 'Meta') {
+        console.log(`[HotkeyManager] RAW KeyDown - key: "${e.key}", code: "${e.code}", metaKey: ${e.metaKey}, repeat: ${e.repeat}`);
+      }
+
       // Prevent browser default for Meta+[ and Meta+] (browser back/forward navigation)
       // MUST be done FIRST, before any other logic
       if ((e.key === '[' || e.key === ']') && e.metaKey) {
@@ -212,21 +217,37 @@ export class HotkeyManager {
         }
       }
 
-      if (hotkey && !hotkey.isPressed) {
-        console.log(`[HotkeyManager] Hotkey pressed: ${hotkeyKey}`);
-        hotkey.isPressed = true;
+      if (hotkey) {
+        // Allow firing if either:
+        // 1. Hotkey is not currently pressed, OR
+        // 2. This is a fresh keypress (not a repeat) - handles case where OS doesn't send keyup events
+        const shouldFire = !hotkey.isPressed || !e.repeat;
 
-        // Fire onPress
-        hotkey.config.onPress();
+        if (shouldFire) {
+          console.log(`[HotkeyManager] Hotkey pressed: ${hotkeyKey} (isPressed: ${hotkey.isPressed}, repeat: ${e.repeat})`);
 
-        // Setup repeat if enabled
-        if (hotkey.config.repeatable) {
-          this.startRepeating(hotkey);
+          // Fire onPress
+          hotkey.config.onPress();
+
+          // Mark as pressed and setup repeat only on first press
+          if (!hotkey.isPressed) {
+            hotkey.isPressed = true;
+
+            // Setup repeat if enabled
+            if (hotkey.config.repeatable) {
+              this.startRepeating(hotkey);
+            }
+          }
         }
       }
     };
 
     this.keyUpHandler = (e: KeyboardEvent) => {
+      // DEBUG: Log ALL keyup events to diagnose issue
+      if (e.key === '[' || e.key === ']' || e.key === 'Meta') {
+        console.log(`[HotkeyManager] RAW KeyUp - key: "${e.key}", code: "${e.code}", metaKey: ${e.metaKey}`);
+      }
+
       // Prevent browser default for Meta+[ and Meta+] (browser back/forward navigation)
       // MUST be done FIRST, before any other logic
       if ((e.key === '[' || e.key === ']') && e.metaKey) {
@@ -242,6 +263,8 @@ export class HotkeyManager {
       const releasedKey = e.key;
       const releasedModifier = this.getModifierFromEvent(e);
 
+      console.log(`[HotkeyManager] KeyUp - key: "${releasedKey}", metaKey: ${e.metaKey}, releasedModifier: ${releasedModifier}`);
+
       for (const [hotkeyKey, hotkey] of this.hotkeys.entries()) {
         if (!hotkey.isPressed) continue;
 
@@ -251,6 +274,8 @@ export class HotkeyManager {
         // Check if this hotkey uses the released modifier
         const usesReleasedModifier = releasedModifier &&
           hotkey.config.modifiers?.includes(releasedModifier);
+
+        console.log(`[HotkeyManager] Checking hotkey "${hotkeyKey}" - config.key: "${hotkey.config.key}", usesReleasedKey: ${usesReleasedKey}, usesReleasedModifier: ${usesReleasedModifier}`);
 
         if (usesReleasedKey || usesReleasedModifier) {
           console.log(`[HotkeyManager] Hotkey released: ${hotkeyKey}`);
@@ -267,8 +292,10 @@ export class HotkeyManager {
       }
     };
 
-    document.addEventListener('keydown', this.keyDownHandler);
-    document.addEventListener('keyup', this.keyUpHandler);
+    // Use capture phase to intercept events BEFORE browser's default handling
+    // This is critical for Meta+[ and Meta+] to prevent browser navigation suppressing events
+    document.addEventListener('keydown', this.keyDownHandler, { capture: true });
+    document.addEventListener('keyup', this.keyUpHandler, { capture: true });
 
     // Handle window blur (focus lost) - prevents stuck keys
     this.blurHandler = () => {
