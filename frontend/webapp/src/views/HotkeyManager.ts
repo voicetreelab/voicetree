@@ -227,6 +227,13 @@ export class HotkeyManager {
     };
 
     this.keyUpHandler = (e: KeyboardEvent) => {
+      // Prevent browser default for Meta+[ and Meta+] (browser back/forward navigation)
+      // MUST be done FIRST, before any other logic
+      if ((e.key === '[' || e.key === ']') && e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
       // Track modifier keys
       this.handleModifierKeyUp(e);
 

@@ -17,7 +17,9 @@ import {
     createFloatingEditor,
     createFloatingTerminal,
     anchorToNode,
-    getVanillaInstance
+    getVanillaInstance,
+    createWindowChrome,
+    getOrCreateOverlay
 } from '@/graph-core/extensions/cytoscape-floating-windows';
 import type {Position} from './IVoiceTreeGraphView';
 import type {HotkeyManager} from './HotkeyManager';
@@ -25,6 +27,7 @@ import type {Graph, GraphDelta, NodeId} from '@/functional/pure/graph/types.ts';
 import {nodeIdToFilePathWithExtension} from '@/functional/pure/graph/markdown-parsing/filename-utils';
 import type {CodeMirrorEditorView} from '@/floating-windows/CodeMirrorEditorView';
 import {createNewEmptyOrphanNodeFromUI} from "@/functional/shell/UI/graph/handleUIActions.ts";
+import type {Settings} from '@/functional/pure/settings/types.ts';
 
 /**
  * Function type for getting current graph state
@@ -55,6 +58,11 @@ export class FloatingWindowManager {
     ) {
         this.cy = cy;
         this.hotkeyManager = hotkeyManager;
+
+        // Setup settings editor listener
+        window.addEventListener('openSettings', () => {
+            void this.createSettingsEditor();
+        });
     }
 
     // ============================================================================
@@ -241,6 +249,94 @@ export class FloatingWindowManager {
             }
         } catch (error) {
             console.error('[FloatingWindowManager] Error creating floating terminal:', error);
+        }
+    }
+
+    /**
+     * Create a floating settings editor window
+     * Loads settings from IPC and allows editing them as JSON
+     */
+    async createSettingsEditor(): Promise<void> {
+        const settingsId = 'settings-editor';
+
+        try {
+            // Check if already exists
+            const existing = document.getElementById(`window-${settingsId}`);
+            if (existing) {
+                console.log('[FloatingWindowManager] Settings editor already exists');
+                return;
+            }
+
+            // Load current settings from IPC
+            const settings = await window.electronAPI.settings.load() as Settings;
+            const settingsJson = JSON.stringify(settings, null, 2);
+
+            // Get overlay
+            const overlay = getOrCreateOverlay(this.cy);
+
+            // Create window chrome with CodeMirror editor
+            const {windowElement, contentContainer} = createWindowChrome(this.cy, {
+                id: settingsId,
+                title: 'Types',
+                component: 'MarkdownEditor',
+                resizable: true,
+                initialContent: settingsJson
+            });
+
+            // Create CodeMirror editor instance for JSON editing
+            const {CodeMirrorEditorView} = await import('@/floating-windows/CodeMirrorEditorView');
+            const editor = new CodeMirrorEditorView(
+                contentContainer,
+                settingsJson,
+                {
+                    autosaveDelay: 300
+                }
+            );
+
+            // Setup auto-save with validation
+            editor.onChange(async (newContent: string) => {
+                try {
+                    // Parse JSON to validate
+                    const parsedSettings = JSON.parse(newContent) as Settings;
+
+                    // Save to IPC
+                    await window.electronAPI.settings.save(parsedSettings);
+                    console.log('[FloatingWindowManager] Settings saved successfully');
+                } catch (error) {
+                    // Show error to user for invalid JSON
+                    console.error('[FloatingWindowManager] Invalid JSON in settings:', error);
+                    // Could add visual error indicator here
+                }
+            });
+
+            // Store editor instance for cleanup
+            const vanillaInstances = new Map<string, { dispose: () => void }>();
+            vanillaInstances.set(settingsId, editor);
+
+            // Position window in center of screen
+            const windowWidth = 600;
+            const windowHeight = 400;
+            windowElement.style.left = `${window.innerWidth / 2 - windowWidth / 2}px`;
+            windowElement.style.top = `${window.innerHeight / 2 - windowHeight / 2}px`;
+            windowElement.style.width = `${windowWidth}px`;
+            windowElement.style.height = `${windowHeight}px`;
+
+            // Add to overlay
+            overlay.appendChild(windowElement);
+
+            // Setup close button cleanup
+            const closeButton = windowElement.querySelector('.cy-floating-window-close') as HTMLElement;
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    editor.dispose();
+                    vanillaInstances.delete(settingsId);
+                    windowElement.remove();
+                });
+            }
+
+            console.log('[FloatingWindowManager] Types editor created successfully');
+        } catch (error) {
+            console.error('[FloatingWindowManager] Failed to create settings editor:', error);
         }
     }
 

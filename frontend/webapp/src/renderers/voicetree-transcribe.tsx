@@ -148,13 +148,27 @@ export default function VoiceTreeTranscribe() {
 
   // Check microphone permissions on mount
   useEffect(() => {
+    console.log('🎤 [VoiceTree] Checking microphone permissions...');
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
-        console.log('✅ Microphone permission granted');
+        console.log('✅ [VoiceTree] Microphone permission granted');
+        console.log('🔊 [VoiceTree] Audio tracks:', stream.getAudioTracks().map(track => ({
+          id: track.id,
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          settings: track.getSettings()
+        })));
         stream.getTracks().forEach(track => track.stop()); // Stop the stream
       })
       .catch(err => {
-        console.error('❌ Microphone permission denied:', err);
+        console.error('❌ [VoiceTree] Microphone permission denied:', err);
+        console.error('❌ [VoiceTree] Error details:', {
+          name: err.name,
+          message: err.message,
+          constraint: err.constraint
+        });
       });
   }, []);
 
