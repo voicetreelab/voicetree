@@ -22,7 +22,16 @@ import type {
     VoiceTreeGraphViewOptions
 } from './IVoiceTreeGraphView';
 import cytoscape, {type Core, type CytoscapeOptions} from 'cytoscape';
+// @ts-expect-error - cytoscape-navigator doesn't have proper TypeScript definitions
+import navigator from 'cytoscape-navigator';
+// @ts-expect-error - CSS import doesn't have type declarations
+import 'cytoscape-navigator/cytoscape.js-navigator.css'; // Import navigator CSS
+// @ts-expect-error - CSS import doesn't have type declarations
+import '@/views/styles/navigator.css'; // Custom navigator styling
 import '@/graph-core'; // Import to trigger extension registration
+
+// Register cytoscape-navigator extension
+cytoscape.use(navigator);
 import {StyleService} from '@/graph-core/services/StyleService';
 import {BreathingAnimationService} from '@/graph-core/services/BreathingAnimationService';
 import {ContextMenuService} from '@/graph-core/services/ContextMenuService';
@@ -44,6 +53,7 @@ import {clearCytoscapeState} from '@/functional/shell/UI/graph/clearCytoscapeSta
 export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphView {
     // Core instances
     private cy!: Core; // Initialized in render() called from constructor
+    private navigator?: { destroy: () => void }; // Navigator minimap instance
     private container: HTMLElement;
     private options: VoiceTreeGraphViewOptions;
 
@@ -272,7 +282,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.speedDialMenu = new SpeedDialMenuView(this.container, {
             onToggleDarkMode: () => this.toggleDarkMode(),
             onBackup: () => this.createBackupTerminal(),
-            onSettings: () => console.log('[SpeedDial] Settings clicked'),
+            onSettings: () => window.dispatchEvent(new CustomEvent('openSettings')),
             onAbout: () => console.log('[SpeedDial] About clicked'),
             isDarkMode: this._isDarkMode,
         });
@@ -363,6 +373,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Initialize animation service with cy instance (sets up event listeners)
         this.animationService = new BreathingAnimationService(this.cy);
+
+        // Initialize navigator minimap (bottom-right corner, performance-optimized)
+        this.initializeNavigator();
 
         // Update node degrees after initial elements are added
         this.updateNodeDegrees();
@@ -458,6 +471,37 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private handleResizeMethod(): void {
         this.cy.resize();
         this.cy.fit();
+    }
+
+    /**
+     * Initialize the navigator minimap widget
+     * Positioned in bottom-right corner with performance-optimized settings
+     */
+    private initializeNavigator(): void {
+        if (!this.cy) {
+            console.warn('[VoiceTreeGraphView] Cannot initialize navigator: cy not initialized');
+            return;
+        }
+
+        try {
+            // Initialize navigator with performance-optimized settings
+            // Let library auto-create container, which we'll style with CSS
+            // Use false for viewLiveFramerate to prevent interference with floating windows
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            this.navigator = (this.cy as any).navigator({
+                container: false, // Auto-create container
+                viewLiveFramerate: false, // Only update on drag end to avoid transform interference
+                thumbnailEventFramerate: 30, // Update thumbnail more frequently for responsiveness
+                thumbnailLiveFramerate: false, // Disable continuous thumbnail updates for performance
+                dblClickDelay: 200,
+                removeCustomContainer: true, // Let library manage container cleanup
+                rerenderDelay: 100 // Throttle rerenders
+            });
+
+            console.log('[VoiceTreeGraphView] Navigator minimap initialized');
+        } catch (error) {
+            console.error('[VoiceTreeGraphView] Failed to initialize navigator:', error);
+        }
     }
 
     // ============================================================================
@@ -671,6 +715,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Destroy services
         if (this.animationService) {
             this.animationService.destroy();
+        }
+
+        // Destroy navigator minimap
+        if (this.navigator) {
+            this.navigator.destroy();
         }
 
         // Destroy Cytoscape
