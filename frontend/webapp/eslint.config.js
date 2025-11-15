@@ -19,6 +19,9 @@ export default tseslint.config([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        project: './tsconfig.app.json',
+      },
     },
     rules: {
       // Unused variables detection
@@ -28,11 +31,16 @@ export default tseslint.config([
         caughtErrorsIgnorePattern: '^_',
         destructuredArrayIgnorePattern: '^_'
       }],
-      // Ban relative parent directory imports
+      // Promise handling - prevent unhandled async bugs
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      // Nullish coalescing - prevent || bugs with falsy values
+      '@typescript-eslint/prefer-nullish-coalescing': 'error',
+      // Ban all relative imports
       'no-restricted-imports': ['error', {
         patterns: [{
-          group: ['../*', '../**'],
-          message: 'Use absolute imports from project root instead of relative parent paths. Use @/* for src imports.'
+          group: ['./*', '../*', './**', '../**'],
+          message: 'Use absolute imports from project root instead of relative paths. Use @/* for src imports.'
         }]
       }]
     },
