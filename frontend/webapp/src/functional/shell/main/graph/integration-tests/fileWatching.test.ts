@@ -16,11 +16,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { loadFolder, stopWatching, isWatching } from '@/functional/shell/main/graph/watchFolder.ts'
+import { loadFolder, stopFileWatching, isWatching } from '@/functional/shell/main/graph/watchFolder.ts'
 import { getGraph, setGraph, setVaultPath } from '@/functional/shell/state/graph-store.ts'
 import type { GraphDelta } from '@/functional/pure/graph/types.ts'
 import path from 'path'
 import { promises as fs } from 'fs'
+import { EXAMPLE_SMALL_PATH } from '@/test-utils/fixture-paths.ts'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -28,10 +29,8 @@ interface BroadcastCall {
   readonly delta: GraphDelta
 }
 
-const EXAMPLE_SMALL_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_small'
-
 // State for mocks
-// eslint-disable-next-line functional/prefer-readonly-type
+ 
 let broadcastCalls: BroadcastCall[] = []
 let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void }, readonly isDestroyed: () => boolean }
 
@@ -69,7 +68,7 @@ describe('File Watching - Edge Management Tests', () => {
   })
 
   afterEach(async () => {
-    await stopWatching()
+    await stopFileWatching()
 
     // Clean up test files
     const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')

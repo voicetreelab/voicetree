@@ -27,8 +27,8 @@ import type { GraphDelta, UpsertNodeAction, DeleteNode, GraphNode } from '@/func
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
+import { EXAMPLE_SMALL_PATH } from '@/test-utils/fixture-paths.ts'
 
-const EXAMPLE_SMALL_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_small'
 const TEST_NODE_ID = 'test-integration-node'
 const TEST_FILE_PATH = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md`)
 

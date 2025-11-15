@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "check": "eslint . && tsc --noEmit",
     "postinstall": "electron-builder install-app-deps",
-    "test": "vitest run ; npm run test:smoke",
+    "test": "vitest run && npm run test:smoke",
     "test:listen" : "vitest",
     "test:smoke" : "electron-vite build && playwright test --config=playwright-electron.config.ts e2e-tests/electron/electron-smoke-test.spec.ts",
     "test:e2e": "electron-vite build && playwright test --config=playwright-electron.config.ts",
