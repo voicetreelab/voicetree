@@ -1,6 +1,5 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { LayoutManager } from '@/graph-core/graphviz/layout';
 import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 import type { mainAPI } from '@/functional/shell/main/api';
 
@@ -8,11 +7,14 @@ import type { mainAPI } from '@/functional/shell/main/api';
 export type { NodeMetadata } from '@/floating-windows/types';
 
 // Utility type to transform all functions in an object to return Promises
+// Uses Awaited<R> to handle both sync and async functions correctly:
+// - For sync functions returning T: Promise<Awaited<T>> = Promise<T>
+// - For async functions returning Promise<T>: Promise<Awaited<Promise<T>>> = Promise<T>
 export type Promisify<T> = {
   [K in keyof T]: T[K] extends (...args: infer A) => infer R
-    ? (...args: A) => Promise<R>
+    ? (...args: A) => Promise<Awaited<R>>
     : T[K];
-}; // todo skeptical of this
+};
 
 export interface WatchStatus {
   isWatching: boolean;

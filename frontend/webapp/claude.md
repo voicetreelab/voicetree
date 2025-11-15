@@ -31,12 +31,12 @@ you must specify the type of any variable.
 
 ### PHILOSOPHY
 
-THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP. EVERYTHING SHOULD BE MODELLED AS FUNCTIONS. PURE OR IMPURE. PUSH IMPURITY TO EDGEs.
+THIS PROJECT AIMS TO FOLLOW FUNCTIONAL DESIGN. NOT OOP. EVERYTHING SHOULD BE MODELLED AS FUNCTIONS. PREFER. PUSH IMPURITY TO EDGE / SHELL.
 
 We favor "deep functions", a single function to provide a minimal public API hiding internal complexity. Deep and narrow.  
 
 The folder structure of this project should aim to represent our architecture. 
 
-DO NOT create unnecessary indirection.
+DO NOT create unnecessary indirection. (Never wrap a function unnecessarily)
 
 Do not create dependency objects, push state to the functional edge/shell in src/functional/shell/state. Keep it as just a local variable here.

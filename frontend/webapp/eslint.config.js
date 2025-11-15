@@ -21,6 +21,13 @@ export default tseslint.config([
       globals: globals.browser,
     },
     rules: {
+      // Unused variables detection
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_'
+      }],
       // Ban relative parent directory imports
       'no-restricted-imports': ['error', {
         patterns: [{
@@ -35,13 +42,7 @@ export default tseslint.config([
     files: [
       'src/functional/**/*.ts',
       'src/graph-core/functional/**/*.ts',
-      'electron/graph/**/*.ts',
-      'electron/handlers/**/*.ts'
-    ],
-    // Exclude imperative shells (GraphStateManager is allowed to use classes)
-    ignores: [
-      'src/functional/shell/renderer/GraphStateManager.ts',
-      'src/graph-core/functional/GraphStateManager.ts'
+        '**/functional/**/*.ts',
     ],
     plugins: {
       functional
