@@ -27,7 +27,7 @@ export default function VoiceTreeTranscribe() {
 
   // Fetch backend port on mount
   useEffect(() => {
-    window.electronAPI?.getBackendPort().then((port: number | null) => {
+    window.electronAPI?.main.getBackendPort().then((port: number | null) => {
       if (port) {
         setBackendPort(port);
       }

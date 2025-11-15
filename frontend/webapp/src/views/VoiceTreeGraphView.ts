@@ -24,9 +24,7 @@ import type {
 import cytoscape, {type Core, type CytoscapeOptions} from 'cytoscape';
 // @ts-expect-error - cytoscape-navigator doesn't have proper TypeScript definitions
 import navigator from 'cytoscape-navigator';
-// @ts-expect-error - CSS import doesn't have type declarations
 import 'cytoscape-navigator/cytoscape.js-navigator.css'; // Import navigator CSS
-// @ts-expect-error - CSS import doesn't have type declarations
 import '@/views/styles/navigator.css'; // Custom navigator styling
 import '@/graph-core'; // Import to trigger extension registration
 
@@ -142,14 +140,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      */
     private subscribeToGraphUpdates(): void {
         // Access electronAPI with type assertion since global Window type may not be recognized
-        const electronAPI = (window as {
-            electronAPI?: {
-                graph: {
-                    onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void;
-                    onGraphClear: (callback: () => void) => () => void
-                }
-            }
-        }).electronAPI;
+        const electronAPI = window.electronAPI;
 
         if (!electronAPI?.graph?.onGraphUpdate) {
             console.error('[VoiceTreeGraphView] electronAPI not available, skipping graph subscription');
@@ -211,19 +202,15 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      * Auto-load the last watched folder (if one exists)
      */
     private autoLoadPreviousFolder(): void {
-        const electronAPI = (window as Window & {
-            electronAPI?: {
-                loadPreviousFolder?: () => Promise<{ success: boolean; directory?: string; error?: string }>
-            }
-        }).electronAPI;
+        const electronAPI = window.electronAPI;
 
-        if (!electronAPI?.loadPreviousFolder) {
+        if (!electronAPI?.main?.loadPreviousFolder) {
             console.warn('[VoiceTreeGraphView] loadPreviousFolder not available');
             return;
         }
 
         console.log('[VoiceTreeGraphView] Auto-loading previous folder...');
-        electronAPI.loadPreviousFolder()
+        electronAPI.main.loadPreviousFolder()
             .then((result: { success: boolean; directory?: string; error?: string }) => {
                 if (result.success && result.directory) {
                     console.log('[VoiceTreeGraphView] Successfully auto-loaded folder:', result.directory);
@@ -608,7 +595,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
      */
     async createBackupTerminal(): Promise<void> {
         // Get watch directory from IPC
-        const status = await window.electronAPI?.getWatchStatus();
+        const status = await window.electronAPI?.main.getWatchStatus();
         const watchDir = status?.directory;
 
         if (!watchDir) {

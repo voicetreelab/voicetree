@@ -1,7 +1,6 @@
 import { ipcMain } from 'electron'
 import type TerminalManager from '@/electron/terminal-manager.ts'
 import { getWatchedDirectory } from '@/functional/shell/main/graph/watchFolder.ts'
-import { mainAPI } from '@/functional/shell/main/api.ts'
 
 // Import dependencies directly - functional programming style
 // terminalManager and getToolsDirectory will be passed as parameters since terminal handlers need event.sender
@@ -10,35 +9,7 @@ export function registerAllIpcHandlers(
   getToolsDirectory: () => string
 ) {
 
-    //todo need to migrate these to new auto function system.
 
-    // ============================================================================
-  // File watching handlers - delegate to mainAPI
-  // ============================================================================
-
-  ipcMain.handle('start-file-watching', async (_event, directoryPath?: string) => {
-    return mainAPI.startFileWatching(directoryPath)
-  })
-
-  ipcMain.handle('stop-file-watching', async () => {
-    return mainAPI.stopFileWatching()
-  })
-
-  ipcMain.handle('get-watch-status', () => {
-    return mainAPI.getWatchStatus()
-  })
-
-  ipcMain.handle('load-previous-folder', async () => {
-    return mainAPI.loadPreviousFolder()
-  })
-
-  // ============================================================================
-  // Backend port handler - delegate to mainAPI
-  // ============================================================================
-
-  ipcMain.handle('get-backend-port', () => {
-    return mainAPI.getBackendPort()
-  })
 
   // ============================================================================
   // Terminal IPC handlers - kept here since they need event.sender

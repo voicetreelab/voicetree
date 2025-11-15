@@ -447,7 +447,7 @@ export class FloatingWindowManager {
      * Constructs path from vaultPath + nodeId.md
      */
     async getFilePathForNode(nodeId: NodeId): Promise<string | undefined> {
-        const status = await window.electronAPI?.getWatchStatus();
+        const status = await window.electronAPI?.main.getWatchStatus();
         const vaultPath = status?.directory;
         if (!vaultPath) {
             console.warn('[FloatingWindowManager] No vault path available');

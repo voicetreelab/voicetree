@@ -7,59 +7,26 @@ import type { mainAPI } from '@/functional/shell/main/api';
 // Re-export NodeMetadata for use in terminal API
 export type { NodeMetadata } from '@/floating-windows/types';
 
-export interface FileEvent {
-  path: string;
-  fullPath: string;
-  content?: string;
-  size?: number;
-  modified?: string;
-}
+// Utility type to transform all functions in an object to return Promises
+export type Promisify<T> = {
+  [K in keyof T]: T[K] extends (...args: infer A) => infer R
+    ? (...args: A) => Promise<R>
+    : T[K];
+}; // todo skeptical of this
 
 export interface WatchStatus {
   isWatching: boolean;
   directory?: string;
 }
 
-export interface ErrorEvent {
-  type: string;
-  message: string;
-  directory?: string;
-  filePath?: string;
-}
 
 export interface ElectronAPI {
   // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
-  main: typeof mainAPI;
-
-  // Backend server configuration
-  getBackendPort: () => Promise<number | null>;
-
-  // Directory selection
-  openDirectoryDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>;
-
-  // File operations
-  saveFileContent: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
-  deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-  createChildNode: (parentNodeId: string) => Promise<{ success: boolean; nodeId?: number; filePath?: string; error?: string }>;
-  createStandaloneNode: (position?: { x: number; y: number }) => Promise<{ success: boolean; nodeId?: number; filePath?: string; error?: string }>;
-
-  // File watching methods
-  startFileWatching: (directoryPath?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
-  stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-  getWatchStatus: () => Promise<WatchStatus>;
-  loadPreviousFolder: () => Promise<{ success: boolean; directory?: string; error?: string }>;
+  // All RPC calls are async, so we promisify the mainAPI type
+  main: Promisify<typeof mainAPI>;
 
   // File system event listeners
   onWatchingStarted?: (callback: (data: { directory: string; timestamp: string; positions?: Record<string, { x: number; y: number }> }) => void) => void;
-  onInitialFilesLoaded: (callback: (data: { files: FileEvent[]; directory: string }) => void) => void;
-  onFileAdded: (callback: (data: FileEvent) => void) => void;
-  onFileChanged: (callback: (data: FileEvent) => void) => void;
-  onFileDeleted: (callback: (data: FileEvent) => void) => void;
-  onDirectoryAdded: (callback: (data: FileEvent) => void) => void;
-  onDirectoryDeleted: (callback: (data: FileEvent) => void) => void;
-  onInitialScanComplete: (callback: (data: { directory: string }) => void) => void;
-  onFileWatchError: (callback: (data: ErrorEvent) => void) => void;
-  onFileWatchInfo: (callback: (data: { type: string; message: string }) => void) => void;
   onFileWatchingStopped: (callback: (data?: unknown) => void) => void;
   removeAllListeners: (channel: string) => void;
 
@@ -71,12 +38,6 @@ export interface ElectronAPI {
     kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;
     onData: (callback: (terminalId: string, data: string) => void) => void;
     onExit: (callback: (terminalId: string, code: number) => void) => void;
-  };
-
-  // Position management operations
-  positions: {
-    save: (directoryPath: string, positions: Record<string, { x: number; y: number }>) => Promise<{ success: boolean; error?: string }>;
-    load: (directoryPath: string) => Promise<{ success: boolean; positions: Record<string, { x: number; y: number }>; error?: string }>;
   };
 
   // Backend log streaming
@@ -103,11 +64,5 @@ declare global {
     electronAPI?: ElectronAPI;
     // Graph-related properties exposed for testing
     cy: CytoscapeCore | null;
-    cytoscapeCore: CytoscapeCore | null;
-    cytoscapeInstance: CytoscapeCore | null;
-    layoutManager: LayoutManager | null;
-    // Test helper functions
-    loadTestData: () => void;
-    simulateFileLoad: (files: File[]) => void;
   }
 }
