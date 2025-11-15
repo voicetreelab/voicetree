@@ -22,10 +22,11 @@ export async function loadSettings(): Promise<Settings> {
   }
 }
 
-export async function saveSettings(settings: Settings): Promise<void> {
+export async function saveSettings(settings: Settings): Promise<boolean> {
   const settingsPath = getSettingsPath();
   const settingsDir = path.dirname(settingsPath);
 
   await fs.mkdir(settingsDir, { recursive: true });
   await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  return true;
 }

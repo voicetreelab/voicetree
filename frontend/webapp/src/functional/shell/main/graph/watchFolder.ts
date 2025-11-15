@@ -1,10 +1,11 @@
 import {loadGraphFromDisk} from "@/functional/shell/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts";
 import type {FilePath, Graph, GraphDelta} from "@/functional/pure/graph/types.ts";
 import {setGraph, setVaultPath} from "@/functional/shell/state/graph-store.ts";
-import {app} from "electron";
+import {app, dialog} from "electron";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
 import {promises as fs} from "fs";
+import fsSync from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
 import type {FSUpdate} from "@/functional/pure/graph/types.ts";
 import {handleFSEventWithStateAndUISides} from "@/functional/shell/main/graph/readAndDBEventsPath/handleFSEventWithStateAndUISides.ts";
@@ -256,4 +257,88 @@ export function isWatching(): boolean {
 
 export function getWatchedDirectory(): FilePath | null {
     return watchedDirectory;
+}
+
+// API functions for file watching operations
+
+export async function startFileWatching(directoryPath?: string): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
+    console.log('[watchFolder] startFileWatching called, directoryPath:', directoryPath);
+
+    // Get selected directory (either from param or via dialog)
+    const getDirectory = async (): Promise<string | null> => {
+        if (directoryPath) {
+            console.log('[watchFolder] Using provided directory path:', directoryPath);
+            return directoryPath;
+        }
+
+        console.log('[watchFolder] No directory provided, showing dialog...');
+
+        const result = await dialog.showOpenDialog({
+            properties: ['openDirectory', 'createDirectory'],
+            title: 'Select Directory to Watch for Markdown Files',
+            buttonLabel: 'Watch Directory',
+            defaultPath: getWatchedDirectory() || process.env.HOME || '/'
+        });
+
+        if (result.canceled || result.filePaths.length === 0) {
+            return null;
+        }
+
+        return result.filePaths[0];
+    };
+
+    const selectedDirectory = await getDirectory();
+    console.log('[watchFolder] Selected directory:', selectedDirectory);
+
+    if (!selectedDirectory) {
+        console.log('[watchFolder] No directory selected, returning error');
+        return { success: false, error: 'No directory selected' };
+    }
+
+    // FAIL FAST: Validate directory exists before proceeding
+    console.log('[watchFolder] Validating directory exists...');
+    if (!fsSync.existsSync(selectedDirectory)) {
+        const error = `Directory does not exist: ${selectedDirectory}`;
+        console.error('[watchFolder] startFileWatching failed:', error);
+        return { success: false, error };
+    }
+
+    console.log('[watchFolder] Validating path is a directory...');
+    if (!fsSync.statSync(selectedDirectory).isDirectory()) {
+        const error = `Path is not a directory: ${selectedDirectory}`;
+        console.error('[watchFolder] startFileWatching failed:', error);
+        return { success: false, error };
+    }
+
+    console.log('[watchFolder] Calling loadFolder...');
+    await loadFolder(selectedDirectory);
+    console.log('[watchFolder] loadFolder completed successfully');
+    return { success: true, directory: selectedDirectory };
+}
+
+export async function stopFileWatchingAPI(): Promise<{ readonly success: boolean }> {
+    await stopWatching();
+    return { success: true };
+}
+
+export function getWatchStatusAPI(): { readonly isWatching: boolean; readonly directory: string | null } {
+    const status = {
+        isWatching: isWatching(),
+        directory: getWatchedDirectory()
+    };
+    console.log('Watch status:', status);
+    return status;
+}
+
+export async function loadPreviousFolderAPI(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
+    console.log('[watchFolder] loadPreviousFolder called');
+    await initialLoad();
+    const watchedDir = getWatchedDirectory();
+    if (watchedDir) {
+        console.log('[watchFolder] Successfully loaded previous folder:', watchedDir);
+        return { success: true, directory: watchedDir };
+    } else {
+        console.log('[watchFolder] No previous folder found to load');
+        return { success: false, error: 'No previous folder found' };
+    }
 }

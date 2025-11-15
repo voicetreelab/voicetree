@@ -1,11 +1,12 @@
 import { applyGraphDeltaToDB } from './graph/writePath/applyGraphDeltaToDB'
 import { getGraph } from '@/functional/shell/state/graph-store'
 import { loadSettings, saveSettings as saveSettings } from './settings/settings_IO'
-import type { GraphDelta } from '@/functional/pure/graph/types'
-import type { Settings } from '@/functional/pure/settings/types'
-import { loadFolder, stopWatching, isWatching, getWatchedDirectory, initialLoad } from './graph/watchFolder'
-import { dialog } from 'electron'
-import fs from 'fs'
+import {
+  startFileWatching,
+  stopFileWatchingAPI,
+  getWatchStatusAPI,
+  loadPreviousFolderAPI
+} from './graph/watchFolder'
 
 // eslint-disable-next-line functional/no-let
 let backendPort: number | null = null;
@@ -17,102 +18,23 @@ export const setBackendPort = (port: number | null): void => {
 
 export const mainAPI = {
   // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDB: async (delta: GraphDelta): Promise<void> => {
-    await applyGraphDeltaToDB(delta)
-  },
+  applyGraphDeltaToDB,
 
-  getGraph: async () => getGraph(),
+  getGraph,
 
   // Settings operations
   loadSettings,
 
-  saveSettings: async (settings: Settings): Promise<{ readonly success: boolean; readonly error?: string }> => {
-    await saveSettings(settings)
-    return { success: true }
-  },
+  saveSettings,
 
-  // File watching operations
-  startFileWatching: async (directoryPath?: string): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> => {
-    console.log('[mainAPI] startFileWatching called, directoryPath:', directoryPath)
+  // File watching operations - thin wrappers
+  startFileWatching,
 
-    // Get selected directory (either from param or via dialog)
-    const getDirectory = async (): Promise<string | null> => {
-      if (directoryPath) {
-        console.log('[mainAPI] Using provided directory path:', directoryPath)
-        return directoryPath
-      }
+  stopFileWatching: stopFileWatchingAPI,
 
-      console.log('[mainAPI] No directory provided, showing dialog...')
+  getWatchStatus: getWatchStatusAPI,
 
-      const result = await dialog.showOpenDialog({
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Select Directory to Watch for Markdown Files',
-        buttonLabel: 'Watch Directory',
-        defaultPath: getWatchedDirectory() || process.env.HOME || '/'
-      })
-
-      if (result.canceled || result.filePaths.length === 0) {
-        return null
-      }
-
-      return result.filePaths[0]
-    }
-
-    const selectedDirectory = await getDirectory()
-    console.log('[mainAPI] Selected directory:', selectedDirectory)
-
-    if (!selectedDirectory) {
-      console.log('[mainAPI] No directory selected, returning error')
-      return { success: false, error: 'No directory selected' }
-    }
-
-    // FAIL FAST: Validate directory exists before proceeding
-    console.log('[mainAPI] Validating directory exists...')
-    if (!fs.existsSync(selectedDirectory)) {
-      const error = `Directory does not exist: ${selectedDirectory}`
-      console.error('[mainAPI] startFileWatching failed:', error)
-      return { success: false, error }
-    }
-
-    console.log('[mainAPI] Validating path is a directory...')
-    if (!fs.statSync(selectedDirectory).isDirectory()) {
-      const error = `Path is not a directory: ${selectedDirectory}`
-      console.error('[mainAPI] startFileWatching failed:', error)
-      return { success: false, error }
-    }
-
-    console.log('[mainAPI] Calling loadFolder...')
-    await loadFolder(selectedDirectory)
-    console.log('[mainAPI] loadFolder completed successfully')
-    return { success: true, directory: selectedDirectory }
-  },
-
-  stopFileWatching: async (): Promise<{ readonly success: boolean }> => {
-    await stopWatching()
-    return { success: true }
-  },
-
-  getWatchStatus: (): { readonly isWatching: boolean; readonly directory: string | null } => {
-    const status = {
-      isWatching: isWatching(),
-      directory: getWatchedDirectory()
-    }
-    console.log('Watch status:', status)
-    return status
-  },
-
-  loadPreviousFolder: async (): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> => {
-    console.log('[mainAPI] loadPreviousFolder called')
-    await initialLoad()
-    const watchedDir = getWatchedDirectory()
-    if (watchedDir) {
-      console.log('[mainAPI] Successfully loaded previous folder:', watchedDir)
-      return { success: true, directory: watchedDir }
-    } else {
-      console.log('[mainAPI] No previous folder found to load')
-      return { success: false, error: 'No previous folder found' }
-    }
-  },
+  loadPreviousFolder: loadPreviousFolderAPI,
 
   // Backend port
   getBackendPort: (): number | null => backendPort,
