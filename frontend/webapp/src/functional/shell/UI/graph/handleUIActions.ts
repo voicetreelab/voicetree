@@ -23,7 +23,7 @@ export async function createNewChildNodeFromUI(
 ): Promise<NodeId> {
 
     // Get current graph state
-    const currentGraph = await window.electronAPI?.main.getGraphState() // todo, in memory renderer cache?
+    const currentGraph = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         return "-1"; //todo cleaner
@@ -38,7 +38,7 @@ export async function createNewChildNodeFromUI(
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.main.applyDelta(graphDelta);
+    await window.electronAPI?.main.applyGraphDeltaToDB(graphDelta);
     return newNode.relativeFilePathIsID;
 }
 
@@ -72,7 +72,7 @@ export async function createNewEmptyOrphanNodeFromUI(
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.main.applyDelta(graphDelta);
+    await window.electronAPI?.main.applyGraphDeltaToDB(graphDelta);
 
     return newNode.relativeFilePathIsID;
 }
@@ -85,7 +85,7 @@ export async function modifyNodeContentFromUI(
 
     // Get current graph state
     const currentNode = await getNodeFromUI(nodeId);
-    const currentGraph = await window.electronAPI?.main.getGraphState();
+    const currentGraph = await window.electronAPI?.main.getGraph();
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE");
         return;
@@ -97,7 +97,7 @@ export async function modifyNodeContentFromUI(
     // Optimistic UI update for edge changes
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.main.applyDelta(graphDelta);
+    await window.electronAPI?.main.applyGraphDeltaToDB(graphDelta);
 }
 
 export async function deleteNodeFromUI(
@@ -110,6 +110,6 @@ export async function deleteNodeFromUI(
     // Optimistic UI update: immediately remove node from cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.main.applyDelta(graphDelta);
+    await window.electronAPI?.main.applyGraphDeltaToDB(graphDelta);
 }
 

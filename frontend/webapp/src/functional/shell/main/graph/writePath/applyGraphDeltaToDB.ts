@@ -3,7 +3,8 @@ import * as O from 'fp-ts/lib/Option.js'
 import { pipe } from 'fp-ts/lib/function.js'
 import type { Env, Graph, GraphDelta } from '@/functional/pure/graph/types.ts'
 import { apply_graph_deltas_to_db } from '@/functional/pure/graph/applyGraphActionsToDB.ts'
-import { getVaultPath } from '@/functional/shell/state/graph-store.ts'
+import {getGraph, getVaultPath, setGraph} from '@/functional/shell/state/graph-store.ts'
+import type {Either} from "fp-ts/es6/Either";
 
 /**
  * Shell-level function to apply graph deltas to the database.
@@ -17,8 +18,10 @@ import { getVaultPath } from '@/functional/shell/state/graph-store.ts'
  * Per architecture: Pure core returns effects, impure shell executes them.
  * Graph state updates come from file watch handlers detecting the filesystem change.
  */
-export async function applyGraphDeltaToDB(graph: Graph, delta: GraphDelta): Promise<void> {
-  // Extract vault path (fail fast at edge)
+export async function applyGraphDeltaToDB(delta: GraphDelta): Promise<void> {
+    const graph = getGraph();
+
+    // Extract vault path (fail fast at edge)
   const vaultPath = pipe(
     getVaultPath(),
     // eslint-disable-next-line functional/no-throw-statements
@@ -27,13 +30,19 @@ export async function applyGraphDeltaToDB(graph: Graph, delta: GraphDelta): Prom
 
   // Construct env and execute effect
   const env: Env = { vaultPath }
-  const result = await apply_graph_deltas_to_db(graph, delta)(env)()
+  const result: Either<Error, Graph> = await apply_graph_deltas_to_db(graph, delta)(env)()
 
   // Handle errors (fail fast)
   if (E.isLeft(result)) {
     // eslint-disable-next-line functional/no-throw-statements
     throw result.left
   }
-  // result.right contains computed graph but we ignore per architecture
-  // Graph state updates come from file watch handlers
+  else {
+      // write through cache
+      setGraph(result.right) // todo, should we write through mem? is this actually writing through mem since it's after applying to fs?
+
+      //old approach was:   // result.right contains computed graph but we ignore per architecture
+      //   // Graph state updates come from file watch handlers
+  }
+
 }

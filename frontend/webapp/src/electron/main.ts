@@ -8,13 +8,13 @@ const { autoUpdater } = electronUpdater;
 import { StubTextToTreeServerManager } from './server/StubTextToTreeServerManager.ts';
 import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManager.ts';
 import TerminalManager from './terminal-manager.ts';
-import PositionManager from './position-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
 import { setupOnboardingDirectory } from './onboarding-setup.ts';
 import { setMainWindow } from '@/functional/shell/state/app-electron-state.ts';
 import { registerAllIpcHandlers } from '@/functional/shell/main/graph/ipc-graph-handlers.ts';
-import { setupRPCHandlers } from '@/functional/shell/main/edge/rpc-handler';
-import { setBackendPort, setPositionManager } from '@/functional/shell/main/api.ts';
+import { setupRPCHandlers } from '@/functional/shell/main/edge-auto-rpc/rpc-handler';
+import { setBackendPort  } from '@/functional/shell/main/api.ts';
+
 
 // Fix PATH for macOS/Linux GUI apps
 // This ensures the Electron process and all child processes have access to
@@ -88,7 +88,6 @@ const textToTreeServerManager = (process.env.NODE_ENV === 'test' || process.env.
   ? new StubTextToTreeServerManager()
   : new RealTextToTreeServerManager();
 const terminalManager = new TerminalManager();
-const positionManager = new PositionManager();
 
 // Store the TextToTreeServer port (set during app startup)
 let textToTreeServerPort: number | null = null;
@@ -182,7 +181,6 @@ function createWindow() {
 }
 
 // Inject dependencies into mainAPI (must be done before IPC handler registration)
-setPositionManager(positionManager);
 
 // Register all IPC handlers (now only needs terminal dependencies)
 registerAllIpcHandlers(
