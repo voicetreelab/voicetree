@@ -33,7 +33,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
 
     const checkStatus = async () => {
       try {
-        const status = await window.electronAPI!.getWatchStatus();
+        const status = await window.electronAPI!.main.getWatchStatus();
         console.log('[DEBUG] Initial watch status from electronAPI:', status);
         setWatchStatus(status);
       } catch (err) {
@@ -85,7 +85,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
 
     try {
       console.log('[useFolderWatcher] Calling window.electronAPI.startFileWatching()...');
-      const result = await window.electronAPI!.startFileWatching();
+      const result = await window.electronAPI!.main.startFileWatching();
       console.log('[useFolderWatcher] startFileWatching IPC result:', result);
       if (result.success) {
         // Reset state immediately after successful IPC call
@@ -114,7 +114,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
     setError(null);
 
     try {
-      const result = await window.electronAPI!.stopFileWatching();
+      const result = await window.electronAPI!.main.stopFileWatching();
       console.log('[DEBUG] stopFileWatching result:', result);
       if (result.success) {
         // Reset state immediately after successful IPC call

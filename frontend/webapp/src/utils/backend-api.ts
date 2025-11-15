@@ -14,7 +14,7 @@ let backendPort: number | null = null;
 export async function initializeBackendConnection(): Promise<void> {
   // Check if running in renderer process (has window object)
   if (typeof window !== 'undefined' && window.electronAPI) {
-    backendPort = await window.electronAPI.getBackendPort();
+    backendPort = await window.electronAPI.main.getBackendPort();
     console.log(`[Backend API] Connected to port ${backendPort}`);
   } else {
     // Fallback for main process or non-Electron environments (e2e-tests, browser)

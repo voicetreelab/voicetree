@@ -21,49 +21,14 @@ async function exposeElectronAPI(): Promise<void> {
     // Step 3: Build electronAPI with dynamically generated wrappers
     const electronAPI: ElectronAPI = {
         // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
-        main: mainAPIWrappers as typeof mainAPI,
-        // Backend server configuration
-        getBackendPort: () => ipcRenderer.invoke('get-backend-port'),
+        main: mainAPIWrappers as unknown as typeof mainAPI,
 
         // Directory selection
-        openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
-
-        // File watching controls
-        startFileWatching: (directoryPath) => ipcRenderer.invoke('start-file-watching', directoryPath),
-        stopFileWatching: () => ipcRenderer.invoke('stop-file-watching'),
-        getWatchStatus: () => ipcRenderer.invoke('get-watch-status'),
-        loadPreviousFolder: () => ipcRenderer.invoke('load-previous-folder'),
+        // openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
 
         // File watching event listeners
         onWatchingStarted: (callback) => {
             ipcRenderer.on('watching-started', (_event, data) => callback(data));
-        },
-        onInitialFilesLoaded: (callback) => {
-            ipcRenderer.on('initial-files-loaded', (_event, data) => callback(data));
-        },
-        onFileAdded: (callback) => {
-            ipcRenderer.on('file-added', (_event, data) => callback(data));
-        },
-        onFileChanged: (callback) => {
-            ipcRenderer.on('file-changed', (_event, data) => callback(data));
-        },
-        onFileDeleted: (callback) => {
-            ipcRenderer.on('file-deleted', (_event, data) => callback(data));
-        },
-        onDirectoryAdded: (callback) => {
-            ipcRenderer.on('directory-added', (_event, data) => callback(data));
-        },
-        onDirectoryDeleted: (callback) => {
-            ipcRenderer.on('file-watching-stopped', (_event, data) => callback(data));
-        },
-        onInitialScanComplete: (callback) => {
-            ipcRenderer.on('initial-scan-complete', (_event, data) => callback(data));
-        },
-        onFileWatchError: (callback) => {
-            ipcRenderer.on('file-watch-error', (_event, data) => callback(data));
-        },
-        onFileWatchInfo: (callback) => {
-            ipcRenderer.on('file-watch-info', (_event, data) => callback(data));
         },
         onFileWatchingStopped: (callback) => {
             ipcRenderer.on('file-watching-stopped', (_event, data) => callback(data));
@@ -95,12 +60,6 @@ async function exposeElectronAPI(): Promise<void> {
             onExit: (callback) => {
                 ipcRenderer.on('terminal:exit', (_event, terminalId, code) => callback(terminalId, code));
             }
-        },
-
-        // Position management API
-        positions: {
-            save: (directoryPath, positions) => ipcRenderer.invoke('positions:save', directoryPath, positions),
-            load: (directoryPath) => ipcRenderer.invoke('positions:load', directoryPath)
         },
 
 
