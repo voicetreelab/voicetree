@@ -14,8 +14,9 @@ Testing:
 `npx vitest run <file>` - Test specific unit tests
 `npx playwright test tests/e2e/isolated-with-harness-graph-core/breathing-animation.spec.ts` - Run a specific playwright test in browser
 `npx electron-vite build && npx playwright test webapp/tests/e2e/full-electron/electron-terminal.spec.ts --config=playwright-electron.config.ts` - Run electron test
+ If electron playwright tests, such as smoke tests fail with unclear error messages, run `npm run electron:prod` WITH IMPORTANTLY A 30s bash tool timeout. This reveals electron startup errors that don't show up in test logs. 
 
-DO NOT run `npm run dev` or `npm run electron` in foreground. These will block your session as they start indefinite servers.
+DO NOT run `npm run dev` or `npm run electron` in foreground without a short timeout. These will block your session as they start indefinite servers.
 
 ### HANDOVER
 
