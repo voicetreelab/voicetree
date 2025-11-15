@@ -1,24 +1,12 @@
-import { applyGraphDeltaToDB } from './graph/writePath/applyGraphDeltaToDB'
-import { getGraph } from '@/functional/shell/state/graph-store'
-import { loadSettings, saveSettings as saveSettings } from './settings/settings_IO'
-import {
-  startFileWatching,
-  stopFileWatchingAPI,
-  getWatchStatusAPI,
-  loadPreviousFolderAPI
-} from './graph/watchFolder'
-
-// eslint-disable-next-line functional/no-let
-let backendPort: number | null = null;
-
-// Setter functions for main.ts to inject dependencies
-export const setBackendPort = (port: number | null): void => {
- backendPort = port
-}
+import {applyGraphDeltaToDBAndMem} from './graph/writePath/applyGraphDeltaToDBAndMem.ts'
+import {getGraph} from '@/functional/shell/state/graph-store'
+import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO'
+import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching} from './graph/watchFolder'
+import {getBackendPort} from "@/functional/shell/state/app-electron-state.ts";
 
 export const mainAPI = {
   // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDB,
+  applyGraphDeltaToDBAndMem,
 
   getGraph,
 
@@ -30,12 +18,12 @@ export const mainAPI = {
   // File watching operations - thin wrappers
   startFileWatching,
 
-  stopFileWatching: stopFileWatchingAPI,
+  stopFileWatching,
 
-  getWatchStatus: getWatchStatusAPI,
+  getWatchStatus,
 
-  loadPreviousFolder: loadPreviousFolderAPI,
+  loadPreviousFolder,
 
   // Backend port
-  getBackendPort: (): number | null => backendPort,
+  getBackendPort,
 }

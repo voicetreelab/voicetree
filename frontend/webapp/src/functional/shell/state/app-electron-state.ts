@@ -1,4 +1,5 @@
 import type {BrowserWindow} from "electron";
+import {number} from "fp-ts";
 
 // The main application window reference
 // eslint-disable-next-line functional/no-let
@@ -12,3 +13,9 @@ export const getMainWindow = (): BrowserWindow | null => {
 export const setMainWindow = (window: BrowserWindow): void => {
     mainWindow = window;
 };
+// eslint-disable-next-line functional/no-let
+export let backendPort: number | null = null;
+export const setBackendPort = (port: number | null): void => {
+    backendPort = port
+}
+export const getBackendPort =  (): number | null => backendPort;
