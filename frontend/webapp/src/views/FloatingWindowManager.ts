@@ -229,7 +229,7 @@ export class FloatingWindowManager {
             // Create floating terminal window
             const floatingWindow = createFloatingTerminal(this.cy, {
                 id: terminalId,
-                title: `Terminal: ${nodeId}`,
+                title: `Terminal: ${nodeId}`, //todo parent node.data.title
                 nodeMetadata: nodeMetadata,
                 resizable: true
             });
