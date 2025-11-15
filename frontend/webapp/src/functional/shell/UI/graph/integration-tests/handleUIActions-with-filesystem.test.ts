@@ -85,8 +85,8 @@ vi.mock('@/functional/shell/state/graph-store.ts', () => {
 let handlersImported = false
 async function ensureHandlersImported(): Promise<void> {
     if (!handlersImported) {
-        const { registerAllIpcHandlers } = await import('@/functional/shell/main/graph/ipc-graph-handlers.ts')
-        registerAllIpcHandlers(
+        const { registerTerminalIpcHandlers } = await import('@/functional/shell/main/ipc-terminal-handlers.ts')
+        registerTerminalIpcHandlers(
             {} as any, // terminalManager
             () => '' // getToolsDirectory
         )

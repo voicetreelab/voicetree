@@ -3,7 +3,7 @@
 
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GraphDelta} from "@/functional/pure/graph/types.ts";
-import type {ElectronAPI} from '@/types/electron';
+import type {ElectronAPI, Promisify} from '@/types/electron';
 import type {mainAPI} from '@/functional/shell/main/api';
 
 // Async function to build and expose the electronAPI
@@ -21,7 +21,7 @@ async function exposeElectronAPI(): Promise<void> {
     // Step 3: Build electronAPI with dynamically generated wrappers
     const electronAPI: ElectronAPI = {
         // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
-        main: mainAPIWrappers as unknown as typeof mainAPI,
+        main: mainAPIWrappers as unknown as Promisify<typeof mainAPI>,
 
         // Directory selection
         // openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
@@ -38,15 +38,6 @@ async function exposeElectronAPI(): Promise<void> {
         removeAllListeners: (channel) => {
             ipcRenderer.removeAllListeners(channel);
         },
-
-        // File content management
-        saveFileContent: (filePath, content) => ipcRenderer.invoke('save-file-content', filePath, content),
-        deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
-        createChildNode: (parentNodeId) => ipcRenderer.invoke('create-child-node', parentNodeId),
-        createStandaloneNode: (position?: {
-            x: number;
-            y: number
-        }) => ipcRenderer.invoke('create-standalone-node', position),
 
         // Terminal API
         terminal: {

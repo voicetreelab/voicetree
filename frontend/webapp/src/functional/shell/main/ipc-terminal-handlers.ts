@@ -4,13 +4,10 @@ import { getWatchedDirectory } from '@/functional/shell/main/graph/watchFolder.t
 
 // Import dependencies directly - functional programming style
 // terminalManager and getToolsDirectory will be passed as parameters since terminal handlers need event.sender
-export function registerAllIpcHandlers(
+export function registerTerminalIpcHandlers(
   terminalManager: TerminalManager,
   getToolsDirectory: () => string
 ) {
-
-
-
   // ============================================================================
   // Terminal IPC handlers - kept here since they need event.sender
   // ============================================================================
