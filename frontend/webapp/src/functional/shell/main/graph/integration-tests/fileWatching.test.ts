@@ -28,7 +28,7 @@ interface BroadcastCall {
   readonly delta: GraphDelta
 }
 
-const EXAMPLE_SMALL_PATH = path.resolve(__dirname, '../../../../fixtures/example_small')
+const EXAMPLE_SMALL_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_small'
 
 // State for mocks
 // eslint-disable-next-line functional/prefer-readonly-type

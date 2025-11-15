@@ -16,7 +16,7 @@ async function exposeElectronAPI(): Promise<void> {
     const mainAPIWrappers: Record<string, (...args: unknown[]) => Promise<unknown>> = {}
     for (const key of apiKeys) {
         mainAPIWrappers[key] = (...args: unknown[]) => ipcRenderer.invoke('rpc:call', key, args)
-    }
+    } // see rpc-handler.ts
 
     // Step 3: Build electronAPI with dynamically generated wrappers
     const electronAPI: ElectronAPI = {

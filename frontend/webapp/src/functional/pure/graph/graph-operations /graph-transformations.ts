@@ -3,7 +3,7 @@
  * These functions transform entire graphs, operating on all nodes at once.
  */
 
-import type { Graph, GraphNode, NodeId } from '../types.ts'
+import type { Graph, GraphNode, NodeId } from '@/functional/pure/graph/types.ts'
 import { setOutgoingEdges } from './graph-edge-operations.ts'
 
 /**

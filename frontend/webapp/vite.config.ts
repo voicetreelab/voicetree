@@ -40,7 +40,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@test": path.resolve(__dirname, "./e2e-tests"),
+      "@root": path.resolve(__dirname, "."),
       // Alias CSS imports from @material to prevent import errors
       '@material/mwc-icon/mwc-icon-host.css': path.resolve(__dirname, 'src/utils/empty-css-export.ts')
     },

@@ -1,5 +1,5 @@
 import http from 'http';
-import { findAvailablePort } from '../port-utils.ts';
+import { findAvailablePort } from '@/electron/port-utils.ts';
 import type { ITextToTreeServerManager } from './ITextToTreeServerManager.ts';
 
 /**
@@ -18,8 +18,8 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
     console.log(`[StubTextToTreeServer] Starting on port ${port}...`);
 
     const server = http.createServer((req, res) => {
-      const method = req.method || 'GET';
-      const url = req.url || '/';
+      const method = req.method ?? 'GET';
+      const url = req.url ?? '/';
 
       if (method === 'GET' && url.startsWith('/health')) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -37,7 +37,7 @@ export class StubTextToTreeServerManager implements ITextToTreeServerManager {
           let directoryPath = 'unknown';
           try {
             const parsed = JSON.parse(body);
-            directoryPath = parsed.directory_path || directoryPath;
+            directoryPath = parsed.directory_path ?? directoryPath;
           } catch {
             console.log('[StubTextToTreeServer] Failed to parse load-directory payload');
           }
