@@ -604,7 +604,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
     /**
      * Creates a floating terminal with pre-pasted backup command
-     * Command: mkdir -p "{watchDir}/../backups" && mv "{watchDir}" "{watchDir}/../backups/"
+     * Command moves vault to timestamped backup folder and recreates empty vault
      */
     async createBackupTerminal(): Promise<void> {
         // Get watch directory from IPC
@@ -616,8 +616,11 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             return;
         }
 
-        // Generate the move command with mkdir to ensure backups directory exists
-        const backupCommand = `mkdir -p "${watchDir}/../backups" && mv "${watchDir}" "${watchDir}/../backups/"`;
+        // Extract vault folder name for backup naming
+        const vaultName = watchDir.split('/').pop() || 'vault';
+
+        // Generate command: move vault to timestamped backup, then recreate empty vault
+        const backupCommand = `mkdir -p "${watchDir}/../backups" && mv "${watchDir}" "${watchDir}/../backups/${vaultName}-$(date +%Y%m%d-%H%M%S)" && mkdir -p "${watchDir}"`;
 
         // Create metadata for terminal with pre-pasted command
         const terminalMetadata = {
