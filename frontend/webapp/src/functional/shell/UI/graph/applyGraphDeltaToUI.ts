@@ -66,7 +66,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         ? node.nodeUIMetadata.color.value
                         : undefined;
                     if (color === undefined) {
-                        existingNode.removeData('color');
+                        existingNode.removeData('color'); // todo, really necessary? Cytoscape doesn't clear values when set to undefined but that shouldn't matter?
                     } else {
                         existingNode.data('color', color);
                     }
