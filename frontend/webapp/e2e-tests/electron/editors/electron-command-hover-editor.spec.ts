@@ -31,7 +31,7 @@ const test = base.extend<{
   electronApp: async ({}, use) => {
     const electronApp = await electron.launch({
       args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
-      env: { ...process.env, NODE_ENV: 'test', HEADLESS_TEST: '1' }
+      env: { ...process.env, NODE_ENV: 'test', HEADLESS_TEST: '1', MINIMIZE_TEST: '1' }
     });
     await use(electronApp);
     await electronApp.close();
@@ -98,7 +98,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
       return {
         exists: !!hoverEditor,
         hasTitleBar: !!titleBar,
-        titleText: titleBar?.textContent || ''
+        titleText: titleBar?.textContent ?? ''
       };
     });
 
@@ -363,7 +363,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     // Verify first editor exists
     const firstEditorId = await appWindow.evaluate(() => {
       const editor = document.querySelector('[id^="window-editor-"]');
-      return editor?.id || null;
+      return editor?.id ?? null;
     });
     expect(firstEditorId).toContain('editor-test-node-6a');
 
@@ -380,7 +380,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     // Verify second editor exists
     const secondEditorId = await appWindow.evaluate(() => {
       const editor = document.querySelector('[id^="window-editor-"]');
-      return editor?.id || null;
+      return editor?.id ?? null;
     });
     expect(secondEditorId).toContain('editor-test-node-6b');
 
@@ -518,7 +518,7 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
         contentContainerExists: !!contentContainer,
         cmEditorExists: !!cmEditor,
         cmContentExists: !!cmContent,
-        textContent: cmContent?.textContent || ''
+        textContent: cmContent?.textContent ?? ''
       };
     });
 
