@@ -11,7 +11,7 @@ import {
   waitForCytoscapeReady,
   getNodeCount,
   type ExtendedWindow
-} from '../graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 
 test.describe('Search Navigation (Browser)', () => {
   test('should open search with cmd-f and navigate to selected node', async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('Search Navigation (Browser)', () => {
       const node = nodes[0];
       return {
         id: node.id(),
-        label: node.data('label') || node.id()
+        label: node.data('label') ?? node.id()
       };
     });
 

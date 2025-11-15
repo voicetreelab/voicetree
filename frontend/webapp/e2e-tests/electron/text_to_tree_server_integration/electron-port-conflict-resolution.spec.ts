@@ -33,7 +33,7 @@ interface ExtendedWindow {
   };
 }
 
-// Simplified test fixtures without port blocking
+// Simplified test example_folder_fixtures without port blocking
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;

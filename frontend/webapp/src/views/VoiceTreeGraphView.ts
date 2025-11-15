@@ -125,7 +125,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup event listeners
         this.setupEventListeners();
 
-        // FILE EVENT LISTENERS REMOVED - now handled by functional graph via subscribeToGraphUpdates
+        this.autoLoadPreviousFolder();
 
         // Setup command-hover mode
         // TEMP: Disabled to test if this is causing editor tap issues
@@ -195,7 +195,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         };
 
         // Auto-load previous folder if available
-        this.autoLoadPreviousFolder();
     }
 
     /**

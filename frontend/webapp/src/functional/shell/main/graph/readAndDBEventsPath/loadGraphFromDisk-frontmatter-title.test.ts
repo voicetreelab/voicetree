@@ -16,7 +16,7 @@ import path from 'path'
 describe('loadGraphFromDisk - Frontmatter Title Priority', () => {
     it('should load node with frontmatter title that overrides ### heading', async () => {
         // GIVEN: Test fixture with frontmatter title and ### heading
-        const vaultPath = path.resolve(__dirname, '../../../../../tests/fixtures/test-frontmatter-title')
+        const vaultPath = path.resolve(__dirname, '../../../../../tests/example_folder_fixtures/test-frontmatter-title')
 
         // WHEN: Loading graph from disk
         const graph = await loadGraphFromDisk(O.some(vaultPath))
@@ -42,7 +42,7 @@ describe('loadGraphFromDisk - Frontmatter Title Priority', () => {
 
     it('should preserve full content for UI to extract title', async () => {
         // GIVEN: Test fixture
-        const vaultPath = path.resolve(__dirname, '../../../../../tests/fixtures/test-frontmatter-title')
+        const vaultPath = path.resolve(__dirname, '../../../../../tests/example_folder_fixtures/test-frontmatter-title')
 
         // WHEN: Loading graph
         const graph = await loadGraphFromDisk(O.some(vaultPath))

@@ -23,12 +23,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { applyGraphDeltaToDBAndMem } from '@/functional/shell/main/graph/writePath/applyGraphDeltaToDBAndMem.ts'
 import { setGraph, setVaultPath, clearVaultPath } from '@/functional/shell/state/graph-store.ts'
-import type { Graph, GraphDelta, UpsertNodeAction, DeleteNode, GraphNode } from '@/functional/pure/graph/types.ts'
+import type { GraphDelta, UpsertNodeAction, DeleteNode, GraphNode } from '@/functional/pure/graph/types.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import path from 'path'
 import { promises as fs } from 'fs'
 
-const EXAMPLE_SMALL_PATH = path.resolve(__dirname, '../../../../../e2e-tests/fixtures/example_small')
+const EXAMPLE_SMALL_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_small'
 const TEST_NODE_ID = 'test-integration-node'
 const TEST_FILE_PATH = path.join(EXAMPLE_SMALL_PATH, `${TEST_NODE_ID}.md`)
 
@@ -48,14 +48,13 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
   describe('BEHAVIOR: Apply UpsertNode delta writes file to disk', () => {
     it('should write node file to disk when UpsertNode delta is applied', async () => {
-      // GIVEN: Empty graph and a UpsertNode delta
-      const graph: Graph = { nodes: {} }
-
+      // GIVEN: A UpsertNode delta
       const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
         content: '# Test Integration GraphNode\n\nThis is test content for integration testing.',
         outgoingEdges: [],
         nodeUIMetadata: {
+          title: 'Test Integration GraphNode',
           color: O.none,
           position: O.none
         }
@@ -69,7 +68,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       const delta: GraphDelta = [upsertAction]
 
       // WHEN: Apply the delta to DB
-      await applyGraphDeltaToDBAndMem(graph, delta)
+      await applyGraphDeltaToDBAndMem(delta)
 
       // THEN: File should exist on disk
       const fileExists = await fs.access(TEST_FILE_PATH)
@@ -85,9 +84,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
     })
 
     it('should write node file with outgoing edges as markdown links', async () => {
-      // GIVEN: Graph and node with outgoing edges
-      const graph: Graph = { nodes: {} }
-
+      // GIVEN: Node with outgoing edges
       const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
         content: '# GraphNode With Links\n\nThis node links to [[1_VoiceTree_Website_Development_and_Node_Display_Bug]] and [[2_VoiceTree_Node_ID_Duplication_Bug]].',
@@ -96,6 +93,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           '2_VoiceTree_Node_ID_Duplication_Bug'
         ],
         nodeUIMetadata: {
+          title: 'GraphNode With Links',
           color: O.some('#FF5733'),
           position: O.some({ x: 100, y: 200 })
         }
@@ -107,7 +105,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       }]
 
       // WHEN: Apply the delta
-      await applyGraphDeltaToDBAndMem(graph, delta)
+      await applyGraphDeltaToDBAndMem(delta)
 
       // THEN: File should exist with markdown links
       const fileContent = await fs.readFile(TEST_FILE_PATH, 'utf-8')
@@ -124,15 +122,14 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
   describe('BEHAVIOR: Apply DeleteNode delta removes file from disk', () => {
     it('should delete node file from disk when DeleteNode delta is applied', async () => {
-      // GIVEN: Graph and an existing file on disk
-      const graph: Graph = { nodes: {} }
-
+      // GIVEN: An existing file on disk
       // First create the file
       const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
         content: '# GraphNode To Delete\n\nThis node will be deleted.',
         outgoingEdges: [],
         nodeUIMetadata: {
+          title: 'GraphNode To Delete',
           color: O.none,
           position: O.none
         }
@@ -143,7 +140,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         nodeToUpsert: testNode
       }]
 
-      await applyGraphDeltaToDBAndMem(graph, createDelta)
+      await applyGraphDeltaToDBAndMem(createDelta)
 
       // Verify file exists
       const fileExistsBeforeDelete = await fs.access(TEST_FILE_PATH)
@@ -158,7 +155,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       }
 
       const deleteDelta: GraphDelta = [deleteAction]
-      await applyGraphDeltaToDBAndMem(graph, deleteDelta)
+      await applyGraphDeltaToDBAndMem(deleteDelta)
 
       // THEN: File should no longer exist
       const fileExistsAfterDelete = await fs.access(TEST_FILE_PATH)
@@ -171,20 +168,19 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
 
   describe('BEHAVIOR: Apply multiple deltas in sequence', () => {
     it('should handle create -> update -> delete sequence', async () => {
-      const graph: Graph = { nodes: {} }
-
       // STEP 1: Create node
       const createNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
         content: '# Original Content',
         outgoingEdges: [],
         nodeUIMetadata: {
+          title: 'Original Content',
           color: O.none,
           position: O.none
         }
       }
 
-      await applyGraphDeltaToDBAndMem(graph, [{
+      await applyGraphDeltaToDBAndMem([{
         type: 'UpsertNode',
         nodeToUpsert: createNode
       }])
@@ -195,10 +191,15 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // STEP 2: Update node
       const updateNode: GraphNode = {
         ...createNode,
-        content: '# Updated Content\n\nThis content has been updated.'
+        content: '# Updated Content\n\nThis content has been updated.',
+        nodeUIMetadata: {
+          title: 'Updated Content',
+          color: O.none,
+          position: O.none
+        }
       }
 
-      await applyGraphDeltaToDBAndMem(graph, [{
+      await applyGraphDeltaToDBAndMem([{
         type: 'UpsertNode',
         nodeToUpsert: updateNode
       }])
@@ -208,7 +209,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       expect(fileContent).toContain('This content has been updated.')
 
       // STEP 3: Delete node
-      await applyGraphDeltaToDBAndMem(graph, [{
+      await applyGraphDeltaToDBAndMem([{
         type: 'DeleteNode',
         nodeId: TEST_NODE_ID
       }])
@@ -225,7 +226,6 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // GIVEN: Vault path not set
       clearVaultPath() // Clear vault path to None
 
-      const graph: Graph = { nodes: {} }
       const delta: GraphDelta = [{
         type: 'UpsertNode',
         nodeToUpsert: {
@@ -233,6 +233,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           content: '# Test',
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Test',
             color: O.none,
             position: O.none
           }
@@ -240,7 +241,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       }]
 
       // WHEN/THEN: Should throw error about vault path
-      await expect(applyGraphDeltaToDBAndMem(graph, delta))
+      await expect(applyGraphDeltaToDBAndMem(delta))
         .rejects
         .toThrow('Vault path not initialized')
     })

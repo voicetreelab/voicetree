@@ -1,8 +1,9 @@
 /**
  * SMOKE TEST for main.ts
  *
- * Purpose: Verify that the Electron app compiles, starts, and performs basic initialization.
- * This test checks that initialLoad() is called on startup and the graph is loaded into memory.
+ * Purpose: Verify that the Electron app compiles, starts, and performs automatic initialization.
+ * This test verifies that initialLoad() is called on startup and automatically loads a graph into memory
+ * without any manual intervention (no manual startFileWatching calls).
  *
  * This is a minimal smoke test - we don't verify UI functionality, just core startup behavior.
  */
@@ -10,6 +11,8 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
 import type { ElectronAPI } from '@/types/electron';
 
@@ -29,8 +32,19 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   electronApp: async ({}, use) => {
+    // Create a temporary userData directory for this test
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-smoke-test-'));
+
+    // Write the config file to auto-load the test vault
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+    console.log('[Smoke Test] Created config file to auto-load:', FIXTURE_VAULT_PATH);
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
@@ -48,7 +62,7 @@ const test = base.extend<{
       await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
@@ -58,6 +72,9 @@ const test = base.extend<{
 
     await electronApp.close();
     console.log('[Smoke Test] Electron app closed');
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   appWindow: async ({ electronApp }, use) => {
@@ -79,9 +96,9 @@ const test = base.extend<{
 });
 
 test.describe('Smoke Test', () => {
-  test('should start app and load graph into memory', async ({ appWindow }) => {
+  test('should start app and automatically load graph into memory', async ({ appWindow }) => {
     test.setTimeout(10000); // 10 second timeout - if it takes longer, something is wrong
-    console.log('=== SMOKE TEST: Verify Electron app compiles and starts ===');
+    console.log('=== SMOKE TEST: Verify Electron app compiles, starts, and auto-loads graph ===');
 
     // Verify app loaded
     const appReady = await appWindow.evaluate(() => {
@@ -91,22 +108,10 @@ test.describe('Smoke Test', () => {
     expect(appReady).toBe(true);
     console.log('✓ App loaded successfully');
 
-    // Manually load the test vault
-    const watchResult = await appWindow.evaluate(async (vaultPath) => {
-      const api = (window as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
-    }, FIXTURE_VAULT_PATH);
+    // Wait for auto-load to complete (initialLoad() is called during VoiceTreeGraphView construction)
+    await appWindow.waitForTimeout(500);
 
-    expect(watchResult).toBeDefined();
-    expect(watchResult.success).toBe(true);
-    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
-    console.log('✓ File watching started');
-
-    // Wait for graph to load and broadcast to UI
-    await appWindow.waitForTimeout(200);
-
-    // Verify graph was loaded into main process state
+    // Verify graph was automatically loaded into main process state
     const graph = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
@@ -115,7 +120,7 @@ test.describe('Smoke Test', () => {
 
     expect(graph).toBeDefined();
     const nodeCount = Object.keys(graph.nodes).length;
-    console.log(`✓ Graph loaded into state with ${nodeCount} nodes`);
+    console.log(`✓ Graph automatically loaded into state with ${nodeCount} nodes`);
     expect(nodeCount).toBeGreaterThan(1);
 
     // Verify graph was rendered in Cytoscape UI
@@ -132,7 +137,7 @@ test.describe('Smoke Test', () => {
     console.log('  Sample labels:', cytoscapeState.nodeLabels.join(', '));
 
     // Smoke test: Just verify nodes are rendered (may include virtual nodes)
-    expect(cytoscapeState.nodeCount).toBeGreaterThan(1);
+    expect(cytoscapeState.nodeCount).toBeGreaterThan(2); // must be gt 2
 
     console.log('✅ Smoke test passed!');
   });

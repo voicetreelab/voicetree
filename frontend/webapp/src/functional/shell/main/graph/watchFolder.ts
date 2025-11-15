@@ -30,7 +30,7 @@ let watchedDirectory: FilePath | null = null;
 //todo move this state to src/functional/shell/state/app-electron-state.ts
 
 export async function initialLoad(): Promise<void>  {
-    const lastDirectory = await loadLastDirectory();
+    const lastDirectory = await getLastDirectory();
     if (O.isSome(lastDirectory)) {
         await loadFolder(lastDirectory.value)
     } else {
@@ -46,7 +46,7 @@ function getConfigPath(): string {
 }
 
 // Load last watched directory from config
-async function loadLastDirectory(): Promise<O.Option<FilePath>> {
+async function getLastDirectory(): Promise<O.Option<FilePath>> {
     const configPath = getConfigPath();
     return fs.readFile(configPath, 'utf8')
         .then(data => {
@@ -54,7 +54,7 @@ async function loadLastDirectory(): Promise<O.Option<FilePath>> {
             return O.fromNullable(config.lastDirectory);
         })
         .catch((error) => {
-            console.error("loadLastDirectory", error);
+            console.error("getLastDirectory", error);
             // Config file doesn't exist yet (first run) - return None
             return O.none;
         });

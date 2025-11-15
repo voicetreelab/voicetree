@@ -8,8 +8,20 @@ import functional from 'eslint-plugin-functional'
 
 export default tseslint.config([
   globalIgnores(['dist']),
+  // Config files use tsconfig.node.json
+  {
+    files: ['*.config.ts'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    languageOptions: {
+      parserOptions: {
+        project: './tsconfig.node.json',
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
+    ignores: ['*.config.ts'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -36,11 +48,11 @@ export default tseslint.config([
       '@typescript-eslint/no-misused-promises': 'error',
       // Nullish coalescing - prevent || bugs with falsy values
       '@typescript-eslint/prefer-nullish-coalescing': 'error',
-      // Ban all relative imports
+      // Ban parent directory imports (allow same-directory imports)
       'no-restricted-imports': ['error', {
         patterns: [{
-          group: ['./*', '../*', './**', '../**'],
-          message: 'Use absolute imports from project root instead of relative paths. Use @/* for src imports.'
+          group: ['../*', '../**'],
+          message: 'Use absolute imports for cross-directory imports. Use @/* for src imports.'
         }]
       }]
     },
@@ -90,9 +102,14 @@ export default tseslint.config([
       }]
     }
   },
-  // Special rules for test files
+  // Special rules for e2e test files
   {
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: ['e2e-tests/**/*.test.{ts,tsx}', 'e2e-tests/**/*.spec.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        project: './e2e-tests/tsconfig.json',
+      },
+    },
     rules: {
       // Disable react-hooks rules in test files (Playwright's 'use' is not a React hook)
       'react-hooks/rules-of-hooks': 'off',

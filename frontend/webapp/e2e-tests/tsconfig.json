@@ -2,6 +2,8 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "baseUrl": "..",
+    "strict": true,
+    "strictNullChecks": true,
     "paths": {
       "@/*": ["./src/*"],
       "@test/*": ["./e2e-tests/*"],

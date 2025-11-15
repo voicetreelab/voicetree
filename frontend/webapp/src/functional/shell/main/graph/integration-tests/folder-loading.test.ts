@@ -34,18 +34,17 @@ interface BroadcastCall {
   readonly delta: GraphDelta
 }
 
-// Use absolute paths relative to project root
-const PROJECT_ROOT = path.resolve(__dirname, '../../../../../')
-const EXAMPLE_SMALL_PATH = path.join(PROJECT_ROOT, 'e2e-tests/fixtures/example_small')
-const EXAMPLE_LARGE_PATH = path.join(PROJECT_ROOT, 'e2e-tests/fixtures/example_real_large')
+// Use absolute paths
+const EXAMPLE_SMALL_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_small'
+const EXAMPLE_LARGE_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_real_large'
 
-// Expected counts (based on actual fixtures)
+// Expected counts (based on actual example_folder_fixtures)
 const EXPECTED_SMALL_NODE_COUNT = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
 const EXPECTED_LARGE_NODE_COUNT = 56
 
 // State for mocks
-let broadcastCalls: BroadcastCall[] = []
-let mockMainWindow: { webContents: { send: (channel: string, data: GraphDelta) => void }, isDestroyed: () => boolean }
+let broadcastCalls: readonly BroadcastCall[] = []
+let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void }, readonly isDestroyed: () => boolean }
 
 // Mock app-electron-state
 vi.mock('@/functional/shell/state/app-electron-state', () => ({

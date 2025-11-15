@@ -31,7 +31,7 @@ import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/types/electron';
 import type { Settings } from '@/functional/pure/settings';
 
-// Use absolute paths for fixtures
+// Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large', '2025-09-30');
 
