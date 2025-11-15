@@ -125,5 +125,17 @@ export default tseslint.config([
       'functional/immutable-data': 'off',
       'functional/no-loop-statements': 'off'
     }
+  },
+  // Special rules for integration test files in src
+  {
+    files: ['src/**/integration-tests/**/*.test.{ts,tsx}'],
+    rules: {
+      // Relax functional rules in integration tests (they need mutable state for test setup)
+      'functional/no-let': 'off',
+      'functional/immutable-data': 'off',
+      'functional/no-loop-statements': 'off',
+      'functional/prefer-readonly-type': 'off',
+      'no-param-reassign': 'off'
+    }
   }
 ])

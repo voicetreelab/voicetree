@@ -11,4 +11,6 @@ Next, fixup any and all failing vite tests. `npm run test`
 
 2. run `npm run test`, spawn one subagent per category of failing test. Run all agents in parallel.
 
-3. Review the agents work. Look for any anti-patterns such as changing prod code (SHOULD ABSOLUTELY NOT BE REQUIRED)
+3. Review the agents work. Look for any anti-patterns such as changing prod code (SHOULD ABSOLUTELY NOT BE REQUIRED), tell your subagents this.
+
+When something needs to be mocked, prefer just mocking the function/cle response itself. 

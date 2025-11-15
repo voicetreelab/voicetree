@@ -21,12 +21,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { loadFolder, stopWatching, isWatching } from '@/functional/shell/main/graph/watchFolder.ts'
+import { loadFolder, stopFileWatching, isWatching } from '@/functional/shell/main/graph/watchFolder.ts'
 import { getGraph, setGraph, setVaultPath } from '@/functional/shell/state/graph-store.ts'
 import type { GraphDelta } from '@/functional/pure/graph/types.ts'
 import path from 'path'
 import { promises as fs } from 'fs'
 import type { BrowserWindow } from 'electron'
+import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/test-utils/fixture-paths.ts'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -34,16 +35,13 @@ interface BroadcastCall {
   readonly delta: GraphDelta
 }
 
-// Use absolute paths
-const EXAMPLE_SMALL_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_small'
-const EXAMPLE_LARGE_PATH = '/Users/bobbobby/repos/VoiceTree/frontend/webapp/example_folder_fixtures/example_real_large'
-
 // Expected counts (based on actual example_folder_fixtures)
 const EXPECTED_SMALL_NODE_COUNT = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
 const EXPECTED_LARGE_NODE_COUNT = 56
 
 // State for mocks
-let broadcastCalls: readonly BroadcastCall[] = []
+// eslint-disable-next-line functional/prefer-readonly-type
+let broadcastCalls: Array<BroadcastCall> = []
 let mockMainWindow: { readonly webContents: { readonly send: (channel: string, data: GraphDelta) => void }, readonly isDestroyed: () => boolean }
 
 // Mock app-electron-state
@@ -81,7 +79,7 @@ describe('Folder Loading - Integration Tests', () => {
   })
 
   afterEach(async () => {
-    await stopWatching()
+    await stopFileWatching()
 
     // Clean up test file if it exists - functional approach without try-catch
     const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')

@@ -18,7 +18,7 @@ import type { ElectronAPI } from '@/types/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_small');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
