@@ -233,7 +233,8 @@ export class ContextMenuService {
     private createTerminalFromContextMenu(nodeId: string) {
         return async () => {
             // Load settings to get the agentCommand
-            const settings = await window.electronAPI.settings.load();
+            const settings = await window.electronAPI?.main.loadSettings();
+
             const agentCommand = settings.agentCommand || './claude.sh'; // Fallback to default
 
             const filePath = await this.deps!.getFilePathForNode(nodeId);

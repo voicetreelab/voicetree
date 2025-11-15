@@ -23,7 +23,7 @@ export async function createNewChildNodeFromUI(
 ): Promise<NodeId> {
 
     // Get current graph state
-    const currentGraph = await window.electronAPI?.graph.getState() // todo, in memory renderer cache?
+    const currentGraph = await window.electronAPI?.main.getGraphState() // todo, in memory renderer cache?
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE")
         return "-1"; //todo cleaner
@@ -38,7 +38,7 @@ export async function createNewChildNodeFromUI(
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+    await window.electronAPI?.main.applyDelta(graphDelta);
     return newNode.relativeFilePathIsID;
 }
 
@@ -58,6 +58,7 @@ export async function createNewEmptyOrphanNodeFromUI(
         outgoingEdges: [],
         content: '# New Node',
         nodeUIMetadata: {
+            title: 'New Node',
             color: O.none,
             position: O.of(pos)
         },
@@ -71,7 +72,7 @@ export async function createNewEmptyOrphanNodeFromUI(
     // Optimistic UI update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+    await window.electronAPI?.main.applyDelta(graphDelta);
 
     return newNode.relativeFilePathIsID;
 }
@@ -84,7 +85,7 @@ export async function modifyNodeContentFromUI(
 
     // Get current graph state
     const currentNode = await getNodeFromUI(nodeId);
-    const currentGraph = await window.electronAPI?.graph.getState();
+    const currentGraph = await window.electronAPI?.main.getGraphState();
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE");
         return;
@@ -96,7 +97,7 @@ export async function modifyNodeContentFromUI(
     // Optimistic UI update for edge changes
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+    await window.electronAPI?.main.applyDelta(graphDelta);
 }
 
 export async function deleteNodeFromUI(
@@ -109,6 +110,6 @@ export async function deleteNodeFromUI(
     // Optimistic UI update: immediately remove node from cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
-    await window.electronAPI?.graph.applyGraphDelta(graphDelta);
+    await window.electronAPI?.main.applyDelta(graphDelta);
 }
 

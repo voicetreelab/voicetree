@@ -18,7 +18,7 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example_small');
 
 // Type definitions
-interface ExtendedWindow extends Window {
+interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
 }

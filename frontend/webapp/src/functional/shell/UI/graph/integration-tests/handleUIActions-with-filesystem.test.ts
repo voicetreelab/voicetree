@@ -24,10 +24,9 @@ import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { createNewChildNodeFromUI, deleteNodeFromUI } from '@/functional/shell/UI/graph/handleUIActions.ts'
-import type { Graph, GraphDelta } from '@/functional/pure/graph/types.ts'
+import type { Graph } from '@/functional/pure/graph/types.ts'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import type { IpcMainInvokeEvent } from 'electron'
 import { setVaultPath, setGraph } from '@/functional/shell/state/graph-store.ts'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
@@ -87,12 +86,10 @@ let handlersImported = false
 async function ensureHandlersImported(): Promise<void> {
     if (!handlersImported) {
         const { registerAllIpcHandlers } = await import('@/functional/shell/main/graph/ipc-graph-handlers.ts')
-        registerAllIpcHandlers({
-            terminalManager: {} as any,
-            positionManager: {} as any,
-            getBackendPort: () => null,
-            getToolsDirectory: () => ''
-        })
+        registerAllIpcHandlers(
+            {} as any, // terminalManager
+            () => '' // getToolsDirectory
+        )
         handlersImported = true
     }
 }
@@ -145,7 +142,8 @@ Child content`
                     outgoingEdges: ['child1'],
                     nodeUIMetadata: {
                         color: O.none,
-                        position: O.of({ x: 100, y: 100 })
+                        position: O.of({ x: 100, y: 100 }),
+                        title: 'parent'
                     }
                 },
                 'child1': {
@@ -154,7 +152,8 @@ Child content`
                     outgoingEdges: [],
                     nodeUIMetadata: {
                         color: O.none,
-                        position: O.of({ x: 200, y: 200 })
+                        position: O.of({ x: 200, y: 200 }),
+                        title: 'child1'
                     }
                 }
             }
@@ -184,26 +183,13 @@ Child content`
             ]
         })
 
-        // Setup window.electronAPI to call through IPC
+        // Setup window.electronAPI to call through main API directly (new RPC pattern)
+        const { mainAPI } = await import('@/functional/shell/main/api.ts')
         global.window = {
             electronAPI: {
-                graph: {
-                    getState: async () => {
-                        const handler = ipcMain._handlers.get('graph:getState')
-                        if (handler) {
-                            const result = await handler({} as IpcMainInvokeEvent)
-                            // IPC handler returns { success, graph }, but electronAPI unwraps it
-                            return result.graph
-                        }
-                        throw new Error('graph:getState handler not registered')
-                    },
-                    applyGraphDelta: async (actions: GraphDelta) => {
-                        const handler = ipcMain._handlers.get('graph:applyDelta')
-                        if (handler) {
-                            return await handler({} as IpcMainInvokeEvent, actions)
-                        }
-                        throw new Error('graph:applyDelta handler not registered')
-                    }
+                main: {
+                    getGraphState: mainAPI.getGraphState,
+                    applyDelta: mainAPI.applyDelta
                 }
             }
         } as any
@@ -337,7 +323,8 @@ Child content`
                     outgoingEdges: ['child1'],
                     nodeUIMetadata: {
                         color: O.none,
-                        position: O.of({ x: 100, y: 100 })
+                        position: O.of({ x: 100, y: 100 }),
+                        title: 'parent'
                     }
                 },
                 'child1': {
@@ -346,7 +333,8 @@ Child content`
                     outgoingEdges: [],
                     nodeUIMetadata: {
                         color: O.none,
-                        position: O.of({ x: 200, y: 200 })
+                        position: O.of({ x: 200, y: 200 }),
+                        title: 'child1'
                     }
                 }
             }
@@ -376,25 +364,13 @@ Child content`
             ]
         })
 
-        // Setup window.electronAPI to call through IPC
+        // Setup window.electronAPI to call through main API directly (new RPC pattern)
+        const { mainAPI } = await import('@/functional/shell/main/api.ts')
         global.window = {
             electronAPI: {
-                graph: {
-                    getState: async () => {
-                        const handler = ipcMain._handlers.get('graph:getState')
-                        if (handler) {
-                            const result = await handler({} as IpcMainInvokeEvent)
-                            return result.graph
-                        }
-                        throw new Error('graph:getState handler not registered')
-                    },
-                    applyGraphDelta: async (actions: GraphDelta) => {
-                        const handler = ipcMain._handlers.get('graph:applyDelta')
-                        if (handler) {
-                            return await handler({} as IpcMainInvokeEvent, actions)
-                        }
-                        throw new Error('graph:applyDelta handler not registered')
-                    }
+                main: {
+                    getGraphState: mainAPI.getGraphState,
+                    applyDelta: mainAPI.applyDelta
                 }
             }
         } as any

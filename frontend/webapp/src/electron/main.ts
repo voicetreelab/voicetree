@@ -13,7 +13,8 @@ import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
 import { setupOnboardingDirectory } from './onboarding-setup.ts';
 import { setMainWindow } from '@/functional/shell/state/app-electron-state.ts';
 import { registerAllIpcHandlers } from '@/functional/shell/main/graph/ipc-graph-handlers.ts';
-import { registerSettingsHandlers } from '@/functional/shell/main/settings/ipc-settings-handler.ts';
+import { setupRPCHandlers } from '@/functional/shell/main/edge/rpc-handler';
+import { setBackendPort, setPositionManager } from '@/functional/shell/main/api.ts';
 
 // Fix PATH for macOS/Linux GUI apps
 // This ensures the Electron process and all child processes have access to
@@ -180,19 +181,19 @@ function createWindow() {
   });
 }
 
-// Register all IPC handlers
-registerAllIpcHandlers({
-  terminalManager,
-  positionManager,
-  getBackendPort: () => textToTreeServerPort,
-  getToolsDirectory
-});
+// Inject dependencies into mainAPI (must be done before IPC handler registration)
+setPositionManager(positionManager);
 
-// Register settings handlers
-registerSettingsHandlers();
+// Register all IPC handlers (now only needs terminal dependencies)
+registerAllIpcHandlers(
+  terminalManager,
+  getToolsDirectory
+);
 
 // App event handlers
 app.whenReady().then(async () => {
+  setupRPCHandlers();
+
   // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
   if (process.platform === 'darwin' && app.dock) {
     const dockIconPath = path.join(__dirname, '../../build/icon.png');
@@ -215,6 +216,9 @@ app.whenReady().then(async () => {
   // Factory automatically chooses StubServer (test) or RealServer (production)
   textToTreeServerPort = await textToTreeServerManager.start();
   console.log(`[App] Server started on port ${textToTreeServerPort}`);
+
+  // Inject backend port into mainAPI
+  setBackendPort(textToTreeServerPort);
 
   createWindow();
 
@@ -257,6 +261,8 @@ app.on('activate', async () => {
       console.log('[App] Reactivating - restarting server...');
       textToTreeServerPort = await textToTreeServerManager.start();
       console.log(`[App] Server restarted on port ${textToTreeServerPort}`);
+      // Inject backend port into mainAPI
+      setBackendPort(textToTreeServerPort);
     }
     createWindow();
   }

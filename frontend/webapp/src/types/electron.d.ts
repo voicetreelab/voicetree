@@ -1,8 +1,8 @@
 // Electron API type definitions
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { LayoutManager } from '@/graph-core/graphviz/layout';
-import type { GraphDelta, Graph } from '@/functional/pure/graph/types.ts';
-import type { Settings } from '@/functional/pure/settings';
+import type { GraphDelta } from '@/functional/pure/graph/types.ts';
+import type { mainAPI } from '@/functional/shell/main/api';
 
 // Re-export NodeMetadata for use in terminal API
 export type { NodeMetadata } from '@/floating-windows/types';
@@ -28,6 +28,9 @@ export interface ErrorEvent {
 }
 
 export interface ElectronAPI {
+  // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
+  main: typeof mainAPI;
+
   // Backend server configuration
   getBackendPort: () => Promise<number | null>;
 
@@ -76,23 +79,11 @@ export interface ElectronAPI {
     load: (directoryPath: string) => Promise<{ success: boolean; positions: Record<string, { x: number; y: number }>; error?: string }>;
   };
 
-  // Types management operations
-  settings: {
-    load: () => Promise<Settings>;
-    save: (settings: Settings) => Promise<{ success: boolean; error?: string }>;
-  };
-
   // Backend log streaming
   onBackendLog: (callback: (log: string) => void) => void;
 
-  // Functional graph API
+  // Functional graph API - event listeners only
   graph: {
-    // Action dispatcher - send any node action to main process
-    applyGraphDelta: (action: GraphDelta) => Promise<unknown>;
-
-    // Query current graph state
-    getState: () => Promise<Graph>;
-
     // Subscribe to graph delta updates (returns unsubscribe function)
     onGraphUpdate: (callback: (delta: GraphDelta) => void) => () => void;
 

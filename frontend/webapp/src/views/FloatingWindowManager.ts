@@ -274,7 +274,7 @@ export class FloatingWindowManager {
             }
 
             // Load current settings from IPC
-            const settings = await window.electronAPI.settings.load() as Settings;
+            const settings = await window.electronAPI.main.loadSettings() as Settings;
             const settingsJson = JSON.stringify(settings, null, 2);
 
             // Get overlay
@@ -307,7 +307,7 @@ export class FloatingWindowManager {
 
                     // Save to IPC
                     if (window.electronAPI) {
-                        await window.electronAPI.settings.save(parsedSettings);
+                        await window.electronAPI.main.saveSettings(parsedSettings);
                         console.log('[FloatingWindowManager] Settings saved successfully');
                     }
                 } catch (error) {
