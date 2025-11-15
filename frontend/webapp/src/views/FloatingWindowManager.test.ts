@@ -57,7 +57,7 @@ describe('FloatingWindowManager - Types Editor', () => {
 
         // Setup window.electronAPI mock
         window.electronAPI = mockElectronAPI;
-        mockElectronAPI.settings.load.mockResolvedValue(mockSettings);
+        mockElectronAPI.settings.load.mockResolvedValue(mockSettings); // todo wrong api now, use .main
         mockElectronAPI.settings.save.mockResolvedValue(undefined);
 
         // Create manager instance
