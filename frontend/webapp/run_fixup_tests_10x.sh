@@ -7,7 +7,7 @@ for i in {1..10}; do
   echo "========================================="
 
   promptstr=$(envsubst < meta/fixup_tests.md)
-  claude --dangerously-skip-permissions "$promptstr"
+  claude --dangerously-skip-permissions -p "$promptstr"
 
   echo ""
   echo "Completed iteration $i"
