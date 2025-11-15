@@ -188,8 +188,8 @@ Child content`
         global.window = {
             electronAPI: {
                 main: {
-                    getGraphState: mainAPI.getGraphState,
-                    applyDelta: mainAPI.applyDelta
+                    getGraph: mainAPI.getGraph,
+                    applyGraphDeltaToDB: mainAPI.applyGraphDeltaToDB
                 }
             }
         } as any
@@ -369,8 +369,8 @@ Child content`
         global.window = {
             electronAPI: {
                 main: {
-                    getGraphState: mainAPI.getGraphState,
-                    applyDelta: mainAPI.applyDelta
+                    getGraph: mainAPI.getGraph,
+                    applyGraphDeltaToDB: mainAPI.applyGraphDeltaToDB
                 }
             }
         } as any

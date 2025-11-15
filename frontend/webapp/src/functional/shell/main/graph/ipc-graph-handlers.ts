@@ -2,7 +2,6 @@ import { ipcMain } from 'electron'
 import type TerminalManager from '@/electron/terminal-manager.ts'
 import { getWatchedDirectory } from '@/functional/shell/main/graph/watchFolder.ts'
 import { mainAPI } from '@/functional/shell/main/api.ts'
-import type { PositionData } from '@/electron/position-manager.ts'
 
 // Import dependencies directly - functional programming style
 // terminalManager and getToolsDirectory will be passed as parameters since terminal handlers need event.sender
@@ -39,18 +38,6 @@ export function registerAllIpcHandlers(
 
   ipcMain.handle('get-backend-port', () => {
     return mainAPI.getBackendPort()
-  })
-
-  // ============================================================================
-  // Position handlers - delegate to mainAPI
-  // ============================================================================
-
-  ipcMain.handle('positions:save', async (_event, directoryPath: string, positions: PositionData) => {
-    return mainAPI.savePositions(directoryPath, positions)
-  })
-
-  ipcMain.handle('positions:load', async (_event, directoryPath: string) => {
-    return mainAPI.loadPositions(directoryPath)
   })
 
   // ============================================================================
