@@ -10,10 +10,9 @@ import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManage
 import TerminalManager from './terminal-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
 import { setupOnboardingDirectory } from './onboarding-setup.ts';
-import { setMainWindow } from '@/functional/shell/state/app-electron-state.ts';
+import {setBackendPort, setMainWindow} from '@/functional/shell/state/app-electron-state.ts';
 import { registerAllIpcHandlers } from '@/functional/shell/main/graph/ipc-graph-handlers.ts';
 import { setupRPCHandlers } from '@/functional/shell/main/edge-auto-rpc/rpc-handler';
-import { setBackendPort  } from '@/functional/shell/main/api.ts';
 
 
 // Fix PATH for macOS/Linux GUI apps

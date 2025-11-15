@@ -20,7 +20,7 @@ vi.mock('electron', () => ({
 
 vi.mock('@/functional/shell/main/api', () => ({
   mainAPI: {
-    applyGraphDeltaToDB: mockApplyGraphDeltaToDB,
+    applyGraphDeltaToDBAndMem: mockApplyGraphDeltaToDB,
     getGraph: mockGetGraph,
     loadSettings: mockLoadSettings,
     saveSettings: mockSaveSettings,

@@ -38,3 +38,5 @@ We favor "deep functions", a single function to provide a minimal public API hid
 The folder structure of this project should aim to represent our architecture. 
 
 DO NOT create unnecessary indirection.
+
+Do not create dependency objects, push state to the functional edge/shell in src/functional/shell/state. Keep it as just a local variable here.

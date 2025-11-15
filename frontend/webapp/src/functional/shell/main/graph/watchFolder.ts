@@ -243,14 +243,6 @@ function setupWatcherListeners(vaultPath: FilePath): void {
     });
 }
 
-export async function stopWatching(): Promise<void> {
-    if (watcher) {
-        await watcher.close();
-        watcher = null;
-        watchedDirectory = null;
-    }
-}
-
 export function isWatching(): boolean {
     return watcher !== null;
 }
@@ -316,12 +308,16 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
     return { success: true, directory: selectedDirectory };
 }
 
-export async function stopFileWatchingAPI(): Promise<{ readonly success: boolean }> {
-    await stopWatching();
+export async function stopFileWatching(): Promise<{ readonly success: boolean }> {
+    if (watcher) {
+        await watcher.close();
+        watcher = null;
+        watchedDirectory = null;
+    }
     return { success: true };
 }
 
-export function getWatchStatusAPI(): { readonly isWatching: boolean; readonly directory: string | null } {
+export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | null } {
     const status = {
         isWatching: isWatching(),
         directory: getWatchedDirectory()
@@ -330,7 +326,7 @@ export function getWatchStatusAPI(): { readonly isWatching: boolean; readonly di
     return status;
 }
 
-export async function loadPreviousFolderAPI(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
+export async function loadPreviousFolder(): Promise<{ readonly success: boolean; readonly directory?: string; readonly error?: string }> {
     console.log('[watchFolder] loadPreviousFolder called');
     await initialLoad();
     const watchedDir = getWatchedDirectory();

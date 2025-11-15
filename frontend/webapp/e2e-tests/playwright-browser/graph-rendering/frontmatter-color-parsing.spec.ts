@@ -58,6 +58,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           content: '---\ncolor: red\n---\n# Red Node\n\nThis node should be red.',
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Red Node',
             color: { _tag: 'Some', value: 'red' } as const,
             position: { _tag: 'Some', value: { x: 100, y: 100 } } as const
           }
@@ -70,6 +71,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           content: '---\ncolor: cyan\n---\n# Cyan Node\n\nThis node should be cyan.',
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Cyan Node',
             color: { _tag: 'Some', value: 'cyan' } as const,
             position: { _tag: 'Some', value: { x: 300, y: 150 } } as const
           }
@@ -82,6 +84,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           content: '---\ncolor: "#FF5733"\n---\n# Hex Color Node\n\nThis node should have hex color #FF5733.',
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Hex Color Node',
             color: { _tag: 'Some', value: '#FF5733' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 200 } } as const
           }
@@ -94,6 +97,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           content: '# No Color Node\n\nThis node has no color specified.',
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'No Color Node',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 700, y: 250 } } as const
           }
@@ -176,6 +180,7 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
           content: '---\ncolor: green\n---\n# Updated Color Node\n\nThis node now has green color.',
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Updated Color Node',
             color: { _tag: 'Some', value: 'green' } as const,
             position: { _tag: 'Some', value: { x: 700, y: 250 } } as const
           }
@@ -207,8 +212,8 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
     console.log('✓ Frontmatter color parsing test completed successfully');
   });
 
-  test('should handle invalid color values gracefully', async ({ page }) => {
-    console.log('\n=== Starting invalid color handling test (Browser) ===');
+  test('should filter out invalid color values', async ({ page }) => {
+    console.log('\n=== Starting invalid color filtering test (Browser) ===');
 
     await setupMockElectronAPI(page);
     await page.goto('/');
@@ -217,17 +222,44 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
     await waitForCytoscapeReady(page);
     console.log('✓ Setup complete');
 
-    console.log('=== Creating node with invalid color ===');
+    console.log('=== Test 1: Creating nodes with various invalid colors ===');
     const graphDelta: GraphDelta = [
       {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
-          relativeFilePathIsID: 'invalid-color-node',
-          content: '---\ncolor: not-a-color\n---\n# Invalid Color\n\nThis has an invalid color value.',
+          relativeFilePathIsID: 'invalid-1',
+          content: '# Invalid 1',
           outgoingEdges: [],
           nodeUIMetadata: {
-            color: { _tag: 'Some', value: 'not-a-color' } as const,
+            title: 'Invalid 1',
+            color: { _tag: 'Some', value: 'cyancyan' } as const,
             position: { _tag: 'Some', value: { x: 100, y: 100 } } as const
+          }
+        }
+      },
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'invalid-2',
+          content: '# Invalid 2',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            title: 'Invalid 2',
+            color: { _tag: 'Some', value: 'notacolor' } as const,
+            position: { _tag: 'Some', value: { x: 200, y: 100 } } as const
+          }
+        }
+      },
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'invalid-3',
+          content: '# Invalid 3',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            title: 'Invalid 3',
+            color: { _tag: 'Some', value: '###' } as const,
+            position: { _tag: 'Some', value: { x: 300, y: 100 } } as const
           }
         }
       }
@@ -235,23 +267,76 @@ test.describe('Frontmatter Color Parsing (Browser)', () => {
 
     await sendGraphDelta(page, graphDelta);
 
-    const nodeStyle = await page.evaluate(() => {
+    const invalidColorResults = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
-      const node = cy.getElementById('invalid-color-node');
       return {
-        color: node.data('color') as string,
-        backgroundColor: node.style('background-color') as string
+        cyancyan: cy.getElementById('invalid-1').data('color'),
+        notacolor: cy.getElementById('invalid-2').data('color'),
+        tripleHash: cy.getElementById('invalid-3').data('color')
       };
     });
 
-    console.log('  Node with invalid color:', nodeStyle);
-    expect(nodeStyle.color).toBe('not-a-color');
+    console.log('  Invalid color results:', invalidColorResults);
+    expect(invalidColorResults.cyancyan).toBeUndefined();
+    expect(invalidColorResults.notacolor).toBeUndefined();
+    expect(invalidColorResults.tripleHash).toBeUndefined();
+    console.log('✓ All invalid colors filtered out');
 
-    // Cytoscape should handle invalid colors gracefully (might use default or ignore)
-    // Just verify the node exists and doesn't crash
-    expect(nodeStyle.backgroundColor).toBeDefined();
-    console.log('✓ Invalid color handled gracefully');
+    console.log('=== Test 2: Updating node with valid color to invalid should clear it ===');
+    // First create a node with valid color
+    const validDelta: GraphDelta = [
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'update-test',
+          content: '# Update Test',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            title: 'Update Test',
+            color: { _tag: 'Some', value: '#ff0000' } as const,
+            position: { _tag: 'Some', value: { x: 400, y: 100 } } as const
+          }
+        }
+      }
+    ];
+    await sendGraphDelta(page, validDelta);
+    await page.waitForTimeout(100);
+
+    // Verify initial valid color
+    const initialColor = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      return cy?.getElementById('update-test').data('color');
+    });
+    expect(initialColor).toBe('#ff0000');
+
+    // Now update with invalid color
+    const invalidUpdateDelta: GraphDelta = [
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'update-test',
+          content: '# Update Test - Invalid',
+          outgoingEdges: [],
+          nodeUIMetadata: {
+            title: 'Update Test - Invalid',
+            color: { _tag: 'Some', value: 'cyancyan' } as const,
+            position: { _tag: 'Some', value: { x: 400, y: 100 } } as const
+          }
+        }
+      }
+    ];
+    await sendGraphDelta(page, invalidUpdateDelta);
+    await page.waitForTimeout(100);
+
+    const updatedColor = await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      return cy?.getElementById('update-test').data('color');
+    });
+
+    console.log('  Color after invalid update:', updatedColor);
+    expect(updatedColor).toBeUndefined();
+    console.log('✓ Invalid color update cleared the color value');
   });
 });

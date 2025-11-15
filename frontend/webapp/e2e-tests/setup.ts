@@ -222,3 +222,47 @@ Object.defineProperty(window, 'electronAPI', {
   writable: true,
   configurable: true
 });
+
+// Mock CSS.supports for color validation
+// List of known valid CSS color names and patterns
+const VALID_CSS_COLORS = new Set([
+  'red', 'blue', 'green', 'cyan', 'magenta', 'yellow', 'black', 'white',
+  'gray', 'grey', 'orange', 'purple', 'pink', 'brown', 'lime', 'navy',
+  'teal', 'aqua', 'maroon', 'olive', 'silver', 'fuchsia', 'transparent'
+]);
+
+Object.defineProperty(globalThis, 'CSS', {
+  value: {
+    supports: vi.fn((property: string, value: string): boolean => {
+      if (property !== 'color') return false;
+      if (!value) return false;
+
+      // Check hex colors
+      if (/^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value)) return true;
+
+      // Check rgb/rgba with value range validation
+      const rgbMatch = value.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/);
+      if (rgbMatch) {
+        const r = parseInt(rgbMatch[1]);
+        const g = parseInt(rgbMatch[2]);
+        const b = parseInt(rgbMatch[3]);
+        const a = rgbMatch[4] ? parseFloat(rgbMatch[4]) : 1;
+        // RGB values must be 0-255, alpha must be 0-1
+        if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255 && a >= 0 && a <= 1) {
+          return true;
+        }
+        return false;
+      }
+
+      // Check hsl/hsla
+      if (/^hsla?\(\s*\d+\s*,\s*\d+%?\s*,\s*\d+%?\s*(,\s*[\d.]+\s*)?\)$/.test(value)) return true;
+
+      // Check known CSS color names
+      if (VALID_CSS_COLORS.has(value.toLowerCase())) return true;
+
+      return false;
+    })
+  },
+  writable: true,
+  configurable: true
+});

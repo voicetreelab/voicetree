@@ -18,7 +18,7 @@ import type {Either} from "fp-ts/es6/Either";
  * Per architecture: Pure core returns effects, impure shell executes them.
  * Graph state updates come from file watch handlers detecting the filesystem change.
  */
-export async function applyGraphDeltaToDB(delta: GraphDelta): Promise<void> {
+export async function applyGraphDeltaToDBAndMem(delta: GraphDelta): Promise<void> {
     const graph = getGraph();
 
     // Extract vault path (fail fast at edge)
