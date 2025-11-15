@@ -15,7 +15,7 @@ import type { ElectronAPI } from '@/types/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'example_small');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_small');
 
 // Type definitions
 interface ExtendedWindow {
@@ -110,7 +110,7 @@ test.describe('Smoke Test', () => {
     const graph = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.graph.getState();
+      return await api.main.getGraph();
     });
 
     expect(graph).toBeDefined();
