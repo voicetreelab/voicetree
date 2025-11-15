@@ -6,6 +6,14 @@ import posthog from "posthog-js";
 import {stripDeltaForReplay} from "@/functional/pure/graph/graphDelta/stripDeltaForReplay.ts";
 
 /**
+ * Validates if a color value is a valid CSS color using the browser's CSS.supports API
+ */
+function isValidCSSColor(color: string): boolean {
+    if (!color) return false;
+    return CSS.supports('color', color);
+}
+
+/**
  * Apply a GraphDelta to the Cytoscape UI
  *
  * Handles:
@@ -29,7 +37,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 if (isNewNode) {
                     // Add new node with position (or default to origin if none)
                     const pos = O.getOrElse(() => ({ x: 0, y: 0 }))(node.nodeUIMetadata.position);
-                    const colorValue = O.isSome(node.nodeUIMetadata.color)
+                    const colorValue = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
                         : undefined;
 
@@ -52,11 +60,16 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 } else {
                     // Update existing node metadata (but NOT position)
                     existingNode.data('label', node.nodeUIMetadata.title);
+                    // DO NOT sET existingNode.data('content', node.content); it's too much storage duplicated unnec in frontend.
                     existingNode.data('summary', '');
-                    const color = O.isSome(node.nodeUIMetadata.color)
+                    const color = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
                         : undefined;
-                    existingNode.data('color', color);
+                    if (color === undefined) {
+                        existingNode.removeData('color');
+                    } else {
+                        existingNode.data('color', color);
+                    }
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
                 const nodeId = nodeDelta.nodeId;

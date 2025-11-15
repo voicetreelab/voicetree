@@ -40,6 +40,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Parent GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Parent GraphNode',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 })
                 }
@@ -60,6 +61,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Child GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Child GraphNode',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 })
                 }
@@ -113,6 +115,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Orphan GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Orphan GraphNode',
                     color: O.none,
                     position: O.some({ x: 300, y: 300 })
                 }
@@ -143,6 +146,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# GraphNode to Delete',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'GraphNode to Delete',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 })
                 }
@@ -181,6 +185,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Original Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Original Content',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 })
                 }
@@ -205,6 +210,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Updated Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Updated Content',
                     color: O.some('#ff0000'),
                     position: O.some({ x: 500, y: 500 }) // Different position
                 }
@@ -244,6 +250,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Bulk GraphNode 1',
                 outgoingEdges: ['bulk-2'],
                 nodeUIMetadata: {
+                    title: 'Bulk GraphNode 1',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 })
                 }
@@ -254,6 +261,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Bulk GraphNode 2',
                 outgoingEdges: ['bulk-3'],
                 nodeUIMetadata: {
+                    title: 'Bulk GraphNode 2',
                     color: O.some('#00ff00'),
                     position: O.some({ x: 200, y: 200 })
                 }
@@ -264,6 +272,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Bulk GraphNode 3',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Bulk GraphNode 3',
                     color: O.none,
                     position: O.some({ x: 300, y: 300 })
                 }
@@ -297,6 +306,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Existing',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Existing',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 })
                 }
@@ -307,6 +317,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Will be deleted',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Will be deleted',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 })
                 }
@@ -327,6 +338,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# New GraphNode',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'New GraphNode',
                     color: O.none,
                     position: O.some({ x: 300, y: 300 })
                 }
@@ -367,6 +379,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Parent',
                 outgoingEdges: ['child'],
                 nodeUIMetadata: {
+                    title: 'Parent',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 })
                 }
@@ -377,6 +390,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 content: '# Child',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: 'Child',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 })
                 }
@@ -395,6 +409,114 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // THEN: Should only have one edge
             const edges = cy.edges(`[id = "parent->child"]`)
             expect(edges.length).toBe(1)
+        })
+    })
+
+    describe('Color validation', () => {
+        it('should apply valid CSS colors to nodes', () => {
+            // GIVEN: Empty graph
+            expect(cy.nodes()).toHaveLength(0)
+
+            // WHEN: Adding nodes with valid CSS colors
+            const validColors = ['#ff0000', 'rgb(0, 255, 0)', 'blue', 'cyan', 'hsl(120, 100%, 50%)']
+
+            const nodes: GraphNode[] = validColors.map((color, i) => ({
+                relativeFilePathIsID: `node-${i}`,
+                content: `# Node ${i}`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: `Node ${i}`,
+                    color: O.some(color),
+                    position: O.some({ x: i * 100, y: 100 })
+                }
+            }))
+
+            const delta: GraphDelta = nodes.map(node => ({
+                type: 'UpsertNode' as const,
+                nodeToUpsert: node
+            }))
+
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: All nodes should have their colors applied
+            validColors.forEach((color, i) => {
+                const node = cy.getElementById(`node-${i}`)
+                expect(node.data('color')).toBe(color)
+            })
+        })
+
+        it('should filter out invalid CSS colors', () => {
+            // GIVEN: Empty graph
+            expect(cy.nodes()).toHaveLength(0)
+
+            // WHEN: Adding nodes with invalid CSS colors
+            const invalidColors = ['cyancyan', 'notacolor', '###', 'rgb(999,999,999)', '']
+
+            const nodes: GraphNode[] = invalidColors.map((color, i) => ({
+                relativeFilePathIsID: `invalid-${i}`,
+                content: `# Invalid ${i}`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: `Invalid ${i}`,
+                    color: O.some(color),
+                    position: O.some({ x: i * 100, y: 100 })
+                }
+            }))
+
+            const delta: GraphDelta = nodes.map(node => ({
+                type: 'UpsertNode' as const,
+                nodeToUpsert: node
+            }))
+
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: All nodes should have undefined color (invalid colors filtered out)
+            invalidColors.forEach((_, i) => {
+                const node = cy.getElementById(`invalid-${i}`)
+                expect(node.data('color')).toBeUndefined()
+            })
+        })
+
+        it('should filter out invalid colors when updating existing nodes', () => {
+            // GIVEN: Graph with a node with valid color
+            const originalNode: GraphNode = {
+                relativeFilePathIsID: 'color-update',
+                content: '# Original',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Original',
+                    color: O.some('#ff0000'),
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const createDelta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: originalNode }
+            ]
+
+            applyGraphDeltaToUI(cy, createDelta)
+            expect(cy.getElementById('color-update').data('color')).toBe('#ff0000')
+
+            // WHEN: Updating with invalid color
+            const updatedNode: GraphNode = {
+                relativeFilePathIsID: 'color-update',
+                content: '# Updated',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Updated',
+                    color: O.some('cyancyan'),
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const updateDelta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: updatedNode }
+            ]
+
+            applyGraphDeltaToUI(cy, updateDelta)
+
+            // THEN: Color should be set to undefined (invalid color filtered)
+            expect(cy.getElementById('color-update').data('color')).toBeUndefined()
         })
     })
 })

@@ -189,7 +189,7 @@ Child content`
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
-                    applyGraphDeltaToDB: mainAPI.applyGraphDeltaToDB
+                    applyGraphDeltaToDBAndMem: mainAPI.applyGraphDeltaToDBAndMem
                 }
             }
         } as any
@@ -370,7 +370,7 @@ Child content`
             electronAPI: {
                 main: {
                     getGraph: mainAPI.getGraph,
-                    applyGraphDeltaToDB: mainAPI.applyGraphDeltaToDB
+                    applyGraphDeltaToDBAndMem: mainAPI.applyGraphDeltaToDBAndMem
                 }
             }
         } as any
