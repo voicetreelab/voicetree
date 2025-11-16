@@ -31,14 +31,12 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       expect(graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis']).toBeDefined()
       expect(graph.nodes['_179']).toBeDefined()
 
-      // AND: After reverseGraphEdges, node 181 should have an incoming edge from _179
-      // (Because the original link in 181 is [[./_179.md]], which means 181 -> _179,
-      //  and after reversal it becomes _179 -> 181)
-      const node179 = graph.nodes['_179']
+      // AND: loadGraphFromDisk applies reverseGraphEdges twice (before and after applyPositions)
+      // This means edges are back in their original form: 181 -> _179
+      // So node 181 should have _179 in its outgoing edges
+      const node181 = graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis']
 
-      // After reverseGraphEdges: the original outgoing edge 181 -> _179 becomes _179 -> 181
-      // So _179 should have 181 in its outgoing edges
-      expect(node179.outgoingEdges).toContain('181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis')
+      expect(node181.outgoingEdges).toContain('_179')
     })
   })
 })

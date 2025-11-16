@@ -7,6 +7,7 @@ import { tmpdir } from 'os'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { markdownToTitle } from '@/functional/pure/graph/markdown-parsing/markdown-to-title.ts'
+import { extractFrontmatter } from '@/functional/pure/graph/markdown-parsing/extract-frontmatter.ts'
 
 describe('apply_graph_updates', () => {
   const testVaultPath = path.join(tmpdir(), 'test-vault-reader-monad')
@@ -32,15 +33,20 @@ describe('apply_graph_updates', () => {
   })
 
   // Helper to create a test node
-  const createTestNode = (nodeId: string, content: string): GraphNode => ({
-    relativeFilePathIsID: nodeId,
-    content,
-    outgoingEdges: [],
-    nodeUIMetadata: {
-      color: O.none,
-      position: O.none
+  const createTestNode = (nodeId: string, content: string): GraphNode => {
+    const frontmatter = extractFrontmatter(content)
+    const title = markdownToTitle(frontmatter, content, nodeId)
+    return {
+      relativeFilePathIsID: nodeId,
+      content,
+      outgoingEdges: [],
+      nodeUIMetadata: {
+        title,
+        color: O.none,
+        position: O.none
+      }
     }
-  })
+  }
 
   // Helper to create a graph with a single node
   const graphWithNode = (nodeId: string, content: string): Graph => ({
@@ -74,7 +80,8 @@ describe('apply_graph_updates', () => {
         expect(updatedGraph.nodes['node-1'].content).toBe('# New Node\n\nThis is content')
 
         // Title is computed via markdownToTitle
-        const title = markdownToTitle(updatedGraph.nodes['node-1'])
+        const frontmatter = extractFrontmatter(updatedGraph.nodes['node-1'].content)
+        const title = markdownToTitle(frontmatter, updatedGraph.nodes['node-1'].content, updatedGraph.nodes['node-1'].relativeFilePathIsID)
         expect(title).toBe('New Node')
       }
     })
@@ -92,7 +99,8 @@ describe('apply_graph_updates', () => {
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
-        const title = markdownToTitle(result.right.nodes['node-2'])
+        const frontmatter = extractFrontmatter(result.right.nodes['node-2'].content)
+        const title = markdownToTitle(frontmatter, result.right.nodes['node-2'].content, result.right.nodes['node-2'].relativeFilePathIsID)
         expect(title).toBe('My Title')
       }
     })
@@ -110,7 +118,8 @@ describe('apply_graph_updates', () => {
 
       expect(E.isRight(result)).toBe(true)
       if (E.isRight(result)) {
-        const title = markdownToTitle(result.right.nodes['node-3'])
+        const frontmatter = extractFrontmatter(result.right.nodes['node-3'].content)
+        const title = markdownToTitle(frontmatter, result.right.nodes['node-3'].content, result.right.nodes['node-3'].relativeFilePathIsID)
         expect(title).toBe('node 3')
       }
     })
@@ -155,7 +164,8 @@ describe('apply_graph_updates', () => {
 
         // Verify node was updated
         expect(updatedGraph.nodes['node-1'].content).toBe('# Updated Title\n\nNew content')
-        const title = markdownToTitle(updatedGraph.nodes['node-1'])
+        const frontmatter = extractFrontmatter(updatedGraph.nodes['node-1'].content)
+        const title = markdownToTitle(frontmatter, updatedGraph.nodes['node-1'].content, updatedGraph.nodes['node-1'].relativeFilePathIsID)
         expect(title).toBe('Updated Title')
       }
     })
@@ -236,6 +246,7 @@ describe('apply_graph_updates', () => {
             content: 'Content',
             outgoingEdges: ['node-2'],
             nodeUIMetadata: {
+              title: 'node 1',
               color: O.none,
               position: O.none
             }
@@ -245,6 +256,7 @@ describe('apply_graph_updates', () => {
             content: 'Content',
             outgoingEdges: [],
             nodeUIMetadata: {
+              title: 'node 2',
               color: O.none,
               position: O.none
             }

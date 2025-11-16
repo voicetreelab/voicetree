@@ -154,7 +154,7 @@ describe('setupRPCHandlers', () => {
     const handler = handlerCall?.[1]
 
     // Call handler with function that takes multiple args
-    await handler({}, 'applyGraphDeltaToDB', [mockGraphDelta])
+    await handler({}, 'applyGraphDeltaToDBAndMem', [mockGraphDelta])
 
     expect(mockApplyGraphDeltaToDB).toHaveBeenCalledWith(mockGraphDelta)
   })

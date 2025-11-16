@@ -5,10 +5,14 @@ import { useFolderWatcher } from './useFolderWatcher';
 // Mock Electron API - only the IPC methods useFolderWatcher actually uses
 const eventListeners: Record<string, ((data?: unknown) => void)[]> = {};
 
-const mockElectronAPI = {
+const mockMainAPI = {
   startFileWatching: vi.fn(),
   stopFileWatching: vi.fn(),
   getWatchStatus: vi.fn(),
+};
+
+const mockElectronAPI = {
+  main: mockMainAPI,
   onWatchingStarted: vi.fn((callback) => {
     if (!eventListeners['watching-started']) {
       eventListeners['watching-started'] = [];
@@ -47,9 +51,9 @@ describe('useFolderWatcher (Electron version)', () => {
     });
 
     // Reset default mock implementations
-    mockElectronAPI.getWatchStatus.mockResolvedValue({ isWatching: false });
-    mockElectronAPI.startFileWatching.mockResolvedValue({ success: true, directory: '/test/directory' });
-    mockElectronAPI.stopFileWatching.mockResolvedValue({ success: true });
+    mockMainAPI.getWatchStatus.mockResolvedValue({ isWatching: false });
+    mockMainAPI.startFileWatching.mockResolvedValue({ success: true, directory: '/test/directory' });
+    mockMainAPI.stopFileWatching.mockResolvedValue({ success: true });
   });
 
   it('should initialize with default state', async () => {
@@ -129,7 +133,7 @@ describe('useFolderWatcher (Electron version)', () => {
     });
 
     expect(result.current.isWatching).toBe(true);
-    expect(mockElectronAPI.startFileWatching).toHaveBeenCalled();
+    expect(mockMainAPI.startFileWatching).toHaveBeenCalled();
 
     // Stop watching and trigger the event
     await act(async () => {
@@ -138,7 +142,7 @@ describe('useFolderWatcher (Electron version)', () => {
     });
 
     expect(result.current.isWatching).toBe(false);
-    expect(mockElectronAPI.stopFileWatching).toHaveBeenCalled();
+    expect(mockMainAPI.stopFileWatching).toHaveBeenCalled();
   });
 
   it('should handle stopWatching errors gracefully', async () => {
@@ -154,7 +158,7 @@ describe('useFolderWatcher (Electron version)', () => {
     });
 
     // Mock stopFileWatching to fail
-    mockElectronAPI.stopFileWatching.mockResolvedValue({
+    mockMainAPI.stopFileWatching.mockResolvedValue({
       success: false,
       error: 'Failed to stop'
     });
@@ -180,7 +184,7 @@ describe('useFolderWatcher (Electron version)', () => {
     });
 
     // Mock stopFileWatching to throw
-    mockElectronAPI.stopFileWatching.mockRejectedValue(new Error('Connection failed'));
+    mockMainAPI.stopFileWatching.mockRejectedValue(new Error('Connection failed'));
 
     await act(async () => {
       await result.current.stopWatching();

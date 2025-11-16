@@ -148,7 +148,11 @@ describe('BreathingAnimationService', () => {
 
       // Should call removeStyle to clear animation-applied inline border styles
       // This allows the stylesheet cascade to take over (degree-based border, pinned class, etc.)
-      expect(removeStyleSpy).toHaveBeenCalledWith('border-width border-color border-opacity border-style');
+      expect(removeStyleSpy).toHaveBeenCalledWith('border-width');
+      expect(removeStyleSpy).toHaveBeenCalledWith('border-color');
+      expect(removeStyleSpy).toHaveBeenCalledWith('border-opacity');
+      expect(removeStyleSpy).toHaveBeenCalledWith('border-style');
+      expect(removeStyleSpy).toHaveBeenCalledTimes(4);
 
       vi.useRealTimers();
     });

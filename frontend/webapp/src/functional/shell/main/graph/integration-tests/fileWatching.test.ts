@@ -264,14 +264,32 @@ describe('File Watching - Edge Management Tests', () => {
 
       expect(nodeAdded).toBe(true)
 
-      // Add wikilink to existing file
+      // Define clean original content without any wikilinks to test-new-file
       const targetFilePath = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
-      const originalContent = await fs.readFile(targetFilePath, 'utf-8')
+      const cleanOriginalContent = `---
+node_id: 5
+title: 'Immediate Test Observation: No Output (5)'
+---
+### Speaker observes no output despite repeated speech input during an immediate test.
 
-      // Backup original content
-      await fs.writeFile(targetFilePath + '.backup', originalContent, 'utf-8')
+All right, so I'm testing 'one, two, three'. I don't see anything. All right, so I'm taking something about talking and...nothing is showing up. All right, so I'm talking, I'm talking, I'm talking, and nothing's coming up. Strange.
 
-      const updatedContent = originalContent + '\n\n[[test-new-file]]'
+
+-----------------
+_Links:_
+Parent:
+- is_an_immediate_observation_during [[4_Test_Outcome_No_Output.md]]`
+
+      // Backup original content (current state which may be dirty from previous test runs)
+      const currentContent = await fs.readFile(targetFilePath, 'utf-8')
+      await fs.writeFile(targetFilePath + '.backup', currentContent, 'utf-8')
+
+      // First ensure the file is in clean state without the wikilink
+      await fs.writeFile(targetFilePath, cleanOriginalContent, 'utf-8')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Add wikilink to existing file
+      const updatedContent = cleanOriginalContent + '\n\n[[test-new-file]]'
       await fs.writeFile(targetFilePath, updatedContent, 'utf-8')
 
       // Wait for edge to be created
@@ -291,8 +309,8 @@ describe('File Watching - Edge Management Tests', () => {
 
       expect(edgeAdded).toBe(true)
 
-      // WHEN: Remove the wikilink by resetting to original content
-      await fs.writeFile(targetFilePath, originalContent, 'utf-8')
+      // WHEN: Remove the wikilink by resetting to clean original content
+      await fs.writeFile(targetFilePath, cleanOriginalContent, 'utf-8')
 
       // Wait for file change to be detected
       await new Promise(resolve => setTimeout(resolve, 1000))

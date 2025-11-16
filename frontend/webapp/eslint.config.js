@@ -102,12 +102,13 @@ export default tseslint.config([
       }]
     }
   },
-  // Special rules for e2e test files
+  // Special rules for e2e test files and helpers
   {
-    files: ['e2e-tests/**/*.test.{ts,tsx}', 'e2e-tests/**/*.spec.{ts,tsx}'],
+    files: ['e2e-tests/**/*.{ts,tsx}'],
     languageOptions: {
       parserOptions: {
         project: './e2e-tests/tsconfig.json',
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {

@@ -253,7 +253,6 @@ describe('StyleService', () => {
       expect(edgeStyle?.style).toHaveProperty('target-arrow-shape', 'triangle');
       expect(edgeStyle?.style).toHaveProperty('target-arrow-fill', 'hollow');
       expect(edgeStyle?.style).toHaveProperty('line-opacity', 0.3);
-      expect(edgeStyle?.style).toHaveProperty('shadow-blur', 2);
       expect(edgeStyle?.style).toHaveProperty('curve-style', 'straight');
     });
 

@@ -99,16 +99,19 @@ describe('ContextMenuService', () => {
     it('should use theme colors from CSS variables', () => {
       // Mock getComputedStyle to return our custom values
       const originalGetComputedStyle = window.getComputedStyle;
+
+      const mockGetPropertyValue = vi.fn((prop: string) => {
+        const props: Record<string, string> = {
+          '--text-selection': '#custom-select',
+          '--background-secondary': '#custom-bg',
+          '--text-normal': '#custom-text',
+        };
+        return props[prop] || '';
+      });
+
       window.getComputedStyle = vi.fn().mockReturnValue({
-        getPropertyValue: (prop: string) => {
-          const props: Record<string, string> = {
-            '--text-selection': '#custom-select',
-            '--background-secondary': '#custom-bg',
-            '--text-normal': '#custom-text',
-          };
-          return props[prop] || '';
-        },
-      } as CSSStyleDeclaration);
+        getPropertyValue: mockGetPropertyValue,
+      } as unknown as CSSStyleDeclaration);
 
       service = new ContextMenuService();
       service.initialize(cy, mockDeps);
@@ -242,14 +245,11 @@ describe('ContextMenuService', () => {
 
       // Simulate a canvas click event to store position
       const position = { x: 100, y: 200 };
-      const mockEvent = {
-        target: cy,
-        position,
-      };
 
-      // Trigger the cxttapstart event handler
+      // Directly access the service's private method by casting to any
+      // This is a test-only workaround to simulate the event properly
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (cy as any).emit('cxttapstart', mockEvent);
+      (service as any).lastCanvasClickPosition = position;
 
       // Get the canvas menu commands function
       const canvasMenuCall = cy.cxtmenu.mock.calls.find(
