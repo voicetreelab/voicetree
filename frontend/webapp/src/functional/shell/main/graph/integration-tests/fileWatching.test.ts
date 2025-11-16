@@ -17,7 +17,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { loadFolder, stopFileWatching, isWatching } from '@/functional/shell/main/graph/watchFolder.ts'
-import { getGraph, setGraph, setVaultPath } from '@/functional/shell/state/graph-store.ts'
+import { getGraph, setGraph, setVaultPath } from '@/functional/shell/main/state/graph-store.ts'
 import type { GraphDelta } from '@/functional/pure/graph/types.ts'
 import path from 'path'
 import { promises as fs } from 'fs'

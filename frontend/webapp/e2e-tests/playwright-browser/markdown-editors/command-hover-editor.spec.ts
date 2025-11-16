@@ -150,16 +150,15 @@ test.describe('Command Hover Editor (Browser)', () => {
     console.log('✓ Meta key released');
 
     console.log('=== Step 8: Click outside to close hover editor ===');
+    // Wait for mousedown listener to be registered (100ms delay in FloatingWindowManager)
+    await page.waitForTimeout(150);
+
     // Click somewhere outside the editor window
     await page.mouse.click(100, 100);
-    await page.waitForTimeout(30);
     console.log('✓ Clicked outside editor');
 
-    // Verify editor is gone
-    const editorGone = await page.evaluate((selector) => {
-      return document.querySelector(selector) === null;
-    }, hoverEditorSelector);
-    expect(editorGone).toBe(true);
+    // Wait for editor to be removed from DOM (use Playwright's built-in waiting)
+    await page.waitForSelector(hoverEditorSelector, { state: 'detached', timeout: 500 });
     console.log('✓ Hover editor closed on click outside');
 
     console.log('=== Step 9: Reopen hover editor with Cmd+hover ===');

@@ -2,7 +2,7 @@ import type {FSEvent, GraphDelta} from "@/functional/pure/graph/types.ts";
 import {mapFSEventsToGraphDelta} from "@/functional/pure/graph/mapFSEventsToGraphDelta.ts";
 import type {BrowserWindow} from "electron";
 import {applyGraphDeltaToMemStateAndUI} from "@/functional/shell/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI.ts";
-import {getGraph} from "@/functional/shell/state/graph-store.ts";
+import {getGraph} from "@/functional/shell/main/state/graph-store.ts";
 
 /**
  * Handle filesystem events by:
