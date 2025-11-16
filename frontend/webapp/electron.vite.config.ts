@@ -27,7 +27,7 @@ export default defineConfig({
       },
       rollupOptions: {
         input: {
-          index: path.resolve(__dirname, 'src/electron/main.ts')
+          index: path.resolve(__dirname, 'src/shell/edge/main/electron/main.ts')
         }
       }
     }
@@ -49,7 +49,7 @@ export default defineConfig({
       },
       rollupOptions: {
         input: {
-          index: path.resolve(__dirname, 'src/electron/preload.ts')
+          index: path.resolve(__dirname, 'src/shell/edge/main/electron/preload.ts')
         },
         output: {
           format: 'cjs',

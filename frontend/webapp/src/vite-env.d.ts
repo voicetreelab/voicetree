@@ -8,7 +8,7 @@ declare module '*.css' {
 }
 
 // Specific CSS imports used in the codebase
-declare module '@/graph-core/styles/floating-windows.css' {
+declare module '@/shell/UI/cytoscape-graph-ui/styles/floating-windows.css' {
   const content: string;
   export default content;
 }
@@ -16,7 +16,7 @@ declare module '@xterm/xterm/css/xterm.css' {
   const content: string;
   export default content;
 }
-declare module '@/views/styles/speed-dial-menu.css' {
+declare module '@/shell/UI/views/styles/speed-dial-menu.css' {
   const content: string;
   export default content;
 }
