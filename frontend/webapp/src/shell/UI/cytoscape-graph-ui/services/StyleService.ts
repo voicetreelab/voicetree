@@ -392,15 +392,15 @@ export class StyleService {
         degree = 0;
       }
 
-      // Logarithmic + linear scaling: 30*log(degree + 3) + degree
+      // Logarithmic + linear scaling
       // This creates strong emphasis on low-to-mid degree differences
       // while still rewarding high-degree nodes
-      const size = 30 * Math.log(degree + 3) + degree;
+      const size = 5 + 15 * Math.log(degree + 3) + degree;
 
       // Scale other properties proportionally to size
       // Use size as base and scale others relative to it
-      const width = size;
-      const height = size;
+      const width = size*0.7; // nodes themselves don't care visual information, so scale smaller.
+      const height = size*0.7;
       const fontSize = 10 + size / 7; // Font scales with size (increased from 8 + size/8)
       const textWidth = size * 3 + 40; // Text width scales with size
       const borderWidth = 1 + size / 15; // Border scales with size
