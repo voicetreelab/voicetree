@@ -16,15 +16,17 @@ import type { EditorView } from '@codemirror/view';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large/2025-09-30');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
 // Type definitions
-interface ExtendedWindow extends Window {
+interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: {
-    startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
-    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-    getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    main: {
+      startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+      stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+      getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    };
   };
 }
 
@@ -60,7 +62,7 @@ const test = base.extend<{
       await page.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       // Wait for pending file system events to drain
@@ -122,7 +124,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
       await appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       // Brief wait to let file watcher fully stop
@@ -139,7 +141,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
     // Wait for file watching to start successfully
@@ -299,7 +301,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
     await appWindow.waitForTimeout(3000);
@@ -429,7 +431,7 @@ test.describe('Markdown Editor CRUD Tests', () => {
     await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
     // Wait for file watching to start successfully

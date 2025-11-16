@@ -178,7 +178,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
     })
 
     describe('Update existing node metadata', () => {
-        it('should update content and color but preserve position', () => {
+        it('should update title and color but preserve position and content', () => {
             // GIVEN: Graph with a node
             const originalNode: GraphNode = {
                 relativeFilePathIsID: 'node-to-update',
@@ -204,7 +204,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(originalPos.x).toBe(100)
             expect(originalPos.y).toBe(100)
 
-            // WHEN: Updating the node with new content and color
+            // WHEN: Updating the node with new title and color
             const updatedNode: GraphNode = {
                 relativeFilePathIsID: 'node-to-update',
                 content: '# Updated Content',
@@ -225,9 +225,12 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             applyGraphDeltaToUI(cy, updateDelta)
 
-            // THEN: Content should be updated
+            // THEN: Content should remain unchanged (not updated for existing nodes)
             const node = cy.getElementById('node-to-update')
-            expect(node.data('content')).toBe('# Updated Content')
+            expect(node.data('content')).toBe('# Original Content')
+
+            // AND: Title (label) should be updated
+            expect(node.data('label')).toBe('Updated Content')
 
             // AND: Color should be updated
             expect(node.data('color')).toBe('#ff0000')
@@ -346,7 +349,12 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             const updatedExisting: GraphNode = {
                 ...existingNode,
-                content: '# Updated Existing'
+                content: '# Updated Existing',
+                nodeUIMetadata: {
+                    title: 'Updated Existing',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 })
+                }
             }
 
             const mixedDelta: GraphDelta = [
@@ -363,8 +371,11 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // AND: New node should exist
             expect(cy.getElementById('new').length).toBe(1)
 
-            // AND: Existing node should be updated
-            expect(cy.getElementById('existing').data('content')).toBe('# Updated Existing')
+            // AND: Existing node content should remain unchanged (content not updated for existing nodes)
+            expect(cy.getElementById('existing').data('content')).toBe('# Existing')
+
+            // AND: Existing node title (label) should be updated
+            expect(cy.getElementById('existing').data('label')).toBe('Updated Existing')
 
             // AND: Deleted node should be gone
             expect(cy.getElementById('to-delete').length).toBe(0)

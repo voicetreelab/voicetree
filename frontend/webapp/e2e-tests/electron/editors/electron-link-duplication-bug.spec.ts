@@ -36,12 +36,14 @@ const PROJECT_ROOT = path.resolve(process.cwd());
 const TEST_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'temp-link-bug-test');
 
 // Type definitions
-interface ExtendedWindow extends Window {
+interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: {
-    startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
-    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-    getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    main: {
+      startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+      stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+      getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    };
   };
 }
 
@@ -74,7 +76,7 @@ const test = base.extend<{
       await page.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await page.waitForTimeout(300);
@@ -95,9 +97,28 @@ const test = base.extend<{
 
     page.on('pageerror', error => {
       console.error('PAGE ERROR:', error.message);
+      console.error('Stack:', error.stack);
     });
 
     await page.waitForLoadState('domcontentloaded');
+
+    // Check for errors before waiting for cytoscapeInstance
+    const hasErrors = await page.evaluate(() => {
+      const errors: string[] = [];
+      // Check if React rendered
+      if (!document.querySelector('#root')) errors.push('No #root element');
+      // Check if any error boundaries triggered
+      const errorText = document.body.textContent;
+      if (errorText?.includes('Error') || errorText?.includes('error')) {
+        errors.push(`Page contains error text: ${errorText.substring(0, 200)}`);
+      }
+      return errors;
+    });
+
+    if (hasErrors.length > 0) {
+      console.error('Pre-initialization errors:', hasErrors);
+    }
+
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
     await page.waitForTimeout(1000);
 
@@ -117,7 +138,7 @@ test.describe('Link Duplication Bug', () => {
       await appWindow.evaluate(async () => {
         const api = (window as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await appWindow.waitForTimeout(200);
@@ -161,7 +182,7 @@ Some more content here.`;
     await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, TEST_VAULT_PATH);
 
     await appWindow.waitForTimeout(1000);
@@ -211,7 +232,7 @@ Some more content here.`;
     // 5. Read current file content to count initial link occurrences
     const contentBeforeEdit = await fs.readFile(testFilePath, 'utf-8');
     const linkPattern = new RegExp(`\\[\\[${linkedNodeId}\\]\\]`, 'g');
-    const initialLinkCount = (contentBeforeEdit.match(linkPattern) || []).length;
+    const initialLinkCount = (contentBeforeEdit.match(linkPattern) ?? []).length;
     console.log(`✓ Initial link count in file: ${initialLinkCount}`);
 
     // 6. Make a small edit (add text that doesn't touch the link)
@@ -241,7 +262,7 @@ Some more content here.`;
 
     // 9. Read file content and count link occurrences
     const contentAfterEdit = await fs.readFile(testFilePath, 'utf-8');
-    const finalLinkCount = (contentAfterEdit.match(linkPattern) || []).length;
+    const finalLinkCount = (contentAfterEdit.match(linkPattern) ?? []).length;
 
     console.log(`📊 Initial link count: ${initialLinkCount}`);
     console.log(`📊 Final link count: ${finalLinkCount}`);
@@ -292,7 +313,7 @@ End of content.`;
     await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, TEST_VAULT_PATH);
 
     await appWindow.waitForTimeout(1000);
@@ -385,7 +406,7 @@ End of content.`;
     // 8. Read file content and verify link is GONE (not restored)
     const contentAfterEdit = await fs.readFile(testFilePath, 'utf-8');
     const linkPattern = new RegExp(`\\[\\[${linkedNodeId}\\]\\]`, 'g');
-    const finalLinkCount = (contentAfterEdit.match(linkPattern) || []).length;
+    const finalLinkCount = (contentAfterEdit.match(linkPattern) ?? []).length;
 
     console.log('\nFile content after link removal:');
     console.log('---START---');

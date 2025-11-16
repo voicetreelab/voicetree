@@ -15,7 +15,7 @@ import * as path from 'path';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
 // Type definitions
 interface CytoscapeInstance {
@@ -26,10 +26,12 @@ interface CytoscapeInstance {
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeInstance;
   electronAPI?: {
-    getBackendPort: () => Promise<number>;
-    startFileWatching: (dir?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
-    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-    getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    main: {
+      getBackendPort: () => Promise<number>;
+      startFileWatching: (dir?: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+      stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+      getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    };
   };
 }
 
@@ -60,7 +62,7 @@ const test = base.extend<{
       await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
@@ -83,9 +85,28 @@ const test = base.extend<{
     // Capture page errors
     window.on('pageerror', error => {
       console.error('PAGE ERROR:', error.message);
+      console.error('Stack:', error.stack);
     });
 
     await window.waitForLoadState('domcontentloaded');
+
+    // Check for errors before waiting for cytoscapeInstance
+    const hasErrors = await window.evaluate(() => {
+      const errors: string[] = [];
+      // Check if React rendered
+      if (!document.querySelector('#root')) errors.push('No #root element');
+      // Check if any error boundaries triggered
+      const errorText = document.body.textContent;
+      if (errorText?.includes('Error') || errorText?.includes('error')) {
+        errors.push(`Page contains error text: ${errorText.substring(0, 200)}`);
+      }
+      return errors;
+    });
+
+    if (hasErrors.length > 0) {
+      console.error('Pre-initialization errors:', hasErrors);
+    }
+
     await window.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
     await window.waitForTimeout(1000);
 
@@ -106,7 +127,7 @@ test.describe('Backend API Integration E2E', () => {
       if (!api) throw new Error('electronAPI not available');
 
       // This triggers the IPC call to get-backend-port
-      const port = await api.getBackendPort();
+      const port = await api.main.getBackendPort();
       console.log(`[Renderer] Got backend port from IPC: ${port}`);
       return port;
     });
@@ -165,7 +186,7 @@ test.describe('Backend API Integration E2E', () => {
       if (!api) throw new Error('electronAPI not available');
 
       console.log(`[Renderer] Starting file watching for: ${vaultPath}`);
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);
@@ -228,7 +249,7 @@ test.describe('Backend API Integration E2E', () => {
     const stopResult = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.stopFileWatching();
+      return await api.main.stopFileWatching();
     });
 
     expect(stopResult.success).toBe(true);
@@ -250,7 +271,7 @@ test.describe('Backend API Integration E2E', () => {
     const backendPort = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      const port = await api.getBackendPort();
+      const port = await api.main.getBackendPort();
       console.log(`[Renderer] Got backend port: ${port}`);
       return port;
     });
@@ -302,7 +323,7 @@ test.describe('Backend API Integration E2E', () => {
     const watchResult = await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);

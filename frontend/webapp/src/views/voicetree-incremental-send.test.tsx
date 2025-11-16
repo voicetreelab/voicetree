@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import VoiceTreeTranscribe from '@/renderers/voicetree-transcribe.tsx';
 import { type Token } from '@soniox/speech-to-text-web';
@@ -26,8 +26,34 @@ const networkRequests: Array<{ url: string; body: any }> = [];
 
 describe('VoiceTree Incremental Sending Integration', () => {
   beforeEach(() => {
+    // Clean up any leftover DOM state
+    cleanup();
+
     vi.clearAllMocks();
     networkRequests.length = 0;
+
+    // Ensure navigator.clipboard is properly mocked
+    if (!navigator.clipboard) {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
+          writeText: vi.fn().mockResolvedValue(undefined),
+          readText: vi.fn().mockResolvedValue(''),
+        },
+        writable: true,
+        configurable: true,
+      });
+    }
+
+    // Mock window.electronAPI - always reset to ensure clean state
+    Object.defineProperty(window, 'electronAPI', {
+      value: {
+        main: {
+          getBackendPort: vi.fn(() => Promise.resolve(8001)),
+        },
+      },
+      writable: true,
+      configurable: true,
+    });
 
     // Mock fetch to track requests
     global.fetch = vi.fn(async (url, options) => {
@@ -39,12 +65,10 @@ describe('VoiceTree Incremental Sending Integration', () => {
         json: async () => ({ buffer_length: 100 + networkRequests.length * 10 }),
       } as Response;
     });
-
-    // Mock scrollTo for the auto-scroll hook
-    HTMLElement.prototype.scrollTo = vi.fn();
   });
 
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 

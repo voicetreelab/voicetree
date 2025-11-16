@@ -27,6 +27,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                     content: '# Parent GraphNode',
                     outgoingEdges: ['child1'],
                     nodeUIMetadata: {
+                        title: 'Parent GraphNode',
                         color: O.none,
                         position: O.some({ x: 100, y: 100 })
                     }
@@ -36,6 +37,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                     content: '# Child 1',
                     outgoingEdges: [],
                     nodeUIMetadata: {
+                        title: 'Child 1',
                         color: O.none,
                         position: O.some({ x: 200, y: 200 })
                     }
@@ -68,9 +70,9 @@ describe('createNewChildNodeFromUI - Integration', () => {
         // Mock window.electronAPI
         global.window = {
             electronAPI: {
-                graph: {
-                    getState: vi.fn().mockResolvedValue(mockGraph),
-                    applyGraphDelta: vi.fn().mockResolvedValue({ success: true })
+                main: {
+                    getGraph: vi.fn().mockReturnValue(mockGraph),
+                    applyGraphDeltaToDBAndMem: vi.fn().mockResolvedValue(undefined)
                 }
             }
         } as unknown as Window & typeof globalThis
@@ -99,12 +101,12 @@ describe('createNewChildNodeFromUI - Integration', () => {
         // AND: Should have 2 edges (parent->child1, parent->new_child)
         expect(cy.edges()).toHaveLength(2)
 
-        // AND: The new node should exist with correct label from markdownToTitle
+        // AND: The new node should exist with correct label from nodeUIMetadata.title
         const newNodeId = 'parent_1' // Based on naming convention in fromUIInteractionToAddNode
         const newNode = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
-        // Label should be extracted from heading, not just the node ID
-        expect(newNode.data('label')).toBe('New GraphNode')
+        // Label comes from nodeUIMetadata.title which is "Child of " + parentNode.nodeUIMetadata.title
+        expect(newNode.data('label')).toBe('Child of Parent GraphNode')
 
         // AND: There should be an edge from parent to the new node
         const newEdge = cy.getElementById(`parent->${newNodeId}`)
@@ -114,12 +116,12 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
         // AND: Should have called electronAPI to persist the change
         // The GraphDelta should contain 2 actions: new child node + updated parent with edge
-        expect(window.electronAPI!.graph.applyGraphDelta).toHaveBeenCalledWith([
+        expect(window.electronAPI!.main.applyGraphDeltaToDBAndMem).toHaveBeenCalledWith([
             expect.objectContaining({
                 type: 'UpsertNode',
                 nodeToUpsert: expect.objectContaining({
                     relativeFilePathIsID: newNodeId,
-                    content: '# New GraphNode'
+                    content: '# Title'
                 })
             }),
             expect.objectContaining({

@@ -18,16 +18,18 @@ import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_SMALL = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_small');
-const FIXTURE_LARGE = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large', '2025-09-30');
+const FIXTURE_SMALL = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
+const FIXTURE_LARGE = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
 // Type definitions
-interface ExtendedWindow extends Window {
+interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: {
-    startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
-    stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
-    getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    main: {
+      startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
+      stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
+      getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+    };
   };
 }
 
@@ -55,7 +57,7 @@ const test = base.extend<{
       await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
@@ -89,11 +91,11 @@ test.describe('Multiple Folder Load Tests', () => {
   test('should clear graph when loading a new folder', async ({ appWindow }) => {
     console.log('=== TEST: Graph clearing on folder switch ===');
 
-    console.log('=== STEP 1: Load first folder (example_small - 6 nodes) ===');
+    console.log('=== STEP 1: Load first folder (example_small - 7 nodes) ===');
     const firstLoad = await appWindow.evaluate(async (folderPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(folderPath);
+      return await api.main.startFileWatching(folderPath);
     }, FIXTURE_SMALL);
 
     expect(firstLoad.success).toBe(true);
@@ -118,8 +120,8 @@ test.describe('Multiple Folder Load Tests', () => {
     console.log(`First folder: ${firstFolderState.nodeCount} nodes`);
     console.log('GraphNode IDs:', firstFolderState.nodeIds);
 
-    // example_small has 6 markdown files
-    expect(firstFolderState.nodeCount).toBe(6);
+    // example_small has 7 markdown files
+    expect(firstFolderState.nodeCount).toBe(7);
 
     console.log('=== STEP 3: Verify placeholder text is hidden ===');
     const placeholderHidden1 = await appWindow.evaluate(() => {
@@ -132,12 +134,12 @@ test.describe('Multiple Folder Load Tests', () => {
     expect(placeholderHidden1).toBe(true);
     console.log('✓ Placeholder text hidden after first load');
 
-    console.log('=== STEP 4: Load second folder (example_real_large - 57 nodes) ===');
+    console.log('=== STEP 4: Load second folder (example_real_large - 56 nodes) ===');
     // Stop watching first folder
     await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      await api.stopFileWatching();
+      await api.main.stopFileWatching();
     });
 
     await appWindow.waitForTimeout(500);
@@ -146,7 +148,7 @@ test.describe('Multiple Folder Load Tests', () => {
     const secondLoad = await appWindow.evaluate(async (folderPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(folderPath);
+      return await api.main.startFileWatching(folderPath);
     }, FIXTURE_LARGE);
 
     expect(secondLoad.success).toBe(true);
@@ -171,15 +173,15 @@ test.describe('Multiple Folder Load Tests', () => {
     console.log(`Second folder: ${secondFolderState.nodeCount} nodes`);
     console.log('Sample node IDs:', secondFolderState.nodeIds.slice(0, 5));
 
-    // CRITICAL: Should have ONLY 57 nodes from second folder, NOT 6 + 57 = 63
-    console.log(`Expected: 57 nodes, Got: ${secondFolderState.nodeCount} nodes`);
+    // CRITICAL: Should have ONLY 56 nodes from second folder, NOT 7 + 56 = 63
+    console.log(`Expected: 56 nodes, Got: ${secondFolderState.nodeCount} nodes`);
 
     if (secondFolderState.nodeCount === 63) {
       console.error('❌ BUG REPRODUCED: Graph was not cleared! Has nodes from both folders.');
       console.error('  First folder nodes should have been deleted');
     }
 
-    expect(secondFolderState.nodeCount).toBe(57);
+    expect(secondFolderState.nodeCount).toBe(56);
     console.log('✓ Graph contains only nodes from second folder');
 
     // Verify none of the first folder nodes remain
@@ -245,7 +247,7 @@ test.describe('Multiple Folder Load Tests', () => {
     await appWindow.evaluate(async (folderPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(folderPath);
+      return await api.main.startFileWatching(folderPath);
     }, FIXTURE_SMALL);
 
     await appWindow.waitForTimeout(3000);

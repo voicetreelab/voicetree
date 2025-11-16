@@ -33,7 +33,7 @@ import type { Settings } from '@/functional/pure/settings';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large', '2025-09-30');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
 // Type definitions
 interface ExtendedWindow {
@@ -43,7 +43,7 @@ interface ExtendedWindow {
 
 // Helper type for CodeMirror access
 interface CodeMirrorElement extends HTMLElement {
-  cmView?: { view: { state: { doc: { length: number; toString: () => string } }; dispatch: (spec: any) => void } };
+  cmView?: { view: { state: { doc: { length: number; toString: () => string } }; dispatch: (spec: unknown) => void } };
 }
 
 // Extend test with Electron app
@@ -70,7 +70,7 @@ const test = base.extend<{
       await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
@@ -111,7 +111,7 @@ test.describe('Settings Integration E2E', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       // Save current settings so we can restore them later
-      return await api.settings.load();
+      return await api.main.loadSettings();
     });
     console.log('✓ Original settings saved:', originalSettings);
 
@@ -124,7 +124,7 @@ test.describe('Settings Integration E2E', () => {
         agentLaunchPath: '../',
         agentCommand: './Claude.sh'
       };
-      await api.settings.save(defaultSettings);
+      await api.main.saveSettings(defaultSettings);
     });
     console.log('✓ Settings reset to defaults for test');
 
@@ -132,7 +132,7 @@ test.describe('Settings Integration E2E', () => {
     const watchResult = await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);
@@ -143,7 +143,7 @@ test.describe('Settings Integration E2E', () => {
     const initialSettings = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.settings.load();
+      return await api.main.loadSettings();
     });
 
     console.log('Initial settings:', initialSettings);
@@ -223,7 +223,7 @@ test.describe('Settings Integration E2E', () => {
     const savedSettings = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.settings.load();
+      return await api.main.loadSettings();
     }) as Settings;
 
     console.log('Saved settings:', savedSettings);
@@ -250,7 +250,9 @@ test.describe('Settings Integration E2E', () => {
     const settingsIntegrationTest = await appWindow.evaluate(async () => {
       // This tests the same code path that ContextMenuService uses
       // Load settings like ContextMenuService does
-      const settings = await window.electronAPI.settings.load();
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      const settings = await api.main.loadSettings();
 
       // Verify we get the updated settings
       return {
@@ -271,7 +273,7 @@ test.describe('Settings Integration E2E', () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       // Restore the original settings that were saved at the start of the test
-      await api.settings.save(original);
+      await api.main.saveSettings(original);
     }, originalSettings);
     console.log('✓ Original settings restored:', originalSettings);
 
@@ -279,7 +281,7 @@ test.describe('Settings Integration E2E', () => {
     const restoredSettings = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.settings.load();
+      return await api.main.loadSettings();
     });
 
     expect(restoredSettings).toEqual(originalSettings);

@@ -111,10 +111,11 @@ describe('Folder Loading - Integration Tests', () => {
         expect(node.relativeFilePathIsID).toBeDefined()
       })
 
-      // AND: Should broadcast delta to UI
-      expect(broadcastCalls.length).toBeGreaterThan(0)
-      expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
-      expect(broadcastCalls[0].delta).toBeDefined()
+      // AND: Should broadcast delta to UI (first clear, then stateChanged)
+      expect(broadcastCalls.length).toBe(2)
+      expect(broadcastCalls[0].channel).toBe('graph:clear')
+      expect(broadcastCalls[1].channel).toBe('graph:stateChanged')
+      expect(broadcastCalls[1].delta).toBeDefined()
     })
 
     it('should load example_real_large and populate graph with correct node count', async () => {
@@ -135,9 +136,10 @@ describe('Folder Loading - Integration Tests', () => {
         expect(node.content.length).toBeGreaterThan(0)
       })
 
-      // AND: Should broadcast delta to UI
-      expect(broadcastCalls.length).toBeGreaterThan(0)
-      expect(broadcastCalls[0].channel).toBe('graph:stateChanged')
+      // AND: Should broadcast delta to UI (first clear, then stateChanged)
+      expect(broadcastCalls.length).toBe(2)
+      expect(broadcastCalls[0].channel).toBe('graph:clear')
+      expect(broadcastCalls[1].channel).toBe('graph:stateChanged')
     })
   })
 
@@ -396,22 +398,26 @@ describe('Folder Loading - Integration Tests', () => {
       // WHEN: Load directory
       await loadFolder(EXAMPLE_SMALL_PATH)
 
-      // THEN: Should have broadcast exactly once
-      expect(broadcastCalls.length).toBe(1)
+      // THEN: Should have broadcast twice (clear + stateChanged)
+      expect(broadcastCalls.length).toBe(2)
 
-      const broadcast = broadcastCalls[0]
+      const clearBroadcast = broadcastCalls[0]
+      const stateChangedBroadcast = broadcastCalls[1]
 
-      // AND: Should use correct channel
-      expect(broadcast.channel).toBe('graph:stateChanged')
+      // AND: First broadcast should be graph:clear
+      expect(clearBroadcast.channel).toBe('graph:clear')
+
+      // AND: Second broadcast should use graph:stateChanged channel
+      expect(stateChangedBroadcast.channel).toBe('graph:stateChanged')
 
       // AND: Delta should be an array of NodeDeltas
-      expect(Array.isArray(broadcast.delta)).toBe(true)
+      expect(Array.isArray(stateChangedBroadcast.delta)).toBe(true)
 
       // AND: Delta should contain node additions for all loaded nodes
-      expect(broadcast.delta.length).toBe(EXPECTED_SMALL_NODE_COUNT)
+      expect(stateChangedBroadcast.delta.length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // Verify each delta has the expected structure (UpsertNodeAction or DeleteNode)
-      broadcast.delta.forEach(nodeDelta => {
+      stateChangedBroadcast.delta.forEach(nodeDelta => {
         expect(nodeDelta).toHaveProperty('type')
         // UpsertNodeAction should have nodeToUpsert property
         if (nodeDelta.type === 'UpsertNode') {
@@ -423,17 +429,20 @@ describe('Folder Loading - Integration Tests', () => {
     it('should broadcast delta when switching directories', async () => {
       // GIVEN: Load first directory
       await loadFolder(EXAMPLE_SMALL_PATH)
-      expect(broadcastCalls.length).toBe(1)
+      expect(broadcastCalls.length).toBe(2) // clear + stateChanged
 
       // WHEN: Load second directory
       await loadFolder(EXAMPLE_LARGE_PATH)
 
-      // THEN: Should have broadcast twice (once for each load)
-      expect(broadcastCalls.length).toBe(2)
+      // THEN: Should have broadcast 4 times total (2 for each load: clear + stateChanged)
+      expect(broadcastCalls.length).toBe(4)
 
-      const secondBroadcast = broadcastCalls[1]
-      expect(secondBroadcast.channel).toBe('graph:stateChanged')
-      expect(Array.isArray(secondBroadcast.delta)).toBe(true)
+      // Verify second load broadcasts
+      const secondClearBroadcast = broadcastCalls[2]
+      const secondStateChangedBroadcast = broadcastCalls[3]
+      expect(secondClearBroadcast.channel).toBe('graph:clear')
+      expect(secondStateChangedBroadcast.channel).toBe('graph:stateChanged')
+      expect(Array.isArray(secondStateChangedBroadcast.delta)).toBe(true)
     })
   })
 

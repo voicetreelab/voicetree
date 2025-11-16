@@ -15,9 +15,9 @@ import type { ElectronAPI } from '@/types/electron';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
-const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'e2e-tests', 'fixtures', 'example_real_large', '2025-09-30');
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_real_large', '2025-09-30');
 
-// Type definitions
+// Type definitions (already uses ElectronAPI from types)
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
@@ -50,7 +50,7 @@ const test = base.extend<{
       await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
@@ -89,7 +89,7 @@ test.describe('Terminal Auto-Command Execution E2E', () => {
     const watchResult = await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
     expect(watchResult.success).toBe(true);

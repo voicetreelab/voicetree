@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { markdownToTitle } from './markdown-to-title.ts'
+import { extractFrontmatter } from './extract-frontmatter.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import type { GraphNode } from '@/functional/pure/graph/types.ts'
 
@@ -17,12 +18,14 @@ title: 'Bug: Auto-open Markdown Editor (3)'
 Content here`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
 
@@ -35,12 +38,14 @@ title: Simple Title
 Content`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Simple Title')
         })
 
@@ -53,12 +58,14 @@ title: "Title With Double Quotes"
 Content`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Title With Double Quotes')
         })
 
@@ -71,12 +78,14 @@ title: "It's a Title with Apostrophe's"
 Content`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe("It's a Title with Apostrophe's")
         })
 
@@ -89,12 +98,14 @@ title: "Special: Characters! & Symbols?"
 Content`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Special: Characters! & Symbols?')
         })
 
@@ -109,12 +120,14 @@ title: Frontmatter Title
 Content`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Frontmatter Title')
         })
 
@@ -130,12 +143,14 @@ title: 'Bug: Auto-open Markdown Editor (3)'
 Content`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
     })
@@ -149,12 +164,14 @@ Content`,
 Content here`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('My Heading')
         })
 
@@ -169,12 +186,14 @@ color: red
 Content`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Heading Title')
         })
     })
@@ -186,12 +205,14 @@ Content`,
                 content: 'Just content, no heading',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('my test file')
         })
 
@@ -201,12 +222,14 @@ Content`,
                 content: 'Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('test file name')
         })
     })
@@ -224,12 +247,14 @@ title: Manually Creating Task Tree Nodes (12)
 Users can manually create nodes in the task tree, often preferred over speaking.`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Manually Creating Task Tree Nodes (12)')
         })
 
@@ -246,12 +271,14 @@ position:
 ### Raises an ethical concern about the objectification of colleagues.`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('Ethical Concern: Objectifying Colleagues (9)')
         })
     })
@@ -263,12 +290,14 @@ position:
                 content: '',
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('empty')
         })
 
@@ -279,12 +308,14 @@ position:
                 content: `# ${longHeading}`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
+                    title: '',
                     color: O.none,
                     position: O.none
                 }
             }
 
-            const title = markdownToTitle(node)
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe('test file') // Should fall back to filename
         })
     })

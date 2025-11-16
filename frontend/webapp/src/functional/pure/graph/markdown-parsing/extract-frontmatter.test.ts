@@ -103,7 +103,7 @@ another: 123
     })
   })
 
-  it('should recover from malformed YAML frontmatter with unquoted colons', () => {
+  it('should throw on malformed YAML frontmatter with unquoted colons', () => {
     const content = `---
 node_id: "123"
 title: Invalid YAML: missing quotes cause problems
@@ -111,9 +111,8 @@ summary: This is not properly quoted
 ---
 # Content`
 
-    // Should return empty frontmatter when YAML has unquoted colons
-    const result = extractFrontmatter(content)
-    expect(result).toEqual({})
+    // Malformed YAML should throw an exception
+    expect(() => extractFrontmatter(content)).toThrow(/incomplete explicit mapping pair/)
   })
 
   it('should parse frontmatter with parentheses without colons', () => {

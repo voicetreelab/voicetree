@@ -25,7 +25,7 @@ import type { ElectronAPI } from '@/types/electron';
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
 
-// Type definitions
+// Type definitions (already uses ElectronAPI from types)
 interface ExtendedWindow {
   cytoscapeInstance?: CytoscapeCore;
   electronAPI?: ElectronAPI;
@@ -57,7 +57,7 @@ const test = base.extend<{
       await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
@@ -111,7 +111,7 @@ test.describe('Onboarding First Run', () => {
     const watchResult = await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
+      return await api.main.startFileWatching(vaultPath);
     }, onboardingPath);
 
     expect(watchResult.success).toBe(true);
@@ -124,7 +124,7 @@ test.describe('Onboarding First Run', () => {
     const watchStatus = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.getWatchStatus();
+      return await api.main.getWatchStatus();
     });
 
     expect(watchStatus.isWatching).toBe(true);
@@ -136,7 +136,7 @@ test.describe('Onboarding First Run', () => {
     const graphState = await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
-      return await api.graph.getState();
+      return await api.main.getGraph();
     });
 
     expect(graphState).toBeDefined();

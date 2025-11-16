@@ -4,26 +4,22 @@ import cytoscape, { type Core } from 'cytoscape';
 import type { Settings } from '@/functional/pure/settings/types.ts';
 import '@/graph-core'; // Import to trigger extension registration
 
-// Mock window.electronAPI
-const mockElectronAPI = {
-    settings: {
-        load: vi.fn(),
-        save: vi.fn()
-    }
-};
+// Mock window.electronAPI with proper structure
+const mockLoadSettings = vi.fn();
+const mockSaveSettings = vi.fn();
 
-// Extend window type to include electronAPI
-declare global {
-    interface Window {
-        electronAPI: typeof mockElectronAPI;
-    }
-}
+const mockElectronAPI = {
+    main: {
+        loadSettings: mockLoadSettings,
+        saveSettings: mockSaveSettings,
+    },
+} as unknown as typeof window.electronAPI;
 
 describe('FloatingWindowManager - Types Editor', () => {
     let manager: FloatingWindowManager;
     let cy: Core;
     let container: HTMLElement;
-    let mockGetGraphState: () => { nodes: Map<string, unknown>; edges: Map<string, unknown> };
+    let mockGetGraphState: ReturnType<typeof vi.fn>;
     let mockHotkeyManager: { onModifierChange: typeof vi.fn };
 
     const mockSettings: Settings = {
@@ -45,11 +41,19 @@ describe('FloatingWindowManager - Types Editor', () => {
             headless: true
         });
 
+        // Mock cytoscape dimension methods for positioning calculations
+        vi.spyOn(cy, 'width').mockReturnValue(800);
+        vi.spyOn(cy, 'height').mockReturnValue(600);
+        // @ts-expect-error - Mocking cytoscape methods for test
+        vi.spyOn(cy, 'pan').mockReturnValue({ x: 0, y: 0 });
+        // @ts-expect-error - Mocking cytoscape methods for test
+        vi.spyOn(cy, 'zoom').mockReturnValue(1);
+
         // Mock dependencies
         mockGetGraphState = vi.fn(() => ({
-            nodes: new Map(),
-            edges: new Map()
-        }));
+            nodes: {},
+            edges: {}
+        })) as never;
 
         mockHotkeyManager = {
             onModifierChange: vi.fn()
@@ -57,8 +61,8 @@ describe('FloatingWindowManager - Types Editor', () => {
 
         // Setup window.electronAPI mock
         window.electronAPI = mockElectronAPI;
-        mockElectronAPI.settings.load.mockResolvedValue(mockSettings); // todo wrong api now, use .main
-        mockElectronAPI.settings.save.mockResolvedValue(undefined);
+        mockLoadSettings.mockResolvedValue(mockSettings);
+        mockSaveSettings.mockResolvedValue(undefined);
 
         // Create manager instance
         manager = new FloatingWindowManager(
@@ -88,7 +92,7 @@ describe('FloatingWindowManager - Types Editor', () => {
         it('should load settings from IPC when creating editor', async () => {
             await manager.createSettingsEditor();
 
-            expect(mockElectronAPI.settings.load).toHaveBeenCalledOnce();
+            expect(mockLoadSettings).toHaveBeenCalledOnce();
         });
 
         it('should create a floating editor window with correct title', async () => {
@@ -161,9 +165,9 @@ describe('FloatingWindowManager - Types Editor', () => {
                     };
 
                     // Manually call the save (simulating what onChange does)
-                    await mockElectronAPI.settings.save(newSettings);
+                    await mockSaveSettings(newSettings);
 
-                    expect(mockElectronAPI.settings.save).toHaveBeenCalledWith(newSettings);
+                    expect(mockSaveSettings).toHaveBeenCalledWith(newSettings);
                 }
             }
         });
@@ -182,7 +186,7 @@ describe('FloatingWindowManager - Types Editor', () => {
 
             try {
                 JSON.parse(invalidJson);
-                await mockElectronAPI.settings.save(invalidJson as never);
+                await mockSaveSettings(invalidJson as never);
             } catch (error) {
                 // Expected to throw
                 expect(error).toBeTruthy();
@@ -215,7 +219,7 @@ describe('FloatingWindowManager - Types Editor', () => {
 
         it('should handle IPC errors gracefully', async () => {
             // Mock IPC to throw error
-            mockElectronAPI.settings.load.mockRejectedValueOnce(new Error('IPC Error'));
+            mockLoadSettings.mockRejectedValueOnce(new Error('IPC Error'));
 
             const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 

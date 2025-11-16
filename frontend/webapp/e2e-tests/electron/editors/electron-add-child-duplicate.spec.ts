@@ -46,11 +46,22 @@ const test = base.extend<{
     }
   },
 
-  electronApp: async ({}, use) => {
+  electronApp: async ({ testVaultPath }, use) => {
     const PROJECT_ROOT = path.resolve(process.cwd());
 
+    // Create a temporary userData directory for this test
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-add-child-test-'));
+
+    // Write the config file to auto-load the test vault
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: testVaultPath }, null, 2), 'utf8');
+    console.log('[Test] Created config file to auto-load:', testVaultPath);
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
@@ -68,7 +79,7 @@ const test = base.extend<{
       await window.evaluate(async () => {
         const api = (window as unknown as ExtendedWindow).electronAPI;
         if (api) {
-          await api.stopFileWatching();
+          await api.main.stopFileWatching();
         }
       });
       await window.waitForTimeout(300);
@@ -78,9 +89,12 @@ const test = base.extend<{
 
     await electronApp.close();
     console.log('[Test] Electron app closed');
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
-  appWindow: async ({ electronApp, testVaultPath }, use) => {
+  appWindow: async ({ electronApp }, use) => {
     const window = await electronApp.firstWindow();
 
     window.on('console', msg => {
@@ -92,20 +106,28 @@ const test = base.extend<{
     });
 
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 5000 });
 
-    // Start watching the test vault
-    const watchResult = await window.evaluate(async (vaultPath) => {
-      const api = (window as unknown as ExtendedWindow).electronAPI;
-      if (!api) throw new Error('electronAPI not available');
-      return await api.startFileWatching(vaultPath);
-    }, testVaultPath);
+    // Check for errors before waiting for cytoscapeInstance
+    const hasErrors = await window.evaluate(() => {
+      const errors: string[] = [];
+      // Check if React rendered
+      if (!document.querySelector('#root')) errors.push('No #root element');
+      // Check if any error boundaries triggered
+      const errorText = document.body.textContent;
+      if (errorText?.includes('Error') || errorText?.includes('error')) {
+        errors.push(`Page contains error text: ${errorText.substring(0, 200)}`);
+      }
+      return errors;
+    });
 
-    expect(watchResult.success).toBe(true);
-    console.log('[Test] File watching started');
+    if (hasErrors.length > 0) {
+      console.error('Pre-initialization errors:', hasErrors);
+    }
 
-    // Wait for initial load
-    await window.waitForTimeout(200);
+    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+
+    // Wait for auto-load to complete (vault auto-loads via config file)
+    await window.waitForTimeout(1000);
 
     await use(window);
   }
@@ -163,7 +185,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       if (!api) throw new Error('electronAPI not available');
 
       // Get current graph state
-      const currentGraph = await api.graph.getState();
+      const currentGraph = await api.main.getGraph();
       if (!currentGraph) throw new Error('No graph state');
 
       // Get parent node
@@ -177,6 +199,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
         outgoingEdges: [],
         content: '# New GraphNode',
         nodeUIMetadata: {
+          title: 'New GraphNode',
           color: { _tag: 'None' } as const,
           position: { _tag: 'None' } as const // Will be positioned by layout
         }
@@ -201,7 +224,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       ];
 
       // Send to backend (which will update UI and write to file system)
-      await api.graph.applyGraphDelta(graphDelta);
+      await api.main.applyGraphDeltaToDBAndMem(graphDelta);
     });
 
     console.log('[Test] Waiting 2 seconds for file system events to propagate...');
@@ -223,7 +246,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       if (!api) throw new Error('electronAPI not available');
 
       // Get Graph state from main process
-      const graphState = await api.graph.getState();
+      const graphState = await api.main.getGraph();
 
       // Get Cytoscape node IDs
       const cytoscapeNodes = cy.nodes().map((n: NodeSingular) => ({
