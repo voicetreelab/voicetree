@@ -22,6 +22,7 @@ import type { GraphDelta } from '@/functional/pure/graph/types.ts'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { EXAMPLE_SMALL_PATH } from '@/test-utils/fixture-paths.ts'
+import { waitForCondition, waitForWatcherReady, waitForFSEvent } from '@/test-utils/waitForCondition.ts'
 
 // Track IPC broadcasts
 interface BroadcastCall {
@@ -109,31 +110,19 @@ describe('File Watching - Edge Management Tests', () => {
       await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
-      // Wait for watcher to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await waitForWatcherReady()
 
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-      // Wait for file to be detected
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let nodeAdded = false
-      const maxWaitTime = 5000
-      const pollInterval = 200
-      const startTime = Date.now()
-
-      while (Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        if (currentGraph.nodes['test-new-file']) {
-          nodeAdded = true
-          break
-        }
-      }
-
-      expect(nodeAdded).toBe(true)
+      // Wait for file to be detected and added to graph
+      await waitForFSEvent()
+      await waitForCondition(
+        () => !!getGraph().nodes['test-new-file'],
+        { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
+      )
 
       // WHEN: Append wikilink WITH .md to an existing file
       const targetFilePath = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
@@ -145,60 +134,42 @@ describe('File Watching - Edge Management Tests', () => {
       const updatedContent = originalContent + '\n\n[[test-new-file.md]]'
       await fs.writeFile(targetFilePath, updatedContent, 'utf-8')
 
-      // Wait for file change to be detected
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let edgeAdded = false
-      const edgeStartTime = Date.now()
-
-      while (Date.now() - edgeStartTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        const sourceNode = currentGraph.nodes['5_Immediate_Test_Observation_No_Output']
-        if (sourceNode?.outgoingEdges?.includes('test-new-file')) {
-          edgeAdded = true
-          break
-        }
-      }
+      // Wait for file change to be detected and edge to be created
+      await waitForFSEvent()
+      await waitForCondition(
+        () => {
+          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
+          return sourceNode?.outgoingEdges?.includes('test-new-file') ?? false
+        },
+        { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
+      )
 
       // THEN: Edge should be created (IDs always have .md extension stripped)
       const graph = getGraph()
       const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
 
-      expect(edgeAdded).toBe(true)
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges).toContain('test-new-file')
-    }, 15000)
+    }, 5000)
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
       // GIVEN: Load folder and create a new file
       await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
-      // Wait for watcher to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await waitForWatcherReady()
 
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-      // Wait for file to be detected
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let nodeAdded = false
-      const maxWaitTime = 5000
-      const pollInterval = 200
-      const startTime = Date.now()
-
-      while (Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        if (currentGraph.nodes['test-new-file']) {
-          nodeAdded = true
-          break
-        }
-      }
-
-      expect(nodeAdded).toBe(true)
+      // Wait for file to be detected and added to graph
+      await waitForFSEvent()
+      await waitForCondition(
+        () => !!getGraph().nodes['test-new-file'],
+        { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
+      )
 
       // WHEN: Append wikilink WITHOUT .md to an existing file
       const targetFilePath = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
@@ -210,59 +181,41 @@ describe('File Watching - Edge Management Tests', () => {
       const updatedContent = originalContent + '\n\n[[test-new-file]]'
       await fs.writeFile(targetFilePath, updatedContent, 'utf-8')
 
-      // Wait for file change to be detected
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let edgeAdded = false
-      const edgeStartTime = Date.now()
-
-      while (Date.now() - edgeStartTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        const sourceNode = currentGraph.nodes['5_Immediate_Test_Observation_No_Output']
-        if (sourceNode?.outgoingEdges?.includes('test-new-file')) {
-          edgeAdded = true
-          break
-        }
-      }
+      // Wait for file change to be detected and edge to be created
+      await waitForFSEvent()
+      await waitForCondition(
+        () => {
+          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
+          return sourceNode?.outgoingEdges?.includes('test-new-file') ?? false
+        },
+        { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
+      )
 
       // THEN: Edge should be created
-      expect(edgeAdded).toBe(true)
       const graph = getGraph()
       const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges).toContain('test-new-file')
-    }, 15000)
+    }, 5000)
 
     it('should remove edge when wikilink is removed from file content', async () => {
       // GIVEN: Load folder and create a new file with a wikilink
       await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
-      // Wait for watcher to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await waitForWatcherReady()
 
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent = '# Test New File\n\nThis is a test file.'
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-      // Wait for file to be detected
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let nodeAdded = false
-      const maxWaitTime = 5000
-      const pollInterval = 200
-      const startTime = Date.now()
-
-      while (Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        if (currentGraph.nodes['test-new-file']) {
-          nodeAdded = true
-          break
-        }
-      }
-
-      expect(nodeAdded).toBe(true)
+      // Wait for file to be detected and added to graph
+      await waitForFSEvent()
+      await waitForCondition(
+        () => !!getGraph().nodes['test-new-file'],
+        { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
+      )
 
       // Define clean original content without any wikilinks to test-new-file
       const targetFilePath = path.join(EXAMPLE_SMALL_PATH, '5_Immediate_Test_Observation_No_Output.md')
@@ -286,54 +239,41 @@ Parent:
 
       // First ensure the file is in clean state without the wikilink
       await fs.writeFile(targetFilePath, cleanOriginalContent, 'utf-8')
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await waitForFSEvent()
 
       // Add wikilink to existing file
       const updatedContent = cleanOriginalContent + '\n\n[[test-new-file]]'
       await fs.writeFile(targetFilePath, updatedContent, 'utf-8')
 
       // Wait for edge to be created
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let edgeAdded = false
-      const edgeStartTime = Date.now()
-
-      while (Date.now() - edgeStartTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        const sourceNode = currentGraph.nodes['5_Immediate_Test_Observation_No_Output']
-        if (sourceNode?.outgoingEdges?.includes('test-new-file')) {
-          edgeAdded = true
-          break
-        }
-      }
-
-      expect(edgeAdded).toBe(true)
+      await waitForFSEvent()
+      await waitForCondition(
+        () => {
+          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
+          return sourceNode?.outgoingEdges?.includes('test-new-file') ?? false
+        },
+        { maxWaitMs: 1000, errorMessage: 'Edge not added before removal test' }
+      )
 
       // WHEN: Remove the wikilink by resetting to clean original content
       await fs.writeFile(targetFilePath, cleanOriginalContent, 'utf-8')
 
-      // Wait for file change to be detected
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let edgeRemoved = false
-      const removeStartTime = Date.now()
-
-      while (Date.now() - removeStartTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        const sourceNode = currentGraph.nodes['5_Immediate_Test_Observation_No_Output']
-        if (!sourceNode?.outgoingEdges?.includes('test-new-file')) {
-          edgeRemoved = true
-          break
-        }
-      }
+      // Wait for file change to be detected and edge to be removed
+      await waitForFSEvent()
+      await waitForCondition(
+        () => {
+          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
+          return !sourceNode?.outgoingEdges?.includes('test-new-file')
+        },
+        { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
+      )
 
       // THEN: Edge should be removed
-      expect(edgeRemoved).toBe(true)
       const graph = getGraph()
       const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
       expect(sourceNode.outgoingEdges).toBeDefined()
       expect(sourceNode.outgoingEdges).not.toContain('test-new-file')
-    }, 15000)
+    }, 5000)
   })
 
   describe('BEHAVIOR: Frontmatter color parsing from filesystem events', () => {
@@ -342,8 +282,7 @@ Parent:
       await loadFolder(EXAMPLE_SMALL_PATH)
       expect(isWatching()).toBe(true)
 
-      // Wait for watcher to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await waitForWatcherReady()
 
       // WHEN: Create a new file with color in frontmatter
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-color-node.md')
@@ -366,35 +305,21 @@ Parent:
 
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
 
-      // Wait for file to be detected
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // THEN: Node should be added with color parsed from frontmatter
-      let nodeAddedWithColor = false
-      const maxWaitTime = 5000
-      const pollInterval = 200
-      const startTime = Date.now()
-
-      while (Date.now() - startTime < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
-        const currentGraph = getGraph()
-        const node = currentGraph.nodes['test-color-node']
-
-        if (node) {
-          // Check if color has been parsed correctly
-          if (node.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan') {
-            nodeAddedWithColor = true
-            break
-          }
-        }
-      }
+      // Wait for file to be detected and node to be added with color parsed
+      await waitForFSEvent()
+      await waitForCondition(
+        () => {
+          const node = getGraph().nodes['test-color-node']
+          return node?.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan'
+        },
+        { maxWaitMs: 1000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
+      )
 
       // THEN: Verify color was parsed from frontmatter
       const graph = getGraph()
       const node = graph.nodes['test-color-node']
 
       expect(node).toBeDefined()
-      expect(nodeAddedWithColor).toBe(true)
       expect(node.nodeUIMetadata.color._tag).toBe('Some')
       if (node.nodeUIMetadata.color._tag === 'Some') {
         expect(node.nodeUIMetadata.color.value).toBe('cyan')
@@ -404,6 +329,6 @@ Parent:
         expect(node.nodeUIMetadata.position.value.x).toBe(-819.9742978214647)
         expect(node.nodeUIMetadata.position.value.y).toBe(-1683.7117827984455)
       }
-    }, 15000)
+    }, 3000)
   })
 })

@@ -3,23 +3,24 @@ import { renderHook, act } from '@testing-library/react';
 import { useTranscriptionSender } from '@/hooks/useTranscriptionSender';
 import { type Token } from '@soniox/speech-to-text-web';
 
-// Mock fetch globally
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
 describe('useTranscriptionSender - Behavioral Tests', () => {
   const endpoint = 'http://localhost:8001/send-text';
+  let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default successful response
+
+    // Create and stub fetch for this test
+    mockFetch = vi.fn();
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ buffer_length: 100 }),
     });
+    vi.stubGlobal('fetch', mockFetch);
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 

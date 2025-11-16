@@ -20,17 +20,19 @@ vi.mock('@/utils/get-api-key', () => ({
   default: vi.fn(() => 'test-api-key'),
 }));
 
-// Track all network requests
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const networkRequests: Array<{ url: string; body: any }> = [];
+describe.sequential('VoiceTree Incremental Sending Integration', () => {
+  // Track network requests per-test (moved into describe for proper scoping)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let networkRequests: Array<{ url: string; body: any }> = [];
 
-describe('VoiceTree Incremental Sending Integration', () => {
   beforeEach(() => {
     // Clean up any leftover DOM state
     cleanup();
 
     vi.clearAllMocks();
-    networkRequests.length = 0;
+
+    // Reset network requests array for this test
+    networkRequests = [];
 
     // Ensure navigator.clipboard is properly mocked
     if (!navigator.clipboard) {
@@ -55,8 +57,8 @@ describe('VoiceTree Incremental Sending Integration', () => {
       configurable: true,
     });
 
-    // Mock fetch to track requests
-    global.fetch = vi.fn(async (url, options) => {
+    // Mock fetch to track requests - use vi.stubGlobal for proper cleanup
+    vi.stubGlobal('fetch', vi.fn(async (url, options) => {
       const body = options?.body ? JSON.parse(options.body as string) : null;
       networkRequests.push({ url: url as string, body });
 
@@ -64,12 +66,15 @@ describe('VoiceTree Incremental Sending Integration', () => {
         ok: true,
         json: async () => ({ buffer_length: 100 + networkRequests.length * 10 }),
       } as Response;
-    });
+    }));
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    // Allow any pending async operations to complete
+    await new Promise(resolve => setTimeout(resolve, 10));
   });
 
   it('should only send incremental text to backend, not accumulated text', async () => {
