@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getCachedSettings, setCachedSettings, clearCachedSettings } from './settings-cache';
+import { getCachedSettings, setCachedSettings, clearCachedSettings } from './settings-cache.ts';
 import type { Settings } from '@/functional/pure/settings';
 
 describe('settings-cache', () => {

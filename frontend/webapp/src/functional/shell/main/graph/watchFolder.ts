@@ -1,6 +1,6 @@
 import {loadGraphFromDisk} from "@/functional/shell/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts";
 import type {FilePath, Graph, GraphDelta} from "@/functional/pure/graph/types.ts";
-import {setGraph, setVaultPath} from "@/functional/shell/state/graph-store.ts";
+import {setGraph, setVaultPath} from "@/functional/shell/main/state/graph-store.ts";
 import {app, dialog} from "electron";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
@@ -11,7 +11,7 @@ import type {FSUpdate} from "@/functional/pure/graph/types.ts";
 import {handleFSEventWithStateAndUISides} from "@/functional/shell/main/graph/readAndDBEventsPath/handleFSEventWithStateAndUISides.ts";
 import {mapNewGraphToDelta} from "@/functional/pure/graph/graphDelta/mapNewGraphtoDelta.ts";
 import {applyGraphDeltaToMemStateAndUI} from "@/functional/shell/main/graph/readAndDBEventsPath/applyGraphDeltaToMemStateAndUI.ts";
-import {getMainWindow} from "@/functional/shell/state/app-electron-state.ts";
+import {getMainWindow} from "@/functional/shell/main/state/app-electron-state.ts";
 import {notifyTextToTreeServerOfDirectory} from "@/functional/shell/main/graph/readAndDBEventsPath/notifyTextToTreeServerOfDirectory.ts";
 import {getOnboardingDirectory} from "@/electron/onboarding-setup.ts";
 

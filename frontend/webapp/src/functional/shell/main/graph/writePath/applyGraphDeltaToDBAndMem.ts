@@ -3,7 +3,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import { pipe } from 'fp-ts/lib/function.js'
 import type { Env, Graph, GraphDelta } from '@/functional/pure/graph/types.ts'
 import { apply_graph_deltas_to_db } from '@/functional/pure/graph/applyGraphActionsToDB.ts'
-import {getGraph, getVaultPath, setGraph} from '@/functional/shell/state/graph-store.ts'
+import {getGraph, getVaultPath, setGraph} from '@/functional/shell/main/state/graph-store.ts'
 import type {Either} from "fp-ts/es6/Either";
 
 /**

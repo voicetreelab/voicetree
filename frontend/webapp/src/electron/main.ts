@@ -10,7 +10,7 @@ import { RealTextToTreeServerManager } from './server/RealTextToTreeServerManage
 import TerminalManager from './terminal-manager.ts';
 import { setupToolsDirectory, getToolsDirectory } from './tools-setup.ts';
 import { setupOnboardingDirectory } from './onboarding-setup.ts';
-import {setBackendPort, setMainWindow} from '@/functional/shell/state/app-electron-state.ts';
+import {setBackendPort, setMainWindow} from '@/functional/shell/main/state/app-electron-state.ts';
 import { registerTerminalIpcHandlers } from '@/functional/shell/main/ipc-terminal-handlers.ts';
 import { setupRPCHandlers } from '@/functional/shell/main/edge-auto-rpc/rpc-handler';
 

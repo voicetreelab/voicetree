@@ -27,7 +27,7 @@ import { createNewChildNodeFromUI, deleteNodeFromUI } from '@/functional/shell/U
 import type { Graph } from '@/functional/pure/graph/types.ts'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { setVaultPath, setGraph } from '@/functional/shell/state/graph-store.ts'
+import { setVaultPath, setGraph } from '@/functional/shell/main/state/graph-store.ts'
 
 // State managed by mocked globals - using module-level state that the mock functions will access
 let currentGraph: Graph | null = null
