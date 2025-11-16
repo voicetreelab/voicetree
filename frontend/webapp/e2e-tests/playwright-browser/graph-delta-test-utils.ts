@@ -24,45 +24,41 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
   await page.addInitScript(() => {
     // Create a comprehensive mock of the Electron API
     const mockElectronAPI = {
-      // Backend server configuration
-      getBackendPort: async () => 5001,
+      // Main API (RPC-based, matches mainAPI from functional/shell/main/api.ts)
+      main: {
+        // Graph operations
+        applyGraphDeltaToDBAndMem: async () => ({ success: true }),
+        getGraph: async () => {
+          // Return the current graph state that's updated by sendGraphDelta
+          return mockElectronAPI.graph._graphState;
+        },
 
-      // Directory selection
-      openDirectoryDialog: async () => ({ success: false }),
+        // Settings operations
+        loadSettings: async () => ({ success: false }),
+        saveSettings: async () => ({ success: true }),
 
-      // File watching controls
-      startFileWatching: async (dir: string) => {
-        console.log('[Mock] startFileWatching called with:', dir);
-        return { success: true, directory: dir };
+        // File watching controls
+        startFileWatching: async (dir: string) => {
+          console.log('[Mock] startFileWatching called with:', dir);
+          return { success: true, directory: dir };
+        },
+        stopFileWatching: async () => {
+          console.log('[Mock] stopFileWatching called');
+          return { success: true };
+        },
+        getWatchStatus: async () => ({ isWatching: false, directory: null }),
+        loadPreviousFolder: async () => ({ success: false }),
+
+        // Backend server configuration
+        getBackendPort: async () => 5001,
       },
-      stopFileWatching: async () => {
-        console.log('[Mock] stopFileWatching called');
-        return { success: true };
-      },
-      getWatchStatus: async () => ({ isWatching: false, directory: null }),
-      loadPreviousFolder: async () => ({ success: false }),
 
       // File watching event listeners (no-op callbacks)
       onWatchingStarted: () => {},
-      onInitialFilesLoaded: () => {},
-      onFileAdded: () => {},
-      onFileChanged: () => {},
-      onFileDeleted: () => {},
-      onDirectoryAdded: () => {},
-      onDirectoryDeleted: () => {},
-      onInitialScanComplete: () => {},
-      onFileWatchError: () => {},
-      onFileWatchInfo: () => {},
       onFileWatchingStopped: () => {},
 
       // Remove event listeners
       removeAllListeners: () => {},
-
-      // File content management
-      saveFileContent: async () => ({ success: true }),
-      deleteFile: async () => ({ success: true }),
-      createChildNode: async () => ({ success: true }),
-      createStandaloneNode: async () => ({ success: true }),
 
       // Terminal API
       terminal: {
@@ -127,6 +123,7 @@ export function createTestGraphDelta(): GraphDelta {
         content: '# Introduction\\nThis is the introduction node.',
         outgoingEdges: ['test-node-2.md'],
         nodeUIMetadata: {
+          title: 'Introduction',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 100, y: 100 } } as const
         }
@@ -139,6 +136,7 @@ export function createTestGraphDelta(): GraphDelta {
         content: '# Architecture\\nArchitecture documentation.',
         outgoingEdges: ['test-node-3.md'],
         nodeUIMetadata: {
+          title: 'Architecture',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 300, y: 150 } } as const
         }
@@ -151,6 +149,7 @@ export function createTestGraphDelta(): GraphDelta {
         content: '# Core Principles\\nCore principles guide.',
         outgoingEdges: [],
         nodeUIMetadata: {
+          title: 'Core Principles',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 500, y: 200 } } as const
         }
@@ -163,6 +162,7 @@ export function createTestGraphDelta(): GraphDelta {
         content: '# API Design\\nAPI design patterns.',
         outgoingEdges: [],
         nodeUIMetadata: {
+          title: 'API Design',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 700, y: 250 } } as const
         }
@@ -175,6 +175,7 @@ export function createTestGraphDelta(): GraphDelta {
         content: '# Testing Guide\\nHow to test the system.',
         outgoingEdges: [],
         nodeUIMetadata: {
+          title: 'Testing Guide',
           color: { _tag: 'None' } as const,
           position: { _tag: 'Some', value: { x: 900, y: 300 } } as const
         }

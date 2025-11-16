@@ -35,10 +35,12 @@ interface CodeMirrorElement extends HTMLElement {
 
 interface ExtendedWindowWithGraph extends ExtendedWindow {
   electronAPI?: {
-    graph?: {
-      applyGraphDelta: (delta: GraphDelta) => Promise<{ success: boolean }>;
-      getState: () => Promise<{ nodes: Record<string, GraphNode> }>;
+    main?: {
+      applyGraphDeltaToDBAndMem: (delta: GraphDelta) => Promise<{ success: boolean }>;
+      getGraph: () => Promise<{ nodes: Record<string, GraphNode> }>;
       _graphState: { nodes: Record<string, GraphNode> };
+    };
+    graph?: {
       _updateCallback?: (delta: GraphDelta) => void;
     };
   };
@@ -90,12 +92,13 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
 
   await page.addInitScript(() => {
     const api = (window as unknown as ExtendedWindowWithGraph).electronAPI;
-    if (api && api.graph) {
-      const originalApplyGraphDelta = api.graph.applyGraphDelta;
+    if (api && api.main && api.graph) {
+      const originalApplyGraphDelta = api.main.applyGraphDeltaToDBAndMem;
+      const graphState = api.main._graphState;
 
-      // Override applyGraphDelta to simulate filesystem feedback
-      api.graph.applyGraphDelta = async (delta: GraphDelta) => {
-        console.log('[Mock] applyGraphDelta called with', delta.length, 'operations');
+      // Override applyGraphDeltaToDBAndMem to simulate filesystem feedback
+      api.main.applyGraphDeltaToDBAndMem = async (delta: GraphDelta) => {
+        console.log('[Mock] applyGraphDeltaToDBAndMem called with', delta.length, 'operations');
 
         // Store the content being saved
         let savedContent: string | null = null;
@@ -105,12 +108,12 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
         delta.forEach((nodeDelta) => {
           if (nodeDelta.type === 'UpsertNode') {
             const node = nodeDelta.nodeToUpsert;
-            api.graph!._graphState.nodes[node.relativeFilePathIsID] = node;
+            graphState.nodes[node.relativeFilePathIsID] = node;
             savedContent = node.content;
             nodeId = node.relativeFilePathIsID;
             console.log('[Mock] Captured save for node:', nodeId, 'content length:', savedContent.length);
           } else if (nodeDelta.type === 'DeleteNode') {
-            delete api.graph!._graphState.nodes[nodeDelta.nodeId];
+            delete graphState.nodes[nodeDelta.nodeId];
           }
         });
 
@@ -119,7 +122,8 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
 
         // SIMULATE FILESYSTEM FEEDBACK with a delay
         // In the real app, this would come from chokidar watching the file
-        if (savedContent !== null && nodeId !== null && api.graph!._updateCallback) {
+        const updateCallback = api.graph?._updateCallback;
+        if (savedContent !== null && nodeId !== null && updateCallback) {
           console.log('[Mock] Scheduling filesystem feedback for node:', nodeId);
 
           // Simulate the time it takes for:
@@ -130,11 +134,11 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
             const feedbackDelta: GraphDelta = [
               {
                 type: 'UpsertNode',
-                nodeToUpsert: api.graph!._graphState.nodes[nodeId!]
+                nodeToUpsert: graphState.nodes[nodeId!]
               }
             ];
             console.log('[Mock] Triggering filesystem feedback for node:', nodeId);
-            api.graph!._updateCallback!(feedbackDelta);
+            updateCallback(feedbackDelta);
           }, 100); // Small delay to simulate filesystem I/O and event propagation
         }
 
@@ -187,6 +191,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
           content: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Test Feedback Loop',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
           }
@@ -283,6 +288,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
           content: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Rapid Edits Test',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
           }

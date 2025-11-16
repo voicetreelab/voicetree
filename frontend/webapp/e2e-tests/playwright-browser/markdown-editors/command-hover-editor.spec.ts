@@ -9,7 +9,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@test/playwright-browser/graph-delta-test-utils.ts';
+} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
 test.describe('Command Hover Editor (Browser)', () => {
@@ -54,6 +54,7 @@ test.describe('Command Hover Editor (Browser)', () => {
           content: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Hover Test',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 500, y: 500 } } as const
           }
@@ -100,7 +101,7 @@ test.describe('Command Hover Editor (Browser)', () => {
 
     const hoverContent = await page.evaluate((selector) => {
       const cmContent = document.querySelector(`${selector} .cm-content`);
-      return cmContent?.textContent || '';
+      return cmContent?.textContent ?? '';
     }, hoverEditorSelector);
 
     console.log(`  Hover editor content: "${hoverContent}"`);
@@ -149,7 +150,7 @@ test.describe('Command Hover Editor (Browser)', () => {
     await page.waitForSelector(`${hoverEditorSelector} .cm-content`, { timeout: 3000 });
     const reopenedContent = await page.evaluate((selector) => {
       const cmContent = document.querySelector(`${selector} .cm-content`);
-      return cmContent?.textContent || '';
+      return cmContent?.textContent ?? '';
     }, hoverEditorSelector);
 
     expect(reopenedContent).toContain('Hover Test');

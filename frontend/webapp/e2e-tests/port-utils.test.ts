@@ -4,13 +4,14 @@
  * and all run successfully without conflicts.
  *
  * This test ACTUALLY spawns real Python backend servers to verify
- * port discovery works in real-world scenarios.
+ * port discovery works in real-world scenarios. Therefore it takes a long amount of time,
+ * so we don't want it to auto-run with vitest.
  */
 
 import { describe, it, expect, afterAll } from 'vitest';
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
-import { findAvailablePort, isPortAvailable } from './port-utils';
+import { findAvailablePort, isPortAvailable } from '@/electron/port-utils';
 
 describe('port-utils integration test', () => {
   const serverProcesses: ChildProcess[] = [];

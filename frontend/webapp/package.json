@@ -17,6 +17,8 @@
     "test:e2e": "electron-vite build && playwright test --config=playwright-electron.config.ts",
     "test:electron": "electron-vite build --logLevel silent && playwright test --config=playwright-electron.config.ts",
     "test:browser": "playwright test e2e-tests/playwright-browser",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
     "electron": "npx kill-port 3000 2>/dev/null || true && electron-vite dev --watch",
     "electron:prod": "electron-vite build && electron .",
     "electron:build": "electron-vite build",

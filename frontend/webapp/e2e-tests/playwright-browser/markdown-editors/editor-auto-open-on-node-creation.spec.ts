@@ -22,9 +22,11 @@ import type { GraphNode } from '@/functional/pure/graph/types';
 
 interface ExtendedWindowWithAll extends ExtendedWindow {
   electronAPI?: {
+    main: {
+      applyGraphDeltaToDBAndMem: (delta: GraphDelta) => Promise<{ success: boolean }>;
+      getGraph: () => Promise<{ nodes: Record<string, GraphNode> }>;
+    };
     graph: {
-      applyGraphDelta: (delta: GraphDelta) => Promise<{ success: boolean }>;
-      getState: () => Promise<{ nodes: Record<string, GraphNode> }>;
       _graphState: { nodes: Record<string, unknown> };
       _updateCallback?: (delta: GraphDelta) => void;
     };
@@ -43,10 +45,10 @@ async function setupExtendedMockElectronAPI(page: Page): Promise<void> {
   // Add additional handlers needed for node creation
   await page.addInitScript(() => {
     const api = (window as unknown as ExtendedWindowWithAll).electronAPI;
-    if (api && api.graph) {
-      // Mock applyGraphDelta to update state immediately
-      api.graph.applyGraphDelta = async (delta: GraphDelta) => {
-        console.log('[Mock] applyGraphDelta called with', delta.length, 'operations');
+    if (api && api.main && api.graph) {
+      // Mock applyGraphDeltaToDBAndMem to update state immediately
+      api.main.applyGraphDeltaToDBAndMem = async (delta: GraphDelta) => {
+        console.log('[Mock] applyGraphDeltaToDBAndMem called with', delta.length, 'operations');
 
         // Update graph state
         delta.forEach((nodeDelta) => {
@@ -111,6 +113,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
           content: parentContent,
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Parent Node',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
           }
@@ -132,7 +135,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
       if (parentNode.length === 0) throw new Error('Parent node not found');
 
       // Get graph state
-      const graphState = await (window as unknown as ExtendedWindowWithAll).electronAPI?.graph.getState();
+      const graphState = await (window as unknown as ExtendedWindowWithAll).electronAPI?.main.getGraph();
       if (!graphState) throw new Error('No graph state');
 
       const parentGraphNode = graphState.nodes['parent-node.md'];
@@ -148,6 +151,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
         content: '# New Node',
         outgoingEdges: [],
         nodeUIMetadata: {
+          title: 'New Node',
           color: { _tag: 'None' } as const,
           position: { _tag: 'None' } as const // Cola will position it
         }
@@ -165,7 +169,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
       ];
 
       // Apply delta (this will trigger UI update)
-      await (window as unknown as ExtendedWindowWithAll).electronAPI?.graph.applyGraphDelta(delta);
+      await (window as unknown as ExtendedWindowWithAll).electronAPI?.main.applyGraphDeltaToDBAndMem(delta);
 
       // Wait a bit for node to be added to cy
       await new Promise(resolve => setTimeout(resolve, 500));

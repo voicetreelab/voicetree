@@ -31,7 +31,7 @@ export default function VoiceTreeTranscribe() {
       if (port) {
         setBackendPort(port);
       }
-    });
+    }).catch(() => alert("port error"));
   }, []);
 
   // Use the new transcription sender hook

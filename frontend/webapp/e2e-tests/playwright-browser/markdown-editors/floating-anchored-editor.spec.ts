@@ -54,6 +54,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
           content: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Test Node',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 400, y: 400 } } as const
           }
@@ -85,7 +86,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
 
     const editorContent = await page.evaluate((selector) => {
       const cmContent = document.querySelector(`${selector} .cm-content`);
-      return cmContent?.textContent || '';
+      return cmContent?.textContent ?? '';
     }, editorSelector);
 
     console.log(`  Editor content: "${editorContent}"`);
@@ -98,7 +99,9 @@ test.describe('Floating Anchored Editor (Browser)', () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
       // The editor is now anchored to a child shadow node
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
+      // Child shadow ID format: shadow-child-{parentNodeId}-{floatingWindowId}
+      // floatingWindowId = editor-{nodeId}
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-editor-test-editor-node\\.md');
       if (childShadowNode.length === 0) throw new Error('Child shadow node not found');
 
       // Verify parent relationship
@@ -122,7 +125,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     console.log('=== Step 8: Verify window has resizable CSS class ===');
     const hasResizableClass = await page.evaluate((selector) => {
       const windowEl = document.querySelector(selector);
-      return windowEl?.classList.contains('resizable') || false;
+      return windowEl?.classList.contains('resizable') ?? false;
     }, editorSelector);
     expect(hasResizableClass).toBe(true);
     console.log('✓ Window is resizable via CSS');
@@ -162,7 +165,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const childShadowNodePos = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-editor-test-editor-node\\.md');
       return childShadowNode.position();
     });
     console.log(`  Child shadow node pos: (${childShadowNodePos.x}, ${childShadowNodePos.y})`);
@@ -187,7 +190,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const childShadowNodeRemoved = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-editor-test-editor-node\\.md');
       return childShadowNode.length === 0;
     });
     expect(childShadowNodeRemoved).toBe(true);
@@ -210,7 +213,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     await page.waitForSelector(`${editorSelector} .cm-content`, { timeout: 3000 });
     const reopenedContent = await page.evaluate((selector) => {
       const cmContent = document.querySelector(`${selector} .cm-content`);
-      return cmContent?.textContent || '';
+      return cmContent?.textContent ?? '';
     }, editorSelector);
 
     expect(reopenedContent).toContain('Test Node');

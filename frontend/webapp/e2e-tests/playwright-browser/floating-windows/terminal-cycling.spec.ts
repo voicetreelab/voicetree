@@ -12,7 +12,7 @@ import {
   sendGraphDelta,
   waitForCytoscapeReady,
   type ExtendedWindow
-} from '@e2e/playwright-browser/graph-delta-test-utils';
+} from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 
 test.describe('Terminal Cycling (Browser)', () => {
   test('should cycle through floating terminals with Cmd+] and Cmd+[', async ({ page }) => {

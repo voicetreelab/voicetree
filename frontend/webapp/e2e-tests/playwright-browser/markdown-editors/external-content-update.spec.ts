@@ -58,6 +58,7 @@ test.describe('External Content Update (Browser)', () => {
           content: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Test Node',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 300, y: 300 } } as const
           }
@@ -94,10 +95,21 @@ test.describe('External Content Update (Browser)', () => {
     await page.waitForSelector('#window-editor-test-node\\.md .cm-content', { timeout: 3000 });
     console.log('✓ CodeMirror editor rendered');
 
+    // Wait for content to load (it starts as "loading..." and then updates to actual content)
+    await page.waitForFunction(
+      () => {
+        const cmContent = document.querySelector('#window-editor-test-node\\.md .cm-content');
+        const text = cmContent?.textContent ?? '';
+        return text !== 'loading...' && text.length > 0;
+      },
+      { timeout: 3000 }
+    );
+    console.log('✓ Content finished loading');
+
     // Get initial editor content
     const initialEditorContent = await page.evaluate(() => {
       const cmContent = document.querySelector('#window-editor-test-node\\.md .cm-content');
-      return cmContent?.textContent || '';
+      return cmContent?.textContent ?? '';
     });
 
     console.log(`  Initial editor content: "${initialEditorContent.substring(0, 50)}..."`);
@@ -115,6 +127,7 @@ test.describe('External Content Update (Browser)', () => {
           content: updatedContent,
           outgoingEdges: [],
           nodeUIMetadata: {
+            title: 'Test Node',
             color: { _tag: 'None' } as const,
             position: { _tag: 'Some', value: { x: 300, y: 300 } } as const
           }
@@ -131,7 +144,7 @@ test.describe('External Content Update (Browser)', () => {
     // Get updated editor content
     const updatedEditorContent = await page.evaluate(() => {
       const cmContent = document.querySelector('#window-editor-test-node\\.md .cm-content');
-      return cmContent?.textContent || '';
+      return cmContent?.textContent ?? '';
     });
 
     console.log(`  Updated editor content: "${updatedEditorContent.substring(0, 50)}..."`);
