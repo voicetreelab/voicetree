@@ -51,21 +51,6 @@ export class SearchService {
     // Append to body (not container, so it overlays everything)
     document.body.appendChild(this.ninjaKeys);
 
-    // Setup selection handler
-    this.ninjaKeys.addEventListener('selected', (e: Event) => {
-      console.log('[SearchService] Selected event fired:', e);
-      const customEvent = e as CustomEvent;
-      console.log('[SearchService] Event detail:', customEvent.detail);
-      const nodeId = customEvent.detail?.action?.id || customEvent.detail?.id;
-      console.log('[SearchService] Extracted nodeId:', nodeId);
-      if (nodeId) {
-        console.log('[SearchService] Calling onNodeSelect with:', nodeId);
-        this.onNodeSelect(nodeId);
-      } else {
-        console.warn('[SearchService] No nodeId found in event detail');
-      }
-    });
-
     // Build initial data
     this.updateSearchData();
 
@@ -95,8 +80,8 @@ export class SearchService {
 
     const searchData: NinjaAction[] = nodes.map((node) => {
       const nodeId = node.id();
-      const label = node.data('label') || nodeId;
-      const content = node.data('content') || ''; //todo are we setting content in node?
+      const label = node.data('label') ?? nodeId;
+      const content = node.data('content') ?? ''; //todo are we setting content in node?
 
       // Extract first line of content for description (max 300 chars)
       const firstLine = content.split('\n')[0].trim();
@@ -107,7 +92,7 @@ export class SearchService {
       return {
         id: nodeId,
         title: label,
-        description: description || undefined,
+        description: description ?? undefined,
         handler: () => {
           console.log('[SearchService] Handler called for nodeId:', nodeId);
           this.onNodeSelect(nodeId);

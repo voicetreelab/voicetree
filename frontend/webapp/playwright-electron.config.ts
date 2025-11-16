@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: false, // Run e2e-tests sequentially for Electron
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 1, // Single worker for Electron e2e-tests
+  workers: 5, // Single worker for Electron e2e-tests
   // Suppress noisy internal warnings
   quiet: process.env.PLAYWRIGHT_QUIET !== 'false',
   reporter: [
@@ -25,7 +25,7 @@ export default defineConfig({
   },
 
   // Longer timeout for Electron app startup
-  timeout: 60000,
+  timeout: 30000,
 
   projects: [
     {
