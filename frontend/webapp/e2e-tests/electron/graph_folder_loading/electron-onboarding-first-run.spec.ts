@@ -20,7 +20,7 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/types/electron';
+import type { ElectronAPI } from '@/utils/types/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -146,7 +146,7 @@ test.describe('Onboarding First Run', () => {
     // Verify exactly 5 nodes (the 5 onboarding markdown files)
     expect(nodeCount).toBe(5);
 
-    // Step 5: Verify Cytoscape UI has rendered the nodes
+    // Step 5: Verify Cytoscape UI-edge has rendered the nodes
     const cytoscapeState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');

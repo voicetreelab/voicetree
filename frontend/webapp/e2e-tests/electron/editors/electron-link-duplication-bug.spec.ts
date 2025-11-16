@@ -426,8 +426,8 @@ End of content.`;
     expect(finalLinkCount).toBe(0);
 
     // 9. Verify edge behavior in graph after link removal
-    // Wait for file watcher to process the change and update the graph UI
-    console.log('⏳ Waiting for file watcher to update graph UI...');
+    // Wait for file watcher to process the change and update the graph UI-edge
+    console.log('⏳ Waiting for file watcher to update graph UI-edge...');
     await appWindow.waitForTimeout(5000);
 
     const edgeExistsAfterRemoval = await appWindow.evaluate(({ sourceId, targetId }) => {

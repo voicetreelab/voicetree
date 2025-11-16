@@ -15,10 +15,10 @@ import {
   waitForCytoscapeReady,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
-import type { GraphDelta } from '@/functional/pure/graph/types.ts';
+import type { GraphDelta } from '@/pure/graph';
 
 import type { Page } from '@playwright/test';
-import type { GraphNode } from '@/functional/pure/graph/types';
+import type { GraphNode } from '@/pure/graph';
 
 // Custom fixture to capture console logs and only show on failure
 type ConsoleCapture = {
@@ -107,7 +107,7 @@ async function setupExtendedMockElectronAPI(page: Page): Promise<void> {
           }
         });
 
-        // Immediately trigger the graph update callback to apply to UI
+        // Immediately trigger the graph update callback to apply to UI-edge
         if (api.graph._updateCallback) {
           api.graph._updateCallback(delta);
         }
@@ -203,7 +203,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
         { type: 'UpsertNode' as const, nodeToUpsert: updatedParent }
       ];
 
-      // Apply delta (this will trigger UI update)
+      // Apply delta (this will trigger UI-edge update)
       await (window as unknown as ExtendedWindowWithAll).electronAPI?.main.applyGraphDeltaToDBAndMem(delta);
 
       // Wait a bit for node to be added to cy

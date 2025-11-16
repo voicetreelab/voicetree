@@ -11,7 +11,7 @@ import {
   getNodeCount,
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
-import type { GraphDelta } from '@/functional/pure/graph/types';
+import type { GraphDelta } from '@/pure/graph';
 
 // Custom fixture to capture console logs and only show on failure
 type ConsoleCapture = {

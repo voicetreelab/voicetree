@@ -5,7 +5,7 @@
  * This test verifies that initialLoad() is called on startup and automatically loads a graph into memory
  * without any manual intervention (no manual startFileWatching calls).
  *
- * This is a minimal smoke test - we don't verify UI functionality, just core startup behavior.
+ * This is a minimal smoke test - we don't verify UI-edge functionality, just core startup behavior.
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
@@ -14,7 +14,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/types/electron';
+import type { ElectronAPI } from '@/utils/types/electron';
 
 // Use absolute paths
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -123,7 +123,7 @@ test.describe('Smoke Test', () => {
     console.log(`✓ Graph automatically loaded into state with ${nodeCount} nodes`);
     expect(nodeCount).toBeGreaterThan(1);
 
-    // Verify graph was rendered in Cytoscape UI
+    // Verify graph was rendered in Cytoscape UI-edge
     const cytoscapeState = await appWindow.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');

@@ -2,14 +2,14 @@
  * Test for add child node duplicate bug
  *
  * Purpose: Verify that adding a child node from context menu only creates ONE node in cytoscape,
- * not duplicates from optimistic UI update + file system event
+ * not duplicates from optimistic UI-edge update + file system event
  */
 
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import type { Core as CytoscapeCore, NodeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/types/electron';
+import type { ElectronAPI } from '@/utils/types/electron';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 
@@ -171,7 +171,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     // This simulates what happens when user clicks "Create Child" in context menu:
     // 1. Gets graph state
     // 2. Creates GraphDelta
-    // 3. Applies optimistic UI update
+    // 3. Applies optimistic UI-edge update
     // 4. Sends delta to backend
     // 5. Backend writes file
     // 6. File watcher detects file
@@ -223,14 +223,14 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
         }
       ];
 
-      // Send to backend (which will update UI and write to file system)
+      // Send to backend (which will update UI-edge and write to file system)
       await api.main.applyGraphDeltaToDBAndMem(graphDelta);
     });
 
     console.log('[Test] Waiting 2 seconds for file system events to propagate...');
 
     // Wait for:
-    // 1. Optimistic UI update (immediate)
+    // 1. Optimistic UI-edge update (immediate)
     // 2. File write to complete
     // 3. File watcher to detect and process the new file
     await appWindow.waitForTimeout(2000);
@@ -289,7 +289,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     console.log('  GraphNode IDs:', finalState.graphNodeIds);
     console.log('  GraphNode details:', JSON.stringify(finalState.graphNodeDetails, null, 2));
     console.log('=====================================');
-    console.log('[Test] CYTOSCAPE STATE (UI)');
+    console.log('[Test] CYTOSCAPE STATE (UI-edge)');
     console.log('  GraphNode count:', finalState.cytoscapeNodeCount);
     console.log('  GraphNode IDs:', finalState.cytoscapeNodeIds);
     console.log('  All node IDs (incl ghost):', finalState.allCytoscapeNodeIds);

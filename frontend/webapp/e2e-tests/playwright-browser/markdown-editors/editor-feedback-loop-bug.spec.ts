@@ -9,7 +9,7 @@
  * 5. This would overwrite the editor content, even though user has typed MORE since step 1
  *
  * THE BUG HAS BEEN FIXED:
- * The fix uses awaitingUISavedContent map to track content that was saved from the UI.
+ * The fix uses awaitingUISavedContent map to track content that was saved from the UI-edge.
  * When a filesystem event arrives with content matching what we just saved,
  * FloatingWindowManager.updateFloatingEditors ignores it to prevent the feedback loop.
  *
@@ -25,7 +25,7 @@ import {
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { Page } from '@playwright/test';
-import type { GraphDelta, GraphNode } from '@/functional/pure/graph/types';
+import type { GraphDelta, GraphNode } from '@/pure/graph';
 import type { EditorView } from '@codemirror/view';
 
 // Custom fixture to capture console logs and only show on failure

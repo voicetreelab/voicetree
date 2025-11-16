@@ -60,9 +60,8 @@ export default tseslint.config([
   // Functional programming rules for functional architecture files
   {
     files: [
-      'src/functional/**/*.ts',
-      'src/graph-core/functional/**/*.ts',
-        '**/functional/**/*.ts',
+      '**/pure/**/*.ts',
+      '**/functional/**/*.ts',
     ],
     plugins: {
       functional

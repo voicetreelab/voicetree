@@ -1,6 +1,6 @@
 /**
  * BEHAVIORAL SPEC:
- * E2E test for the full settings integration workflow from UI to terminal spawn.
+ * E2E test for the full settings integration workflow from UI-edge to terminal spawn.
  *
  * This test verifies the COMPLETE flow:
  * 0. Original settings are saved for restoration at the end
@@ -28,8 +28,8 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import type { Core as CytoscapeCore } from 'cytoscape';
-import type { ElectronAPI } from '@/types/electron';
-import type { Settings } from '@/functional/pure/settings';
+import type { ElectronAPI } from '@/utils/types/electron';
+import type { Settings } from '@/pure/settings';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
@@ -103,7 +103,7 @@ const test = base.extend<{
 });
 
 test.describe('Settings Integration E2E', () => {
-  test('should read defaults, edit via UI, save, and use new command in terminal spawn', async ({ appWindow }) => {
+  test('should read defaults, edit via UI-edge, save, and use new command in terminal spawn', async ({ appWindow }) => {
     test.setTimeout(30000); // 30 second timeout for this complex workflow
 
     console.log('=== STEP 0: Save original settings for later restoration ===');

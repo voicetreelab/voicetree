@@ -15,7 +15,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { Core as CytoscapeCore, NodeSingular, EdgeSingular } from 'cytoscape';
-import type { ElectronAPI } from '@/types/electron';
+import type { ElectronAPI } from '@/utils/types/electron';
 
 // Use absolute paths for example_folder_fixtures
 const PROJECT_ROOT = path.resolve(process.cwd());
