@@ -3,7 +3,7 @@
  * Tests that when a graph delta event updates node content, the floating editor reflects the change
  */
 
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   sendGraphDelta,
@@ -12,22 +12,55 @@ import {
 } from '@test/playwright-browser/graph-delta-test-utils.ts';
 import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
-test.describe('External Content Update (Browser)', () => {
-  test('should update floating editor content when graph delta event arrives', async ({ page }) => {
-    console.log('\n=== Starting external content update test (Browser) ===');
+// Custom fixture to capture console logs and only show on failure
+type ConsoleCapture = {
+  consoleLogs: string[];
+  pageErrors: string[];
+  testLogs: string[];
+};
 
-    // Listen for console messages (errors, warnings, logs)
+const test = base.extend<{ consoleCapture: ConsoleCapture }>({
+  consoleCapture: async ({ page }, use, testInfo) => {
+    const consoleLogs: string[] = [];
+    const pageErrors: string[] = [];
+    const testLogs: string[] = [];
+
+    // Capture browser console
     page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      console.log(`[Browser ${type}] ${text}`);
+      consoleLogs.push(`[Browser ${msg.type()}] ${msg.text()}`);
     });
 
-    // Listen for page errors (uncaught exceptions)
     page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
-      console.error(error.stack);
+      pageErrors.push(`[Browser Error] ${error.message}\n${error.stack ?? ''}`);
     });
+
+    // Capture test's own console.log
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      testLogs.push(args.map(arg => String(arg)).join(' '));
+    };
+
+    await use({ consoleLogs, pageErrors, testLogs });
+
+    // Restore original console.log
+    console.log = originalLog;
+
+    // After test completes, check if it failed and print logs
+    if (testInfo.status !== 'passed') {
+      console.log('\n=== Test Logs ===');
+      testLogs.forEach(log => console.log(log));
+      console.log('\n=== Browser Console Logs ===');
+      consoleLogs.forEach(log => console.log(log));
+      if (pageErrors.length > 0) {
+        console.log('\n=== Browser Errors ===');
+        pageErrors.forEach(err => console.log(err));
+      }
+    }
+  }
+});
+
+test.describe('External Content Update (Browser)', () => {
+  test('should update floating editor content when graph delta event arrives', async ({ page, consoleCapture: _consoleCapture }) => {
 
     console.log('=== Step 1: Mock Electron API BEFORE navigation ===');
     await setupMockElectronAPI(page);
@@ -41,7 +74,7 @@ test.describe('External Content Update (Browser)', () => {
     console.log('✓ React rendered');
 
     // Wait for graph update handler to be registered
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(10);
     console.log('✓ Graph update handler should be registered');
 
     console.log('=== Step 3: Wait for Cytoscape to initialize ===');
@@ -68,7 +101,7 @@ test.describe('External Content Update (Browser)', () => {
     await sendGraphDelta(page, initialGraphDelta);
 
     // Wait for node to be added to graph
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
     console.log('✓ Initial graph delta sent');
 
     console.log('=== Step 5: Open markdown editor by triggering tap event on node ===');
@@ -83,7 +116,7 @@ test.describe('External Content Update (Browser)', () => {
     });
 
     // Wait for editor to open and render
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Triggered tap event on node');
 
     console.log('=== Step 6: Wait for editor window to appear and verify initial content ===');
@@ -137,7 +170,7 @@ test.describe('External Content Update (Browser)', () => {
     await sendGraphDelta(page, updateGraphDelta);
 
     // Wait for content to update
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Update graph delta sent');
 
     console.log('=== Step 8: Verify editor content has been updated ===');

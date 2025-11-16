@@ -3,7 +3,7 @@
  * Tests editor creation with child shadow node, content display, anchoring behavior, close/reopen
  */
 
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   sendGraphDelta,
@@ -12,21 +12,56 @@ import {
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
-test.describe('Floating Anchored Editor (Browser)', () => {
-  test('should create editor anchored to child shadow node, show content, follow parent node, and cleanup on close', async ({ page }) => {
-    console.log('\n=== Starting floating anchored editor test (Browser) ===');
+// Custom fixture to capture console logs and only show on failure
+type ConsoleCapture = {
+  consoleLogs: string[];
+  pageErrors: string[];
+  testLogs: string[];
+};
 
-    // Listen for console messages
+const test = base.extend<{ consoleCapture: ConsoleCapture }>({
+  consoleCapture: async ({ page }, use, testInfo) => {
+    const consoleLogs: string[] = [];
+    const pageErrors: string[] = [];
+    const testLogs: string[] = [];
+
+    // Capture browser console
     page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      console.log(`[Browser ${type}] ${text}`);
+      consoleLogs.push(`[Browser ${msg.type()}] ${msg.text()}`);
     });
 
     page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
-      console.error(error.stack);
+      pageErrors.push(`[Browser Error] ${error.message}\n${error.stack ?? ''}`);
     });
+
+    // Capture test's own console.log
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      testLogs.push(args.map(arg => String(arg)).join(' '));
+    };
+
+    await use({ consoleLogs, pageErrors, testLogs });
+
+    // Restore original console.log
+    console.log = originalLog;
+
+    // After test completes, check if it failed and print logs
+    if (testInfo.status !== 'passed') {
+      console.log('\n=== Test Logs ===');
+      testLogs.forEach(log => console.log(log));
+      console.log('\n=== Browser Console Logs ===');
+      consoleLogs.forEach(log => console.log(log));
+      if (pageErrors.length > 0) {
+        console.log('\n=== Browser Errors ===');
+        pageErrors.forEach(err => console.log(err));
+      }
+    }
+  }
+});
+
+test.describe('Floating Anchored Editor (Browser)', () => {
+  test('should create editor anchored to child shadow node, show content, follow parent node, and cleanup on close', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting floating anchored editor test (Browser) ===');
 
     console.log('=== Step 1: Setup mock Electron API ===');
     await setupMockElectronAPI(page);
@@ -37,7 +72,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('✓ React rendered');
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Graph update handler registered');
 
     console.log('=== Step 3: Wait for Cytoscape ===');
@@ -62,7 +97,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
       }
     ];
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
     console.log('✓ Graph delta sent');
 
     console.log('=== Step 5: Open editor via tap event ===');
@@ -73,7 +108,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
       if (node.length === 0) throw new Error('test-editor-node.md not found');
       node.trigger('tap');
     });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Tap event triggered');
 
     console.log('=== Step 6: Verify editor window and content ===');
@@ -146,7 +181,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
       const node = cy.$('#test-editor-node.md');
       node.position({ x: 600, y: 600 });
     });
-    await page.waitForTimeout(500); // Wait for layout to settle
+    await page.waitForTimeout(50); // Wait for layout to settle
     console.log('✓ Dragged anchor node');
 
     const newNodePos = await page.evaluate(() => {
@@ -176,7 +211,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     console.log('=== Step 10: Close editor and verify cleanup ===');
     const closeButton = await page.locator(`${editorSelector} .cy-floating-window-close`);
     await closeButton.click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
     console.log('✓ Clicked close button');
 
     // Verify editor is gone
@@ -203,7 +238,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
       const node = cy.$('#test-editor-node.md');
       node.trigger('tap');
     });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Tap event triggered again');
 
     // Verify editor reopened

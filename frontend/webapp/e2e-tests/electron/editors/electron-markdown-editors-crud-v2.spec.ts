@@ -66,7 +66,7 @@ const test = base.extend<{
         }
       });
       // Wait for pending file system events to drain
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(30);
     } catch {
       // Window might already be closed, that's okay
       console.log('Note: Could not stop file watching during cleanup (window may be closed)');
@@ -110,7 +110,7 @@ const test = base.extend<{
     }
 
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(100);
 
     await use(page);
   }

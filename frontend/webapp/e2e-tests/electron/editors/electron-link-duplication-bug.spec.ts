@@ -79,7 +79,7 @@ const test = base.extend<{
           await api.main.stopFileWatching();
         }
       });
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(30);
     } catch {
       console.log('Note: Could not stop file watching during cleanup');
     }
@@ -120,7 +120,7 @@ const test = base.extend<{
     }
 
     await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(100);
 
     await use(page);
   }

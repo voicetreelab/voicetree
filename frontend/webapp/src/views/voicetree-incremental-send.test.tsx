@@ -20,19 +20,28 @@ vi.mock('@/utils/get-api-key', () => ({
   default: vi.fn(() => 'test-api-key'),
 }));
 
+// Shared request pool for all parallel tests - thread-safe approach
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const globalRequestPool = new Map<string, Array<{ url: string; body: any }>>();
+
 describe.sequential('VoiceTree Incremental Sending Integration', () => {
-  // Track network requests per-test (moved into describe for proper scoping)
+  // Use a unique test ID for this describe block's test instances
+  let testId: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let networkRequests: Array<{ url: string; body: any }> = [];
+  let originalFetch: typeof fetch;
+  let fetchMockInstalled = false;
 
   beforeEach(() => {
+    // Generate unique ID for this test execution
+    testId = `test-${Date.now()}-${Math.random()}`;
+    networkRequests = [];
+    globalRequestPool.set(testId, networkRequests);
+
     // Clean up any leftover DOM state
     cleanup();
 
     vi.clearAllMocks();
-
-    // Reset network requests array for this test
-    networkRequests = [];
 
     // Ensure navigator.clipboard is properly mocked
     if (!navigator.clipboard) {
@@ -46,30 +55,63 @@ describe.sequential('VoiceTree Incremental Sending Integration', () => {
       });
     }
 
-    // Mock window.electronAPI - always reset to ensure clean state
+    // Mock window.electronAPI with test-specific ID in port
     Object.defineProperty(window, 'electronAPI', {
       value: {
         main: {
           getBackendPort: vi.fn(() => Promise.resolve(8001)),
         },
+        __testId: testId, // Tag the API with test ID
       },
       writable: true,
       configurable: true,
     });
 
-    // Mock fetch to track requests - use vi.stubGlobal for proper cleanup
-    vi.stubGlobal('fetch', vi.fn(async (url, options) => {
-      const body = options?.body ? JSON.parse(options.body as string) : null;
-      networkRequests.push({ url: url as string, body });
+    // Install fetch mock once at the global level (not per-test)
+    if (!fetchMockInstalled) {
+      originalFetch = global.fetch;
+      fetchMockInstalled = true;
+    }
 
+    global.fetch = vi.fn(async (url, options) => {
+      const urlString = url as string;
+
+      // Only track requests to send-text endpoint
+      if (urlString.includes('/send-text')) {
+        const body = options?.body ? JSON.parse(options.body as string) : null;
+
+        // Get the test ID from the current window.electronAPI (set by component)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const currentTestId = ((window as any).electronAPI as any)?.__testId ?? testId;
+        const requests = globalRequestPool.get(currentTestId);
+
+        if (requests) {
+          requests.push({ url: urlString, body });
+
+          return {
+            ok: true,
+            json: async () => ({ buffer_length: 100 + requests.length * 10 }),
+          } as Response;
+        }
+      }
+
+      // Fallback for non-test requests
       return {
         ok: true,
-        json: async () => ({ buffer_length: 100 + networkRequests.length * 10 }),
+        json: async () => ({ buffer_length: 100 }),
       } as Response;
-    }));
+    }) as typeof fetch;
   });
 
   afterEach(async () => {
+    // Clean up this test's request pool
+    globalRequestPool.delete(testId);
+
+    // Restore original fetch to prevent cross-test contamination
+    if (fetchMockInstalled && originalFetch) {
+      global.fetch = originalFetch;
+    }
+
     cleanup();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();

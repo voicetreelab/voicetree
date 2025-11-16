@@ -17,7 +17,7 @@
  * If this test fails in the future, the feedback loop bug has been reintroduced.
  */
 
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   sendGraphDelta,
@@ -27,6 +27,53 @@ import {
 import type { Page } from '@playwright/test';
 import type { GraphDelta, GraphNode } from '@/functional/pure/graph/types';
 import type { EditorView } from '@codemirror/view';
+
+// Custom fixture to capture console logs and only show on failure
+type ConsoleCapture = {
+  consoleLogs: string[];
+  pageErrors: string[];
+  testLogs: string[];
+};
+
+const test = base.extend<{ consoleCapture: ConsoleCapture }>({
+  consoleCapture: async ({ page }, use, testInfo) => {
+    const consoleLogs: string[] = [];
+    const pageErrors: string[] = [];
+    const testLogs: string[] = [];
+
+    // Capture browser console
+    page.on('console', msg => {
+      consoleLogs.push(`[Browser ${msg.type()}] ${msg.text()}`);
+    });
+
+    page.on('pageerror', error => {
+      pageErrors.push(`[Browser Error] ${error.message}\n${error.stack ?? ''}`);
+    });
+
+    // Capture test's own console.log
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      testLogs.push(args.map(arg => String(arg)).join(' '));
+    };
+
+    await use({ consoleLogs, pageErrors, testLogs });
+
+    // Restore original console.log
+    console.log = originalLog;
+
+    // After test completes, check if it failed and print logs
+    if (testInfo.status !== 'passed') {
+      console.log('\n=== Test Logs ===');
+      testLogs.forEach(log => console.log(log));
+      console.log('\n=== Browser Console Logs ===');
+      consoleLogs.forEach(log => console.log(log));
+      if (pageErrors.length > 0) {
+        console.log('\n=== Browser Errors ===');
+        pageErrors.forEach(err => console.log(err));
+      }
+    }
+  }
+});
 
 // Helper type for CodeMirror access
 interface CodeMirrorElement extends HTMLElement {
@@ -150,20 +197,8 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
 
 test.describe('Editor Feedback Loop Bug (Browser)', () => {
 
-  test('should NOT overwrite editor content when filesystem event arrives with stale content', async ({ page }) => {
+  test('should NOT overwrite editor content when filesystem event arrives with stale content', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Testing editor feedback loop bug ===');
-
-    // Listen for console messages
-    page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      console.log(`[Browser ${type}] ${text}`);
-    });
-
-    page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
-      console.error(error.stack);
-    });
 
     console.log('=== Step 1: Setup mock Electron API with filesystem feedback simulation ===');
     await setupMockWithFilesystemFeedback(page);
@@ -174,7 +209,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('✓ React rendered');
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -199,7 +234,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
       }
     ];
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Test node added to graph');
 
     console.log('=== Step 5: Open editor by tapping node ===');
@@ -228,7 +263,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     // 1. User types "Hello world"
     console.log('[Bug Repro Step 1] User types "Hello world"');
     await typeInEditor(page, editorWindowId, '\nHello world');
-    await page.waitForTimeout(50); // Brief pause
+    await page.waitForTimeout(5); // Brief pause
 
     const contentAfterFirstType = await getEditorContent(page, editorWindowId);
     console.log('Content after first type:', contentAfterFirstType?.substring(contentAfterFirstType.length - 50));
@@ -236,12 +271,12 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
 
     // 2. Wait for debounce to fire (300ms)
     console.log('[Bug Repro Step 2] Waiting for debounced save (300ms)...');
-    await page.waitForTimeout(350); // Wait for debounce + save to trigger
+    await page.waitForTimeout(35); // Wait for debounce + save to trigger
 
     // 3. User continues typing MORE content AFTER the debounce fired
     console.log('[Bug Repro Step 3] User types " and more text" AFTER debounce fired');
     await typeInEditor(page, editorWindowId, ' and more text');
-    await page.waitForTimeout(50);
+    await page.waitForTimeout(5);
 
     const contentAfterSecondType = await getEditorContent(page, editorWindowId);
     console.log('Content after second type:', contentAfterSecondType?.substring(contentAfterSecondType.length - 50));
@@ -249,7 +284,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
 
     // 4. Filesystem event arrives with the FIRST save (only "Hello world", not "and more text")
     console.log('[Bug Repro Step 4] Waiting for filesystem event to arrive with stale content...');
-    await page.waitForTimeout(200); // Wait for filesystem feedback to arrive
+    await page.waitForTimeout(20); // Wait for filesystem feedback to arrive
 
     // 5. CRITICAL ASSERTION: Editor should STILL have the full content
     const finalContent = await getEditorContent(page, editorWindowId);
@@ -267,11 +302,8 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     }
   });
 
-  test('should demonstrate the race condition with multiple rapid edits', async ({ page }) => {
+  test('should demonstrate the race condition with multiple rapid edits', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Testing rapid edits race condition ===');
-
-    page.on('console', msg => console.log(`[Browser ${msg.type()}] ${msg.text()}`));
-    page.on('pageerror', error => console.error('[Browser Error]', error.message));
 
     await setupMockWithFilesystemFeedback(page);
     await page.goto('/');
@@ -296,7 +328,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
       }
     ];
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     // Open editor
     await page.evaluate((nId) => {
@@ -314,26 +346,26 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     // Type "Line 1"
     await typeInEditor(page, editorWindowId, 'Line 1\n');
     console.log('[Rapid] Typed "Line 1"');
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(10);
 
     // Type "Line 2"
     await typeInEditor(page, editorWindowId, 'Line 2\n');
     console.log('[Rapid] Typed "Line 2"');
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(10);
 
     // Type "Line 3"
     await typeInEditor(page, editorWindowId, 'Line 3\n');
     console.log('[Rapid] Typed "Line 3"');
 
     // Wait for debounce
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(35);
 
     // Type "Line 4" AFTER debounce
     await typeInEditor(page, editorWindowId, 'Line 4\n');
     console.log('[Rapid] Typed "Line 4" after debounce');
 
     // Wait for filesystem feedback
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(20);
 
     const finalContent = await getEditorContent(page, editorWindowId);
     console.log('Final content after rapid edits:', finalContent);

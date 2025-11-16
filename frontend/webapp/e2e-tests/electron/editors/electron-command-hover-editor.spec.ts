@@ -16,8 +16,11 @@
 import { test as base, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
 
 const PROJECT_ROOT = path.resolve(process.cwd());
+const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'example_small');
 
 // Type definition for browser window with cytoscape
 interface ExtendedWindow extends Window {
@@ -29,12 +32,26 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   electronApp: async ({}, use) => {
+    // Create a temporary userData directory for this test
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-hover-test-'));
+
+    // Write the config file to auto-load the test vault
+    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
+    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: FIXTURE_VAULT_PATH }, null, 2), 'utf8');
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
-      env: { ...process.env, NODE_ENV: 'test', HEADLESS_TEST: '1', MINIMIZE_TEST: '1' }
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+      ],
+      env: { ...process.env, NODE_ENV: 'test', HEADLESS_TEST: '1', MINIMIZE_TEST: '1' },
+      timeout: 5000
     });
     await use(electronApp);
     await electronApp.close();
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   appWindow: async ({ electronApp }, use) => {

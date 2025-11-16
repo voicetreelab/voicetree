@@ -8,7 +8,7 @@
  * despite createAnchoredFloatingEditor being called after node creation.
  */
 
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   sendGraphDelta,
@@ -19,6 +19,53 @@ import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
 import type { Page } from '@playwright/test';
 import type { GraphNode } from '@/functional/pure/graph/types';
+
+// Custom fixture to capture console logs and only show on failure
+type ConsoleCapture = {
+  consoleLogs: string[];
+  pageErrors: string[];
+  testLogs: string[];
+};
+
+const test = base.extend<{ consoleCapture: ConsoleCapture }>({
+  consoleCapture: async ({ page }, use, testInfo) => {
+    const consoleLogs: string[] = [];
+    const pageErrors: string[] = [];
+    const testLogs: string[] = [];
+
+    // Capture browser console
+    page.on('console', msg => {
+      consoleLogs.push(`[Browser ${msg.type()}] ${msg.text()}`);
+    });
+
+    page.on('pageerror', error => {
+      pageErrors.push(`[Browser Error] ${error.message}\n${error.stack ?? ''}`);
+    });
+
+    // Capture test's own console.log
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      testLogs.push(args.map(arg => String(arg)).join(' '));
+    };
+
+    await use({ consoleLogs, pageErrors, testLogs });
+
+    // Restore original console.log
+    console.log = originalLog;
+
+    // After test completes, check if it failed and print logs
+    if (testInfo.status !== 'passed') {
+      console.log('\n=== Test Logs ===');
+      testLogs.forEach(log => console.log(log));
+      console.log('\n=== Browser Console Logs ===');
+      consoleLogs.forEach(log => console.log(log));
+      if (pageErrors.length > 0) {
+        console.log('\n=== Browser Errors ===');
+        pageErrors.forEach(err => console.log(err));
+      }
+    }
+  }
+});
 
 interface ExtendedWindowWithAll extends ExtendedWindow {
   electronAPI?: {
@@ -73,20 +120,8 @@ async function setupExtendedMockElectronAPI(page: Page): Promise<void> {
 
 test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
 
-  test('should auto-open editor when creating child node via context menu action', async ({ page }) => {
+  test('should auto-open editor when creating child node via context menu action', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Testing child node creation with auto-open ===');
-
-    // Listen for console messages
-    page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      console.log(`[Browser ${type}] ${text}`);
-    });
-
-    page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
-      console.error(error.stack);
-    });
 
     console.log('=== Step 1: Setup mock Electron API ===');
     await setupExtendedMockElectronAPI(page);
@@ -97,7 +132,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('✓ React rendered');
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -121,7 +156,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
       }
     ];
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(500); // Wait for layout
+    await page.waitForTimeout(50); // Wait for layout
     console.log('✓ Parent node added to graph');
 
     console.log('=== Step 5: Simulate child node creation (mimicking context menu "Create Child") ===');

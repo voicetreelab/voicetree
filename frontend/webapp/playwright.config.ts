@@ -5,8 +5,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 3, // Limit to f workers locally to prevent CPU overload
-  reporter: [['list'], ['html', { open: 'never' }]],
+  workers: process.env.CI ? 1 : 5, // Limit to f workers locally to prevent CPU overload
+  reporter: 'line',
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -45,6 +45,6 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: true, // Always reuse existing server
-    timeout: 120 * 1000,
+    timeout: 12 * 1000,
   },
 });

@@ -5,7 +5,7 @@
  * - Cmd+] / Cmd+[: cycle through terminals
  */
 
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   createTestGraphDelta,
@@ -15,21 +15,56 @@ import {
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils';
 
-test.describe('Hotkey Navigation (Browser)', () => {
-  test('should fit to last created node when pressing Space', async ({ page }) => {
-    console.log('\n=== Starting Space hotkey test (Browser) ===');
+// Custom fixture to capture console logs and only show on failure
+type ConsoleCapture = {
+  consoleLogs: string[];
+  pageErrors: string[];
+  testLogs: string[];
+};
 
-    // Listen for console messages
+const test = base.extend<{ consoleCapture: ConsoleCapture }>({
+  consoleCapture: async ({ page }, use, testInfo) => {
+    const consoleLogs: string[] = [];
+    const pageErrors: string[] = [];
+    const testLogs: string[] = [];
+
+    // Capture browser console
     page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      console.log(`[Browser ${type}] ${text}`);
+      consoleLogs.push(`[Browser ${msg.type()}] ${msg.text()}`);
     });
 
     page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
-      console.error(error.stack);
+      pageErrors.push(`[Browser Error] ${error.message}\n${error.stack ?? ''}`);
     });
+
+    // Capture test's own console.log
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      testLogs.push(args.map(arg => String(arg)).join(' '));
+    };
+
+    await use({ consoleLogs, pageErrors, testLogs });
+
+    // Restore original console.log
+    console.log = originalLog;
+
+    // After test completes, check if it failed and print logs
+    if (testInfo.status !== 'passed') {
+      console.log('\n=== Test Logs ===');
+      testLogs.forEach(log => console.log(log));
+      console.log('\n=== Browser Console Logs ===');
+      consoleLogs.forEach(log => console.log(log));
+      if (pageErrors.length > 0) {
+        console.log('\n=== Browser Errors ===');
+        pageErrors.forEach(err => console.log(err));
+      }
+    }
+  }
+});
+
+test.describe('Hotkey Navigation (Browser)', () => {
+  test('should fit to last created node when pressing Space', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting Space hotkey test (Browser) ===');
 
     console.log('=== Step 1: Mock Electron API ===');
     await setupMockElectronAPI(page);
@@ -37,7 +72,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -82,7 +117,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
       cy.fit(); // Fit to all nodes
     });
 
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
 
     const initialState = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -95,7 +130,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     await page.keyboard.press('Space');
 
     // Wait for animation to complete
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     console.log('=== Step 8: Verify viewport changed (fitted to last node) ===');
     const finalState = await page.evaluate(() => {
@@ -115,19 +150,8 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log('✓ Space key successfully fitted to last created node');
   });
 
-  test('should cycle through terminals with Cmd+] and Cmd+[', async ({ page }) => {
+  test('should cycle through terminals with Cmd+] and Cmd+[', async ({ page, consoleCapture: _consoleCapture }) => {
     console.log('\n=== Starting Cmd+] / Cmd+[ hotkey test (Browser) ===');
-
-    page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      console.log(`[Browser ${type}] ${text}`);
-    });
-
-    page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
-      console.error(error.stack);
-    });
 
     console.log('=== Step 1: Mock Electron API ===');
     await setupMockElectronAPI(page);
@@ -135,7 +159,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -193,7 +217,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
       cy.fit();
     });
 
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
 
     const initialState = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -205,7 +229,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log('=== Step 7: Press Cmd+] (next terminal) ===');
     await page.keyboard.press('Meta+BracketRight');
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     const afterNextState = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -226,7 +250,7 @@ test.describe('Hotkey Navigation (Browser)', () => {
     console.log('=== Step 8: Press Cmd+[ (previous terminal) ===');
     await page.keyboard.press('Meta+BracketLeft');
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     const afterPrevState = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;

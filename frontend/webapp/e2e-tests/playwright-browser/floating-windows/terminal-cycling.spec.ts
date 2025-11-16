@@ -5,7 +5,7 @@
  * This test mocks terminal creation since actual terminals require IPC
  */
 
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   createTestGraphDelta,
@@ -14,21 +14,56 @@ import {
   type ExtendedWindow
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 
-test.describe('Terminal Cycling (Browser)', () => {
-  test('should cycle through floating terminals with Cmd+] and Cmd+[', async ({ page }) => {
-    console.log('\n=== Starting terminal cycling test ===');
+// Custom fixture to capture console logs and only show on failure
+type ConsoleCapture = {
+  consoleLogs: string[];
+  pageErrors: string[];
+  testLogs: string[];
+};
 
+const test = base.extend<{ consoleCapture: ConsoleCapture }>({
+  consoleCapture: async ({ page }, use, testInfo) => {
+    const consoleLogs: string[] = [];
+    const pageErrors: string[] = [];
+    const testLogs: string[] = [];
+
+    // Capture browser console
     page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      if (text.includes('GraphNavigationService') || text.includes('terminal')) {
-        console.log(`[Browser ${type}] ${text}`);
-      }
+      consoleLogs.push(`[Browser ${msg.type()}] ${msg.text()}`);
     });
 
     page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
+      pageErrors.push(`[Browser Error] ${error.message}\n${error.stack ?? ''}`);
     });
+
+    // Capture test's own console.log
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      testLogs.push(args.map(arg => String(arg)).join(' '));
+    };
+
+    await use({ consoleLogs, pageErrors, testLogs });
+
+    // Restore original console.log
+    console.log = originalLog;
+
+    // After test completes, check if it failed and print logs
+    if (testInfo.status !== 'passed') {
+      console.log('\n=== Test Logs ===');
+      testLogs.forEach(log => console.log(log));
+      console.log('\n=== Browser Console Logs ===');
+      consoleLogs.forEach(log => console.log(log));
+      if (pageErrors.length > 0) {
+        console.log('\n=== Browser Errors ===');
+        pageErrors.forEach(err => console.log(err));
+      }
+    }
+  }
+});
+
+test.describe('Terminal Cycling (Browser)', () => {
+  test('should cycle through floating terminals with Cmd+] and Cmd+[', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting terminal cycling test ===');
 
     console.log('=== Step 1: Setup mock Electron API ===');
     await setupMockElectronAPI(page);
@@ -36,7 +71,7 @@ test.describe('Terminal Cycling (Browser)', () => {
     console.log('=== Step 2: Navigate to app ===');
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 5000 });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     console.log('=== Step 3: Wait for Cytoscape ===');
     await waitForCytoscapeReady(page);
@@ -44,7 +79,7 @@ test.describe('Terminal Cycling (Browser)', () => {
     console.log('=== Step 4: Create base graph with nodes ===');
     const graphDelta = createTestGraphDelta();
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     console.log('=== Step 5: Create mock terminal nodes (mimicking real terminal structure) ===');
     // Real terminals create shadow nodes with specific properties
@@ -126,7 +161,7 @@ test.describe('Terminal Cycling (Browser)', () => {
       if (!cy) throw new Error('Cytoscape not initialized');
       cy.fit();
     });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
 
     const initialState = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -137,7 +172,7 @@ test.describe('Terminal Cycling (Browser)', () => {
 
     console.log('=== Step 7: Press Cmd+] (next terminal) ===');
     await page.keyboard.press('Meta+BracketRight');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     const afterNextState = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -157,7 +192,7 @@ test.describe('Terminal Cycling (Browser)', () => {
 
     console.log('=== Step 8: Press Cmd+[ (previous terminal) ===');
     await page.keyboard.press('Meta+BracketLeft');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
 
     const afterPrevState = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;

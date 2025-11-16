@@ -3,7 +3,7 @@
  * Tests editor creation on Cmd+hover, content display, click outside to close, and reopen
  */
 
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
 import {
   setupMockElectronAPI,
   sendGraphDelta,
@@ -12,21 +12,56 @@ import {
 } from '@e2e/playwright-browser/graph-delta-test-utils.ts';
 import type { GraphDelta } from '@/functional/pure/graph/types.ts';
 
-test.describe('Command Hover Editor (Browser)', () => {
-  test('should show editor on Cmd+hover, display content, close on click outside, and reopen', async ({ page }) => {
-    console.log('\n=== Starting command hover editor test (Browser) ===');
+// Custom fixture to capture console logs and only show on failure
+type ConsoleCapture = {
+  consoleLogs: string[];
+  pageErrors: string[];
+  testLogs: string[];
+};
 
-    // Listen for console messages
+const test = base.extend<{ consoleCapture: ConsoleCapture }>({
+  consoleCapture: async ({ page }, use, testInfo) => {
+    const consoleLogs: string[] = [];
+    const pageErrors: string[] = [];
+    const testLogs: string[] = [];
+
+    // Capture browser console
     page.on('console', msg => {
-      const type = msg.type();
-      const text = msg.text();
-      console.log(`[Browser ${type}] ${text}`);
+      consoleLogs.push(`[Browser ${msg.type()}] ${msg.text()}`);
     });
 
     page.on('pageerror', error => {
-      console.error('[Browser Error]', error.message);
-      console.error(error.stack);
+      pageErrors.push(`[Browser Error] ${error.message}\n${error.stack ?? ''}`);
     });
+
+    // Capture test's own console.log
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      testLogs.push(args.map(arg => String(arg)).join(' '));
+    };
+
+    await use({ consoleLogs, pageErrors, testLogs });
+
+    // Restore original console.log
+    console.log = originalLog;
+
+    // After test completes, check if it failed and print logs
+    if (testInfo.status !== 'passed') {
+      console.log('\n=== Test Logs ===');
+      testLogs.forEach(log => console.log(log));
+      console.log('\n=== Browser Console Logs ===');
+      consoleLogs.forEach(log => console.log(log));
+      if (pageErrors.length > 0) {
+        console.log('\n=== Browser Errors ===');
+        pageErrors.forEach(err => console.log(err));
+      }
+    }
+  }
+});
+
+test.describe('Command Hover Editor (Browser)', () => {
+  test('should show editor on Cmd+hover, display content, close on click outside, and reopen', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting command hover editor test (Browser) ===');
 
     console.log('=== Step 1: Setup mock Electron API ===');
     await setupMockElectronAPI(page);
@@ -37,7 +72,7 @@ test.describe('Command Hover Editor (Browser)', () => {
     await page.waitForSelector('#root', { timeout: 5000 });
     console.log('✓ React rendered');
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Graph update handler registered');
 
     console.log('=== Step 3: Wait for Cytoscape ===');
@@ -62,7 +97,7 @@ test.describe('Command Hover Editor (Browser)', () => {
       }
     ];
     await sendGraphDelta(page, graphDelta);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
     console.log('✓ Graph delta sent');
 
     console.log('=== Step 5: Get node position for hover ===');
@@ -78,7 +113,7 @@ test.describe('Command Hover Editor (Browser)', () => {
     console.log('=== Step 6: Hold Meta key and trigger mouseover ===');
     // Simulate Meta key press
     await page.keyboard.down('Meta');
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(10);
 
     // Trigger mouseover on the node
     await page.evaluate(() => {
@@ -88,7 +123,7 @@ test.describe('Command Hover Editor (Browser)', () => {
       if (node.length === 0) throw new Error('hover-test-node.md not found');
       node.emit('mouseover');
     });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Mouseover with Meta key triggered');
 
     console.log('=== Step 7: Verify hover editor appears with content ===');
@@ -111,13 +146,13 @@ test.describe('Command Hover Editor (Browser)', () => {
 
     // Release Meta key
     await page.keyboard.up('Meta');
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(10);
     console.log('✓ Meta key released');
 
     console.log('=== Step 8: Click outside to close hover editor ===');
     // Click somewhere outside the editor window
     await page.mouse.click(100, 100);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(30);
     console.log('✓ Clicked outside editor');
 
     // Verify editor is gone
@@ -130,7 +165,7 @@ test.describe('Command Hover Editor (Browser)', () => {
     console.log('=== Step 9: Reopen hover editor with Cmd+hover ===');
     // Hold Meta key again
     await page.keyboard.down('Meta');
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(10);
 
     // Trigger mouseover again
     await page.evaluate(() => {
@@ -140,7 +175,7 @@ test.describe('Command Hover Editor (Browser)', () => {
       if (node.length === 0) throw new Error('hover-test-node.md not found');
       node.emit('mouseover');
     });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(50);
     console.log('✓ Mouseover with Meta key triggered again');
 
     // Verify editor reopened
