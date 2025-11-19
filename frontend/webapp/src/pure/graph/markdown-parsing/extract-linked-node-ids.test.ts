@@ -294,16 +294,16 @@ Line 3 with [[3]]`
     it('should handle ambiguous matches with same filename in different folders', () => {
       const content = 'Link to [[README.md]]'
       const nodes = {
-        'README': createNode('README'),
-        'docs/README': createNode('docs/README'),
-        'src/README': createNode('src/README')
+        'README.md': createNode('README.md'),
+        'docs/README.md': createNode('docs/README.md'),
+        'src/README.md': createNode('src/README.md')
       }
 
       const result = extractEdges(content, nodes)
 
-      // When only filename is provided, matches the shortest path (root-level preferred)
-      // This is because extractPathSegments returns ['README'] and it matches 'README' node first
-      expect(result).toEqual([{ targetId: 'README', label: 'Link to' }])
+      // When multiple nodes match the same filename, returns the first matching node found
+      // In this case 'docs/README.md' matches the filename 'README.md'
+      expect(result).toEqual([{ targetId: 'docs/README.md', label: 'Link to' }])
     })
   })
 

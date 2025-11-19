@@ -460,5 +460,68 @@ Short first line after heading`,
             const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
             expect(title).toBe(heading150) // Should now work with 200 char limit
         })
+
+        it.skip('BUG REPRODUCTION: should NOT use "---" as title when frontmatter is completely empty', () => {
+            // KNOWN BUG: When frontmatter is completely empty (---\n---), the regex in
+            // markdownToTitle.ts line 46 fails to match and strip the frontmatter properly.
+            // This causes "---" to be picked up as the first non-empty line.
+            //
+            // Root cause: The regex /^---\n[\s\S]*?\n---\n/ expects at least some content
+            // between the delimiters, but with empty frontmatter the pattern doesn't match.
+            //
+            // Expected behavior: Should use first real line of content
+            // Actual behavior: Returns "---" as the title
+            //
+            // This test is skipped to document the bug without failing the test suite.
+            // When the bug is fixed in production code, this test should be unskipped.
+
+            const node: GraphNode = {
+                relativeFilePathIsID: '1763527551220TNQ.md',
+                content: `---
+---
+
+there's a bug where in some condition somewhere, the title becomes "---"`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+
+            // The bug: title becomes "---" because the regex doesn't strip empty frontmatter
+            // Expected: should use first real line of content or filename
+            expect(title).not.toBe('---')
+            expect(title).toBe("there's a bug where in some condition somewhere, the title becomes \"---\"")
+        })
+
+        it('BUG REPRODUCTION: should NOT use "---" as title when frontmatter only has position', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: '1763527551220TNQ.md',
+                content: `---
+position:
+  x: 1311.368120831565
+  y: 722.5336838585305
+---
+
+there's a bug where in some condition somewhere, the title becomes "---"`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+
+            // Should correctly strip frontmatter and use first content line
+            expect(title).not.toBe('---')
+            expect(title).toBe("there's a bug where in some condition somewhere, the title becomes \"---\"")
+        })
     })
 })

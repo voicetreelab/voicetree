@@ -49,10 +49,22 @@ export function reverseGraphEdges(graph: Graph): Graph {
     const newNodes = Object.entries(graph.nodes).reduce<Record<NodeId, GraphNode>>(
         (acc, [nodeId, node]) => {
             const incomingEdges = incomingEdgesMap[nodeId] || []
-            const newOutgoingEdges = incomingEdges.map(({ sourceId, label }) => ({
+
+            // Get reversed edges (from incoming)
+            const reversedEdges = incomingEdges.map(({ sourceId, label }) => ({
                 targetId: sourceId,
                 label  // Preserve the label from the original edge
             }))
+
+            // Preserve original edges that point to non-existent nodes
+            // (these can't be reversed because the target node doesn't exist)
+            const edgesToNonExistentNodes = node.outgoingEdges.filter(
+                edge => !graph.nodes[edge.targetId]
+            )
+
+            // Combine reversed edges with edges to non-existent nodes
+            const newOutgoingEdges = [...reversedEdges, ...edgesToNonExistentNodes]
+
             return {
                 ...acc,
                 [nodeId]: setOutgoingEdges(node, newOutgoingEdges)
