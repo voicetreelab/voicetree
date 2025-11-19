@@ -10,7 +10,7 @@ import {TerminalVanilla} from '@/shell/UI/floating-windows/TerminalVanilla.ts';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
 import type {NodeMetadata} from '@/shell/UI/floating-windows/types.ts';
 import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
-import {getNodeFromUI} from "@/shell/edge/UI-edge/graph/getNodeFromUI.ts";
+import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
 import type {NodeId} from "@/pure/graph";
 import posthog from 'posthog-js';
 
@@ -361,12 +361,13 @@ export async function createFloatingEditor(
     const resizable = true;
 
     // Derive title and content from nodeId
-    const node = await getNodeFromUI(nodeId);
+    const node = await getNodeFromMainToUI(nodeId);
     let content = "loading..."
+    let title = `${nodeId}`; // fallback to nodeId if node not found
     if (node){
         content = node.content;
+        title = `${node.nodeUIMetadata.title}`;
     }
-    const title = `Editor: ${nodeId}`;
 
     // Get overlay
     const overlay = getOrCreateOverlay(cy);

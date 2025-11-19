@@ -282,4 +282,85 @@ describe('FloatingWindowManager - Types Editor', () => {
             expect(title?.textContent).toBe('Types');
         });
     });
+
+    describe('setupCommandHover - Terminal Node Filtering', () => {
+        beforeEach(() => {
+            // Setup command hover mode
+            manager.setupCommandHover();
+        });
+
+        it('should NOT open hover editor for terminal nodes (nodes without file extension)', async () => {
+            // Add a terminal node (no file extension)
+            cy.add({
+                group: 'nodes',
+                data: { id: 'terminal-123' },
+                position: { x: 100, y: 100 }
+            });
+
+            const terminalNode = cy.getElementById('terminal-123');
+
+            // Simulate mouseover event
+            terminalNode.emit('mouseover');
+
+            // Wait for any async operations
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            // Hover editor should NOT be created for terminal node
+            const hoverEditorWindows = document.querySelectorAll('.cy-floating-window');
+            expect(hoverEditorWindows.length).toBe(0);
+        });
+
+        it('should allow hover editor attempt for markdown nodes (nodes with .md extension)', async () => {
+            // Spy on the private openHoverEditor method to verify it's called
+            const openHoverEditorSpy = vi.spyOn(manager as never, 'openHoverEditor' as never);
+
+            // Add a markdown node (with .md extension)
+            cy.add({
+                group: 'nodes',
+                data: { id: 'test-node.md' },
+                position: { x: 200, y: 200 }
+            });
+
+            const markdownNode = cy.getElementById('test-node.md');
+
+            // Simulate mouseover event
+            markdownNode.emit('mouseover');
+
+            // Wait for async operations
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            // openHoverEditor SHOULD be called for markdown nodes (filter doesn't block them)
+            expect(openHoverEditorSpy).toHaveBeenCalled();
+        });
+
+        it('should filter out nodes without file extensions like terminal-*, settings-*, etc.', async () => {
+            const nonMarkdownNodeIds = [
+                'terminal-abc',
+                'settings-editor',
+                'some-shadow-node',
+                'backup-terminal'
+            ];
+
+            for (const nodeId of nonMarkdownNodeIds) {
+                cy.add({
+                    group: 'nodes',
+                    data: { id: nodeId },
+                    position: { x: 100, y: 100 }
+                });
+
+                const node = cy.getElementById(nodeId);
+                node.emit('mouseover');
+
+                // Wait briefly
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // No hover editor should be created
+                const hoverEditorWindows = document.querySelectorAll('.cy-floating-window');
+                expect(hoverEditorWindows.length).toBe(0);
+
+                // Clean up
+                node.remove();
+            }
+        });
+    });
 });
