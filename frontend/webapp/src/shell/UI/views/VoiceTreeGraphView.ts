@@ -38,7 +38,7 @@ import {HotkeyManager} from './HotkeyManager.ts';
 import {SearchService} from './SearchService.ts';
 import {GraphNavigationService} from './GraphNavigationService.ts';
 import {getResponsivePadding} from '@/utils/responsivePadding.ts';
-import {SpeedDialMenuView} from './SpeedDialMenuView.ts';
+import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView.ts';
 import type {Graph, GraphDelta} from '@/pure/graph';
 import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants.ts';
 import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGraphViewHelpers';
@@ -78,7 +78,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private loadingOverlay: HTMLElement | null = null;
     private errorOverlay: HTMLElement | null = null;
     private emptyStateOverlay: HTMLElement | null = null;
-    private speedDialMenu: SpeedDialMenuView | null = null;
+    private speedDialMenu: SpeedDialSideGraphFloatingMenuView | null = null;
 
     // Event emitters
     private nodeSelectedEmitter = new EventEmitter<string>();
@@ -265,7 +265,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.container.appendChild(menuBtn);
 
         // Create speed dial menu
-        this.speedDialMenu = new SpeedDialMenuView(this.container, {
+        this.speedDialMenu = new SpeedDialSideGraphFloatingMenuView(this.container, {
             onToggleDarkMode: () => this.toggleDarkMode(),
             onBackup: () => { void this.createBackupTerminal(); },
             onSettings: () => window.dispatchEvent(new CustomEvent('openSettings')),

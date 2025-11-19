@@ -1,16 +1,16 @@
 /**
- * SpeedDialMenuView - Vanilla TypeScript implementation of speed dial menu
+ * SpeedDialSideGraphFloatingMenuView - Vanilla TypeScript implementation of speed dial menu
  *
  * Features:
  * - Pure vanilla DOM manipulation (no React/JSX)
- * - Reuses existing CSS from speed-dial-menu.css
+ * - Reuses existing CSS from speed-dial-side-graph-floating-menu.css
  * - Provides callbacks for menu actions
  * - Supports dark mode icon toggling
  * - Extends Disposable for proper cleanup
  */
 
 import { Disposable } from './Disposable.ts';
-import '@/shell/UI/views/styles/speed-dial-menu.css';
+import '@/shell/UI/views/styles/speed-dial-side-graph-floating-menu.css';
 
 export interface SpeedDialMenuViewOptions {
   onToggleDarkMode: () => void;
@@ -28,7 +28,7 @@ interface MenuItem {
   isDanger?: boolean;
 }
 
-export class SpeedDialMenuView extends Disposable {
+export class SpeedDialSideGraphFloatingMenuView extends Disposable {
   private container: HTMLElement;
   private menuContainer: HTMLElement;
   private options: SpeedDialMenuViewOptions;

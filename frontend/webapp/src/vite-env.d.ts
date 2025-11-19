@@ -16,7 +16,7 @@ declare module '@xterm/xterm/css/xterm.css' {
   const content: string;
   export default content;
 }
-declare module '@/shell/UI/views/styles/speed-dial-menu.css' {
+declare module '@/shell/UI/views/styles/speed-dial-side-graph-floating-menu.css' {
   const content: string;
   export default content;
 }
