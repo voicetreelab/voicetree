@@ -164,22 +164,20 @@ describe('graph-transformations', () => {
     })
 
     it('should preserve edges to non-existent nodes after double reversal', () => {
-      // This test documents current buggy behavior: edges to non-existent nodes are lost
+      // Edges to non-existent nodes should be preserved through reversals
       const graph: Graph = {
         nodes: {
           'source': createTestNode('source', ['does-not-exist'])
         }
       }
 
-      // First reversal
+      // First reversal: edges to non-existent nodes are preserved
       const reversed1 = reverseGraphEdges(graph)
-      // After first reversal, 'source' has no incoming edges, so it ends up with no outgoing edges
-      expect(reversed1.nodes['source'].outgoingEdges).toEqual(toEdges([]))
+      expect(reversed1.nodes['source'].outgoingEdges).toEqual(toEdges(['does-not-exist']))
 
-      // Second reversal (should restore original, but doesn't)
+      // Second reversal: still preserved (idempotent for non-existent edges)
       const reversed2 = reverseGraphEdges(reversed1)
-      // BUG: Edge is lost! Should be ['does-not-exist'] but is []
-      expect(reversed2.nodes['source'].outgoingEdges).toEqual(toEdges([]))
+      expect(reversed2.nodes['source'].outgoingEdges).toEqual(toEdges(['does-not-exist']))
     })
   })
 })

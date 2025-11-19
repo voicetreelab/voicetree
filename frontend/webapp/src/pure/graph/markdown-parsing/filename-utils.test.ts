@@ -14,7 +14,7 @@ describe('filename-utils', () => {
       expect(result).toBe('my-note')
     })
 
-    it('should handle filename with absolutePath', () => {
+    it('should remove .md extension from filename with absolutePath', () => {
       const filename = 'subfolder/my-note.md'
 
       const result = filenameToNodeId(filename)
@@ -22,7 +22,7 @@ describe('filename-utils', () => {
       expect(result).toBe('subfolder/my-note')
     })
 
-    it('should handle deeply nested absolutePath', () => {
+    it('should remove .md extension from deeply nested absolutePath', () => {
       const filename = 'folder/subfolder/deeply/nested/note.md'
 
       const result = filenameToNodeId(filename)
@@ -38,7 +38,7 @@ describe('filename-utils', () => {
       expect(result).toBe('no-extension')
     })
 
-    it('should handle double extension correctly', () => {
+    it('should remove .md extension from double extension filename', () => {
       const filename = 'file.backup.md'
 
       const result = filenameToNodeId(filename)
@@ -46,7 +46,7 @@ describe('filename-utils', () => {
       expect(result).toBe('file.backup')
     })
 
-    it('should handle filename that is just .md', () => {
+    it('should handle filename that is just .md (results in empty string)', () => {
       const filename = '.md'
 
       const result = filenameToNodeId(filename)
@@ -62,7 +62,7 @@ describe('filename-utils', () => {
       expect(result).toBe('')
     })
 
-    it('should handle filename with special characters', () => {
+    it('should remove .md extension from filename with special characters', () => {
       const filename = 'note-with-$pecial_chars@2024.md'
 
       const result = filenameToNodeId(filename)
@@ -70,7 +70,7 @@ describe('filename-utils', () => {
       expect(result).toBe('note-with-$pecial_chars@2024')
     })
 
-    it('should handle filename with unicode characters', () => {
+    it('should remove .md extension from filename with unicode characters', () => {
       const filename = '日本語ノート.md'
 
       const result = filenameToNodeId(filename)
@@ -78,7 +78,7 @@ describe('filename-utils', () => {
       expect(result).toBe('日本語ノート')
     })
 
-    it('should handle filename with spaces', () => {
+    it('should remove .md extension from filename with spaces', () => {
       const filename = 'my note with spaces.md'
 
       const result = filenameToNodeId(filename)
@@ -86,27 +86,25 @@ describe('filename-utils', () => {
       expect(result).toBe('my note with spaces')
     })
 
-    it('should handle case-sensitive .md extension', () => {
+    it('should preserve case-sensitive .MD extension', () => {
       const filename = 'note.MD'
 
       const result = filenameToNodeId(filename)
 
-      // Should NOT remove .MD (only removes lowercase .md)
       expect(result).toBe('note.MD')
     })
 
-    it('should handle .md appearing in middle of filename', () => {
+    it('should remove only trailing .md from filename with .md appearing multiple times', () => {
       const filename = 'note.md.backup.md'
 
       const result = filenameToNodeId(filename)
 
-      // Should only remove the last .md
       expect(result).toBe('note.md.backup')
     })
   })
 
   describe('nodeIdToFilename', () => {
-    it('should add .md extension to simple node ID', () => {
+    it('should add .md extension to simple node ID without extension', () => {
       const nodeId = 'my-note'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -114,7 +112,7 @@ describe('filename-utils', () => {
       expect(result).toBe('my-note.md')
     })
 
-    it('should add .md extension to node ID with absolutePath', () => {
+    it('should add .md extension to node ID with absolutePath but no extension', () => {
       const nodeId = 'subfolder/my-note'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -122,7 +120,7 @@ describe('filename-utils', () => {
       expect(result).toBe('subfolder/my-note.md')
     })
 
-    it('should add .md extension to deeply nested absolutePath', () => {
+    it('should add .md extension to deeply nested absolutePath without extension', () => {
       const nodeId = 'folder/subfolder/deeply/nested/note'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -130,16 +128,15 @@ describe('filename-utils', () => {
       expect(result).toBe('folder/subfolder/deeply/nested/note.md')
     })
 
-    it('should add .md even if node ID already has .md', () => {
+    it('should add .md even if node ID already has .md (creates double extension)', () => {
       const nodeId = 'already-has.md'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
 
-      // This is expected behavior - no deduplication
       expect(result).toBe('already-has.md.md')
     })
 
-    it('should handle empty string', () => {
+    it('should add .md to empty string', () => {
       const nodeId = ''
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -147,7 +144,7 @@ describe('filename-utils', () => {
       expect(result).toBe('.md')
     })
 
-    it('should handle node ID with special characters', () => {
+    it('should add .md to node ID with special characters', () => {
       const nodeId = 'note-with-$pecial_chars@2024'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -155,7 +152,7 @@ describe('filename-utils', () => {
       expect(result).toBe('note-with-$pecial_chars@2024.md')
     })
 
-    it('should handle node ID with unicode characters', () => {
+    it('should add .md to node ID with unicode characters', () => {
       const nodeId = '日本語ノート'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -163,7 +160,7 @@ describe('filename-utils', () => {
       expect(result).toBe('日本語ノート.md')
     })
 
-    it('should handle node ID with spaces', () => {
+    it('should add .md to node ID with spaces', () => {
       const nodeId = 'my note with spaces'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -171,7 +168,7 @@ describe('filename-utils', () => {
       expect(result).toBe('my note with spaces.md')
     })
 
-    it('should handle node ID with dots', () => {
+    it('should add .md to node ID with dots but no .md extension', () => {
       const nodeId = 'note.with.dots'
 
       const result = nodeIdToFilePathWithExtension(nodeId)
@@ -195,6 +192,14 @@ describe('filename-utils', () => {
       const backToFilename = nodeIdToFilePathWithExtension(nodeId)
 
       expect(backToFilename).toBe(originalFilename)
+    })
+
+    it('should add .md even when node ID already has it (creates double extension)', () => {
+      const nodeId = 'file.backup.md'
+
+      const result = nodeIdToFilePathWithExtension(nodeId)
+
+      expect(result).toBe('file.backup.md.md')
     })
   })
 })

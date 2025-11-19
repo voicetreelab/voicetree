@@ -115,4 +115,38 @@ Content here`
     // Should fall back to heading when YAML fails
     expect(result.nodeUIMetadata.title).toBe('Fallback Heading')
   })
+
+  describe('Node ID should remove .md extension', () => {
+    it('should remove .md extension in node ID for simple filename', () => {
+      const content = '# Test Content'
+
+      const result = parseMarkdownToGraphNode(content, 'test-file.md')
+
+      expect(result.relativeFilePathIsID).toBe('test-file')
+    })
+
+    it('should remove .md extension in node ID for nested path', () => {
+      const content = '# Nested Content'
+
+      const result = parseMarkdownToGraphNode(content, 'folder/subfolder/note.md')
+
+      expect(result.relativeFilePathIsID).toBe('folder/subfolder/note')
+    })
+
+    it('should remove .md extension when file has multiple dots', () => {
+      const content = '# Multi-dot file'
+
+      const result = parseMarkdownToGraphNode(content, 'file.backup.md')
+
+      expect(result.relativeFilePathIsID).toBe('file.backup')
+    })
+
+    it('should handle file without .md extension as-is', () => {
+      const content = '# No extension'
+
+      const result = parseMarkdownToGraphNode(content, 'no-extension')
+
+      expect(result.relativeFilePathIsID).toBe('no-extension')
+    })
+  })
 })
