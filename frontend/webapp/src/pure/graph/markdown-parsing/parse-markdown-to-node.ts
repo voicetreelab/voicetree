@@ -4,6 +4,7 @@ import type { GraphNode } from '@/pure/graph'
 import { extractFrontmatter, type Frontmatter } from '@/pure/graph/markdown-parsing/extract-frontmatter.ts'
 import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils.ts'
 import { markdownToTitle } from '@/pure/graph/markdown-parsing/markdown-to-title.ts'
+import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
 
 /**
  * Parses markdown content into a GraphNode.
@@ -71,7 +72,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string): Gra
   // Return node with computed title
   return {
     relativeFilePathIsID: filenameToNodeId(filename),
-    outgoingEdges: [],
+    outgoingEdges: extractEdges(content, {}),
     content,
     nodeUIMetadata: {
       title,
