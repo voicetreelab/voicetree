@@ -1,20 +1,13 @@
-import type {
-    GraphDelta,
-    GraphNode,
-    NodeId,
-    Position,
-    UpsertNodeAction
-} from "@/pure/graph";
+import type {GraphDelta, GraphNode, NodeId, Position, UpsertNodeAction} from "@/pure/graph";
 import {
+    createDeleteNodeAction,
+    createNewNodeNoParent,
     fromContentChangeToGraphDelta,
-    fromUICreateChildToUpsertNode,
-    createDeleteNodeAction
+    fromUICreateChildToUpsertNode
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas.ts";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
-import type {} from '@/utils/types/electron';
-import {getNodeFromUI} from "@/shell/edge/UI-edge/graph/getNodeFromUI.ts";
-import * as O from "fp-ts/Option";
+import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
 
 
 export async function createNewChildNodeFromUI(
@@ -42,33 +35,11 @@ export async function createNewChildNodeFromUI(
     return newNode.relativeFilePathIsID;
 }
 
-function randomChars(number: number): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-    return Array.from({length: number}, () =>
-        chars.charAt(Math.floor(Math.random() * chars.length))
-    ).join('');
-}
-
 export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
     cy: Core
 ): Promise<NodeId> {
-    const newNode: GraphNode = {
-        relativeFilePathIsID: Date.now().toString() + randomChars(3), // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
-        outgoingEdges: [],
-        content: '# New Node',
-        nodeUIMetadata: {
-            title: 'New Node',
-            color: O.none,
-            position: O.of(pos)
-        },
-    }
-    const graphDelta: GraphDelta = [
-        {
-            type: 'UpsertNode',
-            nodeToUpsert: newNode
-        },
-    ]
+    const {newNode, graphDelta} = createNewNodeNoParent(pos);
     // Optimistic UI-edge update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
 
@@ -84,7 +55,7 @@ export async function modifyNodeContentFromUI(
 ): Promise<void> {
 
     // Get current graph state
-    const currentNode = await getNodeFromUI(nodeId);
+    const currentNode = await getNodeFromMainToUI(nodeId);
     const currentGraph = await window.electronAPI?.main.getGraph();
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE");
