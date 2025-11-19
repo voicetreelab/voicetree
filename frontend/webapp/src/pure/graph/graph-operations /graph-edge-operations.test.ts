@@ -119,38 +119,38 @@ describe('graph-edge-operations', () => {
 
   describe('setOutgoingEdges', () => {
     it('should replace all edges with new set', () => {
-      const node = createTestNode('node1', ['node2', 'node3'])
-      const result = setOutgoingEdges(node, ['node4', 'node5'])
+      const node = createTestNode('node1', [{ targetId: 'node2', label: '' }, { targetId: 'node3', label: '' }])
+      const result = setOutgoingEdges(node, [{ targetId: 'node4', label: '' }, { targetId: 'node5', label: '' }])
 
-      expect(result.outgoingEdges).toEqual(['node4', 'node5'])
+      expect(result.outgoingEdges).toEqual([{ targetId: 'node4', label: '' }, { targetId: 'node5', label: '' }])
     })
 
     it('should set edges on empty node', () => {
       const node = createTestNode('node1', [])
-      const result = setOutgoingEdges(node, ['node2', 'node3'])
+      const result = setOutgoingEdges(node, [{ targetId: 'node2', label: '' }, { targetId: 'node3', label: '' }])
 
-      expect(result.outgoingEdges).toEqual(['node2', 'node3'])
+      expect(result.outgoingEdges).toEqual([{ targetId: 'node2', label: '' }, { targetId: 'node3', label: '' }])
     })
 
     it('should handle setting empty edges', () => {
-      const node = createTestNode('node1', ['node2', 'node3'])
+      const node = createTestNode('node1', [{ targetId: 'node2', label: '' }, { targetId: 'node3', label: '' }])
       const result = setOutgoingEdges(node, [])
 
       expect(result.outgoingEdges).toEqual([])
     })
 
     it('should not mutate the original node', () => {
-      const node = createTestNode('node1', ['node2'])
+      const node = createTestNode('node1', [{ targetId: 'node2', label: '' }])
       const originalEdges = [...node.outgoingEdges]
 
-      setOutgoingEdges(node, ['node3'])
+      setOutgoingEdges(node, [{ targetId: 'node3', label: '' }])
 
       expect(node.outgoingEdges).toEqual(originalEdges)
     })
 
     it('should preserve other node properties', () => {
-      const node = createTestNode('node1', ['node2'])
-      const result = setOutgoingEdges(node, ['node3'])
+      const node = createTestNode('node1', [{ targetId: 'node2', label: '' }])
+      const result = setOutgoingEdges(node, [{ targetId: 'node3', label: '' }])
 
       expect(result.relativeFilePathIsID).toBe('node1')
       expect(result.content).toBe('test content')

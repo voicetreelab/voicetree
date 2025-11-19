@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { extractLinkedNodeIds } from '@/pure/graph/markdown-parsing/extract-linked-node-ids.ts'
+import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges.ts'
 import type { GraphNode } from '@/pure/graph'
 
 describe('extractLinkedNodeIds', () => {
-  const createNode = (id: string, content = ''): GraphNode => ({
+  const createNode = (id: string, content = '', title = id): GraphNode => ({
     relativeFilePathIsID: id,
     content,
     outgoingEdges: [],
     nodeUIMetadata: {
+      title,
       color: O.none,
       position: O.none
     }
@@ -22,9 +23,12 @@ describe('extractLinkedNodeIds', () => {
       '3': createNode('3')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['1', '2'])
+    expect(result).toEqual([
+      { targetId: '1', label: 'See' },
+      { targetId: '2', label: 'See [[1]] and' }
+    ])
   })
 
   it('should extract linked node IDs by filename', () => {
@@ -34,9 +38,12 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['node-a', 'node-b'])
+    expect(result).toEqual([
+      { targetId: 'node-a', label: 'See' },
+      { targetId: 'node-b', label: 'See [[node-a.md]] and' }
+    ])
   })
 
   it('should return empty array when no wikilinks found', () => {
@@ -45,20 +52,23 @@ describe('extractLinkedNodeIds', () => {
       '1': createNode('1')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
     expect(result).toEqual([])
   })
 
-  it('should ignore unresolved wikilinks', () => {
+  it('should preserve unresolved wikilinks for future node creation', () => {
     const content = 'See [[1]] and [[non-existent]]'
     const nodes = {
       '1': createNode('1')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['1'])
+    expect(result).toEqual([
+      { targetId: '1', label: 'See' },
+      { targetId: 'non-existent', label: 'See [[1]] and' }
+    ])
   })
 
   it('should remove duplicate links', () => {
@@ -68,9 +78,12 @@ describe('extractLinkedNodeIds', () => {
       '2': createNode('2')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['1', '2'])
+    expect(result).toEqual([
+      { targetId: '1', label: 'See' },
+      { targetId: '2', label: 'See [[1]] and' }
+    ])
   })
 
   it('should preserve link order with duplicates removed', () => {
@@ -81,9 +94,13 @@ describe('extractLinkedNodeIds', () => {
       '3': createNode('3')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['3', '1', '2'])
+    expect(result).toEqual([
+      { targetId: '3', label: '' },
+      { targetId: '1', label: '[[3]] then' },
+      { targetId: '2', label: '[[3]] then [[1]] then' }
+    ])
   })
 
   it('should handle multiple links in same line', () => {
@@ -94,9 +111,13 @@ describe('extractLinkedNodeIds', () => {
       '3': createNode('3')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['1', '2', '3'])
+    expect(result).toEqual([
+      { targetId: '1', label: 'Multiple links:' },
+      { targetId: '2', label: 'Multiple links: [[1]]' },
+      { targetId: '3', label: 'Multiple links: [[1]] [[2]]' }
+    ])
   })
 
   it('should handle links across multiple lines', () => {
@@ -109,9 +130,13 @@ Line 3 with [[3]]`
       '3': createNode('3')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['1', '2', '3'])
+    expect(result).toEqual([
+      { targetId: '1', label: 'Line 1 with' },
+      { targetId: '2', label: 'Line 2 with' },
+      { targetId: '3', label: 'Line 3 with' }
+    ])
   })
 
   it('should trim whitespace in link text', () => {
@@ -120,25 +145,25 @@ Line 3 with [[3]]`
       '1': createNode('1')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['1'])
+    expect(result).toEqual([{ targetId: '1', label: 'See' }])
   })
 
-  it('should handle empty nodes record', () => {
+  it('should preserve links even when nodes record is empty', () => {
     const content = 'See [[GraphNode A]]'
     const nodes = {}
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual([])
+    expect(result).toEqual([{ targetId: 'GraphNode A', label: 'See' }])
   })
 
   it('should handle content with no links and empty nodes', () => {
     const content = 'Just plain text'
     const nodes = {}
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
     expect(result).toEqual([])
   })
@@ -151,10 +176,10 @@ Line 3 with [[3]]`
         'vscode_spike/_179': createNode('vscode_spike/_179')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
       // Prefers longer match (vscode_spike/_179) over shorter (_179) for better specificity
-      expect(result).toEqual(['vscode_spike/_179'])
+      expect(result).toEqual([{ targetId: 'vscode_spike/_179', label: 'See' }])
     })
 
     it('should match absolute paths with partial path overlap', () => {
@@ -163,9 +188,9 @@ Line 3 with [[3]]`
         'vscode_spike/_179': createNode('vscode_spike/_179')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
-      expect(result).toEqual(['vscode_spike/_179'])
+      expect(result).toEqual([{ targetId: 'vscode_spike/_179', label: 'Link to' }])
     })
 
     it('should handle relative paths from different bases', () => {
@@ -175,9 +200,12 @@ Line 3 with [[3]]`
         'subfolder/node2': createNode('subfolder/node2')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
-      expect(result).toEqual(['other_folder/node', 'subfolder/node2'])
+      expect(result).toEqual([
+        { targetId: 'other_folder/node', label: 'See' },
+        { targetId: 'subfolder/node2', label: 'See [[../other_folder/node.md]] and' }
+      ])
     })
 
     it('should match paths with different levels of specificity, preferring longest match', () => {
@@ -188,10 +216,10 @@ Line 3 with [[3]]`
         'vault/folder/file': createNode('vault/folder/file')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
       // Prefers 'vault/folder/file' over 'folder/file' over 'file'
-      expect(result).toEqual(['vault/folder/file'])
+      expect(result).toEqual([{ targetId: 'vault/folder/file', label: 'Link to' }])
     })
 
     it('should handle absolute paths without extensions, preferring longer match', () => {
@@ -201,10 +229,10 @@ Line 3 with [[3]]`
         'project/_179': createNode('project/_179')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
       // Prefers longer match with more path context
-      expect(result).toEqual(['project/_179'])
+      expect(result).toEqual([{ targetId: 'project/_179', label: 'See' }])
     })
 
     it('should match relative paths that resolve to same file', () => {
@@ -213,10 +241,10 @@ Line 3 with [[3]]`
         'vault/note': createNode('vault/note')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
-      // All three relative paths should resolve to the same node
-      expect(result).toEqual(['vault/note'])
+      // All three relative paths should resolve to the same node - first occurrence wins
+      expect(result).toEqual([{ targetId: 'vault/note', label: 'Multiple refs:' }])
     })
 
     it('should handle paths with special characters', () => {
@@ -225,9 +253,9 @@ Line 3 with [[3]]`
         'node_with-special.chars': createNode('node_with-special.chars')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
-      expect(result).toEqual(['node_with-special.chars'])
+      expect(result).toEqual([{ targetId: 'node_with-special.chars', label: 'Link to' }])
     })
 
     it('should prioritize longer path matches over shorter ones', () => {
@@ -238,11 +266,11 @@ Line 3 with [[3]]`
         'deeply/nested/file': createNode('deeply/nested/file')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
       // Prefers 'deeply/nested/file' over 'nested/file' over 'file'
       // The longer match provides more specificity and reduces ambiguity
-      expect(result).toEqual(['deeply/nested/file'])
+      expect(result).toEqual([{ targetId: 'deeply/nested/file', label: 'See' }])
     })
 
     it('should handle mixed absolute and relative paths in same content', () => {
@@ -256,10 +284,11 @@ Line 3 with [[3]]`
         'folder/_179': createNode('folder/_179')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
       // All paths should resolve to the same node (after proper path resolution)
-      expect(result).toEqual(['folder/_179'])
+      // First occurrence wins with its label
+      expect(result).toEqual([{ targetId: 'folder/_179', label: 'Absolute:' }])
     })
 
     it('should handle ambiguous matches with same filename in different folders', () => {
@@ -270,11 +299,37 @@ Line 3 with [[3]]`
         'src/README': createNode('src/README')
       }
 
-      const result = extractLinkedNodeIds(content, nodes)
+      const result = extractEdges(content, nodes)
 
       // When only filename is provided, matches the shortest path (root-level preferred)
       // This is because extractPathSegments returns ['README'] and it matches 'README' node first
-      expect(result).toEqual(['README'])
+      expect(result).toEqual([{ targetId: 'README', label: 'Link to' }])
     })
+  })
+
+  it('should extract label from user markdown format with Parent: section', () => {
+    const content = `---
+node_id: 5
+title: Understand Google Cloud Lambda Creation (5)
+---
+### Understand the process of creating a Google Cloud Lambda function.
+
+A bit of background on how I can actually create the lambda itself.
+
+
+-----------------
+_Links:_
+Parent:
+- is_a_prerequisite_for [[3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md]]`
+
+    const nodes = {
+      '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation': createNode('3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation')
+    }
+
+    const result = extractEdges(content, nodes)
+
+    expect(result).toEqual([
+      { targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation', label: 'is_a_prerequisite_for' }
+    ])
   })
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
-import { extractLinkedNodeIds } from '@/pure/graph/markdown-parsing/extract-linked-node-ids.ts'
+import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges.ts'
 import type { GraphNode } from '@/pure/graph'
 
 describe('extractLinkedNodeIds', () => {
@@ -9,6 +9,7 @@ describe('extractLinkedNodeIds', () => {
     content: '',
     outgoingEdges: [],
     nodeUIMetadata: {
+      title: id,
       color: O.none,
       position: O.none
     }
@@ -21,9 +22,12 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['node-a', 'node-b'])
+    expect(result).toEqual([
+      { targetId: 'node-a', label: 'See' },
+      { targetId: 'node-b', label: 'See [[node-a]] and' }
+    ])
   })
 
   it('should extract linked node IDs by filename with .md extension', () => {
@@ -33,9 +37,12 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['node-a', 'node-b'])
+    expect(result).toEqual([
+      { targetId: 'node-a', label: 'See' },
+      { targetId: 'node-b', label: 'See [[node-a.md]] and' }
+    ])
   })
 
   it('should extract linked node IDs with relative path prefix ./', () => {
@@ -49,11 +56,9 @@ describe('extractLinkedNodeIds', () => {
       )
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    // EXPECTED: Should resolve to ['_179']
-    // ACTUAL: Returns [] because ./ prefix is not stripped
-    expect(result).toEqual(['_179'])
+    expect(result).toEqual([{ targetId: '_179', label: 'Parent:' }])
   })
 
   it('should handle multiple link formats with ./ prefix', () => {
@@ -65,10 +70,14 @@ describe('extractLinkedNodeIds', () => {
       'node-c': createNode('node-c')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
     // Should resolve all three links
-    expect(result).toEqual(['node-a', 'node-b', 'node-c'])
+    expect(result).toEqual([
+      { targetId: 'node-a', label: 'Links:' },
+      { targetId: 'node-b', label: 'Links: [[./node-a.md]] and' },
+      { targetId: 'node-c', label: 'Links: [[./node-a.md]] and [[./node-b.md]] and' }
+    ])
   })
 
   it('should return empty array when no wikilinks found', () => {
@@ -77,20 +86,23 @@ describe('extractLinkedNodeIds', () => {
       'node-a': createNode('node-a')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
     expect(result).toEqual([])
   })
 
-  it('should ignore unresolved wikilinks', () => {
+  it('should preserve unresolved wikilinks for future node creation', () => {
     const content = 'See [[node-a]] and [[non-existent-node]]'
     const nodes = {
       'node-a': createNode('node-a')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['node-a'])
+    expect(result).toEqual([
+      { targetId: 'node-a', label: 'See' },
+      { targetId: 'non-existent-node', label: 'See [[node-a]] and' }
+    ])
   })
 
   it('should remove duplicate links', () => {
@@ -100,9 +112,12 @@ describe('extractLinkedNodeIds', () => {
       'node-b': createNode('node-b')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['node-a', 'node-b'])
+    expect(result).toEqual([
+      { targetId: 'node-a', label: 'See' },
+      { targetId: 'node-b', label: 'See [[node-a]] and' }
+    ])
   })
 
   it('should trim whitespace in link text', () => {
@@ -111,18 +126,18 @@ describe('extractLinkedNodeIds', () => {
       'node-a': createNode('node-a')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual(['node-a'])
+    expect(result).toEqual([{ targetId: 'node-a', label: 'See' }])
   })
 
-  it('should handle empty nodes record', () => {
+  it('should preserve links even when nodes record is empty', () => {
     const content = 'See [[node-a]]'
     const nodes = {}
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
-    expect(result).toEqual([])
+    expect(result).toEqual([{ targetId: 'node-a', label: 'See' }])
   })
 
   it('BUG REPRODUCTION: should strip .md extension from wikilinks (integration test scenario)', () => {
@@ -139,9 +154,9 @@ describe('extractLinkedNodeIds', () => {
       'test-new-file': createNode('test-new-file')
     }
 
-    const result = extractLinkedNodeIds(content, nodes)
+    const result = extractEdges(content, nodes)
 
     // Should strip .md extension
-    expect(result).toEqual(['test-new-file'])
+    expect(result).toEqual([{ targetId: 'test-new-file', label: 'See' }])
   })
 })
