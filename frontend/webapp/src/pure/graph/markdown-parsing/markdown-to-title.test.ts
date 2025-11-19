@@ -199,7 +199,7 @@ Content`,
     })
 
     describe('Filename fallback', () => {
-        it('should use filename when no frontmatter title or heading', () => {
+        it('should use first line when no frontmatter title or heading', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'my-test_file.md',
                 content: 'Just content, no heading',
@@ -213,13 +213,30 @@ Content`,
 
             const frontmatter = extractFrontmatter(node.content)
             const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
-            expect(title).toBe('my test file')
+            expect(title).toBe('Just content, no heading') // Now uses first line, not filename
         })
 
-        it('should clean up underscores and dashes in filename', () => {
+        it('should use first line instead of filename when content exists', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'folder/another_folder/test-file_name.md',
                 content: 'Content',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            expect(title).toBe('Content') // Now uses first line, not filename
+        })
+
+        it('should clean up underscores and dashes in filename when no content', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: 'folder/another_folder/test-file_name.md',
+                content: '',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -283,6 +300,112 @@ position:
         })
     })
 
+    describe('First line fallback (new feature)', () => {
+        it('should extract title from first non-empty line when no heading', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: 'test.md',
+                content: `This is the first line of content
+
+And this is more content`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            expect(title).toBe('This is the first line of content')
+        })
+
+        it('should extract title from first non-empty line after frontmatter', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: 'test.md',
+                content: `---
+color: red
+position:
+  x: 100
+  y: 200
+---
+
+This is the first line after frontmatter
+
+More content here`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            expect(title).toBe('This is the first line after frontmatter')
+        })
+
+        it('should trim whitespace from first line', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: 'test.md',
+                content: `
+
+   First line with leading whitespace
+
+More content`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            expect(title).toBe('First line with leading whitespace')
+        })
+
+        it('should prioritize heading over first line', () => {
+            const node: GraphNode = {
+                relativeFilePathIsID: 'test.md',
+                content: `# Heading Title
+First line of content
+
+More content`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            expect(title).toBe('Heading Title')
+        })
+
+        it('should truncate first line when too long', () => {
+            const longLine = 'a'.repeat(250)
+            const node: GraphNode = {
+                relativeFilePathIsID: 'test-file.md',
+                content: longLine,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            expect(title).toBe('a'.repeat(200) + '...') // Should truncate with ...
+        })
+    })
+
     describe('Edge cases', () => {
         it('should handle empty content', () => {
             const node: GraphNode = {
@@ -301,11 +424,12 @@ position:
             expect(title).toBe('empty')
         })
 
-        it('should handle very long heading by skipping it', () => {
-            const longHeading = 'a'.repeat(150)
+        it('should truncate very long heading with ellipsis', () => {
+            const longHeading = 'a'.repeat(250)
             const node: GraphNode = {
                 relativeFilePathIsID: 'test-file.md',
-                content: `# ${longHeading}`,
+                content: `# ${longHeading}
+Short first line after heading`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -316,7 +440,25 @@ position:
 
             const frontmatter = extractFrontmatter(node.content)
             const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
-            expect(title).toBe('test file') // Should fall back to filename
+            expect(title).toBe('a'.repeat(200) + '...')
+        })
+
+        it('should handle heading between 100-200 chars (updated limit)', () => {
+            const heading150 = 'a'.repeat(150)
+            const node: GraphNode = {
+                relativeFilePathIsID: 'test-file.md',
+                content: `# ${heading150}`,
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: '',
+                    color: O.none,
+                    position: O.none
+                }
+            }
+
+            const frontmatter = extractFrontmatter(node.content)
+            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            expect(title).toBe(heading150) // Should now work with 200 char limit
         })
     })
 })
