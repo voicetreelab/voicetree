@@ -182,7 +182,7 @@ export class StyleService {
           'target-arrow-fill': 'hollow' as cytoscape.Css.ArrowFill,
           'target-arrow-color': '#666',
           'arrow-scale': 0.7,
-          'font-size': 11,
+          'font-size': 9,
           'font-family': this.font,
           'color': this.textColor,
           'curve-style': 'straight',

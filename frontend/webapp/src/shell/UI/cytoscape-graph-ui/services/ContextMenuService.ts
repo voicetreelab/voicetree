@@ -22,7 +22,7 @@ export interface ContextMenuDependencies {
 
 interface MenuCommand {
     content: string | HTMLElement;
-    select: (ele: NodeSingular) => void;
+    select: (ele: NodeSingular) => void | Promise<void>;
     enabled: boolean;
 }
 
@@ -214,7 +214,7 @@ export class ContextMenuService {
             content: this.createSvgIcon('copy', 'Copy'),
             select: async () => {
                 const absolutePath = await this.deps!.getFilePathForNode(nodeId);
-                navigator.clipboard.writeText(absolutePath || nodeId);
+                void navigator.clipboard.writeText(absolutePath ?? nodeId);
             },
             enabled: true,
         });
@@ -235,7 +235,7 @@ export class ContextMenuService {
             // Load settings to get the agentCommand
             const settings = await window.electronAPI?.main.loadSettings();
 
-            const agentCommand = settings.agentCommand || './claude.sh'; // Fallback to default
+            const agentCommand = settings?.agentCommand ?? './claude.sh'; // Fallback to default // todo why are we getting these all of a sudden? ugly and annoying
 
             const filePath = await this.deps!.getFilePathForNode(nodeId);
             const nodeMetadata = {

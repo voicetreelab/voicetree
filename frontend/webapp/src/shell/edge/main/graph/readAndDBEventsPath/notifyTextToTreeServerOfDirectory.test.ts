@@ -13,10 +13,7 @@ describe('notifyTextToTreeServerOfDirectory', () => {
   });
 
   it('should successfully notify backend when it is ready immediately', async () => {
-    // GIVEN: Backend is ready
-    const healthCheckMock = vi.spyOn(backendApi, 'checkBackendHealth')
-      .mockResolvedValue(true);
-
+    // GIVEN: Backend succeeds
     const loadDirMock = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
       .mockResolvedValue({
         status: 'success',
@@ -31,20 +28,16 @@ describe('notifyTextToTreeServerOfDirectory', () => {
     // THEN: Should call backend immediately
     await vi.runOnlyPendingTimersAsync();
 
-    expect(healthCheckMock).toHaveBeenCalledTimes(1);
     expect(loadDirMock).toHaveBeenCalledWith('/test/path');
     expect(loadDirMock).toHaveBeenCalledTimes(1);
   });
 
-  it('should retry every 5 seconds when backend not ready, then succeed', async () => {
-    // GIVEN: Backend not ready for first 2 attempts, then ready
-    const healthCheckMock = vi.spyOn(backendApi, 'checkBackendHealth')
-      .mockResolvedValueOnce(false)  // Attempt 1: not ready
-      .mockResolvedValueOnce(false)  // Attempt 2: not ready
-      .mockResolvedValueOnce(true);  // Attempt 3: ready!
-
+  it('should retry every 5 seconds when backend fails, then succeed', async () => {
+    // GIVEN: Backend fails for first 2 attempts, then succeeds
     const loadDirMock = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
-      .mockResolvedValue({
+      .mockRejectedValueOnce(new Error('Connection error'))  // Attempt 1: fails
+      .mockRejectedValueOnce(new Error('Connection error'))  // Attempt 2: fails
+      .mockResolvedValueOnce({                               // Attempt 3: succeeds
         status: 'success',
         message: 'Directory loaded',
         directory: '/test/path',
@@ -54,56 +47,22 @@ describe('notifyTextToTreeServerOfDirectory', () => {
     // WHEN: Notify about directory
     notifyTextToTreeServerOfDirectory('/test/path');
 
-    // THEN: First attempt checks health (flush microtasks only)
+    // THEN: First attempt fails
     await vi.advanceTimersByTimeAsync(0);
-    expect(healthCheckMock).toHaveBeenCalledTimes(1);
-    expect(loadDirMock).not.toHaveBeenCalled();
+    expect(loadDirMock).toHaveBeenCalledTimes(1);
 
     // THEN: Second attempt after 5 seconds
     await vi.advanceTimersByTimeAsync(5000);
-    expect(healthCheckMock).toHaveBeenCalledTimes(2);
-    expect(loadDirMock).not.toHaveBeenCalled();
+    expect(loadDirMock).toHaveBeenCalledTimes(2);
 
     // THEN: Third attempt succeeds after another 5 seconds
     await vi.advanceTimersByTimeAsync(5000);
-    expect(healthCheckMock).toHaveBeenCalledTimes(3);
     expect(loadDirMock).toHaveBeenCalledWith('/test/path');
-    expect(loadDirMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('should retry when health check throws error', async () => {
-    // GIVEN: Health check fails first, then succeeds
-    const healthCheckMock = vi.spyOn(backendApi, 'checkBackendHealth')
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce(true);
-
-    const loadDirMock = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
-      .mockResolvedValue({
-        status: 'success',
-        message: 'Directory loaded',
-        directory: '/test/path',
-        nodes_loaded: 5
-      });
-
-    // WHEN: Notify about directory
-    notifyTextToTreeServerOfDirectory('/test/path');
-
-    // THEN: First attempt catches error (returns false from .catch(() => false))
-    await vi.advanceTimersByTimeAsync(0);
-    expect(healthCheckMock).toHaveBeenCalledTimes(1);
-    expect(loadDirMock).not.toHaveBeenCalled();
-
-    // THEN: Retries after 5 seconds and succeeds
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(healthCheckMock).toHaveBeenCalledTimes(2);
-    expect(loadDirMock).toHaveBeenCalledWith('/test/path');
+    expect(loadDirMock).toHaveBeenCalledTimes(3);
   });
 
   it('should retry when API call fails', async () => {
-    // GIVEN: Backend ready but API fails once, then succeeds
-    vi.spyOn(backendApi, 'checkBackendHealth')
-      .mockResolvedValue(true);
-
+    // GIVEN: API fails once, then succeeds
     const loadDirMock = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
       .mockRejectedValueOnce(new Error('API error'))
       .mockResolvedValueOnce({
@@ -127,42 +86,35 @@ describe('notifyTextToTreeServerOfDirectory', () => {
   });
 
   it('should continue retrying indefinitely until success', async () => {
-    // GIVEN: Backend not ready for many attempts
-    const healthCheckMock = vi.spyOn(backendApi, 'checkBackendHealth')
-      .mockResolvedValue(false);
-
+    // GIVEN: Backend fails for many attempts, then succeeds
     const loadDirMock = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
-      .mockResolvedValue({
-        status: 'success',
-        message: 'Directory loaded',
-        directory: '/test/path',
-        nodes_loaded: 5
-      });
+      .mockRejectedValue(new Error('Connection error'));
 
     // WHEN: Notify about directory
     notifyTextToTreeServerOfDirectory('/test/path');
 
     // THEN: Should keep retrying (test 10 attempts)
     await vi.advanceTimersByTimeAsync(0);
-    expect(healthCheckMock).toHaveBeenCalledTimes(1);
+    expect(loadDirMock).toHaveBeenCalledTimes(1);
 
     for (let i = 2; i <= 10; i++) {
       await vi.advanceTimersByTimeAsync(5000);
-      expect(healthCheckMock).toHaveBeenCalledTimes(i);
-      expect(loadDirMock).not.toHaveBeenCalled();
+      expect(loadDirMock).toHaveBeenCalledTimes(i);
     }
 
     // Now make it succeed
-    healthCheckMock.mockResolvedValue(true);
+    loadDirMock.mockResolvedValue({
+      status: 'success',
+      message: 'Directory loaded',
+      directory: '/test/path',
+      nodes_loaded: 5
+    });
     await vi.advanceTimersByTimeAsync(5000);
     expect(loadDirMock).toHaveBeenCalledWith('/test/path');
   });
 
   it('should handle multiple calls to notifyTextToTreeServerOfDirectory', async () => {
-    // GIVEN: Backend is ready
-    vi.spyOn(backendApi, 'checkBackendHealth')
-      .mockResolvedValue(true);
-
+    // GIVEN: Backend succeeds
     const loadDirMock = vi.spyOn(backendApi, 'tellSTTServerToLoadDirectory')
       .mockResolvedValue({
         status: 'success',

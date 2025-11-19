@@ -28,12 +28,12 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
 
 // Use temp directory for this test
 const PROJECT_ROOT = path.resolve(process.cwd());
-const TEST_VAULT_PATH = path.join(PROJECT_ROOT, 'tests', 'fixtures', 'temp-link-bug-test');
 
 // Type definitions
 interface ExtendedWindow {
@@ -56,8 +56,25 @@ interface CodeMirrorElement extends HTMLElement {
 const test = base.extend<{
   electronApp: ElectronApplication;
   appWindow: Page;
+  testVaultPath: string;
 }>({
-  electronApp: async ({}, use) => {
+  testVaultPath: async ({}, use) => {
+    // Create a temporary directory for this test
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-link-bug-test-'));
+    console.log('[Test] Created test vault at:', tmpDir);
+
+    await use(tmpDir);
+
+    // Cleanup
+    try {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+      console.log('[Test] Cleaned up test vault');
+    } catch (error) {
+      console.log('Cleanup error:', error);
+    }
+  },
+
+  electronApp: async ({ testVaultPath: _testVaultPath }, use) => {
     const electronApp = await electron.launch({
       args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
       env: {
@@ -65,7 +82,8 @@ const test = base.extend<{
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
-      }
+      },
+      timeout: 5000
     });
 
     await use(electronApp);
@@ -79,7 +97,7 @@ const test = base.extend<{
           await api.main.stopFileWatching();
         }
       });
-      await page.waitForTimeout(30);
+      await page.waitForTimeout(300);
     } catch {
       console.log('Note: Could not stop file watching during cleanup');
     }
@@ -87,7 +105,7 @@ const test = base.extend<{
     await electronApp.close();
   },
 
-  appWindow: async ({ electronApp }, use) => {
+  appWindow: async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
     const page = await electronApp.firstWindow();
 
     // Log console messages
@@ -127,34 +145,7 @@ const test = base.extend<{
 });
 
 test.describe('Link Duplication Bug', () => {
-  test.beforeEach(async () => {
-    // Create temp test directory
-    await fs.mkdir(TEST_VAULT_PATH, { recursive: true });
-  });
-
-  test.afterEach(async ({ appWindow }) => {
-    // Stop file watching before cleanup
-    try {
-      await appWindow.evaluate(async () => {
-        const api = (window as ExtendedWindow).electronAPI;
-        if (api) {
-          await api.main.stopFileWatching();
-        }
-      });
-      await appWindow.waitForTimeout(200);
-    } catch {
-      // Window might be closed
-    }
-
-    // Clean up test directory
-    try {
-      await fs.rm(TEST_VAULT_PATH, { recursive: true, force: true });
-    } catch (error) {
-      console.log('Cleanup error:', error);
-    }
-  });
-
-  test('should NOT duplicate links when editing markdown in floating editor', async ({ appWindow }) => {
+  test('should NOT duplicate links when editing markdown in floating editor', async ({ appWindow, testVaultPath }) => {
     console.log('=== Testing link duplication bug ===');
 
     // 1. Create a test markdown file with a link
@@ -169,12 +160,12 @@ This is a test node with a link to [[${linkedNodeId}]].
 
 Some more content here.`;
 
-    const testFilePath = path.join(TEST_VAULT_PATH, `${testNodeId}.md`);
+    const testFilePath = path.join(testVaultPath, `${testNodeId}.md`);
     await fs.writeFile(testFilePath, initialContent, 'utf-8');
     console.log('✓ Created test file with link');
 
     // Create the linked node too (so the link is valid)
-    const linkedFilePath = path.join(TEST_VAULT_PATH, `${linkedNodeId}.md`);
+    const linkedFilePath = path.join(testVaultPath, `${linkedNodeId}.md`);
     await fs.writeFile(linkedFilePath, '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
     console.log('✓ Created linked node file');
 
@@ -183,7 +174,7 @@ Some more content here.`;
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(vaultPath);
-    }, TEST_VAULT_PATH);
+    }, testVaultPath);
 
     await appWindow.waitForTimeout(1000);
     console.log('✓ Started file watching');
@@ -285,7 +276,7 @@ Some more content here.`;
     console.log('✓ Link duplication test completed');
   });
 
-  test('should remove link from markdown file when deleted in editor (but edge persists in graph)', async ({ appWindow }) => {
+  test('should remove link from markdown file when deleted in editor (but edge persists in graph)', async ({ appWindow, testVaultPath }) => {
     console.log('=== Testing link removal behavior ===');
 
     // 1. Create a test markdown file with a link
@@ -300,12 +291,12 @@ This node has a link: [[${linkedNodeId}]]
 
 End of content.`;
 
-    const testFilePath = path.join(TEST_VAULT_PATH, `${testNodeId}.md`);
+    const testFilePath = path.join(testVaultPath, `${testNodeId}.md`);
     await fs.writeFile(testFilePath, initialContent, 'utf-8');
     console.log('✓ Created test file with link');
 
     // Create the linked node too
-    const linkedFilePath = path.join(TEST_VAULT_PATH, `${linkedNodeId}.md`);
+    const linkedFilePath = path.join(testVaultPath, `${linkedNodeId}.md`);
     await fs.writeFile(linkedFilePath, '---\n---\n# Target Node\n\nTarget.', 'utf-8');
     console.log('✓ Created target node file');
 
@@ -314,7 +305,7 @@ End of content.`;
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(vaultPath);
-    }, TEST_VAULT_PATH);
+    }, testVaultPath);
 
     await appWindow.waitForTimeout(1000);
     console.log('✓ Started file watching');

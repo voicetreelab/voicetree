@@ -138,7 +138,7 @@ export function createWindowChrome(
     const {id, title, resizable = false, component} = config;
 
     // Get initial dimensions for this component type
-    const dimensions = config.shadowNodeDimensions || getDefaultDimensions(component);
+    const dimensions = config.shadowNodeDimensions ?? getDefaultDimensions(component);
 
     // Create main window container
     const windowElement = document.createElement('div');
@@ -181,7 +181,7 @@ export function createWindowChrome(
     fullscreenButton.addEventListener('click', () => {
         const vanillaInstance = vanillaInstances.get(id);
         if (vanillaInstance && 'toggleFullscreen' in vanillaInstance) {
-            (vanillaInstance as { toggleFullscreen: () => Promise<void> }).toggleFullscreen();
+            void (vanillaInstance as { toggleFullscreen: () => Promise<void> }).toggleFullscreen();
         }
     });
 
@@ -385,16 +385,19 @@ export async function createFloatingEditor(
         contentContainer,
         content,
         {
-            autosaveDelay: 300
+            autosaveDelay: 300,
+            darkMode: document.documentElement.classList.contains('dark')
         }
     );
 
     // Setup auto-save with modifyNodeContentFromUI
-    editor.onChange(async (newContent) => {
-        console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
-        // Track this content so we can ignore it when it comes back from filesystem
-        awaitingUISavedContent.set(nodeId, newContent);
-        await modifyNodeContentFromUI(nodeId, newContent, cy);
+    editor.onChange((newContent): void => {
+        void (async () => {
+            console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
+            // Track this content so we can ignore it when it comes back from filesystem
+            awaitingUISavedContent.set(nodeId, newContent);
+            await modifyNodeContentFromUI(nodeId, newContent, cy);
+        })();
     });
 
     // Store for cleanup
