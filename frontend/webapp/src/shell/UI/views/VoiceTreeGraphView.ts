@@ -170,6 +170,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             // Update floating editor windows with new content from external changes
             this.floatingWindowManager.updateFloatingEditors(delta);
 
+            // Update navigator visibility based on node count
+            this.updateNavigatorVisibility();
+
         };
 
         const handleGraphClear = (): void => {
@@ -439,7 +442,9 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Setup graph-specific hotkeys via HotkeyManager
         this.hotkeyManager.setupGraphHotkeys({
             fitToLastNode: () => this.navigationService.fitToLastNode(),
-            cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction)
+            cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
+            createNewNode: () => this.handleCreateNewNodeHotkey(),
+            runTerminal: () => this.handleRunTerminalHotkey()
         });
 
         // Register cmd-f for search
@@ -485,8 +490,32 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             });
 
             console.log('[VoiceTreeGraphView] Navigator minimap initialized');
+
+            // Initially hide minimap if there's only one node or less
+            this.updateNavigatorVisibility();
         } catch (error) {
             console.error('[VoiceTreeGraphView] Failed to initialize navigator:', error);
+        }
+    }
+
+    /**
+     * Show or hide the navigator minimap based on node count
+     * Only shows the minimap when there are 2 or more nodes in the graph
+     */
+    private updateNavigatorVisibility(): void {
+        if (!this.navigator) {
+            return;
+        }
+
+        const nodeCount = this.cy.nodes().length;
+        const navigatorElement = document.querySelector('.cytoscape-navigator') as HTMLElement;
+
+        if (navigatorElement) {
+            if (nodeCount <= 1) {
+                navigatorElement.style.display = 'none';
+            } else {
+                navigatorElement.style.display = 'block';
+            }
         }
     }
 
@@ -589,6 +618,58 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     /**
+     * Handle cmd+n hotkey: Create a new child node from selected node or orphan at center
+     */
+    private handleCreateNewNodeHotkey(): void {
+        const selectedNodes = this.getSelectedNodes();
+
+        if (selectedNodes.length > 0) {
+            // Create child node from first selected node
+            const parentNodeId = selectedNodes[0];
+            void (async () => {
+                const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions.ts');
+                const childId = await createNewChildNodeFromUI(parentNodeId, this.cy);
+                await this.floatingWindowManager.createAnchoredFloatingEditor(childId);
+            })();
+        } else {
+            // Create orphan node at center of viewport
+            void (async () => {
+                const {createNewEmptyOrphanNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions.ts');
+                const cy = this.cy;
+                const pan = cy.pan();
+                const zoom = cy.zoom();
+                const centerX = (cy.width() / 2 - pan.x) / zoom;
+                const centerY = (cy.height() / 2 - pan.y) / zoom;
+                const nodeId = await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY}, this.cy);
+                await this.floatingWindowManager.createAnchoredFloatingEditor(nodeId);
+            })();
+        }
+    }
+
+    /**
+     * Handle cmd+enter hotkey: Run terminal/coding agent on selected node
+     */
+    private handleRunTerminalHotkey(): void {
+        const selectedNodes = this.getSelectedNodes();
+
+        if (selectedNodes.length === 0) {
+            console.log('[VoiceTreeGraphView] No node selected for terminal');
+            return;
+        }
+
+        const nodeId = selectedNodes[0];
+
+        void (async () => {
+            const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/graph/spawnTerminalWithCommandFromUI.ts');
+            await spawnTerminalForNode(
+                nodeId,
+                this.cy,
+                (nodeId, metadata, pos) => this.floatingWindowManager.createFloatingTerminal(nodeId, metadata, pos)
+            );
+        })();
+    }
+
+    /**
      * Creates a floating terminal with pre-pasted backup command
      * Command moves vault to timestamped backup folder and recreates empty vault
      */
@@ -623,7 +704,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         const centerY = (cy.height() / 2 - pan.y) / zoom;
 
         // Create floating terminal with pre-pasted command
-        this.floatingWindowManager.createFloatingTerminal(
+        await this.floatingWindowManager.createFloatingTerminal(
             'backup',
             terminalMetadata,
             {x: centerX, y: centerY}
