@@ -34,7 +34,10 @@ export async function setupMockElectronAPI(page: Page): Promise<void> {
         },
 
         // Settings operations
-        loadSettings: async () => ({ success: false }),
+        loadSettings: async () => ({
+          agentCommand: './claude.sh',
+          backendPort: 5001
+        }),
         saveSettings: async () => ({ success: true }),
 
         // File watching controls

@@ -24,8 +24,8 @@ import type { NodeId } from '@/pure/graph'
  * ```
  */
 export function filenameToNodeId(filename: string): NodeId {
-  // Strip .md extension
-  return filename.replace(/\.md$/, '')
+  // DO NOT Strip .md extension
+  return filename;
   // todo, at some point we need to think about whether node relativeFilePathIsID should be filepath, node counter
 }
 
@@ -47,5 +47,5 @@ export function filenameToNodeId(filename: string): NodeId {
  * ```
  */
 export function nodeIdToFilePathWithExtension(nodeId: NodeId): string {
-  return `${nodeId}.md`
+    return nodeId.includes(".md") ? `${nodeId}` : nodeId + ".md"; // assumes md only
 }
