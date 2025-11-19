@@ -37,6 +37,7 @@ import {FloatingWindowManager} from './FloatingWindowManager.ts';
 import {HotkeyManager} from './HotkeyManager.ts';
 import {SearchService} from './SearchService.ts';
 import {GraphNavigationService} from './GraphNavigationService.ts';
+import {createNewNodeAction, runTerminalAction} from './actions/graphActions.ts';
 import {getResponsivePadding} from '@/utils/responsivePadding.ts';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView.ts';
 import type {Graph, GraphDelta} from '@/pure/graph';
@@ -443,8 +444,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.hotkeyManager.setupGraphHotkeys({
             fitToLastNode: () => this.navigationService.fitToLastNode(),
             cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
-            createNewNode: () => this.handleCreateNewNodeHotkey(),
-            runTerminal: () => this.handleRunTerminalHotkey()
+            createNewNode: createNewNodeAction(this.cy, this.floatingWindowManager),
+            runTerminal: runTerminalAction(this.cy, this.floatingWindowManager)
         });
 
         // Register cmd-f for search
@@ -615,58 +616,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             nodeCount: cy.nodes().length,
             edgeCount: cy.edges().length
         };
-    }
-
-    /**
-     * Handle cmd+n hotkey: Create a new child node from selected node or orphan at center
-     */
-    private handleCreateNewNodeHotkey(): void {
-        const selectedNodes = this.getSelectedNodes();
-
-        if (selectedNodes.length > 0) {
-            // Create child node from first selected node
-            const parentNodeId = selectedNodes[0];
-            void (async () => {
-                const {createNewChildNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions.ts');
-                const childId = await createNewChildNodeFromUI(parentNodeId, this.cy);
-                await this.floatingWindowManager.createAnchoredFloatingEditor(childId);
-            })();
-        } else {
-            // Create orphan node at center of viewport
-            void (async () => {
-                const {createNewEmptyOrphanNodeFromUI} = await import('@/shell/edge/UI-edge/graph/handleUIActions.ts');
-                const cy = this.cy;
-                const pan = cy.pan();
-                const zoom = cy.zoom();
-                const centerX = (cy.width() / 2 - pan.x) / zoom;
-                const centerY = (cy.height() / 2 - pan.y) / zoom;
-                const nodeId = await createNewEmptyOrphanNodeFromUI({x: centerX, y: centerY}, this.cy);
-                await this.floatingWindowManager.createAnchoredFloatingEditor(nodeId);
-            })();
-        }
-    }
-
-    /**
-     * Handle cmd+enter hotkey: Run terminal/coding agent on selected node
-     */
-    private handleRunTerminalHotkey(): void {
-        const selectedNodes = this.getSelectedNodes();
-
-        if (selectedNodes.length === 0) {
-            console.log('[VoiceTreeGraphView] No node selected for terminal');
-            return;
-        }
-
-        const nodeId = selectedNodes[0];
-
-        void (async () => {
-            const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/graph/spawnTerminalWithCommandFromUI.ts');
-            await spawnTerminalForNode(
-                nodeId,
-                this.cy,
-                (nodeId, metadata, pos) => this.floatingWindowManager.createFloatingTerminal(nodeId, metadata, pos)
-            );
-        })();
     }
 
     /**
