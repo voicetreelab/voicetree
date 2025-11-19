@@ -188,10 +188,6 @@ export class HotkeyManager {
 
   private setupListeners(): void {
     this.keyDownHandler = (e: KeyboardEvent) => {
-      // DEBUG: Log ALL keydown events to diagnose issue
-      if (e.key === '[' || e.key === ']' || e.key === 'Meta') {
-        console.log(`[HotkeyManager] RAW KeyDown - key: "${e.key}", code: "${e.code}", metaKey: ${e.metaKey}, repeat: ${e.repeat}`);
-      }
 
       // Prevent browser default for Meta+[ and Meta+] (browser back/forward navigation)
       // MUST be done FIRST, before any other logic
@@ -224,8 +220,6 @@ export class HotkeyManager {
         const shouldFire = !hotkey.isPressed || !e.repeat;
 
         if (shouldFire) {
-          console.log(`[HotkeyManager] Hotkey pressed: ${hotkeyKey} (isPressed: ${hotkey.isPressed}, repeat: ${e.repeat})`);
-
           // Fire onPress
           hotkey.config.onPress();
 
@@ -243,11 +237,6 @@ export class HotkeyManager {
     };
 
     this.keyUpHandler = (e: KeyboardEvent) => {
-      // DEBUG: Log ALL keyup events to diagnose issue
-      if (e.key === '[' || e.key === ']' || e.key === 'Meta') {
-        console.log(`[HotkeyManager] RAW KeyUp - key: "${e.key}", code: "${e.code}", metaKey: ${e.metaKey}`);
-      }
-
       // Prevent browser default for Meta+[ and Meta+] (browser back/forward navigation)
       // MUST be done FIRST, before any other logic
       if ((e.key === '[' || e.key === ']') && e.metaKey) {
@@ -263,9 +252,7 @@ export class HotkeyManager {
       const releasedKey = e.key;
       const releasedModifier = this.getModifierFromEvent(e);
 
-      console.log(`[HotkeyManager] KeyUp - key: "${releasedKey}", metaKey: ${e.metaKey}, releasedModifier: ${releasedModifier}`);
-
-      for (const [hotkeyKey, hotkey] of this.hotkeys.entries()) {
+      for (const [_hotkeyKey, hotkey] of this.hotkeys.entries()) {
         if (!hotkey.isPressed) continue;
 
         // Check if this hotkey uses the released key as its main key
@@ -275,10 +262,7 @@ export class HotkeyManager {
         const usesReleasedModifier = releasedModifier &&
           hotkey.config.modifiers?.includes(releasedModifier);
 
-        console.log(`[HotkeyManager] Checking hotkey "${hotkeyKey}" - config.key: "${hotkey.config.key}", usesReleasedKey: ${usesReleasedKey}, usesReleasedModifier: ${usesReleasedModifier}`);
-
         if (usesReleasedKey || usesReleasedModifier) {
-          console.log(`[HotkeyManager] Hotkey released: ${hotkeyKey}`);
           hotkey.isPressed = false;
 
           // Stop repeating
@@ -378,7 +362,7 @@ export class HotkeyManager {
   }
 
   private startRepeating(hotkey: RegisteredHotkey): void {
-    const delay = hotkey.config.repeatDelay || 150;
+    const delay = hotkey.config.repeatDelay ?? 150;
 
     hotkey.repeatInterval = window.setInterval(() => {
       if (hotkey.isPressed) {
