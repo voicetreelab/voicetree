@@ -21,10 +21,8 @@ import {getOnboardingDirectory} from "@/shell/edge/main/electron/onboarding-setu
 // setting up file watchers
 // closing old watchers
 
-// eslint-disable-next-line functional/no-let
 let watcher: FSWatcher | null = null;
 
-// eslint-disable-next-line functional/no-let
 let watchedDirectory: FilePath | null = null;
 
 //todo move this state to src/functional/shell/state/app-electron-state.ts
@@ -181,6 +179,13 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
 
     // Setup event handlers for file changes
     setupWatcherListeners(vaultPath);
+
+    // Notify UI that watching has started
+    const mainWindow = getMainWindow()!;
+    mainWindow.webContents.send('watching-started', {
+        directory: vaultPath,
+        timestamp: new Date().toISOString()
+    });
 }
 
 function setupWatcherListeners(vaultPath: FilePath): void {
@@ -190,8 +195,8 @@ function setupWatcherListeners(vaultPath: FilePath): void {
     if (!mainWindow) return;
 
     // File added
-    watcher.on('add', async (filePath: string) => {
-        readFileWithRetry(filePath)
+    watcher.on('add', (filePath: string) => {
+        void readFileWithRetry(filePath)
             .then(content => {
                 const fsUpdate: FSUpdate = {
                     absolutePath: filePath,
@@ -208,8 +213,8 @@ function setupWatcherListeners(vaultPath: FilePath): void {
     });
 
     // File changed
-    watcher.on('change', async (filePath: string) => {
-        readFileWithRetry(filePath)
+    watcher.on('change', (filePath: string) => {
+        void readFileWithRetry(filePath)
             .then(content => {
                 const fsUpdate: FSUpdate = {
                     absolutePath: filePath,
@@ -269,7 +274,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
             properties: ['openDirectory', 'createDirectory'],
             title: 'Select Directory to Watch for Markdown Files',
             buttonLabel: 'Watch Directory',
-            defaultPath: getWatchedDirectory() || process.env.HOME || '/'
+            defaultPath: getWatchedDirectory() ?? process.env.HOME ?? '/'
         });
 
         if (result.canceled || result.filePaths.length === 0) {
@@ -308,7 +313,7 @@ export async function startFileWatching(directoryPath?: string): Promise<{ reado
     return { success: true, directory: selectedDirectory };
 }
 
-export async function stopFileWatching(): Promise<{ readonly success: boolean }> {
+export async function stopFileWatching(): Promise<{ readonly success: boolean; readonly error?: string }> {
     if (watcher) {
         await watcher.close();
         watcher = null;
@@ -317,10 +322,10 @@ export async function stopFileWatching(): Promise<{ readonly success: boolean }>
     return { success: true };
 }
 
-export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | null } {
+export function getWatchStatus(): { readonly isWatching: boolean; readonly directory: string | undefined } {
     const status = {
         isWatching: isWatching(),
-        directory: getWatchedDirectory()
+        directory: getWatchedDirectory() ?? undefined
     };
     console.log('Watch status:', status);
     return status;
