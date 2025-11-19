@@ -232,25 +232,12 @@ export class ContextMenuService {
 
     private createTerminalFromContextMenu(nodeId: string) {
         return async () => {
-            // Load settings to get the agentCommand
-            const settings = await window.electronAPI?.main.loadSettings();
-
-            const agentCommand = settings?.agentCommand ?? './claude.sh'; // Fallback to default // todo why are we getting these all of a sudden? ugly and annoying
-
-            const filePath = await this.deps!.getFilePathForNode(nodeId);
-            const nodeMetadata = {
-                id: nodeId,
-                name: nodeId.replace(/_/g, ' '),
-                filePath: filePath,
-                initialCommand: agentCommand,
-                executeCommand: true
-            };
-
-            const targetNode = this.cy!.getElementById(nodeId);
-            if (targetNode.length > 0) {
-                const nodePos = targetNode.position();
-                await this.deps!.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
-            }
+            const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/graph/spawnTerminalWithCommandFromUI.ts');
+            await spawnTerminalForNode(
+                nodeId,
+                this.cy!,
+                (nodeId, metadata, pos) => this.deps!.createFloatingTerminal(nodeId, metadata, pos)
+            );
         };
     }
 
