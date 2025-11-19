@@ -187,3 +187,12 @@
 .cm-markdoc-code {
   font-family: monospace;
 }
+
+/* Heading 1 (single #) - Smaller size with underline retained */
+/* Override the highlightStyle from codemirror-rich-markdoc */
+.cm-content .cm-heading1 {
+  font-size: 18px !important;
+  text-decoration: underline !important;
+  font-weight: bold;
+  font-family: sans-serif;
+}
