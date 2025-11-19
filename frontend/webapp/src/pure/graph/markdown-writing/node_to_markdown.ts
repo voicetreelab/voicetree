@@ -30,8 +30,8 @@ export function fromNodeToMarkdownContent(node: GraphNode): string {
     // KISS: Simple check - if nodeId appears anywhere in content, don't append
     // Edge case: nodeId in text but not as link will be skipped, but that's acceptable
     const wikilinks = node.outgoingEdges
-        .filter(nodeId => !contentWithoutFrontmatter.includes(nodeId))
-        .map(nodeId => `[[${nodeId}]]`)
+        .filter(edge => !contentWithoutFrontmatter.includes(edge.targetId))
+        .map(edge => (`[[${edge.targetId}]]`)) //todo at some point we considered adding .file extension (.md) if not
         .join('\n');
 
     const wikilinksSuffix = wikilinks.length > 0 ? '\n' + wikilinks : '';

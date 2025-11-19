@@ -15,7 +15,8 @@ color: "#FF0000"
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#00FF00'),
-          position: O.none
+          position: O.none,
+          title: 'test.md'
         }
       }
 
@@ -40,7 +41,8 @@ color: "#FF0000"
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#00FF00'),
-          position: O.none
+          position: O.none,
+          title: 'test.md'
         }
       }
 
@@ -67,7 +69,8 @@ position:
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.none,
-          position: O.some({ x: 100, y: 200 })
+          position: O.some({ x: 100, y: 200 }),
+          title: 'test.md'
         }
       }
 
@@ -93,7 +96,8 @@ summary: "A summary"
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#FFAA00'),
-          position: O.some({ x: 300, y: 400 })
+          position: O.some({ x: 300, y: 400 }),
+          title: 'test.md'
         }
       }
 
@@ -117,7 +121,8 @@ summary: "A summary"
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#0000FF'),
-          position: O.some({ x: 50, y: 75 })
+          position: O.some({ x: 50, y: 75 }),
+          title: 'test.md'
         }
       }
 
@@ -144,7 +149,8 @@ custom_field: "should be preserved"
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#AABBCC'),
-          position: O.none
+          position: O.none,
+          title: 'test.md'
         }
       }
 
@@ -168,7 +174,8 @@ custom_field: "should be preserved"
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#DDEEFF'),
-          position: O.some({ x: 10, y: 20 })
+          position: O.some({ x: 10, y: 20 }),
+          title: 'test.md'
         }
       }
 
@@ -187,10 +194,11 @@ custom_field: "should be preserved"
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
         content: '# Test Content',
-        outgoingEdges: ['child1.md', 'child2.md'],
+        outgoingEdges: [{ targetId: 'child1.md', label: '' }, { targetId: 'child2.md', label: '' }],
         nodeUIMetadata: {
           color: O.none,
-          position: O.none
+          position: O.none,
+          title: 'test.md'
         }
       }
 
@@ -210,7 +218,8 @@ custom_field: "should be preserved"
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.none,
-          position: O.none
+          position: O.none,
+          title: 'test.md'
         }
       }
 
