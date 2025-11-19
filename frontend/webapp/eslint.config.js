@@ -7,7 +7,7 @@ import { globalIgnores } from 'eslint/config'
 import functional from 'eslint-plugin-functional'
 
 export default tseslint.config([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'node_modules']),
   // Config files use tsconfig.node.json
   {
     files: ['*.config.ts'],
