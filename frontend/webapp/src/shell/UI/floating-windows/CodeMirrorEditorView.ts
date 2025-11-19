@@ -246,7 +246,7 @@ export class CodeMirrorEditorView extends Disposable {
   private hasFrontmatter(content: string): boolean {
     const lines = content.split('\n');
     let yamlTagCount = 0;
-    for (let i = 1; i < Math.min(lines.length, 1000); i++) {
+    for (let i = 0; i < Math.min(lines.length, 1000); i++) {
       if (lines[i].trim() === '---') {
         yamlTagCount +=1;
       }
