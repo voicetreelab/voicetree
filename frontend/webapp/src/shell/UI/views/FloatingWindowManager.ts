@@ -78,6 +78,14 @@ export class FloatingWindowManager {
                 const node = event.target;
                 const nodeId = node.id();
 
+                // Only open hover editor for markdown nodes (nodes with file extensions)
+                // Terminal nodes, shadow nodes, etc. don't have file extensions
+                const hasFileExtension = /\.\w+$/.test(nodeId);
+                if (!hasFileExtension) {
+                    console.log('[HoverEditor] Skipping non-markdown node:', nodeId);
+                    return;
+                }
+
                 // Open hover editor
                 await this.openHoverEditor(nodeId, node.position());
             })();
@@ -193,11 +201,11 @@ export class FloatingWindowManager {
     /**
      * Create a floating terminal window
      */
-    createFloatingTerminal(
+    async createFloatingTerminal(
         nodeId: string,
         nodeMetadata: { id: string; name: string; filePath?: string },
         nodePos: Position
-    ): void {
+    ): Promise<void> {
         const terminalId = `terminal-${nodeId}`;
         console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
 
@@ -213,10 +221,15 @@ export class FloatingWindowManager {
         const parentNodeExists = parentNode.length > 0;
 
         try {
+            // Get parent node's title
+            const {getNodeFromMainToUI} = await import("@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts");
+            const node = await getNodeFromMainToUI(nodeId);
+            const title = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
+
             // Create floating terminal window
             const floatingWindow = createFloatingTerminal(this.cy, {
                 id: terminalId,
-                title: `Terminal: ${nodeId}`, //todo parent node.data.title
+                title: title,
                 nodeMetadata: nodeMetadata,
                 resizable: true
             });
