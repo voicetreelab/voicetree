@@ -38,7 +38,7 @@ export function applyPositions(graph: Graph): Graph {
     // Create ghost root node with outgoing edges to all root nodes
     const ghostRootNode: GraphNode = {
         relativeFilePathIsID: GHOST_ROOT_ID,
-        outgoingEdges: rootNodes,
+        outgoingEdges: rootNodes.map(targetId => ({ targetId, label: '' })),
         content: '',
         nodeUIMetadata: {
             title : "GHOST",
@@ -114,8 +114,8 @@ function traverseAndPosition(
 
     // RECURSIVE CASE: Process all children using reduce with index
     return node.outgoingEdges.reduce(
-        (acc, childId, childIndex) => {
-            const childResult = traverseAndPosition(acc.graph, childId, acc.seen, childIndex)
+        (acc, edge, childIndex) => {
+            const childResult = traverseAndPosition(acc.graph, edge.targetId, acc.seen, childIndex)
             return {
                 graph: childResult.graph,
                 seen: childResult.seen

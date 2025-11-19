@@ -36,7 +36,7 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       // So node 181 should have _179 in its outgoing edges
       const node181 = graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis']
 
-      expect(node181.outgoingEdges).toContain('_179')
+      expect(node181.outgoingEdges.some(e => e.targetId === '_179')).toBe(true)
     })
   })
 })

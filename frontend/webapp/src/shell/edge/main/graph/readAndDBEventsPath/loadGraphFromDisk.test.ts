@@ -118,9 +118,9 @@ This is in a subfolder.`
   it('should build outgoingEdges from wikilinks', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node1'].outgoingEdges).toEqual(['node2'])
-    expect(graph.nodes['node2'].outgoingEdges).toContain('node1')
-    expect(graph.nodes['node2'].outgoingEdges).toContain('node3')
+    expect(graph.nodes['node1'].outgoingEdges).toEqual([{ targetId: 'node2', label: 'This is node one. It links to' }])
+    expect(graph.nodes['node2'].outgoingEdges.some(e => e.targetId === 'node1')).toBe(true)
+    expect(graph.nodes['node2'].outgoingEdges.some(e => e.targetId === 'node3')).toBe(true)
   })
 
   it('should handle nodes with no links', async () => {

@@ -3,7 +3,8 @@ import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
 import type { Graph, NodeId } from '@/pure/graph'
-import { parseMarkdownToGraphNode, extractLinkedNodeIds } from '@/pure/graph/markdown-parsing'
+import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing'
+import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges.ts'
 import { enforceFileLimit } from './fileLimitEnforce.ts'
 import { setOutgoingEdges, reverseGraphEdges } from '@/pure/graph'
 import { applyPositions } from '@/pure/graph/positioning'
@@ -119,9 +120,21 @@ function buildNodesWithEdges(
   nodes: Record<NodeId, Graph['nodes'][NodeId]>
 ): Record<NodeId, Graph['nodes'][NodeId]> {
   const nodeEntries = Object.entries(nodes).map(([nodeId, node]) => {
-    const outgoingEdges = extractLinkedNodeIds(node.content, nodes)
-    const nodeWithEdges = setOutgoingEdges(node, outgoingEdges)
-    return [nodeId, nodeWithEdges] as const
+    // Nodes already have edges extracted (from parseMarkdownToGraphNode)
+    // But those edges have raw link text as targetId, not resolved node IDs
+    // We need to re-extract and validate them against the full graph
+    const validatedEdges = extractEdges(node.content, nodes)
+    const nodeWithValidatedEdges = setOutgoingEdges(node, validatedEdges)
+     // todo, we want to do this progressively, so this function will no longer be necessary,
+     // todo never want temporal state, adding a collection of single node is same as adding a whole graph
+     // this will be done by keeping all edges for nodes, even if they aren't yet pointing to any existing node
+     // and
+     // don't delete the comment, remove it to relevant new code as explanation.
+
+     // here's the reasoning that led to this:
+
+     // system, should clarify file event hook for upsert (has graph), versus initial load. WAIT WE DON’T need this. if an upsert has an incoming edge to it, we validate it. (upsert, graph) -> upsert. (o(1) with index. hmm but may as  well just do (graph-> graph)? the difference is we can validate as we go, don’t have to do it at a specific moment in time (temporally stateful!!).  but do we want edges to nodes that don’t exist yet in graph? create node after initial. yes. delete node, yes. we really really don’t want a difference between initial load, and subsequent fs events. anyway,
+    return [nodeId, nodeWithValidatedEdges] as const
   })
 
   return Object.fromEntries(nodeEntries)

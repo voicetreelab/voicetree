@@ -105,9 +105,9 @@ describe('apply_graph_updates', () => {
       }
     })
 
-    it('should use filename-based title when no markdown header present', async () => {
+    it('should use filename-based title when content is empty', async () => {
       const graph = emptyGraph()
-      const newNode = createTestNode('node-3', 'Just plain text')
+      const newNode = createTestNode('node-3', '') // Empty content triggers filename fallback
       const action: UpsertNodeAction = {
         type: 'UpsertNode',
         nodeToUpsert: newNode
@@ -244,7 +244,7 @@ describe('apply_graph_updates', () => {
           'node-1': {
             relativeFilePathIsID: 'node-1',
             content: 'Content',
-            outgoingEdges: ['node-2'],
+            outgoingEdges: [{ targetId: 'node-2', label: '' }],
             nodeUIMetadata: {
               title: 'node 1',
               color: O.none,

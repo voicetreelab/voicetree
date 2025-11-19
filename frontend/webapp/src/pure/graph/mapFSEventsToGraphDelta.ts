@@ -2,7 +2,7 @@ import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeI
 import path from 'path'
 import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils.ts'
 import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations.ts'
-import { extractLinkedNodeIds } from '@/pure/graph/markdown-parsing/extract-linked-node-ids.ts'
+import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges.ts'
 import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node.ts'
 
 /**
@@ -75,7 +75,8 @@ function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph
 
   // Set edges from wikilinks using extractLinkedNodeIds (same as initial load)
   // This ensures consistent normalization (.md stripping, ./ prefix handling, etc.)
-  const node = setOutgoingEdges(nodeWithCorrectId, extractLinkedNodeIds(fsUpdate.content, currentGraph.nodes))
+  const edges = extractEdges(fsUpdate.content, currentGraph.nodes)
+  const node = setOutgoingEdges(nodeWithCorrectId, edges)
 
   const upsertAction: UpsertNodeAction = {
     type: 'UpsertNode',
