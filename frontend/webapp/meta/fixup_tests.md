@@ -1,16 +1,17 @@
-First fixup electron e2e tests.
+First fixup electron e2e playwright tests.
 
-The only one that is passing right now is our smoke test.
-
-see `npm run test:smoke`
+see `npm run test:smoke` for the most simple one. 
 
 Ensure all other test files are passing. 
+
 1. Spawn one subagent per failing test file in `e2e-tests/electron`. Run all agents in parallel.
 
 Next, fixup any and all failing vite tests. `npm run test`
 
 2. run `npm run test`, spawn one subagent per category of failing test. Run all agents in parallel.
 
-3. Review the agents work. Look for any anti-patterns such as changing prod code (SHOULD ABSOLUTELY NOT BE REQUIRED), tell your subagents this.
+3. Review the agents work. Look for any anti-patterns such as changing prod logic (SHOULD ABSOLUTELY NOT BE REQUIRED), tell your subagents this.
 
-When something needs to be mocked, prefer just mocking the function/cle response itself. 
+When something needs to be mocked, prefer just mocking the function response itself. 
+
+4. If all tests are passing from `npm run test`, package our app by doing `cd ../../ && ./build_and_package_all.sh` you must run this in the foreground, with a 40 minute bash timeout. 

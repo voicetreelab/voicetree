@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run the fixup tests command 10 times
-for i in {1..10}; do
+for i in {1..3}; do
   echo "========================================="
   echo "Running iteration $i of 10"
   echo "========================================="
