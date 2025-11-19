@@ -1,5 +1,4 @@
-import type { NodeId, GraphNode } from '@/pure/graph'
-import { nodeIdToFilePathWithExtension } from './filename-utils.ts'
+import type { NodeId, GraphNode, Edge } from '@/pure/graph'
 
 /**
  * Extracts path segments from a path, from longest to shortest.
@@ -41,13 +40,18 @@ function matchSegment(
     return segment
   }
 
-  // Try match with .md extension
-  const segmentWithExt = `${segment}.md`
-  const matchingNode = Object.values(nodes).find(
-    (n) => nodeIdToFilePathWithExtension(n.relativeFilePathIsID) === segmentWithExt
-  )
+  // Find ALL nodes where segment matches any of their path segments
+  const matches = Object.keys(nodes).filter((nodeId) => {
+    const nodeSegments = extractPathSegments(nodeId)
+    return nodeSegments.includes(segment)
+  })
 
-  return matchingNode?.relativeFilePathIsID
+  if (matches.length === 0) {
+    return undefined
+  }
+
+  // Return most specific match (longest path)
+  return matches.sort((a, b) => b.length - a.length)[0]
 }
 
 /**
@@ -76,63 +80,67 @@ function findBestMatchingNode(
 }
 
 /**
- * Extracts linked node IDs from markdown content.
+ * Extracts linked node IDs with relationship labels from markdown content.
  *
  * Pure function: same input -> same output, no side effects
  *
- * Extracts all wikilinks ([[link]]) from content and resolves them to node IDs
- * by matching against the provided nodes record. Links are resolved by:
- * 1. Stripping relative path prefixes (./ or ../)
- * 2. Extracting path segments from absolute or relative paths
- * 3. Matching segments against node IDs, preferring longer matches
+ * Extracts all wikilinks ([[link]]) from content and resolves them to edges.
+ * For each wikilink, the label is the text from the start of the line to the [[.
  *
  * @param content - Markdown content with wikilinks
  * @param nodes - Record of all available nodes to resolve links against
- * @returns Array of resolved node IDs (duplicates removed, order preserved)
+ * @returns Array of edges with targetId and label (duplicates removed, order preserved)
  *
  * @example
  * ```typescript
- * const content = "See [[node-a]] and [[node-b.md]] and [[node-a]] again"
+ * const content = "- references [[node-a]]\n- extends [[node-b]]"
  * const nodes = {
  *   "node-a": { relativeFilePathIsID: "node-a", ... },
  *   "node-b": { relativeFilePathIsID: "node-b", ... }
  * }
  *
  * extractLinkedNodeIds(content, nodes)
- * // => ["node-a", "node-b"]  // Note: duplicates removed, order preserved
- * ```
- *
- * @example
- * ```typescript
- * const content = "See [[/Users/user/vault/folder/file.md]]"
- * const nodes = {
- *   "file": { relativeFilePathIsID: "file", ... },
- *   "folder/file": { relativeFilePathIsID: "folder/file", ... }
- * }
- *
- * extractLinkedNodeIds(content, nodes)
- * // => ["folder/file"]  // Prefers longer match with more path context
+ * // => [{ targetId: "node-a", label: "references" }, { targetId: "node-b", label: "extends" }]
  * ```
  */
-export function extractLinkedNodeIds(
+export function extractEdges(
   content: string,
   nodes: Record<NodeId, GraphNode>
-): readonly NodeId[] {
+): readonly Edge[] {
   const wikilinkRegex = /\[\[([^\]]+)\]\]/g
   const matches = [...content.matchAll(wikilinkRegex)]
 
-  const linkedIds = matches
+  const edges = matches
     .map((match) => {
       const rawLinkText = match[1].trim()
+      const matchIndex = match.index!
 
-      // Strip relative path prefixes (./ or ../) to handle relative wikilinks
+      // Find start of line containing this wikilink
+      const lineStart = content.lastIndexOf('\n', matchIndex) + 1
+
+      // Extract text from line start to [[
+      const labelText = content.substring(lineStart, matchIndex).trim()
+
+      // Remove list markers (-, *, +) from start
+      const label = labelText.replace(/^[-*+]\s+/, '')
+
+      // Strip relative path prefixes (./ or ../) for matching
       const linkText = rawLinkText.replace(/^\.\.?\//g, '')
 
       // Find best matching node, preferring longer path matches
-      return findBestMatchingNode(linkText, nodes)
-    })
-    .filter((id): id is NodeId => id !== undefined)
+      // If no match found, use raw link text to preserve for future node creation
+      const targetId = nodes ? findBestMatchingNode(linkText, nodes) ?? rawLinkText : rawLinkText
 
-  // Remove duplicates while preserving order
-  return [...new Set(linkedIds)]
+      return { targetId, label }
+    })
+
+  // Remove duplicates while preserving order (by targetId)
+  const seenTargets = new Set<NodeId>()
+  return edges.filter(edge => {
+    if (seenTargets.has(edge.targetId)) {
+      return false
+    }
+    seenTargets.add(edge.targetId)
+    return true
+  })
 }

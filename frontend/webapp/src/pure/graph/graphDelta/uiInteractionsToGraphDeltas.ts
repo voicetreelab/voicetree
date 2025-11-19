@@ -2,7 +2,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
-import {extractLinkedNodeIds} from "@/pure/graph/markdown-parsing/extract-linked-node-ids.ts";
+import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
 
 /**
  * Pure action creator functions.
@@ -57,7 +57,7 @@ export function fromContentChangeToGraphDelta(
 ): GraphDelta {
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
-    const newOutgoingEdges = extractLinkedNodeIds(content, graph.nodes);
+    const newOutgoingEdges = extractEdges(content, graph.nodes);
 
     return [{
         type: 'UpsertNode',

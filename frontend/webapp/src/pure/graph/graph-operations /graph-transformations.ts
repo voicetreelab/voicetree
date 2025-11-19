@@ -8,29 +8,36 @@ import { setOutgoingEdges } from './graph-edge-operations.ts'
 
 /**
  * Reverses all edges in a graph.
- * Each edge A -> B becomes B -> A.
+ * Each edge A -> B with label "foo" becomes B -> A with the same label "foo".
  *
  * Returns a new graph (does not mutate).
  *
+ * IMPORTANT: Edge labels are preserved during reversal. The reversed edge
+ * keeps the same label as the original edge (it doesn't make semantic sense
+ * to reverse the label meaning, since labels describe the forward relationship).
+ *
  * @example
- * Given graph: A -> B -> C
- * Result:      C -> B -> A
+ * Given graph: A --("extends")--> B --("implements")--> C
+ * Result:      C --("implements")--> B --("extends")--> A
  */
 export function reverseGraphEdges(graph: Graph): Graph {
-    // Initialize with empty arrays for all existing nodes
-    const initialIncomingEdgesMap = Object.keys(graph.nodes).reduce<Record<NodeId, readonly NodeId[]>>(
+    // Build map of incoming edges with their labels preserved
+    // Map: targetId -> Array<{ sourceId, label }>
+    type IncomingEdge = { readonly sourceId: NodeId; readonly label: string }
+    const initialIncomingEdgesMap = Object.keys(graph.nodes).reduce<Record<NodeId, readonly IncomingEdge[]>>(
         (acc, nodeId) => ({ ...acc, [nodeId]: [] }),
         {}
     )
 
     // Compute incoming edges for all nodes by scanning all outgoing edges
-    const incomingEdgesMap = Object.entries(graph.nodes).reduce<Record<NodeId, readonly NodeId[]>>(
+    const incomingEdgesMap = Object.entries(graph.nodes).reduce<Record<NodeId, readonly IncomingEdge[]>>(
         (acc, [sourceId, node]) => {
-            // For each outgoing edge sourceId -> targetId, add sourceId to targetId's incoming edges
+            // For each outgoing edge sourceId -> targetId with label,
+            // add {sourceId, label} to targetId's incoming edges
             return node.outgoingEdges.reduce(
-                (innerAcc, targetId) => ({
+                (innerAcc, edge) => ({
                     ...innerAcc,
-                    [targetId]: [...(innerAcc[targetId] || []), sourceId]
+                    [edge.targetId]: [...(innerAcc[edge.targetId] || []), { sourceId, label: edge.label }]
                 }),
                 acc
             )
@@ -38,10 +45,14 @@ export function reverseGraphEdges(graph: Graph): Graph {
         initialIncomingEdgesMap
     )
 
-    // Create new graph where outgoing edges are the previous incoming edges
+    // Create new graph where outgoing edges are the previous incoming edges (with labels preserved)
     const newNodes = Object.entries(graph.nodes).reduce<Record<NodeId, GraphNode>>(
         (acc, [nodeId, node]) => {
-            const newOutgoingEdges = incomingEdgesMap[nodeId] || []
+            const incomingEdges = incomingEdgesMap[nodeId] || []
+            const newOutgoingEdges = incomingEdges.map(({ sourceId, label }) => ({
+                targetId: sourceId,
+                label  // Preserve the label from the original edge
+            }))
             return {
                 ...acc,
                 [nodeId]: setOutgoingEdges(node, newOutgoingEdges)

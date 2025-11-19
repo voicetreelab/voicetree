@@ -6,13 +6,17 @@ import * as O from 'fp-ts/lib/Option.js'
 describe('graph-transformations', () => {
   const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
-    outgoingEdges: edges,
+    outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
     content: `content of ${id}`,
     nodeUIMetadata: {
       color: O.none,
-      position: O.none
+      position: O.none,
+      title: id
     }
   })
+
+  // Helper to convert string arrays to Edge arrays for assertions
+  const toEdges = (ids: readonly string[]) => ids.map(targetId => ({ targetId, label: '' }))
 
   describe('reverseGraphEdges', () => {
     it('should reverse edges in a simple chain A -> B -> C', () => {
@@ -26,9 +30,9 @@ describe('graph-transformations', () => {
 
       const result = reverseGraphEdges(graph)
 
-      expect(result.nodes['A'].outgoingEdges).toEqual([])
-      expect(result.nodes['B'].outgoingEdges).toEqual(['A'])
-      expect(result.nodes['C'].outgoingEdges).toEqual(['B'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['A']))
+      expect(result.nodes['C'].outgoingEdges).toEqual(toEdges(['B']))
     })
 
     it('should reverse edges in a graph with multiple incoming edges', () => {
@@ -42,9 +46,9 @@ describe('graph-transformations', () => {
 
       const result = reverseGraphEdges(graph)
 
-      expect(result.nodes['A'].outgoingEdges).toEqual([])
-      expect(result.nodes['B'].outgoingEdges).toEqual([])
-      expect(result.nodes['C'].outgoingEdges).toEqual(['A', 'B'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges([]))
+      expect(result.nodes['C'].outgoingEdges).toEqual(toEdges(['A', 'B']))
     })
 
     it('should reverse edges in a graph with multiple outgoing edges', () => {
@@ -58,9 +62,9 @@ describe('graph-transformations', () => {
 
       const result = reverseGraphEdges(graph)
 
-      expect(result.nodes['A'].outgoingEdges).toEqual([])
-      expect(result.nodes['B'].outgoingEdges).toEqual(['A'])
-      expect(result.nodes['C'].outgoingEdges).toEqual(['A'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['A']))
+      expect(result.nodes['C'].outgoingEdges).toEqual(toEdges(['A']))
     })
 
     it('should handle empty graph', () => {
@@ -82,7 +86,7 @@ describe('graph-transformations', () => {
 
       const result = reverseGraphEdges(graph)
 
-      expect(result.nodes['A'].outgoingEdges).toEqual([])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
     })
 
     it('should handle cyclic graph A -> B -> A', () => {
@@ -96,8 +100,8 @@ describe('graph-transformations', () => {
       const result = reverseGraphEdges(graph)
 
       // Edges should still form a cycle but reversed
-      expect(result.nodes['A'].outgoingEdges).toEqual(['B'])
-      expect(result.nodes['B'].outgoingEdges).toEqual(['A'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges(['B']))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['A']))
     })
 
     it('should not mutate the original graph', () => {
@@ -153,10 +157,10 @@ describe('graph-transformations', () => {
       // Should become:
       // D -> B -> A
       // D -> C -> A
-      expect(result.nodes['A'].outgoingEdges).toEqual([])
-      expect(result.nodes['B'].outgoingEdges).toEqual(['A'])
-      expect(result.nodes['C'].outgoingEdges).toEqual(['A'])
-      expect(result.nodes['D'].outgoingEdges).toEqual(['B', 'C'])
+      expect(result.nodes['A'].outgoingEdges).toEqual(toEdges([]))
+      expect(result.nodes['B'].outgoingEdges).toEqual(toEdges(['A']))
+      expect(result.nodes['C'].outgoingEdges).toEqual(toEdges(['A']))
+      expect(result.nodes['D'].outgoingEdges).toEqual(toEdges(['B', 'C']))
     })
   })
 })
