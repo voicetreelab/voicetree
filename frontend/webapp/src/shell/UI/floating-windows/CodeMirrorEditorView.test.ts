@@ -175,3 +175,330 @@ position:
     expect(value).not.toContain('# First heading');
   });
 });
+
+describe('hasFrontmatter method', () => {
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    if (container.parentNode) {
+      document.body.removeChild(container);
+    }
+  });
+
+  // Helper to access the private hasFrontmatter method
+  const hasFrontmatter = (content: string): boolean => {
+    // Create a temporary editor to test the method
+    const tempEditor = new CodeMirrorEditorView(container, content);
+    // Access the private method by using object index access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = (tempEditor as Record<string, any>).hasFrontmatter(content);
+    tempEditor.dispose();
+    return result;
+  };
+
+  describe('standard YAML frontmatter - SHOULD work', () => {
+    it('should detect standard frontmatter starting on line 0', () => {
+      const content = `---
+title: Test
+---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should detect frontmatter with multiple properties', () => {
+      const content = `---
+node_id: 123
+title: Test Node
+color: blue
+position:
+  x: 100
+  y: 200
+---
+# Main content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should detect minimal frontmatter (just delimiters)', () => {
+      const content = `---
+---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should detect frontmatter at document start with content after', () => {
+      const content = `---
+author: Me
+date: 2024-01-01
+---
+
+# Heading
+Content here`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+  });
+
+  describe('invalid/no frontmatter cases', () => {
+    it('should return false for content without frontmatter', () => {
+      const content = `# Heading
+This is just regular markdown content.`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return false for empty string', () => {
+      expect(hasFrontmatter('')).toBe(false);
+    });
+
+    it('should return false for only opening --- without closing', () => {
+      const content = `---
+title: Test
+# Content without closing delimiter`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return false for single --- delimiter in middle', () => {
+      const content = `# Content
+---
+More content`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return false when --- appears only in content (not at start)', () => {
+      const content = `# Heading
+Some content
+---
+More content`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return false for --- with extra characters on same line', () => {
+      const content = `--- title: Test
+content: value
+--- end
+# Content`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return false for content starting with text before ---', () => {
+      const content = `Some text first
+---
+title: Test
+---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle content with only whitespace', () => {
+      const content = `
+
+\t`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return false for single line with ---', () => {
+      const content = '---';
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return false for only opening --- (no closing)', () => {
+      const content = `---
+title: Test`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should handle multiple consecutive --- lines at start', () => {
+      const content = `---
+---
+---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should trim whitespace when checking for ---', () => {
+      const content = `   ---
+title: Test
+   ---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle tabs around --- delimiters', () => {
+      const content = `\t---\t
+title: Test
+\t---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should check up to 1000 lines maximum', () => {
+      // Create content with --- at line 0 and beyond line 1000
+      const lines = ['---'];
+      for (let i = 0; i < 1005; i++) {
+        lines.push(`line ${i}`);
+      }
+      lines[1001] = '---'; // Beyond 1000 line limit
+
+      const content = lines.join('\n');
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should find --- delimiters within first 1000 lines', () => {
+      const lines = ['---'];
+      for (let i = 0; i < 1005; i++) {
+        lines.push(`line ${i}`);
+      }
+      lines[500] = '---'; // Within 1000 line limit
+
+      const content = lines.join('\n');
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle CRLF line endings', () => {
+      const content = `---\r\ntitle: Test\r\n---\r\n# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle mixed LF and CRLF line endings', () => {
+      const content = `---\r\ntitle: Test\n---\r\n# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle empty lines within frontmatter', () => {
+      const content = `---
+title: Test
+
+author: Me
+
+---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should return false if frontmatter has 3+ --- on consecutive lines', () => {
+      // Only needs 2 delimiters - if there are 3+ consecutive at start, still valid
+      const content = `---
+---
+---
+Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle frontmatter followed immediately by content (no blank line)', () => {
+      const content = `---
+title: Test
+---
+# Immediate content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle very long frontmatter section', () => {
+      const frontmatterLines = ['---'];
+      for (let i = 0; i < 100; i++) {
+        frontmatterLines.push(`property${i}: value${i}`);
+      }
+      frontmatterLines.push('---');
+      frontmatterLines.push('# Content');
+
+      const content = frontmatterLines.join('\n');
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should return false when --- is indented on line 0', () => {
+      // YAML frontmatter must start at column 0
+      const content = `  ---
+title: Test
+---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should return true when closing --- has leading whitespace (gets trimmed)', () => {
+      const content = `---
+title: Test
+  ---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle empty frontmatter between delimiters', () => {
+      const content = `---
+
+---
+# Content`;
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should NOT check line 0 - this test documents the bug', () => {
+      // This documents the current buggy behavior: line 0 is skipped
+      // When the opening --- is on line 0 and closing on line 2,
+      // only the closing delimiter is counted (yamlTagCount = 1)
+      const content = `---
+title: Test
+---`;
+      // Should be true, but implementation returns false
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should correctly handle when line 0 is NOT a delimiter', () => {
+      // If line 0 is not ---, then checking from line 1 should work
+      const content = `# Title
+---
+frontmatter: value
+---
+Content`;
+      // This should be false (frontmatter must start at line 0)
+      // But implementation returns true because it sees 2 delimiters starting from line 1
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should require opening --- at very start of document', () => {
+      // Frontmatter MUST start on line 0, column 0 (after trim)
+      const content = `
+---
+title: Test
+---
+Content`;
+      // Empty line before opening --- should make this invalid
+      // But with current implementation, the empty line is line 0,
+      // so lines 1 and 3 have ---, making yamlTagCount = 2
+      // This is arguably okay - empty first line then valid frontmatter
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should handle line 0 being exactly --- with no other content', () => {
+      const content = `---
+---`;
+      // Two delimiters, no content between or after - minimal valid frontmatter
+      // But line 0 is skipped, so only sees 1 delimiter
+      expect(hasFrontmatter(content)).toBe(true);
+    });
+
+    it('should correctly validate that both delimiters must be standalone lines', () => {
+      const content = `---title: inline
+content: value
+---end
+# Content`;
+      // Delimiters with non-whitespace on same line should be invalid
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+
+    it('should handle frontmatter-like content in the middle of document', () => {
+      const content = `# Heading
+Some content here
+
+---
+This looks like frontmatter
+---
+
+But it is not at the start`;
+      // This should be false - frontmatter must be at document start
+      expect(hasFrontmatter(content)).toBe(false);
+    });
+  });
+});

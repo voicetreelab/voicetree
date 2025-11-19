@@ -29,11 +29,9 @@ export default function useVoiceTreeClient({
 }: UseVoiceTreeClientOptions) {
   const sonioxClient = useRef<SonioxClient | null>(null);
 
-  if (sonioxClient.current == null) {
-    sonioxClient.current = new SonioxClient({
-      apiKey: apiKey,
-    });
-  }
+  sonioxClient.current ??= new SonioxClient({
+    apiKey,
+  });
 
   const [state, setState] = useState<RecorderState>("Init");
   const [finalTokens, setFinalTokens] = useState<Token[]>([]);
@@ -41,7 +39,6 @@ export default function useVoiceTreeClient({
   const [error, setError] = useState<TranscriptionError | null>(null);
 
   const startTranscription = useCallback(async () => {
-    console.log('🎤 [VoiceTree] Starting transcription...');
     setFinalTokens([]);
     setNonFinalTokens([]);
     setError(null);
@@ -52,24 +49,20 @@ export default function useVoiceTreeClient({
       return;
     }
 
-    console.log('✅ [VoiceTree] Soniox client initialized');
-
     // First message we send contains configuration. Here we set if we set if we
     // are transcribing or translating. For translation we also set if it is
     // one-way or two-way.
-    sonioxClient.current.start({
+    void sonioxClient.current.start({
       model: "stt-rt-preview",
       enableLanguageIdentification: true,
       enableSpeakerDiarization: true,
       enableEndpointDetection: true,
-      translation: translationConfig || undefined,
+      translation: translationConfig ?? undefined,
 
       onFinished: () => {
-        console.log('🏁 [VoiceTree] Transcription finished');
         onFinished?.();
       },
       onStarted: () => {
-        console.log('▶️ [VoiceTree] Transcription started successfully');
         onStarted?.();
       },
 
@@ -83,18 +76,12 @@ export default function useVoiceTreeClient({
       },
 
       onStateChange: ({ newState }) => {
-        console.log('🔄 [VoiceTree] State change:', newState);
         setState(newState);
       },
 
       // When we receive some tokens back, sort them based on their status --
       // is it final or non-final token.
       onPartialResult(result) {
-        console.log('📝 [VoiceTree] Received partial result:', {
-          tokenCount: result.tokens.length,
-          tokens: result.tokens.map(t => ({ text: t.text, is_final: t.is_final }))
-        });
-
         const newFinalTokens: Token[] = [];
         const newNonFinalTokens: Token[] = [];
 
@@ -104,13 +91,6 @@ export default function useVoiceTreeClient({
           } else {
             newNonFinalTokens.push(token);
           }
-        }
-
-        if (newFinalTokens.length > 0) {
-          console.log('✅ [VoiceTree] Final tokens:', newFinalTokens.map(t => t.text).join(' '));
-        }
-        if (newNonFinalTokens.length > 0) {
-          console.log('⏳ [VoiceTree] Non-final tokens:', newNonFinalTokens.map(t => t.text).join(' '));
         }
 
         setFinalTokens((previousTokens) => [

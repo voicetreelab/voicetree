@@ -35,13 +35,15 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
       try {
         const status = await window.electronAPI!.main.getWatchStatus();
         console.log('[DEBUG] Initial watch status from electronAPI:', status);
-        setWatchStatus(status);
+        // Convert null to undefined to match WatchStatus type
+        setWatchStatus({ isWatching: status.isWatching, directory: status.directory ?? undefined });
       } catch (err) {
         console.error('Failed to get watch status:', err);
+        setError('Failed to get watch status');
       }
     };
 
-    checkStatus();
+    void checkStatus();
   }, [isElectron]);
 
   // Listen to watching-started and file-watching-stopped events to stay in sync
@@ -95,7 +97,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         }
         setIsLoading(false);
       } else {
-        setError(result.error || 'Failed to start watching');
+        setError(result.error ?? 'Failed to start watching');
         setIsLoading(false);
       }
     } catch (err) {
@@ -122,7 +124,7 @@ export function useFolderWatcher(): UseFolderWatcherReturn {
         setWatchStatus({ isWatching: false });
         setIsLoading(false);
       } else {
-        setError(result.error || 'Failed to stop watching');
+        setError(result.error ?? 'Failed to stop watching');
         setIsLoading(false);
       }
     } catch (err) {

@@ -97,7 +97,7 @@ export default function VoiceTreeTranscribe() {
 
       isSendingRef.current = true;
 
-      // Use async function to handle the send
+      // Use async function to handle  send
       const doSend = async () => {
         try {
           await sendIncrementalTokens(finalTokens);
@@ -107,7 +107,7 @@ export default function VoiceTreeTranscribe() {
         }
       };
 
-      doSend();
+      void doSend();
     }
   }, [finalTokens, sendIncrementalTokens]);
 
@@ -149,7 +149,11 @@ export default function VoiceTreeTranscribe() {
   // Check microphone permissions on mount
   useEffect(() => {
     console.log('🎤 [VoiceTree] Checking microphone permissions...');
-    navigator.mediaDevices.getUserMedia({ audio: true })
+    navigator.mediaDevices.getUserMedia({
+      audio: {
+        autoGainControl: false  // Prevent system volume changes
+      }
+    })
       .then(stream => {
         console.log('✅ [VoiceTree] Microphone permission granted');
         console.log('🔊 [VoiceTree] Audio tracks:', stream.getAudioTracks().map(track => ({
@@ -176,7 +180,7 @@ export default function VoiceTreeTranscribe() {
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleTextSubmit();
+      void handleTextSubmit();
     }
   };
 
@@ -229,7 +233,7 @@ export default function VoiceTreeTranscribe() {
         <Renderer
           tokens={allTokens}
           placeholder="Click here to begin transcribing for VoiceTree"
-          onPlaceholderClick={startTranscription}
+          onPlaceholderClick={() => void startTranscription()}
         />
       </div>
 
@@ -239,7 +243,7 @@ export default function VoiceTreeTranscribe() {
           <div className="flex items-center gap-2">
             {/* Mic Button */}
             <button
-              onClick={state === 'Running' ? stopTranscription : startTranscription}
+              onClick={() => state === 'Running' ? stopTranscription() : void startTranscription()}
               className={cn(
                 "p-1 rounded-lg transition-all",
                 state === 'Running'
@@ -263,7 +267,7 @@ export default function VoiceTreeTranscribe() {
 
             {/* Send Button - always visible */}
             <button
-              onClick={handleTextSubmit}
+              onClick={() => void handleTextSubmit()}
               disabled={isProcessing || !textInput.trim()}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -272,7 +276,7 @@ export default function VoiceTreeTranscribe() {
           </div>
 
           {/* Error Messages */}
-          {(error || connectionError) && (
+          {(error ?? connectionError) && (
             <div className="mt-3">
               {connectionError && (
                 <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-3 py-2">
