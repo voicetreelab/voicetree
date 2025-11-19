@@ -16,7 +16,7 @@ cytoscape.use(cxtmenu);
 export interface ContextMenuDependencies {
     getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
     createAnchoredFloatingEditor: (nodeId: NodeId) => Promise<void>;
-    createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => void;
+    createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => Promise<void>;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
 
@@ -249,17 +249,13 @@ export class ContextMenuService {
             const targetNode = this.cy!.getElementById(nodeId);
             if (targetNode.length > 0) {
                 const nodePos = targetNode.position();
-                this.deps!.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
+                await this.deps!.createFloatingTerminal(nodeId, nodeMetadata, nodePos);
             }
         };
     }
 
     private deleteNode(nodeId: string) {
         return async () =>  {
-            if (!confirm(`Are you sure you want to delete "${nodeId}"? This will move the file to trash.`)) {
-                return;
-            }
-
             try {
                 await deleteNodeFromUI(nodeId, this.cy!);
             } catch (error) {
