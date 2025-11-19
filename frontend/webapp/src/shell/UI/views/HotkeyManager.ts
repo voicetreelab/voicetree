@@ -91,6 +91,8 @@ export class HotkeyManager {
   setupGraphHotkeys(callbacks: {
     fitToLastNode: () => void;
     cycleTerminal: (direction: 1 | -1) => void;
+    createNewNode: () => void;
+    runTerminal: () => void;
   }): void {
     // Space: Fit to last created node (repeatable while held)
     this.registerHotkey({
@@ -126,6 +128,20 @@ export class HotkeyManager {
       key: '[',
       modifiers: ['Control'],
       onPress: () => callbacks.cycleTerminal(-1)
+    });
+
+    // Command + N: Create new node
+    this.registerHotkey({
+      key: 'n',
+      modifiers: ['Meta'],
+      onPress: callbacks.createNewNode
+    });
+
+    // Command + Enter: Run terminal/coding agent
+    this.registerHotkey({
+      key: 'Enter',
+      modifiers: ['Meta'],
+      onPress: callbacks.runTerminal
     });
   }
 
