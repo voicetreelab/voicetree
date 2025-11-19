@@ -239,6 +239,23 @@ export class CodeMirrorEditorView extends Disposable {
   }
 
   /**
+   * Check if content contains YAML frontmatter
+   * @param content - The content to check
+   * @returns true if content has frontmatter (starts with --- and has closing ---)
+   */
+  private hasFrontmatter(content: string): boolean {
+    const lines = content.split('\n');
+    let yamlTagCount = 0;
+    for (let i = 1; i < Math.min(lines.length, 1000); i++) {
+      if (lines[i].trim() === '---') {
+        yamlTagCount +=1;
+      }
+    }
+
+    return yamlTagCount >= 2;
+  }
+
+  /**
    * Helper to register disposables without exposing addDisposable
    */
   private registerDisposable(fn: () => void): void {
@@ -263,6 +280,11 @@ export class CodeMirrorEditorView extends Disposable {
    * @param content - New markdown content
    */
   setValue(content: string): void {
+    // Check if current content has frontmatter
+    const oldContent = this.view.state.doc.toString();
+    const oldHasFrontmatter = this.hasFrontmatter(oldContent);
+    const newHasFrontmatter = this.hasFrontmatter(content);
+
     const doc = this.view.state.doc;
     this.view.dispatch({
       changes: {
@@ -271,6 +293,11 @@ export class CodeMirrorEditorView extends Disposable {
         insert: content
       }
     });
+
+    // Only auto-fold if this is NEW frontmatter (wasn't there before)
+    if (!oldHasFrontmatter && newHasFrontmatter) {
+      this.autoFoldFrontmatter();
+    }
   }
 
   /**

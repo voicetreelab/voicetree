@@ -1,4 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
+
+// Mock window event listeners before importing CodeMirrorEditorView
+// This prevents mermaid from failing during module initialization
+beforeAll(() => {
+  if (!global.window.addEventListener) {
+    global.window.addEventListener = vi.fn();
+  }
+  if (!global.window.removeEventListener) {
+    global.window.removeEventListener = vi.fn();
+  }
+});
+
 import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
 
 describe('Frontmatter Parsing', () => {
@@ -81,5 +93,85 @@ Content`;
 
     // Content should follow
     expect(lines[3]).toBe('Content');
+  });
+
+  it('should auto-collapse frontmatter when setValue loads NEW frontmatter', async () => {
+    // Start with empty content (no frontmatter)
+    editor = new CodeMirrorEditorView(container, '# Initial content');
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Now set content WITH frontmatter (simulates optimistic UI → actual content)
+    const contentWithFrontmatter = `---
+position:
+  x: 100
+  y: 200
+---
+# New content`;
+
+    editor.setValue(contentWithFrontmatter);
+
+    // Wait for requestAnimationFrame to complete
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const value = editor.getValue();
+
+    // Should still contain frontmatter (folding doesn't remove it)
+    expect(value).toContain('---');
+    expect(value).toContain('position:');
+    expect(value).toContain('# New content');
+  });
+
+  it('should NOT auto-collapse when setValue updates existing frontmatter', async () => {
+    // Start with content that already has frontmatter
+    const initialContent = `---
+position:
+  x: 50
+  y: 50
+---
+# Original`;
+
+    editor = new CodeMirrorEditorView(container, initialContent);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Update with different frontmatter
+    const updatedContent = `---
+position:
+  x: 100
+  y: 100
+---
+# Updated`;
+
+    editor.setValue(updatedContent);
+
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const value = editor.getValue();
+
+    // Should contain updated content
+    expect(value).toContain('x: 100');
+    expect(value).toContain('# Updated');
+  });
+
+  it('should NOT auto-collapse when setValue updates content without frontmatter', async () => {
+    // Start with content without frontmatter
+    editor = new CodeMirrorEditorView(container, '# First heading');
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Update with different content (still no frontmatter)
+    editor.setValue('# Second heading');
+
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const value = editor.getValue();
+
+    // Should contain updated content
+    expect(value).toContain('# Second heading');
+    expect(value).not.toContain('# First heading');
   });
 });
