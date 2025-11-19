@@ -44,14 +44,12 @@ export function useTranscriptionSender({
 
     // Avoid sending the same text twice (only for manual text)
     if (!skipDuplicateCheck && text === lastProcessedText.current) {
-      console.log('Skipping duplicate text:', text.substring(0, 50));
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      console.log(`Sending incremental text (${text.length} chars):`, text.substring(0, 50) + '...');
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -111,7 +109,6 @@ export function useTranscriptionSender({
       await sendToBackend(newText, true);
       // Only update the count after successful send (track final tokens only)
       sentTokensCount.current = finalTokensOnly.length;
-      console.log(`Updated sent tokens count to ${sentTokensCount.current} (final tokens only)`);
     } catch (err) {
       // Don't update sentTokensCount on error, so we retry next time
       console.error('Failed to send incremental tokens, will retry:', err);
@@ -135,7 +132,6 @@ export function useTranscriptionSender({
     lastProcessedText.current = "";
     setBufferLength(0);
     setConnectionError(null);
-    console.log('Reset transcription sender state');
   }, []);
 
   return {
