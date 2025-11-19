@@ -15,8 +15,6 @@
  */
 
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
-/* eslint-disable functional/no-this-expressions */
-/* eslint-disable functional/no-throw-statements */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -139,7 +137,7 @@ Child content`
                 'parent': {
                     relativeFilePathIsID: 'parent',
                     content: '# Parent GraphNode\n\nParent content',
-                    outgoingEdges: ['child1'],
+                    outgoingEdges: [{ targetId: 'child1', label: '' }],
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 100, y: 100 }),
@@ -269,7 +267,7 @@ Child content`
         // THEN: Parent file should be updated with edge to new child
         const updatedParentContent = await fs.readFile(parentFilePath, 'utf-8')
 
-        // Parent should now have both edges
+        // Parent should now have both edges (wikilinks use node IDs without .md extension)
         expect(updatedParentContent).toContain('[[child1]]')
         expect(updatedParentContent).toContain('[[parent_1]]')
     })
@@ -320,7 +318,7 @@ Child content`
                 'parent': {
                     relativeFilePathIsID: 'parent',
                     content: '# Parent Node\n\nParent content',
-                    outgoingEdges: ['child1'],
+                    outgoingEdges: [{ targetId: 'child1', label: '' }],
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 100, y: 100 }),

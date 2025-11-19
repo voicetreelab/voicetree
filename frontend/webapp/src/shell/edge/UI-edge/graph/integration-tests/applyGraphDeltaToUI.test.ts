@@ -7,12 +7,13 @@
  * - CASES: Add node with parent, add orphan node, delete node, bulk operations
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
 import type { GraphDelta, GraphNode } from '@/pure/graph'
+import { BreathingAnimationService, AnimationType } from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts'
 
 describe('applyGraphDeltaToUI - Integration', () => {
     let cy: Core
@@ -70,7 +71,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // Update parent to include edge to child
             const parentWithEdge: GraphNode = {
                 ...parentNode,
-                outgoingEdges: ['child']
+                outgoingEdges: [{ targetId: 'child', label: '' }]
             }
 
             const childDelta: GraphDelta = [
@@ -251,7 +252,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const node1: GraphNode = {
                 relativeFilePathIsID: 'bulk-1',
                 content: '# Bulk GraphNode 1',
-                outgoingEdges: ['bulk-2'],
+                outgoingEdges: [{ targetId: 'bulk-2', label: '' }],
                 nodeUIMetadata: {
                     title: 'Bulk GraphNode 1',
                     color: O.none,
@@ -262,7 +263,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const node2: GraphNode = {
                 relativeFilePathIsID: 'bulk-2',
                 content: '# Bulk GraphNode 2',
-                outgoingEdges: ['bulk-3'],
+                outgoingEdges: [{ targetId: 'bulk-3', label: '' }],
                 nodeUIMetadata: {
                     title: 'Bulk GraphNode 2',
                     color: O.some('#00ff00'),
@@ -388,7 +389,7 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const parent: GraphNode = {
                 relativeFilePathIsID: 'parent',
                 content: '# Parent',
-                outgoingEdges: ['child'],
+                outgoingEdges: [{ targetId: 'child', label: '' }],
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
@@ -420,6 +421,196 @@ describe('applyGraphDeltaToUI - Integration', () => {
             // THEN: Should only have one edge
             const edges = cy.edges(`[id = "parent->child"]`)
             expect(edges.length).toBe(1)
+        })
+
+        it('should set edge label when creating edges with non-empty labels', () => {
+            // GIVEN: Two nodes
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                content: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: 'is parent of' }],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                content: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Child',
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 })
+                }
+            }
+
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: parent },
+                { type: 'UpsertNode', nodeToUpsert: child }
+            ]
+
+            // WHEN: Creating nodes with labeled edge
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: Edge should have the label
+            const edge = cy.getElementById('parent->child')
+            expect(edge.length).toBe(1)
+            expect(edge.data('label')).toBe('is parent of')
+        })
+
+        it('should not set label when edge has empty label', () => {
+            // GIVEN: Two nodes with empty label edge
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                content: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: '' }],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                content: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Child',
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 })
+                }
+            }
+
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: parent },
+                { type: 'UpsertNode', nodeToUpsert: child }
+            ]
+
+            // WHEN: Creating nodes with empty label edge
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: Edge should not have label set (undefined)
+            const edge = cy.getElementById('parent->child')
+            expect(edge.length).toBe(1)
+            expect(edge.data('label')).toBeUndefined()
+        })
+
+        it('should replace underscores with spaces in edge labels', () => {
+            // GIVEN: Two nodes with edge label containing underscores
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                content: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: 'is_a_prerequisite_for' }],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                content: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Child',
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 })
+                }
+            }
+
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: parent },
+                { type: 'UpsertNode', nodeToUpsert: child }
+            ]
+
+            // WHEN: Creating edge with underscores in label
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: Edge label should have underscores replaced with spaces
+            const edge = cy.getElementById('parent->child')
+            expect(edge.length).toBe(1)
+            expect(edge.data('label')).toBe('is a prerequisite for')
+        })
+
+        it('should handle edge labels with multiple underscores', () => {
+            // GIVEN: Two nodes with complex label
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                content: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: 'this_is_a_complex_relationship_label' }],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                content: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Child',
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 })
+                }
+            }
+
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: parent },
+                { type: 'UpsertNode', nodeToUpsert: child }
+            ]
+
+            // WHEN: Creating edge with multiple underscores
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: All underscores should be replaced with spaces
+            const edge = cy.getElementById('parent->child')
+            expect(edge.length).toBe(1)
+            expect(edge.data('label')).toBe('this is a complex relationship label')
+        })
+
+        it('should handle edge labels without underscores', () => {
+            // GIVEN: Two nodes with label without underscores
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                content: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: 'simple label' }],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                content: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Child',
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 })
+                }
+            }
+
+            const delta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: parent },
+                { type: 'UpsertNode', nodeToUpsert: child }
+            ]
+
+            // WHEN: Creating edge without underscores
+            applyGraphDeltaToUI(cy, delta)
+
+            // THEN: Label should remain unchanged
+            const edge = cy.getElementById('parent->child')
+            expect(edge.length).toBe(1)
+            expect(edge.data('label')).toBe('simple label')
         })
     })
 
@@ -528,6 +719,80 @@ describe('applyGraphDeltaToUI - Integration', () => {
 
             // THEN: Color should be set to undefined (invalid color filtered)
             expect(cy.getElementById('color-update').data('color')).toBeUndefined()
+        })
+    })
+
+    describe('Append animation behavior', () => {
+        it.skip('should trigger append animation when updating an existing node and stop after timeout', () => {
+            vi.useFakeTimers()
+
+            // Create breathing animation service to listen for events
+            const breathingService = new BreathingAnimationService(cy)
+
+            // GIVEN: Graph with an existing node
+            const originalNode: GraphNode = {
+                relativeFilePathIsID: 'test-node',
+                content: '# Original Content',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Original Title',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const createDelta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: originalNode }
+            ]
+
+            applyGraphDeltaToUI(cy, createDelta)
+
+            const node = cy.getElementById('test-node')
+            expect(node.length).toBe(1)
+
+            // New node should have green breathing animation
+            expect(node.data('breathingActive')).toBe(true)
+            expect(node.data('animationType')).toBe(AnimationType.NEW_NODE)
+
+            // Clear the new node animation for testing the update animation
+            breathingService.stopAnimationForNode(node)
+            expect(node.data('breathingActive')).toBe(false)
+
+            // WHEN: Updating the existing node with new content
+            const updatedNode: GraphNode = {
+                relativeFilePathIsID: 'test-node',
+                content: '# Updated Content\n\nNew paragraph added',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Updated Title',
+                    color: O.some('#ff0000'),
+                    position: O.some({ x: 100, y: 100 })
+                }
+            }
+
+            const updateDelta: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: updatedNode }
+            ]
+
+            applyGraphDeltaToUI(cy, updateDelta)
+
+            // THEN: Node should have breathing animation (cyan/appended content animation)
+            expect(node.data('breathingActive')).toBe(true)
+            expect(node.data('animationType')).toBe(AnimationType.APPENDED_CONTENT)
+
+            // Should have the appended content animation class
+            expect(node.hasClass('breathing-appended-expand')).toBe(true)
+
+            // WHEN: Advancing time by 15 seconds (the timeout for APPENDED_CONTENT)
+            vi.advanceTimersByTime(15000)
+
+            // THEN: Animation should stop
+            expect(node.data('breathingActive')).toBe(false)
+            expect(node.hasClass('breathing-appended-expand')).toBe(false)
+            expect(node.hasClass('breathing-appended-contract')).toBe(false)
+
+            breathingService.destroy()
+            vi.useRealTimers()
         })
     })
 })

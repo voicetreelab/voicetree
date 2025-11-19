@@ -69,6 +69,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                     } else {
                         existingNode.data('color', color);
                     }
+                    existingNode.emit('content-changed'); //todo, this event system, should we use this or hook into FS at breathing animation? same for markdown editor updates...
                 }
             } else if (nodeDelta.type === 'DeleteNode') {
                 const nodeId = nodeDelta.nodeId;
@@ -88,7 +89,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 // Get current edges from this node in Cytoscape
                 const currentEdges = cy.edges(`[source = "${nodeId}"]`);
                 const currentTargets = new Set(currentEdges.map(edge => edge.data('target')));
-                const desiredTargets = new Set(node.outgoingEdges);
+                const desiredTargets = new Set(node.outgoingEdges.map(edge => edge.targetId));
 
                 // Remove edges that are no longer in outgoingEdges
                 currentEdges.forEach((edge) => {
@@ -113,23 +114,24 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 });
 
                 // Add edges for all outgoing connections (if they don't exist)
-                node.outgoingEdges.forEach((targetId) => {
-                    if (!currentTargets.has(targetId)) {
-                        const edgeId = `${nodeId}->${targetId}`;
+                node.outgoingEdges.forEach((edge) => {
+                    if (!currentTargets.has(edge.targetId)) {
+                        const edgeId = `${nodeId}->${edge.targetId}`;
                         // Only create edge if target node exists
-                        const targetNode = cy.getElementById(targetId);
+                        const targetNode = cy.getElementById(edge.targetId);
                         if (targetNode.length > 0) {
-                            console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId}`);
+                            console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
                             cy.add({
                                 group: 'edges' as const,
                                 data: {
                                     id: edgeId,
                                     source: nodeId,
-                                    target: targetId
+                                    target: edge.targetId,
+                                    label: edge.label ? edge.label.replace(/_/g, ' ') : undefined
                                 }
                             });
                         } else {
-                            console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${targetId}: target node does not exist`);
+                            console.warn(`[applyGraphDeltaToUI] Skipping edge ${nodeId}->${edge.targetId}: target node does not exist`);
                         }
                     }
                 });
