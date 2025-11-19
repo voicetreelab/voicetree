@@ -1,4 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
+
+// Mock window event listeners before importing any modules
+// This prevents mermaid from failing during module initialization
+beforeAll(() => {
+  if (!global.window.addEventListener) {
+    global.window.addEventListener = vi.fn();
+  }
+  if (!global.window.removeEventListener) {
+    global.window.removeEventListener = vi.fn();
+  }
+});
+
 import { FloatingWindowManager } from '@/shell/UI/views/FloatingWindowManager.ts';
 import cytoscape, { type Core } from 'cytoscape';
 import type { Settings } from '@/pure/settings/types.ts';

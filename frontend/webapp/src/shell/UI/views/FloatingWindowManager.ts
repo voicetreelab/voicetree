@@ -39,10 +39,8 @@ type GetGraphState = () => Graph;
  */
 export class FloatingWindowManager {
     private cy: Core;
-    private hotkeyManager: HotkeyManager;
 
-    // Command-hover mode state
-    private commandKeyHeld = false;
+    // Hover mode state
     private currentHoverEditor: HTMLElement | null = null;
 
     // Track which editors are open for each node (for external content updates)
@@ -54,10 +52,9 @@ export class FloatingWindowManager {
     constructor(
         cy: Core,
         _getGraphState: GetGraphState,
-        hotkeyManager: HotkeyManager
+        _hotkeyManager: HotkeyManager
     ) {
         this.cy = cy;
-        this.hotkeyManager = hotkeyManager;
 
         // Setup settings editor listener
         window.addEventListener('openSettings', () => {
@@ -70,25 +67,13 @@ export class FloatingWindowManager {
     // ============================================================================
 
     /**
-     * Setup command-hover mode (Cmd+hover to show editor)
+     * Setup hover mode (hover to show editor)
      */
     setupCommandHover(): void {
-        // Track Command/Ctrl key state via HotkeyManager
-        this.hotkeyManager.onModifierChange('Meta', (held: boolean) => {
-            console.log('[CommandHover] Meta key', held ? 'pressed' : 'released');
-            this.commandKeyHeld = held;
-        });
-
-        this.hotkeyManager.onModifierChange('Control', (held: boolean) => {
-            console.log('[CommandHover] Control key', held ? 'pressed' : 'released');
-            this.commandKeyHeld = held;
-        });
-
-        // Listen for node hover when command is held
+        // Listen for node hover
         this.cy.on('mouseover', 'node', (event) => {
             void (async () => {
-                console.log('[CommandHover] GraphNode mouseover, commandKeyHeld:', this.commandKeyHeld);
-                if (!this.commandKeyHeld) return;
+                console.log('[HoverEditor] GraphNode mouseover');
 
                 const node = event.target;
                 const nodeId = node.id();
@@ -297,7 +282,8 @@ export class FloatingWindowManager {
                 contentContainer,
                 settingsJson,
                 {
-                    autosaveDelay: 300
+                    autosaveDelay: 300,
+                    darkMode: document.documentElement.classList.contains('dark')
                 }
             );
 
