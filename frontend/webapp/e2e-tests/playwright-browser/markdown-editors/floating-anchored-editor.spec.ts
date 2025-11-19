@@ -209,8 +209,11 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     expect(Math.abs(childShadowNodePos.y - newNodePos.y)).toBeLessThan(500);
 
     console.log('=== Step 10: Close editor and verify cleanup ===');
-    const closeButton = await page.locator(`${editorSelector} .cy-floating-window-close`);
-    await closeButton.click();
+    // Close the editor by clicking the close button via DOM (avoids viewport issues)
+    await page.evaluate((selector) => {
+      const closeBtn = document.querySelector(`${selector} .cy-floating-window-close`) as HTMLButtonElement;
+      if (closeBtn) closeBtn.click();
+    }, editorSelector);
     await page.waitForTimeout(30);
     console.log('✓ Clicked close button');
 

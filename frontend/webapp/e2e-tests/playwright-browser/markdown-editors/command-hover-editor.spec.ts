@@ -1,6 +1,6 @@
 /**
- * Browser-based test for command-hover markdown editor
- * Tests editor creation on Cmd+hover, content display, click outside to close, and reopen
+ * Browser-based test for hover markdown editor
+ * Tests editor creation on hover, content display, click outside to close, and reopen
  */
 
 import { test as base, expect } from '@playwright/test';
@@ -59,9 +59,9 @@ const test = base.extend<{ consoleCapture: ConsoleCapture }>({
   }
 });
 
-test.describe('Command Hover Editor (Browser)', () => {
-  test('should show editor on Cmd+hover, display content, close on click outside, and reopen', async ({ page, consoleCapture: _consoleCapture }) => {
-    console.log('\n=== Starting command hover editor test (Browser) ===');
+test.describe('Hover Editor (Browser)', () => {
+  test('should show editor on hover, display content, close on click outside, and reopen', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Starting hover editor test (Browser) ===');
 
     console.log('=== Step 1: Setup mock Electron API ===');
     await setupMockElectronAPI(page);
@@ -110,11 +110,7 @@ test.describe('Command Hover Editor (Browser)', () => {
     });
     console.log(`  Node position: (${nodePosition.x}, ${nodePosition.y})`);
 
-    console.log('=== Step 6: Hold Meta key and trigger mouseover ===');
-    // Simulate Meta key press
-    await page.keyboard.down('Meta');
-    await page.waitForTimeout(10);
-
+    console.log('=== Step 6: Trigger mouseover ===');
     // Trigger mouseover on the node
     await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -124,7 +120,7 @@ test.describe('Command Hover Editor (Browser)', () => {
       node.emit('mouseover');
     });
     await page.waitForTimeout(50);
-    console.log('✓ Mouseover with Meta key triggered');
+    console.log('✓ Mouseover triggered');
 
     console.log('=== Step 7: Verify hover editor appears with content ===');
     const hoverEditorSelector = '#window-editor-hover-test-node\\.md';
@@ -144,11 +140,6 @@ test.describe('Command Hover Editor (Browser)', () => {
     expect(hoverContent).toContain('This content should appear on command+hover');
     console.log('✓ Content verified in hover editor');
 
-    // Release Meta key
-    await page.keyboard.up('Meta');
-    await page.waitForTimeout(10);
-    console.log('✓ Meta key released');
-
     console.log('=== Step 8: Click outside to close hover editor ===');
     // Wait for mousedown listener to be registered (100ms delay in FloatingWindowManager)
     await page.waitForTimeout(150);
@@ -161,11 +152,7 @@ test.describe('Command Hover Editor (Browser)', () => {
     await page.waitForSelector(hoverEditorSelector, { state: 'detached', timeout: 500 });
     console.log('✓ Hover editor closed on click outside');
 
-    console.log('=== Step 9: Reopen hover editor with Cmd+hover ===');
-    // Hold Meta key again
-    await page.keyboard.down('Meta');
-    await page.waitForTimeout(10);
-
+    console.log('=== Step 9: Reopen hover editor with hover ===');
     // Trigger mouseover again
     await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -175,7 +162,7 @@ test.describe('Command Hover Editor (Browser)', () => {
       node.emit('mouseover');
     });
     await page.waitForTimeout(50);
-    console.log('✓ Mouseover with Meta key triggered again');
+    console.log('✓ Mouseover triggered again');
 
     // Verify editor reopened
     await page.waitForSelector(hoverEditorSelector, { timeout: 3000 });
@@ -191,9 +178,6 @@ test.describe('Command Hover Editor (Browser)', () => {
     expect(reopenedContent).toContain('This content should appear on command+hover');
     console.log('✓ Content verified in reopened hover editor');
 
-    // Release Meta key
-    await page.keyboard.up('Meta');
-
-    console.log('✓ Command hover editor test completed successfully');
+    console.log('✓ Hover editor test completed successfully');
   });
 });

@@ -138,14 +138,18 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('=== Testing markdown file saving in subfolders ===');
 
     // Start watching the fixture vault
-    await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
-    // Wait for file watching to start successfully
-    await appWindow.waitForTimeout(1000);
+    expect(watchResult.success).toBe(true);
+    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
+    console.log('✓ File watching started successfully');
+
+    // Wait for initial scan to complete
+    await appWindow.waitForTimeout(3000);
 
     // Wait for graph to load with test node
     const nodeId = '10_Setting_up_Agent_in_Feedback_Loop';
@@ -298,12 +302,17 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('=== Testing graph update when adding wikilink ===');
 
     // Start watching the fixture vault
-    await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
+    expect(watchResult.success).toBe(true);
+    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
+    console.log('✓ File watching started successfully');
+
+    // Wait for initial scan to complete
     await appWindow.waitForTimeout(3000);
 
     const nodeId = 'introduction';
@@ -428,14 +437,18 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('=== Testing bidirectional sync: external changes -> open editor ===');
 
     // Start watching the fixture vault
-    await appWindow.evaluate(async (vaultPath) => {
+    const watchResult = await appWindow.evaluate(async (vaultPath) => {
       const api = (window as ExtendedWindow).electronAPI;
       if (!api) throw new Error('electronAPI not available');
       return await api.main.startFileWatching(vaultPath);
     }, FIXTURE_VAULT_PATH);
 
-    // Wait for file watching to start successfully
-    await appWindow.waitForTimeout(1000);
+    expect(watchResult.success).toBe(true);
+    expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
+    console.log('✓ File watching started successfully');
+
+    // Wait for initial scan to complete
+    await appWindow.waitForTimeout(3000);
 
     // Wait for test node to load
     const nodeId = '11_Identify_Relevant_Test_for_Tree_Action_Decider_Workflow';

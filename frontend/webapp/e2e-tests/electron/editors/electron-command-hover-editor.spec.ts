@@ -1,14 +1,13 @@
 /**
- * BEHAVIORAL SPEC: Command-Hover Mode for GraphNode Editor
+ * BEHAVIORAL SPEC: Hover Mode for GraphNode Editor
  *
- * 1. Holding Command/Ctrl and hovering over a node opens a floating markdown editor
+ * 1. Hovering over a node opens a floating markdown editor
  * 2. Editor is positioned near the node but does NOT create a shadow node (non-anchoring)
- * 3. Editor closes when mouse leaves the editor area (mouse-out)
- * 4. Editor closes immediately when Command/Ctrl key is released
- * 5. Editor does not interfere with normal graph interactions
- * 6. Editor moves with graph pan/zoom (attached to cy-floating-overlay)
- * 7. Only one hover editor can be open at a time (opening new one closes previous)
- * 8. Editor content is editable and auto-saves
+ * 3. Editor closes when clicking outside the editor area
+ * 4. Editor does not interfere with normal graph interactions
+ * 5. Editor moves with graph pan/zoom (attached to cy-floating-overlay)
+ * 6. Only one hover editor can be open at a time (opening new one closes previous)
+ * 7. Editor content is editable and auto-saves
  *
  * IMPORTANT: THESE SPEC COMMENTS MUST BE KEPT UP TO DATE
  */
@@ -70,9 +69,9 @@ const test = base.extend<{
   }
 });
 
-test.describe('Command-Hover Mode for GraphNode Editor', () => {
+test.describe('Hover Mode for GraphNode Editor', () => {
 
-  test('should open hover editor when Command is held and node is hovered', async ({ appWindow }) => {
+  test('should open hover editor when node is hovered', async ({ appWindow }) => {
     // Create a test node with content
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
@@ -90,10 +89,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     });
 
     await appWindow.waitForTimeout(500);
-
-    // Use Playwright keyboard and mouse API
-    await appWindow.keyboard.down('Meta');
-    await appWindow.waitForTimeout(100);
 
     // Trigger mouseover event on the Cytoscape node
     await appWindow.evaluate(() => {
@@ -123,10 +118,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     await appWindow.screenshot({
       path: 'e2e-tests/screenshots/electron-command-hover-editor-opened.png'
     });
-
-    // Cleanup
-    await appWindow.keyboard.up('Meta');
-    await appWindow.waitForTimeout(200);
   });
 
   test('should NOT create shadow node (non-anchoring)', async ({ appWindow }) => {
@@ -156,9 +147,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     });
 
     // Open hover editor
-    await appWindow.keyboard.down('Meta');
-    await appWindow.waitForTimeout(100);
-
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
@@ -185,10 +173,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     });
 
     expect(shadowNodeExists).toBe(false);
-
-    // Cleanup
-    await appWindow.keyboard.up('Meta');
-    await appWindow.waitForTimeout(200);
   });
 
   test('should close hover editor on mouse-out', async ({ appWindow }) => {
@@ -211,9 +195,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     await appWindow.waitForTimeout(500);
 
     // Open hover editor
-    await appWindow.keyboard.down('Meta');
-    await appWindow.waitForTimeout(100);
-
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
@@ -237,94 +218,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
       return !!document.querySelector('[id^="window-editor-"]');
     });
     expect(editorExistsAfter).toBe(false);
-
-    // Cleanup
-    await appWindow.keyboard.up('Meta');
-  });
-
-  test('should close hover editor immediately on Command key release', async ({ appWindow }) => {
-    // Create a test node with content
-    await appWindow.evaluate(() => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape instance not found');
-      cy.add({
-        group: 'nodes',
-        data: {
-          id: 'test-node-4',
-          label: 'Test GraphNode 4',
-          content: '# Content',
-          filePath: '/test/test-node-4.md'
-        },
-        position: { x: 350, y: 350 }
-      });
-    });
-
-    await appWindow.waitForTimeout(500);
-
-    // Open hover editor
-    await appWindow.keyboard.down('Meta');
-    await appWindow.waitForTimeout(100);
-
-    await appWindow.evaluate(() => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape instance not found');
-      const node = cy.$('#test-node-4');
-      node.emit('mouseover');
-    });
-    await appWindow.waitForTimeout(200);
-
-    // Verify editor exists
-    const editorExistsBefore = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-editor-"]');
-    });
-    expect(editorExistsBefore).toBe(true);
-
-    // Click outside to close editor (current implementation)
-    await appWindow.mouse.click(100, 100);
-    await appWindow.waitForTimeout(100);
-
-    // Editor should close
-    const editorExistsAfter = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-editor-"]');
-    });
-    expect(editorExistsAfter).toBe(false);
-
-    // Cleanup
-    await appWindow.keyboard.up('Meta');
-  });
-
-  test('should NOT open hover editor when Command is not held', async ({ appWindow }) => {
-    // Create a test node
-    await appWindow.evaluate(() => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape instance not found');
-      cy.add({
-        group: 'nodes',
-        data: { id: 'test-node-5', label: 'Test GraphNode 5' },
-        position: { x: 450, y: 250 }
-      });
-    });
-
-    await appWindow.waitForTimeout(500);
-
-    const nodeBox = await appWindow.evaluate(() => {
-      const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape instance not found');
-      const node = cy.$('#test-node-5');
-      const pos = node.renderedPosition();
-      return { x: pos.x, y: pos.y };
-    });
-
-    // Hover over node WITHOUT holding Command
-    await appWindow.mouse.move(nodeBox.x, nodeBox.y);
-    await appWindow.waitForTimeout(300);
-
-    // Hover editor should NOT appear
-    const hoverEditorExists = await appWindow.evaluate(() => {
-      return !!document.querySelector('[id^="window-editor-"]');
-    });
-
-    expect(hoverEditorExists).toBe(false);
   });
 
   test('should only allow one hover editor at a time', async ({ appWindow }) => {
@@ -357,9 +250,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     await appWindow.waitForTimeout(500);
 
     // Open hover editor on first node
-    await appWindow.keyboard.down('Meta');
-    await appWindow.waitForTimeout(100);
-
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
@@ -396,10 +286,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
       return editor?.id ?? null;
     });
     expect(secondEditorId).toContain('editor-test-node-6b');
-
-    // Cleanup
-    await appWindow.keyboard.up('Meta');
-    await appWindow.waitForTimeout(200);
   });
 
   test('should move with graph pan/zoom (uses cy-floating-overlay)', async ({ appWindow }) => {
@@ -422,9 +308,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     await appWindow.waitForTimeout(500);
 
     // Open hover editor
-    await appWindow.keyboard.down('Meta');
-    await appWindow.waitForTimeout(100);
-
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
@@ -478,10 +361,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     await appWindow.screenshot({
       path: 'e2e-tests/screenshots/electron-command-hover-after-pan.png'
     });
-
-    // Cleanup
-    await appWindow.keyboard.up('Meta');
-    await appWindow.waitForTimeout(200);
   });
 
   test('should display node content in editor', async ({ appWindow }) => {
@@ -505,9 +384,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     await appWindow.waitForTimeout(500);
 
     // Open hover editor
-    await appWindow.keyboard.down('Meta');
-    await appWindow.waitForTimeout(100);
-
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
@@ -541,10 +417,6 @@ test.describe('Command-Hover Mode for GraphNode Editor', () => {
     await appWindow.screenshot({
       path: 'e2e-tests/screenshots/electron-command-hover-with-content.png'
     });
-
-    // Cleanup
-    await appWindow.keyboard.up('Meta');
-    await appWindow.waitForTimeout(200);
   });
 
   test('should not interfere with normal node dragging', async ({ appWindow }) => {
