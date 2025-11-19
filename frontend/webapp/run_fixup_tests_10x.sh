@@ -1,9 +1,14 @@
 #!/bin/bash
 
-# Run the fixup tests command 10 times
-for i in {1..3}; do
+# Run the fixup tests command N times
+# Usage: ./run_fixup_tests_10x.sh [number_of_iterations]
+# Default: 10 iterations if no argument provided
+
+ITERATIONS=${1:-4}
+
+for i in $(seq 1 $ITERATIONS); do
   echo "========================================="
-  echo "Running iteration $i of 10"
+  echo "Running iteration $i of $ITERATIONS"
   echo "========================================="
 
   promptstr=$(envsubst < meta/fixup_tests.md)
@@ -14,4 +19,4 @@ for i in {1..3}; do
   echo ""
 done
 
-echo "All 10 iterations completed!"
+echo "All $ITERATIONS iterations completed!"

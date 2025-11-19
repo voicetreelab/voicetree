@@ -14,6 +14,8 @@
 - Outgoing edges from the new node (can now resolve to existing nodes)
 - Incoming edges to the new node (existing nodes with raw links can now resolve)
 
+**CRITICAL:** Bidirectional healing is REQUIRED for order independence. Without it, reverse-order loading fails because nodes with forward references never get their edges resolved.
+
 ## Key Insight
 
 **Unified Operation:** Both bulk load and incremental updates become sequences of the same atomic operation:
@@ -135,6 +137,11 @@ const delta = addNodeToGraph(
 
 **File:** `src/pure/graph/graphDelta/addNodeToGraph.ts`
 
+**Import needed:**
+```typescript
+import { extractPathSegments } from '@/pure/graph/markdown-parsing/extract-edges.ts'
+```
+
 **Function:**
 ```typescript
 function findNodesWithPotentialEdgesToNode(
@@ -254,14 +261,16 @@ function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph
 
 **Delete:**
 ```typescript
-// Lines 89-109: loadNodes function
+// Delete the loadNodes function
 async function loadNodes(...)
 
-// Lines 111-141: buildNodesWithEdges function
+// Delete the buildNodesWithEdges function
 function buildNodesWithEdges(...)
 ```
 
 **Reason:** Replaced by progressive `reduce` pattern using `addNodeToGraph`
+
+**Note:** Do not rely on specific line numbers - they change as code evolves
 
 ## Path Comparison: Before vs After
 
@@ -317,12 +326,14 @@ graph = [felix/1, felix/2, felix/3].reduce((g, file) => {
 }, emptyGraph)
 
 // Step 1: Add felix/1
+// addNodeToGraph checks for nodes to heal, finds none
 addNodeToGraph(felix/1, {}) → [
   { type: 'UpsertNode', nodeToUpsert: { id: "felix/1", edges: [] } }
 ]
 graph = { "felix/1": { edges: [] } }
 
 // Step 2: Add felix/2
+// addNodeToGraph resolves [[1]] to felix/1, checks for nodes to heal, finds none
 addNodeToGraph(felix/2, graph) → [
   { type: 'UpsertNode', nodeToUpsert: {
       id: "felix/2",
@@ -457,16 +468,20 @@ b.md: [[a]]
 2. Add b → edges: [{ targetId: "a" }] (resolves!), HEALS a's edge
 3. Final: a→b, b→a ✅
 
-### 4. Performance: O(n²) Healing?
+### 4. Performance: O(n²) Healing - CRITICAL
 
-Worst case: every new node heals all existing nodes
+**Without optimization:** Loading n files requires O(n²) operations
+- Each new node scans ALL existing nodes to find ones to heal
+- For 1000 files: ~500,000 operations
+- For 10000 files: ~50,000,000 operations ❌
 
-**Mitigation:**
+**REQUIRED mitigation** (not optional):
 - Build inverted index: `Map<rawLinkText, Set<NodeId>>`
 - Update incrementally on each node addition
 - Lookup becomes O(1) instead of O(n)
+- Total complexity: O(n) ✅
 
-**Implementation:**
+**Implementation (include in Phase 1, not Phase 4):**
 ```typescript
 // Maintain in applyGraphActionsToDB
 const edgeIndex = new Map<string, Set<NodeId>>()
@@ -580,21 +595,25 @@ it('should load graph progressively with edge healing', async () => {
 **Update:** `src/shell/edge/main/graph/integration-tests/fileWatching.test.ts`
 
 ```typescript
-it('should heal edges when watched file is added', async () => {
-  // Add file with forward reference
-  await fs.writeFile('vault/a.md', '[[b]]')
+it('should heal edges when watched file is added (subfolder example)', async () => {
+  // Better example: shows edge ID actually changing during healing
+  await fs.mkdir('vault/felix', { recursive: true })
+
+  // Add file with forward reference using short form
+  await fs.writeFile('vault/felix/2.md', '- related [[1]]')
   await waitForFileWatch()
 
   let graph = getCurrentGraph()
-  expect(graph.nodes['a'].outgoingEdges[0].targetId).toBe('b')  // raw
+  expect(graph.nodes['felix/2'].outgoingEdges[0].targetId).toBe('1')  // raw, unresolved
 
   // Add the referenced file
-  await fs.writeFile('vault/b.md', '# B')
+  await fs.writeFile('vault/felix/1.md', '# One')
   await waitForFileWatch()
 
   graph = getCurrentGraph()
-  expect(graph.nodes['a'].outgoingEdges[0].targetId).toBe('b')  // still works
-  expect(graph.nodes['b']).toBeDefined()  // target exists now
+  // Edge ID changes from '1' to 'felix/1' - demonstrates healing!
+  expect(graph.nodes['felix/2'].outgoingEdges[0].targetId).toBe('felix/1')  // healed!
+  expect(graph.nodes['felix/1']).toBeDefined()
 })
 ```
 
@@ -622,10 +641,12 @@ it('should heal edges when watched file is added', async () => {
 3. Run bulk load tests
 4. Verify order independence
 
-### Phase 4: Optimization (if needed)
-1. Profile performance with large vaults
-2. Add inverted index if O(n²) is problematic
-3. Benchmark before/after
+### Phase 4: Performance Testing
+1. Benchmark with large vaults (1k, 10k files)
+2. Verify O(n) performance with index
+3. Profile and optimize hotspots if needed
+
+**Note:** Inverted index should be implemented in Phase 1, not deferred
 
 ## Success Criteria
 
