@@ -25,7 +25,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 'parent': {
                     relativeFilePathIsID: 'parent',
                     content: '# Parent GraphNode',
-                    outgoingEdges: ['child1'],
+                    outgoingEdges: [{ targetId: 'child1', label: '' }],
                     nodeUIMetadata: {
                         title: 'Parent GraphNode',
                         color: O.none,
@@ -128,7 +128,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 type: 'UpsertNode',
                 nodeToUpsert: expect.objectContaining({
                     relativeFilePathIsID: 'parent',
-                    outgoingEdges: expect.arrayContaining([newNodeId])
+                    outgoingEdges: expect.arrayContaining([expect.objectContaining({ targetId: newNodeId })])
                 })
             })
         ])
