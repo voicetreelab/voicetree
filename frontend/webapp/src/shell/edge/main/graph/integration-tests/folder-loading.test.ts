@@ -37,7 +37,7 @@ interface BroadcastCall {
 
 // Expected counts (based on actual example_folder_fixtures)
 const EXPECTED_SMALL_NODE_COUNT = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
-const EXPECTED_LARGE_NODE_COUNT = 56
+const EXPECTED_LARGE_NODE_COUNT = 75
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []
@@ -110,11 +110,12 @@ describe('Folder Loading - Integration Tests', () => {
         expect(node.relativeFilePathIsID).toBeDefined()
       })
 
-      // AND: Should broadcast delta to UI-edge (first clear, then stateChanged)
-      expect(broadcastCalls.length).toBe(2)
+      // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
+      expect(broadcastCalls.length).toBe(3)
       expect(broadcastCalls[0].channel).toBe('graph:clear')
       expect(broadcastCalls[1].channel).toBe('graph:stateChanged')
       expect(broadcastCalls[1].delta).toBeDefined()
+      expect(broadcastCalls[2].channel).toBe('watching-started')
     })
 
     it('should load example_real_large and populate graph with correct node count', async () => {
@@ -135,10 +136,11 @@ describe('Folder Loading - Integration Tests', () => {
         expect(node.content.length).toBeGreaterThan(0)
       })
 
-      // AND: Should broadcast delta to UI-edge (first clear, then stateChanged)
-      expect(broadcastCalls.length).toBe(2)
+      // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
+      expect(broadcastCalls.length).toBe(3)
       expect(broadcastCalls[0].channel).toBe('graph:clear')
       expect(broadcastCalls[1].channel).toBe('graph:stateChanged')
+      expect(broadcastCalls[2].channel).toBe('watching-started')
     })
   })
 
@@ -158,9 +160,10 @@ describe('Folder Loading - Integration Tests', () => {
       // Verify edge structure
       edgeEntries.forEach(([, node]) => {
         expect(Array.isArray(node.outgoingEdges)).toBe(true)
-        node.outgoingEdges?.forEach(targetId => {
-          expect(typeof targetId).toBe('string')
-          expect(targetId.length).toBeGreaterThan(0)
+        node.outgoingEdges?.forEach(edge => {
+          expect(typeof edge.targetId).toBe('string')
+          expect(edge.targetId.length).toBeGreaterThan(0)
+          expect(typeof edge.label).toBe('string')
         })
       })
     })
@@ -232,7 +235,7 @@ describe('Folder Loading - Integration Tests', () => {
       const testNode = graphAfterAdd.nodes['test-new-file']
       expect(testNode.outgoingEdges).toBeDefined()
       expect(Array.isArray(testNode.outgoingEdges)).toBe(true)
-      expect(testNode.outgoingEdges).toContain('5_Immediate_Test_Observation_No_Output')
+      expect(testNode.outgoingEdges.some(e => e.targetId === '5_Immediate_Test_Observation_No_Output')).toBe(true)
 
       // Verify broadcast was sent
       expect(broadcastCalls.length).toBeGreaterThan(0)
@@ -312,7 +315,7 @@ describe('Folder Loading - Integration Tests', () => {
 
       // Verify all broadcasts used valid channels
       broadcastCalls.forEach(call => {
-        expect(['graph:stateChanged', 'graph:clear']).toContain(call.channel)
+        expect(['graph:stateChanged', 'graph:clear', 'watching-started']).toContain(call.channel)
         if (call.channel === 'graph:stateChanged') {
           expect(Array.isArray(call.delta)).toBe(true)
         }
@@ -397,17 +400,21 @@ describe('Folder Loading - Integration Tests', () => {
       // WHEN: Load directory
       await loadFolder(EXAMPLE_SMALL_PATH)
 
-      // THEN: Should have broadcast twice (clear + stateChanged)
-      expect(broadcastCalls.length).toBe(2)
+      // THEN: Should have broadcast 3 times (clear + stateChanged + watching-started)
+      expect(broadcastCalls.length).toBe(3)
 
       const clearBroadcast = broadcastCalls[0]
       const stateChangedBroadcast = broadcastCalls[1]
+      const watchingStartedBroadcast = broadcastCalls[2]
 
       // AND: First broadcast should be graph:clear
       expect(clearBroadcast.channel).toBe('graph:clear')
 
       // AND: Second broadcast should use graph:stateChanged channel
       expect(stateChangedBroadcast.channel).toBe('graph:stateChanged')
+
+      // AND: Third broadcast should be watching-started
+      expect(watchingStartedBroadcast.channel).toBe('watching-started')
 
       // AND: Delta should be an array of NodeDeltas
       expect(Array.isArray(stateChangedBroadcast.delta)).toBe(true)
@@ -428,19 +435,21 @@ describe('Folder Loading - Integration Tests', () => {
     it('should broadcast delta when switching directories', async () => {
       // GIVEN: Load first directory
       await loadFolder(EXAMPLE_SMALL_PATH)
-      expect(broadcastCalls.length).toBe(2) // clear + stateChanged
+      expect(broadcastCalls.length).toBe(3) // clear + stateChanged + watching-started
 
       // WHEN: Load second directory
       await loadFolder(EXAMPLE_LARGE_PATH)
 
-      // THEN: Should have broadcast 4 times total (2 for each load: clear + stateChanged)
-      expect(broadcastCalls.length).toBe(4)
+      // THEN: Should have broadcast 6 times total (3 for each load: clear + stateChanged + watching-started)
+      expect(broadcastCalls.length).toBe(6)
 
       // Verify second load broadcasts
-      const secondClearBroadcast = broadcastCalls[2]
-      const secondStateChangedBroadcast = broadcastCalls[3]
+      const secondClearBroadcast = broadcastCalls[3]
+      const secondStateChangedBroadcast = broadcastCalls[4]
+      const secondWatchingStartedBroadcast = broadcastCalls[5]
       expect(secondClearBroadcast.channel).toBe('graph:clear')
       expect(secondStateChangedBroadcast.channel).toBe('graph:stateChanged')
+      expect(secondWatchingStartedBroadcast.channel).toBe('watching-started')
       expect(Array.isArray(secondStateChangedBroadcast.delta)).toBe(true)
     })
   })

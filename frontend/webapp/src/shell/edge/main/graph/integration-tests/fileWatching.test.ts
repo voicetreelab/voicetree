@@ -136,7 +136,7 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForCondition(
         () => {
           const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return sourceNode?.outgoingEdges?.includes('test-new-file') ?? false
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
@@ -146,7 +146,7 @@ describe('File Watching - Edge Management Tests', () => {
       const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
 
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges).toContain('test-new-file')
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file')).toBe(true)
     }, 5000)
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
@@ -183,7 +183,7 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForCondition(
         () => {
           const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return sourceNode?.outgoingEdges?.includes('test-new-file') ?? false
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
@@ -192,7 +192,7 @@ describe('File Watching - Edge Management Tests', () => {
       const graph = getGraph()
       const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges).toContain('test-new-file')
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file')).toBe(true)
     }, 5000)
 
     it('should remove edge when wikilink is removed from file content', async () => {
@@ -247,7 +247,7 @@ Parent:
       await waitForCondition(
         () => {
           const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return sourceNode?.outgoingEdges?.includes('test-new-file') ?? false
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge not added before removal test' }
       )
@@ -260,7 +260,7 @@ Parent:
       await waitForCondition(
         () => {
           const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return !sourceNode?.outgoingEdges?.includes('test-new-file')
+          return !sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file')
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not removed' }
       )
@@ -269,7 +269,7 @@ Parent:
       const graph = getGraph()
       const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges).not.toContain('test-new-file')
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file')).toBe(false)
     }, 5000)
   })
 

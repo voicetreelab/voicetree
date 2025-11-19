@@ -89,8 +89,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         relativeFilePathIsID: TEST_NODE_ID,
         content: '# GraphNode With Links\n\nThis node links to [[1_VoiceTree_Website_Development_and_Node_Display_Bug]] and [[2_VoiceTree_Node_ID_Duplication_Bug]].',
         outgoingEdges: [
-          '1_VoiceTree_Website_Development_and_Node_Display_Bug',
-          '2_VoiceTree_Node_ID_Duplication_Bug'
+          { targetId: '1_VoiceTree_Website_Development_and_Node_Display_Bug', label: '' },
+          { targetId: '2_VoiceTree_Node_ID_Duplication_Bug', label: '' }
         ],
         nodeUIMetadata: {
           title: 'GraphNode With Links',

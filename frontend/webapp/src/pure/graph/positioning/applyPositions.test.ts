@@ -216,7 +216,7 @@ function seededRandom(seed: number): () => number {
 function createNode(id: NodeId, outgoingEdges: readonly NodeId[]): GraphNode {
   return {
     relativeFilePathIsID: id,
-    outgoingEdges,
+    outgoingEdges: outgoingEdges.map(targetId => ({ targetId, label: '' })),
     content: `# ${id}\n\nContent for ${id}`,
     nodeUIMetadata: {
       title: id,
@@ -269,7 +269,7 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
     if (children.length > 0) {
       nodes[parentId] = {
         ...parent,
-        outgoingEdges: children
+        outgoingEdges: children.map(targetId => ({ targetId, label: '' }))
       }
     }
   }
@@ -342,15 +342,15 @@ function extractEdges(graph: Graph): readonly Edge[] {
     const fromPos = O.toUndefined(node.nodeUIMetadata.position)
     if (!fromPos) return
 
-    node.outgoingEdges.forEach(childId => {
-      const childNode = graph.nodes[childId]
+    node.outgoingEdges.forEach(edge => {
+      const childNode = graph.nodes[edge.targetId]
       const toPos = O.toUndefined(childNode?.nodeUIMetadata.position)
       if (!toPos) return
 
       edges.push({
         from: fromPos,
         to: toPos,
-        id: `${node.relativeFilePathIsID}->${childId}`
+        id: `${node.relativeFilePathIsID}->${edge.targetId}`
       })
     })
   })
@@ -362,7 +362,7 @@ function extractEdges(graph: Graph): readonly Edge[] {
  * Find all pairs of overlapping edges
  */
 function findOverlappingEdges(edges: readonly Edge[]): readonly (readonly [Edge, Edge])[] {
-  const overlaps: readonly (readonly [Edge, Edge])[] = []
+  const overlaps: [Edge, Edge][] = []
 
   for (let i = 0; i < edges.length; i++) {
     for (let j = i + 1; j < edges.length; j++) {
