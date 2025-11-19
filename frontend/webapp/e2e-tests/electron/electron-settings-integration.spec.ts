@@ -27,6 +27,8 @@
 import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
 import type { Core as CytoscapeCore } from 'cytoscape';
 import type { ElectronAPI } from '@/utils/types/electron';
 import type { Settings } from '@/pure/settings';
@@ -52,14 +54,21 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   electronApp: async ({}, use) => {
+    // Create a temporary userData directory for this test
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-settings-test-'));
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
-      }
+      },
+      timeout: 5000 // 5 second timeout for app launch
     });
 
     await use(electronApp);
@@ -79,6 +88,9 @@ const test = base.extend<{
     }
 
     await electronApp.close();
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   appWindow: async ({ electronApp }, use) => {
@@ -95,7 +107,7 @@ const test = base.extend<{
     });
 
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 5000 });
     await window.waitForTimeout(1000);
 
     await use(window);

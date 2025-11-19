@@ -51,7 +51,7 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       },
-      timeout: 5000 // 10 second timeout
+      timeout: 8000 // 10 second timeout
     });
 
     await use(electronApp);

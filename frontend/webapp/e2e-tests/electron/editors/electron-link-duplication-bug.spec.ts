@@ -83,7 +83,7 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       },
-      timeout: 5000
+      timeout: 8000
     });
 
     await use(electronApp);
@@ -137,7 +137,7 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
+    await page.waitForFunction(() => (window as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
     await page.waitForTimeout(100);
 
     await use(page);

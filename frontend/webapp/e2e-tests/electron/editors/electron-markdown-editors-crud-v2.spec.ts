@@ -148,24 +148,57 @@ test.describe('Markdown Editor CRUD Tests', () => {
     expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
     console.log('✓ File watching started successfully');
 
-    // Wait for initial scan to complete
-    await appWindow.waitForTimeout(3000);
-
-    // Wait for graph to load with test node
-    const nodeId = '10_Setting_up_Agent_in_Feedback_Loop';
+    // Wait for initial scan to complete and graph to have nodes
     await expect.poll(async () => {
-      return appWindow.evaluate((nId) => {
+      return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return false;
-        return cy.getElementById(nId).length > 0;
-      }, nodeId);
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
     }, {
-      message: `Waiting for ${nodeId} node to load`,
-      timeout: 10000
-    }).toBe(true);
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000
+    }).toBeGreaterThan(0);
+
+    console.log('✓ Graph loaded with nodes');
+
+    // Find a node with label "Setting up Agent in Feedback Loop" (from markdown heading)
+    const nodeId = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      // Find node by label (from markdown heading)
+      const nodes = cy.nodes();
+      let foundNodeId: string | null = null;
+
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const label = node.data('label');
+        if (label === 'Setting up Agent in Feedback Loop') {
+          foundNodeId = node.id();
+          break;
+        }
+      }
+
+      if (!foundNodeId) {
+        // Log available nodes for debugging
+        const availableLabels: string[] = [];
+        for (let i = 0; i < Math.min(10, nodes.length); i++) {
+          availableLabels.push(nodes[i].data('label'));
+        }
+        throw new Error(`Node with label "Setting up Agent in Feedback Loop" not found. Available nodes: ${availableLabels.join(', ')}`);
+      }
+
+      return foundNodeId;
+    });
+
+    console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration later
-    const testFilePath = path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+    // Note: nodeId might already include .md extension
+    const testFilePath = nodeId.endsWith('.md')
+      ? path.join(FIXTURE_VAULT_PATH, nodeId)
+      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content length:', originalContent.length);
 
@@ -196,13 +229,17 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror editor to render
-    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
+    // Note: Need to escape dots in the selector if nodeId contains .md
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Modify content in the editor using direct CodeMirror DOM access
     const testContent = '# Setting up Agent in Feedback Loop\n\nTEST MODIFICATION - This content was changed by the e2e test.\n\nThis is a test to verify file sync works correctly.';
 
     await appWindow.evaluate(({ windowId, newContent }: { windowId: string; newContent: string }) => {
-      const editorElement = document.querySelector(`#${windowId} .cm-content`) as HTMLElement | null;
+      // Escape dots in windowId for querySelector
+      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;
@@ -233,7 +270,9 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // CRITICAL TEST: Click the ACTUAL close button (not just remove shadow node)
     console.log('Clicking close button...');
     await appWindow.evaluate((winId) => {
-      const closeButton = document.querySelector(`#${winId} .cy-floating-window-close`) as HTMLButtonElement | null;
+      // Escape dots in winId for querySelector
+      const escapedWinId = winId.replace(/\./g, '\\.');
+      const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
       if (!closeButton) throw new Error('Close button not found!');
       closeButton.click();
     }, editorWindowId);
@@ -269,11 +308,14 @@ test.describe('Markdown Editor CRUD Tests', () => {
     }).toBe(true);
 
     // Wait for CodeMirror editor to render again
-    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
+    // Note: Need to escape dots in the selector if nodeId contains .md
+    await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Verify the editor shows the saved content using direct DOM access
     const editorContent = await appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${winId} .cm-content`) as HTMLElement | null;
+      // Escape dots in winId for querySelector
+      const escapedWinId = winId.replace(/\./g, '\\.');
+      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
       if (!editorElement) return null;
 
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;
@@ -317,7 +359,10 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     const nodeId = 'introduction';
     // Read original file content for restoration
-    const testFilePath = path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+    // Note: nodeId might already include .md extension
+    const testFilePath = nodeId.endsWith('.md')
+      ? path.join(FIXTURE_VAULT_PATH, nodeId)
+      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
 
     // Get initial edge count for node
@@ -366,13 +411,17 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor opened');
 
     // Wait for CodeMirror editor to render
-    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
+    // Note: Need to escape dots in the selector if nodeId contains .md
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Add a new wikilink to the content
     const newContent = originalContent + '\n\nNew section linking to [[README]] for testing.';
 
     await appWindow.evaluate(({ windowId, content }: { windowId: string; content: string }) => {
-      const editorElement = document.querySelector(`#${windowId} .cm-content`) as HTMLElement | null;
+      // Escape dots in windowId for querySelector
+      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;
@@ -447,24 +496,57 @@ test.describe('Markdown Editor CRUD Tests', () => {
     expect(watchResult.directory).toBe(FIXTURE_VAULT_PATH);
     console.log('✓ File watching started successfully');
 
-    // Wait for initial scan to complete
-    await appWindow.waitForTimeout(3000);
-
-    // Wait for test node to load
-    const nodeId = '11_Identify_Relevant_Test_for_Tree_Action_Decider_Workflow';
+    // Wait for initial scan to complete and graph to have nodes
     await expect.poll(async () => {
-      return appWindow.evaluate((nId) => {
+      return appWindow.evaluate(() => {
         const cy = (window as ExtendedWindow).cytoscapeInstance;
-        if (!cy) return false;
-        return cy.getElementById(nId).length > 0;
-      }, nodeId);
+        if (!cy) return 0;
+        return cy.nodes().length;
+      });
     }, {
-      message: `Waiting for ${nodeId} node to load`,
-      timeout: 10000
-    }).toBe(true);
+      message: 'Waiting for graph to load nodes',
+      timeout: 15000
+    }).toBeGreaterThan(0);
+
+    console.log('✓ Graph loaded with nodes');
+
+    // Find a node with label "Identify Relevant Test" (from markdown heading)
+    const nodeId = await appWindow.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) throw new Error('Cytoscape not initialized');
+
+      // Find node by label (from markdown heading)
+      const nodes = cy.nodes();
+      let foundNodeId: string | null = null;
+
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const label = node.data('label');
+        if (label === 'Identify Relevant Test') {
+          foundNodeId = node.id();
+          break;
+        }
+      }
+
+      if (!foundNodeId) {
+        // Log available nodes for debugging
+        const availableLabels: string[] = [];
+        for (let i = 0; i < Math.min(10, nodes.length); i++) {
+          availableLabels.push(nodes[i].data('label'));
+        }
+        throw new Error(`Node with label "Identify Relevant Test" not found. Available nodes: ${availableLabels.join(', ')}`);
+      }
+
+      return foundNodeId;
+    });
+
+    console.log(`✓ Found node with ID: ${nodeId}`);
 
     // Read original file content for restoration
-    const testFilePath = path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
+    // Note: nodeId might already include .md extension
+    const testFilePath = nodeId.endsWith('.md')
+      ? path.join(FIXTURE_VAULT_PATH, nodeId)
+      : path.join(FIXTURE_VAULT_PATH, `${nodeId}.md`);
     const originalContent = await fs.readFile(testFilePath, 'utf-8');
     console.log('Original file content:', originalContent.substring(0, 50) + '...');
 
@@ -492,11 +574,15 @@ test.describe('Markdown Editor CRUD Tests', () => {
     console.log('✓ Editor opened');
 
     // Wait for CodeMirror editor to render
-    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
+    // Note: Need to escape dots in the selector if nodeId contains .md
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
 
     // Get initial editor content using direct DOM access
     const initialEditorContent = await appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${winId} .cm-content`) as HTMLElement | null;
+      // Escape dots in winId for querySelector
+      const escapedWinId = winId.replace(/\./g, '\\.');
+      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
       if (!editorElement) return null;
 
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;
@@ -519,7 +605,9 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     // Check if editor content was updated to match the external change
     const updatedEditorContent = await appWindow.evaluate((winId) => {
-      const editorElement = document.querySelector(`#${winId} .cm-content`) as HTMLElement | null;
+      // Escape dots in winId for querySelector
+      const escapedWinId = winId.replace(/\./g, '\\.');
+      const editorElement = document.querySelector(`#${escapedWinId} .cm-content`) as HTMLElement | null;
       if (!editorElement) return null;
 
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;

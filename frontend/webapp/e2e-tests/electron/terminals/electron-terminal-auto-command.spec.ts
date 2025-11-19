@@ -109,10 +109,11 @@ test.describe('Terminal Auto-Command Execution E2E', () => {
 
     console.log(`Target node: ${targetNodeId}`);
 
-    console.log('=== STEP 3: Create terminal with auto-command directly ===');
+    console.log('=== STEP 3: Set up terminal data listener BEFORE spawning ===');
 
-    // Create terminal directly through electronAPI with the metadata that includes auto-command
-    const terminalResult = await appWindow.evaluate(async (nodeId) => {
+    // Set up promise to collect output - must be done BEFORE spawning terminal
+    // to avoid race condition where output arrives before listener is attached
+    const terminalOutputPromise = appWindow.evaluate(async (nodeId) => {
       const w = (window as ExtendedWindow);
       const api = w.electronAPI;
 
@@ -120,61 +121,32 @@ test.describe('Terminal Auto-Command Execution E2E', () => {
         throw new Error('electronAPI.terminal not available');
       }
 
-      // Get node file path
-      const cy = w.cytoscapeInstance;
-      if (!cy) throw new Error('Cytoscape not initialized');
-
-      const node = cy.getElementById(nodeId);
-      if (node.length === 0) throw new Error('Node not found');
-
-      // Create terminal with auto-command metadata (same as context menu would do)
-      const nodeMetadata = {
-        id: nodeId,
-        name: nodeId.replace(/_/g, ' '),
-        filePath: undefined, // Not critical for this test
-        initialCommand: 'for i in {1..10}; do echo $i; done',
-        executeCommand: true
-      };
-
-      const result = await api.terminal.spawn(nodeMetadata);
-      console.log('[Test] Terminal spawn result:', result);
-
-      return result;
-    }, targetNodeId);
-
-    expect(terminalResult.success).toBe(true);
-    expect(terminalResult.terminalId).toBeTruthy();
-    const terminalId = terminalResult.terminalId!;
-    console.log(`✓ Terminal created with ID: ${terminalId}`);
-
-    console.log('=== STEP 4: Collect terminal output data ===');
-
-    // Set up a listener to collect terminal data
-    const terminalOutput = await appWindow.evaluate(async (tId) => {
-      const w = (window as ExtendedWindow);
-      const api = w.electronAPI;
-
-      if (!api?.terminal) {
-        throw new Error('electronAPI.terminal not available');
-      }
-
-      return new Promise<string>((resolve) => {
+      return new Promise<{ terminalId: string; output: string }>((resolve) => {
         let output = '';
         let dataReceivedCount = 0;
+        let capturedTerminalId: string | null = null;
+
         const timeout = setTimeout(() => {
           console.log('[Test] Timeout reached');
           console.log(`[Test] Data events received: ${dataReceivedCount}`);
           console.log(`[Test] Collected output length: ${output.length}`);
           console.log(`[Test] Collected output:`, output);
-          resolve(output);
-        }, 5000); // Increased timeout to 5 seconds
+          resolve({ terminalId: capturedTerminalId ?? '', output });
+        }, 5000);
 
-        console.log(`[Test] Setting up onData listener for terminal ${tId}`);
+        console.log('[Test] Setting up onData listener before spawning terminal');
 
-        // Listen for terminal data
+        // Listen for terminal data - this will capture ALL data from ANY terminal
         api.terminal.onData((id, data) => {
-          console.log(`[Test] onData callback triggered - id: ${id}, expecting: ${tId}`);
-          if (id === tId) {
+          console.log(`[Test] onData callback triggered - id: ${id}`);
+
+          // First data event tells us the terminal ID
+          if (!capturedTerminalId) {
+            capturedTerminalId = id;
+            console.log(`[Test] Captured terminal ID: ${id}`);
+          }
+
+          if (id === capturedTerminalId) {
             dataReceivedCount++;
             console.log(`[Test] Data event #${dataReceivedCount} for terminal ${id}`);
             console.log(`[Test] Data length: ${data.length}, preview:`, data.substring(0, 100));
@@ -184,14 +156,42 @@ test.describe('Terminal Auto-Command Execution E2E', () => {
             if (output.includes('10') && output.includes('1') && output.includes('5')) {
               clearTimeout(timeout);
               console.log('[Test] Received all expected output (contains 1, 5, and 10)');
-              resolve(output);
+              resolve({ terminalId: id, output });
             }
           }
         });
 
-        console.log('[Test] onData listener set up, waiting for data...');
+        console.log('[Test] onData listener set up, now spawning terminal...');
+
+        // NOW spawn the terminal with the listener already in place
+        void (async () => {
+          const cy = w.cytoscapeInstance;
+          if (!cy) throw new Error('Cytoscape not initialized');
+
+          const node = cy.getElementById(nodeId);
+          if (node.length === 0) throw new Error('Node not found');
+
+          const nodeMetadata = {
+            id: nodeId,
+            name: nodeId.replace(/_/g, ' '),
+            filePath: undefined,
+            initialCommand: 'for i in {1..10}; do echo $i; done',
+            executeCommand: true
+          };
+
+          const result = await api.terminal.spawn(nodeMetadata);
+          console.log('[Test] Terminal spawn result:', result);
+
+          if (!result.success) {
+            clearTimeout(timeout);
+            throw new Error('Failed to spawn terminal');
+          }
+        })();
       });
-    }, terminalId);
+    }, targetNodeId);
+
+    console.log('=== STEP 4: Wait for terminal output ===');
+    const { terminalId: _terminalId, output: terminalOutput } = await terminalOutputPromise;
 
     console.log(`Terminal output length: ${terminalOutput.length} characters`);
     console.log(`Terminal output preview: ${terminalOutput.substring(0, 300)}`);

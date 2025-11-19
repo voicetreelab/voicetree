@@ -114,6 +114,8 @@ const test = base.extend<{
   }
 });
 
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Backend API Integration E2E', () => {
 
   test('should dynamically discover backend port and successfully call /load-directory', async ({

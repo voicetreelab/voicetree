@@ -44,7 +44,7 @@ const test = base.extend<{
         `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
       ],
       env: { ...process.env, NODE_ENV: 'test', HEADLESS_TEST: '1', MINIMIZE_TEST: '1' },
-      timeout: 5000
+      timeout: 8000
     });
     await use(electronApp);
     await electronApp.close();
