@@ -1,8 +1,8 @@
-import * as O from 'fp-ts/lib/Option.js'
-import type {Graph, GraphDelta, GraphNode} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode, Position} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
+import * as O from "fp-ts/Option";
 
 /**
  * Pure action creator functions.
@@ -21,7 +21,7 @@ export function fromUICreateChildToUpsertNode(
 ): GraphDelta {
   // Create the new node with default values for an empty node
   const newNode: GraphNode = {
-    relativeFilePathIsID: parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length, //todo doesn't guarantee uniqueness, but tis good enough
+    relativeFilePathIsID: parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
     outgoingEdges: [],
     content: '# Title',
     nodeUIMetadata: {
@@ -81,3 +81,29 @@ export function createDeleteNodeAction(nodeId: string): GraphDelta {
 //todo switch between the three (?)
 
 
+function randomChars(number: number): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    return Array.from({length: number}, () =>
+        chars.charAt(Math.floor(Math.random() * chars.length))
+    ).join('');
+}
+
+export function createNewNodeNoParent(pos: Position) {
+    const newNode: GraphNode = {
+        relativeFilePathIsID: Date.now().toString() + randomChars(3) + ".md", // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
+        outgoingEdges: [],
+        content: '# New',
+        nodeUIMetadata: {
+            title: 'New',
+            color: O.none,
+            position: O.of(pos)
+        },
+    }
+    const graphDelta: GraphDelta = [
+        {
+            type: 'UpsertNode',
+            nodeToUpsert: newNode
+        },
+    ]
+    return {newNode, graphDelta};
+}
