@@ -28,15 +28,15 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       const graph = await loadGraphFromDisk(O.some(vaultPath))
 
       // THEN: Graph should contain both nodes
-      expect(graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis']).toBeDefined()
-      expect(graph.nodes['_179']).toBeDefined()
+      expect(graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']).toBeDefined()
+      expect(graph.nodes['_179.md']).toBeDefined()
 
       // AND: loadGraphFromDisk applies reverseGraphEdges twice (before and after applyPositions)
       // This means edges are back in their original form: 181 -> _179
       // So node 181 should have _179 in its outgoing edges
-      const node181 = graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis']
+      const node181 = graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']
 
-      expect(node181.outgoingEdges.some(e => e.targetId === '_179')).toBe(true)
+      expect(node181.outgoingEdges.some(e => e.targetId === '_179.md')).toBe(true)
     })
   })
 })

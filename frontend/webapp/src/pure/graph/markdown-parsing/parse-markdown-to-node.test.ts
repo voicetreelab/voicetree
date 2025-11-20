@@ -12,7 +12,7 @@ Some text`
 
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
-    expect(result.relativeFilePathIsID).toBe('test')
+    expect(result.relativeFilePathIsID).toBe('test.md')
     expect(result.content).toBe(content)
     expect(result.outgoingEdges).toEqual([])
     expect(O.isSome(result.nodeUIMetadata.color)).toBe(true)
@@ -30,7 +30,7 @@ position:
 
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
-    expect(result.relativeFilePathIsID).toBe('test')
+    expect(result.relativeFilePathIsID).toBe('test.md')
     expect(result.content).toBe(content)
     expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
 
@@ -44,7 +44,7 @@ position:
 
     const result = parseMarkdownToGraphNode(content, 'my-file.md')
 
-    expect(result.relativeFilePathIsID).toBe('my-file')
+    expect(result.relativeFilePathIsID).toBe('my-file.md')
   })
 
   it('should use Option.none for missing color', () => {
@@ -85,7 +85,7 @@ Content here`
 
     const result = parseMarkdownToGraphNode(content, 'subfolder/nested/file.md')
 
-    expect(result.relativeFilePathIsID).toBe('subfolder/nested/file')
+    expect(result.relativeFilePathIsID).toBe('subfolder/nested/file.md')
   })
 
   it('should have empty outgoingEdges array', () => {
@@ -109,36 +109,36 @@ Content here`
     // Should not throw, should return a valid node
     const result = parseMarkdownToGraphNode(content, 'bad-yaml.md')
 
-    expect(result.relativeFilePathIsID).toBe('bad-yaml')
+    expect(result.relativeFilePathIsID).toBe('bad-yaml.md')
     expect(result.content).toBe(content)
     expect(result.outgoingEdges).toEqual([])
     // Should fall back to heading when YAML fails
     expect(result.nodeUIMetadata.title).toBe('Fallback Heading')
   })
 
-  describe('Node ID should remove .md extension', () => {
-    it('should remove .md extension in node ID for simple filename', () => {
+  describe('Node ID should keep .md extension', () => {
+    it('should keep .md extension in node ID for simple filename', () => {
       const content = '# Test Content'
 
       const result = parseMarkdownToGraphNode(content, 'test-file.md')
 
-      expect(result.relativeFilePathIsID).toBe('test-file')
+      expect(result.relativeFilePathIsID).toBe('test-file.md')
     })
 
-    it('should remove .md extension in node ID for nested path', () => {
+    it('should keep .md extension in node ID for nested path', () => {
       const content = '# Nested Content'
 
       const result = parseMarkdownToGraphNode(content, 'folder/subfolder/note.md')
 
-      expect(result.relativeFilePathIsID).toBe('folder/subfolder/note')
+      expect(result.relativeFilePathIsID).toBe('folder/subfolder/note.md')
     })
 
-    it('should remove .md extension when file has multiple dots', () => {
+    it('should keep .md extension when file has multiple dots', () => {
       const content = '# Multi-dot file'
 
       const result = parseMarkdownToGraphNode(content, 'file.backup.md')
 
-      expect(result.relativeFilePathIsID).toBe('file.backup')
+      expect(result.relativeFilePathIsID).toBe('file.backup.md')
     })
 
     it('should handle file without .md extension as-is', () => {

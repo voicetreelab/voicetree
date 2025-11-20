@@ -218,7 +218,7 @@ describe('Folder Loading - Integration Tests', () => {
       while (Date.now() - startTime < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, pollInterval))
         const currentGraph = getGraph()
-        if (currentGraph.nodes['test-new-file']) {
+        if (currentGraph.nodes['test-new-file.md']) {
           nodeAdded = true
           break
         }
@@ -227,20 +227,21 @@ describe('Folder Loading - Integration Tests', () => {
       // Verify the node was added to the graph
       expect(nodeAdded).toBe(true)
       const graphAfterAdd = getGraph()
-      expect(graphAfterAdd.nodes['test-new-file']).toBeDefined()
-      expect(graphAfterAdd.nodes['test-new-file'].content).toBe(testFileContent)
+      expect(graphAfterAdd.nodes['test-new-file.md']).toBeDefined()
+      expect(graphAfterAdd.nodes['test-new-file.md'].content).toBe(testFileContent)
       expect(Object.keys(graphAfterAdd.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT + 1)
 
       // Verify edge was created from test-new-file to 5_Immediate_Test_Observation_No_Output
-      const testNode = graphAfterAdd.nodes['test-new-file']
+      const testNode = graphAfterAdd.nodes['test-new-file.md']
       expect(testNode.outgoingEdges).toBeDefined()
       expect(Array.isArray(testNode.outgoingEdges)).toBe(true)
-      expect(testNode.outgoingEdges.some(e => e.targetId === '5_Immediate_Test_Observation_No_Output')).toBe(true)
+      // Node IDs now include .md extension
+      expect(testNode.outgoingEdges.some(e => e.targetId.includes('5_Immediate_Test_Observation_No_Output'))).toBe(true)
 
       // Verify broadcast was sent
       expect(broadcastCalls.length).toBeGreaterThan(0)
       const addBroadcast = broadcastCalls.find(call =>
-        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file')
+        call.delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'test-new-file.md')
       )
       expect(addBroadcast).toBeDefined()
 
@@ -257,7 +258,7 @@ describe('Folder Loading - Integration Tests', () => {
       while (Date.now() - deleteStartTime < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, pollInterval))
         const currentGraph = getGraph()
-        if (!currentGraph.nodes['test-new-file']) {
+        if (!currentGraph.nodes['test-new-file.md']) {
           nodeDeleted = true
           break
         }
@@ -266,13 +267,13 @@ describe('Folder Loading - Integration Tests', () => {
       // Verify the node was removed from the graph
       expect(nodeDeleted).toBe(true)
       const graphAfterDelete = getGraph()
-      expect(graphAfterDelete.nodes['test-new-file']).toBeUndefined()
+      expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
       expect(Object.keys(graphAfterDelete.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // Verify broadcast was sent
       expect(broadcastCalls.length).toBeGreaterThan(0)
       const deleteBroadcast = broadcastCalls.find(call =>
-        call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file')
+        call.delta.some(d => d.type === 'DeleteNode' && d.nodeId === 'test-new-file.md')
       )
       expect(deleteBroadcast).toBeDefined()
 
@@ -357,8 +358,8 @@ describe('Folder Loading - Integration Tests', () => {
 
       // THEN: Graph should contain the new node
       const graph = getGraph()
-      expect(graph.nodes['test-new-file']).toBeDefined()
-      expect(graph.nodes['test-new-file'].content).toBe(newFileContent)
+      expect(graph.nodes['test-new-file.md']).toBeDefined()
+      expect(graph.nodes['test-new-file.md'].content).toBe(newFileContent)
 
       // AND: Broadcast should have been sent
       expect(broadcastCalls.length).toBe(1)
@@ -383,7 +384,7 @@ describe('Folder Loading - Integration Tests', () => {
 
       // THEN: GraphNode should be removed from graph
       const graphAfterDelete = getGraph()
-      expect(graphAfterDelete.nodes['test-new-file']).toBeUndefined()
+      expect(graphAfterDelete.nodes['test-new-file.md']).toBeUndefined()
 
       // AND: Broadcast should have been sent
       expect(broadcastCalls.length).toBe(1)
@@ -492,7 +493,7 @@ describe('Folder Loading - Integration Tests', () => {
       expect(Object.keys(graph.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT)
 
       // AND: The bad YAML file should be present
-      const badYamlNode = graph.nodes['7_Bad_YAML_Frontmatter_Test']
+      const badYamlNode = graph.nodes['7_Bad_YAML_Frontmatter_Test.md']
       expect(badYamlNode).toBeDefined()
 
       // AND: Should have content (not skipped due to parse error)

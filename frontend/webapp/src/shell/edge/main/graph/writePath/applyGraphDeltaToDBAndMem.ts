@@ -5,6 +5,7 @@ import type { Env, Graph, GraphDelta } from '@/pure/graph'
 import { apply_graph_deltas_to_db } from '@/pure/graph/graphActionsToDBEffects.ts'
 import {getGraph, getVaultPath, setGraph} from '@/shell/edge/main/state/graph-store.ts'
 import type {Either} from "fp-ts/es6/Either";
+import {getMainWindow} from '@/shell/edge/main/state/app-electron-state.ts';
 
 /**
  * Shell-level function to apply graph deltas to the database.
@@ -14,9 +15,10 @@ import type {Either} from "fp-ts/es6/Either";
  * 2. Constructs the Env
  * 3. Executes the pure core effect
  * 4. Unwraps the Either result (fail fast)
+ * 5. Updates in-memory state and notifies UI
  *
  * Per architecture: Pure core returns effects, impure shell executes them.
- * Graph state updates come from file watch handlers detecting the filesystem change.
+ * We update the UI immediately to avoid waiting for file watcher events.
  */
 export async function applyGraphDeltaToDBAndMem(delta: GraphDelta): Promise<void> {
     const graph = getGraph();
@@ -27,6 +29,12 @@ export async function applyGraphDeltaToDBAndMem(delta: GraphDelta): Promise<void
     O.getOrElseW(() => { throw new Error('Vault path not initialized') })
   )
 
+    // Notify UI of the change early (purposefully unnecessary, fs events do the same)
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('graph:stateChanged', delta);
+    }
+
   // Construct env and execute effect
   const env: Env = { vaultPath }
   const result: Either<Error, Graph> = await apply_graph_deltas_to_db(graph, delta)(env)()
@@ -36,11 +44,7 @@ export async function applyGraphDeltaToDBAndMem(delta: GraphDelta): Promise<void
     throw result.left
   }
   else {
-      // write through cache
-      setGraph(result.right) // todo, should we write through mem? is this actually writing through mem since it's after applying to fs?
-
-      //old approach was:   // result.right contains computed graph but we ignore per architecture
-      //   // Graph state updates come from file watch handlers
+      // Update in-memory state (purposefully unnecessary, fs events do the same)
+      setGraph(result.right)
   }
-
 }

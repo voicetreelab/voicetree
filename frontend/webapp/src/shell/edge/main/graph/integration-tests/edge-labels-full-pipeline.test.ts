@@ -72,14 +72,14 @@ Setup instructions.`
     console.log('  All node IDs in graph:', JSON.stringify(Object.keys(graph.nodes), null, 2))
 
     // VERIFY: Graph should have edges with labels
-    const node5 = graph.nodes['5_Understand_G_Cloud_Lambda']
+    const node5 = graph.nodes['5_Understand_G_Cloud_Lambda.md']
     expect(node5).toBeDefined()
     expect(node5.outgoingEdges).toHaveLength(1)
 
     console.log('  Node 5 outgoingEdges:', JSON.stringify(node5.outgoingEdges, null, 2))
 
     expect(node5.outgoingEdges[0]).toEqual({
-      targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation',
+      targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md',
       label: 'is_a_prerequisite_for'
     })
 
@@ -92,7 +92,7 @@ Setup instructions.`
     console.log('  Delta length:', delta.length)
 
     // Find node 5 in delta
-    const node5Delta = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === '5_Understand_G_Cloud_Lambda')
+    const node5Delta = delta.find(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === '5_Understand_G_Cloud_Lambda.md')
     expect(node5Delta).toBeDefined()
 
     if (node5Delta?.type === 'UpsertNode') {
@@ -100,7 +100,7 @@ Setup instructions.`
 
       expect(node5Delta.nodeToUpsert.outgoingEdges).toHaveLength(1)
       expect(node5Delta.nodeToUpsert.outgoingEdges[0]).toEqual({
-        targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation',
+        targetId: '3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md',
         label: 'is_a_prerequisite_for'
       })
     }
@@ -115,7 +115,7 @@ Setup instructions.`
     console.log('  Cytoscape edges:', cy.edges().length)
 
     // VERIFY: Cytoscape should have edge with label
-    const cytoscapeEdge = cy.edges('[source="5_Understand_G_Cloud_Lambda"][target="3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation"]')
+    const cytoscapeEdge = cy.edges('[source="5_Understand_G_Cloud_Lambda.md"][target="3_Setup_G_Cloud_CLI_and_Understand_Lambda_Creation.md"]')
 
     expect(cytoscapeEdge.length).toBe(1)
 
@@ -149,18 +149,18 @@ _Links:_
     const delta = mapNewGraphToDelta(graph)
     applyGraphDeltaToUI(cy, delta)
 
-    const mainNode = graph.nodes['main']
+    const mainNode = graph.nodes['main.md']
     expect(mainNode.outgoingEdges).toHaveLength(3)
     expect(mainNode.outgoingEdges).toEqual([
-      { targetId: 'node-a', label: 'references' },
-      { targetId: 'node-b', label: 'extends' },
-      { targetId: 'node-c', label: 'implements' }
+      { targetId: 'node-a.md', label: 'references' },
+      { targetId: 'node-b.md', label: 'extends' },
+      { targetId: 'node-c.md', label: 'implements' }
     ])
 
     // Verify in Cytoscape
-    const edgeA = cy.edges('[source="main"][target="node-a"]')
-    const edgeB = cy.edges('[source="main"][target="node-b"]')
-    const edgeC = cy.edges('[source="main"][target="node-c"]')
+    const edgeA = cy.edges('[source="main.md"][target="node-a.md"]')
+    const edgeB = cy.edges('[source="main.md"][target="node-b.md"]')
+    const edgeC = cy.edges('[source="main.md"][target="node-c.md"]')
 
     expect(edgeA.data('label')).toBe('references')
     expect(edgeB.data('label')).toBe('extends')

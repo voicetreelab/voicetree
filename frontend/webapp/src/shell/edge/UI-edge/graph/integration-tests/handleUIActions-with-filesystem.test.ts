@@ -117,7 +117,7 @@ position:
 # Parent Node
 
 Parent content
-[[child1]]`
+[[child1.md]]`
         )
         await fs.writeFile(
             path.join(tempVault, 'child1.md'),
@@ -131,21 +131,21 @@ position:
 Child content`
         )
 
-        // Create graph state
+        // Create graph state with correct node IDs including .md extension
         mockGraph = {
             nodes: {
-                'parent': {
-                    relativeFilePathIsID: 'parent',
-                    content: '# Parent GraphNode\n\nParent content',
-                    outgoingEdges: [{ targetId: 'child1', label: '' }],
+                'parent.md': {
+                    relativeFilePathIsID: 'parent.md',
+                    content: '# Parent Node\n\nParent content',
+                    outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 100, y: 100 }),
                         title: 'parent'
                     }
                 },
-                'child1': {
-                    relativeFilePathIsID: 'child1',
+                'child1.md': {
+                    relativeFilePathIsID: 'child1.md',
                     content: '# Child 1\n\nChild content',
                     outgoingEdges: [],
                     nodeUIMetadata: {
@@ -166,17 +166,17 @@ Child content`
             elements: [
                 {
                     group: 'nodes' as const,
-                    data: { id: 'parent', label: 'parent', content: '# Parent GraphNode', summary: '' },
+                    data: { id: 'parent.md', label: 'parent', content: '# Parent GraphNode', summary: '' },
                     position: { x: 100, y: 100 }
                 },
                 {
                     group: 'nodes' as const,
-                    data: { id: 'child1', label: 'child1', content: '# Child 1', summary: '' },
+                    data: { id: 'child1.md', label: 'child1', content: '# Child 1', summary: '' },
                     position: { x: 200, y: 200 }
                 },
                 {
                     group: 'edges' as const,
-                    data: { id: 'parent-child1', source: 'parent', target: 'child1' }
+                    data: { id: 'parent.md-child1.md', source: 'parent.md', target: 'child1.md' }
                 }
             ]
         })
@@ -207,7 +207,7 @@ Child content`
         expect(cy.nodes()).toHaveLength(2)
 
         // WHEN: Creating a new child node from the parent
-        await createNewChildNodeFromUI('parent', cy)
+        await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: Cytoscape should have 3 nodes
         expect(cy.nodes()).toHaveLength(3)
@@ -215,13 +215,13 @@ Child content`
         // AND: Should have 2 edges
         expect(cy.edges()).toHaveLength(2)
 
-        // AND: The new node should exist in cytoscape
-        const newNodeId = 'parent_1'
+        // AND: The new node should exist in cytoscape (parent has 1 outgoing edge, so new child is _1)
+        const newNodeId = 'parent.md_1.md'
         const newNode = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
 
         // AND: File should be created on disk
-        const newFilePath = path.join(tempVault, `${newNodeId}.md`)
+        const newFilePath = path.join(tempVault, `${newNodeId}`)
         const fileExists = await fs.access(newFilePath).then(() => true).catch(() => false)
         expect(fileExists).toBe(true)
 
@@ -235,18 +235,18 @@ Child content`
         const initialFileCount = (await fs.readdir(tempVault)).length
 
         // WHEN: Creating a new child node
-        await createNewChildNodeFromUI('parent', cy)
+        await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: Should have one more file
         const files = await fs.readdir(tempVault)
         expect(files).toHaveLength(initialFileCount + 1)
 
-        // AND: New file should exist with expected name
-        const newNodeId = 'parent_1'
-        expect(files).toContain(`${newNodeId}.md`)
+        // AND: New file should exist with expected name (parent has 1 outgoing edge, so new child is _1)
+        const newNodeId = 'parent.md_1.md'
+        expect(files).toContain(`${newNodeId}`)
 
         // AND: File should be readable and parseable
-        const newFilePath = path.join(tempVault, `${newNodeId}.md`)
+        const newFilePath = path.join(tempVault, `${newNodeId}`)
         const stat = await fs.stat(newFilePath)
         expect(stat.isFile()).toBe(true)
         expect(stat.size).toBeGreaterThan(0)
@@ -258,18 +258,18 @@ Child content`
         const initialParentContent = await fs.readFile(parentFilePath, 'utf-8')
 
         // Verify parent initially has only child1
-        expect(initialParentContent).toContain('[[child1]]')
-        expect(initialParentContent).not.toContain('[[parent_1]]')
+        expect(initialParentContent).toContain('[[child1.md]]')
+        expect(initialParentContent).not.toContain('[[parent.md_1.md]]')
 
         // WHEN: Creating a new child node
-        await createNewChildNodeFromUI('parent', cy)
+        await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: Parent file should be updated with edge to new child
         const updatedParentContent = await fs.readFile(parentFilePath, 'utf-8')
 
-        // Parent should now have both edges (wikilinks use node IDs without .md extension)
-        expect(updatedParentContent).toContain('[[child1]]')
-        expect(updatedParentContent).toContain('[[parent_1]]')
+        // Parent should now have both edges (wikilinks include node IDs with .md extension)
+        expect(updatedParentContent).toContain('[[child1.md]]')
+        expect(updatedParentContent).toContain('[[parent.md_1.md]]')
     })
 })
 
@@ -298,7 +298,7 @@ position:
 # Parent Node
 
 Parent content
-[[child1]]`
+[[child1.md]]`
         )
         await fs.writeFile(
             path.join(tempVault, 'child1.md'),
@@ -315,18 +315,18 @@ Child content`
         // Create graph state
         mockGraph = {
             nodes: {
-                'parent': {
-                    relativeFilePathIsID: 'parent',
+                'parent.md': {
+                    relativeFilePathIsID: 'parent.md',
                     content: '# Parent Node\n\nParent content',
-                    outgoingEdges: [{ targetId: 'child1', label: '' }],
+                    outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
                         color: O.none,
                         position: O.of({ x: 100, y: 100 }),
                         title: 'parent'
                     }
                 },
-                'child1': {
-                    relativeFilePathIsID: 'child1',
+                'child1.md': {
+                    relativeFilePathIsID: 'child1.md',
                     content: '# Child 1\n\nChild content',
                     outgoingEdges: [],
                     nodeUIMetadata: {
@@ -347,17 +347,17 @@ Child content`
             elements: [
                 {
                     group: 'nodes' as const,
-                    data: { id: 'parent', label: 'parent', content: '# Parent Node', summary: '' },
+                    data: { id: 'parent.md', label: 'parent', content: '# Parent Node', summary: '' },
                     position: { x: 100, y: 100 }
                 },
                 {
                     group: 'nodes' as const,
-                    data: { id: 'child1', label: 'child1', content: '# Child 1', summary: '' },
+                    data: { id: 'child1.md', label: 'child1', content: '# Child 1', summary: '' },
                     position: { x: 200, y: 200 }
                 },
                 {
                     group: 'edges' as const,
-                    data: { id: 'parent-child1', source: 'parent', target: 'child1' }
+                    data: { id: 'parent.md-child1.md', source: 'parent.md', target: 'child1.md' }
                 }
             ]
         })
@@ -386,15 +386,15 @@ Child content`
     it('should delete node from cytoscape immediately (optimistic UI-edge)', async () => {
         // GIVEN: Graph with 2 nodes
         expect(cy.nodes()).toHaveLength(2)
-        expect(cy.getElementById('child1').length).toBe(1)
+        expect(cy.getElementById('child1.md').length).toBe(1)
 
         // WHEN: Deleting child1 node
-        await deleteNodeFromUI('child1', cy)
+        await deleteNodeFromUI('child1.md', cy)
 
         // THEN: Node should be removed from cytoscape immediately
         expect(cy.nodes()).toHaveLength(1)
-        expect(cy.getElementById('child1').length).toBe(0)
-        expect(cy.getElementById('parent').length).toBe(1)
+        expect(cy.getElementById('child1.md').length).toBe(0)
+        expect(cy.getElementById('parent.md').length).toBe(1)
     })
 
     it('should delete node file from disk', async () => {
@@ -404,7 +404,7 @@ Child content`
         expect(initialExists).toBe(true)
 
         // WHEN: Deleting child1 node
-        await deleteNodeFromUI('child1', cy)
+        await deleteNodeFromUI('child1.md', cy)
 
         // THEN: File should be deleted from disk
         const fileExists = await fs.access(child1Path).then(() => true).catch(() => false)
@@ -414,10 +414,10 @@ Child content`
     it('should remove edges connected to deleted node', async () => {
         // GIVEN: Graph with parent->child1 edge
         expect(cy.edges()).toHaveLength(1)
-        expect(cy.getElementById('parent-child1').length).toBe(1)
+        expect(cy.getElementById('parent.md-child1.md').length).toBe(1)
 
         // WHEN: Deleting child1 node
-        await deleteNodeFromUI('child1', cy)
+        await deleteNodeFromUI('child1.md', cy)
 
         // THEN: Edge should be removed automatically (cytoscape removes edges when node is removed)
         expect(cy.edges()).toHaveLength(0)

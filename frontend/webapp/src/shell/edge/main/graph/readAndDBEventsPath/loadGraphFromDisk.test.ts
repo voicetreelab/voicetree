@@ -84,16 +84,16 @@ This is in a subfolder.`
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
     expect(Object.keys(graph.nodes)).toHaveLength(4)
-    expect(graph.nodes['node1']).toBeDefined()
-    expect(graph.nodes['node2']).toBeDefined()
-    expect(graph.nodes['node3']).toBeDefined()
-    expect(graph.nodes['subfolder/nested']).toBeDefined()
+    expect(graph.nodes['node1.md']).toBeDefined()
+    expect(graph.nodes['node2.md']).toBeDefined()
+    expect(graph.nodes['node3.md']).toBeDefined()
+    expect(graph.nodes['subfolder/nested.md']).toBeDefined()
   })
 
   it('should parse node properties from frontmatter', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    const node1 = graph.nodes['node1']
+    const node1 = graph.nodes['node1.md']
     expect(node1.content).toContain('title: "Node One"')
     expect(node1.content).toContain('summary: "First node"')
     expect(O.isSome(node1.nodeUIMetadata.color)).toBe(true)
@@ -105,42 +105,42 @@ This is in a subfolder.`
   it('should use filename as node_id when missing from frontmatter', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node3']).toBeDefined()
-    expect(graph.nodes['node3'].relativeFilePathIsID).toBe('node3')
+    expect(graph.nodes['node3.md']).toBeDefined()
+    expect(graph.nodes['node3.md'].relativeFilePathIsID).toBe('node3.md')
   })
 
   it('should extract title from heading when not in frontmatter', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node3'].content).toContain('# Node Three')
+    expect(graph.nodes['node3.md'].content).toContain('# Node Three')
   })
 
   it('should build outgoingEdges from wikilinks', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node1'].outgoingEdges).toEqual([{ targetId: 'node2', label: 'This is node one. It links to' }])
-    expect(graph.nodes['node2'].outgoingEdges.some(e => e.targetId === 'node1')).toBe(true)
-    expect(graph.nodes['node2'].outgoingEdges.some(e => e.targetId === 'node3')).toBe(true)
+    expect(graph.nodes['node1.md'].outgoingEdges).toEqual([{ targetId: 'node2.md', label: 'This is node one. It links to' }])
+    expect(graph.nodes['node2.md'].outgoingEdges.some(e => e.targetId === 'node1.md')).toBe(true)
+    expect(graph.nodes['node2.md'].outgoingEdges.some(e => e.targetId === 'node3.md')).toBe(true)
   })
 
   it('should handle nodes with no links', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node3'].outgoingEdges).toEqual([])
+    expect(graph.nodes['node3.md'].outgoingEdges).toEqual([])
   })
 
   it('should handle nested directory structure', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['subfolder/nested']).toBeDefined()
-    expect(graph.nodes['subfolder/nested'].content).toContain('# Nested')
+    expect(graph.nodes['subfolder/nested.md']).toBeDefined()
+    expect(graph.nodes['subfolder/nested.md'].content).toContain('# Nested')
   })
 
   it('should preserve full content including frontmatter', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node1'].content).toContain('node_id: "1"')
-    expect(graph.nodes['node1'].content).toContain('This is node one')
+    expect(graph.nodes['node1.md'].content).toContain('node_id: "1"')
+    expect(graph.nodes['node1.md'].content).toContain('This is node one')
   })
 
   it('should be a pure IO function (same input -> same IO)', async () => {
