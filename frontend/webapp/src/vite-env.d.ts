@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import type {} from './utils/types/electron';
 
 // CSS module declarations
 // Tell TypeScript that CSS imports are valid modules

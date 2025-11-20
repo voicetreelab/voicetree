@@ -1,10 +1,15 @@
 ---
 node_id: 4
 title: Setup G Cloud CLI (4)
+position:
+  x: 1707.1067811865473
+  y: -707.1067811865477
 ---
 ### Initial setup involves downloading the Google Cloud package for G Cloud CLI.
 
 Getting G Cloud CLI working is the main code needed. Step one is to get the G Cloud CLI working. Currently, I am working on GCloud tasks. Okay, so I'm downloading the Google cloud package.
+
+
 
 
 -----------------

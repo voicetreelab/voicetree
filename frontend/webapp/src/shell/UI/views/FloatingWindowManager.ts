@@ -17,9 +17,7 @@ import {
     createFloatingEditor,
     createFloatingTerminal,
     anchorToNode,
-    getVanillaInstance,
-    createWindowChrome,
-    getOrCreateOverlay
+    getVanillaInstance
 } from '@/shell/UI/cytoscape-graph-ui/extensions/cytoscape-floating-windows';
 import type {Position} from './IVoiceTreeGraphView.ts';
 import type {HotkeyManager} from './HotkeyManager.ts';
@@ -27,7 +25,7 @@ import type {Graph, GraphDelta, NodeId} from '@/pure/graph';
 import {nodeIdToFilePathWithExtension} from '@/pure/graph/markdown-parsing';
 import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
 import {createNewEmptyOrphanNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
-import type {Settings} from '@/pure/settings/types.ts';
+import {createSettingsEditor} from '@/shell/UI/floating-windows/createSettingsEditor.ts';
 
 /**
  * Function type for getting current graph state
@@ -57,8 +55,8 @@ export class FloatingWindowManager {
         this.cy = cy;
 
         // Setup settings editor listener
-        window.addEventListener('openSettings', () => {
-            void this.createSettingsEditor();
+        window.addEventListener('openSettings',  () => {
+               void createSettingsEditor(cy);
         });
     }
 
@@ -206,7 +204,7 @@ export class FloatingWindowManager {
         nodeMetadata: { id: string; name: string; filePath?: string },
         nodePos: Position
     ): Promise<void> {
-        const terminalId = `terminal-${nodeId}`;
+        const terminalId = `${nodeId}-terminal`;
         console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
 
         // Check if already exists
@@ -249,111 +247,6 @@ export class FloatingWindowManager {
             }
         } catch (error) {
             console.error('[FloatingWindowManager] Error creating floating terminal:', error);
-        }
-    }
-
-    /**
-     * Create a floating settings editor window
-     * Loads settings from IPC and allows editing them as JSON
-     */
-    async createSettingsEditor(): Promise<void> {
-        const settingsId = 'settings-editor';
-
-        try {
-            // Check if already exists
-            const existing = document.getElementById(`window-${settingsId}`);
-            if (existing) {
-                console.log('[FloatingWindowManager] Settings editor already exists');
-                return;
-            }
-
-            // Check if electronAPI is available
-            if (!window.electronAPI) {
-                console.error('[FloatingWindowManager] electronAPI not available');
-                return;
-            }
-
-            // Load current settings from IPC
-            const settings = await window.electronAPI.main.loadSettings() as Settings;
-            const settingsJson = JSON.stringify(settings, null, 2);
-
-            // Get overlay
-            const overlay = getOrCreateOverlay(this.cy);
-
-            // Create window chrome with CodeMirror editor
-            const {windowElement, contentContainer} = createWindowChrome(this.cy, {
-                id: settingsId,
-                title: 'Types',
-                component: 'MarkdownEditor',
-                resizable: true,
-                initialContent: settingsJson
-            });
-
-            // Create CodeMirror editor instance for JSON editing
-            const {CodeMirrorEditorView} = await import('@/shell/UI/floating-windows/CodeMirrorEditorView.ts');
-            const editor = new CodeMirrorEditorView(
-                contentContainer,
-                settingsJson,
-                {
-                    autosaveDelay: 300,
-                    darkMode: document.documentElement.classList.contains('dark')
-                }
-            );
-
-            // Setup auto-save with validation
-            editor.onChange((newContent: string) => {
-                void (async () => {
-                    try {
-                        // Parse JSON to validate
-                        const parsedSettings = JSON.parse(newContent) as Settings;
-
-                        // Save to IPC
-                        if (window.electronAPI) {
-                            await window.electronAPI.main.saveSettings(parsedSettings);
-                            console.log('[FloatingWindowManager] Settings saved successfully');
-                        }
-                    } catch (error) {
-                        // Show error to user for invalid JSON
-                        console.error('[FloatingWindowManager] Invalid JSON in settings:', error);
-                        // Could add visual error indicator here
-                    }
-                })();
-            });
-
-            // Store editor instance for cleanup
-            const vanillaInstances = new Map<string, { dispose: () => void }>();
-            vanillaInstances.set(settingsId, editor);
-
-            // Position window in center of current viewport (same as backup terminal)
-            const cy = this.cy;
-            const pan = cy.pan();
-            const zoom = cy.zoom();
-            const centerX = (cy.width() / 2 - pan.x) / zoom;
-            const centerY = (cy.height() / 2 - pan.y) / zoom;
-
-            const windowWidth = 600;
-            const windowHeight = 400;
-            windowElement.style.left = `${centerX - windowWidth / 2}px`;
-            windowElement.style.top = `${centerY - windowHeight / 2}px`;
-            windowElement.style.width = `${windowWidth}px`;
-            windowElement.style.height = `${windowHeight}px`;
-
-            // Add to overlay
-            overlay.appendChild(windowElement);
-
-            // Setup close button cleanup
-            const closeButton = windowElement.querySelector('.cy-floating-window-close') as HTMLElement;
-            if (closeButton) {
-                closeButton.addEventListener('click', () => {
-                    editor.dispose();
-                    vanillaInstances.delete(settingsId);
-                    windowElement.remove();
-                });
-            }
-
-            console.log('[FloatingWindowManager] Types editor created successfully');
-        } catch (error) {
-            console.error('[FloatingWindowManager] Failed to create settings editor:', error);
         }
     }
 

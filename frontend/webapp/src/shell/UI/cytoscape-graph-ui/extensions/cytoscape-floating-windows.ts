@@ -345,7 +345,7 @@ export async function createFloatingEditor(
     awaitingUISavedContent: Map<NodeId, string>
 ): Promise<FloatingWindow | undefined> {
     // Derive editor ID from node ID
-    const id = `editor-${nodeId}`;
+    const id = `${nodeId}-editor`;
 
     // Check if already exists
     const existing = cy.nodes(`#${id}`);
