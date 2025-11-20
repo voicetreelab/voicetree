@@ -1,12 +1,15 @@
 import * as O from 'fp-ts/lib/Option.js'
 import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
-import { applyGraphDeltaToGraph as applyGraphDeltaToGraphImpl } from './graphDelta/applyGraphDeltaToGraph.ts'
-import { mapNewGraphToDelta as mapNewGraphToDeltaImpl } from './graphDelta/mapNewGraphtoDelta.ts'
-import { stripDeltaForReplay as stripDeltaForReplayImpl } from './graphDelta/stripDeltaForReplay.ts'
-import { setOutgoingEdges as setOutgoingEdgesImpl } from './graph-operations /graph-edge-operations.ts'
-import { reverseGraphEdges as reverseGraphEdgesImpl } from './graph-operations /graph-transformations.ts'
-import { prettyPrintGraphDelta as prettyPrintGraphDeltaImpl } from './graph-operations /prettyPrint.ts'
-import { mapFSEventsToGraphDelta as mapFSEventsToGraphDeltaImpl } from './mapFSEventsToGraphDelta.ts'
+import { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph.ts'
+import { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta.ts'
+import { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay.ts'
+import { setOutgoingEdges } from './graph-operations /graph-edge-operations.ts'
+import { reverseGraphEdges } from './graph-operations /graph-transformations.ts'
+import { prettyPrintGraphDelta } from './graph-operations /prettyPrint.ts'
+import { graphToAscii } from './graph-operations /graphToAscii.ts'
+import { getSubgraphByDistance } from './graph-operations /getSubgraphByDistance.ts'
+import { getNodeIdsInTraversalOrder } from './graph-operations /getNodeIdsInTraversalOrder.ts'
+import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
 
 
 // CONTAINS TYPES AND FUNCTION TYPES
@@ -112,15 +115,52 @@ export type SetOutgoingEdges = (node: GraphNode, edges: readonly Edge[]) => Grap
 
 export type ReverseGraphEdges = (graph: Graph) => Graph
 
+export type GetSubgraphByDistance = (graph: Graph, startNodeId: NodeId, maxDistance: number) => Graph
+
+export type GraphToAscii = (graph: Graph) => string
+
+export type GetNodeIdsInTraversalOrder = (graph: Graph) => readonly NodeId[]
+
 export type PrettyPrintGraphDelta = (delta: GraphDelta) => string
 
-export const mapNewGraphToDelta: MapNewGraphToDelta = mapNewGraphToDeltaImpl
-export const stripDeltaForReplay: StripDeltaForReplay = stripDeltaForReplayImpl
-export const mapFSEventsToGraphDelta: MapFSEventsToGraphDelta = mapFSEventsToGraphDeltaImpl
-export const setOutgoingEdges: SetOutgoingEdges = setOutgoingEdgesImpl
-export const reverseGraphEdges: ReverseGraphEdges = reverseGraphEdgesImpl
-export const applyGraphDeltaToGraph: ApplyGraphDeltaToGraph = applyGraphDeltaToGraphImpl
-export const prettyPrintGraphDelta: PrettyPrintGraphDelta = prettyPrintGraphDeltaImpl
+// ============================================================================
+// FUNCTION IMPLEMENTATIONS
+// ============================================================================
+
+// === CORE GRAPH DELTA OPERATIONS ===
+
+export { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph.ts'
+void (applyGraphDeltaToGraph satisfies ApplyGraphDeltaToGraph)
+
+export { mapNewGraphToDelta } from './graphDelta/mapNewGraphtoDelta.ts'
+void (mapNewGraphToDelta satisfies MapNewGraphToDelta)
+
+export { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay.ts'
+void (stripDeltaForReplay satisfies StripDeltaForReplay)
+
+export { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
+void (mapFSEventsToGraphDelta satisfies MapFSEventsToGraphDelta)
+
+// === CORE GRAPH OPERATIONS ===
+
+export { setOutgoingEdges } from './graph-operations /graph-edge-operations.ts'
+void (setOutgoingEdges satisfies SetOutgoingEdges)
+
+export { reverseGraphEdges } from './graph-operations /graph-transformations.ts'
+void (reverseGraphEdges satisfies ReverseGraphEdges)
+
+export { getSubgraphByDistance } from './graph-operations /getSubgraphByDistance.ts'
+void (getSubgraphByDistance satisfies GetSubgraphByDistance)
+
+export { graphToAscii } from './graph-operations /graphToAscii.ts'
+void (graphToAscii satisfies GraphToAscii)
+
+export { getNodeIdsInTraversalOrder } from './graph-operations /getNodeIdsInTraversalOrder.ts'
+void (getNodeIdsInTraversalOrder satisfies GetNodeIdsInTraversalOrder)
+
+export { prettyPrintGraphDelta } from './graph-operations /prettyPrint.ts'
+void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
+
 // === CORE DB OPERATIONS ===
 // Note: DB operations (applyGraphActionsToDB) are NOT exported here
 // They contain Node.js fs imports and should only be used in main process

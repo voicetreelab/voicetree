@@ -10,37 +10,40 @@ As you make progress on the task, create detailed visual updates by adding nodes
 python3 VoiceTree/tools/add_new_node.py "$OBSIDIAN_VAULT_PATH/$OBSIDIAN_SOURCE_NOTE" "Progress Name" "What you accomplished with detailed technical context and visual diagram" is_progress_of
 ```
 
-## ENHANCED NODE CONTENT REQUIREMENTS:
+When creating nodes, your content should:
 
-When creating nodes, your content MUST include:
+Start with a brief description of what was accomplished. Keep it highly concise.
+Always include a list of all the file paths you have modified. 
 
-1. **Summary**: Brief description of what was accomplished
-2. **Technical Details**: Specific changes, files modified, functions created, etc.
-3. **Mermaid Diagram**: Visual representation of the change/architecture/flow
-4. **Impact**: How this affects the overall system
+1. If the changes involve < 40 lines of code changes to production files. Include the exact diff in the markdown. Do not include test file diff unless that is your main task, or includes important logic. 
+
+2. If the changes involve architectural changes, include a mermaid diagram for visual representation of the change/architecture/flow. Do not include a diagram if it's easier to explain as text. 
 
 ### Content Format Template:
 ```markdown
-## Summary
-[Brief description of what was accomplished]
 
-## Technical Details  
-- **Files Modified**: List of files changed
-- **Key Changes**: Specific modifications made
-- **Methods/Functions**: New or modified code components
+## Summary, concise high level description of what was accomplished
 
-## Architecture/Flow Diagram
-```mermaid
+files changed: e.g. file1.md, file2.py, etc..
+
+<OPTIONAL> ## DIFF </OPTIONAL>
+
+<optional>
+\```mermaid
 [Include relevant diagram type:
 - flowchart: for process flows
 - graph: for relationships  
 - sequenceDiagram: for interactions
 - classDiagram: for code structure
 - gitGraph: for version changes]
-```
+\```
+</optional>
 
-## Impact
-[How this change affects the overall system, dependencies, or workflow]
+<OPTIONAL> 
+- Important notes, gotchas
+If relevant, include how this change affects the overall system, dependencies, or workflow.
+If relevant, include difficulties you faced in accomplishing this task, tech debt which made it hard.
+</OPTIONAL>
 ```
 
 This tool will automatically:

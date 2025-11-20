@@ -5,5 +5,5 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   agentLaunchPath: '../',
-  agentCommand: './Claude.sh'
+  agentCommand: './claude.sh'
 };

@@ -56,3 +56,5 @@ export function applyGraphDeltaToGraph(graph: Graph, delta: GraphDelta): Graph {
         return currentGraph
     }, graph)
 }
+
+// export default applyGraphDeltaToGraph
