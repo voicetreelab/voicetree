@@ -5,7 +5,7 @@
 
 import type {} from '@/utils/types/electron';
 import type {Core} from 'cytoscape';
-import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/cytoscape-graph-ui/extensions/cytoscape-floating-windows';
+import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/cytoscape-graph-ui/extensions/cytoscape-floating-windows.ts';
 import type {Settings} from '@/pure/settings/types.ts';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
 
