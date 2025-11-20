@@ -30,6 +30,7 @@ import type { NodeId } from '@/pure/graph'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeId | null = null
+  let parentNodeBackups: Map<NodeId, string> = new Map()
 
   beforeEach(async () => {
     // Initialize vault path with example_small fixture
@@ -38,21 +39,51 @@ describe('createContextNode - Integration Tests', () => {
     // Load the graph from disk
     const graph = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
     setGraph(graph)
+
+    // Clear parent node backups
+    parentNodeBackups = new Map()
   })
 
   afterEach(async () => {
+    const vaultPath = getVaultPath()
+
     // Clean up created context node file if it exists
-    if (createdContextNodeId) {
-      const vaultPath = getVaultPath()
-      if (O.isSome(vaultPath)) {
-        const contextFilePath = path.join(vaultPath.value, createdContextNodeId)
-        await fs.unlink(contextFilePath).catch(() => {
+    if (createdContextNodeId && O.isSome(vaultPath)) {
+      const contextFilePath = path.join(vaultPath.value, createdContextNodeId)
+      await fs.unlink(contextFilePath).catch(() => {
+        // File might not exist, that's ok
+      })
+      createdContextNodeId = null
+    }
+
+    // Restore parent node files to their original state
+    if (O.isSome(vaultPath)) {
+      for (const [parentNodeId, originalContent] of parentNodeBackups.entries()) {
+        const parentFilePath = path.join(vaultPath.value, parentNodeId)
+        await fs.writeFile(parentFilePath, originalContent, 'utf-8').catch(() => {
           // File might not exist, that's ok
         })
       }
-      createdContextNodeId = null
     }
+    parentNodeBackups.clear()
   })
+
+  /**
+   * Helper function to create a context node while backing up the parent node
+   */
+  async function createContextNodeWithBackup(parentNodeId: NodeId): Promise<NodeId> {
+    const vaultPath = getVaultPath()
+
+    // Backup parent node before creating context node
+    if (O.isSome(vaultPath)) {
+      const parentFilePath = path.join(vaultPath.value, parentNodeId)
+      const originalContent = await fs.readFile(parentFilePath, 'utf-8')
+      parentNodeBackups.set(parentNodeId, originalContent)
+    }
+
+    // Create context node
+    return await createContextNode(parentNodeId)
+  }
 
   describe('BEHAVIOR: Create context node for existing parent node', () => {
     it('should create context node file with ASCII tree and node details', async () => {
@@ -60,7 +91,7 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node for this parent
-      const contextNodeId = await createContextNode(parentNodeId)
+      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Context node ID should be in ctx-nodes directory
@@ -103,7 +134,7 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node
-      const contextNodeId = await createContextNode(parentNodeId)
+      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Read the created file
@@ -126,7 +157,7 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeId = '2_VoiceTree_Node_ID_Duplication_Bug.md'
 
       // WHEN: Create context node
-      const contextNodeId = await createContextNode(parentNodeId)
+      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // AND: Reload graph from disk
@@ -160,7 +191,7 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node
-      const contextNodeId = await createContextNode(parentNodeId)
+      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
@@ -188,7 +219,7 @@ describe('createContextNode - Integration Tests', () => {
       const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node for this parent
-      const contextNodeId = await createContextNode(parentNodeId)
+      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
       createdContextNodeId = contextNodeId
 
       // THEN: Read the context file
