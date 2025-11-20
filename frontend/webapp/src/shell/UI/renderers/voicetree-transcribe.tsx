@@ -8,6 +8,7 @@ import getAPIKey from "@/utils/get-api-key.ts";
 import Renderer from "./renderer.tsx";
 import useAutoScroll from "@/shell/UI/hooks/useAutoScroll.tsx";
 import { type Token } from "@soniox/speech-to-text-web";
+import type {} from "@/utils/types/electron";
 
 export default function VoiceTreeTranscribe() {
   const [textInput, setTextInput] = useState("");
@@ -245,7 +246,7 @@ export default function VoiceTreeTranscribe() {
             <button
               onClick={() => state === 'Running' ? stopTranscription() : void startTranscription()}
               className={cn(
-                "p-1 rounded-lg transition-all",
+                "p-1 rounded-lg transition-all cursor-pointer",
                 state === 'Running'
                   ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   : "bg-primary text-primary-foreground hover:bg-primary/90"

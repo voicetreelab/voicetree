@@ -1,5 +1,4 @@
 import type {
-    Graph,
     GraphDelta,
     FSWriteEffect,
     GraphNode as GraphNode,
@@ -13,7 +12,6 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { fromNodeToMarkdownContent } from '@/pure/graph/markdown-writing/node_to_markdown.ts'
 import { nodeIdToFilePathWithExtension } from '@/pure/graph/markdown-parsing/filename-utils.ts'
-import {applyGraphDeltaToGraph} from "@/pure/graph/graphDelta/applyGraphDeltaToGraph.ts";
 
 /**
  * Helper to convert unknown errors to Error type
@@ -33,9 +31,8 @@ const toError = (reason: unknown): Error =>
  * @returns Filesystem write effect that returns computed graph (but don't update state with it!)
  */
 export function apply_graph_deltas_to_db(
-  graph: Graph,
   deltas: GraphDelta
-): FSWriteEffect<Graph> {
+): FSWriteEffect<GraphDelta> {
     // Map each delta to a file write effect
     const writeEffects: readonly FSWriteEffect<void>[] = deltas.map(delta => {
         switch (delta.type) {
@@ -46,13 +43,13 @@ export function apply_graph_deltas_to_db(
         }
     })
 
-    // Compute new graph state for validation/testing
-    const newGraph = applyGraphDeltaToGraph(graph, deltas)
+    // do not compute new graph state (unnec computation)
+    // purposefully removed, const newGraph = applyGraphDeltaToGraph(graph, deltas)
 
     // Sequence all write effects and return new graph
     return pipe(
         RTE.sequenceArray(writeEffects),
-        RTE.map(() => newGraph)
+        RTE.map(() => deltas)
     )
 }
 

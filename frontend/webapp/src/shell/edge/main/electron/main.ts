@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeImage } from 'electron';
+import { app, BrowserWindow, nativeImage, dialog } from 'electron';
 import path from 'path';
 import fixPath from 'fix-path';
 import electronUpdater from 'electron-updater';
@@ -63,8 +63,28 @@ autoUpdater.on('download-progress', (progressObj) => {
   sendUpdateStatusToWindow(message);
 });
 
-autoUpdater.on('update-downloaded', () => {
+autoUpdater.on('update-downloaded', (info) => {
   sendUpdateStatusToWindow('Update downloaded. Will install on quit.');
+
+  // Show native dialog asking user if they want to install now
+  const mainWindow = BrowserWindow.getAllWindows()[0];
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    void dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: `Version ${info.releaseName} is ready to install`,
+      detail: 'The update will be installed the next time you restart the app. Would you like to restart now?',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then((result) => {
+      if (result.response === 0) {
+        // User chose "Restart Now"
+        autoUpdater.quitAndInstall();
+      }
+      // If user chose "Later", update will install on next natural app restart
+    });
+  }
 });
 
 // Suppress Electron security warnings in development and test environments
@@ -147,18 +167,18 @@ function createWindow() {
 
   // Load the app
   if (process.env.MINIMIZE_TEST === '1') {
-    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+    void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   } else if (process.env.VITE_DEV_SERVER_URL) {
     // electron-vite dev mode
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else if (process.env.NODE_ENV === 'development') {
-    const devPort = process.env.DEV_SERVER_PORT || '3000';
-    mainWindow.loadURL(`http://localhost:${devPort}`);
+    const devPort = process.env.DEV_SERVER_PORT ?? '3000';
+    void mainWindow.loadURL(`http://localhost:${devPort}`);
     mainWindow.webContents.openDevTools();
   } else {
     // Production or test mode
-    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+    void mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 
   // Control window visibility after content is ready
@@ -186,7 +206,7 @@ registerTerminalIpcHandlers(
 );
 
 // App event handlers
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
   setupRPCHandlers();
 
   // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
@@ -219,7 +239,7 @@ app.whenReady().then(async () => {
 
   // Check for updates (production only, not in dev or test mode)
   if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test' && !process.env.MINIMIZE_TEST) {
-    autoUpdater.checkForUpdatesAndNotify();
+    void autoUpdater.checkForUpdatesAndNotify();
   }
 });
 
@@ -249,16 +269,18 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('activate', async () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    // Restart server if it's not running (macOS dock click after window close)
-    if (!textToTreeServerManager.isRunning()) {
-      console.log('[App] Reactivating - restarting server...');
-      textToTreeServerPort = await textToTreeServerManager.start();
-      console.log(`[App] Server restarted on port ${textToTreeServerPort}`);
-      // Inject backend port into mainAPI
-      setBackendPort(textToTreeServerPort);
+app.on('activate', () => {
+  void (async () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      // Restart server if it's not running (macOS dock click after window close)
+      if (!textToTreeServerManager.isRunning()) {
+        console.log('[App] Reactivating - restarting server...');
+        textToTreeServerPort = await textToTreeServerManager.start();
+        console.log(`[App] Server restarted on port ${textToTreeServerPort}`);
+        // Inject backend port into mainAPI
+        setBackendPort(textToTreeServerPort);
+      }
+      createWindow();
     }
-    createWindow();
-  }
+  })();
 });
