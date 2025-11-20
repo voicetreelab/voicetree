@@ -91,6 +91,9 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     setVaultPath(vaultPath);
     setGraph(currentGraph);
 
+    // let backend know, call /load-directory non blocking
+    notifyTextToTreeServerOfDirectory(vaultPath);
+
     // Broadcast initial graph to UI-edge (different event from incremental updates)
     const graphDelta : GraphDelta = mapNewGraphToDelta(currentGraph)
     console.log('[loadFolder] Created graph delta, length:', graphDelta.length);
@@ -105,7 +108,6 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     // Save as last directory for auto-start on next launch
     await saveLastDirectory(vaultPath);
 
-    notifyTextToTreeServerOfDirectory(vaultPath);
 }
 
 /**

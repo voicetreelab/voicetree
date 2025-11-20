@@ -3,7 +3,7 @@ import {
     createDeleteNodeAction,
     createNewNodeNoParent,
     fromContentChangeToGraphDelta,
-    fromUICreateChildToUpsertNode
+    fromCreateChildToUpsertNode
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas.ts";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI.ts";
@@ -25,7 +25,7 @@ export async function createNewChildNodeFromUI(
     const parentNode: GraphNode = currentGraph.nodes[parentNodeId];
 
     // Create GraphDelta (contains both child and updated parent with edge)
-    const graphDelta: GraphDelta = fromUICreateChildToUpsertNode(currentGraph, parentNode); //todo this only actually needs parent and grandparent, maybe we can have derived backlinks
+    const graphDelta: GraphDelta = fromCreateChildToUpsertNode(currentGraph, parentNode); //todo this only actually needs parent and grandparent, maybe we can have derived backlinks
     const newNode: GraphNode = (graphDelta[0] as UpsertNodeAction).nodeToUpsert;
 
     // Optimistic UI-edge update: immediately add node + edge to cytoscape

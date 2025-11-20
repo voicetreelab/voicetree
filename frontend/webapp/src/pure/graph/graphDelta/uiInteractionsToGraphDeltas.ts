@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta, GraphNode, Position} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeId, NodeUIMetadata, Position} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
@@ -15,45 +15,47 @@ import * as O from "fp-ts/Option";
 
 // human
 // Creates a new child node and returns deltas for both the child and updated parent
-export function fromUICreateChildToUpsertNode(
-  graph: Graph,
-  parentNode: GraphNode
+export function fromCreateChildToUpsertNode(
+    graph: Graph,
+    parentNode: GraphNode,
+    newNodeContent: string = "# new",
+    newFilePathIsID: NodeId = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
 ): GraphDelta {
-  // Create the new node with default values for an empty node
-  const newNode: GraphNode = {
-    relativeFilePathIsID: parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
-    outgoingEdges: [],
-    content: '# Title',
-    nodeUIMetadata: {
-      color: O.none,
-        title: "Child of " + parentNode.nodeUIMetadata.title,
-      position: calculateInitialPositionForChild(parentNode, graph, undefined, 200)
-    },
-  }
-
-  // Create updated parent node with edge to new child
-  const updatedParentNode: GraphNode = addOutgoingEdge(parentNode, newNode.relativeFilePathIsID)
-
-  console.log("new node / parent node", newNode.relativeFilePathIsID, parentNode.relativeFilePathIsID)
-
-  // Return deltas for both the new child and the updated parent
-  return [
-    {
-      type: 'UpsertNode',
-      nodeToUpsert: newNode
-    },
-    {
-      type: 'UpsertNode',
-      nodeToUpsert: updatedParentNode
+    // Create the new node with default values for an empty node
+    const newNode: GraphNode = {
+        relativeFilePathIsID: newFilePathIsID,
+        outgoingEdges: [],
+        content: newNodeContent,
+        nodeUIMetadata :  {
+            color: O.none,
+            title: "Child of " + parentNode.nodeUIMetadata.title, // todo we aren't writing this to md
+            position: calculateInitialPositionForChild(parentNode, graph, undefined, 200)
+        } as NodeUIMetadata,
     }
-  ]
+
+    // Create updated parent node with edge to new child
+    const updatedParentNode: GraphNode = addOutgoingEdge(parentNode, newNode.relativeFilePathIsID)
+
+    console.log("new node / parent node", newNode.relativeFilePathIsID, parentNode.relativeFilePathIsID)
+
+    // Return deltas for both the new child and the updated parent
+    return [
+        {
+            type: 'UpsertNode',
+            nodeToUpsert: newNode
+        },
+        {
+            type: 'UpsertNode',
+            nodeToUpsert: updatedParentNode
+        }
+    ]
 }
 
 
 export function fromContentChangeToGraphDelta(
-  Node: GraphNode,
-  content: string,
-  graph: Graph,
+    Node: GraphNode,
+    content: string,
+    graph: Graph,
 ): GraphDelta {
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
@@ -72,10 +74,10 @@ export function fromContentChangeToGraphDelta(
  * @returns A GraphDelta with the DeleteNode action
  */
 export function createDeleteNodeAction(nodeId: string): GraphDelta {
-  return [{
-    type: 'DeleteNode',
-    nodeId
-  }]
+    return [{
+        type: 'DeleteNode',
+        nodeId
+    }]
 }
 
 //todo switch between the three (?)

@@ -5,33 +5,17 @@
  */
 
 // Module-level variable to store the backend port
-let backendPort: number | null = null;
 
-/**
- * Initialize backend connection - must be called on app startup
- * Fetches the backend port from Electron main process via IPC
- */
-export async function initializeBackendConnection(): Promise<void> {
-  // Check if running in renderer process (has window object)
-  if (typeof window !== 'undefined' && window.electronAPI) {
-    backendPort = await window.electronAPI.main.getBackendPort();
-    console.log(`[Backend API] Connected to port ${backendPort}`);
-  } else {
-    // Fallback for main process or non-Electron environments (e2e-tests, browser)
-    backendPort = 8001;
-    console.log(`[Backend API] Running in main process or non-Electron mode, using fallback port ${backendPort}`);
-  }
-}
+import {getBackendPort} from "@/shell/edge/main/state/app-electron-state.ts";
 
 /**
  * Get the backend base URL using the dynamically discovered port
  * Automatically initializes the backend connection if not already initialized
  */
 async function getBackendBaseUrl(): Promise<string> {
-  if (!backendPort) {
-    await initializeBackendConnection();
-  }
-  return `http://localhost:${backendPort}`;
+    const conectionURL = `http://localhost:${getBackendPort()}`;
+    console.log("connecting to", conectionURL);
+    return conectionURL;
 }
 
 export interface LoadDirectoryRequest {
