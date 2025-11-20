@@ -37,7 +37,7 @@ beforeAll(() => {
 
   // Mock console.error to suppress expected errors
   console.error = vi.fn((...args) => {
-    const message = args[0]?.toString() || '';
+    const message = args[0]?.toString() ?? '';
     // Suppress expected error messages
     if (
       message.includes('Error sending to VoiceTree') ||
@@ -52,7 +52,7 @@ beforeAll(() => {
 
   // Mock console.warn to suppress expected warnings
   console.warn = vi.fn((...args) => {
-    const message = args[0]?.toString() || '';
+    const message = args[0]?.toString() ?? '';
     // Suppress expected warning messages
     if (
       message.includes('Could not access microphone for visualization') ||
@@ -70,6 +70,14 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
+
+// Mock window.addEventListener and removeEventListener for mermaid
+if (!window.addEventListener) {
+  window.addEventListener = vi.fn();
+}
+if (!window.removeEventListener) {
+  window.removeEventListener = vi.fn();
+}
 
 // Mock window.matchMedia
 Object.defineProperty(window, "matchMedia", {

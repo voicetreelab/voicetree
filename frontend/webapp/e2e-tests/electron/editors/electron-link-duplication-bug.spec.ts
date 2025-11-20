@@ -75,8 +75,14 @@ const test = base.extend<{
   },
 
   electronApp: async ({ testVaultPath: _testVaultPath }, use) => {
+    // Create a temporary userData directory for test isolation
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-link-bug-test-'));
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Isolate test userData
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
@@ -103,6 +109,9 @@ const test = base.extend<{
     }
 
     await electronApp.close();
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   appWindow: async ({ electronApp, testVaultPath: _testVaultPath }, use) => {
@@ -149,8 +158,8 @@ test.describe('Link Duplication Bug', () => {
     console.log('=== Testing link duplication bug ===');
 
     // 1. Create a test markdown file with a link
-    const testNodeId = 'test-node-with-link';
-    const linkedNodeId = 'linked-node';
+    const testNodeId = 'test-node-with-link.md';
+    const linkedNodeId = 'linked-node.md';
 
     const initialContent = `---
 ---
@@ -160,12 +169,12 @@ This is a test node with a link to [[${linkedNodeId}]].
 
 Some more content here.`;
 
-    const testFilePath = path.join(testVaultPath, `${testNodeId}.md`);
+    const testFilePath = path.join(testVaultPath, testNodeId);
     await fs.writeFile(testFilePath, initialContent, 'utf-8');
     console.log('✓ Created test file with link');
 
     // Create the linked node too (so the link is valid)
-    const linkedFilePath = path.join(testVaultPath, `${linkedNodeId}.md`);
+    const linkedFilePath = path.join(testVaultPath, linkedNodeId);
     await fs.writeFile(linkedFilePath, '---\n---\n# Linked Node\n\nThis is the linked node.', 'utf-8');
     console.log('✓ Created linked node file');
 
@@ -217,7 +226,8 @@ Some more content here.`;
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror to render
-    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
     console.log('✓ CodeMirror editor rendered');
 
     // 5. Read current file content to count initial link occurrences
@@ -228,7 +238,9 @@ Some more content here.`;
 
     // 6. Make a small edit (add text that doesn't touch the link)
     await appWindow.evaluate(({ windowId, insertText }: { windowId: string; insertText: string }) => {
-      const editorElement = document.querySelector(`#${windowId} .cm-content`) as HTMLElement | null;
+      // Escape dots in windowId for querySelector
+      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;
@@ -280,8 +292,8 @@ Some more content here.`;
     console.log('=== Testing link removal behavior ===');
 
     // 1. Create a test markdown file with a link
-    const testNodeId = 'test-node-remove-link';
-    const linkedNodeId = 'target-node';
+    const testNodeId = 'test-node-remove-link.md';
+    const linkedNodeId = 'target-node.md';
 
     const initialContent = `---
 ---
@@ -291,12 +303,12 @@ This node has a link: [[${linkedNodeId}]]
 
 End of content.`;
 
-    const testFilePath = path.join(testVaultPath, `${testNodeId}.md`);
+    const testFilePath = path.join(testVaultPath, testNodeId);
     await fs.writeFile(testFilePath, initialContent, 'utf-8');
     console.log('✓ Created test file with link');
 
     // Create the linked node too
-    const linkedFilePath = path.join(testVaultPath, `${linkedNodeId}.md`);
+    const linkedFilePath = path.join(testVaultPath, linkedNodeId);
     await fs.writeFile(linkedFilePath, '---\n---\n# Target Node\n\nTarget.', 'utf-8');
     console.log('✓ Created target node file');
 
@@ -358,12 +370,15 @@ End of content.`;
     console.log('✓ Editor window opened');
 
     // Wait for CodeMirror to render
-    await appWindow.waitForSelector(`#${editorWindowId} .cm-editor`, { timeout: 5000 });
+    const escapedEditorWindowId = editorWindowId.replace(/\./g, '\\.');
+    await appWindow.waitForSelector(`#${escapedEditorWindowId} .cm-editor`, { timeout: 5000 });
     console.log('✓ CodeMirror editor rendered');
 
     // 5. REMOVE the wikilink from the content
     await appWindow.evaluate(({ windowId, linkedId }: { windowId: string; linkedId: string }) => {
-      const editorElement = document.querySelector(`#${windowId} .cm-content`) as HTMLElement | null;
+      // Escape dots in windowId for querySelector
+      const escapedWindowId = windowId.replace(/\./g, '\\.');
+      const editorElement = document.querySelector(`#${escapedWindowId} .cm-content`) as HTMLElement | null;
       if (!editorElement) throw new Error('Editor content element not found');
 
       const cmView = (editorElement as CodeMirrorElement).cmView?.view;

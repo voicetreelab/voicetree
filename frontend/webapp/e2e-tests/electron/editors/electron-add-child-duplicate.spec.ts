@@ -46,21 +46,16 @@ const test = base.extend<{
     }
   },
 
-  electronApp: async ({ testVaultPath }, use) => {
+  electronApp: async ({ testVaultPath: _testVaultPath }, use) => {
     const PROJECT_ROOT = path.resolve(process.cwd());
 
-    // Create a temporary userData directory for this test
+    // Create a temporary userData directory for test isolation
     const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-add-child-test-'));
-
-    // Write the config file to auto-load the test vault
-    const configPath = path.join(tempUserDataPath, 'voicetree-config.json');
-    await fs.writeFile(configPath, JSON.stringify({ lastDirectory: testVaultPath }, null, 2), 'utf8');
-    console.log('[Test] Created config file to auto-load:', testVaultPath);
 
     const electronApp = await electron.launch({
       args: [
         path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
-        `--user-data-dir=${tempUserDataPath}` // Use temp userData to isolate test config
+        `--user-data-dir=${tempUserDataPath}` // Isolate test userData
       ],
       env: {
         ...process.env,
@@ -68,7 +63,7 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       },
-      timeout: 5000
+      timeout: 8000
     });
 
     await use(electronApp);
@@ -103,6 +98,7 @@ const test = base.extend<{
 
     window.on('pageerror', error => {
       console.error('PAGE ERROR:', error.message);
+      console.error('Stack:', error.stack);
     });
 
     await window.waitForLoadState('domcontentloaded');
@@ -124,10 +120,8 @@ const test = base.extend<{
       console.error('Pre-initialization errors:', hasErrors);
     }
 
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
-
-    // Wait for auto-load to complete (vault auto-loads via config file)
-    await window.waitForTimeout(1000);
+    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 20000 });
+    await window.waitForTimeout(100);
 
     await use(window);
   }
@@ -137,6 +131,19 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
   test('should only create ONE node when adding child via context menu', async ({ appWindow, testVaultPath }) => {
     test.setTimeout(15000);
     console.log('=== Testing add child node duplicate bug ===');
+
+    // Start watching the test vault
+    const watchResult = await appWindow.evaluate(async (vaultPath) => {
+      const api = (window as ExtendedWindow).electronAPI;
+      if (!api) throw new Error('electronAPI not available');
+      return await api.main.startFileWatching(vaultPath);
+    }, testVaultPath);
+
+    expect(watchResult.success).toBe(true);
+    console.log('[Test] File watching started successfully');
+
+    // Wait for files to load
+    await appWindow.waitForTimeout(1000);
 
     // Get initial state
     const initialState = await appWindow.evaluate(() => {
@@ -162,8 +169,8 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     console.log('  Nodes:', JSON.stringify(initialState.nodes, null, 2));
     console.log('=====================================');
 
-    // Find the parent node
-    const parentNodeExists = initialState.nodes.some(n => n.id === 'parent');
+    // Find the parent node (node ID is the filename including .md extension)
+    const parentNodeExists = initialState.nodes.some(n => n.id === 'parent.md');
     expect(parentNodeExists).toBe(true);
 
     // Manually replicate the createNewChildNodeFromUI logic
@@ -177,7 +184,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     // 6. File watcher detects file
     // 7. File watcher MAY create duplicate node (THE BUG!)
     console.log('[Test] Triggering create child node (simulating context menu action)...');
-    await appWindow.evaluate(async () => {
+    const childNodeId = await appWindow.evaluate(async () => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
 
@@ -188,15 +195,15 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       const currentGraph = await api.main.getGraph();
       if (!currentGraph) throw new Error('No graph state');
 
-      // Get parent node
-      const parentNode = currentGraph.nodes['parent'];
+      // Get parent node (node ID includes .md extension)
+      const parentNode = currentGraph.nodes['parent.md'];
       if (!parentNode) throw new Error('Parent node not found');
 
       // Create child node (replicating fromUICreateChildToUpsertNode logic)
       const childId = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length;
       const newNode = {
         relativeFilePathIsID: childId,
-        outgoingEdges: [],
+        outgoingEdges: [] as const,
         content: '# New GraphNode',
         nodeUIMetadata: {
           title: 'New GraphNode',
@@ -208,7 +215,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       // Create updated parent with edge to child
       const updatedParent = {
         ...parentNode,
-        outgoingEdges: [...parentNode.outgoingEdges, childId]
+        outgoingEdges: [...parentNode.outgoingEdges, { targetId: childId, label: '' }]
       };
 
       // Create GraphDelta
@@ -225,14 +232,43 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
 
       // Send to backend (which will update UI-edge and write to file system)
       await api.main.applyGraphDeltaToDBAndMem(graphDelta);
+
+      return childId;
     });
 
-    console.log('[Test] Waiting 2 seconds for file system events to propagate...');
+    console.log('[Test] Child node ID:', childNodeId);
 
-    // Wait for:
-    // 1. Optimistic UI-edge update (immediate)
-    // 2. File write to complete
-    // 3. File watcher to detect and process the new file
+    // Give file watcher time to process the file creation
+    console.log('[Test] Waiting for file watcher to process new file...');
+    await appWindow.waitForTimeout(3000);
+
+    console.log('[Test] Checking if child node appeared in Cytoscape...');
+    const debugInfo = await appWindow.evaluate((nId) => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance;
+      if (!cy) return { found: false, allNodeIds: [], error: 'Cytoscape not initialized' };
+
+      const nodeCount = cy.getElementById(nId).length;
+      const allNodeIds = cy.nodes().map(n => n.id());
+
+      return {
+        found: nodeCount > 0,
+        allNodeIds,
+        searchedFor: nId
+      };
+    }, childNodeId);
+
+    console.log('[Test] Debug info:', JSON.stringify(debugInfo, null, 2));
+
+    if (!debugInfo.found) {
+      console.error(`[Test] Node ${childNodeId} NOT found in Cytoscape after 3 seconds!`);
+      console.error(`[Test] Available nodes:`, debugInfo.allNodeIds);
+      // Don't fail yet, continue to see full state
+    } else {
+      console.log('[Test] Child node appeared in Cytoscape!');
+    }
+
+    console.log('[Test] Waiting 2 more seconds for any duplicate node creation...');
+    // Wait for potential duplicates from file watcher
     await appWindow.waitForTimeout(2000);
 
     console.log('[Test] Now checking both Graph state and Cytoscape state...');
@@ -304,33 +340,35 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     console.log('[Test] Removed nodes from Cytoscape:', initialIds.filter((id: string) => !finalCyIds.includes(id)));
 
     // Check for duplicates in Cytoscape
-    const cytoscapeChildNodes = finalCyIds.filter((id: string) => id.startsWith('parent_'));
-    console.log('[Test] Cytoscape nodes matching parent_*:', cytoscapeChildNodes);
+    const cytoscapeChildNodes = finalCyIds.filter((id: string) => id === childNodeId);
+    console.log('[Test] Cytoscape nodes matching', childNodeId, ':', cytoscapeChildNodes);
     console.log('[Test] DUPLICATE COUNT IN CYTOSCAPE:', cytoscapeChildNodes.length);
 
     // Check for duplicates in Graph
-    const graphChildNodes = finalState.graphNodeIds.filter((id: string) => id.startsWith('parent_'));
-    console.log('[Test] Graph nodes matching parent_*:', graphChildNodes);
+    const graphChildNodes = finalState.graphNodeIds.filter((id: string) => id === childNodeId);
+    console.log('[Test] Graph nodes matching', childNodeId, ':', graphChildNodes);
     console.log('[Test] COUNT IN GRAPH:', graphChildNodes.length);
 
     // Verify file was created on disk
     const files = await fs.readdir(testVaultPath);
     console.log('[Test] Files in vault:', files);
 
-    expect(files).toContain('parent_0.md');
+    // The file should be created with the child node ID (which may or may not have .md depending on nodeIdToFilePathWithExtension)
+    // Since childNodeId is "parent.md_0" which contains ".md", nodeIdToFilePathWithExtension returns it as-is
+    expect(files).toContain(childNodeId);
 
-    // ASSERTION: Should only have ONE child node (parent_0) in CYTOSCAPE
+    // ASSERTION: Should only have ONE child node in CYTOSCAPE
     console.log('\n[Test] CHECKING FOR DUPLICATES IN CYTOSCAPE:');
-    console.log(`  Expected: 1 child node with ID 'parent_0'`);
+    console.log(`  Expected: 1 child node with ID '${childNodeId}'`);
     console.log(`  Actual: ${cytoscapeChildNodes.length} child nodes: ${JSON.stringify(cytoscapeChildNodes)}`);
 
     if (cytoscapeChildNodes.length !== 1) {
-      console.error(`❌ BUG FOUND: Expected 1 parent_* node in Cytoscape, found ${cytoscapeChildNodes.length}`);
+      console.error(`❌ BUG FOUND: Expected 1 node with ID ${childNodeId} in Cytoscape, found ${cytoscapeChildNodes.length}`);
       console.error(`  This suggests ${cytoscapeChildNodes.length > 1 ? 'DUPLICATE nodes' : 'MISSING node'}`);
     }
 
     expect(cytoscapeChildNodes.length).toBe(1);
-    expect(cytoscapeChildNodes[0]).toBe('parent_0');
+    expect(cytoscapeChildNodes[0]).toBe(childNodeId);
 
     // ASSERTION: Total Cytoscape nodes should be initial + 1 (new child)
     console.log(`\n[Test] Cytoscape node count check:`);
@@ -348,8 +386,8 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
     console.log('Final Graph IDs:', finalState.graphNodeIds);
     console.log('New in Cytoscape:', finalCyIds.filter((id: string) => !initialIds.includes(id)));
     console.log('Removed from Cytoscape:', initialIds.filter((id: string) => !finalCyIds.includes(id)));
-    console.log('Cytoscape parent_* nodes:', cytoscapeChildNodes);
-    console.log('Graph parent_* nodes:', graphChildNodes);
+    console.log(`Cytoscape nodes with ID ${childNodeId}:`, cytoscapeChildNodes);
+    console.log(`Graph nodes with ID ${childNodeId}:`, graphChildNodes);
     console.log('========================================\n');
 
     if (finalState.cytoscapeNodeCount !== initialState.nodeCount + 1) {

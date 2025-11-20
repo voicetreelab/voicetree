@@ -4,7 +4,7 @@ import type { FSUpdate, Graph } from './index.ts'
 
 describe('mapFSEventsToGraphDelta', () => {
   describe('Node ID preservation from fs events', () => {
-    it('should strip .md extension from node ID when adding a file', () => {
+    it('should keep .md extension in node ID when adding a file', () => {
       const fsUpdate: FSUpdate = {
         absolutePath: '/vault/test-note.md',
         content: '# Test Note',
@@ -18,11 +18,11 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('test-note')
+        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('test-note.md')
       }
     })
 
-    it('should strip .md extension from node ID for nested paths when adding', () => {
+    it('should keep .md extension in node ID for nested paths when adding', () => {
       const fsUpdate: FSUpdate = {
         absolutePath: '/vault/folder/subfolder/nested.md',
         content: '# Nested',
@@ -36,11 +36,11 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('folder/subfolder/nested')
+        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('folder/subfolder/nested.md')
       }
     })
 
-    it('should strip .md extension from node ID when changing a file', () => {
+    it('should keep .md extension in node ID when changing a file', () => {
       const fsUpdate: FSUpdate = {
         absolutePath: '/vault/updated.md',
         content: '# Updated Content',
@@ -54,11 +54,11 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('updated')
+        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('updated.md')
       }
     })
 
-    it('should strip .md extension from node ID when deleting a file', () => {
+    it('should keep .md extension in node ID when deleting a file', () => {
       const fsUpdate: FSUpdate = {
         absolutePath: '/vault/to-delete.md',
         content: '',
@@ -72,11 +72,11 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('DeleteNode')
       if (delta[0].type === 'DeleteNode') {
-        expect(delta[0].nodeId).toBe('to-delete')
+        expect(delta[0].nodeId).toBe('to-delete.md')
       }
     })
 
-    it('should strip .md extension for files with multiple dots', () => {
+    it('should keep .md extension for files with multiple dots', () => {
       const fsUpdate: FSUpdate = {
         absolutePath: '/vault/file.backup.md',
         content: '# Backup',
@@ -90,7 +90,7 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('file.backup')
+        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('file.backup.md')
       }
     })
   })

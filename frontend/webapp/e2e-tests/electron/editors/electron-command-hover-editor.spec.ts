@@ -24,6 +24,11 @@ const FIXTURE_VAULT_PATH = path.join(PROJECT_ROOT, 'example_folder_fixtures', 'e
 // Type definition for browser window with cytoscape
 interface ExtendedWindow extends Window {
   cytoscapeInstance?: CytoscapeCore;
+  electronAPI?: {
+    main?: {
+      stopFileWatching?: () => Promise<{ success: boolean; error?: string }>;
+    };
+  };
 }
 
 const test = base.extend<{
@@ -46,7 +51,26 @@ const test = base.extend<{
       env: { ...process.env, NODE_ENV: 'test', HEADLESS_TEST: '1', MINIMIZE_TEST: '1' },
       timeout: 8000
     });
+
     await use(electronApp);
+
+    // Graceful shutdown: Stop file watching before closing app
+    // This prevents EPIPE errors from file watcher trying to log after stdout closes
+    try {
+      const page = await electronApp.firstWindow();
+      await page.evaluate(async () => {
+        const api = (window as unknown as ExtendedWindow).electronAPI;
+        if (api?.main?.stopFileWatching) {
+          await api.main.stopFileWatching();
+        }
+      });
+      // Wait for pending file system events to drain
+      await page.waitForTimeout(30);
+    } catch {
+      // Window might already be closed, that's okay
+      console.log('Note: Could not stop file watching during cleanup (window may be closed)');
+    }
+
     await electronApp.close();
 
     // Cleanup temp directory
@@ -61,9 +85,33 @@ const test = base.extend<{
       console.log(`BROWSER [${msg.type()}]:`, msg.text());
     });
 
+    // Capture page errors
+    window.on('pageerror', error => {
+      console.error('PAGE ERROR:', error.message);
+      console.error('Stack:', error.stack);
+    });
+
     await window.waitForLoadState('domcontentloaded');
+
+    // Check for errors before waiting for cytoscapeInstance
+    const hasErrors = await window.evaluate(() => {
+      const errors: string[] = [];
+      // Check if React rendered
+      if (!document.querySelector('#root')) errors.push('No #root element');
+      // Check if any error boundaries triggered
+      const errorText = document.body.textContent;
+      if (errorText?.includes('Error') || errorText?.includes('error')) {
+        errors.push(`Page contains error text: ${errorText.substring(0, 200)}`);
+      }
+      return errors;
+    });
+
+    if (hasErrors.length > 0) {
+      console.error('Pre-initialization errors:', hasErrors);
+    }
+
     await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
-    await window.waitForTimeout(1000);
+    await window.waitForTimeout(100);
 
     await use(window);
   }
@@ -73,13 +121,14 @@ test.describe('Hover Mode for GraphNode Editor', () => {
 
   test('should open hover editor when node is hovered', async ({ appWindow }) => {
     // Create a test node with content
+    // IMPORTANT: Node ID must be a file path with extension for hover editor to work
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
       cy.add({
         group: 'nodes',
         data: {
-          id: 'test-node-1',
+          id: 'test/test-node-1.md',
           label: 'Test GraphNode 1',
           content: '# Test Content\n\nThis is a test node.',
           filePath: '/test/test-node-1.md'
@@ -94,7 +143,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
-      const node = cy.$('#test-node-1');
+      const node = cy.$('#test\\/test-node-1\\.md');
       node.emit('mouseover');
     });
     await appWindow.waitForTimeout(300);
@@ -112,6 +161,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
 
     expect(hoverEditorExists.exists).toBe(true);
     expect(hoverEditorExists.hasTitleBar).toBe(true);
+    // Title contains the node ID (file path), not the label
     expect(hoverEditorExists.titleText).toContain('test-node-1');
 
     // Screenshot
@@ -128,7 +178,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       cy.add({
         group: 'nodes',
         data: {
-          id: 'test-node-2',
+          id: 'test/test-node-2.md',
           label: 'Test GraphNode 2',
           content: '# Content',
           filePath: '/test/test-node-2.md'
@@ -150,7 +200,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
-      const node = cy.$('#test-node-2');
+      const node = cy.$('#test\\/test-node-2\\.md');
       node.emit('mouseover');
     });
     await appWindow.waitForTimeout(200);
@@ -183,7 +233,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       cy.add({
         group: 'nodes',
         data: {
-          id: 'test-node-3',
+          id: 'test/test-node-3.md',
           label: 'Test GraphNode 3',
           content: '# Content',
           filePath: '/test/test-node-3.md'
@@ -198,7 +248,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
-      const node = cy.$('#test-node-3');
+      const node = cy.$('#test\\/test-node-3\\.md');
       node.emit('mouseover');
     });
     await appWindow.waitForTimeout(200);
@@ -228,7 +278,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       cy.add({
         group: 'nodes',
         data: {
-          id: 'test-node-6a',
+          id: 'test/test-node-6a.md',
           label: 'GraphNode A',
           content: '# GraphNode A Content',
           filePath: '/test/test-node-6a.md'
@@ -238,7 +288,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       cy.add({
         group: 'nodes',
         data: {
-          id: 'test-node-6b',
+          id: 'test/test-node-6b.md',
           label: 'GraphNode B',
           content: '# GraphNode B Content',
           filePath: '/test/test-node-6b.md'
@@ -253,7 +303,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
-      const nodeA = cy.$('#test-node-6a');
+      const nodeA = cy.$('#test\\/test-node-6a\\.md');
       nodeA.emit('mouseover');
     });
     await appWindow.waitForTimeout(200);
@@ -263,13 +313,13 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       const editor = document.querySelector('[id^="window-editor-"]');
       return editor?.id ?? null;
     });
-    expect(firstEditorId).toContain('editor-test-node-6a');
+    expect(firstEditorId).toContain('test-node-6a');
 
     // Hover over second node (should close first and open second)
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
-      const nodeB = cy.$('#test-node-6b');
+      const nodeB = cy.$('#test\\/test-node-6b\\.md');
       nodeB.emit('mouseover');
     });
     await appWindow.waitForTimeout(200);
@@ -285,7 +335,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       const editor = document.querySelector('[id^="window-editor-"]');
       return editor?.id ?? null;
     });
-    expect(secondEditorId).toContain('editor-test-node-6b');
+    expect(secondEditorId).toContain('test-node-6b');
   });
 
   test('should move with graph pan/zoom (uses cy-floating-overlay)', async ({ appWindow }) => {
@@ -296,7 +346,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       cy.add({
         group: 'nodes',
         data: {
-          id: 'test-node-7',
+          id: 'test/test-node-7.md',
           label: 'Pan Test',
           content: '# Pan Test',
           filePath: '/test/test-node-7.md'
@@ -311,7 +361,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
-      const node = cy.$('#test-node-7');
+      const node = cy.$('#test\\/test-node-7\\.md');
       node.emit('mouseover');
     });
     await appWindow.waitForTimeout(200);
@@ -373,7 +423,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
       cy.add({
         group: 'nodes',
         data: {
-          id: 'test-node-8',
+          id: 'test/test-node-8.md',
           label: 'Content Test',
           content: '# Test Header\n\nThis is **bold** text.'
         },
@@ -387,7 +437,7 @@ test.describe('Hover Mode for GraphNode Editor', () => {
     await appWindow.evaluate(() => {
       const cy = (window as unknown as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape instance not found');
-      const node = cy.$('#test-node-8');
+      const node = cy.$('#test\\/test-node-8\\.md');
       node.emit('mouseover');
     });
     await appWindow.waitForTimeout(500); // Wait for CodeMirror to render

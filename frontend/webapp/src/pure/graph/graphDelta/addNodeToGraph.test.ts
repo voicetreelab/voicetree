@@ -53,11 +53,11 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const graph = await loadGraphFromDisk(O.some(forwardVaultPath))
 
       // Verify: source node has edge to target using target's node ID
-      expect(graph.nodes['source']).toBeDefined()
-      expect(graph.nodes['target']).toBeDefined()
-      expect(graph.nodes['source'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['source'].outgoingEdges[0].targetId).toBe('target')
-      expect(graph.nodes['source'].outgoingEdges[0].label).toBe('links to')
+      expect(graph.nodes['source.md']).toBeDefined()
+      expect(graph.nodes['target.md']).toBeDefined()
+      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
+      expect(graph.nodes['source.md'].outgoingEdges[0].targetId).toBe('target.md')
+      expect(graph.nodes['source.md'].outgoingEdges[0].label).toBe('links to')
 
       await fs.rm(forwardVaultPath, { recursive: true })
     })
@@ -80,11 +80,11 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const graph = await loadGraphFromDisk(O.some(reverseVaultPath))
 
       // Verify: SAME RESULT as forward order
-      expect(graph.nodes['source']).toBeDefined()
-      expect(graph.nodes['target']).toBeDefined()
-      expect(graph.nodes['source'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['source'].outgoingEdges[0].targetId).toBe('target')
-      expect(graph.nodes['source'].outgoingEdges[0].label).toBe('links to')
+      expect(graph.nodes['source.md']).toBeDefined()
+      expect(graph.nodes['target.md']).toBeDefined()
+      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
+      expect(graph.nodes['source.md'].outgoingEdges[0].targetId).toBe('target.md')
+      expect(graph.nodes['source.md'].outgoingEdges[0].label).toBe('links to')
 
       await fs.rm(reverseVaultPath, { recursive: true })
     })
@@ -107,11 +107,11 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const graph = await loadGraphFromDisk(O.some(subfolderVaultPath))
 
       // Verify: Link resolves to felix/1 (not just "1")
-      expect(graph.nodes['felix/2']).toBeDefined()
-      expect(graph.nodes['felix/1']).toBeDefined()
-      expect(graph.nodes['felix/2'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['felix/2'].outgoingEdges[0].targetId).toBe('felix/1')
-      expect(graph.nodes['felix/2'].outgoingEdges[0].label).toBe('related')
+      expect(graph.nodes['felix/2.md']).toBeDefined()
+      expect(graph.nodes['felix/1.md']).toBeDefined()
+      expect(graph.nodes['felix/2.md'].outgoingEdges).toHaveLength(1)
+      expect(graph.nodes['felix/2.md'].outgoingEdges[0].targetId).toBe('felix/1.md')
+      expect(graph.nodes['felix/2.md'].outgoingEdges[0].label).toBe('related')
 
       await fs.rm(subfolderVaultPath, { recursive: true })
     })
@@ -138,9 +138,9 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const graph = await loadGraphFromDisk(O.some(chainVaultPath))
 
       // Verify: All edges resolved
-      expect(graph.nodes['a'].outgoingEdges[0].targetId).toBe('b')
-      expect(graph.nodes['b'].outgoingEdges[0].targetId).toBe('c')
-      expect(graph.nodes['c'].outgoingEdges).toHaveLength(0)
+      expect(graph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
+      expect(graph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c.md')
+      expect(graph.nodes['c.md'].outgoingEdges).toHaveLength(0)
 
       await fs.rm(chainVaultPath, { recursive: true })
     })
@@ -151,8 +151,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Setup: Graph with target node already loaded
       const currentGraph: Graph = {
         nodes: {
-          'target': {
-            relativeFilePathIsID: 'target',
+          'target.md': {
+            relativeFilePathIsID: 'target.md',
             content: '# Target',
             outgoingEdges: [],
             nodeUIMetadata: {
@@ -178,9 +178,9 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
         const node = delta[0].nodeToUpsert
-        expect(node.relativeFilePathIsID).toBe('source')
+        expect(node.relativeFilePathIsID).toBe('source.md')
         expect(node.outgoingEdges).toHaveLength(1)
-        expect(node.outgoingEdges[0].targetId).toBe('target')
+        expect(node.outgoingEdges[0].targetId).toBe('target.md')
       }
     })
 
@@ -211,8 +211,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Setup: Graph with felix/1 already loaded
       const currentGraph: Graph = {
         nodes: {
-          'felix/1': {
-            relativeFilePathIsID: 'felix/1',
+          'felix/1.md': {
+            relativeFilePathIsID: 'felix/1.md',
             content: '# Node 1',
             outgoingEdges: [],
             nodeUIMetadata: {
@@ -237,7 +237,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
         const node = delta[0].nodeToUpsert
-        expect(node.outgoingEdges[0].targetId).toBe('felix/1')
+        expect(node.outgoingEdges[0].targetId).toBe('felix/1.md')
       }
     })
   })
@@ -279,17 +279,17 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       expect(Object.keys(bulkGraph.nodes).sort()).toEqual(Object.keys(incrementalGraph.nodes).sort())
 
       // NOTE: Bulk and incremental may have different edge targetIds due to resolution timing:
-      // - Bulk: all nodes exist, so edges resolve to full node IDs (e.g., 'b')
-      // - Incremental: nodes added sequentially, so edges may use raw link text initially (e.g., 'b')
-      // Both are valid representations - bulk resolves immediately, incremental preserves raw text
-      expect(bulkGraph.nodes['a'].outgoingEdges[0].targetId).toBe('b')
-      expect(incrementalGraph.nodes['a'].outgoingEdges[0].targetId).toBe('b')  // Raw link text
+      // - Bulk: all nodes exist, so edges resolve to full node IDs (e.g., 'b.md')
+      // - Incremental: when a.md is added first, 'b' doesn't exist yet, so targetId stays as 'b' (raw link text)
+      // After b.md is added, a.md's edges are NOT retroactively updated
+      expect(bulkGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
+      expect(incrementalGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b')  // Raw link text - b didn't exist when a was added
 
-      expect(bulkGraph.nodes['b'].outgoingEdges[0].targetId).toBe('c')
-      expect(incrementalGraph.nodes['b'].outgoingEdges[0].targetId).toBe('c')  // Raw link text
+      expect(bulkGraph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c.md')
+      expect(incrementalGraph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c')  // Raw link text - c didn't exist when b was added
 
-      expect(bulkGraph.nodes['c'].outgoingEdges).toHaveLength(0)
-      expect(incrementalGraph.nodes['c'].outgoingEdges).toHaveLength(0)
+      expect(bulkGraph.nodes['c.md'].outgoingEdges).toHaveLength(0)
+      expect(incrementalGraph.nodes['c.md'].outgoingEdges).toHaveLength(0)
 
       await fs.rm(bulkVaultPath, { recursive: true })
       await fs.rm(incrementalVaultPath, { recursive: true })
@@ -326,9 +326,9 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       }, { nodes: {} } as Graph)
 
       // Verify: IDENTICAL despite different order
-      expect(bulkGraph.nodes['a'].outgoingEdges).toEqual(incrementalGraph.nodes['a'].outgoingEdges)
-      expect(bulkGraph.nodes['a'].outgoingEdges[0].targetId).toBe('b')
-      expect(incrementalGraph.nodes['a'].outgoingEdges[0].targetId).toBe('b')
+      expect(bulkGraph.nodes['a.md'].outgoingEdges).toEqual(incrementalGraph.nodes['a.md'].outgoingEdges)
+      expect(bulkGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
+      expect(incrementalGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
 
       await fs.rm(bulkVaultPath, { recursive: true })
       await fs.rm(incrementalVaultPath, { recursive: true })
@@ -348,8 +348,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const graph = await loadGraphFromDisk(O.some(vaultPath))
 
       // Verify: Edge preserved with raw link text
-      expect(graph.nodes['source'].outgoingEdges).toHaveLength(1)
-      expect(graph.nodes['source'].outgoingEdges[0].targetId).toBe('does-not-exist')
+      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
+      expect(graph.nodes['source.md'].outgoingEdges[0].targetId).toBe('does-not-exist')
 
       await fs.rm(vaultPath, { recursive: true })
     })
@@ -384,8 +384,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       const graph = await loadGraphFromDisk(O.some(vaultPath))
 
       // Verify: All edges preserved as raw text
-      expect(graph.nodes['source'].outgoingEdges).toHaveLength(3)
-      expect(graph.nodes['source'].outgoingEdges.map(e => e.targetId)).toEqual(['a', 'b', 'c'])
+      expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(3)
+      expect(graph.nodes['source.md'].outgoingEdges.map(e => e.targetId)).toEqual(['a', 'b', 'c'])
 
       await fs.rm(vaultPath, { recursive: true })
     })

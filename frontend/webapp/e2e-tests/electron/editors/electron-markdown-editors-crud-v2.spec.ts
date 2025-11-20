@@ -11,6 +11,7 @@ import { test as base, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import type { Core as CytoscapeCore, EdgeSingular } from 'cytoscape';
 import type { EditorView } from '@codemirror/view';
 
@@ -41,10 +42,16 @@ const test = base.extend<{
   appWindow: Page;
 }>({
   // Set up Electron application
-
+  // IMPORTANT: Each test gets isolated userData to prevent state pollution
   electronApp: async ({}, use) => {
+    // Create a temporary userData directory for test isolation
+    const tempUserDataPath = await fs.mkdtemp(path.join(os.tmpdir(), 'voicetree-editor-test-'));
+
     const electronApp = await electron.launch({
-      args: [path.join(PROJECT_ROOT, 'dist-electron/main/index.js')],
+      args: [
+        path.join(PROJECT_ROOT, 'dist-electron/main/index.js'),
+        `--user-data-dir=${tempUserDataPath}` // Isolate test userData
+      ],
       env: {
         ...process.env,
         NODE_ENV: 'test',
@@ -73,6 +80,9 @@ const test = base.extend<{
     }
 
     await electronApp.close();
+
+    // Cleanup temp directory
+    await fs.rm(tempUserDataPath, { recursive: true, force: true });
   },
 
   // Get the main window
@@ -327,6 +337,14 @@ test.describe('Markdown Editor CRUD Tests', () => {
     // Editor shows content without frontmatter (frontmatter is stripped when displaying)
     expect(editorContent).toContain(testContent);
     console.log('✓ Editor shows saved content after reopening');
+
+    // Close the editor before restoring file (to prevent auto-save from overwriting)
+    await appWindow.evaluate((winId) => {
+      const escapedWinId = winId.replace(/\./g, '\\.');
+      const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
+      if (closeButton) closeButton.click();
+    }, editorWindowId);
+    await appWindow.waitForTimeout(200); // Wait for editor to fully close
 
     // Restore original file content (reset for clean git state)
     await fs.writeFile(testFilePath, originalContent, 'utf-8');
@@ -623,12 +641,20 @@ test.describe('Markdown Editor CRUD Tests', () => {
     expect(updatedEditorContent).toBe(externallyChangedContent);
     console.log('✓ Editor synced with external file change');
 
+    // Close the editor before restoring file (to prevent auto-save from overwriting)
+    await appWindow.evaluate((winId) => {
+      const escapedWinId = winId.replace(/\./g, '\\.');
+      const closeButton = document.querySelector(`#${escapedWinId} .cy-floating-window-close`) as HTMLButtonElement | null;
+      if (closeButton) closeButton.click();
+    }, editorWindowId);
+    await appWindow.waitForTimeout(200); // Wait for editor to fully close
+
     // Restore original file content
     await fs.writeFile(testFilePath, originalContent, 'utf-8');
     console.log('✓ Original file content restored');
 
     // Wait for file change to be detected
-    await appWindow.waitForTimeout(2000);
+    await appWindow.waitForTimeout(200);
 
     console.log('✓ Bidirectional sync test completed');
   });

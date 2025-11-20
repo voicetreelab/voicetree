@@ -7,6 +7,8 @@
  * - SIDE EFFECTS: Calls electronAPI to persist the graph delta
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type {Core} from 'cytoscape';
 import cytoscape from 'cytoscape'
@@ -22,8 +24,8 @@ describe('createNewChildNodeFromUI - Integration', () => {
         // Create a minimal graph with 2 nodes
         mockGraph = {
             nodes: {
-                'parent': {
-                    relativeFilePathIsID: 'parent',
+                'parent.md': {
+                    relativeFilePathIsID: 'parent.md',
                     content: '# Parent GraphNode',
                     outgoingEdges: [{ targetId: 'child1', label: '' }],
                     nodeUIMetadata: {
@@ -32,8 +34,8 @@ describe('createNewChildNodeFromUI - Integration', () => {
                         position: O.some({ x: 100, y: 100 })
                     }
                 },
-                'child1': {
-                    relativeFilePathIsID: 'child1',
+                'child1.md': {
+                    relativeFilePathIsID: 'child1.md',
                     content: '# Child 1',
                     outgoingEdges: [],
                     nodeUIMetadata: {
@@ -52,17 +54,17 @@ describe('createNewChildNodeFromUI - Integration', () => {
             elements: [
                 {
                     group: 'nodes' as const,
-                    data: { id: 'parent', label: 'Parent GraphNode', content: '# Parent GraphNode', summary: '' },
+                    data: { id: 'parent.md', label: 'Parent GraphNode', content: '# Parent GraphNode', summary: '' },
                     position: { x: 100, y: 100 }
                 },
                 {
                     group: 'nodes' as const,
-                    data: { id: 'child1', label: 'Child 1', content: '# Child 1', summary: '' },
+                    data: { id: 'child1.md', label: 'Child 1', content: '# Child 1', summary: '' },
                     position: { x: 200, y: 200 }
                 },
                 {
                     group: 'edges' as const,
-                    data: { id: 'parent-child1', source: 'parent', target: 'child1' }
+                    data: { id: 'parent-child1', source: 'parent.md', target: 'child1.md' }
                 }
             ]
         })
@@ -89,11 +91,11 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(cy.edges()).toHaveLength(1)
 
         // AND: Existing nodes have correct labels from markdownToTitle
-        expect(cy.getElementById('parent').data('label')).toBe('Parent GraphNode')
-        expect(cy.getElementById('child1').data('label')).toBe('Child 1')
+        expect(cy.getElementById('parent.md').data('label')).toBe('Parent GraphNode')
+        expect(cy.getElementById('child1.md').data('label')).toBe('Child 1')
 
         // WHEN: Creating a new child node from the parent
-        await createNewChildNodeFromUI('parent', cy)
+        await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: Cytoscape should now have 3 nodes
         expect(cy.nodes()).toHaveLength(3)
@@ -102,21 +104,21 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(cy.edges()).toHaveLength(2)
 
         // AND: The new node should exist with correct label from nodeUIMetadata.title
-        const newNodeId = 'parent_1' // Based on naming convention in fromUIInteractionToAddNode
+        const newNodeId = 'parent.md_1.md' // Based on naming convention in fromUICreateChildToUpsertNode
         const newNode = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
         // Label comes from nodeUIMetadata.title which is "Child of " + parentNode.nodeUIMetadata.title
         expect(newNode.data('label')).toBe('Child of Parent GraphNode')
 
         // AND: There should be an edge from parent to the new node
-        const newEdge = cy.getElementById(`parent->${newNodeId}`)
+        const newEdge = cy.getElementById(`parent.md->${newNodeId}`)
         expect(newEdge.length).toBe(1)
-        expect(newEdge.data('source')).toBe('parent')
+        expect(newEdge.data('source')).toBe('parent.md')
         expect(newEdge.data('target')).toBe(newNodeId)
 
         // AND: Should have called electronAPI to persist the change
         // The GraphDelta should contain 2 actions: new child node + updated parent with edge
-        expect(window.electronAPI!.main.applyGraphDeltaToDBAndMem).toHaveBeenCalledWith([
+        expect((window as any).electronAPI!.main.applyGraphDeltaToDBAndMem).toHaveBeenCalledWith([
             expect.objectContaining({
                 type: 'UpsertNode',
                 nodeToUpsert: expect.objectContaining({
@@ -127,7 +129,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             expect.objectContaining({
                 type: 'UpsertNode',
                 nodeToUpsert: expect.objectContaining({
-                    relativeFilePathIsID: 'parent',
+                    relativeFilePathIsID: 'parent.md',
                     outgoingEdges: expect.arrayContaining([expect.objectContaining({ targetId: newNodeId })])
                 })
             })
@@ -139,13 +141,13 @@ describe('createNewChildNodeFromUI - Integration', () => {
         expect(cy.nodes()).toHaveLength(2)
 
         // WHEN: Creating second child
-        await createNewChildNodeFromUI('parent', cy)
+        await createNewChildNodeFromUI('parent.md', cy)
 
         // THEN: New node should be positioned relative to parent
-        const newNodeId = 'parent_1'
+        const newNodeId = 'parent.md_1.md'
         const newNode = cy.getElementById(newNodeId)
         const newPos = newNode.position()
-        const parentPos = cy.getElementById('parent').position()
+        const parentPos = cy.getElementById('parent.md').position()
 
         // Position should be different from parent (angular seeding places it at a distance)
         expect(newPos.x !== parentPos.x || newPos.y !== parentPos.y).toBe(true)
@@ -161,12 +163,12 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
     it('should extract labels correctly via markdownToTitle for different content types', async () => {
         // Test heading extraction
-        const headingNode = cy.getElementById('parent')
+        const headingNode = cy.getElementById('parent.md')
         expect(headingNode.data('label')).toBe('Parent GraphNode')
         expect(headingNode.data('content')).toBe('# Parent GraphNode')
 
         // Test another heading
-        const childNode = cy.getElementById('child1')
+        const childNode = cy.getElementById('child1.md')
         expect(childNode.data('label')).toBe('Child 1')
         expect(childNode.data('content')).toBe('# Child 1')
     })

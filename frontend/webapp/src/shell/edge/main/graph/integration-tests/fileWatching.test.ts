@@ -117,7 +117,7 @@ describe('File Watching - Edge Management Tests', () => {
       // Wait for file to be detected and added to graph
       await waitForFSEvent()
       await waitForCondition(
-        () => !!getGraph().nodes['test-new-file'],
+        () => !!getGraph().nodes['test-new-file.md'],
         { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
       )
 
@@ -135,18 +135,18 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file') ?? false
+          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
-      // THEN: Edge should be created (IDs always have .md extension stripped)
+      // THEN: Edge should be created (IDs always have .md extension)
       const graph = getGraph()
-      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
+      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
 
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file')).toBe(true)
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
     }, 5000)
 
     it('should create edge when appending wikilink WITHOUT .md extension', async () => {
@@ -164,7 +164,7 @@ describe('File Watching - Edge Management Tests', () => {
       // Wait for file to be detected and added to graph
       await waitForFSEvent()
       await waitForCondition(
-        () => !!getGraph().nodes['test-new-file'],
+        () => !!getGraph().nodes['test-new-file.md'],
         { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
       )
 
@@ -182,17 +182,17 @@ describe('File Watching - Edge Management Tests', () => {
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file') ?? false
+          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge from 5_Immediate_Test_Observation_No_Output to test-new-file not created' }
       )
 
       // THEN: Edge should be created
       const graph = getGraph()
-      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
+      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file')).toBe(true)
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(true)
     }, 5000)
 
     it('should remove edge when wikilink is removed from file content', async () => {
@@ -210,7 +210,7 @@ describe('File Watching - Edge Management Tests', () => {
       // Wait for file to be detected and added to graph
       await waitForFSEvent()
       await waitForCondition(
-        () => !!getGraph().nodes['test-new-file'],
+        () => !!getGraph().nodes['test-new-file.md'],
         { maxWaitMs: 1000, errorMessage: 'test-new-file node not added to graph' }
       )
 
@@ -246,8 +246,8 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output']
-          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file') ?? false
+          const sourceNode = getGraph().nodes['5_Immediate_Test_Observation_No_Output.md']
+          return sourceNode?.outgoingEdges?.some(e => e.targetId === 'test-new-file.md') ?? false
         },
         { maxWaitMs: 1000, errorMessage: 'Edge not added before removal test' }
       )
@@ -267,9 +267,9 @@ Parent:
 
       // THEN: Edge should be removed
       const graph = getGraph()
-      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output']
+      const sourceNode = graph.nodes['5_Immediate_Test_Observation_No_Output.md']
       expect(sourceNode.outgoingEdges).toBeDefined()
-      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file')).toBe(false)
+      expect(sourceNode.outgoingEdges.some(e => e.targetId === 'test-new-file.md')).toBe(false)
     }, 5000)
   })
 
@@ -306,7 +306,7 @@ Parent:
       await waitForFSEvent()
       await waitForCondition(
         () => {
-          const node = getGraph().nodes['test-color-node']
+          const node = getGraph().nodes['test-color-node.md']
           return node?.nodeUIMetadata.color._tag === 'Some' && node.nodeUIMetadata.color.value === 'cyan'
         },
         { maxWaitMs: 1000, errorMessage: 'test-color-node not added with color parsed from frontmatter' }
@@ -314,7 +314,7 @@ Parent:
 
       // THEN: Verify color was parsed from frontmatter
       const graph = getGraph()
-      const node = graph.nodes['test-color-node']
+      const node = graph.nodes['test-color-node.md']
 
       expect(node).toBeDefined()
       expect(node.nodeUIMetadata.color._tag).toBe('Some')
