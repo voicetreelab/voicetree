@@ -25,7 +25,6 @@ import type {Graph, GraphDelta, NodeId} from '@/pure/graph';
 import {nodeIdToFilePathWithExtension} from '@/pure/graph/markdown-parsing';
 import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
 import {createNewEmptyOrphanNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
-import {createSettingsEditor} from '@/shell/UI/floating-windows/createSettingsEditor.ts';
 
 /**
  * Function type for getting current graph state
@@ -53,11 +52,6 @@ export class FloatingWindowManager {
         _hotkeyManager: HotkeyManager
     ) {
         this.cy = cy;
-
-        // Setup settings editor listener
-        window.addEventListener('openSettings',  () => {
-               void createSettingsEditor(cy);
-        });
     }
 
     // ============================================================================

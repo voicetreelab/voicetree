@@ -45,6 +45,7 @@ import {MIN_ZOOM, MAX_ZOOM} from '@/shell/UI/cytoscape-graph-ui/constants.ts';
 import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGraphViewHelpers';
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts';
 import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState.ts';
+import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor.ts";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -272,7 +273,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.speedDialMenu = new SpeedDialSideGraphFloatingMenuView(this.container, {
             onToggleDarkMode: () => this.toggleDarkMode(),
             onBackup: () => { void this.createBackupTerminal(); },
-            onSettings: () => window.dispatchEvent(new CustomEvent('openSettings')),
+            onSettings: () => void createSettingsEditor(this.cy),
             onAbout: () => console.log('[SpeedDial] About clicked'),
             isDarkMode: this._isDarkMode,
         });
