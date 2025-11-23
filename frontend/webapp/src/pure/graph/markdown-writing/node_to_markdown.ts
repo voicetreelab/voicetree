@@ -1,7 +1,5 @@
 import type {GraphNode, NodeUIMetadata} from "@/pure/graph";
 import * as O from 'fp-ts/lib/Option.js'
-import matter from 'gray-matter'
-import type {Frontmatter} from '@/pure/graph/markdown-parsing/extract-frontmatter.ts'
 
 /**
  * Converts a GraphNode to markdown file content with frontmatter and wikilinks
@@ -18,50 +16,46 @@ import type {Frontmatter} from '@/pure/graph/markdown-parsing/extract-frontmatte
  * [[child2]]
  */
 export function fromNodeToMarkdownContent(node: GraphNode): string {
-    // 1. Extract existing frontmatter from content
-    const parsed = matter(node.contentWithoutYamlOrLinks);
-    const contentFrontmatter = parsed.data as Partial<Frontmatter>;
-    const contentWithoutFrontmatter = parsed.content;
+    // 1. Build frontmatter from nodeUIMetadata (content no longer has frontmatter)
+    const frontmatter = buildFrontmatterFromMetadata(node.nodeUIMetadata);
 
-    // 2. Merge frontmatter: nodeUIMetadata takes precedence over content frontmatter
-    const mergedFrontmatter = mergeFrontmatter(contentFrontmatter, node.nodeUIMetadata);
+    // 2. Convert [link]* placeholders back to [[link]] wikilinks
+    const contentWithWikilinks = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[[$1]]');
 
-    // 3. Append outgoing edges as wikilinks (only if nodeId not already in content)
-    // KISS: Simple check - if nodeId appears anywhere in content, don't append
-    // Edge case: nodeId in text but not as link will be skipped, but that's acceptable
+    // 3. Append outgoing edges as wikilinks (only if not already in content)
+    // After restoring wikilinks, check if the edge is already present
     const wikilinks = node.outgoingEdges
-        .filter(edge => !contentWithoutFrontmatter.includes(edge.targetId))
-        .map(edge => (`[[${edge.targetId}]]`)) //todo at some point we considered adding .file extension (.md) if not
+        .filter(edge => !contentWithWikilinks.includes(`[[${edge.targetId}]]`))
+        .map(edge => (`[[${edge.targetId}]]`))
         .join('\n');
 
     const wikilinksSuffix = wikilinks.length > 0 ? '\n' + wikilinks : '';
 
-    return `${mergedFrontmatter}${contentWithoutFrontmatter}${wikilinksSuffix}`;
+    return `${frontmatter}${contentWithWikilinks}${wikilinksSuffix}`;
 }
 
 /**
- * Merges frontmatter from content with nodeUIMetadata, with nodeUIMetadata taking precedence
+ * Builds frontmatter string from NodeUIMetadata
  */
-function mergeFrontmatter(contentFrontmatter: Partial<Frontmatter>, metadata: NodeUIMetadata): string {
-    // Start with contentFrontmatter, then override with nodeUIMetadata
-    const mergedData: Record<string, unknown> = { ...contentFrontmatter };
+function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
+    const frontmatterData: Record<string, unknown> = {};
 
-    // nodeUIMetadata.color takes precedence
+    // Add color if present
     O.fold(
-        () => {}, // no color in metadata, keep content frontmatter color if any
-        (color: string) => { mergedData.color = color; }
+        () => {}, // no color
+        (color: string) => { frontmatterData.color = color; }
     )(metadata.color);
 
-    // nodeUIMetadata.position takes precedence
+    // Add position if present
     O.fold(
-        () => {}, // no position in metadata, keep content frontmatter position if any
+        () => {}, // no position
         (pos: {readonly x: number; readonly y: number}) => {
-            mergedData.position = { x: pos.x, y: pos.y };
+            frontmatterData.position = { x: pos.x, y: pos.y };
         }
     )(metadata.position);
 
-    // Build frontmatter string from merged data
-    return buildFrontmatterFromData(mergedData);
+    // Build frontmatter string from data
+    return buildFrontmatterFromData(frontmatterData);
 }
 
 function buildFrontmatterFromData(data: Record<string, unknown>): string {

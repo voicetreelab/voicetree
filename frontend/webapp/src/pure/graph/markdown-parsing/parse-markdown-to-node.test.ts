@@ -13,7 +13,8 @@ Some text`
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
     expect(result.relativeFilePathIsID).toBe('test.md')
-    expect(result.contentWithoutYamlOrLinks).toBe(content)
+    // contentWithoutYamlOrLinks should have YAML stripped
+    expect(result.contentWithoutYamlOrLinks).toBe('# Content here\nSome text')
     expect(result.outgoingEdges).toEqual([])
     expect(O.isSome(result.nodeUIMetadata.color)).toBe(true)
     expect(O.getOrElse(() => '')(result.nodeUIMetadata.color)).toBe('#FF0000')
@@ -31,7 +32,8 @@ position:
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
     expect(result.relativeFilePathIsID).toBe('test.md')
-    expect(result.contentWithoutYamlOrLinks).toBe(content)
+    // contentWithoutYamlOrLinks should have YAML stripped
+    expect(result.contentWithoutYamlOrLinks).toBe('# Content here')
     expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
 
     const position = O.getOrElse(() => ({ x: 0, y: 0 }))(result.nodeUIMetadata.position)
@@ -67,7 +69,7 @@ Content`
     expect(O.isNone(result.nodeUIMetadata.position)).toBe(true)
   })
 
-  it('should preserve full content including frontmatter', () => {
+  it('should strip frontmatter from content', () => {
     const content = `---
 color: "#123456"
 ---
@@ -77,7 +79,8 @@ Content here`
 
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
-    expect(result.contentWithoutYamlOrLinks).toBe(content)
+    // contentWithoutYamlOrLinks should have YAML stripped
+    expect(result.contentWithoutYamlOrLinks).toBe('# Test\n\nContent here')
   })
 
   it('should handle nested paths in filename', () => {
@@ -110,10 +113,45 @@ Content here`
     const result = parseMarkdownToGraphNode(content, 'bad-yaml.md')
 
     expect(result.relativeFilePathIsID).toBe('bad-yaml.md')
-    expect(result.contentWithoutYamlOrLinks).toBe(content)
+    // NOTE: gray-matter doesn't always strip invalid YAML, it tries to parse it anyway
+    // The important thing is that it doesn't throw and the app keeps working
     expect(result.outgoingEdges).toEqual([])
-    // Should fall back to heading when YAML fails
+    // Should fall back to heading when YAML parsing fails
     expect(result.nodeUIMetadata.title).toBe('Fallback Heading')
+    // Content should have YAML stripped (gray-matter tries its best)
+    expect(result.contentWithoutYamlOrLinks).toContain('# Fallback Heading')
+  })
+
+  it('should replace wikilinks with [link]* notation', () => {
+    const content = `# Test Content
+
+This references [[other-note]] and [[another-note]].`
+
+    const result = parseMarkdownToGraphNode(content, 'test.md')
+
+    expect(result.relativeFilePathIsID).toBe('test.md')
+    // Wikilinks should be replaced with [link]* notation
+    expect(result.contentWithoutYamlOrLinks).toBe('# Test Content\n\nThis references [other-note]* and [another-note]*.')
+    // Edges should still be extracted
+    expect(result.outgoingEdges.length).toBe(2)
+    expect(result.outgoingEdges[0].targetId).toBe('other-note')
+    expect(result.outgoingEdges[1].targetId).toBe('another-note')
+  })
+
+  it('should handle both YAML stripping and wikilink replacement', () => {
+    const content = `---
+color: "#FF0000"
+---
+# Test
+
+Content with [[link-one]] and [[link-two]]`
+
+    const result = parseMarkdownToGraphNode(content, 'test.md')
+
+    // Both YAML and wikilinks should be processed
+    expect(result.contentWithoutYamlOrLinks).toBe('# Test\n\nContent with [link-one]* and [link-two]*')
+    expect(O.isSome(result.nodeUIMetadata.color)).toBe(true)
+    expect(result.outgoingEdges.length).toBe(2)
   })
 
   describe('Node ID should keep .md extension', () => {

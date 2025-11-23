@@ -4,14 +4,11 @@ import type { GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 
 describe('fromNodeToMarkdownContent', () => {
-  describe('frontmatter merging', () => {
-    it('should merge nodeUIMetadata color over content frontmatter color when both present', () => {
+  describe('frontmatter generation', () => {
+    it('should generate frontmatter from nodeUIMetadata color', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        contentWithoutYamlOrLinks: `---
-color: "#FF0000"
----
-# Test Content`,
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#00FF00'),
@@ -22,22 +19,15 @@ color: "#FF0000"
 
       const result = fromNodeToMarkdownContent(node)
 
-      // nodeUIMetadata color (#00FF00) should win over content color (#FF0000)
+      // Should generate frontmatter with nodeUIMetadata color
       expect(result).toContain('color: #00FF00')
-      expect(result).not.toContain('color: "#FF0000"')
       expect(result).toContain('# Test Content')
     })
 
-    it('should preserve content frontmatter position when nodeUIMetadata has no position', () => {
+    it('should generate frontmatter with only color when position is none', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        contentWithoutYamlOrLinks: `---
-position:
-  x: 150
-  y: 250
-color: "#FF0000"
----
-# Test Content`,
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#00FF00'),
@@ -48,24 +38,16 @@ color: "#FF0000"
 
       const result = fromNodeToMarkdownContent(node)
 
-      // Should preserve position from content
-      expect(result).toContain('position:')
-      expect(result).toContain('x: 150')
-      expect(result).toContain('y: 250')
-      // nodeUIMetadata color should still win
+      // Should only have color in frontmatter
       expect(result).toContain('color: #00FF00')
+      expect(result).not.toContain('position:')
       expect(result).toContain('# Test Content')
     })
 
-    it('should merge nodeUIMetadata position over content frontmatter position when both present', () => {
+    it('should generate frontmatter with position from nodeUIMetadata', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        contentWithoutYamlOrLinks: `---
-position:
-  x: 150
-  y: 250
----
-# Test Content`,
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.none,
@@ -76,23 +58,17 @@ position:
 
       const result = fromNodeToMarkdownContent(node)
 
-      // nodeUIMetadata position should win
+      // Should generate frontmatter with nodeUIMetadata position
       expect(result).toContain('position:')
       expect(result).toContain('x: 100')
       expect(result).toContain('y: 200')
-      expect(result).not.toContain('x: 150')
-      expect(result).not.toContain('y: 250')
       expect(result).toContain('# Test Content')
     })
 
-    it('should include both color and position when content has title/summary and nodeUIMetadata has both', () => {
+    it('should include both color and position when nodeUIMetadata has both', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        contentWithoutYamlOrLinks: `---
-title: "My Node"
-summary: "A summary"
----
-# Test Content`,
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#FFAA00'),
@@ -103,14 +79,11 @@ summary: "A summary"
 
       const result = fromNodeToMarkdownContent(node)
 
-      // Should have both nodeUIMetadata fields
+      // Should have both nodeUIMetadata fields in frontmatter
       expect(result).toContain('color: #FFAA00')
       expect(result).toContain('position:')
       expect(result).toContain('x: 300')
       expect(result).toContain('y: 400')
-      // Should preserve title and summary from content (quotes are optional in YAML)
-      expect(result).toContain('title: My Node')
-      expect(result).toContain('summary: A summary')
       expect(result).toContain('# Test Content')
     })
 
@@ -136,16 +109,10 @@ summary: "A summary"
       expect(result).toContain('# Test Content')
     })
 
-    it('should preserve other frontmatter fields not in nodeUIMetadata', () => {
+    it('should generate minimal frontmatter', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        contentWithoutYamlOrLinks: `---
-title: "Original Title"
-summary: "Original Summary"
-node_id: "original-id"
-custom_field: "should be preserved"
----
-# Test Content`,
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#AABBCC'),
@@ -156,21 +123,15 @@ custom_field: "should be preserved"
 
       const result = fromNodeToMarkdownContent(node)
 
-      // Should preserve all fields from content (quotes are optional for simple strings in YAML)
-      expect(result).toContain('title: Original Title')
-      expect(result).toContain('summary: Original Summary')
-      expect(result).toContain('node_id: original-id')
-      expect(result).toContain('custom_field: should be preserved')
-      // Should add nodeUIMetadata color
+      // Should only have nodeUIMetadata color
       expect(result).toContain('color: #AABBCC')
+      expect(result).toContain('# Test Content')
     })
 
-    it('should handle empty content frontmatter with nodeUIMetadata', () => {
+    it('should generate frontmatter with both color and position', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        contentWithoutYamlOrLinks: `---
----
-# Test Content`,
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#DDEEFF'),
@@ -186,6 +147,27 @@ custom_field: "should be preserved"
       expect(result).toContain('x: 10')
       expect(result).toContain('y: 20')
       expect(result).toContain('# Test Content')
+    })
+
+    it('should restore wikilinks from [link]* notation', () => {
+      const node: GraphNode = {
+        relativeFilePathIsID: 'test.md',
+        contentWithoutYamlOrLinks: '# Test\n\nThis has [other-note]* and [another]* links.',
+        outgoingEdges: [],
+        nodeUIMetadata: {
+          color: O.none,
+          position: O.none,
+          title: 'test.md'
+        }
+      }
+
+      const result = fromNodeToMarkdownContent(node)
+
+      // [link]* should be restored to [[link]]
+      expect(result).toContain('[[other-note]]')
+      expect(result).toContain('[[another]]')
+      expect(result).not.toContain('[other-note]*')
+      expect(result).not.toContain('[another]*')
     })
   })
 
@@ -227,6 +209,30 @@ custom_field: "should be preserved"
 
       expect(result).toContain('# Test Content')
       expect(result).not.toContain('[[')
+    })
+
+    it('should not duplicate wikilinks already in content as [link]*', () => {
+      const node: GraphNode = {
+        relativeFilePathIsID: 'test.md',
+        contentWithoutYamlOrLinks: '# Test\n\nSee [child1.md]* for details.',
+        outgoingEdges: [{ targetId: 'child1.md', label: '' }, { targetId: 'child2.md', label: '' }],
+        nodeUIMetadata: {
+          color: O.none,
+          position: O.none,
+          title: 'test.md'
+        }
+      }
+
+      const result = fromNodeToMarkdownContent(node)
+
+      // child1.md is already in content, so it will be restored to [[child1.md]]
+      // and shouldn't be appended again
+      expect(result).toContain('[[child1.md]]')
+      // child2.md is not in content, so it should be appended
+      expect(result).toContain('[[child2.md]]')
+      // Count occurrences - child1.md should only appear once
+      const child1Count = (result.match(/\[\[child1\.md\]\]/g) ?? []).length
+      expect(child1Count).toBe(1)
     })
   })
 })
