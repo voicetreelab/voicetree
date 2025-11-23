@@ -3,7 +3,7 @@
  * Ports the Python `visualize_markdown_tree` logic to TypeScript.
  */
 
-import type { Graph, NodeId } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
 import { reverseGraphEdges } from '../graph-operations /graph-transformations.ts'
 
 /**
@@ -32,7 +32,7 @@ import { reverseGraphEdges } from '../graph-operations /graph-transformations.ts
 
 export function graphToAscii(graph: Graph): string {
   const lines: string[] = []
-  const visited = new Set<NodeId>()
+  const visited = new Set<NodeIdAndFilePath>()
 
   // Find root nodes (nodes with no incoming edges)
   // We reverse the graph to identify which nodes have no incoming edges
@@ -46,7 +46,7 @@ export function graphToAscii(graph: Graph): string {
    * Recursive helper to print tree structure
    */
   function printTree(
-    nodeId: NodeId,
+    nodeId: NodeIdAndFilePath,
     prefix: string = '',
     isLast: boolean = true,
     isRoot: boolean = true

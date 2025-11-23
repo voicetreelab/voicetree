@@ -15,12 +15,12 @@ import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
 // CONTAINS TYPES AND FUNCTION TYPES
 
 export interface Graph {
-    readonly nodes: Record<NodeId, GraphNode>
+    readonly nodes: Record<NodeIdAndFilePath, GraphNode>
 }
 
 
 export interface Edge {
-    readonly targetId: NodeId
+    readonly targetId: NodeIdAndFilePath
     readonly label: string  // empty string if no relationship label
 }
 
@@ -28,7 +28,7 @@ export interface GraphNode {
     // CORE GRAPH STRUCTURE
     readonly outgoingEdges: readonly Edge[] // Adjacency list to children / outgoing outgoingEdges
     // incomingEdges is derived
-    readonly relativeFilePathIsID: NodeId //  we enforce relativeFilePathIsID = relativeFilePath
+    readonly relativeFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath
 
     // DATA
     readonly content: string
@@ -62,7 +62,7 @@ export interface UpsertNodeAction {
 
 export interface DeleteNode {
     readonly type: 'DeleteNode'
-    readonly nodeId: NodeId
+    readonly nodeId: NodeIdAndFilePath
 }
 
 
@@ -76,7 +76,7 @@ export interface Env {
 }
 export type FilePath = string // todo enforce only / and chars
 
-export type NodeId = FilePath
+export type NodeIdAndFilePath = FilePath
 
 export interface Position {
     readonly x: number // from top left of canvas origin?
@@ -115,11 +115,11 @@ export type SetOutgoingEdges = (node: GraphNode, edges: readonly Edge[]) => Grap
 
 export type ReverseGraphEdges = (graph: Graph) => Graph
 
-export type GetSubgraphByDistance = (graph: Graph, startNodeId: NodeId, maxDistance: number) => Graph
+export type GetSubgraphByDistance = (graph: Graph, startNodeId: NodeIdAndFilePath, maxDistance: number) => Graph
 
 export type GraphToAscii = (graph: Graph) => string
 
-export type GetNodeIdsInTraversalOrder = (graph: Graph) => readonly NodeId[]
+export type GetNodeIdsInTraversalOrder = (graph: Graph) => readonly NodeIdAndFilePath[]
 
 export type PrettyPrintGraphDelta = (delta: GraphDelta) => string
 

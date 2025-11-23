@@ -6,25 +6,9 @@
  */
 
 import type cytoscape from 'cytoscape';
-import type {FloatingWindowUIHTMLData, TerminalData} from '@/shell/edge/UI-edge/floating-windows/types.ts';
-import type {NodeId} from "@/pure/graph";
+import type {FloatingWindowData, FloatingWindowUIHTMLData} from '@/shell/edge/UI-edge/floating-windows/types.ts';
+import type {NodeIdAndFilePath} from "@/pure/graph";
 import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
-
-export interface FloatingWindowConfig {
-    id: string;
-    component: string;
-    title: string;
-    position?: { x: number; y: number };
-    nodeData?: Record<string, unknown>;
-    resizable?: boolean;
-    initialContent?: string;
-    onSave?: (content: string) => Promise<void>;
-    nodeMetadata?: TerminalData;
-    // Shadow node dimensions for layout algorithm (defaults based on component type)
-    shadowNodeDimensions?: { width: number; height: number };
-    // Cleanup callback when window is closed
-    onClose?: () => void;
-}
 
 /**
  * Get or create the shared overlay container for all floating windows
@@ -105,7 +89,7 @@ function updateShadowNodeDimensions(shadowNode: cytoscape.NodeSingular, domEleme
  */
 export function createWindowChrome(
     cy: cytoscape.Core,
-    config: FloatingWindowConfig
+    config: FloatingWindowData
 ): { windowElement: HTMLElement; contentContainer: HTMLElement; titleBar: HTMLElement } {
     const {id, title, resizable = false, component} = config;
 
@@ -312,7 +296,7 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
 export function anchorToNode(
     cy : cytoscape.Core,
     floatingWindow: FloatingWindowUIHTMLData,
-    parentNodeId: NodeId,
+    parentNodeId: NodeIdAndFilePath,
     shadowNodeData?: Record<string, unknown>
 ): cytoscape.NodeSingular {
     const {windowElement, titleBar} = floatingWindow;

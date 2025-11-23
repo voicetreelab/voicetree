@@ -1,4 +1,4 @@
-import type {GraphDelta, GraphNode, NodeId, Position, UpsertNodeAction} from "@/pure/graph";
+import type {GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeAction} from "@/pure/graph";
 import {
     createDeleteNodeAction,
     createNewNodeNoParent,
@@ -13,7 +13,7 @@ import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToU
 export async function createNewChildNodeFromUI(
     parentNodeId: string,
     cy: Core
-): Promise<NodeId> {
+): Promise<NodeIdAndFilePath> {
 
     // Get current graph state
     const currentGraph = await window.electronAPI?.main.getGraph() // todo, in memory renderer cache?
@@ -38,7 +38,7 @@ export async function createNewChildNodeFromUI(
 export async function createNewEmptyOrphanNodeFromUI(
     pos: Position,
     cy: Core
-): Promise<NodeId> {
+): Promise<NodeIdAndFilePath> {
     const {newNode, graphDelta} = createNewNodeNoParent(pos);
     // Optimistic UI-edge update: immediately add node + edge to cytoscape
     applyGraphDeltaToUI(cy, graphDelta);
@@ -49,7 +49,7 @@ export async function createNewEmptyOrphanNodeFromUI(
 }
 
 export async function modifyNodeContentFromUI(
-    nodeId: NodeId,
+    nodeId: NodeIdAndFilePath,
     newContent: string,
     cy: Core,
 ): Promise<void> {
@@ -72,7 +72,7 @@ export async function modifyNodeContentFromUI(
 }
 
 export async function deleteNodeFromUI(
-    nodeId: NodeId,
+    nodeId: NodeIdAndFilePath,
     cy: Core
 ): Promise<void> {
     // Create GraphDelta for deletion

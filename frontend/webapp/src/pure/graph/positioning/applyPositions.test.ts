@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { applyPositions } from '@/pure/graph/positioning/applyPositions.ts'
-import type { Graph, GraphNode, NodeId, Position } from '@/pure/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph'
 
 describe('applyPositions', () => {
   describe('simple cases', () => {
@@ -213,7 +213,7 @@ function seededRandom(seed: number): () => number {
 /**
  * Create a graph node with no position
  */
-function createNode(id: NodeId, outgoingEdges: readonly NodeId[]): GraphNode {
+function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFilePath[]): GraphNode {
   return {
     relativeFilePathIsID: id,
     outgoingEdges: outgoingEdges.map(targetId => ({ targetId, label: '' })),
@@ -235,8 +235,8 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
     return { nodes: {} }
   }
 
-  const nodes: Record<NodeId, GraphNode> = {}
-  const nodeIds: NodeId[] = []
+  const nodes: Record<NodeIdAndFilePath, GraphNode> = {}
+  const nodeIds: NodeIdAndFilePath[] = []
 
   // Create root node
   const rootId = 'node_0.md'
@@ -255,7 +255,7 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
     // Random number of children (0 to maxChildren)
     const childCount = Math.floor(Math.random() * (maxChildren + 1))
 
-    const children: NodeId[] = []
+    const children: NodeIdAndFilePath[] = []
     for (let i = 0; i < childCount && nextNodeIndex < nodeCount; i++) {
       const childId = `node_${nextNodeIndex}.md`
       nodeIds.push(childId)
@@ -281,7 +281,7 @@ function generateRandomNAryTree(nodeCount: number, maxChildren: number): Graph {
  * Generate a deep tree with specified depth (one child per node)
  */
 function generateDeepTree(depth: number): Graph {
-  const nodes: Record<NodeId, GraphNode> = {}
+  const nodes: Record<NodeIdAndFilePath, GraphNode> = {}
 
   for (let i = 0; i < depth; i++) {
     const nodeId = `node_${i}.md`

@@ -3,7 +3,7 @@
  * These functions transform entire graphs, operating on all nodes at once.
  */
 
-import type { Graph, GraphNode, NodeId } from '@/pure/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
 import { setOutgoingEdges } from './graph-edge-operations.ts'
 
 /**
@@ -23,14 +23,14 @@ import { setOutgoingEdges } from './graph-edge-operations.ts'
 export function reverseGraphEdges(graph: Graph): Graph {
     // Build map of incoming edges with their labels preserved
     // Map: targetId -> Array<{ sourceId, label }>
-    type IncomingEdge = { readonly sourceId: NodeId; readonly label: string }
-    const initialIncomingEdgesMap = Object.keys(graph.nodes).reduce<Record<NodeId, readonly IncomingEdge[]>>(
+    type IncomingEdge = { readonly sourceId: NodeIdAndFilePath; readonly label: string }
+    const initialIncomingEdgesMap = Object.keys(graph.nodes).reduce<Record<NodeIdAndFilePath, readonly IncomingEdge[]>>(
         (acc, nodeId) => ({ ...acc, [nodeId]: [] }),
         {}
     )
 
     // Compute incoming edges for all nodes by scanning all outgoing edges
-    const incomingEdgesMap = Object.entries(graph.nodes).reduce<Record<NodeId, readonly IncomingEdge[]>>(
+    const incomingEdgesMap = Object.entries(graph.nodes).reduce<Record<NodeIdAndFilePath, readonly IncomingEdge[]>>(
         (acc, [sourceId, node]) => {
             // For each outgoing edge sourceId -> targetId with label,
             // add {sourceId, label} to targetId's incoming edges
@@ -46,7 +46,7 @@ export function reverseGraphEdges(graph: Graph): Graph {
     )
 
     // Create new graph where outgoing edges are the previous incoming edges (with labels preserved)
-    const newNodes = Object.entries(graph.nodes).reduce<Record<NodeId, GraphNode>>(
+    const newNodes = Object.entries(graph.nodes).reduce<Record<NodeIdAndFilePath, GraphNode>>(
         (acc, [nodeId, node]) => {
             const incomingEdges = incomingEdgesMap[nodeId] || []
 

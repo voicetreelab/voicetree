@@ -20,7 +20,7 @@ import {
 } from '@/shell/UI/floating-windows/cytoscape-floating-windows.ts';
 import type {Position} from '../../views/IVoiceTreeGraphView.ts';
 import type {HotkeyManager} from '../../views/HotkeyManager.ts';
-import type {Graph, GraphDelta, NodeId} from '@/pure/graph';
+import type {Graph, GraphDelta, NodeIdAndFilePath} from '@/pure/graph';
 import {nodeIdToFilePathWithExtension} from '@/pure/graph/markdown-parsing';
 import { CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
 import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
@@ -47,7 +47,7 @@ export async function createFloatingEditor(
     cy: cytoscape.Core,
     nodeId: string,
     editorRegistry: Map<string, string>,
-    awaitingUISavedContent: Map<NodeId, string>
+    awaitingUISavedContent: Map<NodeIdAndFilePath, string>
 ): Promise<FloatingWindowUIHTMLData | undefined> {
     // Derive editor ID from node ID
     const id = `${nodeId}-editor`;
@@ -157,10 +157,10 @@ export class FloatingEditorManager {
     private currentHoverEditor: HTMLElement | null = null;
 
     // Track which editors are open for each node (for external content updates)
-    private nodeIdToEditorId = new Map<NodeId, string>();
+    private nodeIdToEditorId = new Map<NodeIdAndFilePath, string>();
 
     // Track content that we're saving from the UI-edge to prevent feedback loop
-    private awaitingUISavedContent = new Map<NodeId, string>();
+    private awaitingUISavedContent = new Map<NodeIdAndFilePath, string>();
 
     constructor(
         cy: Core,
@@ -205,7 +205,7 @@ export class FloatingEditorManager {
      * Creates a child shadow node and anchors the editor to it
      */
     async createAnchoredFloatingEditor(
-        nodeId: NodeId
+        nodeId: NodeIdAndFilePath
     ): Promise<void> {
         try {
             // Create floating editor window with parent node and editor registry
@@ -398,7 +398,7 @@ export class FloatingEditorManager {
      * Get absolute file path for a node ID
      * Constructs path from vaultPath + nodeId.md
      */
-    async getFilePathForNode(nodeId: NodeId): Promise<string | undefined> {
+    async getFilePathForNode(nodeId: NodeIdAndFilePath): Promise<string | undefined> {
         const status = await window.electronAPI?.main.getWatchStatus();
         const vaultPath = status?.directory;
         if (!vaultPath) {

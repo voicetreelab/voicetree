@@ -1,4 +1,4 @@
-import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeId, FSUpdate, Graph} from '@/pure/graph/index.ts'
+import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeIdAndFilePath, FSUpdate, Graph} from '@/pure/graph/index.ts'
 import path from 'path'
 import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils.ts'
 import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations.ts'
@@ -95,7 +95,7 @@ function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph
  * @param vaultPath - Absolute absolutePath to the vault (e.g., "/absolutePath/to/vault")
  * @returns GraphNode ID with relative absolutePath preserved (e.g., "subfolder/MyNote")
  */
-function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeId {
+function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeIdAndFilePath {
   // Normalize paths to handle trailing slashes
   const normalizedVault = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/'
 

@@ -1,4 +1,4 @@
-import type { NodeId } from '@/pure/graph'
+import type { NodeIdAndFilePath } from '@/pure/graph'
 
 /**
  * Converts a filename to a node ID by removing the .md extension.
@@ -23,7 +23,7 @@ import type { NodeId } from '@/pure/graph'
  * // => "concepts/architecture"
  * ```
  */
-export function filenameToNodeId(filename: string): NodeId {
+export function filenameToNodeId(filename: string): NodeIdAndFilePath {
   // DO NOT Strip .md extension
   return filename;
   // todo, at some point we need to think about whether node relativeFilePathIsID should be filepath, node counter
@@ -46,6 +46,6 @@ export function filenameToNodeId(filename: string): NodeId {
  * // => "subfolder/another-node.md"
  * ```
  */
-export function nodeIdToFilePathWithExtension(nodeId: NodeId): string {
+export function nodeIdToFilePathWithExtension(nodeId: NodeIdAndFilePath): string {
     return nodeId.includes(".md") ? `${nodeId}` : nodeId + ".md"; // assumes md only
 }
