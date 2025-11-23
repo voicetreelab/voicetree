@@ -12,11 +12,11 @@ export function registerTerminalIpcHandlers(
   // Terminal IPC handlers - kept here since they need event.sender
   // ============================================================================
 
-  ipcMain.handle('terminal:spawn', async (event, nodeMetadata) => {
+  ipcMain.handle('terminal:spawn', async (event, terminalData) => {
     console.log('[MAIN] terminal:spawn IPC called, event.sender.id:', event.sender.id)
     const result = await terminalManager.spawn(
       event.sender,
-      nodeMetadata,
+      terminalData,
       () => getWatchedDirectory(),
       getToolsDirectory
     )

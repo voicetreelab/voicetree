@@ -3,13 +3,7 @@ import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
-
-interface NodeMetadata { // TODO remove, use TerminalData
-  filePath?: string;
-  extraEnv?: Record<string, string>;
-  initialCommand?: string;
-  executeCommand?: boolean;
-}
+import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types.ts";
 
 interface TerminalSpawnResult {
   success: boolean;
@@ -26,7 +20,7 @@ interface TerminalOperationResult {
  * Deep module for managing PTY terminals in the Electron app.
  *
  * Public API:
- * - spawn(sender, nodeMetadata, getWatchedDirectory, getToolsDirectory)
+ * - spawn(sender, terminalData, getWatchedDirectory, getToolsDirectory)
  * - write(terminalId, data)
  * - resize(terminalId, cols, rows)
  * - kill(terminalId)
@@ -45,22 +39,21 @@ export default class TerminalManager {
   private terminalToWindow = new Map<string, number>();
 
   /**
-   * Spawn a new PTY terminal with optional node metadata for environment variables
+   * Spawn a new PTY terminal with terminal data for environment variables
    */
-  async spawn( // todo, this should take just a TerminalData object
+  async spawn(
     sender: WebContents,
-    nodeMetadata: NodeMetadata | undefined,
+    terminalData: TerminalData,
     getWatchedDirectory: () => string | null,
-    getToolsDirectory: () => string,
-      // terminalData: TerminalData
+    getToolsDirectory: () => string
   ): Promise<TerminalSpawnResult> {
     try {
-      const terminalId = `term-${Date.now()}`;
+      const terminalId = getTerminalId(terminalData);
 
       // Determine shell based on platform
       const shell = process.platform === 'win32'
         ? 'powershell.exe'
-        : process.env.SHELL || '/bin/bash';
+        : process.env.SHELL ?? '/bin/bash';
 
       // Don't use login shell flag because:
       // 1. fix-absolutePath already fixed the PATH in main.ts
@@ -74,18 +67,16 @@ export default class TerminalManager {
         await fs.access(cwd);
       } catch {
         console.log('[Terminal] Tools directory not found, falling back to home directory');
-        cwd = process.env.HOME || process.cwd();
+        cwd = process.env.HOME ?? process.cwd();
       }
 
-      // Build custom environment with node metadata
-      const customEnv = this.buildEnvironment(nodeMetadata, getWatchedDirectory);
+      // Build custom environment with terminal data
+      const customEnv = this.buildEnvironment(terminalData, getWatchedDirectory);
 
       console.log(`Spawning PTY with shell: ${shell} in directory: ${cwd}`);
       console.log(`[TerminalManager] OBSIDIAN_VAULT_PATH in customEnv: ${customEnv.OBSIDIAN_VAULT_PATH}`);
       console.log(`[TerminalManager] OBSIDIAN_SOURCE_NOTE in customEnv: ${customEnv.OBSIDIAN_SOURCE_NOTE}`);
-      if (nodeMetadata) {
-        console.log(`Node metadata:`, nodeMetadata);
-      }
+      console.log(`Terminal data:`, terminalData);
 
       // Create PTY instance
       // PATH is already fixed by fix-absolutePath in main.ts
@@ -107,11 +98,11 @@ export default class TerminalManager {
       this.terminalToWindow.set(terminalId, sender.id);
 
       // Write initial command if provided (without newline, so it's not executed)
-      if (nodeMetadata?.initialCommand) {
-        console.log(`[TerminalManager] Writing initial command: ${nodeMetadata.initialCommand}`);
-        const command = nodeMetadata.executeCommand
-          ? nodeMetadata.initialCommand + '\r'
-          : nodeMetadata.initialCommand;
+      if (terminalData.initialCommand) {
+        console.log(`[TerminalManager] Writing initial command: ${terminalData.initialCommand}`);
+        const command = terminalData.executeCommand
+          ? terminalData.initialCommand + '\r'
+          : terminalData.initialCommand;
         // Wait a bit for shell prompt to appear before writing
         setTimeout(() => {
           ptyProcess.write(command);
@@ -282,58 +273,54 @@ export default class TerminalManager {
   }
 
   /**
-   * Build environment variables for the terminal, including node metadata
+   * Build environment variables for the terminal, including terminal data
    * Note: PATH is already fixed by fix-absolutePath in main.ts
    */
   private buildEnvironment(
-    nodeMetadata: NodeMetadata | undefined,
+    terminalData: TerminalData,
     getWatchedDirectory: () => string | null
   ): NodeJS.ProcessEnv {
     console.log(`[TerminalManager] process.env.OBSIDIAN_VAULT_PATH BEFORE copy: ${process.env.OBSIDIAN_VAULT_PATH}`);
     const customEnv = { ...process.env };
 
     // Extra env vars (e.g., agent info)
-    if (nodeMetadata?.extraEnv) {
-    console.log(`[TerminalManager] extraEnv:`, nodeMetadata.extraEnv);
-    if (nodeMetadata.extraEnv.OBSIDIAN_VAULT_PATH) {
-      console.log(`[TerminalManager] WARNING: extraEnv contains OBSIDIAN_VAULT_PATH: ${nodeMetadata.extraEnv.OBSIDIAN_VAULT_PATH}`);
-    }
-    Object.assign(customEnv, nodeMetadata.extraEnv);
+    if (terminalData.initialEnvVars) {
+      console.log(`[TerminalManager] initialEnvVars:`, terminalData.initialEnvVars);
+      if (terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH) {
+        console.log(`[TerminalManager] WARNING: initialEnvVars contains OBSIDIAN_VAULT_PATH: ${terminalData.initialEnvVars.OBSIDIAN_VAULT_PATH}`);
+      }
+      Object.assign(customEnv, terminalData.initialEnvVars);
     }
 
     // Always set vault absolutePath from watched directory
     const watchedDir = getWatchedDirectory();
-    const vaultPath = watchedDir || process.cwd();
+    const vaultPath = watchedDir ?? process.cwd();
     console.log(`[TerminalManager] getWatchedDirectory() returned: ${watchedDir}`);
     console.log(`[TerminalManager] Using vault path: ${vaultPath}`);
     customEnv.OBSIDIAN_VAULT_PATH = vaultPath;
 
-    if (nodeMetadata) {
-      // Set node-based environment variables
-      if (nodeMetadata.filePath) {
-
-        // Convert absolute absolutePath to relative absolutePath from vault root if needed
-        let relativePath = nodeMetadata.filePath;
-        if (path.isAbsolute(nodeMetadata.filePath)) {
-          // If filePath is absolute, make it relative to vault absolutePath
-          relativePath = path.relative(vaultPath, nodeMetadata.filePath);
-        }
-
-        // OBSIDIAN_SOURCE_NOTE is the relative absolutePath from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
-        customEnv.OBSIDIAN_SOURCE_NOTE = relativePath;
-
-        // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03" or ".")
-        customEnv.OBSIDIAN_SOURCE_DIR = path.dirname(relativePath);
-
-        // OBSIDIAN_SOURCE_NAME is the filename with extension (e.g., "23_Commitment.md")
-        customEnv.OBSIDIAN_SOURCE_NAME = path.basename(relativePath);
-
-        // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
-        const ext = path.extname(relativePath);
-        customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
+    // Set node-based environment variables from attachedToNodeId
+    const filePath = terminalData.attachedToNodeId;
+    if (filePath) {
+      // Convert absolute absolutePath to relative absolutePath from vault root if needed
+      let relativePath = filePath;
+      if (path.isAbsolute(filePath)) {
+        // If filePath is absolute, make it relative to vault absolutePath
+        relativePath = path.relative(vaultPath, filePath);
       }
 
+      // OBSIDIAN_SOURCE_NOTE is the relative absolutePath from vault root (e.g., "2025-10-03/23_Commitment.md" or "14_File.md")
+      customEnv.OBSIDIAN_SOURCE_NOTE = relativePath;
 
+      // OBSIDIAN_SOURCE_DIR is just the directory part (e.g., "2025-10-03" or ".")
+      customEnv.OBSIDIAN_SOURCE_DIR = path.dirname(relativePath);
+
+      // OBSIDIAN_SOURCE_NAME is the filename with extension (e.g., "23_Commitment.md")
+      customEnv.OBSIDIAN_SOURCE_NAME = path.basename(relativePath);
+
+      // OBSIDIAN_SOURCE_BASENAME is filename without extension (e.g., "23_Commitment")
+      const ext = path.extname(relativePath);
+      customEnv.OBSIDIAN_SOURCE_BASENAME = path.basename(relativePath, ext);
     }
 
     return customEnv;

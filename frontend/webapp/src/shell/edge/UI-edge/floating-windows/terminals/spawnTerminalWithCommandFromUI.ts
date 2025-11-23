@@ -7,12 +7,83 @@ import {
 } from "@/shell/UI/floating-windows/cytoscape-floating-windows.ts";
 import {TerminalVanilla} from "@/shell/UI/floating-windows/terminals/TerminalVanilla.ts";
 import posthog from "posthog-js";
-import type {
-    FloatingWindowUIHTMLData,
-    TerminalData
-} from "@/shell/edge/UI-edge/floating-windows/types.ts";
-import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
+import type {FloatingWindowUIHTMLData, TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import {getTerminalId} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import {
+    addTerminalToMapState,
+    getNextTerminalCount,
+    getTerminals,
+    removeTerminalFromMapState,
+    vanillaFloatingWindowInstances
+} from "@/shell/edge/UI-edge/state/UIAppState.ts";
+import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+import {createContextNode} from "@/shell/edge/main/graph/createContextNode.ts";
 
+
+/**
+ * Spawn a terminal with a new context node
+ * Creates a context node for the parent, then spawns a terminal attached to that context node
+ * with the context node content as an environment variable (initial_content)
+ *
+ * @param parentNodeId - The parent node to create context for
+ * @param cy - Cytoscape instance
+ */
+export async function spawnTerminalWithNewContextNode(
+    parentNodeId: NodeIdAndFilePath,
+    cy: Core,
+): Promise<void> {
+    const terminals = getTerminals();
+
+    // Load settings to get the agentCommand
+    const settings = await window.electronAPI?.main.loadSettings();
+    if (!settings) {
+        throw Error(`Failed to load settings for ${parentNodeId}`);
+    }
+    const agentCommand = settings.agentCommand;
+
+    // Create context node for the parent
+    const contextNodeId = await createContextNode(parentNodeId);
+
+    // Get the context node to read its content
+    const contextNode = await getNodeFromMainToUI(contextNodeId);
+    const contextContent = contextNode.content;
+
+    // Get next terminal count for the context node
+    const terminalCount = getNextTerminalCount(terminals, contextNodeId);
+
+    // Get context node title for the terminal window
+    const title = contextNode.nodeUIMetadata.title;
+
+    // Create TerminalData object with initial_content env var
+    const terminalId = `${contextNodeId}-terminal-${terminalCount}`;
+    const terminalData: TerminalData = {
+        attachedToNodeId: contextNodeId,
+        terminalCount: terminalCount,
+        initialCommand: agentCommand,
+        executeCommand: true,
+        initialEnvVars: {
+            initial_content: contextContent
+        },
+        floatingWindow: {
+            cyAnchorNodeId: contextNodeId,
+            id: terminalId,
+            component: 'Terminal',
+            title: title,
+            resizable: true
+            // shadowNodeDimensions will use defaults: { width: 600, height: 400 }
+        }
+    };
+
+    // Position the terminal near the context node
+    const targetNode = cy.getElementById(contextNodeId);
+    if (targetNode.length > 0) {
+        const nodePos = targetNode.position();
+        await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
+    }
+
+    // Store terminal in state
+    addTerminalToMapState(terminalData);
+}
 
 /**
  * Spawn a terminal for a node
@@ -20,44 +91,68 @@ import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppSt
  *
  * @param nodeId - The node ID to spawn terminal for
  * @param cy - Cytoscape instance
- * @param createFloatingTerminal - Function to create the floating terminal window
  */
 export async function spawnTerminalForNode(
     nodeId: NodeIdAndFilePath,
     cy: Core,
 ): Promise<void> {
+    const terminals = getTerminals();
     // Load settings to get the agentCommand
     const settings = await window.electronAPI?.main.loadSettings();
-    const agentCommand = settings?.agentCommand ?? './claude.sh';
+    if (!settings) {
+        throw Error(`Failed to load settings for ${nodeId}`);
+    }
+    const agentCommand = settings.agentCommand;
 
-    const nodeMetadata: TerminalData = {
-        terminalId: nodeId,
-        name: nodeId.replace(/_/g, ' '),
+    // Get next terminal count for this node
+    const terminalCount = getNextTerminalCount(terminals, nodeId);
+
+    // Get node title for the terminal window
+    const node = await getNodeFromMainToUI(nodeId);
+    const title = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
+
+    // Create TerminalData object with floatingWindow populated
+    const terminalId = `${nodeId}-terminal-${terminalCount}`;
+    const terminalData: TerminalData = {
+        attachedToNodeId: nodeId,
+        terminalCount: terminalCount,
         initialCommand: agentCommand,
-        executeCommand: true
+        executeCommand: true,
+        floatingWindow: {
+            cyAnchorNodeId: nodeId,
+            id: terminalId,
+            component: 'Terminal',
+            title: title,
+            resizable: true
+            // shadowNodeDimensions will use defaults: { width: 600, height: 400 }
+        }
     };
 
     const targetNode = cy.getElementById(nodeId);
     if (targetNode.length > 0) {
         const nodePos = targetNode.position();
-        await createFloatingTerminal(cy, nodeId, nodeMetadata, nodePos)
+        await createFloatingTerminal(cy, nodeId, terminalData, nodePos);
     }
+    // Store terminal in state (mutate the global Map for now, can be refactored later)
+    addTerminalToMapState(terminalData);
 }
-    /**
-     * Create a floating terminal window
-     */
-    async function createFloatingTerminal(
-        cy : Core,
-        nodeId: string,
-        nodeMetadata: { id: string; name: string; filePath?: string },
+
+
+/**
+ * Create a floating terminal window
+ */
+export async function createFloatingTerminal(
+    cy: Core,
+    nodeId: string,
+    terminalData: TerminalData,
     nodePos: Position
 ): Promise<void> {
-        const terminalId = `${nodeId}-terminal`;
-        console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
+    const terminalId = getTerminalId(terminalData);
+    console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
 
-        // Check if already exists
-        const existing = cy.nodes(`#${terminalId}`);
-        if (existing && existing.length > 0) {
+    // Check if already exists
+    const existing = cy.nodes(`#${terminalId}`);
+    if (existing && existing.length > 0) {
         console.log('[FloatingWindowManager] Terminal already exists');
         return;
     }
@@ -68,17 +163,21 @@ export async function spawnTerminalForNode(
 
     try {
         // Get parent node's title
-        const {getNodeFromMainToUI} = await import("@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts");
         const node = await getNodeFromMainToUI(nodeId);
         const title = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
 
-        // Create floating terminal window
-        const floatingWindow = createFloatingTerminalWindow(this.cy, {
+        // Populate floatingWindow field in terminalData
+        terminalData.floatingWindow = {
+            cyAnchorNodeId: nodeId,
             id: terminalId,
+            component: 'Terminal',
             title: title,
-            nodeMetadata: nodeMetadata,
             resizable: true
-        });
+            // shadowNodeDimensions will use defaults: { width: 600, height: 400 }
+        };
+
+        // Create floating terminal window
+        const floatingWindow = createFloatingTerminalWindow(cy, terminalData);
 
         if (parentNodeExists) {
             // Anchor to parent node
@@ -104,15 +203,14 @@ export async function spawnTerminalForNode(
  */
 export function createFloatingTerminalWindow(
     cy: cytoscape.Core,
-    config: {
-        id: string;
-        title: string;
-        nodeMetadata: TerminalData;
-        onClose?: () => void;
-        resizable?: boolean;
-    }
+    terminalData: TerminalData
 ): FloatingWindowUIHTMLData {
-    const {id, title, nodeMetadata, onClose, resizable = true} = config;
+    // Extract window configuration from terminalData.floatingWindow
+    if (!terminalData.floatingWindow) {
+        throw new Error('TerminalData must have floatingWindow field populated');
+    }
+
+    const {id, title, resizable = true, onClose} = terminalData.floatingWindow;
 
     // Get overlay
     const overlay = getOrCreateOverlay(cy);
@@ -123,14 +221,14 @@ export function createFloatingTerminalWindow(
         title,
         component: 'Terminal',
         resizable,
-        terminalMetadata: nodeMetadata
+        cyAnchorNodeId: terminalData.attachedToNodeId
     });
 
     // Create Terminal instance
     const terminal = new TerminalVanilla({
         container: contentContainer,
-        nodeMetadata
-    });
+        terminalData: terminalData
+    }); // todo, move this up one level.
 
     // Store for cleanup
     vanillaFloatingWindowInstances.set(id, terminal);
@@ -147,6 +245,9 @@ export function createFloatingTerminalWindow(
         cleanup: () => {
             // Analytics: Track terminal closed
             posthog.capture('terminal_closed', { terminalId: id });
+
+            // Remove from state
+            removeTerminalFromMapState(terminalData);
 
             const vanillaInstance = vanillaFloatingWindowInstances.get(id);
             if (vanillaInstance) {
@@ -178,4 +279,3 @@ export function createFloatingTerminalWindow(
 
     return floatingWindow;
 }
-
