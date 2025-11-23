@@ -4,6 +4,9 @@ import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
 import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
 import type {NodeIdAndFilePath} from "@/pure/graph";
+import {
+    spawnTerminalWithNewContextNode
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts";
 
 export interface Position {
     x: number;
@@ -231,8 +234,7 @@ export class ContextMenuService {
 
     private createTerminalFromContextMenu(nodeId: string) {
         return async () => {
-            const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts');
-            await spawnTerminalForNode(
+            await spawnTerminalWithNewContextNode(
                 nodeId,
                 this.cy!
             );

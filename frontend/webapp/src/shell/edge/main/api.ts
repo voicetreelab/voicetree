@@ -3,10 +3,11 @@ import {getGraph} from '@/shell/edge/main/state/graph-store.ts'
 import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO.ts'
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching} from './graph/watchFolder.ts'
 import {getBackendPort} from "@/shell/edge/main/state/app-electron-state.ts";
+import {createContextNode} from "@/shell/edge/main/graph/createContextNode.ts";
 
 export const mainAPI = {
   // Graph operations - renderer-friendly wrappers
-  applyGraphDeltaToDBAndMem: applyGraphDeltaToDBThroughMem,
+  applyGraphDeltaToDBThroughMem,
 
   getGraph,
 
@@ -26,4 +27,6 @@ export const mainAPI = {
 
   // Backend port
   getBackendPort,
+
+    createContextNode
 }

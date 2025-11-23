@@ -4,7 +4,7 @@
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GraphDelta} from "@/pure/graph";
 import type {ElectronAPI, Promisify} from '@/utils/types/electron';
-import type {mainAPI} from '@/shell/edge/main/api.ts';
+import type {MainAPI} from '@/shell/edge/main/api-types.ts';
 
 // Async function to build and expose the electronAPI
 // This allows us to dynamically fetch API keys from main process at runtime
@@ -21,7 +21,7 @@ async function exposeElectronAPI(): Promise<void> {
     // Step 3: Build electronAPI with dynamically generated wrappers
     const electronAPI: ElectronAPI = {
         // Zero-boilerplate RPC pattern - automatic type inference from mainAPI
-        main: mainAPIWrappers as unknown as Promisify<typeof mainAPI>,
+        main: mainAPIWrappers as unknown as Promisify<MainAPI>,
 
         // Directory selection
         // openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),

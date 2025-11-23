@@ -148,7 +148,7 @@ graph TD
 ```typescript
 // In mainAPI (main process) - THE ONLY PLACE TO EDIT
 export const mainAPI = {
-    applyGraphDeltaToDBAndMem: async (delta: GraphDelta): Promise<void> => {...
+    applyGraphDeltaToDBThroughMem: async (delta: GraphDelta): Promise<void> => {...
     },
     getGraph: async () => getGraph(),
     loadSettings,

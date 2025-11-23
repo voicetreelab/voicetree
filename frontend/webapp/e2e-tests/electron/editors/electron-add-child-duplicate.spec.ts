@@ -231,7 +231,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       ];
 
       // Send to backend (which will update UI-edge and write to file system)
-      await api.main.applyGraphDeltaToDBAndMem(graphDelta);
+      await api.main.applyGraphDeltaToDBThroughMem(graphDelta);
 
       return childId;
     });
