@@ -33,7 +33,7 @@ cytoscape.use(navigator);
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService.ts';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts';
 import {ContextMenuService} from '@/shell/UI/cytoscape-graph-ui/services/ContextMenuService.ts';
-import {FloatingEditorManager} from '../floating-windows/editors/FloatingEditorManager.ts';
+import {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
 import {HotkeyManager} from './HotkeyManager.ts';
 import {SearchService} from './SearchService.ts';
 import {GraphNavigationService} from './GraphNavigationService.ts';
@@ -46,7 +46,13 @@ import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGrap
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts';
 import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState.ts';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor.ts";
-import {spawnTerminalForNode} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts";
+
+import {
+    spawnBackupTerminal,
+    spawnTerminalWithSyntheticParent
+} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal.ts";
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/UIAppState.ts";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -273,7 +279,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Create speed dial menu
         this.speedDialMenu = new SpeedDialSideGraphFloatingMenuView(this.container, {
             onToggleDarkMode: () => this.toggleDarkMode(),
-            onBackup: () => { void this.createBackupTerminal(); },
+            onBackup: () => { void spawnBackupTerminal(this.cy); },
             onSettings: () => void createSettingsEditor(this.cy),
             onAbout: () => console.log('[SpeedDial] About clicked'),
             isDarkMode: this._isDarkMode,
@@ -618,63 +624,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             nodeCount: cy.nodes().length,
             edgeCount: cy.edges().length
         };
-    }
-
-    /**
-     * Creates a floating terminal with pre-pasted backup command
-     * Command moves vault to timestamped backup folder and recreates empty vault
-     */
-    async createBackupTerminal(): Promise<void> {
-        // Get watch directory from IPC
-        const status = await window.electronAPI?.main.getWatchStatus();
-        const watchDir = status?.directory;
-
-        if (!watchDir) {
-            console.warn('[backup] No watched directory available');
-            return;
-        }
-
-        // Extract vault folder name for backup naming
-        const vaultName = watchDir.split('/').pop() ?? 'vault';
-
-        // Generate command: move vault to timestamped backup, then recreate empty vault
-        const backupCommand = `mkdir -p "${watchDir}/../backups" && mv "${watchDir}" "${watchDir}/../backups/${vaultName}-$(date +%Y%m%d-%H%M%S)" && mkdir -p "${watchDir}"`;
-
-        // Create metadata for terminal with pre-pasted command
-        const terminalMetadata = {
-            id: 'backup-terminal',
-            name: 'Backup Terminal',
-            initialCommand: backupCommand,
-        };
-
-        // Get position in center of current viewport (where user is looking)
-        const cy = this.cy;
-        const pan = cy.pan();
-        const zoom = cy.zoom();
-        const centerX = (cy.width() / 2 - pan.x) / zoom;
-        const centerY = (cy.height() / 2 - pan.y) / zoom;
-
-        // Create floating terminal with pre-pasted command
-        await spawnTerminalForNode(
-            'backup',
-            terminalMetadata,
-            {x: centerX, y: centerY} // todo, allow no node?
-        );
-
-        // Fit the graph to include the newly spawned terminal
-        setTimeout(() => {
-            const terminalNode = cy.$('#terminal-backup');
-            if (terminalNode.length > 0) {
-                cy.fit(terminalNode, 50); // 50px padding
-            }
-        }, 50);
-
-        setTimeout(() => {
-            const terminalNode = cy.$('#terminal-backup');
-            if (terminalNode.length > 0) {
-                cy.fit(terminalNode, 50); // 50px padding
-            }
-        }, 800); // also after auto layout
     }
 
     // ============================================================================
