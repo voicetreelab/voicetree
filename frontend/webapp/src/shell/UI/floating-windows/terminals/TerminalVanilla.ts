@@ -9,7 +9,7 @@ import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types.t
 import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen.ts';
 
 export interface TerminalVanillaConfig {
-  nodeMetadata?: TerminalData;
+  terminalData: TerminalData;
   container: HTMLElement;
 }
 
@@ -21,14 +21,14 @@ export class TerminalVanilla {
   private terminalId: string | null = null;
   private fitAddon: FitAddon | null = null;
   private container: HTMLElement;
-  private nodeMetadata?: TerminalData;
+  private terminalData: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
   private fullscreen: FloatingWindowFullscreen;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
-    this.nodeMetadata = config.nodeMetadata;
+    this.terminalData = config.terminalData;
 
     // Setup fullscreen with callback to fit terminal when fullscreen changes
     this.fullscreen = new FloatingWindowFullscreen(config.container, () => {
@@ -128,7 +128,7 @@ export class TerminalVanilla {
       return;
     }
 
-    const result = await window.electronAPI.terminal.spawn(this.nodeMetadata);
+    const result = await window.electronAPI.terminal.spawn(this.terminalData);
 
     if (result.success && result.terminalId) {
       this.terminalId = result.terminalId;

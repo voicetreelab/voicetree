@@ -41,7 +41,7 @@ async function exposeElectronAPI(): Promise<void> {
 
         // Terminal API
         terminal: {
-            spawn: (nodeMetadata) => ipcRenderer.invoke('terminal:spawn', nodeMetadata),
+            spawn: (terminalData) => ipcRenderer.invoke('terminal:spawn', terminalData),
             write: (terminalId, data) => ipcRenderer.invoke('terminal:write', terminalId, data),
             resize: (terminalId, cols, rows) => ipcRenderer.invoke('terminal:resize', terminalId, cols, rows),
             kill: (terminalId) => ipcRenderer.invoke('terminal:kill', terminalId),

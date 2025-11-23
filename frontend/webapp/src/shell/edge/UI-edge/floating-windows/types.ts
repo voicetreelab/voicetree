@@ -18,14 +18,18 @@ export interface TerminalData {
     floatingWindow?: FloatingWindowData;
 }
 export type TerminalId = string;
-// function getIdForTerminal(td TerminalData) : TerminalId =>  td.attachedToNodeId + "-terminal" + td.terminalCount;
+
+// Generate a unique terminal ID from TerminalData
+export function getTerminalId(td: TerminalData): TerminalId {
+    return `${td.attachedToNodeId}-terminal-${td.terminalCount}`;
+}
 
 /**
  * FloatingWindow object returned by component creation functions
  * Provides access to DOM elements and cleanup
  */
 export interface FloatingWindowUIHTMLData {
-    id: string;
+    id: string; // we want to avoid using this, ideally we remove it in the future and use just the terminal / editor id
     windowElement: HTMLElement;
     contentContainer: HTMLElement;
     titleBar: HTMLElement;
@@ -34,7 +38,7 @@ export interface FloatingWindowUIHTMLData {
 
 export interface FloatingWindowData {
     cyAnchorNodeId: string;
-    id: string;
+    id: string; // we want to avoid using this, ideally we remove it in the future and use just the terminal / editor id
     component: FloatingWindowType;
     title: string;
     HTMLData?: FloatingWindowUIHTMLData
