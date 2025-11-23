@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { apply_graph_deltas_to_db } from '@/pure/graph/graphActionsToDBEffects.ts'
+import { apply_graph_deltas_to_db } from '@/shell/edge/main/graph/graphActionsToDBEffects.ts'
 import type { DeleteNode, Env, UpsertNodeAction, GraphNode } from '@/pure/graph/index.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'

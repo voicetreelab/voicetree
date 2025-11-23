@@ -2,7 +2,7 @@ import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, Po
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
-import * as O from "fp-ts/Option";
+import * as O from "fp-ts/lib/Option.js";
 
 /**
  * Pure action creator functions.

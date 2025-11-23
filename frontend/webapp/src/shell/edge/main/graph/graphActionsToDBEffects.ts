@@ -4,7 +4,7 @@ import type {
     GraphNode as GraphNode,
     Env,
     NodeIdAndFilePath
-} from '@/pure/graph/index.ts'
+} from '@/pure/graph'
 import * as TE from 'fp-ts/lib/TaskEither.js'
 import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
 import { pipe } from 'fp-ts/lib/function.js'

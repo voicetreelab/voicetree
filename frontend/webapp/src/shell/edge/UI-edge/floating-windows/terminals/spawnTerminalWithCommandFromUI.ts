@@ -17,7 +17,6 @@ import {
     vanillaFloatingWindowInstances
 } from "@/shell/edge/UI-edge/state/UIAppState.ts";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
-import {createContextNode} from "@/shell/edge/main/graph/createContextNode.ts";
 
 
 /**
@@ -42,7 +41,10 @@ export async function spawnTerminalWithNewContextNode(
     const agentCommand = settings.agentCommand;
 
     // Create context node for the parent
-    const contextNodeId = await createContextNode(parentNodeId);
+    const contextNodeId = await window.electronAPI?.main.createContextNode(parentNodeId);
+    if (!contextNodeId) {
+        throw Error(`Failed to create contextNodeId ${contextNodeId}`);
+    }
 
     // Get the context node to read its content
     const contextNode = await getNodeFromMainToUI(contextNodeId);
@@ -75,14 +77,20 @@ export async function spawnTerminalWithNewContextNode(
     };
 
     // Position the terminal near the context node
-    const targetNode = cy.getElementById(contextNodeId);
-    if (targetNode.length > 0) {
-        const nodePos = targetNode.position();
-        await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
-    }
+    setTimeout(async () => {
+        const targetNode = cy.getElementById(contextNodeId);
 
-    // Store terminal in state
-    addTerminalToMapState(terminalData);
+        const nodePos = targetNode.position();
+        console.log("spawn terminal: " + terminalId);
+        await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
+        console.log("spawned terminal: " + terminalId);
+
+
+        // Store terminal in state
+        addTerminalToMapState(terminalData);
+    }, 1000); // todo remove this hack, need to actually notify on ready? push all into main?
+    // will need to contextNode is ready....
+
 }
 
 /**
@@ -234,7 +242,7 @@ export function createFloatingTerminalWindow(
     vanillaFloatingWindowInstances.set(id, terminal);
 
     // Analytics: Track terminal opened
-    posthog.capture('terminal_opened', { terminalId: id });
+    posthog.capture('terminal_opened', {terminalId: id});
 
     // Create cleanup wrapper that can be extended by anchorToNode
     const floatingWindow: FloatingWindowUIHTMLData = {
@@ -244,7 +252,7 @@ export function createFloatingTerminalWindow(
         titleBar,
         cleanup: () => {
             // Analytics: Track terminal closed
-            posthog.capture('terminal_closed', { terminalId: id });
+            posthog.capture('terminal_closed', {terminalId: id});
 
             // Remove from state
             removeTerminalFromMapState(terminalData);

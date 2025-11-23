@@ -74,7 +74,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             electronAPI: {
                 main: {
                     getGraph: vi.fn().mockReturnValue(mockGraph),
-                    applyGraphDeltaToDBAndMem: vi.fn().mockResolvedValue(undefined)
+                    applyGraphDeltaToDBThroughMem: vi.fn().mockResolvedValue(undefined)
                 }
             }
         } as unknown as Window & typeof globalThis
@@ -118,7 +118,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
         // AND: Should have called electronAPI to persist the change
         // The GraphDelta should contain 2 actions: new child node + updated parent with edge
-        expect((window as any).electronAPI!.main.applyGraphDeltaToDBAndMem).toHaveBeenCalledWith([
+        expect((window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem).toHaveBeenCalledWith([
             expect.objectContaining({
                 type: 'UpsertNode',
                 nodeToUpsert: expect.objectContaining({
