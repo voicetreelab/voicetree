@@ -3,7 +3,7 @@
  * Uses DFS traversal with different edge costs for outgoing vs incoming edges.
  */
 
-import type { Graph, NodeId } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
 import { getIncomingNodes } from '../getIncomingNodes.ts'
 import { setOutgoingEdges } from '../graph-edge-operations.ts'
 
@@ -28,15 +28,15 @@ import { setOutgoingEdges } from '../graph-edge-operations.ts'
  */
 export function getSubgraphByDistance(
   graph: Graph,
-  startNodeId: NodeId,
+  startNodeId: NodeIdAndFilePath,
   maxDistance: number
 ): Graph {
   // Recursive DFS implementation
   const dfsVisit = (
-    nodeId: NodeId,
+    nodeId: NodeIdAndFilePath,
     distance: number,
-    visited: ReadonlySet<NodeId>
-  ): ReadonlySet<NodeId> => {
+    visited: ReadonlySet<NodeIdAndFilePath>
+  ): ReadonlySet<NodeIdAndFilePath> => {
     // Base cases: stop if already visited or node doesn't exist
     if (visited.has(nodeId) || !graph.nodes[nodeId]) {
       return visited
@@ -49,7 +49,7 @@ export function getSubgraphByDistance(
     // Explore outgoing edges (children, cost 1.5) - only if within distance threshold
     const afterChildren = node.outgoingEdges
       .filter(_edge => distance + 1.5 < maxDistance)
-      .reduce<ReadonlySet<NodeId>>(
+      .reduce<ReadonlySet<NodeIdAndFilePath>>(
         (acc, edge) => dfsVisit(edge.targetId, distance + 1.5, acc),
         newVisited
       )
@@ -58,7 +58,7 @@ export function getSubgraphByDistance(
     const incomingNodes = getIncomingNodes(node, graph)
     const afterParents = incomingNodes
       .filter(() => distance + 1.0 < maxDistance)
-      .reduce<ReadonlySet<NodeId>>(
+      .reduce<ReadonlySet<NodeIdAndFilePath>>(
         (acc, parentNode) => dfsVisit(parentNode.relativeFilePathIsID, distance + 1.0, acc),
         afterChildren
       )

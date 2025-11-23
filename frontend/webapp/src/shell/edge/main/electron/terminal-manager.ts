@@ -4,7 +4,7 @@ import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
 
-interface NodeMetadata {
+interface NodeMetadata { // TODO remove, use TerminalData
   filePath?: string;
   extraEnv?: Record<string, string>;
   initialCommand?: string;

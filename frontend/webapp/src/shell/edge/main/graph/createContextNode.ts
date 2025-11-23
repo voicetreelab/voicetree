@@ -1,4 +1,4 @@
-import type { Graph, NodeId } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
 import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from '@/pure/graph'
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
@@ -17,8 +17,8 @@ import { fromCreateChildToUpsertNode } from '@/pure/graph/graphDelta/uiInteracti
  * @returns The NodeId of the newly created context node
  */
 export async function createContextNode(
-  parentNodeId: NodeId
-): Promise<NodeId> {
+  parentNodeId: NodeIdAndFilePath
+): Promise<NodeIdAndFilePath> {
   // 1. EDGE: Read current graph from state
   const currentGraph = getGraph()
 
@@ -74,7 +74,7 @@ export async function createContextNode(
  * Builds the markdown content for a context node
  */
 function buildContextNodeContent(
-  parentNodeId: NodeId,
+  parentNodeId: NodeIdAndFilePath,
   parentTitle: string,
   _maxDistance: number,
   asciiTree: string,
@@ -102,7 +102,7 @@ ${nodeDetailsList}
  */
 function generateNodeDetailsList(
   subgraph: Graph,
-  _startNodeId: NodeId
+  _startNodeId: NodeIdAndFilePath
 ): string {
   const lines: string[] = []
 

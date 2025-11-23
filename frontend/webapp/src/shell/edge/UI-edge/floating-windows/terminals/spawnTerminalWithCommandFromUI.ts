@@ -1,6 +1,5 @@
-import type {NodeId, Position} from "@/pure/graph";
+import type {NodeIdAndFilePath, Position} from "@/pure/graph";
 import type {Core} from "cytoscape";
-import {nodeIdToFilePathWithExtension} from "@/pure/graph/markdown-parsing";
 import {
     anchorToNode,
     createWindowChrome,
@@ -8,7 +7,11 @@ import {
 } from "@/shell/UI/floating-windows/cytoscape-floating-windows.ts";
 import {TerminalVanilla} from "@/shell/UI/floating-windows/terminals/TerminalVanilla.ts";
 import posthog from "posthog-js";
-import type {FloatingWindowData, TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import type {
+    FloatingWindowUIHTMLData,
+    TerminalData
+} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
 
 
 /**
@@ -20,20 +23,16 @@ import type {FloatingWindowData, TerminalData} from "@/shell/edge/UI-edge/floati
  * @param createFloatingTerminal - Function to create the floating terminal window
  */
 export async function spawnTerminalForNode(
-    nodeId: NodeId,
+    nodeId: NodeIdAndFilePath,
     cy: Core,
 ): Promise<void> {
     // Load settings to get the agentCommand
     const settings = await window.electronAPI?.main.loadSettings();
     const agentCommand = settings?.agentCommand ?? './claude.sh';
 
-    // Get file path for the node
-    const filePath = nodeIdToFilePathWithExtension(nodeId);
-
     const nodeMetadata: TerminalData = {
-        id: nodeId,
+        terminalId: nodeId,
         name: nodeId.replace(/_/g, ' '),
-        filePath: filePath,
         initialCommand: agentCommand,
         executeCommand: true
     };
@@ -108,11 +107,11 @@ export function createFloatingTerminalWindow(
     config: {
         id: string;
         title: string;
-        nodeMetadata: NodeMetadata;
+        nodeMetadata: TerminalData;
         onClose?: () => void;
         resizable?: boolean;
     }
-): FloatingWindowData {
+): FloatingWindowUIHTMLData {
     const {id, title, nodeMetadata, onClose, resizable = true} = config;
 
     // Get overlay
@@ -124,7 +123,7 @@ export function createFloatingTerminalWindow(
         title,
         component: 'Terminal',
         resizable,
-        nodeMetadata
+        terminalMetadata: nodeMetadata
     });
 
     // Create Terminal instance
@@ -134,15 +133,14 @@ export function createFloatingTerminalWindow(
     });
 
     // Store for cleanup
-    vanillaInstances.set(id, terminal);
+    vanillaFloatingWindowInstances.set(id, terminal);
 
     // Analytics: Track terminal opened
     posthog.capture('terminal_opened', { terminalId: id });
 
     // Create cleanup wrapper that can be extended by anchorToNode
-    const floatingWindow: FloatingWindowData = {
+    const floatingWindow: FloatingWindowUIHTMLData = {
         id,
-        cy,
         windowElement,
         contentContainer,
         titleBar,
@@ -150,10 +148,10 @@ export function createFloatingTerminalWindow(
             // Analytics: Track terminal closed
             posthog.capture('terminal_closed', { terminalId: id });
 
-            const vanillaInstance = vanillaInstances.get(id);
+            const vanillaInstance = vanillaFloatingWindowInstances.get(id);
             if (vanillaInstance) {
                 vanillaInstance.dispose();
-                vanillaInstances.delete(id);
+                vanillaFloatingWindowInstances.delete(id);
             }
             windowElement.remove();
             if (onClose) {

@@ -2,7 +2,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
-import type { Graph, NodeId } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
 import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing'
 import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges.ts'
 import { enforceFileLimit } from './fileLimitEnforce.ts'
@@ -96,7 +96,7 @@ async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> 
 async function loadNodes(
   vaultPath: string,
   files: readonly string[]
-): Promise<Record<NodeId, Graph['nodes'][NodeId]>> {
+): Promise<Record<NodeIdAndFilePath, Graph['nodes'][NodeIdAndFilePath]>> {
   const nodePromises = files.map(async (file) => {
     const fullPath = path.join(vaultPath, file)
     const content = await fs.readFile(fullPath, 'utf-8')
@@ -117,8 +117,8 @@ async function loadNodes(
  * @returns Record of nodes with correct outgoingEdges populated from wikilinks
  */
 function buildNodesWithEdges(
-  nodes: Record<NodeId, Graph['nodes'][NodeId]>
-): Record<NodeId, Graph['nodes'][NodeId]> {
+  nodes: Record<NodeIdAndFilePath, Graph['nodes'][NodeIdAndFilePath]>
+): Record<NodeIdAndFilePath, Graph['nodes'][NodeIdAndFilePath]> {
   const nodeEntries = Object.entries(nodes).map(([nodeId, node]) => {
     // Nodes already have edges extracted (from parseMarkdownToGraphNode)
     // But those edges have raw link text as targetId, not resolved node IDs

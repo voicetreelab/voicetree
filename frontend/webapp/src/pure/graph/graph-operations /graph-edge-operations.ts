@@ -7,13 +7,13 @@
  * See: PARENT_LOOKUP_OPTIMIZATION_HANDOVER.md
  */
 
-import type { GraphNode, NodeId, Edge } from '@/pure/graph'
+import type { GraphNode, NodeIdAndFilePath, Edge } from '@/pure/graph'
 
 /**
  * Adds a single outgoing edge to a node.
  * Returns a new node with the edge added (does not mutate).
  */
-export function addOutgoingEdge(node: GraphNode, targetId: NodeId, label = ''): GraphNode {
+export function addOutgoingEdge(node: GraphNode, targetId: NodeIdAndFilePath, label = ''): GraphNode {
     // Avoid duplicates
     if (node.outgoingEdges.some(e => e.targetId === targetId)) {
         return node
@@ -29,7 +29,7 @@ export function addOutgoingEdge(node: GraphNode, targetId: NodeId, label = ''): 
  * Removes a single outgoing edge from a node.
  * Returns a new node with the edge removed (does not mutate).
  */
-export function removeOutgoingEdge(node: GraphNode, targetId: NodeId): GraphNode {
+export function removeOutgoingEdge(node: GraphNode, targetId: NodeIdAndFilePath): GraphNode {
     return {
         ...node,
         outgoingEdges: node.outgoingEdges.filter(e => e.targetId !== targetId)
@@ -40,7 +40,7 @@ export function removeOutgoingEdge(node: GraphNode, targetId: NodeId): GraphNode
  * Removes multiple outgoing edges from a node.
  * Returns a new node with the edges removed (does not mutate).
  */
-export function removeOutgoingEdges(node: GraphNode, targetIds: readonly NodeId[]): GraphNode {
+export function removeOutgoingEdges(node: GraphNode, targetIds: readonly NodeIdAndFilePath[]): GraphNode {
     const targetSet = new Set(targetIds)
     return {
         ...node,

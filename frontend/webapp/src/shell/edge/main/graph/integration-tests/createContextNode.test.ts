@@ -26,11 +26,11 @@ import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeId } from '@/pure/graph'
+import type { NodeIdAndFilePath } from '@/pure/graph'
 
 describe('createContextNode - Integration Tests', () => {
-  let createdContextNodeId: NodeId | null = null
-  let parentNodeBackups: Map<NodeId, string> = new Map()
+  let createdContextNodeId: NodeIdAndFilePath | null = null
+  let parentNodeBackups: Map<NodeIdAndFilePath, string> = new Map()
 
   beforeEach(async () => {
     // Initialize vault path with example_small fixture
@@ -71,7 +71,7 @@ describe('createContextNode - Integration Tests', () => {
   /**
    * Helper function to create a context node while backing up the parent node
    */
-  async function createContextNodeWithBackup(parentNodeId: NodeId): Promise<NodeId> {
+  async function createContextNodeWithBackup(parentNodeId: NodeIdAndFilePath): Promise<NodeIdAndFilePath> {
     const vaultPath = getVaultPath()
 
     // Backup parent node before creating context node
@@ -88,7 +88,7 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Create context node for existing parent node', () => {
     it('should create context node file with ASCII tree and node details', async () => {
       // GIVEN: A parent node that exists in example_small graph
-      const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node for this parent
       const contextNodeId = await createContextNodeWithBackup(parentNodeId)
@@ -131,7 +131,7 @@ describe('createContextNode - Integration Tests', () => {
 
     it('should include parent node and related nodes in context', async () => {
       // GIVEN: Parent node with known connections in example_small
-      const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node
       const contextNodeId = await createContextNodeWithBackup(parentNodeId)
@@ -154,7 +154,7 @@ describe('createContextNode - Integration Tests', () => {
 
     it('should create context node that can be loaded back into graph', async () => {
       // GIVEN: A parent node
-      const parentNodeId: NodeId = '2_VoiceTree_Node_ID_Duplication_Bug.md'
+      const parentNodeId: NodeIdAndFilePath = '2_VoiceTree_Node_ID_Duplication_Bug.md'
 
       // WHEN: Create context node
       const contextNodeId = await createContextNodeWithBackup(parentNodeId)
@@ -176,7 +176,7 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Error handling', () => {
     it('should throw error if parent node does not exist', async () => {
       // GIVEN: A non-existent node ID
-      const nonExistentNodeId: NodeId = 'non_existent_node_12345.md'
+      const nonExistentNodeId: NodeIdAndFilePath = 'non_existent_node_12345.md'
 
       // WHEN/THEN: Should throw error
       await expect(createContextNode(nonExistentNodeId))
@@ -188,7 +188,7 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Subgraph extraction with distance limit', () => {
     it('should extract subgraph within distance 7 from parent node', async () => {
       // GIVEN: A parent node in the middle of the graph
-      const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node
       const contextNodeId = await createContextNodeWithBackup(parentNodeId)
@@ -216,7 +216,7 @@ describe('createContextNode - Integration Tests', () => {
   describe('BEHAVIOR: Node details order should match ASCII tree order', () => {
     it('should list node details in the same order they appear in ASCII tree', async () => {
       // GIVEN: A parent node that exists in example_small graph
-      const parentNodeId: NodeId = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
       // WHEN: Create context node for this parent
       const contextNodeId = await createContextNodeWithBackup(parentNodeId)

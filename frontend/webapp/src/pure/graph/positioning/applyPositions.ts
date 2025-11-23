@@ -11,12 +11,12 @@
 
 // SEEN SET TO AVOID CYCLES
 
-import type { Graph, GraphNode, NodeId, Position } from '@/pure/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath, Position } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import { findFirstParentNode } from '@/pure/graph/graph-operations /findFirstParentNode.ts'
 import { calculateInitialPositionForChild } from './calculateInitialPosition.ts'
 
-const GHOST_ROOT_ID: NodeId = '__GHOST_ROOT__'
+const GHOST_ROOT_ID: NodeIdAndFilePath = '__GHOST_ROOT__'
 const GHOST_ROOT_POSITION: Position = { x: 0, y: 0 }
 
 /**
@@ -59,7 +59,7 @@ export function applyPositions(graph: Graph): Graph {
     const graphWithAllPositions = traverseAndPosition(
         graphWithGhostRoot,
         GHOST_ROOT_ID,
-        new Set<NodeId>(),
+        new Set<NodeIdAndFilePath>(),
         undefined // ghost root has no parent or sibling index
     ).graph
 
@@ -73,7 +73,7 @@ export function applyPositions(graph: Graph): Graph {
 /**
  * Find all root nodes (nodes with no parent)
  */
-function findRootNodes(graph: Graph): readonly NodeId[] {
+function findRootNodes(graph: Graph): readonly NodeIdAndFilePath[] {
     return Object.values(graph.nodes)
         .filter((node) => findFirstParentNode(node, graph) === undefined)
         .map((node) => node.relativeFilePathIsID)
@@ -86,10 +86,10 @@ function findRootNodes(graph: Graph): readonly NodeId[] {
  */
 function traverseAndPosition(
     tree: Graph,
-    nodeId: NodeId,
-    seen: ReadonlySet<NodeId>,
+    nodeId: NodeIdAndFilePath,
+    seen: ReadonlySet<NodeIdAndFilePath>,
     childIndexInParent: number | undefined
-): { readonly graph: Graph; readonly seen: ReadonlySet<NodeId> } {
+): { readonly graph: Graph; readonly seen: ReadonlySet<NodeIdAndFilePath> } {
 
     // PRE ORDER RECURSIVE TRAVERSAL OF GRAPH (WHICH WE ASSUME SI TREE)
 
@@ -99,7 +99,7 @@ function traverseAndPosition(
     }
 
     // Mark as seen
-    const updatedSeen: ReadonlySet<NodeId> = new Set(seen).add(nodeId)
+    const updatedSeen: ReadonlySet<NodeIdAndFilePath> = new Set(seen).add(nodeId)
 
     // Get current node
     const node = tree.nodes[nodeId]
@@ -130,7 +130,7 @@ function traverseAndPosition(
  */
 function positionNodeIfNeeded(
     node: GraphNode,
-    nodeId: NodeId,
+    nodeId: NodeIdAndFilePath,
     tree: Graph,
     childIndexInParent: number | undefined
 ): Graph {

@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta, GraphNode, NodeId, NodeUIMetadata, Position} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, Position} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
@@ -19,7 +19,7 @@ export function fromCreateChildToUpsertNode(
     graph: Graph,
     parentNode: GraphNode,
     newNodeContent: string = "# new",
-    newFilePathIsID: NodeId = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
+    newFilePathIsID: NodeIdAndFilePath = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
 ): GraphDelta {
     // Create the new node with default values for an empty node
     const newNode: GraphNode = {

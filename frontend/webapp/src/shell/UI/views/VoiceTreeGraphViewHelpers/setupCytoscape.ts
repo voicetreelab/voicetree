@@ -2,7 +2,7 @@
  * Setup cytoscape layout, event handlers, context menu, and test helpers
  */
 import type {Core, NodeSingular} from 'cytoscape';
-import type {Graph, NodeId} from '@/pure/graph';
+import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
 import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
 import {ContextMenuService} from '@/shell/UI/cytoscape-graph-ui/services/ContextMenuService.ts';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout.ts';
@@ -56,7 +56,7 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
     // Initialize context menu with cy instance and dependencies
     contextMenuService.initialize(cy, {
         getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
-        createAnchoredFloatingEditor: (nodeId : NodeId) =>
+        createAnchoredFloatingEditor: (nodeId : NodeIdAndFilePath) =>
             floatingWindowManager.createAnchoredFloatingEditor(nodeId),
         handleAddNodeAtPosition: (position) =>
             floatingWindowManager.handleAddNodeAtPosition(position)

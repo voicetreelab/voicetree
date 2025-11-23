@@ -20,12 +20,12 @@
  * ```
  */
 
-import type { Graph, NodeId } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
 import { reverseGraphEdges } from '../graph-transformations.ts'
 
-export function getNodeIdsInTraversalOrder(graph: Graph): NodeId[] {
-  const nodeIds: NodeId[] = []
-  const visited = new Set<NodeId>()
+export function getNodeIdsInTraversalOrder(graph: Graph): NodeIdAndFilePath[] {
+  const nodeIds: NodeIdAndFilePath[] = []
+  const visited = new Set<NodeIdAndFilePath>()
 
   // Find root nodes (nodes with no incoming edges)
   // We reverse the graph to identify which nodes have no incoming edges
@@ -39,7 +39,7 @@ export function getNodeIdsInTraversalOrder(graph: Graph): NodeId[] {
    * Recursive depth-first traversal
    * Matches the traversal order of graphToAscii
    */
-  function traverse(nodeId: NodeId): void {
+  function traverse(nodeId: NodeIdAndFilePath): void {
     if (visited.has(nodeId)) return
     visited.add(nodeId)
 

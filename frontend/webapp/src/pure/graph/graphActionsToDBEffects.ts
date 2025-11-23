@@ -3,7 +3,7 @@ import type {
     FSWriteEffect,
     GraphNode as GraphNode,
     Env,
-    NodeId
+    NodeIdAndFilePath
 } from '@/pure/graph/index.ts'
 import * as TE from 'fp-ts/lib/TaskEither.js'
 import * as RTE from 'fp-ts/lib/ReaderTaskEither.js'
@@ -74,7 +74,7 @@ function writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 /**
  * Delete a node file from filesystem
  */
-function deleteNodeFile(nodeId: NodeId): FSWriteEffect<void> {
+function deleteNodeFile(nodeId: NodeIdAndFilePath): FSWriteEffect<void> {
     return (env: Env) => TE.tryCatch(
         async () => {
             const filename = nodeIdToFilePathWithExtension(nodeId)

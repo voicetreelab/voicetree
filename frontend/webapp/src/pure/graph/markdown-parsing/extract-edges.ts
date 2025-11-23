@@ -1,4 +1,4 @@
-import type { NodeId, GraphNode, Edge } from '@/pure/graph'
+import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
 
 /**
  * Extracts path segments from a path, from longest to shortest.
@@ -33,8 +33,8 @@ function extractPathSegments(path: string): readonly string[] {
  */
 function matchSegment(
   segment: string,
-  nodes: Record<NodeId, GraphNode>
-): NodeId | undefined {
+  nodes: Record<NodeIdAndFilePath, GraphNode>
+): NodeIdAndFilePath | undefined {
   // Try exact match with node ID
   if (nodes[segment]) {
     return segment
@@ -64,8 +64,8 @@ function matchSegment(
  */
 function findBestMatchingNode(
   linkText: string,
-  nodes: Record<NodeId, GraphNode>
-): NodeId | undefined {
+  nodes: Record<NodeIdAndFilePath, GraphNode>
+): NodeIdAndFilePath | undefined {
   // Extract all possible path segments from the link text
   const linkSegments = extractPathSegments(linkText)
 
@@ -73,7 +73,7 @@ function findBestMatchingNode(
 
   // Try to match each segment, preferring longer matches (first in array)
   // Use reduce to find first matching segment
-  return linkSegments.reduce<NodeId | undefined>(
+  return linkSegments.reduce<NodeIdAndFilePath | undefined>(
     (foundMatch, segment) => foundMatch ?? matchSegment(segment, nodes),
     undefined
   )
@@ -105,7 +105,7 @@ function findBestMatchingNode(
  */
 export function extractEdges(
   content: string,
-  nodes: Record<NodeId, GraphNode>
+  nodes: Record<NodeIdAndFilePath, GraphNode>
 ): readonly Edge[] {
   const wikilinkRegex = /\[\[([^\]]+)\]\]/g
   const matches = [...content.matchAll(wikilinkRegex)]
@@ -135,7 +135,7 @@ export function extractEdges(
     })
 
   // Remove duplicates while preserving order (by targetId)
-  const seenTargets = new Set<NodeId>()
+  const seenTargets = new Set<NodeIdAndFilePath>()
   return edges.filter(edge => {
     if (seenTargets.has(edge.targetId)) {
       return false

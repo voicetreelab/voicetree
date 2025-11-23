@@ -3,7 +3,7 @@ import type {Core, NodeSingular} from 'cytoscape';
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from 'cytoscape';
 import {createNewChildNodeFromUI, deleteNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
-import type {NodeId} from "@/pure/graph";
+import type {NodeIdAndFilePath} from "@/pure/graph";
 
 export interface Position {
     x: number;
@@ -15,7 +15,7 @@ cytoscape.use(cxtmenu);
 
 export interface ContextMenuDependencies {
     getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
-    createAnchoredFloatingEditor: (nodeId: NodeId) => Promise<void>;
+    createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) => Promise<void>;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
 
@@ -224,7 +224,7 @@ export class ContextMenuService {
     private createChildNodeFromContextMenu(nodeId: string) {
         return async () => {
             console.log('[ContextMenuService] adding child node to:', nodeId);
-            const childId: NodeId = await createNewChildNodeFromUI(nodeId, this.cy!);
+            const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, this.cy!);
             await this.deps!.createAnchoredFloatingEditor(childId);
         };
     }
