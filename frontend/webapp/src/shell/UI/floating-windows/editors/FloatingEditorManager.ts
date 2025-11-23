@@ -70,7 +70,7 @@ export async function createFloatingEditor(
     let content = "loading..."
     let title = `${nodeId}`; // fallback to nodeId if node not found
     if (node) {
-        content = node.content;
+        content = node.contentWithoutYamlOrLinks;
         title = `${node.nodeUIMetadata.title}`;
     }
 
@@ -252,7 +252,7 @@ export class FloatingEditorManager {
         for (const nodeDelta of delta) {
             if (nodeDelta.type === 'UpsertNode') {
                 const nodeId = nodeDelta.nodeToUpsert.relativeFilePathIsID;
-                const newContent = nodeDelta.nodeToUpsert.content;
+                const newContent = nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks;
                 const editorId = this.nodeIdToEditorId.get(nodeId);
 
                 if (editorId) {

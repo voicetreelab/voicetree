@@ -7,7 +7,7 @@ describe('getSubgraphByDistance', () => {
   const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
-    content: `content of ${id}`,
+    contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
@@ -336,7 +336,7 @@ describe('getSubgraphByDistance', () => {
       const result = getSubgraphByDistance(graph, 'A', 7)
 
       expect(result.nodes['A'].relativeFilePathIsID).toBe('A')
-      expect(result.nodes['A'].content).toBe('content of A')
+      expect(result.nodes['A'].contentWithoutYamlOrLinks).toBe('content of A')
       expect(result.nodes['A'].nodeUIMetadata).toEqual(graph.nodes['A'].nodeUIMetadata)
     })
   })

@@ -26,7 +26,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
             nodes: {
                 'parent.md': {
                     relativeFilePathIsID: 'parent.md',
-                    content: '# Parent GraphNode',
+                    contentWithoutYamlOrLinks: '# Parent GraphNode',
                     outgoingEdges: [{ targetId: 'child1', label: '' }],
                     nodeUIMetadata: {
                         title: 'Parent GraphNode',
@@ -36,7 +36,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 },
                 'child1.md': {
                     relativeFilePathIsID: 'child1.md',
-                    content: '# Child 1',
+                    contentWithoutYamlOrLinks: '# Child 1',
                     outgoingEdges: [],
                     nodeUIMetadata: {
                         title: 'Child 1',

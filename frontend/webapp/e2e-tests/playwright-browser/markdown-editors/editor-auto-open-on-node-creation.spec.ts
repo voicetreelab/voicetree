@@ -145,7 +145,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'parent-node.md',
-          content: parentContent,
+          contentWithoutYamlOrLinks: parentContent,
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Parent Node',

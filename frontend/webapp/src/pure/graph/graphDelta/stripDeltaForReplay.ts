@@ -25,6 +25,6 @@ function stripNodeDelta(nodeDelta: NodeDelta): NodeDelta {
 function stripGraphNodeContent(node: GraphNode): GraphNode {
     return {
         ...node,
-        content: '' // Strip content for privacy
+        contentWithoutYamlOrLinks: '' // Strip content for privacy
     }
 }

@@ -297,7 +297,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const graphNodeDetails = Object.entries(graphState.nodes).map(([id, node]: [string, any]) => ({
         id,
-        content: node.content.substring(0, 50),
+        content: node.contentWithoutYamlOrLinks.substring(0, 50),
         outgoingEdges: node.outgoingEdges,
         position: node.nodeUIMetadata.position
       }));

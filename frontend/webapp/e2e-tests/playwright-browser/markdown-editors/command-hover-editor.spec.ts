@@ -86,7 +86,7 @@ test.describe('Hover Editor (Browser)', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'hover-test-node.md',
-          content: testContent,
+          contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Hover Test',

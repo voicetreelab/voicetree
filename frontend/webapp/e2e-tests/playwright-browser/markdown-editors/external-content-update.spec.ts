@@ -88,7 +88,7 @@ test.describe('External Content Update (Browser)', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'test-node.md',
-          content: initialContent,
+          contentWithoutYamlOrLinks: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Test Node',
@@ -157,7 +157,7 @@ test.describe('External Content Update (Browser)', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'test-node.md',
-          content: updatedContent,
+          contentWithoutYamlOrLinks: updatedContent,
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Test Node',

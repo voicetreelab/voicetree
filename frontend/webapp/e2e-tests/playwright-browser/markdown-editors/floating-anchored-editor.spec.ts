@@ -86,7 +86,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: 'test-editor-node.md',
-          content: testContent,
+          contentWithoutYamlOrLinks: testContent,
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Test Node',

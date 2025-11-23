@@ -123,7 +123,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-1.md',
-        content: '# Introduction\\nThis is the introduction node.',
+        contentWithoutYamlOrLinks: '# Introduction\\nThis is the introduction node.',
         outgoingEdges: ['test-node-2.md'],
         nodeUIMetadata: {
           title: 'Introduction',
@@ -136,7 +136,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-2.md',
-        content: '# Architecture\\nArchitecture documentation.',
+        contentWithoutYamlOrLinks: '# Architecture\\nArchitecture documentation.',
         outgoingEdges: ['test-node-3.md'],
         nodeUIMetadata: {
           title: 'Architecture',
@@ -149,7 +149,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-3.md',
-        content: '# Core Principles\\nCore principles guide.',
+        contentWithoutYamlOrLinks: '# Core Principles\\nCore principles guide.',
         outgoingEdges: [],
         nodeUIMetadata: {
           title: 'Core Principles',
@@ -162,7 +162,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-4.md',
-        content: '# API Design\\nAPI design patterns.',
+        contentWithoutYamlOrLinks: '# API Design\\nAPI design patterns.',
         outgoingEdges: [],
         nodeUIMetadata: {
           title: 'API Design',
@@ -175,7 +175,7 @@ export function createTestGraphDelta(): GraphDelta {
       type: 'UpsertNode' as const,
       nodeToUpsert: {
         relativeFilePathIsID: 'test-node-5.md',
-        content: '# Testing Guide\\nHow to test the system.',
+        contentWithoutYamlOrLinks: '# Testing Guide\\nHow to test the system.',
         outgoingEdges: [],
         nodeUIMetadata: {
           title: 'Testing Guide',

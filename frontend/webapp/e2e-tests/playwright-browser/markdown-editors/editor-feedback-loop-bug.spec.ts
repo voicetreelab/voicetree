@@ -156,7 +156,7 @@ async function setupMockWithFilesystemFeedback(page: Page): Promise<void> {
           if (nodeDelta.type === 'UpsertNode') {
             const node = nodeDelta.nodeToUpsert;
             graphState.nodes[node.relativeFilePathIsID] = node;
-            savedContent = node.content;
+            savedContent = node.contentWithoutYamlOrLinks;
             nodeId = node.relativeFilePathIsID;
             console.log('[Mock] Captured save for node:', nodeId, 'content length:', savedContent.length);
           } else if (nodeDelta.type === 'DeleteNode') {
@@ -223,7 +223,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: nodeId,
-          content: initialContent,
+          contentWithoutYamlOrLinks: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Test Feedback Loop',
@@ -317,7 +317,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
         type: 'UpsertNode' as const,
         nodeToUpsert: {
           relativeFilePathIsID: nodeId,
-          content: initialContent,
+          contentWithoutYamlOrLinks: initialContent,
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Rapid Edits Test',

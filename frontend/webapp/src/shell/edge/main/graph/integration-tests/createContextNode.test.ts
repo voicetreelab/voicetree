@@ -169,7 +169,7 @@ describe('createContextNode - Integration Tests', () => {
       // AND: Context node should have the parent node as a connection
       const contextNode = reloadedGraph.nodes[contextNodeId]
       expect(contextNode).toBeDefined()
-      expect(contextNode.content).toContain('Context for')
+      expect(contextNode.contentWithoutYamlOrLinks).toContain('Context for')
     })
   })
 

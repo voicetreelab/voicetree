@@ -25,7 +25,7 @@ export function fromCreateChildToUpsertNode(
     const newNode: GraphNode = {
         relativeFilePathIsID: newFilePathIsID,
         outgoingEdges: [],
-        content: newNodeContent,
+        contentWithoutYamlOrLinks: newNodeContent,
         nodeUIMetadata :  {
             color: O.none,
             title: "Child of " + parentNode.nodeUIMetadata.title, // todo we aren't writing this to md
@@ -63,7 +63,7 @@ export function fromContentChangeToGraphDelta(
 
     return [{
         type: 'UpsertNode',
-        nodeToUpsert: {...Node, content, outgoingEdges: newOutgoingEdges}
+        nodeToUpsert: {...Node, contentWithoutYamlOrLinks: content, outgoingEdges: newOutgoingEdges}
     }]
 }
 
@@ -94,7 +94,7 @@ export function createNewNodeNoParent(pos: Position) {
     const newNode: GraphNode = {
         relativeFilePathIsID: Date.now().toString() + randomChars(3) + ".md", // file with current date time + 3 random characters , //todo doesn't guarantee uniqueness, but tis good enough
         outgoingEdges: [],
-        content: '# New',
+        contentWithoutYamlOrLinks: '# New',
         nodeUIMetadata: {
             title: 'New',
             color: O.none,

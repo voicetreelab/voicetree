@@ -19,7 +19,7 @@ import type {Frontmatter} from '@/pure/graph/markdown-parsing/extract-frontmatte
  */
 export function fromNodeToMarkdownContent(node: GraphNode): string {
     // 1. Extract existing frontmatter from content
-    const parsed = matter(node.content);
+    const parsed = matter(node.contentWithoutYamlOrLinks);
     const contentFrontmatter = parsed.data as Partial<Frontmatter>;
     const contentWithoutFrontmatter = parsed.content;
 

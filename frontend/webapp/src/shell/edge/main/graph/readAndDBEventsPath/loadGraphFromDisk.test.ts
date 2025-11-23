@@ -94,8 +94,8 @@ This is in a subfolder.`
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
     const node1 = graph.nodes['node1.md']
-    expect(node1.content).toContain('title: "Node One"')
-    expect(node1.content).toContain('summary: "First node"')
+    expect(node1.contentWithoutYamlOrLinks).toContain('title: "Node One"')
+    expect(node1.contentWithoutYamlOrLinks).toContain('summary: "First node"')
     expect(O.isSome(node1.nodeUIMetadata.color)).toBe(true)
     if (O.isSome(node1.nodeUIMetadata.color)) {
       expect(node1.nodeUIMetadata.color.value).toBe('#FF0000')
@@ -112,7 +112,7 @@ This is in a subfolder.`
   it('should extract title from heading when not in frontmatter', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node3.md'].content).toContain('# Node Three')
+    expect(graph.nodes['node3.md'].contentWithoutYamlOrLinks).toContain('# Node Three')
   })
 
   it('should build outgoingEdges from wikilinks', async () => {
@@ -133,14 +133,14 @@ This is in a subfolder.`
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
     expect(graph.nodes['subfolder/nested.md']).toBeDefined()
-    expect(graph.nodes['subfolder/nested.md'].content).toContain('# Nested')
+    expect(graph.nodes['subfolder/nested.md'].contentWithoutYamlOrLinks).toContain('# Nested')
   })
 
   it('should preserve full content including frontmatter', async () => {
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
-    expect(graph.nodes['node1.md'].content).toContain('node_id: "1"')
-    expect(graph.nodes['node1.md'].content).toContain('This is node one')
+    expect(graph.nodes['node1.md'].contentWithoutYamlOrLinks).toContain('node_id: "1"')
+    expect(graph.nodes['node1.md'].contentWithoutYamlOrLinks).toContain('This is node one')
   })
 
   it('should be a pure IO function (same input -> same IO)', async () => {

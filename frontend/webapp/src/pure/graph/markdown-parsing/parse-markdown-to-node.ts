@@ -73,7 +73,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string): Gra
   return {
     relativeFilePathIsID: filenameToNodeId(filename),
     outgoingEdges: extractEdges(content, {}),
-    content,
+    contentWithoutYamlOrLinks: content,
     nodeUIMetadata: {
       title,
       color: frontmatter.color ? O.some(frontmatter.color) : O.none,

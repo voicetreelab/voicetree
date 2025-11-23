@@ -25,7 +25,7 @@ describe('loadGraphFromDisk - Frontmatter Title Priority', () => {
 
         // AND: Should have at least one node with frontmatter
         const nodesWithFrontmatter = Object.values(graph.nodes).filter(node =>
-            node.content.includes('---') && node.content.includes('node_id:')
+            node.contentWithoutYamlOrLinks.includes('---') && node.contentWithoutYamlOrLinks.includes('node_id:')
         )
         expect(nodesWithFrontmatter.length).toBeGreaterThan(0)
 
@@ -45,16 +45,16 @@ describe('loadGraphFromDisk - Frontmatter Title Priority', () => {
 
         // THEN: All nodes should have non-empty content
         Object.values(graph.nodes).forEach(node => {
-            expect(node.content.length).toBeGreaterThan(0)
+            expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
         })
 
         // AND: Nodes with frontmatter should preserve it
         const nodesWithFrontmatter = Object.values(graph.nodes).filter(node =>
-            node.content.includes('---')
+            node.contentWithoutYamlOrLinks.includes('---')
         )
 
         nodesWithFrontmatter.forEach(node => {
-            expect(node.content).toContain('---') // Frontmatter markers preserved
+            expect(node.contentWithoutYamlOrLinks).toContain('---') // Frontmatter markers preserved
         })
     })
 })

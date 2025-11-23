@@ -48,7 +48,7 @@ export async function spawnTerminalWithNewContextNode(
 
     // Get the context node to read its content
     const contextNode = await getNodeFromMainToUI(contextNodeId);
-    const contextContent = contextNode.content;
+    const contextContent = contextNode.contentWithoutYamlOrLinks;
 
     // Get next terminal count for the context node
     const terminalCount = getNextTerminalCount(terminals, contextNodeId);
