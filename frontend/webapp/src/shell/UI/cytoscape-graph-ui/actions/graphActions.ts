@@ -6,7 +6,7 @@
  */
 
 import type {Core} from 'cytoscape';
-import type {FloatingWindowManager} from '@/shell/UI/views/FloatingWindowManager';
+import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
 
 /**
  * Get currently selected graph nodes (excluding floating windows)
@@ -25,7 +25,7 @@ const getSelectedGraphNodes = (cy: Core): string[] => {
  */
 export const createNewNodeAction = (
   cy: Core,
-  floatingWindowManager: FloatingWindowManager
+  floatingWindowManager: FloatingEditorManager
 ) => (): void => {
   const selectedNodes = getSelectedGraphNodes(cy);
 
@@ -57,7 +57,7 @@ export const createNewNodeAction = (
  */
 export const runTerminalAction = (
   cy: Core,
-  floatingWindowManager: FloatingWindowManager
+  floatingWindowManager: FloatingEditorManager
 ) => (): void => {
   const selectedNodes = getSelectedGraphNodes(cy);
 
@@ -69,11 +69,10 @@ export const runTerminalAction = (
   const nodeId = selectedNodes[0];
 
   void (async () => {
-    const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/graph/spawnTerminalWithCommandFromUI.ts');
+    const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts');
     await spawnTerminalForNode(
       nodeId,
-      cy,
-      (nodeId, metadata, pos) => floatingWindowManager.createFloatingTerminal(nodeId, metadata, pos)
+      cy
     );
   })();
 };

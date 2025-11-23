@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/utils/lib/utils.ts";
-import AnimatedMicIcon from "@/shell/UI/components/animated-mic-icon.tsx";
-import StatusDisplay from "@/shell/UI/components/status-display.tsx";
-import useVoiceTreeClient from "@/shell/UI/hooks/useVoiceTreeClient.tsx";
-import { useTranscriptionSender } from "@/shell/UI/hooks/useTranscriptionSender.ts";
+import AnimatedMicIcon from "@/shell/UI/views/components/animated-mic-icon.tsx";
+import StatusDisplay from "@/shell/UI/views/components/status-display.tsx";
+import useVoiceTreeClient from "@/shell/UI/views/hooks/useVoiceTreeClient.tsx";
+import { useTranscriptionSender } from "@/shell/UI/views/hooks/useTranscriptionSender.ts";
 import getAPIKey from "@/utils/get-api-key.ts";
 import Renderer from "./renderer.tsx";
-import useAutoScroll from "@/shell/UI/hooks/useAutoScroll.tsx";
+import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll.tsx";
 import { type Token } from "@soniox/speech-to-text-web";
 import type {} from "@/utils/types/electron";
 

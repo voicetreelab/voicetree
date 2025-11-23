@@ -12,19 +12,21 @@
  * This class owns all floating window state and operations.
  */
 
-import {type Core} from 'cytoscape';
+import cytoscape, {type Core} from 'cytoscape';
 import {
-    createFloatingEditor,
-    createFloatingTerminal,
     anchorToNode,
-    getVanillaInstance
-} from '@/shell/UI/cytoscape-graph-ui/extensions/cytoscape-floating-windows';
-import type {Position} from './IVoiceTreeGraphView.ts';
-import type {HotkeyManager} from './HotkeyManager.ts';
+    createWindowChrome,
+    getOrCreateOverlay
+} from '@/shell/UI/floating-windows/cytoscape-floating-windows.ts';
+import type {Position} from '../../views/IVoiceTreeGraphView.ts';
+import type {HotkeyManager} from '../../views/HotkeyManager.ts';
 import type {Graph, GraphDelta, NodeId} from '@/pure/graph';
 import {nodeIdToFilePathWithExtension} from '@/pure/graph/markdown-parsing';
-import type {CodeMirrorEditorView} from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
-import {createNewEmptyOrphanNodeFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
+import { CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
+import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
+import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
+import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+import {getVanillaInstance, vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
 
 /**
  * Function type for getting current graph state
@@ -32,9 +34,123 @@ import {createNewEmptyOrphanNodeFromUI} from "@/shell/edge/UI-edge/graph/handleU
 type GetGraphState = () => Graph;
 
 /**
+ * Create a floating editor window
+ * Returns FloatingWindow object that can be anchored or positioned manually
+ * Returns undefined if an editor for this node already exists
+ *
+ * @param cy - Cytoscape instance
+ * @param nodeId - ID of the node to edit (used to fetch content and derive editor ID)
+ * @param editorRegistry - Map to register editor ID for external content updates
+ * @param awaitingUISavedContent - Map to track content being saved from UI-edge to prevent feedback loop
+ */
+export async function createFloatingEditor(
+    cy: cytoscape.Core,
+    nodeId: string,
+    editorRegistry: Map<string, string>,
+    awaitingUISavedContent: Map<NodeId, string>
+): Promise<FloatingWindowUIHTMLData | undefined> {
+    // Derive editor ID from node ID
+    const id = `${nodeId}-editor`;
+
+    // Check if already exists
+    const existing = cy.nodes(`#${id}`);
+    if (existing && existing.length > 0) {
+        console.log('[createAnchoredFloatingEditor] Editor already exists:', id);
+        return undefined;
+    }
+
+    // Register in editor registry if provided
+    editorRegistry.set(nodeId, id);
+
+    // Always resizable
+    const resizable = true;
+
+    // Derive title and content from nodeId
+    const node = await getNodeFromMainToUI(nodeId);
+    let content = "loading..."
+    let title = `${nodeId}`; // fallback to nodeId if node not found
+    if (node) {
+        content = node.content;
+        title = `${node.nodeUIMetadata.title}`;
+    }
+
+    // Get overlay
+    const overlay = getOrCreateOverlay(cy);
+
+    // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
+    const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
+        id,
+        title,
+        component: 'MarkdownEditor',
+        resizable,
+        initialContent: content
+    });
+
+    // Create CodeMirror editor instance
+    const editor = new CodeMirrorEditorView(
+        contentContainer,
+        content,
+        {
+            autosaveDelay: 300,
+            darkMode: document.documentElement.classList.contains('dark')
+        }
+    );
+
+    // Setup auto-save with modifyNodeContentFromUI
+    editor.onChange((newContent): void => {
+        void (async () => {
+            console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
+            // Track this content so we can ignore it when it comes back from filesystem
+            awaitingUISavedContent.set(nodeId, newContent);
+            await modifyNodeContentFromUI(nodeId, newContent, cy);
+        })();
+    });
+
+    // Store for cleanup
+    vanillaFloatingWindowInstances.set(id, editor);
+
+    // Create cleanup wrapper that handles registry and shadow node cleanup
+    const floatingWindow: FloatingWindowUIHTMLData = {
+        id,
+        cy,
+        windowElement,
+        contentContainer,
+        titleBar,
+        cleanup: () => {
+            const vanillaInstance = vanillaFloatingWindowInstances.get(id);
+            if (vanillaInstance) {
+                vanillaInstance.dispose();
+                vanillaFloatingWindowInstances.delete(id);
+            }
+            windowElement.remove();
+            // Clean up mapping when editor is closed
+            editorRegistry.delete(nodeId);
+            // TODO Remove child shadow node (but we need to pass it through, or have it in the map)
+            // if (childShadowNode && childShadowNode.inside()) {
+            //     childShadowNode.remove();
+            // }
+        }
+    };
+
+    // Update close button to call floatingWindow.cleanup (so anchorToNode can wrap it)
+    const closeButton = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
+    if (closeButton) {
+        // Remove old handler and add new one
+        const newCloseButton = closeButton.cloneNode(true) as HTMLElement;
+        closeButton.parentNode?.replaceChild(newCloseButton, closeButton);
+        newCloseButton.addEventListener('click', () => floatingWindow.cleanup());
+    }
+
+    // Add to overlay
+    overlay.appendChild(windowElement);
+
+    return floatingWindow;
+}
+
+/**
  * Manages all floating windows (editors, terminals) for the graph
  */
-export class FloatingWindowManager {
+export class FloatingEditorManager {
     private cy: Core;
 
     // Hover mode state
@@ -107,7 +223,7 @@ export class FloatingWindowManager {
                 return;
             }
 
-            anchorToNode(floatingWindow, nodeId, {
+            anchorToNode(this.cy, floatingWindow, nodeId, {
                 isFloatingWindow: true,
                 isShadowNode: true,
                 laidOut: false
@@ -157,7 +273,7 @@ export class FloatingWindowManager {
                         continue;
                     }
 
-                    // Get the editor instance from vanillaInstances
+                    // Get the editor instance from vanillaFloatingWindowInstances
                     const editorInstance = getVanillaInstance(editorId);
 
                     if (editorInstance && 'setValue' in editorInstance && 'getValue' in editorInstance) {
@@ -187,60 +303,6 @@ export class FloatingWindowManager {
                     this.nodeIdToEditorId.delete(nodeId);
                 }
             }
-        }
-    }
-
-    /**
-     * Create a floating terminal window
-     */
-    async createFloatingTerminal(
-        nodeId: string,
-        nodeMetadata: { id: string; name: string; filePath?: string },
-        nodePos: Position
-    ): Promise<void> {
-        const terminalId = `${nodeId}-terminal`;
-        console.log('[FloatingWindowManager] Creating floating terminal:', terminalId);
-
-        // Check if already exists
-        const existing = this.cy.nodes(`#${terminalId}`);
-        if (existing && existing.length > 0) {
-            console.log('[FloatingWindowManager] Terminal already exists');
-            return;
-        }
-
-        // Check if parent node exists
-        const parentNode = this.cy.getElementById(nodeId);
-        const parentNodeExists = parentNode.length > 0;
-
-        try {
-            // Get parent node's title
-            const {getNodeFromMainToUI} = await import("@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts");
-            const node = await getNodeFromMainToUI(nodeId);
-            const title = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
-
-            // Create floating terminal window
-            const floatingWindow = createFloatingTerminal(this.cy, {
-                id: terminalId,
-                title: title,
-                nodeMetadata: nodeMetadata,
-                resizable: true
-            });
-
-            if (parentNodeExists) {
-                // Anchor to parent node
-                anchorToNode(floatingWindow, nodeId, {
-                    isFloatingWindow: true,
-                    isShadowNode: true,
-                    windowType: 'terminal',
-                    laidOut: false
-                });
-            } else {
-                // Manual positioning if no parent
-                floatingWindow.windowElement.style.left = `${nodePos.x + 100}px`;
-                floatingWindow.windowElement.style.top = `${nodePos.y}px`;
-            }
-        } catch (error) {
-            console.error('[FloatingWindowManager] Error creating floating terminal:', error);
         }
     }
 

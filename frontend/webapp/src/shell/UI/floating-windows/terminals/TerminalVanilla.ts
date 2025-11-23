@@ -5,11 +5,11 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import '@xterm/xterm/css/xterm.css';
-import type { NodeMetadata } from '@/shell/UI/floating-windows/types.ts';
+import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types.ts';
 import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWindowFullscreen.ts';
 
 export interface TerminalVanillaConfig {
-  nodeMetadata?: NodeMetadata;
+  nodeMetadata?: TerminalData;
   container: HTMLElement;
 }
 
@@ -21,7 +21,7 @@ export class TerminalVanilla {
   private terminalId: string | null = null;
   private fitAddon: FitAddon | null = null;
   private container: HTMLElement;
-  private nodeMetadata?: NodeMetadata;
+  private nodeMetadata?: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
   private fullscreen: FloatingWindowFullscreen;
@@ -44,7 +44,7 @@ export class TerminalVanilla {
     // Create terminal instance
     const term = new XTerm({
       cursorBlink: true,
-      scrollback: 1000,
+      scrollback: 9999,
         scrollOnEraseInDisplay : true,
         scrollOnUserInput: true,
         fontSize: 10,
@@ -104,7 +104,7 @@ export class TerminalVanilla {
       }
     });
 
-    // Set up ResizeObserver for container resize with 5s debounce
+    // Set up ResizeObserver for container resize with debounce
     this.resizeObserver = new ResizeObserver(() => {
       if (this.resizeTimeout) {
         clearTimeout(this.resizeTimeout);

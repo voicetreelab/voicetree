@@ -37,7 +37,7 @@ interface BroadcastCall {
 
 // Expected counts (based on actual example_folder_fixtures)
 const EXPECTED_SMALL_NODE_COUNT = 7  // Includes 7_Bad_YAML_Frontmatter_Test.md
-const EXPECTED_LARGE_NODE_COUNT = 75
+const EXPECTED_LARGE_NODE_COUNT = 76
 
 // State for mocks
 let broadcastCalls: Array<BroadcastCall> = []

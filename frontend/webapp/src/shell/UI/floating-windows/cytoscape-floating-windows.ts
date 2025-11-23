@@ -6,13 +6,9 @@
  */
 
 import type cytoscape from 'cytoscape';
-import {TerminalVanilla} from '@/shell/UI/floating-windows/TerminalVanilla.ts';
-import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
-import type {NodeMetadata} from '@/shell/UI/floating-windows/types.ts';
-import {modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
-import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+import type {FloatingWindowUIHTMLData, TerminalData} from '@/shell/edge/UI-edge/floating-windows/types.ts';
 import type {NodeId} from "@/pure/graph";
-import posthog from 'posthog-js';
+import {vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
 
 export interface FloatingWindowConfig {
     id: string;
@@ -23,35 +19,11 @@ export interface FloatingWindowConfig {
     resizable?: boolean;
     initialContent?: string;
     onSave?: (content: string) => Promise<void>;
-    nodeMetadata?: NodeMetadata;
+    nodeMetadata?: TerminalData;
     // Shadow node dimensions for layout algorithm (defaults based on component type)
     shadowNodeDimensions?: { width: number; height: number };
     // Cleanup callback when window is closed
     onClose?: () => void;
-}
-
-/**
- * FloatingWindow object returned by component creation functions
- * Provides access to DOM elements and cleanup
- */
-export interface FloatingWindow {
-    id: string;
-    cy: cytoscape.Core;
-    windowElement: HTMLElement;
-    contentContainer: HTMLElement;
-    titleBar: HTMLElement;
-    cleanup: () => void;
-}
-
-// Store vanilla JS component instances for cleanup
-const vanillaInstances = new Map<string, { dispose: () => void }>();
-
-/**
- * Get a vanilla instance by window ID (for testing)
- * @internal - Only for test usage
- */
-export function getVanillaInstance(windowId: string): { dispose: () => void } | undefined {
-    return vanillaInstances.get(windowId);
 }
 
 /**
@@ -179,7 +151,7 @@ export function createWindowChrome(
 
     // Attach fullscreen handler
     fullscreenButton.addEventListener('click', () => {
-        const vanillaInstance = vanillaInstances.get(id);
+        const vanillaInstance = vanillaFloatingWindowInstances.get(id);
         if (vanillaInstance && 'toggleFullscreen' in vanillaInstance) {
             void (vanillaInstance as { toggleFullscreen: () => Promise<void> }).toggleFullscreen();
         }
@@ -202,10 +174,10 @@ export function createWindowChrome(
             shadowNode.remove();
         }
         // Dispose vanilla JS instances
-        const vanillaInstance = vanillaInstances.get(id);
+        const vanillaInstance = vanillaFloatingWindowInstances.get(id);
         if (vanillaInstance) {
             vanillaInstance.dispose();
-            vanillaInstances.delete(id);
+            vanillaFloatingWindowInstances.delete(id);
         }
         windowElement.remove();
     });
@@ -319,209 +291,10 @@ function getDefaultDimensions(component: string): { width: number; height: numbe
         case 'MarkdownEditor':
             // Editors are medium - typical size ~500x300
             return {width: 400, height: 400};
-        case 'TestComponent':
-            // Test component - small size for e2e-tests
-            return {width: 200, height: 150};
         default:
             // Default for unknown components
             return {width: 200, height: 150};
     }
-}
-
-/**
- * Create a floating editor window
- * Returns FloatingWindow object that can be anchored or positioned manually
- * Returns undefined if an editor for this node already exists
- *
- * @param cy - Cytoscape instance
- * @param nodeId - ID of the node to edit (used to fetch content and derive editor ID)
- * @param editorRegistry - Map to register editor ID for external content updates
- * @param awaitingUISavedContent - Map to track content being saved from UI-edge to prevent feedback loop
- */
-export async function createFloatingEditor(
-    cy: cytoscape.Core,
-    nodeId: string,
-    editorRegistry: Map<string, string>,
-    awaitingUISavedContent: Map<NodeId, string>
-): Promise<FloatingWindow | undefined> {
-    // Derive editor ID from node ID
-    const id = `${nodeId}-editor`;
-
-    // Check if already exists
-    const existing = cy.nodes(`#${id}`);
-    if (existing && existing.length > 0) {
-        console.log('[createAnchoredFloatingEditor] Editor already exists:', id);
-        return undefined;
-    }
-
-    // Register in editor registry if provided
-    editorRegistry.set(nodeId, id);
-
-    // Always resizable
-    const resizable = true;
-
-    // Derive title and content from nodeId
-    const node = await getNodeFromMainToUI(nodeId);
-    let content = "loading..."
-    let title = `${nodeId}`; // fallback to nodeId if node not found
-    if (node){
-        content = node.content;
-        title = `${node.nodeUIMetadata.title}`;
-    }
-
-    // Get overlay
-    const overlay = getOrCreateOverlay(cy);
-
-    // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
-    const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
-        id,
-        title,
-        component: 'MarkdownEditor',
-        resizable,
-        initialContent: content
-    });
-
-    // Create CodeMirror editor instance
-    const editor = new CodeMirrorEditorView(
-        contentContainer,
-        content,
-        {
-            autosaveDelay: 300,
-            darkMode: document.documentElement.classList.contains('dark')
-        }
-    );
-
-    // Setup auto-save with modifyNodeContentFromUI
-    editor.onChange((newContent): void => {
-        void (async () => {
-            console.log('[createAnchoredFloatingEditor] Saving editor content for node:', nodeId);
-            // Track this content so we can ignore it when it comes back from filesystem
-            awaitingUISavedContent.set(nodeId, newContent);
-            await modifyNodeContentFromUI(nodeId, newContent, cy);
-        })();
-    });
-
-    // Store for cleanup
-    vanillaInstances.set(id, editor);
-
-    // Create cleanup wrapper that handles registry and shadow node cleanup
-    const floatingWindow: FloatingWindow = {
-        id,
-        cy,
-        windowElement,
-        contentContainer,
-        titleBar,
-        cleanup: () => {
-            const vanillaInstance = vanillaInstances.get(id);
-            if (vanillaInstance) {
-                vanillaInstance.dispose();
-                vanillaInstances.delete(id);
-            }
-            windowElement.remove();
-            // Clean up mapping when editor is closed
-            editorRegistry.delete(nodeId);
-            // TODO Remove child shadow node (but we need to pass it through, or have it in the map)
-            // if (childShadowNode && childShadowNode.inside()) {
-            //     childShadowNode.remove();
-            // }
-        }
-    };
-
-    // Update close button to call floatingWindow.cleanup (so anchorToNode can wrap it)
-    const closeButton = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
-    if (closeButton) {
-        // Remove old handler and add new one
-        const newCloseButton = closeButton.cloneNode(true) as HTMLElement;
-        closeButton.parentNode?.replaceChild(newCloseButton, closeButton);
-        newCloseButton.addEventListener('click', () => floatingWindow.cleanup());
-    }
-
-    // Add to overlay
-    overlay.appendChild(windowElement);
-
-    return floatingWindow;
-}
-
-/**
- * Create a floating terminal window (no anchoring)
- * Returns FloatingWindow object that can be anchored or positioned manually
- */
-export function createFloatingTerminal(
-    cy: cytoscape.Core,
-    config: {
-        id: string;
-        title: string;
-        nodeMetadata: NodeMetadata;
-        onClose?: () => void;
-        resizable?: boolean;
-    }
-): FloatingWindow {
-    const {id, title, nodeMetadata, onClose, resizable = true} = config;
-
-    // Get overlay
-    const overlay = getOrCreateOverlay(cy);
-
-    // Create window chrome (don't pass onClose, we'll handle it in the cleanup wrapper)
-    const {windowElement, contentContainer, titleBar} = createWindowChrome(cy, {
-        id,
-        title,
-        component: 'Terminal',
-        resizable,
-        nodeMetadata
-    });
-
-    // Create Terminal instance
-    const terminal = new TerminalVanilla({
-        container: contentContainer,
-        nodeMetadata
-    });
-
-    // Store for cleanup
-    vanillaInstances.set(id, terminal);
-
-    // Analytics: Track terminal opened
-    posthog.capture('terminal_opened', { terminalId: id });
-
-    // Create cleanup wrapper that can be extended by anchorToNode
-    const floatingWindow: FloatingWindow = {
-        id,
-        cy,
-        windowElement,
-        contentContainer,
-        titleBar,
-        cleanup: () => {
-            // Analytics: Track terminal closed
-            posthog.capture('terminal_closed', { terminalId: id });
-
-            const vanillaInstance = vanillaInstances.get(id);
-            if (vanillaInstance) {
-                vanillaInstance.dispose();
-                vanillaInstances.delete(id);
-            }
-            windowElement.remove();
-            if (onClose) {
-                onClose();
-            }
-        }
-    };
-
-    // Update close button to call floatingWindow.cleanup (so anchorToNode can wrap it)
-    const closeButton = titleBar.querySelector('.cy-floating-window-close') as HTMLElement;
-    if (closeButton) {
-        // Remove old handler and add new one
-        const newCloseButton = closeButton.cloneNode(true) as HTMLElement;
-        closeButton.parentNode?.replaceChild(newCloseButton, closeButton);
-        newCloseButton.addEventListener('click', () => floatingWindow.cleanup());
-    }
-
-    // Set initial position to offscreen to avoid flash at 0,0
-    // windowElement.style.left = '-9999px';
-    // windowElement.style.top = '-9999px';
-
-    // Add to overlay
-    overlay.appendChild(windowElement);
-
-    return floatingWindow;
 }
 
 /**
@@ -537,11 +310,12 @@ export function createFloatingTerminal(
  * @returns The created child shadow node
  */
 export function anchorToNode(
-    floatingWindow: FloatingWindow,
+    cy : cytoscape.Core,
+    floatingWindow: FloatingWindowUIHTMLData,
     parentNodeId: NodeId,
     shadowNodeData?: Record<string, unknown>
 ): cytoscape.NodeSingular {
-    const {cy, windowElement, titleBar} = floatingWindow;
+    const {windowElement, titleBar} = floatingWindow;
 
     console.log('[anchorToNode] Called with parentNodeId:', parentNodeId, 'type:', typeof parentNodeId);
 

@@ -5,9 +5,9 @@
 
 import type {} from '@/utils/types/electron';
 import type {Core} from 'cytoscape';
-import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/cytoscape-graph-ui/extensions/cytoscape-floating-windows.ts';
+import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/floating-windows/cytoscape-floating-windows.ts';
 import type {Settings} from '@/pure/settings/types.ts';
-import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
+import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
     const settingsId = 'settings-editor';

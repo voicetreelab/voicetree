@@ -1,7 +1,3 @@
----
----
 # Identify Relevant Test
 
-**EXTERNAL CHANGE** - This file was changed by an external process!
-
-The editor should automatically sync to show this change.
+This note is about identifying the relevant test to check if the tree action decider workflow is working correctly.

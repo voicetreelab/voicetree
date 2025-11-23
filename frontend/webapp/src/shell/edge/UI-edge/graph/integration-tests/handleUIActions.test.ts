@@ -123,7 +123,7 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 type: 'UpsertNode',
                 nodeToUpsert: expect.objectContaining({
                     relativeFilePathIsID: newNodeId,
-                    content: '# Title'
+                    content: '# new'
                 })
             }),
             expect.objectContaining({

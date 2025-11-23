@@ -4,7 +4,7 @@ import type { GraphDelta } from '@/pure/graph';
 import type { mainAPI } from '@/shell/edge/main/api.ts';
 
 // Re-export NodeMetadata for use in terminal API
-export type { NodeMetadata } from '@/shell/UI/floating-windows/types.ts';
+export type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types.ts';
 
 // Utility type to transform all functions in an object to return Promises
 // Uses Awaited<R> to handle both sync and async functions correctly:
@@ -34,7 +34,7 @@ export interface ElectronAPI {
 
   // Terminal operations
   terminal: {
-    spawn: (nodeMetadata?: NodeMetadata) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
+    spawn: (nodeMetadata?: TerminalData) => Promise<{ success: boolean; terminalId?: string; error?: string }>;
     write: (terminalId: string, data: string) => Promise<{ success: boolean; error?: string }>;
     resize: (terminalId: string, cols: number, rows: number) => Promise<{ success: boolean; error?: string }>;
     kill: (terminalId: string) => Promise<{ success: boolean; error?: string }>;

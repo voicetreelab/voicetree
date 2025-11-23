@@ -3,7 +3,7 @@
  */
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph, NodeId} from '@/pure/graph';
-import type {FloatingWindowManager} from '@/shell/UI/views/FloatingWindowManager.ts';
+import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
 import {ContextMenuService} from '@/shell/UI/cytoscape-graph-ui/services/ContextMenuService.ts';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout.ts';
 
@@ -13,7 +13,7 @@ export interface SetupCytoscapeParams {
     onLayoutComplete: () => void;
     onNodeSelected: (nodeId: string) => void;
     getCurrentGraphState: () => Graph;
-    floatingWindowManager: FloatingWindowManager;
+    floatingWindowManager: FloatingEditorManager;
 }
 
 /**
@@ -48,7 +48,7 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         onNodeSelected(node.id());
 
         console.log('[VoiceTreeGraphView] Calling createAnchoredFloatingEditor');
-        floatingWindowManager.createAnchoredFloatingEditor(node.id()).then(() => console.log('[VoiceTreeGraphView] Created editor'));
+        void floatingWindowManager.createAnchoredFloatingEditor(node.id()).then(() => console.log('[VoiceTreeGraphView] Created editor'));
     });
 
     // Setup context menu (with defensive DOM checks)
@@ -58,12 +58,6 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
         createAnchoredFloatingEditor: (nodeId : NodeId) =>
             floatingWindowManager.createAnchoredFloatingEditor(nodeId),
-        createFloatingTerminal: (nodeId: string, metadata: unknown, pos) =>
-            floatingWindowManager.createFloatingTerminal(nodeId, metadata as {
-                id: string;
-                name: string;
-                filePath?: string
-            }, pos),
         handleAddNodeAtPosition: (position) =>
             floatingWindowManager.handleAddNodeAtPosition(position)
     });
