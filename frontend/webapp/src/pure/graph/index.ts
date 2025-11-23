@@ -99,9 +99,10 @@ export type FSWriteEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
 // CORE FUNCTION EXPORTS
 // ============================================================================
 
-// markdown -> Node //strips yaml, and replaces [[(\w+)]] with $1 + outgoing edge
+// markdown -> Node //strips yaml, and replaces [[(\w+)]] with [$1]* + outgoing edge
 
-// node -> markdown // adds back yaml and links from [] or any outgoing edges
+// node -> markdown // adds back yaml and links for any outgoing edges
+
 
 
 // === CORE GRAPH DELTA OPERATIONS ===
