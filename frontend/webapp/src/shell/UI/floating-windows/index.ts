@@ -3,5 +3,4 @@
 // See: src/cytoscape-graph-ui/extensions/cytoscape-floating-windows.ts
 // Note: MarkdownEditor is now vanilla JS (CodeMirrorEditorView), not a React component
 
-export { TestComponent } from './TestComponent.ts';
-export type { NodeMetadata } from './types.ts';
+export type { TerminalData } from '../../edge/UI-edge/floating-windows/types.ts';

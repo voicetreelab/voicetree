@@ -247,7 +247,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
     }, nodeId);
 
     // Editor window ID needs escaped dots for CSS selector
-    const editorWindowId = `window-editor-${nodeId}`;
+    const editorWindowId = `window-${nodeId}-editor`;
     const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`; // Escape dots for CSS selector
 
     // Wait for editor to open
@@ -337,7 +337,7 @@ test.describe('Editor Feedback Loop Bug (Browser)', () => {
       cy.getElementById(nId).trigger('tap');
     }, nodeId);
 
-    const editorWindowId = `window-editor-${nodeId}`;
+    const editorWindowId = `window-${nodeId}-editor`;
     const editorSelector = `#${editorWindowId.replace(/\./g, '\\.')}`; // Escape dots for CSS selector
     await page.waitForSelector(`${editorSelector} .cm-editor`, { timeout: 5000 });
 

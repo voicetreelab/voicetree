@@ -11,10 +11,10 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
-import type { NodeMetadata } from '@/shell/UI/floating-windows/types.ts';
+import type { TerminalData } from '@/shell/edge/UI-edge/floating-windows/types.ts';
 
 export interface TerminalNoAutoScrollConfig {
-  nodeMetadata?: NodeMetadata;
+  nodeMetadata?: TerminalData;
   container: HTMLElement;
 }
 
@@ -23,7 +23,7 @@ export class TerminalNoAutoScroll {
   private terminalId: string | null = null;
   private fitAddon: FitAddon | null = null;
   private container: HTMLElement;
-  private nodeMetadata?: NodeMetadata;
+  private nodeMetadata?: TerminalData;
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
 

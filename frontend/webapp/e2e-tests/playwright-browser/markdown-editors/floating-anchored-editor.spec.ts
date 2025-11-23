@@ -112,7 +112,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     console.log('✓ Tap event triggered');
 
     console.log('=== Step 6: Verify editor window and content ===');
-    const editorSelector = '#window-editor-test-editor-node\\.md';
+    const editorSelector = '#window-test-editor-node\\.md-editor';
     await page.waitForSelector(editorSelector, { timeout: 3000 });
     console.log('✓ Editor window appeared');
 
@@ -135,8 +135,8 @@ test.describe('Floating Anchored Editor (Browser)', () => {
       if (!cy) throw new Error('Cytoscape not initialized');
       // The editor is now anchored to a child shadow node
       // Child shadow ID format: shadow-child-{parentNodeId}-{floatingWindowId}
-      // floatingWindowId = editor-{nodeId}
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-editor-test-editor-node\\.md');
+      // floatingWindowId = {nodeId}-editor
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-test-editor-node\\.md-editor');
       if (childShadowNode.length === 0) throw new Error('Child shadow node not found');
 
       // Verify parent relationship
@@ -200,7 +200,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const childShadowNodePos = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-editor-test-editor-node\\.md');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-test-editor-node\\.md-editor');
       return childShadowNode.position();
     });
     console.log(`  Child shadow node pos: (${childShadowNodePos.x}, ${childShadowNodePos.y})`);
@@ -228,7 +228,7 @@ test.describe('Floating Anchored Editor (Browser)', () => {
     const childShadowNodeRemoved = await page.evaluate(() => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
       if (!cy) throw new Error('Cytoscape not initialized');
-      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-editor-test-editor-node\\.md');
+      const childShadowNode = cy.$('#shadow-child-test-editor-node\\.md-test-editor-node\\.md-editor');
       return childShadowNode.length === 0;
     });
     expect(childShadowNodeRemoved).toBe(true);

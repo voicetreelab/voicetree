@@ -2,6 +2,7 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import pty, { type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
+import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
 
 interface NodeMetadata {
   filePath?: string;
@@ -46,11 +47,12 @@ export default class TerminalManager {
   /**
    * Spawn a new PTY terminal with optional node metadata for environment variables
    */
-  async spawn(
+  async spawn( // todo, this should take just a TerminalData object
     sender: WebContents,
     nodeMetadata: NodeMetadata | undefined,
     getWatchedDirectory: () => string | null,
-    getToolsDirectory: () => string
+    getToolsDirectory: () => string,
+      // terminalData: TerminalData
   ): Promise<TerminalSpawnResult> {
     try {
       const terminalId = `term-${Date.now()}`;

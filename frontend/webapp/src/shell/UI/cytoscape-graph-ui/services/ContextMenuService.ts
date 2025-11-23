@@ -16,7 +16,6 @@ cytoscape.use(cxtmenu);
 export interface ContextMenuDependencies {
     getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
     createAnchoredFloatingEditor: (nodeId: NodeId) => Promise<void>;
-    createFloatingTerminal: (nodeId: string, metadata: unknown, pos: Position) => Promise<void>;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
 
@@ -232,11 +231,10 @@ export class ContextMenuService {
 
     private createTerminalFromContextMenu(nodeId: string) {
         return async () => {
-            const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/graph/spawnTerminalWithCommandFromUI.ts');
+            const {spawnTerminalForNode} = await import('@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts');
             await spawnTerminalForNode(
                 nodeId,
-                this.cy!,
-                (nodeId, metadata, pos) => this.deps!.createFloatingTerminal(nodeId, metadata, pos)
+                this.cy!
             );
         };
     }

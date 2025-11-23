@@ -4,7 +4,7 @@
  */
 
 import type { Graph, NodeId } from '@/pure/graph'
-import { reverseGraphEdges } from './graph-transformations.ts'
+import { reverseGraphEdges } from '../graph-operations /graph-transformations.ts'
 
 /**
  * Converts a Graph into an ASCII tree visualization.

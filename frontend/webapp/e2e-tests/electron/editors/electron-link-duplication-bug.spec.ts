@@ -43,6 +43,7 @@ interface ExtendedWindow {
       startFileWatching: (dir: string) => Promise<{ success: boolean; directory?: string; error?: string }>;
       stopFileWatching: () => Promise<{ success: boolean; error?: string }>;
       getWatchStatus: () => Promise<{ isWatching: boolean; directory?: string }>;
+      getGraph: () => Promise<{ nodes: Record<string, unknown> } | undefined>;
     };
   };
 }
@@ -202,6 +203,21 @@ Some more content here.`;
 
     console.log('✓ Node loaded in graph');
 
+    // Wait for node to exist in main process graph (not just cytoscape UI)
+    await expect.poll(async () => {
+      return appWindow.evaluate(async (nId) => {
+        const api = (window as ExtendedWindow).electronAPI;
+        const graph = await api?.main.getGraph();
+        if (!graph) return false;
+        return nId in graph.nodes;
+      }, testNodeId);
+    }, {
+      message: `Waiting for ${testNodeId} to exist in main process graph`,
+      timeout: 10000
+    }).toBe(true);
+
+    console.log('✓ Node exists in main process graph');
+
     // 4. Open the floating editor by clicking the node
     await appWindow.evaluate((nId) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -212,7 +228,8 @@ Some more content here.`;
     }, testNodeId);
 
     // Wait for editor window to appear
-    const editorWindowId = `window-editor-${testNodeId}`;
+    // Window ID format is: window-${nodeId}-editor
+    const editorWindowId = `window-${testNodeId}-editor`;
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
         const editorWindow = document.getElementById(winId);
@@ -336,6 +353,21 @@ End of content.`;
 
     console.log('✓ Node loaded in graph');
 
+    // Wait for node to exist in main process graph (not just cytoscape UI)
+    await expect.poll(async () => {
+      return appWindow.evaluate(async (nId) => {
+        const api = (window as ExtendedWindow).electronAPI;
+        const graph = await api?.main.getGraph();
+        if (!graph) return false;
+        return nId in graph.nodes;
+      }, testNodeId);
+    }, {
+      message: `Waiting for ${testNodeId} to exist in main process graph`,
+      timeout: 10000
+    }).toBe(true);
+
+    console.log('✓ Node exists in main process graph');
+
     // Verify edge exists in graph
     const edgeExistsInitially = await appWindow.evaluate(({ sourceId, targetId }) => {
       const cy = (window as ExtendedWindow).cytoscapeInstance;
@@ -356,7 +388,8 @@ End of content.`;
       node.trigger('tap');
     }, testNodeId);
 
-    const editorWindowId = `window-editor-${testNodeId}`;
+    // Window ID format is: window-${nodeId}-editor
+    const editorWindowId = `window-${testNodeId}-editor`;
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
         const editorWindow = document.getElementById(winId);

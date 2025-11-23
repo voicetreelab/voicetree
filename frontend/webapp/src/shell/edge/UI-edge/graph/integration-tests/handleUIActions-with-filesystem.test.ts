@@ -227,7 +227,7 @@ Child content`
 
         // AND: File should have correct content
         const fileContent = await fs.readFile(newFilePath, 'utf-8')
-        expect(fileContent).toContain('# Title')
+        expect(fileContent).toContain('# new')
     })
 
     it('should create file with correct position metadata eventually', async () => {

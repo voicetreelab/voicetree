@@ -33,11 +33,11 @@ cytoscape.use(navigator);
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService.ts';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts';
 import {ContextMenuService} from '@/shell/UI/cytoscape-graph-ui/services/ContextMenuService.ts';
-import {FloatingWindowManager} from './FloatingWindowManager.ts';
+import {FloatingEditorManager} from '../floating-windows/editors/FloatingEditorManager.ts';
 import {HotkeyManager} from './HotkeyManager.ts';
 import {SearchService} from './SearchService.ts';
 import {GraphNavigationService} from './GraphNavigationService.ts';
-import {createNewNodeAction, runTerminalAction} from './actions/graphActions.ts';
+import {createNewNodeAction, runTerminalAction} from '@/shell/UI/cytoscape-graph-ui/actions/graphActions.ts';
 import {getResponsivePadding} from '@/utils/responsivePadding.ts';
 import {SpeedDialSideGraphFloatingMenuView} from './SpeedDialSideGraphFloatingMenuView.ts';
 import type {Graph, GraphDelta} from '@/pure/graph';
@@ -46,6 +46,7 @@ import {setupBasicCytoscapeEventListeners, setupCytoscape} from './VoiceTreeGrap
 import {applyGraphDeltaToUI} from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts';
 import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeState.ts';
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor.ts";
+import {spawnTerminalForNode} from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -63,7 +64,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     private contextMenuService?: ContextMenuService; // Initialized in setupCytoscape()
 
     // Managers
-    private floatingWindowManager: FloatingWindowManager;
+    private floatingWindowManager: FloatingEditorManager;
     private hotkeyManager: HotkeyManager;
     private searchService: SearchService;
     private navigationService: GraphNavigationService;
@@ -110,7 +111,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
 
         // Initialize managers (after cy is created in render())
         this.hotkeyManager = new HotkeyManager();
-        this.floatingWindowManager = new FloatingWindowManager(
+        this.floatingWindowManager = new FloatingEditorManager(
             this.cy,
             () => this.getCurrentGraphState(),
             this.hotkeyManager
@@ -654,10 +655,10 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         const centerY = (cy.height() / 2 - pan.y) / zoom;
 
         // Create floating terminal with pre-pasted command
-        await this.floatingWindowManager.createFloatingTerminal(
+        await spawnTerminalForNode(
             'backup',
             terminalMetadata,
-            {x: centerX, y: centerY}
+            {x: centerX, y: centerY} // todo, allow no node?
         );
 
         // Fit the graph to include the newly spawned terminal

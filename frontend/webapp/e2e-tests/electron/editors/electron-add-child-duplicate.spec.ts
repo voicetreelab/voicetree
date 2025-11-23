@@ -200,7 +200,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       if (!parentNode) throw new Error('Parent node not found');
 
       // Create child node (replicating fromUICreateChildToUpsertNode logic)
-      const childId = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length;
+      const childId = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + '.md';
       const newNode = {
         relativeFilePathIsID: childId,
         outgoingEdges: [] as const,

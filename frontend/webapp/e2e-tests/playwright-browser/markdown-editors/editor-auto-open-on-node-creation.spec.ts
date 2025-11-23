@@ -195,7 +195,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
       // Update parent to have edge to child
       const updatedParent = {
         ...parentGraphNode,
-        outgoingEdges: [...parentGraphNode.outgoingEdges, childId]
+        outgoingEdges: [...parentGraphNode.outgoingEdges, { targetId: childId, label: '' }]
       };
 
       const delta = [
@@ -221,7 +221,7 @@ test.describe('Editor Auto-Open on GraphNode Creation (Browser)', () => {
 
       // Check if editor window was created
       await new Promise(resolve => setTimeout(resolve, 500));
-      const editorSelector = `#window-editor-${childId}`;
+      const editorSelector = `#window-${childId}-editor`;
       const editorEl = document.querySelector(editorSelector);
 
       return {

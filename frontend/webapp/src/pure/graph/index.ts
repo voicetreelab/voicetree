@@ -6,9 +6,9 @@ import { stripDeltaForReplay } from './graphDelta/stripDeltaForReplay.ts'
 import { setOutgoingEdges } from './graph-operations /graph-edge-operations.ts'
 import { reverseGraphEdges } from './graph-operations /graph-transformations.ts'
 import { prettyPrintGraphDelta } from './graph-operations /prettyPrint.ts'
-import { graphToAscii } from './graph-operations /graphToAscii.ts'
-import { getSubgraphByDistance } from './graph-operations /getSubgraphByDistance.ts'
-import { getNodeIdsInTraversalOrder } from './graph-operations /getNodeIdsInTraversalOrder.ts'
+import { graphToAscii } from './markdown-writing/graphToAscii.ts'
+import { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance.ts'
+import { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder.ts'
 import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
 
 
@@ -149,13 +149,13 @@ void (setOutgoingEdges satisfies SetOutgoingEdges)
 export { reverseGraphEdges } from './graph-operations /graph-transformations.ts'
 void (reverseGraphEdges satisfies ReverseGraphEdges)
 
-export { getSubgraphByDistance } from './graph-operations /getSubgraphByDistance.ts'
+export { getSubgraphByDistance } from './graph-operations /traversal/getSubgraphByDistance.ts'
 void (getSubgraphByDistance satisfies GetSubgraphByDistance)
 
-export { graphToAscii } from './graph-operations /graphToAscii.ts'
+export { graphToAscii } from './markdown-writing/graphToAscii.ts'
 void (graphToAscii satisfies GraphToAscii)
 
-export { getNodeIdsInTraversalOrder } from './graph-operations /getNodeIdsInTraversalOrder.ts'
+export { getNodeIdsInTraversalOrder } from './graph-operations /traversal/getNodeIdsInTraversalOrder.ts'
 void (getNodeIdsInTraversalOrder satisfies GetNodeIdsInTraversalOrder)
 
 export { prettyPrintGraphDelta } from './graph-operations /prettyPrint.ts'

@@ -11,7 +11,7 @@ beforeAll(() => {
   }
 });
 
-import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/CodeMirrorEditorView.ts';
+import { CodeMirrorEditorView } from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
 
 describe('Frontmatter Parsing', () => {
   let container: HTMLElement;

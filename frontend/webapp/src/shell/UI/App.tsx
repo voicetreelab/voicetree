@@ -1,7 +1,7 @@
-import VoiceTreeTranscribe from "@/shell/UI/renderers/voicetree-transcribe.tsx";
-import {useFolderWatcher} from "@/shell/UI/hooks/useFolderWatcher.tsx";
-import {Button} from "@/shell/UI/components/ui/button.tsx";
-import {Alert, AlertDescription} from "@/shell/UI/components/ui/alert.tsx";
+import VoiceTreeTranscribe from "@/shell/UI/views/renderers/voicetree-transcribe.tsx";
+import {useFolderWatcher} from "@/shell/UI/views/hooks/useFolderWatcher.tsx";
+import {Button} from "@/shell/UI/views/components/ui/button.tsx";
+import {Alert, AlertDescription} from "@/shell/UI/views/components/ui/alert.tsx";
 import {VoiceTreeGraphView} from "@/shell/UI/views/VoiceTreeGraphView.ts";
 import {useEffect, useRef} from "react";
 

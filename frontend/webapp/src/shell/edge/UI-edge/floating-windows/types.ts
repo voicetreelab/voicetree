@@ -3,21 +3,23 @@
 
 export type FloatingWindowType = 'MarkdownEditor' | 'Terminal';
 
-export interface NodeMetadata {
+export interface TerminalData {
   id: string;
   name: string;
   filePath?: string;
-  extraEnv?: Record<string, string>;
+  initialEnvVars?: Record<string, string>;
   initialCommand?: string;
   executeCommand?: boolean;
+  floatingWindow?: FloatingWindowData;
 }
 
-export interface FloatingWindow {
+export interface FloatingWindowData {
   id: string;
   nodeId: string;
   type: FloatingWindowType;
   title: string;
   content: string;
+  HTMLData?: FloatingWindowUIHTMLData
   position: {
     x: number;
     y: number;
@@ -37,5 +39,16 @@ export interface FloatingWindow {
   };
   zIndex: number;
   onSave?: (newContent: string) => Promise<void>;
-  nodeMetadata?: NodeMetadata;  // Metadata for terminal environment variables
+}
+
+/**
+ * FloatingWindow object returned by component creation functions
+ * Provides access to DOM elements and cleanup
+ */
+export interface FloatingWindowUIHTMLData {
+    id: string;
+    windowElement: HTMLElement;
+    contentContainer: HTMLElement;
+    titleBar: HTMLElement;
+    cleanup: () => void;
 }

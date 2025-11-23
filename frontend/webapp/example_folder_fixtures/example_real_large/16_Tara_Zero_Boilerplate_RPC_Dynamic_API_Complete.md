@@ -34,7 +34,7 @@ The preload script now dynamically fetches the API shape from the main process a
 
 4. **Renderer files updated to use main.* instead of legacy wrappers:**
    - src/graph-core/services/ContextMenuService.ts
-   - src/views/FloatingWindowManager.ts
+   - src/views/FloatingEditorManager.ts
 
 ** Architecture Diagram**
 

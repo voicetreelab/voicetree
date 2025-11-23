@@ -121,17 +121,17 @@ test.describe('External Content Update (Browser)', () => {
 
     console.log('=== Step 6: Wait for editor window to appear and verify initial content ===');
     // Wait for the editor window to be visible
-    await page.waitForSelector('#window-editor-test-node\\.md', { timeout: 3000 });
+    await page.waitForSelector('#window-test-node\\.md-editor', { timeout: 3000 });
     console.log('✓ Editor window appeared in DOM');
 
     // Wait for CodeMirror to render
-    await page.waitForSelector('#window-editor-test-node\\.md .cm-content', { timeout: 3000 });
+    await page.waitForSelector('#window-test-node\\.md-editor .cm-content', { timeout: 3000 });
     console.log('✓ CodeMirror editor rendered');
 
     // Wait for content to load (it starts as "loading..." and then updates to actual content)
     await page.waitForFunction(
       () => {
-        const cmContent = document.querySelector('#window-editor-test-node\\.md .cm-content');
+        const cmContent = document.querySelector('#window-test-node\\.md-editor .cm-content');
         const text = cmContent?.textContent ?? '';
         return text !== 'loading...' && text.length > 0;
       },
@@ -141,7 +141,7 @@ test.describe('External Content Update (Browser)', () => {
 
     // Get initial editor content
     const initialEditorContent = await page.evaluate(() => {
-      const cmContent = document.querySelector('#window-editor-test-node\\.md .cm-content');
+      const cmContent = document.querySelector('#window-test-node\\.md-editor .cm-content');
       return cmContent?.textContent ?? '';
     });
 
@@ -176,7 +176,7 @@ test.describe('External Content Update (Browser)', () => {
     console.log('=== Step 8: Verify editor content has been updated ===');
     // Get updated editor content
     const updatedEditorContent = await page.evaluate(() => {
-      const cmContent = document.querySelector('#window-editor-test-node\\.md .cm-content');
+      const cmContent = document.querySelector('#window-test-node\\.md-editor .cm-content');
       return cmContent?.textContent ?? '';
     });
 

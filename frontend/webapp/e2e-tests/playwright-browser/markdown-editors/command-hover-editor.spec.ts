@@ -123,7 +123,7 @@ test.describe('Hover Editor (Browser)', () => {
     console.log('✓ Mouseover triggered');
 
     console.log('=== Step 7: Verify hover editor appears with content ===');
-    const hoverEditorSelector = '#window-editor-hover-test-node\\.md';
+    const hoverEditorSelector = '#window-hover-test-node\\.md-editor';
     await page.waitForSelector(hoverEditorSelector, { timeout: 3000 });
     console.log('✓ Hover editor window appeared');
 

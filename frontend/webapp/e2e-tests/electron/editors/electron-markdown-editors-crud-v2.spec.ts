@@ -225,7 +225,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
     }, nodeId);
 
     // Wait for editor window to appear in DOM
-    const editorWindowId = `window-editor-${nodeId}`;
+    // Note: The window ID format is `window-${nodeId}-editor` based on createWindowChrome
+    const editorWindowId = `window-${nodeId}-editor`;
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
         const editorWindow = document.getElementById(winId);
@@ -262,8 +263,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
 
     console.log('✓ Content modified in editor');
 
-    // Wait for auto-save to complete
-    await appWindow.waitForTimeout(200);
+    // Wait for auto-save to complete (debounce is 300ms, add extra margin)
+    await appWindow.waitForTimeout(500);
 
     // Verify file content changed on disk BEFORE closing
     // Note: The system adds frontmatter with position
@@ -578,7 +579,8 @@ test.describe('Markdown Editor CRUD Tests', () => {
     }, nodeId);
 
     // Wait for editor window to appear in DOM
-    const editorWindowId = `window-editor-${nodeId}`;
+    // Note: The window ID format is `window-${nodeId}-editor` based on createWindowChrome
+    const editorWindowId = `window-${nodeId}-editor`;
     await expect.poll(async () => {
       return appWindow.evaluate((winId) => {
         const editorWindow = document.getElementById(winId);

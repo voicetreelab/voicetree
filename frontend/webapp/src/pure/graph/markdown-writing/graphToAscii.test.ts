@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { graphToAscii } from '@/pure/graph/graph-operations /graphToAscii.ts'
+import { graphToAscii } from '@/pure/graph/markdown-writing/graphToAscii.ts'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'

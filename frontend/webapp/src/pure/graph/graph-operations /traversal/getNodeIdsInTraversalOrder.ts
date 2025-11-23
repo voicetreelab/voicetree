@@ -21,7 +21,7 @@
  */
 
 import type { Graph, NodeId } from '@/pure/graph'
-import { reverseGraphEdges } from './graph-transformations.ts'
+import { reverseGraphEdges } from '../graph-transformations.ts'
 
 export function getNodeIdsInTraversalOrder(graph: Graph): NodeId[] {
   const nodeIds: NodeId[] = []

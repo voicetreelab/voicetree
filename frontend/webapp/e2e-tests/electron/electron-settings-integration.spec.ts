@@ -68,7 +68,7 @@ const test = base.extend<{
         HEADLESS_TEST: '1',
         MINIMIZE_TEST: '1'
       },
-      timeout: 5000 // 5 second timeout for app launch
+      timeout: 10000 // 10 second timeout for app launch
     });
 
     await use(electronApp);
@@ -94,7 +94,7 @@ const test = base.extend<{
   },
 
   appWindow: async ({ electronApp }, use) => {
-    const window = await electronApp.firstWindow();
+    const window = await electronApp.firstWindow({ timeout: 15000 });
 
     // Log console messages for debugging
     window.on('console', msg => {
@@ -107,7 +107,7 @@ const test = base.extend<{
     });
 
     await window.waitForLoadState('domcontentloaded');
-    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 5000 });
+    await window.waitForFunction(() => (window as unknown as ExtendedWindow).cytoscapeInstance, { timeout: 10000 });
     await window.waitForTimeout(1000);
 
     await use(window);

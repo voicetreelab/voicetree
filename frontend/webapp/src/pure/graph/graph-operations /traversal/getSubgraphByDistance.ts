@@ -4,8 +4,8 @@
  */
 
 import type { Graph, NodeId } from '@/pure/graph'
-import { getIncomingNodes } from './getIncomingNodes.ts'
-import { setOutgoingEdges } from './graph-edge-operations.ts'
+import { getIncomingNodes } from '../getIncomingNodes.ts'
+import { setOutgoingEdges } from '../graph-edge-operations.ts'
 
 /**
  * Performs weighted DFS to find all nodes within maxDistance from startNodeId.

@@ -134,7 +134,7 @@ test.describe('Multiple Folder Load Tests', () => {
     expect(placeholderHidden1).toBe(true);
     console.log('✓ Placeholder text hidden after first load');
 
-    console.log('=== STEP 4: Load second folder (example_real_large - 56 nodes) ===');
+    console.log('=== STEP 4: Load second folder (example_real_large - 57 nodes) ===');
     // Stop watching first folder
     await appWindow.evaluate(async () => {
       const api = (window as ExtendedWindow).electronAPI;
@@ -173,15 +173,15 @@ test.describe('Multiple Folder Load Tests', () => {
     console.log(`Second folder: ${secondFolderState.nodeCount} nodes`);
     console.log('Sample node IDs:', secondFolderState.nodeIds.slice(0, 5));
 
-    // CRITICAL: Should have ONLY 56 nodes from second folder, NOT 7 + 56 = 63
-    console.log(`Expected: 56 nodes, Got: ${secondFolderState.nodeCount} nodes`);
+    // CRITICAL: Should have ONLY 57 nodes from second folder, NOT 7 + 57 = 64
+    console.log(`Expected: 57 nodes, Got: ${secondFolderState.nodeCount} nodes`);
 
-    if (secondFolderState.nodeCount === 63) {
+    if (secondFolderState.nodeCount === 64) {
       console.error('❌ BUG REPRODUCED: Graph was not cleared! Has nodes from both folders.');
       console.error('  First folder nodes should have been deleted');
     }
 
-    expect(secondFolderState.nodeCount).toBe(56);
+    expect(secondFolderState.nodeCount).toBe(57);
     console.log('✓ Graph contains only nodes from second folder');
 
     // Verify none of the first folder nodes remain
