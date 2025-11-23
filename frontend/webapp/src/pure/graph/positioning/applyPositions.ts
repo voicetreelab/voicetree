@@ -39,7 +39,7 @@ export function applyPositions(graph: Graph): Graph {
     const ghostRootNode: GraphNode = {
         relativeFilePathIsID: GHOST_ROOT_ID,
         outgoingEdges: rootNodes.map(targetId => ({ targetId, label: '' })),
-        content: '',
+        contentWithoutYamlOrLinks: '',
         nodeUIMetadata: {
             title : "GHOST",
             color: O.none,

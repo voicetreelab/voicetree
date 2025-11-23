@@ -111,7 +111,7 @@ function generateNodeDetailsList(
 
   for (const nodeId of orderedNodeIds) {
     const node = subgraph.nodes[nodeId]
-    lines.push(`<${node.relativeFilePathIsID}> \n ${node.content} \n </${node.relativeFilePathIsID}>`)
+    lines.push(`<${node.relativeFilePathIsID}> \n ${node.contentWithoutYamlOrLinks} \n </${node.relativeFilePathIsID}>`)
   }
 
   return lines.join('\n')

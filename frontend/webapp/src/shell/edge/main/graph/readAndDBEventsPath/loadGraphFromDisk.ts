@@ -123,7 +123,7 @@ function buildNodesWithEdges(
     // Nodes already have edges extracted (from parseMarkdownToGraphNode)
     // But those edges have raw link text as targetId, not resolved node IDs
     // We need to re-extract and validate them against the full graph
-    const validatedEdges = extractEdges(node.content, nodes)
+    const validatedEdges = extractEdges(node.contentWithoutYamlOrLinks, nodes)
     const nodeWithValidatedEdges = setOutgoingEdges(node, validatedEdges)
      // todo, we want to do this progressively, so this function will no longer be necessary,
      // todo never want temporal state, adding a collection of single node is same as adding a whole graph

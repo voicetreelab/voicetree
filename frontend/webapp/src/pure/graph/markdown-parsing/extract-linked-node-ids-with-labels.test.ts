@@ -12,7 +12,7 @@ import type { GraphNode, Edge } from '@/pure/graph'
 describe('extractLinkedNodeIds - relationship labels integration', () => {
   const createNode = (id: string, content = '', title = id): GraphNode => ({
     relativeFilePathIsID: id,
-    content,
+    contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
       title,

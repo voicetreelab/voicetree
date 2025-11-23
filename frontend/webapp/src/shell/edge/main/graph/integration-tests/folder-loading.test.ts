@@ -105,8 +105,8 @@ describe('Folder Loading - Integration Tests', () => {
       const nodes = Object.values(graph.nodes)
       expect(nodes.length).toBeGreaterThan(0)
       nodes.forEach(node => {
-        expect(node.content).toBeDefined()
-        expect(node.content.length).toBeGreaterThan(0)
+        expect(node.contentWithoutYamlOrLinks).toBeDefined()
+        expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
         expect(node.relativeFilePathIsID).toBeDefined()
       })
 
@@ -132,8 +132,8 @@ describe('Folder Loading - Integration Tests', () => {
       const nodes = Object.values(graph.nodes)
       expect(nodes.length).toBeGreaterThan(0)
       nodes.forEach(node => {
-        expect(node.content).toBeDefined()
-        expect(node.content.length).toBeGreaterThan(0)
+        expect(node.contentWithoutYamlOrLinks).toBeDefined()
+        expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
       })
 
       // AND: Should broadcast delta to UI-edge (clear, stateChanged, watching-started)
@@ -180,7 +180,7 @@ describe('Folder Loading - Integration Tests', () => {
       // Verify nodes have content and edges
       const smallNodeIds = new Set(Object.keys(graph1.nodes))
       Object.values(graph1.nodes).forEach(node => {
-        expect(node.content.length).toBeGreaterThan(0)
+        expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
         expect(Array.isArray(node.outgoingEdges)).toBe(true)
       })
 
@@ -228,7 +228,7 @@ describe('Folder Loading - Integration Tests', () => {
       expect(nodeAdded).toBe(true)
       const graphAfterAdd = getGraph()
       expect(graphAfterAdd.nodes['test-new-file.md']).toBeDefined()
-      expect(graphAfterAdd.nodes['test-new-file.md'].content).toBe(testFileContent)
+      expect(graphAfterAdd.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(testFileContent)
       expect(Object.keys(graphAfterAdd.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT + 1)
 
       // Verify edge was created from test-new-file to 5_Immediate_Test_Observation_No_Output
@@ -293,7 +293,7 @@ describe('Folder Loading - Integration Tests', () => {
 
       // Verify nodes have content
       Object.values(graph2.nodes).forEach(node => {
-        expect(node.content.length).toBeGreaterThan(0)
+        expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
       })
 
       const secondBroadcastCount = broadcastCalls.length
@@ -359,7 +359,7 @@ describe('Folder Loading - Integration Tests', () => {
       // THEN: Graph should contain the new node
       const graph = getGraph()
       expect(graph.nodes['test-new-file.md']).toBeDefined()
-      expect(graph.nodes['test-new-file.md'].content).toBe(newFileContent)
+      expect(graph.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(newFileContent)
 
       // AND: Broadcast should have been sent
       expect(broadcastCalls.length).toBe(1)
@@ -472,10 +472,10 @@ describe('Folder Loading - Integration Tests', () => {
 
         // Property types
         expect(typeof node.relativeFilePathIsID).toBe('string')
-        expect(typeof node.content).toBe('string')
+        expect(typeof node.contentWithoutYamlOrLinks).toBe('string')
 
         // Content should not be empty
-        expect(node.content.length).toBeGreaterThan(0)
+        expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
 
         // outgoingEdges should be an array
         expect(Array.isArray(node.outgoingEdges)).toBe(true)
@@ -497,8 +497,8 @@ describe('Folder Loading - Integration Tests', () => {
       expect(badYamlNode).toBeDefined()
 
       // AND: Should have content (not skipped due to parse error)
-      expect(badYamlNode.content).toBeDefined()
-      expect(badYamlNode.content.length).toBeGreaterThan(0)
+      expect(badYamlNode.contentWithoutYamlOrLinks).toBeDefined()
+      expect(badYamlNode.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
 
       // AND: Should have used fallback title (from heading, not the unparseable frontmatter)
       expect(badYamlNode.nodeUIMetadata.title).toBeDefined()

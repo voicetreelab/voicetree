@@ -153,7 +153,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         nodes: {
           'target.md': {
             relativeFilePathIsID: 'target.md',
-            content: '# Target',
+            contentWithoutYamlOrLinks: '# Target',
             outgoingEdges: [],
             nodeUIMetadata: {
               title: 'Target',
@@ -213,7 +213,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         nodes: {
           'felix/1.md': {
             relativeFilePathIsID: 'felix/1.md',
-            content: '# Node 1',
+            contentWithoutYamlOrLinks: '# Node 1',
             outgoingEdges: [],
             nodeUIMetadata: {
               title: 'Node 1',

@@ -7,7 +7,7 @@ describe('getNodeIdsInTraversalOrder', () => {
   const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
-    content: `content of ${id}`,
+    contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
       color: O.none,
       position: O.none,

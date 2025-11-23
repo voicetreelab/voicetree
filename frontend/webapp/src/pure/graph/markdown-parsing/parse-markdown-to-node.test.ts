@@ -13,7 +13,7 @@ Some text`
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
     expect(result.relativeFilePathIsID).toBe('test.md')
-    expect(result.content).toBe(content)
+    expect(result.contentWithoutYamlOrLinks).toBe(content)
     expect(result.outgoingEdges).toEqual([])
     expect(O.isSome(result.nodeUIMetadata.color)).toBe(true)
     expect(O.getOrElse(() => '')(result.nodeUIMetadata.color)).toBe('#FF0000')
@@ -31,7 +31,7 @@ position:
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
     expect(result.relativeFilePathIsID).toBe('test.md')
-    expect(result.content).toBe(content)
+    expect(result.contentWithoutYamlOrLinks).toBe(content)
     expect(O.isSome(result.nodeUIMetadata.position)).toBe(true)
 
     const position = O.getOrElse(() => ({ x: 0, y: 0 }))(result.nodeUIMetadata.position)
@@ -77,7 +77,7 @@ Content here`
 
     const result = parseMarkdownToGraphNode(content, 'test.md')
 
-    expect(result.content).toBe(content)
+    expect(result.contentWithoutYamlOrLinks).toBe(content)
   })
 
   it('should handle nested paths in filename', () => {
@@ -110,7 +110,7 @@ Content here`
     const result = parseMarkdownToGraphNode(content, 'bad-yaml.md')
 
     expect(result.relativeFilePathIsID).toBe('bad-yaml.md')
-    expect(result.content).toBe(content)
+    expect(result.contentWithoutYamlOrLinks).toBe(content)
     expect(result.outgoingEdges).toEqual([])
     // Should fall back to heading when YAML fails
     expect(result.nodeUIMetadata.title).toBe('Fallback Heading')

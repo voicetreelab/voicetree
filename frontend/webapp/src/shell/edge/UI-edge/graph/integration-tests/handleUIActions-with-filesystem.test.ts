@@ -136,7 +136,7 @@ Child content`
             nodes: {
                 'parent.md': {
                     relativeFilePathIsID: 'parent.md',
-                    content: '# Parent Node\n\nParent content',
+                    contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
                     outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
                         color: O.none,
@@ -146,7 +146,7 @@ Child content`
                 },
                 'child1.md': {
                     relativeFilePathIsID: 'child1.md',
-                    content: '# Child 1\n\nChild content',
+                    contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
                     outgoingEdges: [],
                     nodeUIMetadata: {
                         color: O.none,
@@ -317,7 +317,7 @@ Child content`
             nodes: {
                 'parent.md': {
                     relativeFilePathIsID: 'parent.md',
-                    content: '# Parent Node\n\nParent content',
+                    contentWithoutYamlOrLinks: '# Parent Node\n\nParent content',
                     outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
                         color: O.none,
@@ -327,7 +327,7 @@ Child content`
                 },
                 'child1.md': {
                     relativeFilePathIsID: 'child1.md',
-                    content: '# Child 1\n\nChild content',
+                    contentWithoutYamlOrLinks: '# Child 1\n\nChild content',
                     outgoingEdges: [],
                     nodeUIMetadata: {
                         color: O.none,

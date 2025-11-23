@@ -47,7 +47,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                         data: {
                             id: nodeId,
                             label: node.nodeUIMetadata.title,
-                            content: node.content,
+                            content: node.contentWithoutYamlOrLinks,
                             summary: '',
                             color: colorValue
                         },

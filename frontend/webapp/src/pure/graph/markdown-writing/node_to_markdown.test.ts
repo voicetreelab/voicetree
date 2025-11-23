@@ -8,7 +8,7 @@ describe('fromNodeToMarkdownContent', () => {
     it('should merge nodeUIMetadata color over content frontmatter color when both present', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: `---
+        contentWithoutYamlOrLinks: `---
 color: "#FF0000"
 ---
 # Test Content`,
@@ -31,7 +31,7 @@ color: "#FF0000"
     it('should preserve content frontmatter position when nodeUIMetadata has no position', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: `---
+        contentWithoutYamlOrLinks: `---
 position:
   x: 150
   y: 250
@@ -60,7 +60,7 @@ color: "#FF0000"
     it('should merge nodeUIMetadata position over content frontmatter position when both present', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: `---
+        contentWithoutYamlOrLinks: `---
 position:
   x: 150
   y: 250
@@ -88,7 +88,7 @@ position:
     it('should include both color and position when content has title/summary and nodeUIMetadata has both', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: `---
+        contentWithoutYamlOrLinks: `---
 title: "My Node"
 summary: "A summary"
 ---
@@ -117,7 +117,7 @@ summary: "A summary"
     it('should work as currently does when content has no frontmatter', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: '# Test Content\n\nJust plain content',
+        contentWithoutYamlOrLinks: '# Test Content\n\nJust plain content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.some('#0000FF'),
@@ -139,7 +139,7 @@ summary: "A summary"
     it('should preserve other frontmatter fields not in nodeUIMetadata', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: `---
+        contentWithoutYamlOrLinks: `---
 title: "Original Title"
 summary: "Original Summary"
 node_id: "original-id"
@@ -168,7 +168,7 @@ custom_field: "should be preserved"
     it('should handle empty content frontmatter with nodeUIMetadata', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: `---
+        contentWithoutYamlOrLinks: `---
 ---
 # Test Content`,
         outgoingEdges: [],
@@ -193,7 +193,7 @@ custom_field: "should be preserved"
     it('should append wikilinks after content', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: '# Test Content',
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [{ targetId: 'child1.md', label: '' }, { targetId: 'child2.md', label: '' }],
         nodeUIMetadata: {
           color: O.none,
@@ -214,7 +214,7 @@ custom_field: "should be preserved"
     it('should not append wikilinks when outgoingEdges is empty', () => {
       const node: GraphNode = {
         relativeFilePathIsID: 'test.md',
-        content: '# Test Content',
+        contentWithoutYamlOrLinks: '# Test Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           color: O.none,

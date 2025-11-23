@@ -6,7 +6,7 @@ import type { GraphNode } from '@/pure/graph'
 describe('extractEdges - subfolder bug reproduction', () => {
   const createNode = (id: string, content = '', title = id): GraphNode => ({
     relativeFilePathIsID: id,
-    content,
+    contentWithoutYamlOrLinks: content,
     outgoingEdges: [],
     nodeUIMetadata: {
       title,
@@ -25,7 +25,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
       'felix/2': createNode('felix/2', 'Parent:\n- is_related_to [[1.md]]', 'Node 2')
     }
 
-    const content = nodes['felix/2'].content
+    const content = nodes['felix/2'].contentWithoutYamlOrLinks
 
     const result = extractEdges(content, nodes)
 
@@ -53,7 +53,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
       )
     }
 
-    const content = nodes['felix/2_Unexplained_Bug_Encountered'].content
+    const content = nodes['felix/2_Unexplained_Bug_Encountered'].contentWithoutYamlOrLinks
 
     const result = extractEdges(content, nodes)
 
@@ -70,7 +70,7 @@ describe('extractEdges - subfolder bug reproduction', () => {
       'felix/2': createNode('felix/2', '- related [[felix/1.md]]', 'Node 2')
     }
 
-    const content = nodes['felix/2'].content
+    const content = nodes['felix/2'].contentWithoutYamlOrLinks
 
     const result = extractEdges(content, nodes)
 

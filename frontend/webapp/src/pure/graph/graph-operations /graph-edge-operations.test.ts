@@ -12,7 +12,7 @@ describe('graph-edge-operations', () => {
   const createTestNode = (id: string, edges: Edge[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges,
-    content: 'test content',
+    contentWithoutYamlOrLinks: 'test content',
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
@@ -153,7 +153,7 @@ describe('graph-edge-operations', () => {
       const result = setOutgoingEdges(node, [{ targetId: 'node3', label: '' }])
 
       expect(result.relativeFilePathIsID).toBe('node1')
-      expect(result.content).toBe('test content')
+      expect(result.contentWithoutYamlOrLinks).toBe('test content')
       expect(result.nodeUIMetadata).toEqual(node.nodeUIMetadata)
     })
   })

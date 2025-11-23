@@ -31,7 +31,7 @@ export interface GraphNode {
     readonly relativeFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath
 
     // DATA
-    readonly content: string
+    readonly contentWithoutYamlOrLinks: string
 
     // visual METADATA
     readonly nodeUIMetadata: NodeUIMetadata
@@ -99,6 +99,11 @@ export type FSWriteEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
 // CORE FUNCTION EXPORTS
 // ============================================================================
 
+// markdown -> Node //strips yaml, and replaces [[(\w+)]] with $1 + outgoing edge
+
+// node -> markdown // adds back yaml and links from [] or any outgoing edges
+
+
 // === CORE GRAPH DELTA OPERATIONS ===
 
 export type ApplyGraphDeltaToGraph = (graph: Graph, delta: GraphDelta) => Graph
@@ -123,10 +128,6 @@ export type GetNodeIdsInTraversalOrder = (graph: Graph) => readonly NodeIdAndFil
 
 export type PrettyPrintGraphDelta = (delta: GraphDelta) => string
 
-// ============================================================================
-// FUNCTION IMPLEMENTATIONS
-// ============================================================================
-
 // === CORE GRAPH DELTA OPERATIONS ===
 
 export { applyGraphDeltaToGraph } from './graphDelta/applyGraphDeltaToGraph.ts'
@@ -140,8 +141,6 @@ void (stripDeltaForReplay satisfies StripDeltaForReplay)
 
 export { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
 void (mapFSEventsToGraphDelta satisfies MapFSEventsToGraphDelta)
-
-// === CORE GRAPH OPERATIONS ===
 
 export { setOutgoingEdges } from './graph-operations /graph-edge-operations.ts'
 void (setOutgoingEdges satisfies SetOutgoingEdges)
@@ -160,8 +159,3 @@ void (getNodeIdsInTraversalOrder satisfies GetNodeIdsInTraversalOrder)
 
 export { prettyPrintGraphDelta } from './graph-operations /prettyPrint.ts'
 void (prettyPrintGraphDelta satisfies PrettyPrintGraphDelta)
-
-// === CORE DB OPERATIONS ===
-// Note: DB operations (applyGraphActionsToDB) are NOT exported here
-// They contain Node.js fs imports and should only be used in main process
-// Import directly from './graphActionsToDBEffects.ts' in main process code

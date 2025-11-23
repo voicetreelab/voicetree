@@ -215,7 +215,7 @@ describe('ContextMenuService', () => {
       const commands = commandsFunc(node);
 
       // Check that content is an HTML element with SVG
-      const iconElement = commands[0]?.content as HTMLElement;
+      const iconElement = commands[0]?.contentWithoutYamlOrLinks as HTMLElement;
       expect(iconElement.tagName).toBe('DIV');
       expect(iconElement.querySelector('svg')).not.toBeNull();
       expect(iconElement.querySelector('path')).not.toBeNull();

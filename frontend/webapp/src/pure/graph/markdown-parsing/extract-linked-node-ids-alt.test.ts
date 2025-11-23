@@ -6,7 +6,7 @@ import type { GraphNode } from '@/pure/graph'
 describe('extractLinkedNodeIds', () => {
   const createNode = (id: string): GraphNode => ({
     relativeFilePathIsID: id,
-    content: '',
+    contentWithoutYamlOrLinks: '',
     outgoingEdges: [],
     nodeUIMetadata: {
       title: id,

@@ -51,7 +51,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // GIVEN: A UpsertNode delta
       const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
-        content: '# Test Integration GraphNode\n\nThis is test content for integration testing.',
+        contentWithoutYamlOrLinks: '# Test Integration GraphNode\n\nThis is test content for integration testing.',
         outgoingEdges: [],
         nodeUIMetadata: {
           title: 'Test Integration GraphNode',
@@ -87,7 +87,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // GIVEN: Node with outgoing edges
       const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
-        content: '# GraphNode With Links\n\nThis node links to [[1_VoiceTree_Website_Development_and_Node_Display_Bug]] and [[2_VoiceTree_Node_ID_Duplication_Bug]].',
+        contentWithoutYamlOrLinks: '# GraphNode With Links\n\nThis node links to [[1_VoiceTree_Website_Development_and_Node_Display_Bug]] and [[2_VoiceTree_Node_ID_Duplication_Bug]].',
         outgoingEdges: [
           { targetId: '1_VoiceTree_Website_Development_and_Node_Display_Bug', label: '' },
           { targetId: '2_VoiceTree_Node_ID_Duplication_Bug', label: '' }
@@ -126,7 +126,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // First create the file
       const testNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
-        content: '# GraphNode To Delete\n\nThis node will be deleted.',
+        contentWithoutYamlOrLinks: '# GraphNode To Delete\n\nThis node will be deleted.',
         outgoingEdges: [],
         nodeUIMetadata: {
           title: 'GraphNode To Delete',
@@ -171,7 +171,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // STEP 1: Create node
       const createNode: GraphNode = {
         relativeFilePathIsID: TEST_NODE_ID,
-        content: '# Original Content',
+        contentWithoutYamlOrLinks: '# Original Content',
         outgoingEdges: [],
         nodeUIMetadata: {
           title: 'Original Content',
@@ -191,7 +191,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
       // STEP 2: Update node
       const updateNode: GraphNode = {
         ...createNode,
-        content: '# Updated Content\n\nThis content has been updated.',
+        contentWithoutYamlOrLinks: '# Updated Content\n\nThis content has been updated.',
         nodeUIMetadata: {
           title: 'Updated Content',
           color: O.none,
@@ -230,7 +230,7 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
         type: 'UpsertNode',
         nodeToUpsert: {
           relativeFilePathIsID: TEST_NODE_ID,
-          content: '# Test',
+          contentWithoutYamlOrLinks: '# Test',
           outgoingEdges: [],
           nodeUIMetadata: {
             title: 'Test',

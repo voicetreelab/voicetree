@@ -7,7 +7,7 @@ describe('graph-transformations', () => {
   const createTestNode = (id: string, edges: readonly string[] = []): GraphNode => ({
     relativeFilePathIsID: id,
     outgoingEdges: edges.map(targetId => ({ targetId, label: '' })),
-    content: `content of ${id}`,
+    contentWithoutYamlOrLinks: `content of ${id}`,
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
@@ -132,11 +132,11 @@ describe('graph-transformations', () => {
       const result = reverseGraphEdges(graph)
 
       expect(result.nodes['A'].relativeFilePathIsID).toBe('A')
-      expect(result.nodes['A'].content).toBe('content of A')
+      expect(result.nodes['A'].contentWithoutYamlOrLinks).toBe('content of A')
       expect(result.nodes['A'].nodeUIMetadata).toEqual(graph.nodes['A'].nodeUIMetadata)
 
       expect(result.nodes['B'].relativeFilePathIsID).toBe('B')
-      expect(result.nodes['B'].content).toBe('content of B')
+      expect(result.nodes['B'].contentWithoutYamlOrLinks).toBe('content of B')
       expect(result.nodes['B'].nodeUIMetadata).toEqual(graph.nodes['B'].nodeUIMetadata)
     })
 

@@ -9,7 +9,7 @@ describe('markdownToTitle', () => {
         it('should extract title from frontmatter', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: '3.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 node_id: 3
 title: 'Bug: Auto-open Markdown Editor (3)'
 ---
@@ -24,15 +24,15 @@ Content here`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
 
         it('should handle frontmatter title without quotes', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 title: Simple Title
 ---
 Content`,
@@ -44,15 +44,15 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Simple Title')
         })
 
         it('should handle frontmatter title with double quotes', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 title: "Title With Double Quotes"
 ---
 Content`,
@@ -64,15 +64,15 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Title With Double Quotes')
         })
 
         it('should handle frontmatter title with apostrophes inside double quotes', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 title: "It's a Title with Apostrophe's"
 ---
 Content`,
@@ -84,15 +84,15 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe("It's a Title with Apostrophe's")
         })
 
         it('should handle frontmatter title with special characters', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 title: "Special: Characters! & Symbols?"
 ---
 Content`,
@@ -104,15 +104,15 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Special: Characters! & Symbols?')
         })
 
         it('should prioritize frontmatter title over heading', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 title: Frontmatter Title
 ---
 # Heading Title
@@ -126,15 +126,15 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Frontmatter Title')
         })
 
         it('should prioritize frontmatter title over ### heading', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: '3.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 node_id: 3
 title: 'Bug: Auto-open Markdown Editor (3)'
 ---
@@ -149,8 +149,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
     })
@@ -159,7 +159,7 @@ Content`,
         it('should extract title from first heading when no frontmatter title', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `# My Heading
+                contentWithoutYamlOrLinks: `# My Heading
 
 Content here`,
                 outgoingEdges: [],
@@ -170,15 +170,15 @@ Content here`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('My Heading')
         })
 
         it('should extract title from heading even with frontmatter but no title field', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 color: red
 ---
 # Heading Title
@@ -192,8 +192,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Heading Title')
         })
     })
@@ -202,7 +202,7 @@ Content`,
         it('should use first line when no frontmatter title or heading', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'my-test_file.md',
-                content: 'Just content, no heading',
+                contentWithoutYamlOrLinks: 'Just content, no heading',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -211,15 +211,15 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Just content, no heading') // Now uses first line, not filename
         })
 
         it('should use first line instead of filename when content exists', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'folder/another_folder/test-file_name.md',
-                content: 'Content',
+                contentWithoutYamlOrLinks: 'Content',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -228,15 +228,15 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Content') // Now uses first line, not filename
         })
 
         it('should clean up underscores and dashes in filename when no content', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'folder/another_folder/test-file_name.md',
-                content: '',
+                contentWithoutYamlOrLinks: '',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -245,8 +245,8 @@ Content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('test file name')
         })
     })
@@ -255,7 +255,7 @@ Content`,
         it('should extract title from production frontmatter with node_id and position', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: '12_Manually_Creating_Task_Tree_Nodes',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 node_id: 12
 title: Manually Creating Task Tree Nodes (12)
 ---
@@ -270,15 +270,15 @@ Users can manually create nodes in the task tree, often preferred over speaking.
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Manually Creating Task Tree Nodes (12)')
         })
 
         it('should extract title from frontmatter with quoted value', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: '9_Ethical_Concern_Objectifying_Colleagues',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 node_id: 9
 title: "Ethical Concern: Objectifying Colleagues (9)"
 position:
@@ -294,8 +294,8 @@ position:
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Ethical Concern: Objectifying Colleagues (9)')
         })
     })
@@ -304,7 +304,7 @@ position:
         it('should extract title from first non-empty line when no heading', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `This is the first line of content
+                contentWithoutYamlOrLinks: `This is the first line of content
 
 And this is more content`,
                 outgoingEdges: [],
@@ -315,15 +315,15 @@ And this is more content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('This is the first line of content')
         })
 
         it('should extract title from first non-empty line after frontmatter', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 color: red
 position:
   x: 100
@@ -341,15 +341,15 @@ More content here`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('This is the first line after frontmatter')
         })
 
         it('should trim whitespace from first line', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `
+                contentWithoutYamlOrLinks: `
 
    First line with leading whitespace
 
@@ -362,15 +362,15 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('First line with leading whitespace')
         })
 
         it('should prioritize heading over first line', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'test.md',
-                content: `# Heading Title
+                contentWithoutYamlOrLinks: `# Heading Title
 First line of content
 
 More content`,
@@ -382,8 +382,8 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Heading Title')
         })
 
@@ -391,7 +391,7 @@ More content`,
             const longLine = 'a'.repeat(250)
             const node: GraphNode = {
                 relativeFilePathIsID: 'test-file.md',
-                content: longLine,
+                contentWithoutYamlOrLinks: longLine,
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -400,8 +400,8 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('a'.repeat(200) + '...') // Should truncate with ...
         })
     })
@@ -410,7 +410,7 @@ More content`,
         it('should handle empty content', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: 'empty.md',
-                content: '',
+                contentWithoutYamlOrLinks: '',
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -419,8 +419,8 @@ More content`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('empty')
         })
 
@@ -428,7 +428,7 @@ More content`,
             const longHeading = 'a'.repeat(250)
             const node: GraphNode = {
                 relativeFilePathIsID: 'test-file.md',
-                content: `# ${longHeading}
+                contentWithoutYamlOrLinks: `# ${longHeading}
 Short first line after heading`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
@@ -438,8 +438,8 @@ Short first line after heading`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('a'.repeat(200) + '...')
         })
 
@@ -447,7 +447,7 @@ Short first line after heading`,
             const heading150 = 'a'.repeat(150)
             const node: GraphNode = {
                 relativeFilePathIsID: 'test-file.md',
-                content: `# ${heading150}`,
+                contentWithoutYamlOrLinks: `# ${heading150}`,
                 outgoingEdges: [],
                 nodeUIMetadata: {
                     title: '',
@@ -456,8 +456,8 @@ Short first line after heading`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe(heading150) // Should now work with 200 char limit
         })
 
@@ -477,7 +477,7 @@ Short first line after heading`,
 
             const node: GraphNode = {
                 relativeFilePathIsID: '1763527551220TNQ.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 ---
 
 there's a bug where in some condition somewhere, the title becomes "---"`,
@@ -489,8 +489,8 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
 
             // The bug: title becomes "---" because the regex doesn't strip empty frontmatter
             // Expected: should use first real line of content or filename
@@ -501,7 +501,7 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
         it('BUG REPRODUCTION: should NOT use "---" as title when frontmatter only has position', () => {
             const node: GraphNode = {
                 relativeFilePathIsID: '1763527551220TNQ.md',
-                content: `---
+                contentWithoutYamlOrLinks: `---
 position:
   x: 1311.368120831565
   y: 722.5336838585305
@@ -516,8 +516,8 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                 }
             }
 
-            const frontmatter = extractFrontmatter(node.content)
-            const title = markdownToTitle(frontmatter, node.content, node.relativeFilePathIsID)
+            const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
+            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
 
             // Should correctly strip frontmatter and use first content line
             expect(title).not.toBe('---')
