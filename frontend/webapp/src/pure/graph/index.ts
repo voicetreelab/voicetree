@@ -88,10 +88,10 @@ export type FSEvent = FSUpdate | FSDelete
 export interface FSUpdate {
     readonly absolutePath: FilePath
     readonly content: string
-    readonly eventType: 'Added' | 'Changed' | 'Deleted'
+    readonly eventType: 'Added' | 'Changed' | 'Deleted' // todo just say added or changed, no deleted
 }
 
-export interface FSDelete {readonly absolutePath: FilePath}
+export interface FSDelete {readonly absolutePath: FilePath} // todo add type
 
 export type FSWriteEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
 

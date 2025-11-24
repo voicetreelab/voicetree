@@ -278,15 +278,14 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       // Verify: Nodes exist with correct IDs
       expect(Object.keys(bulkGraph.nodes).sort()).toEqual(Object.keys(incrementalGraph.nodes).sort())
 
-      // NOTE: Bulk and incremental may have different edge targetIds due to resolution timing:
-      // - Bulk: all nodes exist, so edges resolve to full node IDs (e.g., 'b.md')
-      // - Incremental: when a.md is added first, 'b' doesn't exist yet, so targetId stays as 'b' (raw link text)
-      // After b.md is added, a.md's edges are NOT retroactively updated
+      // NEW BEHAVIOR: With bidirectional edge healing, bulk and incremental produce IDENTICAL results!
+      // When b.md is added incrementally, it HEALS a.md's edge from 'b' to 'b.md'
+      // This ensures order-independent graph construction
       expect(bulkGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
-      expect(incrementalGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b')  // Raw link text - b didn't exist when a was added
+      expect(incrementalGraph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')  // HEALED!
 
       expect(bulkGraph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c.md')
-      expect(incrementalGraph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c')  // Raw link text - c didn't exist when b was added
+      expect(incrementalGraph.nodes['b.md'].outgoingEdges[0].targetId).toBe('c.md')  // HEALED!
 
       expect(bulkGraph.nodes['c.md'].outgoingEdges).toHaveLength(0)
       expect(incrementalGraph.nodes['c.md'].outgoingEdges).toHaveLength(0)

@@ -3,6 +3,7 @@ import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calcula
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
 import * as O from "fp-ts/lib/Option.js";
+import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing";
 
 /**
  * Pure action creator functions.
@@ -53,17 +54,17 @@ export function fromCreateChildToUpsertNode(
 
 
 export function fromContentChangeToGraphDelta(
-    Node: GraphNode,
+    node: GraphNode,
     content: string,
     graph: Graph,
 ): GraphDelta {
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
-    const newOutgoingEdges = extractEdges(content, graph.nodes);
-
+    const nodeUpdated = parseMarkdownToGraphNode(content, node.relativeFilePathIsID)
+    // todo review if this new logic works
     return [{
         type: 'UpsertNode',
-        nodeToUpsert: {...Node, contentWithoutYamlOrLinks: content, outgoingEdges: newOutgoingEdges}
+        nodeToUpsert: {nodeUpdated}
     }]
 }
 

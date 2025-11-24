@@ -51,11 +51,11 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
 /**
  * Safely extract frontmatter, returning empty object on error
  */
-function safeFrontmatterExtraction(content: string, filename: string): Frontmatter {
+function safeFrontmatterExtraction(content: string): Frontmatter {
     const frontmatterEither = E.tryCatch(
         () => extractFrontmatter(content),
         (error) => {
-            console.warn(`[parseMarkdownToGraphNode] Invalid YAML frontmatter in ${filename}, using fallback:`, error)
+            console.warn(`[parseMarkdownToGraphNode] Invalid YAML frontmatter, ${content} using fallback:`, error)
             return error
         }
     )
@@ -65,7 +65,7 @@ function safeFrontmatterExtraction(content: string, filename: string): Frontmatt
 
 export function parseMarkdownToGraphNode(content: string, filename: string): GraphNode {
     // Try to extract frontmatter, but don't let invalid YAML break the entire app
-    const frontmatter = safeFrontmatterExtraction(content, filename)
+    const frontmatter = safeFrontmatterExtraction(content)
 
     // Strip YAML frontmatter from content
     const parsed = matter(content)

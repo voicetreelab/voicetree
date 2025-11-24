@@ -56,10 +56,11 @@ export function prettyPrintGraphDelta(delta: GraphDelta): string {
   const operationLines = delta.flatMap((nodeDelta, index) => {
     if (nodeDelta.type === 'UpsertNode') {
       const node = nodeDelta.nodeToUpsert;
-      const contentPreview = node.contentWithoutYamlOrLinks.substring(0, 50).replace(/\n/g, ' ');
+      const content = node.contentWithoutYamlOrLinks || '';
+      const contentPreview = content.substring(0, 50).replace(/\n/g, ' ');
       return [
         `  ${index + 1}. UpsertNode: ${node.relativeFilePathIsID}`,
-        `     Content: "${contentPreview}${node.contentWithoutYamlOrLinks.length > 50 ? '...' : ''}"`,
+        `     Content: "${contentPreview}${content.length > 50 ? '...' : ''}"`,
         `     Edges: [${node.outgoingEdges.join(', ')}]`
       ];
     } else {

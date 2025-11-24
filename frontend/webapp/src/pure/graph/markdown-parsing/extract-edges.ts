@@ -8,7 +8,7 @@ import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
  * extractPathSegments("/Users/user/vault/folder/file.md")
  * => ["Users/user/vault/folder/file", "user/vault/folder/file", "vault/folder/file", "folder/file", "file"]
  */
-function extractPathSegments(path: string): readonly string[] {
+export function extractPathSegments(path: string): readonly string[] {
   // Remove extension first
   const withoutExt = path.replace(/\.md$/, '')
 
@@ -62,7 +62,7 @@ function matchSegment(
  * @param nodes - All available nodes
  * @returns The best matching node ID, or undefined if no match
  */
-function findBestMatchingNode(
+export function findBestMatchingNode(
   linkText: string,
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): NodeIdAndFilePath | undefined {
