@@ -27,24 +27,8 @@ import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph.ts'
  * ```
  */
 export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, currentGraph: Graph): GraphDelta {
-  // Check if this is an FSUpdate (has content property) or FSDelete
-  if ('content' in fsEvent) {
-    // This is FSUpdate
-    const fsUpdate = fsEvent as FSUpdate
-
-    if (fsUpdate.eventType === 'Deleted') { // todo, fsEvemts don't have deleted
-      // Delete event
-      const nodeId = extractNodeIdFromPath(fsUpdate.absolutePath, vaultPath)
-      const deleteAction: DeleteNode = {
-        type: 'DeleteNode',
-        nodeId
-      }
-      return [deleteAction]
-    } else {
-      // Added or Changed - both are treated as upserts
-      return handleUpsert(fsUpdate, vaultPath, currentGraph)
-    }
-  } else {
+  // Discriminate based on type field for FSDelete, or content field for FSUpdate
+  if ('type' in fsEvent && fsEvent.type === 'Delete') {
     // This is FSDelete
     const nodeId = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
     const deleteAction: DeleteNode = {
@@ -52,6 +36,10 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
       nodeId
     }
     return [deleteAction]
+  } else {
+    // This is FSUpdate (Added or Changed)
+    const fsUpdate = fsEvent as FSUpdate
+    return handleUpsert(fsUpdate, vaultPath, currentGraph)
   }
 }
 

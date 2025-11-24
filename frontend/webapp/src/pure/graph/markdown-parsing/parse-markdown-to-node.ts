@@ -1,7 +1,7 @@
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import matter from 'gray-matter'
-import type {GraphNode} from '@/pure/graph'
+import type {Graph, GraphNode} from '@/pure/graph'
 import {extractFrontmatter, type Frontmatter} from '@/pure/graph/markdown-parsing/extract-frontmatter.ts'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils.ts'
 import {markdownToTitle} from '@/pure/graph/markdown-parsing/markdown-to-title.ts'
@@ -63,22 +63,60 @@ function safeFrontmatterExtraction(content: string): Frontmatter {
     return E.getOrElse(() => ({} as Frontmatter))(frontmatterEither)
 }
 
-export function parseMarkdownToGraphNode(content: string, filename: string): GraphNode {
+/**
+ * Convert any value to a string representation.
+ * - Primitives (string, number, boolean) are converted directly
+ * - Arrays and objects are converted via JSON.stringify
+ */
+function valueToString(value: unknown): string {
+    if (typeof value === 'string') {
+        return value
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value)
+    }
+    // For arrays and objects, use JSON
+    return JSON.stringify(value)
+}
+
+/**
+ * Extract additional YAML properties that are not known standard properties.
+ * Known properties: color, position, title, summary, node_id
+ */
+function extractAdditionalYAMLProps(rawYAMLData: Record<string, unknown>): ReadonlyMap<string, string> {
+    const knownProperties = new Set(['color', 'position', 'title', 'summary', 'node_id'])
+
+    const additionalProps = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
+        if (!knownProperties.has(key) && value !== undefined && value !== null) {
+            acc.set(key, valueToString(value))
+        }
+        return acc
+    }, new Map<string, string>())
+
+    return additionalProps
+}
+
+
+// filename can be relative or absolute, prefer relative to watched vault.
+export function parseMarkdownToGraphNode(content: string, filename: string, graph : Graph): GraphNode {
     // Try to extract frontmatter, but don't let invalid YAML break the entire app
     const frontmatter = safeFrontmatterExtraction(content)
 
-    // Strip YAML frontmatter from content
+    // Strip YAML frontmatter from content and get raw YAML data
     const parsed = matter(content)
     const contentWithoutFrontmatter = parsed.content
 
     // Extract edges from original content (before stripping wikilinks)
-    const edges = extractEdges(content, {})
+    const edges = extractEdges(content, graph.nodes)
 
     // Replace [[link]] with [link]* (strip wikilink syntax)
     const contentWithoutYamlOrLinks = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
 
     // Compute title using markdownToTitle
     const title = markdownToTitle(frontmatter, content, filename)
+
+    // Extract additional YAML properties from raw YAML data
+    const additionalYAMLProps = extractAdditionalYAMLProps(parsed.data)
 
     // Return node with computed title
     return {
@@ -88,7 +126,8 @@ export function parseMarkdownToGraphNode(content: string, filename: string): Gra
         nodeUIMetadata: {
             title,
             color: frontmatter.color ? O.some(frontmatter.color) : O.none,
-            position: frontmatter.position ? O.some(frontmatter.position) : O.none
+            position: frontmatter.position ? O.some(frontmatter.position) : O.none,
+            additionalYAMLProps
         }
     }
 }

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import * as O from 'fp-ts/lib/Option.js'
 import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node.ts'
+import type { Graph } from '@/pure/graph'
+
+// Helper to create an empty graph for testing
+const emptyGraph: Graph = { nodes: {} }
 
 describe('parseMarkdownToGraphNode', () => {
   it('should parse node with complete frontmatter including color', () => {
@@ -10,7 +14,7 @@ color: "#FF0000"
 # Content here
 Some text`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('test.md')
     // contentWithoutYamlOrLinks should have YAML stripped
@@ -29,7 +33,7 @@ position:
 ---
 # Content here`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('test.md')
     // contentWithoutYamlOrLinks should have YAML stripped
@@ -44,7 +48,7 @@ position:
   it('should use filename for node_id', () => {
     const content = `# Content`
 
-    const result = parseMarkdownToGraphNode(content, 'my-file.md')
+    const result = parseMarkdownToGraphNode(content, 'my-file.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('my-file.md')
   })
@@ -54,7 +58,7 @@ position:
 
 Content`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(O.isNone(result.nodeUIMetadata.color)).toBe(true)
   })
@@ -64,7 +68,7 @@ Content`
 
 Content`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(O.isNone(result.nodeUIMetadata.position)).toBe(true)
   })
@@ -77,7 +81,7 @@ color: "#123456"
 
 Content here`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     // contentWithoutYamlOrLinks should have YAML stripped
     expect(result.contentWithoutYamlOrLinks).toBe('# Test\n\nContent here')
@@ -86,7 +90,7 @@ Content here`
   it('should handle nested paths in filename', () => {
     const content = '# Test'
 
-    const result = parseMarkdownToGraphNode(content, 'subfolder/nested/file.md')
+    const result = parseMarkdownToGraphNode(content, 'subfolder/nested/file.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('subfolder/nested/file.md')
   })
@@ -94,7 +98,7 @@ Content here`
   it('should have empty outgoingEdges array', () => {
     const content = `# Test`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.outgoingEdges).toEqual([])
   })
@@ -110,7 +114,7 @@ bad_key: unquoted value with : colon causes problems
 Content here`
 
     // Should not throw, should return a valid node
-    const result = parseMarkdownToGraphNode(content, 'bad-yaml.md')
+    const result = parseMarkdownToGraphNode(content, 'bad-yaml.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('bad-yaml.md')
     // NOTE: gray-matter doesn't always strip invalid YAML, it tries to parse it anyway
@@ -127,7 +131,7 @@ Content here`
 
 This references [[other-note]] and [[another-note]].`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     expect(result.relativeFilePathIsID).toBe('test.md')
     // Wikilinks should be replaced with [link]* notation
@@ -146,7 +150,7 @@ color: "#FF0000"
 
 Content with [[link-one]] and [[link-two]]`
 
-    const result = parseMarkdownToGraphNode(content, 'test.md')
+    const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
     // Both YAML and wikilinks should be processed
     expect(result.contentWithoutYamlOrLinks).toBe('# Test\n\nContent with [link-one]* and [link-two]*')
@@ -158,7 +162,7 @@ Content with [[link-one]] and [[link-two]]`
     it('should keep .md extension in node ID for simple filename', () => {
       const content = '# Test Content'
 
-      const result = parseMarkdownToGraphNode(content, 'test-file.md')
+      const result = parseMarkdownToGraphNode(content, 'test-file.md', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('test-file.md')
     })
@@ -166,7 +170,7 @@ Content with [[link-one]] and [[link-two]]`
     it('should keep .md extension in node ID for nested path', () => {
       const content = '# Nested Content'
 
-      const result = parseMarkdownToGraphNode(content, 'folder/subfolder/note.md')
+      const result = parseMarkdownToGraphNode(content, 'folder/subfolder/note.md', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('folder/subfolder/note.md')
     })
@@ -174,7 +178,7 @@ Content with [[link-one]] and [[link-two]]`
     it('should keep .md extension when file has multiple dots', () => {
       const content = '# Multi-dot file'
 
-      const result = parseMarkdownToGraphNode(content, 'file.backup.md')
+      const result = parseMarkdownToGraphNode(content, 'file.backup.md', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('file.backup.md')
     })
@@ -182,9 +186,139 @@ Content with [[link-one]] and [[link-two]]`
     it('should handle file without .md extension as-is', () => {
       const content = '# No extension'
 
-      const result = parseMarkdownToGraphNode(content, 'no-extension')
+      const result = parseMarkdownToGraphNode(content, 'no-extension', emptyGraph)
 
       expect(result.relativeFilePathIsID).toBe('no-extension')
+    })
+  })
+
+  describe('additionalYAMLProps', () => {
+    it('should capture additional string properties from frontmatter', () => {
+      const content = `---
+color: "#FF0000"
+author: "John Doe"
+custom_field: "some value"
+---
+# Test`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(2)
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('author')).toBe('John Doe')
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('custom_field')).toBe('some value')
+      // Known properties should NOT be in additionalYAMLProps
+      expect(result.nodeUIMetadata.additionalYAMLProps.has('color')).toBe(false)
+    })
+
+    it('should convert number properties to strings', () => {
+      const content = `---
+priority: 5
+version: 2.1
+---
+# Test`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('priority')).toBe('5')
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('version')).toBe('2.1')
+    })
+
+    it('should convert boolean properties to strings', () => {
+      const content = `---
+published: true
+archived: false
+---
+# Test`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('published')).toBe('true')
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('archived')).toBe('false')
+    })
+
+    it('should convert array properties to JSON strings', () => {
+      const content = `---
+tags:
+  - important
+  - draft
+numbers:
+  - 1
+  - 2
+  - 3
+---
+# Test`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('tags')).toBe('["important","draft"]')
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('numbers')).toBe('[1,2,3]')
+    })
+
+    it('should convert object properties to JSON strings', () => {
+      const content = `---
+metadata:
+  created: "2024-01-15"
+  version: 2
+---
+# Test`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      const metadata = result.nodeUIMetadata.additionalYAMLProps.get('metadata')
+      expect(metadata).toBeDefined()
+      const parsed = JSON.parse(metadata!)
+      expect(parsed.created).toBe('2024-01-15')
+      expect(parsed.version).toBe(2)
+    })
+
+    it('should exclude all known YAML properties from additionalYAMLProps', () => {
+      const content = `---
+color: "#FF0000"
+position:
+  x: 100
+  y: 200
+title: "My Title"
+summary: "My Summary"
+node_id: "legacy-id"
+custom_prop: "should be included"
+---
+# Test`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      // Only custom_prop should be in additionalYAMLProps
+      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(1)
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('custom_prop')).toBe('should be included')
+      // Known properties should NOT be in additionalYAMLProps
+      expect(result.nodeUIMetadata.additionalYAMLProps.has('color')).toBe(false)
+      expect(result.nodeUIMetadata.additionalYAMLProps.has('position')).toBe(false)
+      expect(result.nodeUIMetadata.additionalYAMLProps.has('title')).toBe(false)
+      expect(result.nodeUIMetadata.additionalYAMLProps.has('summary')).toBe(false)
+      expect(result.nodeUIMetadata.additionalYAMLProps.has('node_id')).toBe(false)
+    })
+
+    it('should have empty additionalYAMLProps when no custom properties exist', () => {
+      const content = `---
+color: "#FF0000"
+position:
+  x: 100
+  y: 200
+---
+# Test`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
+    })
+
+    it('should have empty additionalYAMLProps when no frontmatter exists', () => {
+      const content = `# Test
+
+Content without frontmatter`
+
+      const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
+
+      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
     })
   })
 })

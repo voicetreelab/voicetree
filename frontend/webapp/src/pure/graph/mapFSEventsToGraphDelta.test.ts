@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mapFSEventsToGraphDelta } from './mapFSEventsToGraphDelta.ts'
-import type { FSUpdate, Graph } from './index.ts'
+import type { FSUpdate, FSDelete, Graph } from './index.ts'
 
 describe('mapFSEventsToGraphDelta', () => {
   describe('Node ID preservation from fs events', () => {
@@ -59,15 +59,14 @@ describe('mapFSEventsToGraphDelta', () => {
     })
 
     it('should keep .md extension in node ID when deleting a file', () => {
-      const fsUpdate: FSUpdate = {
-        absolutePath: '/vault/to-delete.md',
-        content: '',
-        eventType: 'Deleted'
+      const fsDelete: FSDelete = {
+        type: 'Delete',
+        absolutePath: '/vault/to-delete.md'
       }
       const vaultPath = '/vault'
       const currentGraph: Graph = { nodes: {} }
 
-      const delta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
+      const delta = mapFSEventsToGraphDelta(fsDelete, vaultPath, currentGraph)
 
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('DeleteNode')

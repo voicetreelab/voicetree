@@ -124,12 +124,12 @@ export function extractEdges(
       // Remove list markers (-, *, +) from start
       const label = labelText.replace(/^[-*+]\s+/, '')
 
-      // Strip relative path prefixes (./ or ../) for matching
-      const linkText = rawLinkText.replace(/^\.\.?\//g, '')
+      // Strip relative path prefixes (./ or ../) for matching TODO SUS, DONT DO THIS
+      // const linkText = rawLinkText.replace(/^\.\.?\//g, '')
 
       // Find best matching node, preferring longer path matches
       // If no match found, use raw link text to preserve for future node creation
-      const targetId = nodes ? findBestMatchingNode(linkText, nodes) ?? rawLinkText : rawLinkText
+      const targetId = nodes ? findBestMatchingNode(rawLinkText, nodes) ?? rawLinkText : rawLinkText
 
       return { targetId, label }
     })

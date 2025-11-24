@@ -1,9 +1,29 @@
-import type { FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeAction } from '@/pure/graph'
+import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeAction} from '@/pure/graph'
 import path from 'path'
-import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node.ts'
-import { extractEdges, extractPathSegments, findBestMatchingNode } from '@/pure/graph/markdown-parsing/extract-edges.ts'
-import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations.ts'
-import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils.ts'
+import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node.ts'
+import {extractEdges, extractPathSegments, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges.ts'
+import {setOutgoingEdges} from '@/pure/graph/graph-operations /graph-edge-operations.ts'
+import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils.ts'
+
+function healNodeEdges(affectedNodeIds: readonly NodeIdAndFilePath[], currentGraph: Graph, graphWithNewNode: Graph) {
+    const healedNodes = affectedNodeIds.map((affectedNodeId) => {
+        const affectedNode = currentGraph.nodes[affectedNodeId]
+
+        // Re-resolve the existing edges against the updated graph
+        const healedEdges = affectedNode.outgoingEdges.map((edge) => {
+            // Try to resolve the raw targetId to an actual node
+            //todo suss
+            const resolvedTargetId = findBestMatchingNode(edge.targetId, graphWithNewNode.nodes)
+            return {
+                ...edge,
+                targetId: resolvedTargetId ?? edge.targetId
+            }
+        })
+
+        return setOutgoingEdges(affectedNode, healedEdges)
+    })
+    return healedNodes;
+}
 
 /**
  * Adds a node to the graph with progressive edge validation.
@@ -44,67 +64,38 @@ import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils.t
  * ```
  */
 export function addNodeToGraph(
-  fsEvent: FSUpdate,
-  vaultPath: string,
-  currentGraph: Graph
+    fsEvent: FSUpdate,
+    vaultPath: string,
+    currentGraph: Graph
 ): GraphDelta {
-  // Step 1: Extract node ID from path
-  const nodeId = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
-  const filename = path.basename(fsEvent.absolutePath)
+    const absoluteFilePathMadeRelativeToVault = extractNodeIdFromPath(fsEvent.absolutePath, vaultPath)
+    const newNode = parseMarkdownToGraphNode(fsEvent.content, absoluteFilePathMadeRelativeToVault, currentGraph) // todo this should take graph
 
-  // Step 2: Parse markdown to base node (with raw edges from frontmatter)
-  const baseNode = parseMarkdownToGraphNode(fsEvent.content, filename)
+    const affectedNodeIds = findNodesWithPotentialEdgesToNode(newNode, currentGraph)
 
-  // Step 3: Ensure the node ID matches the path-derived ID
-  const nodeWithCorrectId: GraphNode = {
-    ...baseNode,
-    relativeFilePathIsID: nodeId
-  }
-
-  // Step 4: Validate outgoing edges from new node against current graph
-  const validatedOutgoingEdges = extractEdges(fsEvent.content, currentGraph.nodes)
-  const newNode = setOutgoingEdges(nodeWithCorrectId, validatedOutgoingEdges)
-
-  // Step 5: Find nodes with incoming edges that NOW resolve to newNode
-  const affectedNodeIds = findNodesWithPotentialEdgesToNode(newNode, currentGraph)
-
-  // Step 6: Create temporary graph with new node for edge re-validation
-  const graphWithNewNode: Graph = {
-    nodes: {
-      ...currentGraph.nodes,
-      [newNode.relativeFilePathIsID]: newNode
+    // Step 6: Create temporary graph with new node for edge re-validation
+    const graphWithNewNode: Graph = {
+        nodes: {
+            ...currentGraph.nodes,
+            [newNode.relativeFilePathIsID]: newNode
+        }
     }
-  }
 
-  // Step 7: Re-validate edges for each affected node (healing)
-  // Nodes already have edges with raw targetIds from parseMarkdownToGraphNode
-  // We just need to re-resolve those raw targetIds against the updated graph
-  const healedNodes = affectedNodeIds.map((affectedNodeId) => {
-    const affectedNode = currentGraph.nodes[affectedNodeId]
+    // Step 7: Re-validate edges for each affected node (healing)
+    // Nodes already have edges with raw targetIds from parseMarkdownToGraphNode
+    // We just need to re-resolve those raw targetIds against the updated graph
+    const healedNodes = healNodeEdges(affectedNodeIds, currentGraph, graphWithNewNode);
 
-    // Re-resolve the existing edges against the updated graph
-    const healedEdges = affectedNode.outgoingEdges.map((edge) => {
-      // Try to resolve the raw targetId to an actual node
-      const resolvedTargetId = findBestMatchingNode(edge.targetId, graphWithNewNode.nodes)
-      return {
-        ...edge,
-        targetId: resolvedTargetId ?? edge.targetId
-      }
-    })
+    // Step 8: Return GraphDelta with new node + all healed nodes
+    const upsertActions: readonly UpsertNodeAction[] = [
+        {type: 'UpsertNode', nodeToUpsert: newNode},
+        ...healedNodes.map((healedNode) => ({
+            type: 'UpsertNode' as const,
+            nodeToUpsert: healedNode
+        }))
+    ]
 
-    return setOutgoingEdges(affectedNode, healedEdges)
-  })
-
-  // Step 8: Return GraphDelta with new node + all healed nodes
-  const upsertActions: readonly UpsertNodeAction[] = [
-    { type: 'UpsertNode', nodeToUpsert: newNode },
-    ...healedNodes.map((healedNode) => ({
-      type: 'UpsertNode' as const,
-      nodeToUpsert: healedNode
-    }))
-  ]
-
-  return upsertActions
+    return upsertActions
 }
 
 /**
@@ -128,25 +119,25 @@ export function addNodeToGraph(
  * ```
  */
 function findNodesWithPotentialEdgesToNode(
-  newNode: GraphNode,
-  currentGraph: Graph
+    newNode: GraphNode,
+    currentGraph: Graph
 ): readonly NodeIdAndFilePath[] {
-  // Extract all possible path segments from the new node's ID
-  // e.g., "felix/1" => ["felix/1", "1"]
-  const segments = extractPathSegments(newNode.relativeFilePathIsID)
+    // Extract all possible path segments from the new node's ID
+    // e.g., "felix/1" => ["felix/1", "1"]
+    const segments = extractPathSegments(newNode.relativeFilePathIsID)
 
-  // Find all nodes that have edges with targetId matching any segment
-  return Object.values(currentGraph.nodes)
-    .filter((node) =>
-      node.outgoingEdges.some((edge) => segments.includes(edge.targetId))
-    )
-    .map((node) => node.relativeFilePathIsID)
+    // Find all nodes that have edges with targetId matching any segment
+    return Object.values(currentGraph.nodes)
+        .filter((node) =>
+            node.outgoingEdges.some((edge) => segments.includes(edge.targetId))
+        )
+        .map((node) => node.relativeFilePathIsID)
 }
 
 /**
  * Extract node ID from file path by computing relative path from vault.
  *
- * Pure function: same input -> same output, no side effects
+ * it's just a QOL method so node ids aren't the full absolute path.
  *
  * @param filePath - Absolute path to the file (e.g., "/path/to/vault/subfolder/MyNote.md")
  * @param vaultPath - Absolute path to the vault (e.g., "/path/to/vault")
@@ -156,13 +147,13 @@ function extractNodeIdFromPath(filePath: string, vaultPath: string): NodeIdAndFi
     // todo this method seems slightly suss
 
     // Normalize paths to handle trailing slashes
-  const normalizedVault = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/'
+    const normalizedVault = vaultPath.endsWith('/') ? vaultPath : vaultPath + '/'
 
-  // Get relative path from vault
-  const relativePath = filePath.startsWith(normalizedVault)
-    ? filePath.substring(normalizedVault.length)
-    : path.basename(filePath) // Fallback to basename if not under vault
+    // Get relative path from vault
+    const relativePath = filePath.startsWith(normalizedVault)
+        ? filePath.substring(normalizedVault.length)
+        : path.basename(filePath) // Fallback to basename if not under vault
 
-  // Convert to node ID (todo unnec)
-  return filenameToNodeId(relativePath)
+    // Convert to node ID (todo unnec)
+    return filenameToNodeId(relativePath)
 }

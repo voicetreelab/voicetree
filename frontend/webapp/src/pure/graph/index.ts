@@ -33,7 +33,7 @@ export interface GraphNode {
     // DATA
     readonly contentWithoutYamlOrLinks: string
 
-    // visual METADATA
+    // METADATA
     readonly nodeUIMetadata: NodeUIMetadata
 
     // FS DB METADATA
@@ -44,6 +44,7 @@ export interface NodeUIMetadata {
     readonly title: string // Computed from frontmatter title, first heading, or filename
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
+    readonly additionalYAMLProps: ReadonlyMap<string,string> // todo support this at both read and write paths for Node <-> Markdown
     // width/height is derived from node degree
 }
 
@@ -88,10 +89,13 @@ export type FSEvent = FSUpdate | FSDelete
 export interface FSUpdate {
     readonly absolutePath: FilePath
     readonly content: string
-    readonly eventType: 'Added' | 'Changed' | 'Deleted' // todo just say added or changed, no deleted
+    readonly eventType: 'Added' | 'Changed'
 }
 
-export interface FSDelete {readonly absolutePath: FilePath} // todo add type
+export interface FSDelete {
+    readonly type: 'Delete'
+    readonly absolutePath: FilePath
+}
 
 export type FSWriteEffect<A> = RTE.ReaderTaskEither<Env, Error, A>
 
