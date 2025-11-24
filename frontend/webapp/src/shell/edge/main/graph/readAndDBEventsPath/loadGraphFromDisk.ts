@@ -2,30 +2,34 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
-import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
-import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing'
-import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges.ts'
+import type { Graph, FSUpdate } from '@/pure/graph'
 import { enforceFileLimit } from './fileLimitEnforce.ts'
-import { setOutgoingEdges, reverseGraphEdges } from '@/pure/graph'
+import { reverseGraphEdges } from '@/pure/graph'
 import { applyPositions } from '@/pure/graph/positioning'
+import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph.ts'
+import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph.ts'
 
 /**
- * Loads a graph from the filesystem.
+ * Loads a graph from the filesystem using progressive edge validation.
  *
  * IO function: Performs side effects (file I/O) and returns a Promise<Graph>.
  *
- * @param vaultPath - Absolute absolutePath to the vault directory containing markdown files
- * @returns Promise that resolves to a Graph
- *
- * Algorithm:
+ * Algorithm (progressive, order-independent):
  * 1. Scan vault directory recursively for .md files
- * 2. Read each file and parse into GraphNode (preliminary, without outgoingEdges)
- * 3. Build final nodes with outgoingEdges extracted from wikilinks in content
- * 4. Return Graph with nodes containing their outgoingEdges
+ * 2. For each file, progressively add to graph using addNodeToGraph
+ *    - Validates outgoing edges from new node
+ *    - Heals incoming edges to new node (bidirectional validation)
+ * 3. Apply positions to all nodes that don't have a position
+ * 4. Return Graph with all edges correctly resolved
+ *
+ * Key property: Loading [A,B,C] produces same result as [C,B,A] (order-independent)
+ *
+ * @param vaultPath - Absolute path to the vault directory containing markdown files
+ * @returns Promise that resolves to a Graph
  *
  * @example
  * ```typescript
- * const graph = await loadGraphFromDisk('/absolutePath/to/vault')
+ * const graph = await loadGraphFromDisk(O.some('/path/to/vault'))
  * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
@@ -43,13 +47,29 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Gr
         // Return empty graph if file limit exceeded
         return { nodes: {} };
     }
-    // Step 2: Load preliminary nodes
-    const preliminaryNodes = await loadNodes(vaultPath.value, files)
 
-    // Step 3: Build final nodes with outgoingEdges from wikilinks
-    const graph : Graph = {nodes : buildNodesWithEdges(preliminaryNodes) };
+    // Step 2: Progressively build graph by adding nodes one at a time
+    // Each addition validates edges and heals incoming edges (order-independent)
+    const graph = await files.reduce(
+        async (graphPromise, file) => {
+            const currentGraph = await graphPromise
+            const fullPath = path.join(vaultPath.value, file)
+            const content = await fs.readFile(fullPath, 'utf-8')
 
-    // Step 4: Apply positions to all nodes that don't have a position
+            const fsEvent: FSUpdate = {
+                absolutePath: fullPath,
+                content,
+                eventType: 'Added'
+            }
+
+            // Use unified function (same as incremental!)
+            const delta = addNodeToGraph(fsEvent, vaultPath.value, currentGraph)
+            return applyGraphDeltaToGraph(currentGraph, delta)
+        },
+        Promise.resolve({ nodes: {} } as Graph)
+    )
+
+    // Step 3: Apply positions to all nodes that don't have a position
     return reverseGraphEdges(applyPositions(reverseGraphEdges(graph)));
 }
 
@@ -86,56 +106,3 @@ async function scanMarkdownFiles(vaultPath: string): Promise<readonly string[]> 
   return scan(vaultPath)
 }
 
-/**
- * Loads all markdown files into GraphNodes.
- *
- * @param vaultPath - Absolute absolutePath to vault directory
- * @param files - Array of relative file paths
- * @returns Record mapping node ID to GraphNode
- */
-async function loadNodes(
-  vaultPath: string,
-  files: readonly string[]
-): Promise<Record<NodeIdAndFilePath, Graph['nodes'][NodeIdAndFilePath]>> {
-  const nodePromises = files.map(async (file) => {
-    const fullPath = path.join(vaultPath, file)
-    const content = await fs.readFile(fullPath, 'utf-8')
-    const node = parseMarkdownToGraphNode(content, file)
-    return [node.relativeFilePathIsID, node] as const
-  })
-
-  const nodeEntries = await Promise.all(nodePromises)
-  return Object.fromEntries(nodeEntries)
-}
-
-/**
- * Builds final nodes with outgoingEdges extracted from wikilinks in content.
- *
- * Pure function: same input -> same output, no side effects
- *
- * @param nodes - Record of preliminary nodes (may have empty/incorrect outgoingEdges)
- * @returns Record of nodes with correct outgoingEdges populated from wikilinks
- */
-function buildNodesWithEdges(
-  nodes: Record<NodeIdAndFilePath, Graph['nodes'][NodeIdAndFilePath]>
-): Record<NodeIdAndFilePath, Graph['nodes'][NodeIdAndFilePath]> {
-  const nodeEntries = Object.entries(nodes).map(([nodeId, node]) => {
-    // Nodes already have edges extracted (from parseMarkdownToGraphNode)
-    // But those edges have raw link text as targetId, not resolved node IDs
-    // We need to re-extract and validate them against the full graph
-    const validatedEdges = extractEdges(node.contentWithoutYamlOrLinks, nodes)
-    const nodeWithValidatedEdges = setOutgoingEdges(node, validatedEdges)
-     // todo, we want to do this progressively, so this function will no longer be necessary,
-     // todo never want temporal state, adding a collection of single node is same as adding a whole graph
-     // this will be done by keeping all edges for nodes, even if they aren't yet pointing to any existing node
-     // and
-     // don't delete the comment, remove it to relevant new code as explanation.
-
-     // here's the reasoning that led to this:
-
-     // system, should clarify file event hook for upsert (has graph), versus initial load. WAIT WE DON’T need this. if an upsert has an incoming edge to it, we validate it. (upsert, graph) -> upsert. (o(1) with index. hmm but may as  well just do (graph-> graph)? the difference is we can validate as we go, don’t have to do it at a specific moment in time (temporally stateful!!).  but do we want edges to nodes that don’t exist yet in graph? create node after initial. yes. delete node, yes. we really really don’t want a difference between initial load, and subsequent fs events. anyway,
-    return [nodeId, nodeWithValidatedEdges] as const
-  })
-
-  return Object.fromEntries(nodeEntries)
-}

@@ -73,8 +73,8 @@ describe('apply_graph_deltas_to_db', () => {
       const graph = await loadGraphFromDisk(O.some(testVaultPath))
       // Node IDs include .md extension when loaded from disk
       expect(graph.nodes['node-1.md']).toBeDefined()
-      // loadGraphFromDisk keeps the full content including frontmatter
-      expect(graph.nodes['node-1.md'].contentWithoutYamlOrLinks).toBe('---\n---\n# New Node\n\nThis is content')
+      // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
+      expect(graph.nodes['node-1.md'].contentWithoutYamlOrLinks).toBe('# New Node\n\nThis is content')
     })
 
     it('should extract title from markdown header', async () => {
@@ -113,12 +113,12 @@ describe('apply_graph_deltas_to_db', () => {
       const graph = await loadGraphFromDisk(O.some(testVaultPath))
       // Node IDs include .md extension when loaded from disk
       // When content is empty, fromNodeToMarkdownContent writes '---\n---\n' (empty frontmatter)
-      // This doesn't match the frontmatter regex in markdownToTitle, so it falls through to
-      // "first non-empty line" which is '---', not the filename
+      // parseMarkdownToGraphNode strips the frontmatter, leaving empty content
+      // markdownToTitle falls back to filename when content is empty
       const frontmatter = extractFrontmatter(graph.nodes['node-3.md'].contentWithoutYamlOrLinks)
       const title = markdownToTitle(frontmatter, graph.nodes['node-3.md'].contentWithoutYamlOrLinks, graph.nodes['node-3.md'].relativeFilePathIsID)
-      // Bug: empty frontmatter '---\n---\n' causes title to be '---' instead of filename
-      expect(title).toBe('---')
+      // Empty content falls back to filename-based title
+      expect(title).toBe('node 3')
     })
 
     it('should return the deltas that were applied', async () => {
@@ -169,8 +169,8 @@ describe('apply_graph_deltas_to_db', () => {
       // Load from disk and verify
       const graph = await loadGraphFromDisk(O.some(testVaultPath))
       // Node IDs include .md extension when loaded from disk
-      // loadGraphFromDisk keeps the full content including frontmatter
-      expect(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks).toBe('---\n---\n# Updated Title\n\nNew content')
+      // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
+      expect(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks).toBe('# Updated Title\n\nNew content')
       const frontmatter = extractFrontmatter(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks)
       const title = markdownToTitle(frontmatter, graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks, graph.nodes['node-update-1.md'].relativeFilePathIsID)
       expect(title).toBe('Updated Title')

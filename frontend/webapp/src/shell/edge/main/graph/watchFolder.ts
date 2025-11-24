@@ -234,7 +234,7 @@ function setupWatcherListeners(vaultPath: FilePath): void {
 
     // File deleted
     watcher.on('unlink', (filePath: string) => {
-        const fsUpdate: FSUpdate = {
+        const fsUpdate: FSUpdate = { // todo make this a delete
             absolutePath: filePath,
             content: '',
             eventType: 'Deleted'

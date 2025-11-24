@@ -1,9 +1,7 @@
-import type {FSEvent, GraphDelta, DeleteNode, UpsertNodeAction, GraphNode, NodeIdAndFilePath, FSUpdate, Graph} from '@/pure/graph/index.ts'
+import type {FSEvent, GraphDelta, DeleteNode, NodeIdAndFilePath, FSUpdate, Graph} from '@/pure/graph/index.ts'
 import path from 'path'
 import { filenameToNodeId } from '@/pure/graph/markdown-parsing/filename-utils.ts'
-import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations.ts'
-import { extractEdges } from '@/pure/graph/markdown-parsing/extract-edges.ts'
-import { parseMarkdownToGraphNode } from '@/pure/graph/markdown-parsing/parse-markdown-to-node.ts'
+import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph.ts'
 
 /**
  * Maps filesystem events to graph deltas.
@@ -34,7 +32,7 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
     // This is FSUpdate
     const fsUpdate = fsEvent as FSUpdate
 
-    if (fsUpdate.eventType === 'Deleted') {
+    if (fsUpdate.eventType === 'Deleted') { // todo, fsEvemts don't have deleted
       // Delete event
       const nodeId = extractNodeIdFromPath(fsUpdate.absolutePath, vaultPath)
       const deleteAction: DeleteNode = {
@@ -59,31 +57,11 @@ export function mapFSEventsToGraphDelta(fsEvent: FSEvent, vaultPath: string, cur
 
 /**
  * Handle add/change events by creating an upsert action.
+ * Uses the unified addNodeToGraph function for progressive edge validation.
  */
 function handleUpsert(fsUpdate: FSUpdate, vaultPath: string, currentGraph: Graph): GraphDelta {
-  const nodeId = extractNodeIdFromPath(fsUpdate.absolutePath, vaultPath)
-  const filename = path.basename(fsUpdate.absolutePath)
-
-  // Parse markdown to node, which extracts frontmatter (color, position, etc.)
-  const baseNode = parseMarkdownToGraphNode(fsUpdate.content, filename)
-
-  // Ensure the node ID matches the path-derived ID (in case frontmatter has different node_id)
-  const nodeWithCorrectId: GraphNode = {
-    ...baseNode,
-    relativeFilePathIsID: nodeId
-  }
-
-  // Set edges from wikilinks using extractLinkedNodeIds (same as initial load)
-  // This ensures consistent normalization (.md stripping, ./ prefix handling, etc.)
-  const edges = extractEdges(fsUpdate.content, currentGraph.nodes)
-  const node = setOutgoingEdges(nodeWithCorrectId, edges)
-
-  const upsertAction: UpsertNodeAction = {
-    type: 'UpsertNode',
-    nodeToUpsert: node
-  }
-
-  return [upsertAction]
+  // Use unified function - handles both outgoing and incoming edge validation
+  return addNodeToGraph(fsUpdate, vaultPath, currentGraph)
 }
 
 /**
