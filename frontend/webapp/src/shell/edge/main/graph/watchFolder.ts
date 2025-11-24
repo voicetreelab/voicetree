@@ -1,5 +1,5 @@
 import {loadGraphFromDisk} from "@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts";
-import type {FilePath, Graph, GraphDelta} from "@/pure/graph";
+import type {FilePath, Graph, GraphDelta, FSDelete} from "@/pure/graph";
 import {setGraph, setVaultPath} from "@/shell/edge/main/state/graph-store.ts";
 import {app, dialog} from "electron";
 import path from "path";
@@ -234,14 +234,13 @@ function setupWatcherListeners(vaultPath: FilePath): void {
 
     // File deleted
     watcher.on('unlink', (filePath: string) => {
-        const fsUpdate: FSUpdate = { // todo make this a delete
-            absolutePath: filePath,
-            content: '',
-            eventType: 'Deleted'
+        const fsDelete: FSDelete = {
+            type: 'Delete',
+            absolutePath: filePath
         };
 
         // Handle FS event: compute delta, update state, broadcast to UI-edge
-        handleFSEventWithStateAndUISides(fsUpdate, vaultPath, mainWindow);
+        handleFSEventWithStateAndUISides(fsDelete, vaultPath, mainWindow);
     });
 
     // Watch error

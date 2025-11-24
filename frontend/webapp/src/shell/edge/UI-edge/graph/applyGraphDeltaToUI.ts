@@ -35,7 +35,7 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
 
                 if (isNewNode) {
                     // Add new node with position (or default to origin if none)
-                    const pos = O.getOrElse(() => ({ x: 0, y: 0 }))(node.nodeUIMetadata.position);
+                    const pos = O.getOrElse(() => ({x: 0, y: 0}))(node.nodeUIMetadata.position);
                     const colorValue = O.isSome(node.nodeUIMetadata.color) && isValidCSSColor(node.nodeUIMetadata.color.value)
                         ? node.nodeUIMetadata.color.value
                         : undefined;
@@ -94,21 +94,15 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 // Remove edges that are no longer in outgoingEdges
                 currentEdges.forEach((edge) => {
                     const target = edge.data('target');
-                    if (!desiredTargets.has(target)) {
-                        if (!target.includes("shadow")){
-                            // Only remove edge if target node doesn't exist in UI-edge
-                            // This prevents race condition where file watcher processes parent before child exists
-                            const targetNode = cy.getElementById(target);
-                            if (targetNode.length === 0) {
-                                console.log(`[applyGraphDeltaToUI] Removing stale edge: ${nodeId}->${target}`);
-                                edge.remove();
-                            } else {
-                                console.log(`[applyGraphDeltaToUI] Keeping edge to existing node: ${nodeId}->${target} (race condition protection)`);
-                            }
-                        }
-                        else {
-                            // todo, make shadow node part of the pure Graph type system / DSL itself.
-                            console.log("Not removing shadow node.")
+                    if (!desiredTargets.has(target)) { // todo sus this actually working
+                        // Only remove edge if target node doesn't exist in UI-edge
+                        // This prevents race condition where file watcher processes parent before child exists
+                        const targetNode = cy.getElementById(target);
+                        if (targetNode.length === 0) {
+                            console.log(`[applyGraphDeltaToUI] Removing stale edge: ${nodeId}->${target}`);
+                            edge.remove();
+                        } else {
+                            console.log(`[applyGraphDeltaToUI] Keeping edge to existing node: ${nodeId}->${target} (race condition protection)`);
                         }
                     }
                 });
@@ -138,13 +132,13 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
             }
         });
     });
-    if (delta.length > 2 ) {
+    if (delta.length >= 3) { // if not just one node + incoming changing, probs a bulk load.
         cy.fit()
         // setTimeout(() =>  cy.fit(), 800) // cy.fit  after layout would have finished. UNNECESSARY IF WE HAVE POSITIONS DERIVED FROM ANGULAR
     }
     //analytics
     const anonGraphDelta = stripDeltaForReplay(delta);
-    posthog.capture('graphDelta', { delta: anonGraphDelta });
+    posthog.capture('graphDelta', {delta: anonGraphDelta});
     const userId = posthog.get_distinct_id()
     console.log("UUID", userId);
     console.log('[applyGraphDeltaToUI] Complete. Total nodes:', cy.nodes().length, 'Total edges:', cy.edges().length);

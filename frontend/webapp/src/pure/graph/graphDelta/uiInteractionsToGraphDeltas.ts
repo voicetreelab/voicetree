@@ -3,7 +3,7 @@ import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calcula
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
 import * as O from "fp-ts/lib/Option.js";
-import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing";
+import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-markdown-to-node.ts";
 
 /**
  * Pure action creator functions.
