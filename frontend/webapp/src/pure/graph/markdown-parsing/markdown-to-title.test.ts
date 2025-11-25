@@ -21,7 +21,8 @@ Content here`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -42,7 +43,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -63,7 +65,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -84,7 +87,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -105,7 +109,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -128,7 +133,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -152,7 +158,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -174,7 +181,8 @@ Content here`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -197,7 +205,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -217,7 +226,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -235,7 +245,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -253,7 +264,8 @@ Content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -279,7 +291,8 @@ Users can manually create nodes in the task tree, often preferred over speaking.
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -304,7 +317,8 @@ position:
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -326,7 +340,8 @@ And this is more content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -353,7 +368,8 @@ More content here`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -375,7 +391,8 @@ More content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -396,7 +413,8 @@ More content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -415,7 +433,8 @@ More content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -435,7 +454,8 @@ More content`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -455,7 +475,8 @@ Short first line after heading`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -474,7 +495,8 @@ Short first line after heading`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -508,7 +530,8 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -536,7 +559,8 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                     title: '',
                     color: O.none,
                     position: O.none,
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 

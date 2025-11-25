@@ -77,7 +77,8 @@ function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
         frontmatterData.isContextNode = true;
     }
 
-    // Add additional YAML properties
+    // Add additional YAML properties (these don't include color/position/isContextNode
+    // since those have explicit typed fields and aren't stored in additionalYAMLProps)
     metadata.additionalYAMLProps.forEach((value, key) => {
         // Try to parse JSON strings back to their original structure
         frontmatterData[key] = tryParseJSON(value)

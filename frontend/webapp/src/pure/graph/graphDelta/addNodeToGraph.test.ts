@@ -252,6 +252,28 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         expect(node.outgoingEdges[0].targetId).toBe('felix/1.md')
       }
     })
+
+    it('should include parent in delta when adding child that parent already points to (UI edge race condition fix)', () => {
+      // Setup: Parent exists with edge pointing to exact child ID (created before child existed)
+      const currentGraph: Graph = {
+        nodes: {
+          'parent.md': {
+            relativeFilePathIsID: 'parent.md',
+            contentWithoutYamlOrLinks: '# Parent',
+            outgoingEdges: [{ targetId: 'child.md', label: 'links to' }],
+            nodeUIMetadata: { title: 'Parent', color: O.none, position: O.none, additionalYAMLProps: new Map(), isContextNode: false }
+          }
+        }
+      }
+
+      // Add child node
+      const fsEvent: FSUpdate = { absolutePath: path.join(testVaultState.path, 'child.md'), content: '# Child', eventType: 'Added' }
+      const delta = mapFSEventsToGraphDelta(fsEvent, testVaultState.path, currentGraph)
+
+      // Parent must be in delta so UI gets second chance to create edge (fixes race condition)
+      expect(delta).toHaveLength(2)
+      expect(delta.some(d => d.type === 'UpsertNode' && d.nodeToUpsert.relativeFilePathIsID === 'parent.md')).toBe(true)
+    })
   })
 
   describe('Unified Behavior: Bulk and Incremental Produce Same Result', () => {
