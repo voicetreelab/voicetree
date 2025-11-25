@@ -5,12 +5,14 @@ import type { Settings } from '@/pure/settings';
 describe('settings-cache', () => {
   const mockSettings: Settings = {
     terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
-    agentCommand: 'test-command.sh'
+    agentCommand: 'test-command.sh',
+    shiftEnterSendsOptionEnter: true
   };
 
   const mockSettings2: Settings = {
     terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
-    agentCommand: 'another-command.sh'
+    agentCommand: 'another-command.sh',
+    shiftEnterSendsOptionEnter: false
   };
 
   // Reset cache before each test to ensure isolation
