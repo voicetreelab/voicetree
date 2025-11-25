@@ -4,7 +4,8 @@
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
 import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
-import {ContextMenuService} from '@/shell/UI/cytoscape-graph-ui/services/ContextMenuService.ts';
+import {RadialMenuService} from '@/shell/UI/cytoscape-graph-ui/services/RadialMenuService.ts';
+import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout.ts';
 
 export interface SetupCytoscapeParams {
@@ -17,10 +18,13 @@ export interface SetupCytoscapeParams {
 }
 
 /**
- * Setup cytoscape with layout, interactions, context menu, and test helpers.
- * Returns the initialized ContextMenuService.
+ * Setup cytoscape with layout, interactions, context menus, and test helpers.
+ * Returns the initialized menu services for lifecycle management.
  */
-export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService {
+export function setupCytoscape(params: SetupCytoscapeParams): {
+    radialMenuService: RadialMenuService;
+    verticalMenuService: VerticalMenuService;
+} {
     const {
         cy,
         onLayoutComplete,
@@ -51,15 +55,19 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
         void floatingWindowManager.createAnchoredFloatingEditor(node.id()).then(() => console.log('[VoiceTreeGraphView] Created editor'));
     });
 
-    // Setup context menu (with defensive DOM checks)
-    const contextMenuService = new ContextMenuService();
-    // Initialize context menu with cy instance and dependencies
-    contextMenuService.initialize(cy, {
-        createAnchoredFloatingEditor: (nodeId : NodeIdAndFilePath) =>
+    // Setup radial menu (hover)
+    const radialMenuService = new RadialMenuService();
+    radialMenuService.initialize(cy, {
+        createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) =>
             floatingWindowManager.createAnchoredFloatingEditor(nodeId),
+    });
+
+    // Setup vertical menu (right-click on canvas)
+    const verticalMenuService = new VerticalMenuService();
+    verticalMenuService.initialize(cy, {
         handleAddNodeAtPosition: (position) =>
             floatingWindowManager.handleAddNodeAtPosition(position)
     });
 
-    return contextMenuService;
+    return { radialMenuService, verticalMenuService };
 }
