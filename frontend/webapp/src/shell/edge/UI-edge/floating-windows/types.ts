@@ -38,7 +38,7 @@ export interface FloatingWindowUIHTMLData {
 }
 
 export interface FloatingWindowData {
-    cyAnchorNodeId: string;
+    cyAnchorNodeId?: string; // Optional - only needed when anchoring to a node
     id: string; // we want to avoid using this, ideally we remove it in the future and use just the terminal / editor id
     component: FloatingWindowType;
     title: string;
