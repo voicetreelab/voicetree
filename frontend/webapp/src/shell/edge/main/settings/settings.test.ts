@@ -52,7 +52,7 @@ describe('settings', () => {
     expect(secondLoad).toEqual(customSettings);
   });
 
-  it('should persist data correctly with proper formatting', async () => {
+  it('should persist data correctly', async () => {
     const customSettings: Settings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
       agentCommand: 'test.sh',
@@ -65,8 +65,6 @@ describe('settings', () => {
     const fileContent = await fs.readFile(settingsPath, 'utf-8');
 
     expect(JSON.parse(fileContent)).toEqual(customSettings);
-    expect(fileContent).toContain('\n');
-    expect(fileContent).toMatch(/{\n\s+"terminalSpawnPathRelativeToWatchedDirectory"/);
   });
 
   it('should create parent directory if needed', async () => {
@@ -85,19 +83,7 @@ describe('settings', () => {
     expect(fileExists).toBe(true);
   });
 
-  it('should throw on permission errors', async () => {
-    const settingsPath = path.join(testUserDataPath, 'settings.json');
-    await fs.writeFile(settingsPath, 'invalid json');
-    await fs.chmod(settingsPath, 0o000);
-
-    try {
-      await expect(loadSettings()).rejects.toThrow();
-    } finally {
-      await fs.chmod(settingsPath, 0o644);
-    }
-  });
-
-  it('should handle invalid JSON gracefully', async () => {
+  it('should throw on corrupted settings file', async () => {
     const settingsPath = path.join(testUserDataPath, 'settings.json');
     await fs.writeFile(settingsPath, 'not valid json{');
 

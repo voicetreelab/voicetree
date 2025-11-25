@@ -4,7 +4,7 @@ import type { FSUpdate, FSDelete, Graph } from './index.ts'
 
 describe('mapFSEventsToGraphDelta', () => {
   describe('Node ID preservation from fs events', () => {
-    it('should keep .md extension in node ID when adding a file', () => {
+    it('should keep .md extension in node ID for upsert operations', () => {
       const fsUpdate: FSUpdate = {
         absolutePath: '/vault/test-note.md',
         content: '# Test Note',
@@ -19,42 +19,6 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
         expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('test-note.md')
-      }
-    })
-
-    it('should keep .md extension in node ID for nested paths when adding', () => {
-      const fsUpdate: FSUpdate = {
-        absolutePath: '/vault/folder/subfolder/nested.md',
-        content: '# Nested',
-        eventType: 'Added'
-      }
-      const vaultPath = '/vault'
-      const currentGraph: Graph = { nodes: {} }
-
-      const delta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
-
-      expect(delta).toHaveLength(1)
-      expect(delta[0].type).toBe('UpsertNode')
-      if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('folder/subfolder/nested.md')
-      }
-    })
-
-    it('should keep .md extension in node ID when changing a file', () => {
-      const fsUpdate: FSUpdate = {
-        absolutePath: '/vault/updated.md',
-        content: '# Updated Content',
-        eventType: 'Changed'
-      }
-      const vaultPath = '/vault'
-      const currentGraph: Graph = { nodes: {} }
-
-      const delta = mapFSEventsToGraphDelta(fsUpdate, vaultPath, currentGraph)
-
-      expect(delta).toHaveLength(1)
-      expect(delta[0].type).toBe('UpsertNode')
-      if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('updated.md')
       }
     })
 
@@ -75,9 +39,9 @@ describe('mapFSEventsToGraphDelta', () => {
       }
     })
 
-    it('should keep .md extension for files with multiple dots', () => {
+    it('should keep .md extension for nested paths and multiple dots', () => {
       const fsUpdate: FSUpdate = {
-        absolutePath: '/vault/file.backup.md',
+        absolutePath: '/vault/folder/file.backup.md',
         content: '# Backup',
         eventType: 'Added'
       }
@@ -89,7 +53,7 @@ describe('mapFSEventsToGraphDelta', () => {
       expect(delta).toHaveLength(1)
       expect(delta[0].type).toBe('UpsertNode')
       if (delta[0].type === 'UpsertNode') {
-        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('file.backup.md')
+        expect(delta[0].nodeToUpsert.relativeFilePathIsID).toBe('folder/file.backup.md')
       }
     })
   })

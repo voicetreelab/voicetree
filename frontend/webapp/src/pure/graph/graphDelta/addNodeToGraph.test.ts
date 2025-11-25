@@ -9,13 +9,6 @@ import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaT
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
 import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta.ts'
 
-/** Unwrap Either or fail test */
-function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
-  // eslint-disable-next-line functional/no-throw-statements
-  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
-  return result.right
-}
-
 /**
  * TDD Tests for Progressive Edge Validation
  *
@@ -58,7 +51,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source Node\n\n- links to [[target]]'
       )
 
-      const graph = unwrapGraph(await loadGraphFromDisk(O.some(forwardVaultPath)))
+      const result = await loadGraphFromDisk(O.some(forwardVaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(result)) throw new Error('Expected Right')
+      const graph = result.right
 
       // Verify: source node has edge to target using target's node ID
       expect(graph.nodes['source.md']).toBeDefined()
@@ -85,7 +81,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Target Node'
       )
 
-      const graph = unwrapGraph(await loadGraphFromDisk(O.some(reverseVaultPath)))
+      const result2 = await loadGraphFromDisk(O.some(reverseVaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(result2)) throw new Error('Expected Right')
+      const graph = result2.right
 
       // Verify: SAME RESULT as forward order
       expect(graph.nodes['source.md']).toBeDefined()
@@ -112,7 +111,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Node 1'
       )
 
-      const graph = unwrapGraph(await loadGraphFromDisk(O.some(subfolderVaultPath)))
+      const result3 = await loadGraphFromDisk(O.some(subfolderVaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(result3)) throw new Error('Expected Right')
+      const graph = result3.right
 
       // Verify: Link resolves to felix/1 (not just "1")
       expect(graph.nodes['felix/2.md']).toBeDefined()
@@ -143,7 +145,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# A\n\n- extends [[b]]'
       )
 
-      const graph = unwrapGraph(await loadGraphFromDisk(O.some(chainVaultPath)))
+      const result4 = await loadGraphFromDisk(O.some(chainVaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(result4)) throw new Error('Expected Right')
+      const graph = result4.right
 
       // Verify: All edges resolved
       expect(graph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
@@ -286,7 +291,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B\n\n- links [[c]]')
       await fs.writeFile(path.join(bulkVaultPath, 'c.md'), '# C')
 
-      const bulkGraph = unwrapGraph(await loadGraphFromDisk(O.some(bulkVaultPath)))
+      const bulkResult = await loadGraphFromDisk(O.some(bulkVaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(bulkResult)) throw new Error('Expected Right')
+      const bulkGraph = bulkResult.right
 
       // INCREMENTAL (simulate sequential file additions)
       const incrementalVaultPath = path.join(testVaultState.path, 'incremental-unified')
@@ -336,7 +344,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B')
 
-      const bulkGraph = unwrapGraph(await loadGraphFromDisk(O.some(bulkVaultPath)))
+      const bulkResult2 = await loadGraphFromDisk(O.some(bulkVaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(bulkResult2)) throw new Error('Expected Right')
+      const bulkGraph = bulkResult2.right
 
       // INCREMENTAL (reverse order - b before a)
       const incrementalVaultPath = path.join(testVaultState.path, 'incremental-reverse')
@@ -378,7 +389,10 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- broken link [[does-not-exist]]'
       )
 
-      const graph = unwrapGraph(await loadGraphFromDisk(O.some(vaultPath)))
+      const result5 = await loadGraphFromDisk(O.some(vaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(result5)) throw new Error('Expected Right')
+      const graph = result5.right
 
       // Verify: Edge preserved with raw link text
       expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
@@ -414,11 +428,14 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]'
       )
 
-      const graph = unwrapGraph(await loadGraphFromDisk(O.some(vaultPath)))
+      const result6 = await loadGraphFromDisk(O.some(vaultPath))
+      // eslint-disable-next-line functional/no-throw-statements
+      if (E.isLeft(result6)) throw new Error('Expected Right')
+      const graph = result6.right
 
       // Verify: All edges preserved as raw text
       expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(3)
-      expect(graph.nodes['source.md'].outgoingEdges.map(e => e.targetId)).toEqual(['a', 'b', 'c'])
+      expect(graph.nodes['source.md'].outgoingEdges.map((e: { targetId: string }) => e.targetId)).toEqual(['a', 'b', 'c'])
 
       await fs.rm(vaultPath, { recursive: true })
     })

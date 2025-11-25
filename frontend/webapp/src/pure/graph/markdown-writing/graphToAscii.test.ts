@@ -5,12 +5,6 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
 
-/** Unwrap Either or fail test */
-function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
-  // eslint-disable-next-line functional/no-throw-statements
-  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
-  return result.right
-}
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
 
 describe('graphToAscii', () => {
@@ -57,34 +51,17 @@ describe('graphToAscii', () => {
     expect(result).toBe(expected)
   })
 
-  it('should render a tree with multiple branches', () => {
+  it('should render trees with multiple and nested branches', () => {
+    // Test both multiple children and nested grandchildren
     const graph: Graph = {
       nodes: {
         'Root': createTestNode('Root', ['Child1', 'Child2', 'Child3']),
-        'Child1': createTestNode('Child1', []),
-        'Child2': createTestNode('Child2', []),
-        'Child3': createTestNode('Child3', [])
-      }
-    }
-
-    const result = graphToAscii(graph)
-
-    const expected = `Root
-├── Child1
-├── Child2
-└── Child3`
-
-    expect(result).toBe(expected)
-  })
-
-  it('should render a tree with nested branches', () => {
-    const graph: Graph = {
-      nodes: {
-        'Root': createTestNode('Root', ['Child1', 'Child2']),
         'Child1': createTestNode('Child1', ['Grandchild1', 'Grandchild2']),
         'Child2': createTestNode('Child2', []),
+        'Child3': createTestNode('Child3', ['Grandchild3']),
         'Grandchild1': createTestNode('Grandchild1', []),
-        'Grandchild2': createTestNode('Grandchild2', [])
+        'Grandchild2': createTestNode('Grandchild2', []),
+        'Grandchild3': createTestNode('Grandchild3', [])
       }
     }
 
@@ -94,33 +71,9 @@ describe('graphToAscii', () => {
 ├── Child1
 │   ├── Grandchild1
 │   └── Grandchild2
-└── Child2`
-
-    expect(result).toBe(expected)
-  })
-
-  it('should render the example tree from spec', () => {
-    const graph: Graph = {
-      nodes: {
-        'Root Node': createTestNode('Root Node', ['Child 1', 'Child 2', 'Child 3']),
-        'Child 1': createTestNode('Child 1', ['Grandchild 1', 'Grandchild 2']),
-        'Child 2': createTestNode('Child 2', []),
-        'Child 3': createTestNode('Child 3', ['Grandchild 3']),
-        'Grandchild 1': createTestNode('Grandchild 1', []),
-        'Grandchild 2': createTestNode('Grandchild 2', []),
-        'Grandchild 3': createTestNode('Grandchild 3', [])
-      }
-    }
-
-    const result = graphToAscii(graph)
-
-    const expected = `Root Node
-├── Child 1
-│   ├── Grandchild 1
-│   └── Grandchild 2
-├── Child 2
-└── Child 3
-    └── Grandchild 3`
+├── Child2
+└── Child3
+    └── Grandchild3`
 
     expect(result).toBe(expected)
   })
@@ -173,7 +126,8 @@ describe('graphToAscii', () => {
     expect(result).toBe(expected)
   })
 
-  it('should handle multiple root nodes', () => {
+  it('should handle multiple roots and disconnected components', () => {
+    // Graph with two disconnected trees
     const graph: Graph = {
       nodes: {
         'Root1': createTestNode('Root1', ['Child1']),
@@ -185,35 +139,19 @@ describe('graphToAscii', () => {
 
     const result = graphToAscii(graph)
 
-    // Both roots should be printed
+    // All nodes from both disconnected components should appear
     expect(result).toContain('Root1')
     expect(result).toContain('Root2')
     expect(result).toContain('Child1')
     expect(result).toContain('Child2')
   })
 
-  it('should handle graph with disconnected components', () => {
-    const graph: Graph = {
-      nodes: {
-        'A': createTestNode('A', ['B']),
-        'B': createTestNode('B', []),
-        'C': createTestNode('C', ['D']),
-        'D': createTestNode('D', [])
-      }
-    }
-
-    const result = graphToAscii(graph)
-
-    // Both A and C are roots
-    expect(result).toContain('A')
-    expect(result).toContain('B')
-    expect(result).toContain('C')
-    expect(result).toContain('D')
-  })
-
   it('should render example_large fixture - visual output inspection', async () => {
     // Load the real example_large graph from disk
-    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH)))
+    const loadResult = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+    // eslint-disable-next-line functional/no-throw-statements
+    if (E.isLeft(loadResult)) throw new Error('Expected Right')
+    const graph = loadResult.right
 
     // Generate ASCII visualization
     const result = graphToAscii(graph)
@@ -235,10 +173,13 @@ describe('graphToAscii', () => {
 
   it('should render example_small fixture - visual output inspection', async () => {
     // Load the real example_small graph from disk
-    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
+    const loadResult2 = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    // eslint-disable-next-line functional/no-throw-statements
+    if (E.isLeft(loadResult2)) throw new Error('Expected Right')
+    const graph = loadResult2.right
 
     // Debug: Check if edges are loaded
-    const edgeCount = Object.values(graph.nodes).reduce((sum, node) => sum + node.outgoingEdges.length, 0)
+    const edgeCount = Object.values(graph.nodes).reduce((sum, node: GraphNode) => sum + node.outgoingEdges.length, 0)
     console.log('\n' + '='.repeat(80))
     console.log('GRAPH STRUCTURE DEBUG')
     console.log('='.repeat(80))
@@ -247,12 +188,12 @@ describe('graphToAscii', () => {
 
     // Show a few nodes with their edges
     const nodeEntries = Object.entries(graph.nodes).slice(0, 3)
-    nodeEntries.forEach(([_id, node]) => {
+    nodeEntries.forEach(([_id, node]: [string, GraphNode]) => {
       console.log(`\nNode: ${node.nodeUIMetadata.title}`)
       console.log(`  Edges: ${node.outgoingEdges.length}`)
-      node.outgoingEdges.forEach(edge => {
+      node.outgoingEdges.forEach((edge: { targetId: string }) => {
         const targetNode = graph.nodes[edge.targetId]
-        console.log(`    -> ${targetNode?.nodeUIMetadata.title || edge.targetId}`)
+        console.log(`    -> ${targetNode?.nodeUIMetadata.title ?? edge.targetId}`)
       })
     })
     console.log('='.repeat(80))

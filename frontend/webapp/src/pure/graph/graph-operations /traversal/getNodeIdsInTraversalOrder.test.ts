@@ -29,37 +29,7 @@ describe('getNodeIdsInTraversalOrder', () => {
     expect(result).toEqual(['A'])
   })
 
-  it('should return nodes in depth-first order for linear chain', () => {
-    const graph: Graph = {
-      nodes: {
-        'A': createTestNode('A', ['B']),
-        'B': createTestNode('B', ['C']),
-        'C': createTestNode('C', [])
-      }
-    }
-
-    const result = getNodeIdsInTraversalOrder(graph)
-
-    expect(result).toEqual(['A', 'B', 'C'])
-  })
-
-  it('should return nodes in depth-first order for tree with branches', () => {
-    const graph: Graph = {
-      nodes: {
-        'Root': createTestNode('Root', ['Child1', 'Child2', 'Child3']),
-        'Child1': createTestNode('Child1', []),
-        'Child2': createTestNode('Child2', []),
-        'Child3': createTestNode('Child3', [])
-      }
-    }
-
-    const result = getNodeIdsInTraversalOrder(graph)
-
-    // Depth-first: Root, then Child1, then Child2, then Child3
-    expect(result).toEqual(['Root', 'Child1', 'Child2', 'Child3'])
-  })
-
-  it('should return nodes in depth-first order for nested tree', () => {
+  it('should return nodes in depth-first order (tests nesting and branching)', () => {
     const graph: Graph = {
       nodes: {
         'Root': createTestNode('Root', ['Child1', 'Child2']),
