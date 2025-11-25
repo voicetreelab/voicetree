@@ -1,3 +1,4 @@
+import type {} from '@/utils/types/electron';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
@@ -11,6 +12,7 @@ import { FloatingWindowFullscreen } from '@/shell/UI/floating-windows/FloatingWi
 export interface TerminalVanillaConfig {
   terminalData: TerminalData;
   container: HTMLElement;
+  shiftEnterSendsOptionEnter?: boolean;
 }
 
 /**
@@ -25,10 +27,12 @@ export class TerminalVanilla {
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
   private fullscreen: FloatingWindowFullscreen;
+  private shiftEnterSendsOptionEnter: boolean;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
     this.terminalData = config.terminalData;
+    this.shiftEnterSendsOptionEnter = config.shiftEnterSendsOptionEnter ?? true;
 
     // Setup fullscreen with callback to fit terminal when fullscreen changes
     this.fullscreen = new FloatingWindowFullscreen(config.container, () => {
@@ -88,6 +92,20 @@ export class TerminalVanilla {
 
     fitAddon.fit();
 
+    // Intercept Shift+Enter to send Option+Enter (ESC + CR) when enabled
+    if (this.shiftEnterSendsOptionEnter) {
+      term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        if (event.type === 'keydown' && event.key === 'Enter' && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          // Shift+Enter pressed: send Option+Enter sequence (ESC + CR)
+          if (this.terminalId && window.electronAPI?.terminal) {
+            void window.electronAPI.terminal.write(this.terminalId, '\x1b\r');
+          }
+          return false; // Prevent default Shift+Enter handling
+        }
+        return true; // Allow all other keys
+      });
+    }
+
     // Handle terminal input
     term.onData(data => {
       if (this.terminalId && window.electronAPI?.terminal) {
@@ -100,7 +118,7 @@ export class TerminalVanilla {
     // Handle terminal resize
     term.onResize(({ cols, rows }) => {
       if (this.terminalId && window.electronAPI?.terminal) {
-        window.electronAPI.terminal.resize(this.terminalId, cols, rows);
+        void window.electronAPI.terminal.resize(this.terminalId, cols, rows);
       }
     });
 
@@ -118,7 +136,7 @@ export class TerminalVanilla {
     this.resizeObserver.observe(this.container);
 
     // Initialize terminal backend connection
-    this.initTerminal();
+    void this.initTerminal();
   }
 
   private async initTerminal() {
@@ -135,7 +153,7 @@ export class TerminalVanilla {
 
       // Sync initial size
       if (this.term) {
-        window.electronAPI.terminal.resize(result.terminalId, this.term.cols, this.term.rows);
+        void window.electronAPI.terminal.resize(result.terminalId, this.term.cols, this.term.rows);
       }
 
       // Handle terminal output
@@ -153,7 +171,7 @@ export class TerminalVanilla {
         }
       });
     } else {
-      this.term?.writeln('Failed to spawn terminal: ' + (result.error || 'Unknown error'));
+      this.term?.writeln('Failed to spawn terminal: ' + (result.error ?? 'Unknown error'));
     }
   }
 
@@ -203,7 +221,7 @@ export class TerminalVanilla {
 
     // Kill terminal process
     if (this.terminalId && window.electronAPI?.terminal) {
-      window.electronAPI.terminal.kill(this.terminalId);
+      void window.electronAPI.terminal.kill(this.terminalId);
     }
 
     // Dispose terminal instance
