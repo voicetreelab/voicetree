@@ -9,5 +9,3 @@ A new fast inference branch has been added, enabling parallel inference. This si
 
 -----------------
 _Links:_
-Parent:
-- introduces_a_major_component_of [[28_Accelerated_Inference.md]]

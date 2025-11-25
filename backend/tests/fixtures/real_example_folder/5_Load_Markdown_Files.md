@@ -9,5 +9,5 @@ The first function is to load existing markdown files into the `load_dur.py` scr
 
 -----------------
 _Links:_
-Parent:
-- is_the_first_function_of_the [[4_Load_Directory_Script.md]]
+Children:
+- raises_a_question_about [[17_Chunk_Processor_Responsibility.md]]- identifies_a_problem_with [[18_Problem_load_dur_py_Return_Value.md]]

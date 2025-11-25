@@ -11,5 +11,3 @@ The number of adult crow in Bundle Ranch equals 4 times the average number of ne
 
 -----------------
 _Links:_
-Parent:
-- is_calculated_from [[1_Mathematical_Relationships_in_Animal_Populations.md]]

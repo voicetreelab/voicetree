@@ -87,5 +87,3 @@ This test proves the decentralized approach works while keeping testing complexi
 
 -----------------
 _Links:_
-Parent:
-- implements_test_for [[./34_Overall_Integration_Test.md]]

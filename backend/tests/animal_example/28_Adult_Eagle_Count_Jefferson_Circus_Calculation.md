@@ -11,5 +11,3 @@ The number of adult eagle in Jefferson Circus equals the difference between the 
 
 -----------------
 _Links:_
-Parent:
-- is_calculated_from [[1_Mathematical_Relationships_in_Animal_Populations.md]]

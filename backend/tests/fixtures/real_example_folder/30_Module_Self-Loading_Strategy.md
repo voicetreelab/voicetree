@@ -9,5 +9,5 @@ Each module itself, such as the markdown tree module, vector module, and history
 
 -----------------
 _Links:_
-Parent:
-- is_the_alternative_strategy_to_the [[19_Decision_to_Remove_load_dur_py.md]]
+Children:
+- is_a_decision_regarding_the [[32_Evaluate_Module_Self-Loading_Strategy.md]]- is_a_task_to_support_the [[33_Consult_AI_for_Strategy_Evaluation.md]]

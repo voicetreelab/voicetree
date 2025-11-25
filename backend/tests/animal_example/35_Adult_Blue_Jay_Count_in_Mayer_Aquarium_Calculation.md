@@ -11,5 +11,3 @@ The number of adult blue jay in Mayer Aquarium equals 2 times the average number
 
 -----------------
 _Links:_
-Parent:
-- is_a_calculation_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

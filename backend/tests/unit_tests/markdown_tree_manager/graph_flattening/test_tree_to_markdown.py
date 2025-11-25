@@ -89,8 +89,8 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
             self.assertIn("title: Child Node 1 (1)\n", content)
             self.assertIn("node_id: 1\n", content)
             self.assertIn("Updated Child Node 1", content)
-            parent_file = self.tree_data[0].filename
-            self.assertIn(f"- child_of [[{parent_file}]]", content)  # Check for snake_case relationship
+            # Note: With parent->child links, the child node should NOT have a Parent link
+            # The parent file (node 0) should have the Children link instead
 
         # You'll need to manually check if Obsidian creates the
         # backlink in the parent node's file ("00.md").
@@ -191,19 +191,23 @@ class TestTreeToMarkdownConverter(unittest.TestCase):
 
     def test_relationships_snake_case(self):
         # Test that relationships are converted to snake_case
-        nodes_to_update = {1, 2, 3}
+        # With parent->child links, relationships should appear in the parent file
+        nodes_to_update = {0, 2}
         self.converter.convert_nodes(output_dir=self.output_dir, nodes_to_update=nodes_to_update)
 
-        # Check child node 2 with "related to" relationship
+        # Check parent node 0 - it should have Children links with relationships
+        file_path = os.path.join(self.output_dir, self.tree_data[0].filename)
+        with open(file_path) as f:
+            content = f.read()
+            self.assertIn("Children:", content)
+            self.assertIn("- child_of [[", content)  # Check snake_case conversion for node 1
+            self.assertIn("- related_to [[", content)  # Check snake_case conversion for node 2
+
+        # Check parent node 2 - it should have Children link to node 3
         file_path = os.path.join(self.output_dir, self.tree_data[2].filename)
         with open(file_path) as f:
             content = f.read()
-            self.assertIn("- related_to [[", content)  # Check snake_case conversion
-
-        # Check grandchild with "example of" relationship
-        file_path = os.path.join(self.output_dir, self.tree_data[3].filename)
-        with open(file_path) as f:
-            content = f.read()
+            self.assertIn("Children:", content)
             self.assertIn("- example_of [[", content)  # Check snake_case conversion
 
 

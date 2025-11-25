@@ -41,5 +41,5 @@ Understanding the current architecture allows us to implement transcript persist
 
 -----------------
 _Links:_
-Parent:
-- is_progress_of [[./11_Identify_and_Modify_Code_for_Transcript_Saving.md]]
+Children:
+- is_progress_of [[11_1_1_Zoe_Transcript_History_Implementation_Complete.md]]

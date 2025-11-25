@@ -11,3 +11,6 @@ This synthetic node groups together various documentation, user resources, and u
 
 -----------------
 _Links:_
+
+Children:
+- child_of [[1_GPT-SoVITS_Software.md]]- child_of [[31_GPT-SoVITS_Update_Log_20240221.md]]- child_of [[2_GPT-SoVITS_User_Manual.md]]- child_of [[22_GPT-SoVITS_Update_Log_20240806.md]]

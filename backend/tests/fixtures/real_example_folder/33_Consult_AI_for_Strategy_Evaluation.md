@@ -9,5 +9,3 @@ Let's ask AI to evaluate the module self-loading strategy.
 
 -----------------
 _Links:_
-Parent:
-- is_a_task_to_support_the [[30_Module_Self-Loading_Strategy.md]]

@@ -11,5 +11,3 @@ The number of adult crow in Hamilton Farm equals 3.
 
 -----------------
 _Links:_
-Parent:
-- is_a_quantity_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

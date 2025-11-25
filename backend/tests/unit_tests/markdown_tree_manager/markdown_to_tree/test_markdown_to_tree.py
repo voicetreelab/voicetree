@@ -26,7 +26,7 @@ class TestMarkdownToTreeConverter:
     @pytest.fixture
     def sample_markdown_files(self, temp_dir):
         """Create sample markdown files for testing"""
-        # Root node
+        # Root node (with Children link)
         root_content = """---
 created_at: '2025-07-28T10:00:00.000000'
 modified_at: '2025-07-28T10:00:00.000000'
@@ -41,11 +41,13 @@ It has multiple lines of content.
 
 -----------------
 _Links:_
+Children:
+- is_a_sub_task_of [[2_child_node.md]]
 """
         with open(os.path.join(temp_dir, "1_root_node.md"), 'w') as f:
             f.write(root_content)
 
-        # Child node
+        # Child node (with Children link to grandchild)
         child_content = """---
 created_at: '2025-07-28T11:00:00.000000'
 modified_at: '2025-07-28T11:00:00.000000'
@@ -58,13 +60,13 @@ Child node content goes here.
 
 -----------------
 _Links:_
-Parent:
-- is_a_sub_task_of [[1_root_node.md]]
+Children:
+- implements [[3_grandchild_node.md]]
 """
         with open(os.path.join(temp_dir, "2_child_node.md"), 'w') as f:
             f.write(child_content)
 
-        # Grandchild node
+        # Grandchild node (no parent link - parent will have the Children link)
         grandchild_content = """---
 created_at: '2025-07-28T12:00:00.000000'
 modified_at: '2025-07-28T12:00:00.000000'
@@ -77,8 +79,6 @@ More content here.
 
 -----------------
 _Links:_
-Parent:
-- implements [[2_child_node.md]]
 """
         with open(os.path.join(temp_dir, "3_grandchild_node.md"), 'w') as f:
             f.write(grandchild_content)
@@ -280,6 +280,23 @@ _Links:_
 
     def test_no_summary_section(self, temp_dir):
         """Test parsing of markdown file without summary (no ### line)"""
+        # First create the parent file with Children link
+        parent_content = """---
+node_id: 3
+title: Graph as Shared Human-AI Memory (3)
+---
+### The graph serves as shared memory
+
+Content here.
+
+-----------------
+_Links:_
+Children:
+- describes_the_integration_and_benefits_of_an [[6_agent_workspace.md]]
+"""
+        with open(os.path.join(temp_dir, "3_Graph_as_Shared_Human-AI_Memory.md"), 'w') as f:
+            f.write(parent_content)
+
         no_summary_content = """---
 node_id: 6
 title: Agent in Shared Workspace (6)
@@ -289,8 +306,6 @@ An agent can be added into the shared workspace, getting the exact context it ne
 
 -----------------
 _Links:_
-Parent:
-- describes_the_integration_and_benefits_of_an [[3_Graph_as_Shared_Human-AI_Memory.md]]
 """
         with open(os.path.join(temp_dir, "6_agent_workspace.md"), 'w') as f:
             f.write(no_summary_content)
@@ -298,7 +313,7 @@ Parent:
         converter = MarkdownToTreeConverter()
         tree_data = converter.load_tree_from_markdown(temp_dir)
 
-        assert len(tree_data) == 1
+        assert len(tree_data) == 2
         node = tree_data[6]
         assert node.title == "Agent in Shared Workspace (6)"
         assert node.summary == ""  # No summary should be empty
@@ -307,6 +322,23 @@ Parent:
 
     def test_complex_content_with_mermaid_diagram(self, temp_dir):
         """Test parsing of markdown file with complex content including mermaid diagrams"""
+        # Create parent file with Children link
+        parent_content = """---
+node_id: 6
+title: Agent in Shared Workspace (6)
+---
+### Agent workspace summary
+
+Content here.
+
+-----------------
+_Links:_
+Children:
+- visualizes [[6_1_agent_flow.md]]
+"""
+        with open(os.path.join(temp_dir, "6_Agent_in_Shared_Workspace.md"), 'w') as f:
+            f.write(parent_content)
+
         complex_mermaid_content = """---
 node_id: 6_1
 title: Agent-Graph Interaction Flow (6_1)
@@ -335,8 +367,6 @@ This diagram illustrates how both humans and agents access the same VoiceTree gr
 
 -----------------
 _Links:_
-Parent:
-- visualizes [[6_Agent_in_Shared_Workspace.md]]
 """
         with open(os.path.join(temp_dir, "6_1_agent_flow.md"), 'w') as f:
             f.write(complex_mermaid_content)
@@ -344,7 +374,7 @@ Parent:
         converter = MarkdownToTreeConverter()
         tree_data = converter.load_tree_from_markdown(temp_dir)
 
-        assert len(tree_data) == 1
+        assert len(tree_data) == 2
         node = tree_data[6_1]
         assert node.title == "Agent-Graph Interaction Flow (6_1)"
         assert node.color == "pink"

@@ -9,3 +9,6 @@ By default. I'm working on a new artificial intelligence project. The project in
 
 -----------------
 _Links:_
+
+Children:
+- is_a_concurrent_request_related_to [[25_Concurrent_Request_Mobile_Development.md]]- is_a_concurrent_request_related_to [[23_Concurrent_Request_Machine_Learning_Algorithms.md]]- is_a_concurrent_request_related_to [[24_Concurrent_Request_Web_Development.md]]

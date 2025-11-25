@@ -25,3 +25,6 @@ For detailed update history, refer to the [Quick Start Update Log](https://githu
 
 -----------------
 _Links:_
+
+Children:
+- details_changes_in_the [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]- is_the_official_communication_group_for [[15_GPT-SoVITS_Official_Communication_Group.md]]- promotes_the_capabilities_of [[17_GPT-SoVITS_Promotion_Video.md]]- details_the_changes_from [[21_GPT-SoVITS_Update_Log_20240821.md]]- includes_a_legal_disclaimer_for [[19_GPT-SoVITS_Disclaimer.md]]- specifies_a_requirement_for [[18_GPT-SoVITS_Voice_Training_Set_Source.md]]- provides_an_outdated_tutorial_for [[16_GPT-SoVITS_Outdated_Video_Tutorial.md]]- details_changes_in_the [[23_GPT-SoVITS_General_Fixes_and_Improvements_Part_1.md]]

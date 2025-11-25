@@ -191,20 +191,20 @@ def parse_relationships_from_links(content: str) -> ParsedRelationships:
     links_content = links_match.group(1)
     result: ParsedRelationships = {RelationshipKeys.PARENT: None, RelationshipKeys.CHILDREN: []}
 
-    # Parse parent relationship
-    parent_info = extract_parent_relationship(content)
-    if parent_info:
-        result[RelationshipKeys.PARENT] = parent_info
-
-    # Parse children relationships (if any exist in older files)
-    children_section = re.search(r'Children:\s*\n(.*?)(?:Parent:|$)', links_content, re.DOTALL)
+    # Parse children relationships from "Children:" section
+    # Expected format:
+    # Children:
+    # - {relationship_type} [[{child_filename}]]
+    # - {relationship_type} [[{child_filename}]]
+    children_section = re.search(r'Children:\s*\n(.*?)(?:\n\n|$)', links_content, re.DOTALL)
     if children_section:
         children_lines = children_section.group(1).strip().split('\n')
         for line in children_lines:
-            child_match = re.match(r'-\s*\[\[(.*?)\]\]\s*(.+?)\s*\(this node\)', line)
+            # Match format: - {relationship_type} [[{child_filename}]]
+            child_match = re.match(r'-\s*(.+?)\s*\[\[(.*?)\]\]', line)
             if child_match:
-                child_filename = child_match.group(1).strip()
-                relationship_type = child_match.group(2).strip()
+                relationship_type = child_match.group(1).strip()
+                child_filename = child_match.group(2).strip()
                 result[RelationshipKeys.CHILDREN].append({
                     RelationshipKeys.CHILD_FILENAME: child_filename,
                     RelationshipKeys.RELATIONSHIP_TYPE: relationship_type.replace('_', ' ')

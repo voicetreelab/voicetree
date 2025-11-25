@@ -16,5 +16,3 @@ Users must agree to and follow the GPT-SoVITS usage agreement before using the s
 
 -----------------
 _Links:_
-Parent:
-- outlines_the_usage_agreement_for [[1_GPT-SoVITS_Software.md]]

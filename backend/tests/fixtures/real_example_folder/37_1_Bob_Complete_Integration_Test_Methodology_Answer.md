@@ -138,5 +138,3 @@ The methodology proves that decentralized module loading doesn't significantly c
 
 -----------------
 _Links:_
-Parent:
-- answers_methodology_question_for [[./37_Integration_Test_Methodology_Question.md]]

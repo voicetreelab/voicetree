@@ -11,5 +11,3 @@ The number of adult rat in Ashen Crag equals the number of adult crow in Hamilto
 
 -----------------
 _Links:_
-Parent:
-- states_equality_between [[1_Mathematical_Relationships_in_Animal_Populations.md]]

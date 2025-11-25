@@ -9,5 +9,5 @@ Let's look if vector loading is in some of the vector code and see what the curr
 
 -----------------
 _Links:_
-Parent:
-- is_a_task_to_resolve_the [[9_Current_Vector_Loading_Status.md]]
+Children:
+- suggests_a_re-evaluation_of_the [[14_Re-evaluate_Vector_Loading_Investigation_Focus.md]]- is_a_specific_assessment_within_the [[16_Assess_load_underscore_dur_py_Relevance.md]]- is_finding_of [[10_1_Yara_Vector_Loading_Status_Investigation_Complete.md]]

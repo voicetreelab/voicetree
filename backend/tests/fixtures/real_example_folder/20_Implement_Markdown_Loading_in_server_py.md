@@ -9,5 +9,3 @@ When the decision is made, `server.py` should load whatever is in the output dir
 
 -----------------
 _Links:_
-Parent:
-- is_an_implementation_detail_for [[17_Chunk_Processor_Responsibility.md]]

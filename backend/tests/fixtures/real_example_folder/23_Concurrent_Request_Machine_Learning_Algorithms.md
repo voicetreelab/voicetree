@@ -9,5 +9,3 @@ First concurrent request about machine learning algorithms and neural networks.
 
 -----------------
 _Links:_
-Parent:
-- is_a_concurrent_request_related_to [[21_New_Artificial_Intelligence_Project.md]]

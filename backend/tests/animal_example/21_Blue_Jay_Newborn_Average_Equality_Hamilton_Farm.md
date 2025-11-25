@@ -11,5 +11,3 @@ The average number of newborn children per adult blue jay in Hamilton Farm equal
 
 -----------------
 _Links:_
-Parent:
-- states_equality_between [[1_Mathematical_Relationships_in_Animal_Populations.md]]

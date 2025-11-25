@@ -9,5 +9,5 @@ Let's identify the code that does that. And make it save transcript history. It 
 
 -----------------
 _Links:_
-Parent:
-- is_an_actionable_step_for [[8_Save_Transcript_History.md]]
+Children:
+- is_progress_of [[11_1_Zoe_Transcript_History_Analysis_Complete.md]]

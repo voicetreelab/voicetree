@@ -9,5 +9,3 @@ Similar technologies to Text-to-Speech (TTS) include Singing Voice Conversion (S
 
 -----------------
 _Links:_
-Parent:
-- are_related_to [[3_Text-to-Speech_TTS_Technology.md]]

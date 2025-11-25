@@ -9,5 +9,3 @@ content2
 
 -----------------
 _Links:_
-Parent:
-- child_of [[1_node1.md]]

@@ -13,5 +13,5 @@ Files involved:
 
 -----------------
 _Links:_
-Parent:
-- is_a_related_architectural_consideration_for [[12_Relocate_Transcript_History_Loading.md]]
+Children:
+- is_analysis_of [[13_1_Alice_Workflow_Merger_Analysis_Complete.md]]- is_an_observation_informing [[26_Observation_on_Workflow_Overcomplication.md]]- is_a_follow-up_action_for [[29_Log_Architecture_Decision.md]]

@@ -9,5 +9,3 @@ I'm thinking, wait, so investigate vector loading status. I'm thinking that we a
 
 -----------------
 _Links:_
-Parent:
-- is_a_specific_assessment_within_the [[10_Investigate_Vector_Loading_Status.md]]

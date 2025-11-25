@@ -13,5 +13,4 @@ A new monitoring system should be set up using Prometheus and Grafana. This syst
 _Links:_
 Children:
 - [[1_System_Monitoring_Setup.md]] is_a_component_of (this node)
-Parent:
 - is_a_component_of [[1_System_Monitoring_Setup.md]]

@@ -11,5 +11,3 @@ The number of adult blue jay in Hamilton Farm equals 4.
 
 -----------------
 _Links:_
-Parent:
-- is_a_quantity_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

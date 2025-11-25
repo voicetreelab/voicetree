@@ -9,5 +9,5 @@ We need to load the vector files, specifically from the ChromaDB database.
 
 -----------------
 _Links:_
-Parent:
-- is_a_function_of_the [[4_Load_Directory_Script.md]]
+Children:
+- raises_a_question_about_the [[9_Current_Vector_Loading_Status.md]]

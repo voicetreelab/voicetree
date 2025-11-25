@@ -77,5 +77,5 @@ The strategy aligns with the Single Solution Principle and minimizes complexity 
 
 -----------------
 _Links:_
-Parent:
-- is_evaluation_of [[./32_Evaluate_Module_Self-Loading_Strategy.md]]
+Children:
+- provides_recommendation_for [[32_1_1_Bob_Recommendation_Maintain_Module_Self_Loading_Strategy.md]]

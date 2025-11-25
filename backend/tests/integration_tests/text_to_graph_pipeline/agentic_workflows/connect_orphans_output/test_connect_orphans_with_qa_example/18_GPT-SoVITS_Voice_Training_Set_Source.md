@@ -9,5 +9,3 @@ Users need to provide the source of voice for the training set when using GPT-So
 
 -----------------
 _Links:_
-Parent:
-- specifies_a_requirement_for [[2_GPT-SoVITS_User_Manual.md]]

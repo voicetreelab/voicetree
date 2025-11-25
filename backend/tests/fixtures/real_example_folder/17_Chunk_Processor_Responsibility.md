@@ -9,5 +9,5 @@ So the question is, do we make the chunk processor load the markdown files, or d
 
 -----------------
 _Links:_
-Parent:
-- raises_a_question_about [[5_Load_Markdown_Files.md]]
+Children:
+- is_an_implementation_detail_for [[20_Implement_Markdown_Loading_in_server_py.md]]

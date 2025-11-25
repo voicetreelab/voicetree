@@ -70,5 +70,3 @@ The decision to remove load_dir.py (node 19) was correct. The module self-loadin
 
 -----------------
 _Links:_
-Parent:
-- provides_recommendation_for [[./32_1_Bob_Module_Self_Loading_Strategy_Evaluation_Complete.md]]

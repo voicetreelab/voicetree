@@ -9,5 +9,5 @@ The decision is that we will not have a centralized auto-load module, which load
 
 -----------------
 _Links:_
-Parent:
-- is_a_decision_regarding_the_future_of [[4_Load_Directory_Script.md]]
+Children:
+- is_the_alternative_strategy_to_the [[30_Module_Self-Loading_Strategy.md]]

@@ -9,5 +9,3 @@ This work is published for entertainment purposes only. Any consequences are not
 
 -----------------
 _Links:_
-Parent:
-- includes_a_legal_disclaimer_for [[2_GPT-SoVITS_User_Manual.md]]

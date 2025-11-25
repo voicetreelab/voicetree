@@ -17,3 +17,6 @@ This update log details changes made on August 6, 2024:
 
 -----------------
 _Links:_
+
+Children:
+- introduces_new_functionality_in_the [[26_Cantonese_ASR_Support.md]]- implements_a_significant_improvement_in [[28_Accelerated_Inference.md]]- provides_new_control_over [[27_Speech_Synthesis_Speed_Adjustment.md]]

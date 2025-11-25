@@ -60,5 +60,3 @@ flowchart TB
 
 -----------------
 _Links:_
-Parent:
-- is_refactoring_of [[./3_1_Xavier_Extracted_Load_Directory_Function.md]]

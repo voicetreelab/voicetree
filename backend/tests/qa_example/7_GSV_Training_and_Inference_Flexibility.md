@@ -11,5 +11,3 @@ GPT-SoVITS offers flexible training and inference options:
 
 -----------------
 _Links:_
-Parent:
-- provides_flexible_training_and_inference_options_for [[1_GPT-SoVITS_Software.md]]

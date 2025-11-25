@@ -10,5 +10,3 @@ GPT-SoVITS-V1 has achieved the following:
 
 -----------------
 _Links:_
-Parent:
-- details_the_achievements_of [[1_GPT-SoVITS_Software.md]]

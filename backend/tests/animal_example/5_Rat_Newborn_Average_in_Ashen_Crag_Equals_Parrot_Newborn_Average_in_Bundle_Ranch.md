@@ -11,5 +11,3 @@ The average number of newborn children per adult rat in Ashen Crag equals the av
 
 -----------------
 _Links:_
-Parent:
-- states_equality_between [[1_Mathematical_Relationships_in_Animal_Populations.md]]

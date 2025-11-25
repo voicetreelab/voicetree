@@ -14,5 +14,3 @@ This update log details changes made on August 21, 2024:
 
 -----------------
 _Links:_
-Parent:
-- details_the_changes_from [[2_GPT-SoVITS_User_Manual.md]]

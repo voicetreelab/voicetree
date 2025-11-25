@@ -11,5 +11,3 @@ An outdated video tutorial (V1 version) for GPT-SoVITS is available at: https://
 
 -----------------
 _Links:_
-Parent:
-- provides_an_outdated_tutorial_for [[2_GPT-SoVITS_User_Manual.md]]

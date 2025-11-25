@@ -11,5 +11,3 @@ The number of adult beaver in Ashen Crag equals the sum of the number of adult p
 
 -----------------
 _Links:_
-Parent:
-- is_calculated_from [[1_Mathematical_Relationships_in_Animal_Populations.md]]

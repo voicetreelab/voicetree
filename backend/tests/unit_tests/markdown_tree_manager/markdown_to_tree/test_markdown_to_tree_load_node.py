@@ -24,6 +24,24 @@ class TestLoadNodeFunction:
     @pytest.fixture
     def sample_markdown_file(self, temp_dir):
         """Create a sample markdown file for testing"""
+        # First create the parent file
+        parent_content = """---
+node_id: 19
+title: Implement Vector Search
+---
+### Vector search implementation
+
+Content here.
+
+-----------------
+_Links:_
+Children:
+- implements [[20_Dependency_Traversal.md]]
+"""
+        parent_filepath = temp_dir / "19_Implement_Vector_Search.md"
+        parent_filepath.write_text(parent_content)
+
+        # Now create the test file with Children link (no Parent link)
         content = """---
 node_id: 20
 title: Dependency Traversal for Relevant Nodes
@@ -38,8 +56,6 @@ The implementation uses cosine similarity with TF-IDF vectors to find the most r
 
 -----------------
 _Links:_
-Parent:
-- implements [[19_Implement_Vector_Search.md]]
 Children:
 - enables [[21_Context_Accumulation_Strategy.md]]
 """
@@ -69,9 +85,8 @@ Children:
         assert 'This system traverses the graph' in result['content']
         assert '---' in result['content']  # Should contain full original content
 
-        # Verify links extraction
+        # Verify links extraction (only Children link now, no Parent)
         assert 'links' in result
-        assert '19_Implement_Vector_Search.md' in result['links']
         assert '21_Context_Accumulation_Strategy.md' in result['links']
 
     def test_load_node_nonexistent_file(self, temp_dir):

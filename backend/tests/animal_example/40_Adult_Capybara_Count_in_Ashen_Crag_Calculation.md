@@ -11,5 +11,3 @@ The number of adult capybara in Ashen Crag equals the difference between the num
 
 -----------------
 _Links:_
-Parent:
-- is_a_calculation_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

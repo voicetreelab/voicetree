@@ -11,5 +11,3 @@ The number of adult crow in Mayer Aquarium equals the average number of newborn 
 
 -----------------
 _Links:_
-Parent:
-- states_equality_between [[1_Mathematical_Relationships_in_Animal_Populations.md]]

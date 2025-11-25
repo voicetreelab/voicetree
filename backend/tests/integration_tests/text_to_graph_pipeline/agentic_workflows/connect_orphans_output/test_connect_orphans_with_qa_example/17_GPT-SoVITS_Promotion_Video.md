@@ -9,5 +9,3 @@ A promotion video highlights GPT-SoVITS as a low-cost AI voice cloning software,
 
 -----------------
 _Links:_
-Parent:
-- promotes_the_capabilities_of [[2_GPT-SoVITS_User_Manual.md]]

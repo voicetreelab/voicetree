@@ -12,5 +12,3 @@ This update includes:
 
 -----------------
 _Links:_
-Parent:
-- details_changes_in_the [[2_GPT-SoVITS_User_Manual.md]]

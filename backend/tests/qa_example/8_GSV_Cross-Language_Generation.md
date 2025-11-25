@@ -9,5 +9,3 @@ GPT-SoVITS can generate across languages, meaning the language of the reference 
 
 -----------------
 _Links:_
-Parent:
-- supports_cross-language_generation_for [[1_GPT-SoVITS_Software.md]]

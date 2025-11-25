@@ -9,5 +9,3 @@ Before proceeding, a git diff needs to be performed, followed by a quick review.
 
 -----------------
 _Links:_
-Parent:
-- is_a_prerequisite_for [[34_Overall_Integration_Test.md]]

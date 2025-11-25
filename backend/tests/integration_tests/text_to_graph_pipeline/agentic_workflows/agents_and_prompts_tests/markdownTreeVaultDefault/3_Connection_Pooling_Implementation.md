@@ -13,5 +13,4 @@ Connection pooling needs to be implemented for the database layer.
 _Links:_
 Children:
 - [[3_Connection_Pooling_Implementation.md]] is_an_optimization_for_the (this node)
-Parent:
 - is_an_optimization_for_the [[3_Connection_Pooling_Implementation.md]]
