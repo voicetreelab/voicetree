@@ -1,25 +1,8 @@
-import type { Graph, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
+import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
 import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from '@/pure/graph'
 
 /** Folder where context nodes are stored */
 export const CONTEXT_NODES_FOLDER = 'ctx-nodes'
-
-/**
- * Determines if a node is a context node (derived content that should be excluded from context generation).
- * Context nodes are identified by:
- * - Parent folder is CONTEXT_NODES_FOLDER
- * - OR title starting with 'CONTEXT for'
- */
-export function isContextNode(node: GraphNode): boolean {
-  // Extract the parent folder (second-to-last path segment)
-  const pathParts = node.relativeFilePathIsID.split('/')
-  const parentFolder = pathParts.length > 1 ? pathParts[pathParts.length - 2] : ''
-
-  return (
-    parentFolder === CONTEXT_NODES_FOLDER ||
-    node.nodeUIMetadata.title.startsWith('CONTEXT for')
-  )
-}
 
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
@@ -49,7 +32,7 @@ export async function createContextNode(
   }
 
   // 2. PURE: Extract subgraph within distance 7
-  const maxDistance = 7
+  const maxDistance = 5
   const subgraph = getSubgraphByDistance(
     currentGraph,
     parentNodeId,
@@ -109,6 +92,7 @@ function buildContextNodeContent(
 
   return `---
 title: CONTEXT for ${parentTitle}
+isContextNode: true
 ---
 
 ## CONTEXT for: (${parentTitle})
@@ -137,7 +121,7 @@ function generateNodeDetailsList(
   for (const nodeId of orderedNodeIds) {
     const node = subgraph.nodes[nodeId]
     // Skip context nodes to prevent self-referencing in generated context
-    if (isContextNode(node)) {
+    if (node.nodeUIMetadata.isContextNode) {
       continue
     }
     // Strip [link]* markers to prevent them being converted back to [[link]] wikilinks when written to disk.
