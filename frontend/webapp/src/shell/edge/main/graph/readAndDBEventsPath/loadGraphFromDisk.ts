@@ -3,8 +3,7 @@ import * as path from 'path'
 import * as O from "fp-ts/lib/Option.js";
 import * as E from "fp-ts/lib/Either.js";
 import type { Graph, FSUpdate } from '@/pure/graph'
-import { enforceFileLimit } from './fileLimitEnforce.ts'
-import { reverseGraphEdges } from '@/pure/graph'
+import { enforceFileLimit, type FileLimitExceededError } from './fileLimitEnforce.ts'
 import { applyPositions } from '@/pure/graph/positioning'
 import { addNodeToGraph } from '@/pure/graph/graphDelta/addNodeToGraph.ts'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph.ts'
@@ -33,9 +32,9 @@ import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaT
  * console.log(`Loaded ${Object.keys(graph.nodes).length} nodes`)
  * ```
  */
-export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Graph> {
+export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<E.Either<FileLimitExceededError, Graph>> {
     if (O.isNone(vaultPath)) {
-        return { nodes: {} };
+        return E.right({ nodes: {} });
     }
 
     // Step 1: Scan directory for markdown files
@@ -44,8 +43,7 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Gr
     // Step 1.5: Enforce file limit (will show error dialog and return Left if exceeded)
     const limitCheck = enforceFileLimit(files.length);
     if (E.isLeft(limitCheck)) {
-        // Return empty graph if file limit exceeded
-        return { nodes: {} };
+        return E.left(limitCheck.left);
     }
 
     // Step 2: Progressively build graph by adding nodes one at a time
@@ -70,7 +68,7 @@ export async function loadGraphFromDisk(vaultPath: O.Option<string>): Promise<Gr
     )
 
     // Step 3: Apply positions to all nodes that don't have a position
-    return reverseGraphEdges(applyPositions(reverseGraphEdges(graph)));
+    return E.right(applyPositions(graph));
 }
 
 /**
