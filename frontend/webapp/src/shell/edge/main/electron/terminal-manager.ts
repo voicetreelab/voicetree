@@ -60,13 +60,12 @@ export default class TerminalManager {
       // 2. Login shells reset environment, overwriting our custom env vars
       const shellArgs: string[] = [];
 
-      // Use Application Support tools directory (created during app setup)
-      // Fall back to home directory if tools directory doesn't exist
-      let cwd = getToolsDirectory();
+      // Use initial_spawn_directory from terminalData if provided, otherwise fall back to tools directory
+      let cwd = terminalData.initial_spawn_directory ?? getToolsDirectory();
       try {
         await fs.access(cwd);
       } catch {
-        console.log('[Terminal] Tools directory not found, falling back to home directory');
+        console.log('[Terminal] Spawn directory not found, falling back to home directory');
         cwd = process.env.HOME ?? process.cwd();
       }
 

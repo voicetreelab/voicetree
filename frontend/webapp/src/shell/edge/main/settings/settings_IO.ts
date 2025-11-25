@@ -10,7 +10,7 @@ function getSettingsPath(): string {
 
 export async function loadSettings(): Promise<Settings> {
   const settingsPath = getSettingsPath();
-
+  console.log(`Loading Settings from Path: ${settingsPath}`);
   try {
     const data = await fs.readFile(settingsPath, 'utf-8');
     return JSON.parse(data) as Settings;

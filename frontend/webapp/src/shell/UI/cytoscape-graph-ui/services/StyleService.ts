@@ -116,6 +116,15 @@ export class StyleService {
         }
       },
 
+      // Context nodes - square shape with lighter gray
+      {
+        selector: 'node[nodeType = "context"]', // todo, doesn't work.
+        style: {
+          'shape': 'rectangle',
+          'background-color': '#7a7a7a',
+        }
+      },
+
       // GraphNode labels - support both 'name' and 'label' fields
       {
         selector: 'node[label]',

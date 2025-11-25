@@ -244,8 +244,16 @@ test.describe('MCP Server Integration', () => {
 
         // STEP 5: Verify file was created on disk
         console.log('=== STEP 5: Verify file exists on disk ===');
-        const fileExists = await fs.access(TEST_FILE_PATH).then(() => true).catch(() => false);
-        expect(fileExists).toBe(true);
+
+        // Wait for file to be created with polling
+        await expect.poll(async () => {
+            return fs.access(TEST_FILE_PATH).then(() => true).catch(() => false);
+        }, {
+            message: `Waiting for file to be created: ${TEST_FILE_PATH}`,
+            timeout: 5000,
+            intervals: [100, 250, 500]
+        }).toBe(true);
+
         console.log(`✓ File created: ${TEST_FILE_PATH}`);
 
         // Read file content to verify parent link

@@ -204,11 +204,12 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       const newNode = {
         relativeFilePathIsID: childId,
         outgoingEdges: [] as const,
-        content: '# New GraphNode',
+        contentWithoutYamlOrLinks: '# New GraphNode',
         nodeUIMetadata: {
           title: 'New GraphNode',
           color: { _tag: 'None' } as const,
-          position: { _tag: 'None' } as const // Will be positioned by layout
+          position: { _tag: 'None' } as const, // Will be positioned by layout
+          additionalYAMLProps: new Map()
         }
       };
 
@@ -297,7 +298,7 @@ test.describe('Add Child GraphNode - Duplicate Bug Test', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const graphNodeDetails = Object.entries(graphState.nodes).map(([id, node]: [string, any]) => ({
         id,
-        content: node.contentWithoutYamlOrLinks.substring(0, 50),
+        content: node.contentWithoutYamlOrLinks ? node.contentWithoutYamlOrLinks.substring(0, 50) : '',
         outgoingEdges: node.outgoingEdges,
         position: node.nodeUIMetadata.position
       }));

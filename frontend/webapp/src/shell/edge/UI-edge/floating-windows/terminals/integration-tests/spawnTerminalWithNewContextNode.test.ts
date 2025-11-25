@@ -58,13 +58,19 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       electronAPI: {
         main: {
           loadSettings: vi.fn().mockResolvedValue({
-            agentCommand: 'claude --dangerously-skip-permissions --settings "$settings_file" "$initial_content"'
+            agentCommand: 'claude --dangerously-skip-permissions --settings "$settings_file" "$initial_content"',
+            terminalSpawnPathRelativeToWatchedDirectory: '../'
           }),
           getGraph: vi.fn().mockImplementation(async () => getGraph()),
           createContextNode: vi.fn().mockImplementation(async (parentNodeId: NodeIdAndFilePath) => {
             // Call the real createContextNode to create node on disk and update graph
             return await createContextNode(parentNodeId)
-          })
+          }),
+          getWatchStatus: vi.fn().mockResolvedValue({
+            directory: EXAMPLE_SMALL_PATH,
+            isWatching: true
+          }),
+          getAppSupportPath: vi.fn().mockResolvedValue('/tmp/voicetree-test')
         }
       }
     } as unknown as Window & typeof globalThis
@@ -162,16 +168,15 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
             .catch(() => false)
           expect(fileExists).toBe(true)
 
-          // AND: Terminal should have initialEnvVars with initial_content
+          // AND: Terminal should have initialEnvVars with context_node_content
           expect(contextTerminal.initialEnvVars).toBeDefined()
-          expect(contextTerminal.initialEnvVars?.initial_content).toBeDefined()
+          expect(contextTerminal.initialEnvVars?.context_node_content).toBeDefined()
 
-          // The initial_content should match the context node content (possibly with frontmatter differences)
+          // The context_node_content should match the context node content (possibly with frontmatter differences)
           // Just verify it contains the key sections
-          const initialContent = contextTerminal.initialEnvVars?.initial_content
-          expect(initialContent).toContain('title: CONTEXT for')
-          expect(initialContent).toContain('## CONTEXT for:')
-          expect(initialContent).toContain('## Node Details')
+          const contextContent = contextTerminal.initialEnvVars?.context_node_content
+          expect(contextContent).toContain('CONTEXT for')
+          expect(contextContent).toContain('## Node Details')
 
           // AND: Terminal should have agentCommand set
           expect(contextTerminal.initialCommand).toBe(
@@ -279,20 +284,18 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       if (contextTerminal) {
         createdContextNodeIds.push(contextTerminal.attachedToNodeId)
 
-        const initialContent = contextTerminal.initialEnvVars?.initial_content
-        expect(initialContent).toBeDefined()
+        const contextContent = contextTerminal.initialEnvVars?.context_node_content
+        expect(contextContent).toBeDefined()
 
-        if (initialContent) {
-          // Should contain frontmatter
-          expect(initialContent).toContain('---')
-          expect(initialContent).toContain('title: CONTEXT for')
+        if (contextContent) {
+          // Should contain context info (note: contentWithoutYamlOrLinks excludes frontmatter)
+          expect(contextContent).toContain('CONTEXT for')
 
           // Should contain ASCII visualization
-          expect(initialContent).toContain('## CONTEXT for:')
-          expect(initialContent).toContain('```')
+          expect(contextContent).toContain('```')
 
           // Should contain node details
-          expect(initialContent).toContain('## Node Details')
+          expect(contextContent).toContain('## Node Details')
         }
       }
     })

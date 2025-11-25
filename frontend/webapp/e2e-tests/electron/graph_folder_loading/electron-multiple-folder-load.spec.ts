@@ -120,8 +120,8 @@ test.describe('Multiple Folder Load Tests', () => {
     console.log(`First folder: ${firstFolderState.nodeCount} nodes`);
     console.log('GraphNode IDs:', firstFolderState.nodeIds);
 
-    // example_small has 7 markdown files
-    expect(firstFolderState.nodeCount).toBe(7);
+    // example_small has 8 markdown files (7 original + 1 in ctx-nodes folder)
+    expect(firstFolderState.nodeCount).toBe(8);
 
     console.log('=== STEP 3: Verify placeholder text is hidden ===');
     const placeholderHidden1 = await appWindow.evaluate(() => {

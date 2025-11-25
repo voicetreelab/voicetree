@@ -133,7 +133,7 @@ test.describe('Settings Integration E2E', () => {
       if (!api) throw new Error('electronAPI not available');
       // Reset to default settings
       const defaultSettings = {
-        agentLaunchPath: '../',
+        terminalSpawnPathRelativeToWatchedDirectory: '../',
         agentCommand: './Claude.sh'
       };
       await api.main.saveSettings(defaultSettings);
@@ -159,7 +159,7 @@ test.describe('Settings Integration E2E', () => {
     });
 
     console.log('Initial settings:', initialSettings);
-    expect(initialSettings.agentLaunchPath).toBe('../');
+    expect(initialSettings.terminalSpawnPathRelativeToWatchedDirectory).toBe('../');
     expect(initialSettings.agentCommand).toBe('./Claude.sh');
     console.log('✓ Default settings verified');
 
@@ -207,7 +207,7 @@ test.describe('Settings Integration E2E', () => {
 
       // Modify settings
       currentSettings.agentCommand = cmd;
-      currentSettings.agentLaunchPath = launchPath;
+      currentSettings.terminalSpawnPathRelativeToWatchedDirectory = launchPath;
 
       const newValue = JSON.stringify(currentSettings, null, 2);
       console.log('[Test] New value to set:', newValue);
@@ -269,7 +269,7 @@ test.describe('Settings Integration E2E', () => {
       // Verify we get the updated settings
       return {
         agentCommand: settings.agentCommand,
-        agentLaunchPath: settings.agentLaunchPath,
+        terminalSpawnPathRelativeToWatchedDirectory: settings.terminalSpawnPathRelativeToWatchedDirectory,
         settingsLoaded: true
       };
     });
@@ -277,7 +277,7 @@ test.describe('Settings Integration E2E', () => {
     console.log('Settings integration check:', settingsIntegrationTest);
     expect(settingsIntegrationTest.settingsLoaded).toBe(true);
     expect(settingsIntegrationTest.agentCommand).toBe(newCommand);
-    expect(settingsIntegrationTest.agentLaunchPath).toBe(newLaunchPath);
+    expect(settingsIntegrationTest.terminalSpawnPathRelativeToWatchedDirectory).toBe(newLaunchPath);
     console.log('✓ ContextMenuService will use new settings when spawning terminals');
 
     console.log('=== STEP 11: Restore original settings (non-destructive cleanup) ===');
