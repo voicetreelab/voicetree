@@ -94,10 +94,10 @@ function valueToString(value: unknown): string {
 
 /**
  * Extract additional YAML properties that are not known standard properties.
- * Known properties: color, position, title, node_id
+ * Known properties: color, position, title, node_id, summary, isContextNode
  */
 function extractAdditionalYAMLProps(rawYAMLData: Record<string, unknown>): ReadonlyMap<string, string> {
-    const knownProperties = new Set(['color', 'position', 'title', 'node_id', 'summary'])
+    const knownProperties = new Set(['color', 'position', 'title', 'node_id', 'summary', 'isContextNode'])
 
     const additionalProps = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
         if (!knownProperties.has(key) && value !== undefined && value !== null) {
@@ -139,6 +139,9 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     // Extract additional YAML properties from raw YAML data
     const additionalYAMLProps = extractAdditionalYAMLProps(parsed.data)
 
+    // Read isContextNode from frontmatter (explicit, not derived)
+    const isContextNode = parsed.data.isContextNode === true
+
     // Return node with computed title
     return {
         relativeFilePathIsID: filenameToNodeId(filename),
@@ -148,7 +151,8 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
             title,
             color: color ? O.some(color) : O.none,
             position: position ? O.some(position) : O.none,
-            additionalYAMLProps
+            additionalYAMLProps,
+            isContextNode
         }
     }
 }
