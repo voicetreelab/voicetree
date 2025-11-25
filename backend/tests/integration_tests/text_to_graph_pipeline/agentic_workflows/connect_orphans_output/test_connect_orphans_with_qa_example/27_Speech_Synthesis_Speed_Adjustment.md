@@ -9,5 +9,3 @@ Support for adjusting synthesis speech speed. This includes support for freezing
 
 -----------------
 _Links:_
-Parent:
-- provides_new_control_over [[22_GPT-SoVITS_Update_Log_20240806.md]]

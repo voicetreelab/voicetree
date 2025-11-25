@@ -9,5 +9,5 @@ I'm not sure if this module self-loading strategy is a good decision or not. It'
 
 -----------------
 _Links:_
-Parent:
-- is_a_decision_regarding_the [[30_Module_Self-Loading_Strategy.md]]
+Children:
+- raises_a_question_about_how_to [[36_Test_Module_Self-Loading_Strategy.md]]- is_a_con_of_the [[35_Testing_Difficulty_of_Decentralized_Module_Loading.md]]- is_evaluation_of [[32_1_Bob_Module_Self_Loading_Strategy_Evaluation_Complete.md]]

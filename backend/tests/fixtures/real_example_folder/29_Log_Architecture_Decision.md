@@ -9,5 +9,3 @@ Okay, now I want to do an architecture review where we made a decision, um, so I
 
 -----------------
 _Links:_
-Parent:
-- is_a_follow-up_action_for [[13_Evaluate_Workflow_Merging.md]]

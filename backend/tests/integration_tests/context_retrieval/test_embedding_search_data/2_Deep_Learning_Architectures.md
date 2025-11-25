@@ -15,5 +15,5 @@ Deep learning uses multi-layered neural networks to progressively extract higher
 
 -----------------
 _Links:_
-Parent:
-- extends_concepts_from [[1_Machine_Learning_Basics.md]]
+Children:
+- specializes [[19_Neural_Network_Training.md]]- uses_techniques_from [[3_Natural_Language_Processing.md]]

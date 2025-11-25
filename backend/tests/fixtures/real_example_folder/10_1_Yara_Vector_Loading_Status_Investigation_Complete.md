@@ -53,5 +53,3 @@ flowchart TD
 
 -----------------
 _Links:_
-Parent:
-- is_finding_of [[./10_Investigate_Vector_Loading_Status.md]]

@@ -9,5 +9,3 @@ GPT-SoVITS allows for controlling the emotion, timbre, and speaking speed of the
 
 -----------------
 _Links:_
-Parent:
-- enables_fine-grained_audio_control_for [[1_GPT-SoVITS_Software.md]]

@@ -9,5 +9,5 @@ The accelerated inference code has been merged into the main branch after verifi
 
 -----------------
 _Links:_
-Parent:
-- implements_a_significant_improvement_in [[22_GPT-SoVITS_Update_Log_20240806.md]]
+Children:
+- introduces_a_major_component_of [[30_Fast_Inference_Branch.md]]

@@ -9,5 +9,5 @@ It is important to be able to start the chunk processor with an existing history
 
 -----------------
 _Links:_
-Parent:
-- is_a_more_important_task_for_the [[12_Relocate_Transcript_History_Loading.md]]
+Children:
+- is_implementation_of [[15_1_Zoe_History_Injection_Implemented.md]]

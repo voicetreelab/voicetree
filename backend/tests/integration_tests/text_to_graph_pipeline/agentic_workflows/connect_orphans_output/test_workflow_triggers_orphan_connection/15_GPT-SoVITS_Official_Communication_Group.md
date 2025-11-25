@@ -14,5 +14,3 @@ The official communication group for GPT-SoVITS is Group 2, identified by the nu
 
 -----------------
 _Links:_
-Parent:
-- is_the_official_communication_group_for [[2_GPT-SoVITS_User_Manual.md]]

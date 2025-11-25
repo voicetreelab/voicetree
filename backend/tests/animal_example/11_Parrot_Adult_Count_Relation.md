@@ -11,5 +11,3 @@ The number of adult parrot in Hamilton Farm equals 2 times the number of adult c
 
 -----------------
 _Links:_
-Parent:
-- is_calculated_from [[1_Mathematical_Relationships_in_Animal_Populations.md]]

@@ -109,5 +109,3 @@ graph LR
 
 -----------------
 _Links:_
-Parent:
-- is_analysis_of [[./13_Evaluate_Workflow_Merging.md]]

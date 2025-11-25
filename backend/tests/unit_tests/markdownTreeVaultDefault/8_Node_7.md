@@ -9,5 +9,5 @@ This is content for node 7 with some substantial text to make it realistic. This
 
 -----------------
 _Links:_
-Parent:
-- child_of [[1_Node_0.md]]
+Children:
+- child_of [[41_Node_40.md]]- child_of [[43_Node_42.md]]- child_of [[45_Node_44.md]]- child_of [[42_Node_41.md]]- child_of [[44_Node_43.md]]

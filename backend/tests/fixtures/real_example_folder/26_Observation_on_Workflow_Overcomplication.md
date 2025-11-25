@@ -9,5 +9,3 @@ I'm just reviewing Zoe's work, and I think she's overcomplicated it because we d
 
 -----------------
 _Links:_
-Parent:
-- is_an_observation_informing [[13_Evaluate_Workflow_Merging.md]]

@@ -22,5 +22,3 @@ The text front-end of GPT-SoVITS has undergone continuous updates and iterations
 
 -----------------
 _Links:_
-Parent:
-- includes_improved_text_front-end_for [[1_GPT-SoVITS_Software.md]]

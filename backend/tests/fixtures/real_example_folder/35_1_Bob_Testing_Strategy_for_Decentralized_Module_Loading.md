@@ -85,5 +85,3 @@ This approach maintains the benefits of decentralization while ensuring comprehe
 
 -----------------
 _Links:_
-Parent:
-- addresses_testing_concerns_for [[./35_Testing_Difficulty_of_Decentralized_Module_Loading.md]]

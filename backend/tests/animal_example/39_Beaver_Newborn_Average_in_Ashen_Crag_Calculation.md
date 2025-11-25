@@ -11,5 +11,3 @@ The average number of newborn children per adult beaver in Ashen Crag equals the
 
 -----------------
 _Links:_
-Parent:
-- is_a_calculation_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

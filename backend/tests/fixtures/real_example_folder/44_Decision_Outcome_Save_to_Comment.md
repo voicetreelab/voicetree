@@ -9,5 +9,3 @@ Uh, Okay, let's just save it to comment.
 
 -----------------
 _Links:_
-Parent:
-- is_the_outcome_of [[41_Decision_Save_All_Transcript_Text.md]]

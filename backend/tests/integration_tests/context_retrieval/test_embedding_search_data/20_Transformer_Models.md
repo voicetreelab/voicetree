@@ -8,5 +8,3 @@ Transformers use self-attention mechanisms to process sequential data more effec
 
 -----------------
 _Links:_
-Parent:
-- advances [[3_Natural_Language_Processing.md]]

@@ -9,5 +9,5 @@ We need to load the transcript history. For loading transcript history, the code
 
 -----------------
 _Links:_
-Parent:
-- is_a_function_of_the [[4_Load_Directory_Script.md]]
+Children:
+- is_an_action_for_the [[28_Call_Load_Subdirectory.md]]- is_a_related_task_to [[8_Save_Transcript_History.md]]- is_a_proposed_implementation_for [[12_Relocate_Transcript_History_Loading.md]]

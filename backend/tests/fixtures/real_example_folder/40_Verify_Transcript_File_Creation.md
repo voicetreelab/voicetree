@@ -9,5 +9,3 @@ We also need to run it manually and see if the files or the transcript history f
 
 -----------------
 _Links:_
-Parent:
-- is_a_verification_step_for [[8_Save_Transcript_History.md]]

@@ -9,5 +9,3 @@ Yeah, I think we could divorce it
 
 -----------------
 _Links:_
-Parent:
-- is_a_proposed_solution_for [[41_Decision_Save_All_Transcript_Text.md]]

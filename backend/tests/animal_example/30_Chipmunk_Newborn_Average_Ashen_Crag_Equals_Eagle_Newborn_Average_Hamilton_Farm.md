@@ -11,5 +11,3 @@ The average number of newborn children per adult chipmunk in Ashen Crag equals t
 
 -----------------
 _Links:_
-Parent:
-- states_equality_between [[1_Mathematical_Relationships_in_Animal_Populations.md]]

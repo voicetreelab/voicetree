@@ -9,3 +9,6 @@ Text-to-Speech (TTS) is a speech synthesis technology that converts text into sp
 
 -----------------
 _Links:_
+
+Children:
+- describes_a_limitation_of [[5_GPT-SoVITS_TTS_Limitation.md]]- are_related_to [[4_Speech_Synthesis_Technologies.md]]

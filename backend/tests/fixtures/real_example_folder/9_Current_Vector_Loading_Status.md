@@ -9,5 +9,5 @@ backend/markdown_tree_manager/embeddings/chromadb_vector_store.py
 
 -----------------
 _Links:_
-Parent:
-- raises_a_question_about_the [[6_Load_Vector_Files.md]]
+Children:
+- is_a_task_to_resolve_the [[10_Investigate_Vector_Loading_Status.md]]

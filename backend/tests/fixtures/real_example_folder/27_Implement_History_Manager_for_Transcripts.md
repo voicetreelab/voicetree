@@ -9,5 +9,5 @@ Ideally, the transcript history should be saved to a dedicated history manager, 
 
 -----------------
 _Links:_
-Parent:
-- is_a_proposed_alternative_to [[8_Save_Transcript_History.md]]
+Children:
+- raises_a_decision_about [[41_Decision_Save_All_Transcript_Text.md]]

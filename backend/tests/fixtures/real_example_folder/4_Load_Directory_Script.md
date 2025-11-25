@@ -9,5 +9,5 @@ The `load directory.py` script is intended to perform three functions: first, to
 
 -----------------
 _Links:_
-Parent:
-- is_the_content_to_be_extracted_into_the [[3_Extract_Content_to_New_File.md]]
+Children:
+- is_the_first_function_of_the [[5_Load_Markdown_Files.md]]- is_a_decision_regarding_the_future_of [[19_Decision_to_Remove_load_dur_py.md]]- is_a_function_of_the [[7_Load_Transcript_History.md]]- is_a_function_of_the [[6_Load_Vector_Files.md]]

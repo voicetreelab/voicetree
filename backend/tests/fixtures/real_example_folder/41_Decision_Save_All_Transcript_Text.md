@@ -9,5 +9,5 @@ Um, when maybe history should just save, um, all text. This is an alternative to
 
 -----------------
 _Links:_
-Parent:
-- raises_a_decision_about [[27_Implement_History_Manager_for_Transcripts.md]]
+Children:
+- is_the_outcome_of [[44_Decision_Outcome_Save_to_Comment.md]]- is_a_proposed_solution_for [[43_Solution_Divorce_History_Text_Processing.md]]- is_a_past_bug_related_to [[42_Bug_Unprocessed_Text_in_History.md]]

@@ -11,5 +11,3 @@ The number of adult parrot in Mayer Aquarium equals the number of adult blue jay
 
 -----------------
 _Links:_
-Parent:
-- states_equality_between [[1_Mathematical_Relationships_in_Animal_Populations.md]]

@@ -9,5 +9,3 @@ In the history manager initialization, we should call load subdirectory.
 
 -----------------
 _Links:_
-Parent:
-- is_an_action_for_the [[7_Load_Transcript_History.md]]

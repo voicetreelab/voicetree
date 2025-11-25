@@ -12,4 +12,4 @@ The database layer is built on PostgreSQL, configured with read replicas to hand
 -----------------
 _Links:_
 Children:
-- [[2_Proper_Indexing_on_Users_Table.md]] is_an_optimization_for_the (this node)
+- [[2_Proper_Indexing_on_Users_Table.md]] is_an_optimization_for_the (this node)- is_an_optimization_for_the [[2_Proper_Indexing_on_Users_Table.md]]

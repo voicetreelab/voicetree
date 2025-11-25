@@ -47,5 +47,3 @@ This implementation completes the requirement specified in load_dir.py to save a
 
 -----------------
 _Links:_
-Parent:
-- is_progress_of [[./11_1_Zoe_Transcript_History_Analysis_Complete.md]]

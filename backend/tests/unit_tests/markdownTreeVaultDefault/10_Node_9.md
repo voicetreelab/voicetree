@@ -9,5 +9,3 @@ This is content for node 9 with some substantial text to make it realistic. This
 
 -----------------
 _Links:_
-Parent:
-- child_of [[1_Node_0.md]]

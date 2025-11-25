@@ -11,5 +11,3 @@ Proper indexing must be added to the users table for performance optimization.
 
 -----------------
 _Links:_
-Parent:
-- is_an_optimization_for_the [[3_Database_Layer.md]]

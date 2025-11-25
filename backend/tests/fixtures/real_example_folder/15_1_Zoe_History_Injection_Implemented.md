@@ -39,5 +39,3 @@ This implementation addresses the concerns raised in nodes 12 and 15 by:
 
 -----------------
 _Links:_
-Parent:
-- is_implementation_of [[./15_Inject_Existing_History_into_Chunk_Processor.md]]

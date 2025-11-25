@@ -11,5 +11,3 @@ The number of adult guinea pig in Ashen Crag equals the sum of the average numbe
 
 -----------------
 _Links:_
-Parent:
-- is_a_calculation_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

@@ -9,5 +9,3 @@ Fixed an issue where GPT Chinese fine-tuning did not read BERT, leading to incon
 
 -----------------
 _Links:_
-Parent:
-- is_a_critical_fix_within [[24_GPT-SoVITS_General_Fixes_and_Improvements_Part_2.md]]

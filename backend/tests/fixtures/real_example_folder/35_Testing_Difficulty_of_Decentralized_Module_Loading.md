@@ -9,5 +9,5 @@ One con to having it decentralized, which is it makes it a little bit harder to 
 
 -----------------
 _Links:_
-Parent:
-- is_a_con_of_the [[32_Evaluate_Module_Self-Loading_Strategy.md]]
+Children:
+- addresses_testing_concerns_for [[35_1_Bob_Testing_Strategy_for_Decentralized_Module_Loading.md]]

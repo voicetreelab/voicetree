@@ -15,3 +15,8 @@ Machine learning is a subset of artificial intelligence that enables systems to 
 
 -----------------
 _Links:_
+
+-----------------
+_Links:_
+Children:
+- extends_concepts_from [[2_Deep_Learning_Architectures.md]]- relates_to [[18_Artificial_Intelligence_Ethics.md]]

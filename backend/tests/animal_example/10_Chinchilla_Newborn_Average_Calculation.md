@@ -11,5 +11,3 @@ The average number of newborn children per adult chinchilla in Ashen Crag equals
 
 -----------------
 _Links:_
-Parent:
-- is_calculated_from [[1_Mathematical_Relationships_in_Animal_Populations.md]]

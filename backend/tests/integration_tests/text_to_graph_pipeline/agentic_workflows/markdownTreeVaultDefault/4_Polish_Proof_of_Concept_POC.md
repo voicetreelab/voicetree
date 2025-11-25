@@ -9,5 +9,3 @@ This involves refining the user interface, improving the summarization quality, 
 
 -----------------
 _Links:_
-Parent:
-- is_a_prerequisite_for [[2_Investor_Outreach_for_Strategic_Guidance.md]]

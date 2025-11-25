@@ -11,5 +11,3 @@ The number of adult chinchilla in Ashen Crag equals the sum of the number of adu
 
 -----------------
 _Links:_
-Parent:
-- is_a_calculation_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

@@ -11,5 +11,3 @@ The number of adult parrot in Bundle Ranch equals the difference between the num
 
 -----------------
 _Links:_
-Parent:
-- is_calculated_from [[1_Mathematical_Relationships_in_Animal_Populations.md]]

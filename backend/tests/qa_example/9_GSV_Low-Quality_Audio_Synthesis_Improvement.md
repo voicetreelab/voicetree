@@ -9,5 +9,3 @@ GPT-SoVITS offers better synthesis quality for low-quality reference audio.
 
 -----------------
 _Links:_
-Parent:
-- improves_synthesis_quality_for [[1_GPT-SoVITS_Software.md]]

@@ -9,5 +9,3 @@ We need to re-evaluate the focus of the vector loading investigation, as the ini
 
 -----------------
 _Links:_
-Parent:
-- suggests_a_re-evaluation_of_the [[10_Investigate_Vector_Loading_Status.md]]

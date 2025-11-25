@@ -9,5 +9,3 @@ Um, oh, but we had a bug at some point, right, where it's like, if the history h
 
 -----------------
 _Links:_
-Parent:
-- is_a_past_bug_related_to [[41_Decision_Save_All_Transcript_Text.md]]

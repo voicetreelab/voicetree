@@ -9,5 +9,5 @@ This is when you open VoiceTree, it reads history markdown vectors. This mechani
 
 -----------------
 _Links:_
-Parent:
-- is_a_mechanism_for [[1_Introduction_to_Current_Work.md]]
+Children:
+- is_a_task_related_to [[3_Extract_Content_to_New_File.md]]

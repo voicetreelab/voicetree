@@ -11,5 +11,3 @@ The number of adult squirrel in Ashen Crag equals the sum of the average number 
 
 -----------------
 _Links:_
-Parent:
-- is_a_calculation_of [[1_Mathematical_Relationships_in_Animal_Populations.md]]

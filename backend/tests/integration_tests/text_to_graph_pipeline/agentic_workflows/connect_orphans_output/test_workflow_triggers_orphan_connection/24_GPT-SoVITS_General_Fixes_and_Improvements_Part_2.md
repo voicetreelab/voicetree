@@ -22,5 +22,5 @@ This update includes general fixes and improvements released between March and M
 
 -----------------
 _Links:_
-Parent:
-- details_changes_in_the [[2_GPT-SoVITS_User_Manual.md]]
+Children:
+- is_a_critical_fix_within [[29_GPT_Chinese_Fine-tuning_BERT_Inconsistency.md]]- details_a_future_action_for [[25_Inference_Consistency_Verification.md]]

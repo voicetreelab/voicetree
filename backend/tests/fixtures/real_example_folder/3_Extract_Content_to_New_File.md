@@ -10,5 +10,5 @@ Extract the content regarding 'load directory.py' from `server.py` into a new fi
 
 -----------------
 _Links:_
-Parent:
-- is_a_task_related_to [[2_Read_History_Markdown_Vectors.md]]
+Children:
+- is_progress_of [[3_1_Xavier_Extracted_Load_Directory_Function.md]]- is_the_content_to_be_extracted_into_the [[4_Load_Directory_Script.md]]

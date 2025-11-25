@@ -19,5 +19,3 @@ GPT-SoVITS-V2 introduces significant enhancements over V1, focusing on improved 
 
 -----------------
 _Links:_
-Parent:
-- introduces_new_features_and_improvements_in [[1_GPT-SoVITS_Software.md]]

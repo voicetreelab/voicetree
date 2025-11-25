@@ -9,5 +9,3 @@ GPT-SoVITS supports synthesis across five languages: Chinese, Japanese, English,
 
 -----------------
 _Links:_
-Parent:
-- expands_the_supported_languages_for [[1_GPT-SoVITS_Software.md]]

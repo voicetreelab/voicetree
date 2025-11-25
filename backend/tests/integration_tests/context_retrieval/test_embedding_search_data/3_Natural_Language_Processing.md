@@ -15,6 +15,6 @@ NLP combines computational linguistics with machine learning to enable computers
 
 -----------------
 _Links:_
-Parent:
-- uses_techniques_from [[2_Deep_Learning_Architectures.md]]
 EOF < /dev/null
+Children:
+- advances [[20_Transformer_Models.md]]

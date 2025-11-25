@@ -9,5 +9,3 @@ Currently, GPT-SoVITS only has Text-to-Speech (TTS) functionality, meaning it ca
 
 -----------------
 _Links:_
-Parent:
-- describes_a_limitation_of [[3_Text-to-Speech_TTS_Technology.md]]

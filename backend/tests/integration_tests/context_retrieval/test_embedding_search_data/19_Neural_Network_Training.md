@@ -8,5 +8,3 @@ Training neural networks involves adjusting weights through gradient descent to 
 
 -----------------
 _Links:_
-Parent:
-- specializes [[2_Deep_Learning_Architectures.md]]

@@ -9,5 +9,5 @@ We'll probably want to relocate transcript history loading to the `chunk_process
 
 -----------------
 _Links:_
-Parent:
-- is_a_proposed_implementation_for [[7_Load_Transcript_History.md]]
+Children:
+- is_a_more_important_task_for_the [[15_Inject_Existing_History_into_Chunk_Processor.md]]- is_a_related_architectural_consideration_for [[13_Evaluate_Workflow_Merging.md]]
