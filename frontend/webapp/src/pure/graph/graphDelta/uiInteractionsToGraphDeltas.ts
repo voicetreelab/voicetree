@@ -1,4 +1,4 @@
-import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, Position} from '@/pure/graph'
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
 import * as O from "fp-ts/lib/Option.js";
@@ -21,17 +21,19 @@ export function fromCreateChildToUpsertNode(
     newNodeContent: string = "# new",
     newFilePathIsID: NodeIdAndFilePath = parentNode.relativeFilePathIsID + '_' + parentNode.outgoingEdges.length + ".md", //todo doesn't guarantee uniqueness, but tis good enough
 ): GraphDelta {
-    // Create the new node with default values for an empty node
+    // Parse the content to extract metadata (including isContextNode from frontmatter)
+    const parsedNode = parseMarkdownToGraphNode(newNodeContent, newFilePathIsID, graph)
+
+    // Create the new node, merging parsed metadata with calculated position
     const newNode: GraphNode = {
         relativeFilePathIsID: newFilePathIsID,
-        outgoingEdges: [],
-        contentWithoutYamlOrLinks: newNodeContent,
-        nodeUIMetadata :  {
-            color: O.none,
-            title: "Child of " + parentNode.nodeUIMetadata.title, // todo we aren't writing this to md
+        outgoingEdges: parsedNode.outgoingEdges,
+        contentWithoutYamlOrLinks: parsedNode.contentWithoutYamlOrLinks,
+        nodeUIMetadata: {
+            ...parsedNode.nodeUIMetadata,
+            // Use calculated position (not specified by content)
             position: calculateInitialPositionForChild(parentNode, graph, undefined, 200),
-            additionalYAMLProps: new Map()
-        } as NodeUIMetadata,
+        },
     }
 
     // Create updated parent node with edge to new child
@@ -100,7 +102,8 @@ export function createNewNodeNoParent(pos: Position) {
             title: 'New',
             color: O.none,
             position: O.of(pos),
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: new Map(),
+            isContextNode: false
         },
     }
     const graphDelta: GraphDelta = [

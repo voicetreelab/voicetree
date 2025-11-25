@@ -3,10 +3,18 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 import type { Graph, FSUpdate } from '@/pure/graph'
 import { applyGraphDeltaToGraph } from '@/pure/graph/graphDelta/applyGraphDeltaToGraph.ts'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
 import { mapFSEventsToGraphDelta } from '@/pure/graph/mapFSEventsToGraphDelta.ts'
+
+/** Unwrap Either or fail test */
+function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
+  // eslint-disable-next-line functional/no-throw-statements
+  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
+  return result.right
+}
 
 /**
  * TDD Tests for Progressive Edge Validation
@@ -50,7 +58,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source Node\n\n- links to [[target]]'
       )
 
-      const graph = await loadGraphFromDisk(O.some(forwardVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(forwardVaultPath)))
 
       // Verify: source node has edge to target using target's node ID
       expect(graph.nodes['source.md']).toBeDefined()
@@ -77,7 +85,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Target Node'
       )
 
-      const graph = await loadGraphFromDisk(O.some(reverseVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(reverseVaultPath)))
 
       // Verify: SAME RESULT as forward order
       expect(graph.nodes['source.md']).toBeDefined()
@@ -104,7 +112,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Node 1'
       )
 
-      const graph = await loadGraphFromDisk(O.some(subfolderVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(subfolderVaultPath)))
 
       // Verify: Link resolves to felix/1 (not just "1")
       expect(graph.nodes['felix/2.md']).toBeDefined()
@@ -135,7 +143,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# A\n\n- extends [[b]]'
       )
 
-      const graph = await loadGraphFromDisk(O.some(chainVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(chainVaultPath)))
 
       // Verify: All edges resolved
       expect(graph.nodes['a.md'].outgoingEdges[0].targetId).toBe('b.md')
@@ -159,7 +167,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
               title: 'Target',
               color: O.none,
               position: O.none,
-              additionalYAMLProps: new Map()
+              additionalYAMLProps: new Map(),
+              isContextNode: false
             }
           }
         }
@@ -220,7 +229,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
               title: 'Node 1',
               color: O.none,
               position: O.none,
-              additionalYAMLProps: new Map()
+              additionalYAMLProps: new Map(),
+              isContextNode: false
             }
           }
         }
@@ -254,7 +264,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B\n\n- links [[c]]')
       await fs.writeFile(path.join(bulkVaultPath, 'c.md'), '# C')
 
-      const bulkGraph = await loadGraphFromDisk(O.some(bulkVaultPath))
+      const bulkGraph = unwrapGraph(await loadGraphFromDisk(O.some(bulkVaultPath)))
 
       // INCREMENTAL (simulate sequential file additions)
       const incrementalVaultPath = path.join(testVaultState.path, 'incremental-unified')
@@ -304,7 +314,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
       await fs.writeFile(path.join(bulkVaultPath, 'a.md'), '# A\n\n- links [[b]]')
       await fs.writeFile(path.join(bulkVaultPath, 'b.md'), '# B')
 
-      const bulkGraph = await loadGraphFromDisk(O.some(bulkVaultPath))
+      const bulkGraph = unwrapGraph(await loadGraphFromDisk(O.some(bulkVaultPath)))
 
       // INCREMENTAL (reverse order - b before a)
       const incrementalVaultPath = path.join(testVaultState.path, 'incremental-reverse')
@@ -346,7 +356,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- broken link [[does-not-exist]]'
       )
 
-      const graph = await loadGraphFromDisk(O.some(vaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(vaultPath)))
 
       // Verify: Edge preserved with raw link text
       expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(1)
@@ -382,7 +392,7 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
         '# Source\n\n- link1 [[a]]\n- link2 [[b]]\n- link3 [[c]]'
       )
 
-      const graph = await loadGraphFromDisk(O.some(vaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(vaultPath)))
 
       // Verify: All edges preserved as raw text
       expect(graph.nodes['source.md'].outgoingEdges).toHaveLength(3)
