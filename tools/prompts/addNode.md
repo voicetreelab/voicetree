@@ -16,11 +16,11 @@ Always include a list of all the file paths you have modified.
 ### Content Format Template:
 ```markdown
 
-## Summary, concise high level description of what was accomplished
+##Summary, concise high level description of what was accomplished
 
 files changed: e.g. file1.md, file2.py, etc..
 
-<OPTIONAL> ## DIFF </OPTIONAL>
+<OPTIONAL> ##DIFF </OPTIONAL>
 
 <optional>
 \```mermaid
