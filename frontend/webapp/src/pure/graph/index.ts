@@ -64,10 +64,10 @@ export interface NodeUIMetadata {
 
 // Example object used to derive YAML keys at runtime (types are erased, but object keys remain)
 const _exampleNodeUIMetadata: NodeUIMetadata = {
-    title: '',
-    color: O.none,
-    position: O.none,
-    additionalYAMLProps: new Map(),
+    title: 'Example Node',
+    color: O.some('purple'),
+    position: O.some({ x: 100, y: 200 }),
+    additionalYAMLProps: new Map([['agent_name', 'Wendy']]),
     isContextNode: false
 }
 
