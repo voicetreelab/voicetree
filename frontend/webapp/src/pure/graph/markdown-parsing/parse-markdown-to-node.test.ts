@@ -193,7 +193,7 @@ Content with [[link-one]] and [[link-two]]`
   })
 
   describe('additionalYAMLProps', () => {
-    it('should capture additional string properties from frontmatter', () => {
+    it('should capture string properties without explicit fields in additionalYAMLProps', () => {
       const content = `---
 color: "#FF0000"
 author: "John Doe"
@@ -203,10 +203,11 @@ custom_field: "some value"
 
       const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
+      // color has an explicit typed field, so NOT in additionalYAMLProps
+      // author and custom_field don't have explicit fields, so they ARE in additionalYAMLProps
       expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(2)
       expect(result.nodeUIMetadata.additionalYAMLProps.get('author')).toBe('John Doe')
       expect(result.nodeUIMetadata.additionalYAMLProps.get('custom_field')).toBe('some value')
-      // Known properties should NOT be in additionalYAMLProps
       expect(result.nodeUIMetadata.additionalYAMLProps.has('color')).toBe(false)
     })
 
@@ -271,7 +272,7 @@ metadata:
       expect(parsed.version).toBe(2)
     })
 
-    it('should exclude all known YAML properties from additionalYAMLProps', () => {
+    it('should preserve YAML properties without explicit fields, exclude color/position/isContextNode/title', () => {
       const content = `---
 color: "#FF0000"
 position:
@@ -286,18 +287,18 @@ custom_prop: "should be included"
 
       const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
-      // Only custom_prop should be in additionalYAMLProps
-      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(1)
+      // color, position, isContextNode, title have explicit typed fields → NOT in additionalYAMLProps
+      // summary, node_id, custom_prop don't → ARE in additionalYAMLProps
+      expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(3)
       expect(result.nodeUIMetadata.additionalYAMLProps.get('custom_prop')).toBe('should be included')
-      // Known properties should NOT be in additionalYAMLProps
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('summary')).toBe('My Summary')
+      expect(result.nodeUIMetadata.additionalYAMLProps.get('node_id')).toBe('legacy-id')
       expect(result.nodeUIMetadata.additionalYAMLProps.has('color')).toBe(false)
       expect(result.nodeUIMetadata.additionalYAMLProps.has('position')).toBe(false)
       expect(result.nodeUIMetadata.additionalYAMLProps.has('title')).toBe(false)
-      expect(result.nodeUIMetadata.additionalYAMLProps.has('summary')).toBe(false)
-      expect(result.nodeUIMetadata.additionalYAMLProps.has('node_id')).toBe(false)
     })
 
-    it('should have empty additionalYAMLProps when no custom properties exist', () => {
+    it('should have empty additionalYAMLProps when only color/position exist (they have explicit fields)', () => {
       const content = `---
 color: "#FF0000"
 position:
@@ -308,7 +309,11 @@ position:
 
       const result = parseMarkdownToGraphNode(content, 'test.md', emptyGraph)
 
+      // color and position have explicit typed fields, so NOT in additionalYAMLProps
       expect(result.nodeUIMetadata.additionalYAMLProps.size).toBe(0)
+      // But they ARE in the explicit fields
+      expect(result.nodeUIMetadata.color._tag).toBe('Some')
+      expect(result.nodeUIMetadata.position._tag).toBe('Some')
     })
 
     it('should have empty additionalYAMLProps when no frontmatter exists', () => {

@@ -24,16 +24,29 @@ export interface Edge {
     readonly label: string  // empty string if no relationship label
 }
 
+/**
+ * GraphNode represents a node in the app layer.
+ *
+ * SOURCE OF TRUTH ARCHITECTURE:
+ * - Markdown layer (filesystem, floating editors): Markdown is the source of truth.
+ *   Full content with YAML frontmatter and [[wikilinks]] for all properties.
+ * - App layer (GraphNode): Content has NO frontmatter or links.
+ *   Edges and nodeUIMetadata hold the source of truth instead.
+ *
+ * When converting between layers:
+ * - Markdown -> GraphNode: Strip frontmatter/links ([[]] -> []*) from content, populate edges + metadata
+ * - GraphNode -> Markdown: Rebuild frontmatter from metadata, append and add back ([]* -> [[]]) wikilinks from edges
+ */
 export interface GraphNode {
     // CORE GRAPH STRUCTURE
     readonly outgoingEdges: readonly Edge[] // Adjacency list to children / outgoing outgoingEdges
     // incomingEdges is derived
     readonly relativeFilePathIsID: NodeIdAndFilePath //  we enforce relativeFilePathIsID = relativeFilePath
 
-    // DATA
+    // DATA - content WITHOUT frontmatter or wikilinks (those are in edges + metadata)
     readonly contentWithoutYamlOrLinks: string
 
-    // METADATA
+    // METADATA - holds frontmatter properties for this node, and any app-specific node metadata
     readonly nodeUIMetadata: NodeUIMetadata
 
     // FS DB METADATA
@@ -45,9 +58,23 @@ export interface NodeUIMetadata {
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
     readonly additionalYAMLProps: ReadonlyMap<string,string> // todo support this at both read and write paths for Node <-> Markdown
-    readonly isContextNode: boolean // Derived from path (ctx-nodes folder) or title (CONTEXT for prefix)
+    readonly isContextNode?: boolean // undefined means false
     // width/height is derived from node degree
 }
+
+// Example object used to derive YAML keys at runtime (types are erased, but object keys remain)
+const _exampleNodeUIMetadata: NodeUIMetadata = {
+    title: '',
+    color: O.none,
+    position: O.none,
+    additionalYAMLProps: new Map(),
+    isContextNode: false
+}
+
+// Keys that have explicit fields in NodeUIMetadata (excludes additionalYAMLProps which holds the rest)
+export const NODE_UI_METADATA_YAML_KEYS = new Set(
+    Object.keys(_exampleNodeUIMetadata).filter(k => k !== 'additionalYAMLProps')
+)
 
 // ============================================================================
 // GRAPH DELTAS
