@@ -91,8 +91,12 @@ async function setupOnboardingDirectoryInternal(): Promise<void> {
     }
 
     if (destExists) {
-      console.log('[Setup] Onboarding directory already exists, preserving user modifications');
-      return;
+      const entries = await fs.readdir(onboardingDest);
+      if (entries.length > 1) {
+        console.log('[Setup] Onboarding directory already exists with user content, preserving modifications');
+        return;
+      }
+      console.log('[Setup] Onboarding directory exists but has <=1 file, refreshing...');
     }
 
     console.log('[Setup] Setting up onboarding directory...');

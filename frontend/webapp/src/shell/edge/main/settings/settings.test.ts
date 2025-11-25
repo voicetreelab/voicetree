@@ -64,7 +64,7 @@ describe('settings', () => {
 
     expect(JSON.parse(fileContent)).toEqual(customSettings);
     expect(fileContent).toContain('\n');
-    expect(fileContent).toMatch(/{\n\s+"agentLaunchPath"/);
+    expect(fileContent).toMatch(/{\n\s+"terminalSpawnPathRelativeToWatchedDirectory"/);
   });
 
   it('should create parent directory if needed', async () => {

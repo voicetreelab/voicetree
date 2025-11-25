@@ -1,5 +1,26 @@
-import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
+import type { Graph, GraphNode, NodeIdAndFilePath } from '@/pure/graph'
 import { getSubgraphByDistance, graphToAscii, getNodeIdsInTraversalOrder } from '@/pure/graph'
+
+/** Folder where context nodes are stored */
+export const CONTEXT_NODES_FOLDER = 'ctx-nodes'
+
+/**
+ * Determines if a node is a context node (derived content that should be excluded from context generation).
+ * Context nodes are identified by:
+ * - Parent folder is CONTEXT_NODES_FOLDER
+ * - OR title starting with 'CONTEXT for'
+ */
+export function isContextNode(node: GraphNode): boolean {
+  // Extract the parent folder (second-to-last path segment)
+  const pathParts = node.relativeFilePathIsID.split('/')
+  const parentFolder = pathParts.length > 1 ? pathParts[pathParts.length - 2] : ''
+
+  return (
+    parentFolder === CONTEXT_NODES_FOLDER ||
+    node.nodeUIMetadata.title.startsWith('CONTEXT for')
+  )
+}
+
 import { getGraph } from '@/shell/edge/main/state/graph-store'
 import { applyGraphDeltaToDBThroughMem } from '@/shell/edge/main/graph/writePath/applyGraphDeltaToDBThroughMem'
 import { fromCreateChildToUpsertNode } from '@/pure/graph/graphDelta/uiInteractionsToGraphDeltas'
@@ -40,7 +61,7 @@ export async function createContextNode(
 
   // 4. EDGE: Generate unique context node ID
   const timestamp = Date.now()
-  const contextNodeId = `ctx-nodes/${parentNodeId}_context_${timestamp}.md`
+  const contextNodeId = `${CONTEXT_NODES_FOLDER}/${parentNodeId}_context_${timestamp}.md`
 
   // 5. EDGE: Get parent node info for context
   const parentNode = currentGraph.nodes[parentNodeId]
@@ -115,11 +136,21 @@ function generateNodeDetailsList(
 
   for (const nodeId of orderedNodeIds) {
     const node = subgraph.nodes[nodeId]
+    // Skip context nodes to prevent self-referencing in generated context
+    if (isContextNode(node)) {
+      continue
+    }
     // Strip [link]* markers to prevent them being converted back to [[link]] wikilinks when written to disk.
     // Without this, fromNodeToMarkdownContent would create real edges from context node to all embedded nodes.
     const contentWithoutLinkStars = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
     lines.push(`<${node.relativeFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.relativeFilePathIsID}>`)
   }
 
-  return lines.join('\n')
+    // Strip [link]* markers from the start node content too
+    const startNodeContent = subgraph.nodes[_startNodeId].contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
+
+    lines.push(`<TASK> IMPORTANT. YOUR specific task, and the most relevant context is the source note you were spawned from, which is:
+        ${_startNodeId}: ${startNodeContent} </TASK>`)
+
+    return lines.join('\n')
 }

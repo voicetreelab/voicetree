@@ -1,3 +1,4 @@
+import type {} from '@/utils/types/electron';
 import type {NodeIdAndFilePath, Position} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import {
@@ -56,6 +57,19 @@ export async function spawnTerminalWithNewContextNode(
     // Get context node title for the terminal window
     const title = contextNode.nodeUIMetadata.title;
 
+    // Compute initial_spawn_directory from watch directory + relative path setting
+    let initial_spawn_directory: string | undefined;
+    const watchStatus = await window.electronAPI?.main.getWatchStatus();
+    if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
+        // Simple path join: remove trailing slash from directory, remove leading ./ from relative path
+        const baseDir = watchStatus.directory.replace(/\/$/, '');
+        const relativePath = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
+        initial_spawn_directory = `${baseDir}/${relativePath}`;
+    }
+
+    // Get app support path for VOICETREE_APP_SUPPORT env var
+    const appSupportPath = await window.electronAPI?.main.getAppSupportPath();
+
     // Create TerminalData object with initial_content env var
     const terminalId = `${contextNodeId}-terminal-${terminalCount}`;
     const terminalData: TerminalData = {
@@ -63,8 +77,10 @@ export async function spawnTerminalWithNewContextNode(
         terminalCount: terminalCount,
         initialCommand: agentCommand,
         executeCommand: true,
+        initial_spawn_directory: initial_spawn_directory,
         initialEnvVars: {
-            context_node_path: await getFilePathForNode(contextNodeId) ?? contextNodeId, // todo maybe node id being absolute always is better?
+            VOICETREE_APP_SUPPORT: appSupportPath ?? '',
+            CONTEXT_NODE_PATH: await getFilePathForNode(contextNodeId) ?? contextNodeId,
             context_node_content: contextContent,
         },
         floatingWindow: {
@@ -78,17 +94,19 @@ export async function spawnTerminalWithNewContextNode(
     };
 
     // Position the terminal near the context node
-    setTimeout(async () => {
-        const targetNode = cy.getElementById(contextNodeId);
+    setTimeout(() => {
+        void (async () => {
+            const targetNode = cy.getElementById(contextNodeId);
 
-        const nodePos = targetNode.position();
-        console.log("spawn terminal: " + terminalId);
-        await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
-        console.log("spawned terminal: " + terminalId);
+            const nodePos = targetNode.position();
+            console.log("spawn terminal: " + terminalId);
+            await createFloatingTerminal(cy, contextNodeId, terminalData, nodePos);
+            console.log("spawned terminal: " + terminalId);
 
 
-        // Store terminal in state
-        addTerminalToMapState(terminalData);
+            // Store terminal in state
+            addTerminalToMapState(terminalData);
+        })();
     }, 1000); // todo remove this hack, need to actually notify on ready? push all into main?
     // will need to contextNode is ready....
 
@@ -120,6 +138,16 @@ export async function spawnTerminalForNode(
     const node = await getNodeFromMainToUI(nodeId);
     const title = node ? `${node.nodeUIMetadata.title}` : `${nodeId}`;
 
+    // Compute initial_spawn_directory from watch directory + relative path setting
+    let initial_spawn_directory: string | undefined;
+    const watchStatus = await window.electronAPI?.main.getWatchStatus();
+    if (watchStatus?.directory && settings.terminalSpawnPathRelativeToWatchedDirectory) {
+        // Simple path join: remove trailing slash from directory, remove leading ./ from relative path
+        const baseDir = watchStatus.directory.replace(/\/$/, '');
+        const relativePath = settings.terminalSpawnPathRelativeToWatchedDirectory.replace(/^\.\//, '');
+        initial_spawn_directory = `${baseDir}/${relativePath}`;
+    }
+
     // Create TerminalData object with floatingWindow populated
     const terminalId = `${nodeId}-terminal-${terminalCount}`;
     const terminalData: TerminalData = {
@@ -127,6 +155,7 @@ export async function spawnTerminalForNode(
         terminalCount: terminalCount,
         initialCommand: agentCommand,
         executeCommand: true,
+        initial_spawn_directory: initial_spawn_directory,
         floatingWindow: {
             cyAnchorNodeId: nodeId,
             id: terminalId,

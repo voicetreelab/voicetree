@@ -4,6 +4,12 @@ import {loadSettings, saveSettings as saveSettings} from './settings/settings_IO
 import {getWatchStatus, loadPreviousFolder, startFileWatching, stopFileWatching} from './graph/watchFolder.ts'
 import {getBackendPort} from "@/shell/edge/main/state/app-electron-state.ts";
 import {createContextNode} from "@/shell/edge/main/graph/createContextNode.ts";
+import {app} from 'electron';
+
+/** Get the VoiceTree Application Support directory path */
+function getAppSupportPath(): string {
+  return app.getPath('userData');
+}
 
 export const mainAPI = {
   // Graph operations - renderer-friendly wrappers
@@ -28,5 +34,8 @@ export const mainAPI = {
   // Backend port
   getBackendPort,
 
-    createContextNode
+  createContextNode,
+
+  // App paths
+  getAppSupportPath,
 }

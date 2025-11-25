@@ -4,8 +4,8 @@
  */
 
 import type { Graph, NodeIdAndFilePath } from '@/pure/graph'
-import { getIncomingNodes } from '../getIncomingNodes.ts'
-import { setOutgoingEdges } from '../graph-edge-operations.ts'
+import { getIncomingNodes } from '@/pure/graph/graph-operations /getIncomingNodes.ts'
+import { setOutgoingEdges } from '@/pure/graph/graph-operations /graph-edge-operations.ts'
 
 /**
  * Performs weighted DFS to find all nodes within maxDistance from startNodeId.
@@ -42,9 +42,10 @@ export function getSubgraphByDistance(
       return visited
     }
 
+    const node = graph.nodes[nodeId]
+
     // Add current node to visited set
     const newVisited = new Set([...visited, nodeId])
-    const node = graph.nodes[nodeId]
 
     // Explore outgoing edges (children, cost 1.5) - only if within distance threshold
     const afterChildren = node.outgoingEdges
