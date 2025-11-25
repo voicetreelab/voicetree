@@ -8,13 +8,34 @@ export interface Position {
 }
 
 export interface VerticalMenuDependencies {
-    createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) => Promise<void>;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
 
-interface VerticalMenuItem {
-    text: string;
-    action: () => void | Promise<void>;
+export interface MenuItem {
+    text?: string;
+    html?: string;
+    action?: () => void | Promise<void>;
+    subMenu?: MenuItem[];
+}
+
+/** Helper to show menu with optional direction config */
+export function showCtxMenu(
+    items: MenuItem[],
+    event: MouseEvent,
+    direction: 'vertical' | 'horizontal' = 'vertical'
+): void {
+    const config = direction === 'horizontal'
+        ? {
+            attributes: { class: 'ctxmenu horizontal' },
+            // Center horizontal menu after rendering (can't use CSS transform - breaks submenu positioning)
+            onShow: (menu: HTMLElement) => {
+                const menuWidth = menu.offsetWidth;
+                const currentLeft = parseFloat(menu.style.left) || 0;
+                menu.style.left = `${currentLeft - menuWidth / 2}px`;
+            },
+        }
+        : {};
+    ctxmenu.show(items, event, config);
 }
 
 export class VerticalMenuService {
@@ -30,13 +51,11 @@ export class VerticalMenuService {
     private setupCanvasContextMenu(): void {
         if (!this.cy) return;
 
-        // Skip if cytoscape is in headless mode (no container)
         if (!this.cy.container()) {
             console.log('[VerticalMenuService] Skipping canvas context menu setup - cytoscape is in headless mode');
             return;
         }
 
-        // Skip if DOM is not available (e.g., in test environment)
         if (typeof document === 'undefined' || !document.body || !document.documentElement) {
             console.log('[VerticalMenuService] Skipping canvas context menu setup - DOM not available');
             return;
@@ -44,13 +63,10 @@ export class VerticalMenuService {
 
         // Handle right-click on background - show vertical menu
         this.cy.on('cxttap', (event) => {
-            console.log('[VerticalMenuService] cxttap event, target:', event.target === this.cy ? 'canvas' : 'node');
-            // Only handle background clicks (not nodes)
             if (event.target === this.cy) {
                 const position = event.position ?? { x: 0, y: 0 };
                 const renderedPosition = event.renderedPosition ?? position;
 
-                // Get the canvas container position to calculate screen coordinates
                 const container = this.cy!.container();
                 if (!container) return;
 
@@ -59,7 +75,6 @@ export class VerticalMenuService {
                 const y = containerRect.top + (renderedPosition.y ?? 0);
 
                 const menuItems = this.getCanvasVerticalMenuItems(position);
-                // Create a synthetic MouseEvent for ctxmenu
                 const syntheticEvent = new MouseEvent('contextmenu', {
                     clientX: x,
                     clientY: y,
@@ -71,10 +86,9 @@ export class VerticalMenuService {
         });
     }
 
-    private getCanvasVerticalMenuItems(position: Position): VerticalMenuItem[] {
-        const menuItems: VerticalMenuItem[] = [];
+    private getCanvasVerticalMenuItems(position: Position): MenuItem[] {
+        const menuItems: MenuItem[] = [];
 
-        // Add GraphNode Here
         if (this.deps) {
             menuItems.push({
                 text: 'Add Node Here',
@@ -102,51 +116,9 @@ export class VerticalMenuService {
         return menuItems;
     }
 
-    private createChildNodeFromContextMenu(nodeId: string) {
-        return async () => {
-            console.log('[VerticalMenuService] adding child node to:', nodeId);
-            const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, this.cy!);
-            await this.deps!.createAnchoredFloatingEditor(childId);
-        };
-    }
-
-    private createTerminalFromContextMenu(nodeId: string) {
-        return async () => {
-            await spawnTerminalWithNewContextNode(
-                nodeId,
-                this.cy!
-            );
-        };
-    }
-
-    private deleteNode(nodeId: string) {
-        return async () =>  {
-            try {
-                // Get all selected nodes
-                const selectedNodeIds = this.cy!.$(':selected').nodes().map((n) => n.id());
-
-                // If clicked node is in selection, delete all selected nodes
-                // Otherwise just delete the clicked node
-                const nodesToDelete = selectedNodeIds.includes(nodeId) && selectedNodeIds.length > 1
-                    ? selectedNodeIds
-                    : [nodeId];
-
-                // Delete all nodes
-                for (const id of nodesToDelete) {
-                    await deleteNodeFromUI(id, this.cy!);
-                }
-            } catch (error) {
-                console.error('[VerticalMenuService] Error deleting node:', error);
-                alert(`Error deleting node: ${error}`);
-            }
-        };
-    }
-
     destroy(): void {
-        // Hide vertical menu
         ctxmenu.hide();
 
-        // Remove event listeners
         if (this.cy) {
             this.cy.removeListener('cxttap');
         }

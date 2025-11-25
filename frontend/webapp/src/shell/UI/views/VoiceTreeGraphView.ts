@@ -26,13 +26,14 @@ import cytoscape, {type Core, type CytoscapeOptions} from 'cytoscape';
 import navigator from 'cytoscape-navigator';
 import 'cytoscape-navigator/cytoscape.js-navigator.css'; // Import navigator CSS
 import '@/shell/UI/views/styles/navigator.css'; // Custom navigator styling
+import '@/shell/UI/cytoscape-graph-ui/styles/graph.css'; // Custom navigator styling
 import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registration
 
 // Register cytoscape-navigator extension
 cytoscape.use(navigator);
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService.ts';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts';
-import {RadialMenuService} from '@/shell/UI/cytoscape-graph-ui/services/RadialMenuService.ts';
+import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService.ts';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts';
 import {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
 import {HotkeyManager} from './HotkeyManager.ts';
@@ -65,7 +66,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Services
     private styleService!: StyleService; // Initialized in render()
     private animationService!: BreathingAnimationService; // Initialized in render()
-    private radialMenuService?: RadialMenuService; // Initialized in setupCytoscape()
+    private horizontalMenuService?: HorizontalMenuService; // Initialized in setupCytoscape()
     private verticalMenuService?: VerticalMenuService; // Initialized in setupCytoscape()
 
     // Managers
@@ -260,21 +261,6 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         // Allow container to receive keyboard events
         this.container.setAttribute('tabindex', '0');
 
-        // Create hamburger button
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'fixed top-4 left-4 z-50 p-2 rounded-lg hover:bg-accent transition-colors';
-        menuBtn.setAttribute('aria-label', 'Toggle menu');
-        menuBtn.innerHTML = `
-      <svg class="w-6 h-6 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    `;
-        menuBtn.onclick = () => {
-            const event = new CustomEvent('toggleSidebar');
-            window.dispatchEvent(event);
-        };
-        this.container.appendChild(menuBtn);
-
         // Create speed dial menu
         this.speedDialMenu = new SpeedDialSideGraphFloatingMenuView(this.container, {
             onToggleDarkMode: () => this.toggleDarkMode(),
@@ -420,7 +406,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             getCurrentGraphState: () => this.getCurrentGraphState(),
             floatingWindowManager: this.floatingWindowManager
         });
-        this.radialMenuService = menuServices.radialMenuService;
+        this.horizontalMenuService = menuServices.horizontalMenuService;
         this.verticalMenuService = menuServices.verticalMenuService;
     }
 
@@ -673,8 +659,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.searchService.dispose();
 
         // Dispose menu services
-        if (this.radialMenuService) {
-            this.radialMenuService.destroy();
+        if (this.horizontalMenuService) {
+            this.horizontalMenuService.destroy();
         }
         if (this.verticalMenuService) {
             this.verticalMenuService.destroy();
