@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { apply_graph_deltas_to_db } from '@/shell/edge/main/graph/graphActionsToDBEffects.ts'
-import type { DeleteNode, Env, UpsertNodeAction, GraphNode } from '@/pure/graph/index.ts'
+import type { DeleteNode, Env, UpsertNodeAction, GraphNode, Graph } from '@/pure/graph/index.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { tmpdir } from 'os'
@@ -9,6 +9,13 @@ import { promises as fs } from 'fs'
 import { markdownToTitle } from '@/pure/graph/markdown-parsing/markdown-to-title.ts'
 import { extractFrontmatter } from '@/pure/graph/markdown-parsing/extract-frontmatter.ts'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+
+/** Unwrap Either or fail test */
+function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
+  // eslint-disable-next-line functional/no-throw-statements
+  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
+  return result.right
+}
 
 describe('apply_graph_deltas_to_db', () => {
   const testVaultPath = path.join(tmpdir(), 'test-vault-apply-deltas-to-db')
@@ -40,7 +47,8 @@ describe('apply_graph_deltas_to_db', () => {
         title,
         color: O.none,
         position: O.none,
-        additionalYAMLProps: new Map()
+        additionalYAMLProps: new Map(),
+        isContextNode: false
       }
     }
   }
@@ -71,7 +79,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(fileContent).toBe('---\n---\n# New Node\n\nThis is content')
 
       // Verify we can load it back from disk
-      const graph = await loadGraphFromDisk(O.some(testVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(testVaultPath)))
       // Node IDs include .md extension when loaded from disk
       expect(graph.nodes['node-1.md']).toBeDefined()
       // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
@@ -91,7 +99,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const graph = await loadGraphFromDisk(O.some(testVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(testVaultPath)))
       // Node IDs include .md extension when loaded from disk
       const frontmatter = extractFrontmatter(graph.nodes['node-2.md'].contentWithoutYamlOrLinks)
       const title = markdownToTitle(frontmatter.title, graph.nodes['node-2.md'].contentWithoutYamlOrLinks, graph.nodes['node-2.md'].relativeFilePathIsID)
@@ -111,7 +119,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify title
-      const graph = await loadGraphFromDisk(O.some(testVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(testVaultPath)))
       // Node IDs include .md extension when loaded from disk
       // When content is empty, fromNodeToMarkdownContent writes '---\n---\n' (empty frontmatter)
       // parseMarkdownToGraphNode strips the frontmatter, leaving empty content
@@ -168,7 +176,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(fileContent).toBe('---\n---\n# Updated Title\n\nNew content')
 
       // Load from disk and verify
-      const graph = await loadGraphFromDisk(O.some(testVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(testVaultPath)))
       // Node IDs include .md extension when loaded from disk
       // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
       expect(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks).toBe('# Updated Title\n\nNew content')
@@ -198,7 +206,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(E.isRight(result)).toBe(true)
 
       // Load from disk and verify ID is preserved
-      const graph = await loadGraphFromDisk(O.some(testVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(testVaultPath)))
       // Node IDs include .md extension when loaded from disk
       expect(graph.nodes['node-update-2.md'].relativeFilePathIsID).toBe('node-update-2.md')
     })
@@ -234,7 +242,7 @@ describe('apply_graph_deltas_to_db', () => {
       expect(existsAfter).toBe(false)
 
       // Verify it's not in the graph when loaded from disk
-      const graph = await loadGraphFromDisk(O.some(testVaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(testVaultPath)))
       // Node IDs include .md extension when loaded from disk
       expect(graph.nodes['node-delete-1.md']).toBeUndefined()
     })
