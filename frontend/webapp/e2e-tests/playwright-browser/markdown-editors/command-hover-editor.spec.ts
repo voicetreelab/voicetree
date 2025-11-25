@@ -91,7 +91,9 @@ test.describe('Hover Editor (Browser)', () => {
           nodeUIMetadata: {
             title: 'Hover Test',
             color: { _tag: 'None' } as const,
-            position: { _tag: 'Some', value: { x: 500, y: 500 } } as const
+            position: { _tag: 'Some', value: { x: 500, y: 500 } } as const,
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
         }
       }
@@ -179,5 +181,136 @@ test.describe('Hover Editor (Browser)', () => {
     console.log('✓ Content verified in reopened hover editor');
 
     console.log('✓ Hover editor test completed successfully');
+  });
+
+  test('should prevent duplicate editors: click+click, hover+hover, click+hover, hover+click', async ({ page, consoleCapture: _consoleCapture }) => {
+    console.log('\n=== Testing multiple editor prevention ===');
+
+    // Setup
+    await setupMockElectronAPI(page);
+    await page.goto('/');
+    await page.waitForSelector('#root', { timeout: 5000 });
+    await page.waitForTimeout(50);
+    await waitForCytoscapeReady(page);
+
+    // Create two test nodes
+    const graphDelta: GraphDelta = [
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'node-a.md',
+          contentWithoutYamlOrLinks: '# Node A\nContent for node A.',
+          outgoingEdges: [],
+          nodeUIMetadata: { title: 'Node A', color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 200, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
+        }
+      },
+      {
+        type: 'UpsertNode' as const,
+        nodeToUpsert: {
+          relativeFilePathIsID: 'node-b.md',
+          contentWithoutYamlOrLinks: '# Node B\nContent for node B.',
+          outgoingEdges: [],
+          nodeUIMetadata: { title: 'Node B', color: { _tag: 'None' } as const, position: { _tag: 'Some', value: { x: 400, y: 200 } } as const, additionalYAMLProps: new Map(), isContextNode: false }
+        }
+      }
+    ];
+    await sendGraphDelta(page, graphDelta);
+    await page.waitForTimeout(50);
+
+    const countEditors = async () => page.evaluate(() => document.querySelectorAll('[id^="window-"][id$="-editor"]').length);
+    const nodeAEditorSelector = '#window-node-a\\.md-editor';
+    const nodeBEditorSelector = '#window-node-b\\.md-editor';
+
+    // === Test 1: Click + Click (same node) - second click should not create duplicate ===
+    console.log('--- Test: Click + Click (same node) ---');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-a.md').emit('tap');
+    });
+    await page.waitForSelector(nodeAEditorSelector, { timeout: 2000 });
+    expect(await countEditors()).toBe(1);
+
+    // Click same node again - should still be 1 editor
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-a.md').emit('tap');
+    });
+    await page.waitForTimeout(100);
+    expect(await countEditors()).toBe(1);
+    console.log('✓ Click+Click: No duplicate editor created');
+
+    // Close editor for next test
+    await page.evaluate((sel) => {
+      document.querySelector(`${sel} .cy-floating-window-close`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }, nodeAEditorSelector);
+    await page.waitForSelector(nodeAEditorSelector, { state: 'detached', timeout: 1000 });
+
+    // === Test 2: Hover + Hover (different nodes) - should close first, open second ===
+    console.log('--- Test: Hover + Hover (different nodes) ---');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-a.md').emit('mouseover');
+    });
+    await page.waitForSelector(nodeAEditorSelector, { timeout: 2000 });
+    expect(await countEditors()).toBe(1);
+
+    // Hover on node B - should close A's hover editor and open B's
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-b.md').emit('mouseover');
+    });
+    await page.waitForSelector(nodeBEditorSelector, { timeout: 2000 });
+    await page.waitForSelector(nodeAEditorSelector, { state: 'detached', timeout: 500 });
+    expect(await countEditors()).toBe(1);
+    console.log('✓ Hover+Hover: First closed, second opened, only 1 editor');
+
+    // Close hover editor - wait for click-outside handler to be registered (100ms delay in FloatingWindowManager)
+    await page.waitForTimeout(150);
+    await page.mouse.click(50, 50);
+    await page.waitForSelector(nodeBEditorSelector, { state: 'detached', timeout: 1000 });
+
+    // === Test 3: Click + Hover (permanent then hover same node) - hover should be skipped ===
+    console.log('--- Test: Click + Hover (permanent editor blocks hover) ---');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-a.md').emit('tap');
+    });
+    await page.waitForSelector(nodeAEditorSelector, { timeout: 2000 });
+    expect(await countEditors()).toBe(1);
+
+    // Hover on same node - should NOT create duplicate (skipped because permanent exists)
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-a.md').emit('mouseover');
+    });
+    await page.waitForTimeout(100);
+    expect(await countEditors()).toBe(1);
+    console.log('✓ Click+Hover: Hover skipped for node with permanent editor');
+
+    // Close permanent editor
+    await page.evaluate((sel) => {
+      document.querySelector(`${sel} .cy-floating-window-close`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }, nodeAEditorSelector);
+    await page.waitForSelector(nodeAEditorSelector, { state: 'detached', timeout: 1000 });
+
+    // === Test 4: Hover + Click (hover then click same node) - should convert to permanent ===
+    console.log('--- Test: Hover + Click (hover then permanent on same node) ---');
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-a.md').emit('mouseover');
+    });
+    await page.waitForSelector(nodeAEditorSelector, { timeout: 2000 });
+    expect(await countEditors()).toBe(1);
+
+    // Click same node - hover editor already exists, click should not create duplicate
+    await page.evaluate(() => {
+      const cy = (window as ExtendedWindow).cytoscapeInstance!;
+      cy.$('#node-a.md').emit('tap');
+    });
+    await page.waitForTimeout(100);
+    expect(await countEditors()).toBe(1);
+    console.log('✓ Hover+Click: No duplicate, editor still exists');
+
+    console.log('✓ All multiple editor prevention tests passed');
   });
 });
