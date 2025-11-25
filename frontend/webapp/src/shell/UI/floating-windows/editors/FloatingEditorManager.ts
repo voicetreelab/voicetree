@@ -15,7 +15,7 @@
 import cytoscape, {type Core} from 'cytoscape';
 import {
     anchorToNode,
-    createWindowChrome,
+    createWindowChrome, getDefaultDimensions,
     getOrCreateOverlay
 } from '@/shell/UI/floating-windows/cytoscape-floating-windows.ts';
 import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView.ts';
@@ -346,8 +346,8 @@ export class FloatingEditorManager {
             }
 
             // Set position manually (no shadow node to sync with)
-            floatingWindow.windowElement.style.left = `${nodePos.x + 50}px`;
-            floatingWindow.windowElement.style.top = `${nodePos.y}px`;
+            floatingWindow.windowElement.style.left = `${nodePos.x - getDefaultDimensions("MarkdownEditor").width/2}px`;
+            floatingWindow.windowElement.style.top = `${nodePos.y + 10}px`;
 
             // Close on click outside
             const handleClickOutside = (e: MouseEvent) => {
