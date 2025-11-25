@@ -55,7 +55,6 @@ export function setupCytoscape(params: SetupCytoscapeParams): ContextMenuService
     const contextMenuService = new ContextMenuService();
     // Initialize context menu with cy instance and dependencies
     contextMenuService.initialize(cy, {
-        getFilePathForNode: (nodeId: string) => floatingWindowManager.getFilePathForNode(nodeId),
         createAnchoredFloatingEditor: (nodeId : NodeIdAndFilePath) =>
             floatingWindowManager.createAnchoredFloatingEditor(nodeId),
         handleAddNodeAtPosition: (position) =>

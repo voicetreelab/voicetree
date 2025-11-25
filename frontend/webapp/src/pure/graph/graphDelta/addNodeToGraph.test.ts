@@ -158,7 +158,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
             nodeUIMetadata: {
               title: 'Target',
               color: O.none,
-              position: O.none
+              position: O.none,
+              additionalYAMLProps: new Map()
             }
           }
         }
@@ -218,7 +219,8 @@ describe('Progressive Edge Validation - Unified Behavior', () => {
             nodeUIMetadata: {
               title: 'Node 1',
               color: O.none,
-              position: O.none
+              position: O.none,
+              additionalYAMLProps: new Map()
             }
           }
         }

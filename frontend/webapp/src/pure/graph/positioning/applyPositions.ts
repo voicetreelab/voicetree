@@ -43,7 +43,8 @@ export function applyPositions(graph: Graph): Graph {
         nodeUIMetadata: {
             title : "GHOST",
             color: O.none,
-            position: O.some(GHOST_ROOT_POSITION)
+            position: O.some(GHOST_ROOT_POSITION),
+            additionalYAMLProps: new Map()
         }
     }
 

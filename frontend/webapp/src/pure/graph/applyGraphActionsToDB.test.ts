@@ -31,7 +31,7 @@ describe('apply_graph_deltas_to_db', () => {
   // Helper to create a test node
   const createTestNode = (nodeId: string, content: string): GraphNode => {
     const frontmatter = extractFrontmatter(content)
-    const title = markdownToTitle(frontmatter, content, nodeId)
+    const title = markdownToTitle(frontmatter.title, content, nodeId)
     return {
       relativeFilePathIsID: nodeId,
       contentWithoutYamlOrLinks: content,
@@ -39,7 +39,8 @@ describe('apply_graph_deltas_to_db', () => {
       nodeUIMetadata: {
         title,
         color: O.none,
-        position: O.none
+        position: O.none,
+        additionalYAMLProps: new Map()
       }
     }
   }
@@ -93,7 +94,7 @@ describe('apply_graph_deltas_to_db', () => {
       const graph = await loadGraphFromDisk(O.some(testVaultPath))
       // Node IDs include .md extension when loaded from disk
       const frontmatter = extractFrontmatter(graph.nodes['node-2.md'].contentWithoutYamlOrLinks)
-      const title = markdownToTitle(frontmatter, graph.nodes['node-2.md'].contentWithoutYamlOrLinks, graph.nodes['node-2.md'].relativeFilePathIsID)
+      const title = markdownToTitle(frontmatter.title, graph.nodes['node-2.md'].contentWithoutYamlOrLinks, graph.nodes['node-2.md'].relativeFilePathIsID)
       expect(title).toBe('My Title')
     })
 
@@ -116,7 +117,7 @@ describe('apply_graph_deltas_to_db', () => {
       // parseMarkdownToGraphNode strips the frontmatter, leaving empty content
       // markdownToTitle falls back to filename when content is empty
       const frontmatter = extractFrontmatter(graph.nodes['node-3.md'].contentWithoutYamlOrLinks)
-      const title = markdownToTitle(frontmatter, graph.nodes['node-3.md'].contentWithoutYamlOrLinks, graph.nodes['node-3.md'].relativeFilePathIsID)
+      const title = markdownToTitle(frontmatter.title, graph.nodes['node-3.md'].contentWithoutYamlOrLinks, graph.nodes['node-3.md'].relativeFilePathIsID)
       // Empty content falls back to filename-based title
       expect(title).toBe('node 3')
     })
@@ -172,7 +173,7 @@ describe('apply_graph_deltas_to_db', () => {
       // parseMarkdownToGraphNode strips YAML frontmatter from contentWithoutYamlOrLinks
       expect(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks).toBe('# Updated Title\n\nNew content')
       const frontmatter = extractFrontmatter(graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks)
-      const title = markdownToTitle(frontmatter, graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks, graph.nodes['node-update-1.md'].relativeFilePathIsID)
+      const title = markdownToTitle(frontmatter.title, graph.nodes['node-update-1.md'].contentWithoutYamlOrLinks, graph.nodes['node-update-1.md'].relativeFilePathIsID)
       expect(title).toBe('Updated Title')
     })
 

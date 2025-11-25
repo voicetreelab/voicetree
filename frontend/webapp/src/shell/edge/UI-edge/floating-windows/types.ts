@@ -13,6 +13,7 @@ export interface TerminalData {
     // name is derived, it's node.title +
     // filePath is nodeID
     initialEnvVars?: Record<string, string>;
+    initial_spawn_directory?: string;
     initialCommand?: string;
     executeCommand?: boolean;
     floatingWindow?: FloatingWindowData;

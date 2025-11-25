@@ -11,7 +11,8 @@ describe('graph-transformations', () => {
     nodeUIMetadata: {
       color: O.none,
       position: O.none,
-      title: id
+      title: id,
+      additionalYAMLProps: new Map()
     }
   })
 

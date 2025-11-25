@@ -2,7 +2,6 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import matter from 'gray-matter'
 import type {Graph, GraphNode} from '@/pure/graph'
-import {extractFrontmatter, type Frontmatter} from '@/pure/graph/markdown-parsing/extract-frontmatter.ts'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils.ts'
 import {markdownToTitle} from '@/pure/graph/markdown-parsing/markdown-to-title.ts'
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
@@ -17,10 +16,9 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
  * @returns GraphNode with all fields populated
  *
  * Field resolution priority:
- * - relativeFilePathIsID: frontmatter.node_id > filenameToNodeId(filename)
- * - title: frontmatter.title > extractTitle(content) > 'Untitled'
+ * - relativeFilePathIsID: filenameToNodeId(filename)
+ * - title: frontmatter.title > extractTitle(content) > filename
  * - content: full markdown content
- * - summary: frontmatter.summary > ''
  * - color: Option.some(frontmatter.color) | Option.none
  * - position: Option.some(frontmatter.position) | Option.none
  *
@@ -29,7 +27,6 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
  * const content = `---
  * node_id: "123"
  * title: "My GraphNode"
- * summary: "A test node"
  * color: "#FF0000"
  * position:
  *   x: 100
@@ -39,28 +36,44 @@ import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
  *
  * const node = parseMarkdownToGraphNode(content, "test.md")
  * // node = {
- * //   relativeFilePathIsID: "123",
+ * //   relativeFilePathIsID: "test",
  * //   title: "My GraphNode",
  * //   content: content,
- * //   summary: "A test node",
  * //   color: O.some("#FF0000"),
  * //   position: O.some({ x: 100, y: 200 })
  * // }
  * ```
  */
-/**
- * Safely extract frontmatter, returning empty object on error
- */
-function safeFrontmatterExtraction(content: string): Frontmatter {
-    const frontmatterEither = E.tryCatch(
-        () => extractFrontmatter(content),
-        (error) => {
-            console.warn(`[parseMarkdownToGraphNode] Invalid YAML frontmatter, ${content} using fallback:`, error)
-            return error
-        }
-    )
 
-    return E.getOrElse(() => ({} as Frontmatter))(frontmatterEither)
+/**
+ * Normalizes a value to a string or undefined.
+ * Handles YAML parsing quirks where numbers might be returned.
+ */
+function normalizeToString(value: unknown): string | undefined {
+    if (value === null || value === undefined) {
+        return undefined
+    }
+    return String(value)
+}
+
+/**
+ * Parses position object from frontmatter data
+ * Returns undefined if position data is invalid or missing
+ */ // todo why do we need a custom parsePosition? why can't we just detect it's an object and parse it???
+ // todo, this whole file defs needs to be reworked.
+function parsePosition(position: unknown): { readonly x: number; readonly y: number } | undefined {
+    if (!position || typeof position !== 'object') {
+        return undefined
+    }
+
+    const pos = position as Record<string, unknown>
+
+    // Check if x and y exist and are numbers
+    if (typeof pos.x === 'number' && typeof pos.y === 'number') {
+        return { x: pos.x, y: pos.y }
+    }
+
+    return undefined
 }
 
 /**
@@ -81,10 +94,10 @@ function valueToString(value: unknown): string {
 
 /**
  * Extract additional YAML properties that are not known standard properties.
- * Known properties: color, position, title, summary, node_id
+ * Known properties: color, position, title, node_id
  */
 function extractAdditionalYAMLProps(rawYAMLData: Record<string, unknown>): ReadonlyMap<string, string> {
-    const knownProperties = new Set(['color', 'position', 'title', 'summary', 'node_id'])
+    const knownProperties = new Set(['color', 'position', 'title', 'node_id', 'summary'])
 
     const additionalProps = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
         if (!knownProperties.has(key) && value !== undefined && value !== null) {
@@ -96,15 +109,23 @@ function extractAdditionalYAMLProps(rawYAMLData: Record<string, unknown>): Reado
     return additionalProps
 }
 
-
 // filename can be relative or absolute, prefer relative to watched vault.
 export function parseMarkdownToGraphNode(content: string, filename: string, graph : Graph): GraphNode {
-    // Try to extract frontmatter, but don't let invalid YAML break the entire app
-    const frontmatter = safeFrontmatterExtraction(content)
-
-    // Strip YAML frontmatter from content and get raw YAML data
-    const parsed = matter(content)
+    // Parse markdown and extract YAML frontmatter (with error handling for invalid YAML)
+    const parseResult = E.tryCatch(
+        () => matter(content),
+        (error) => {
+            console.warn(`[parseMarkdownToGraphNode] Invalid YAML in ${filename}, using fallback:`, error)
+            return error
+        }
+    )
+    const parsed = E.getOrElse(() => ({ content, data: {} as Record<string, unknown> }))(parseResult)
     const contentWithoutFrontmatter = parsed.content
+
+    // Extract frontmatter fields directly from raw YAML data
+    const titleFromFrontmatter = normalizeToString(parsed.data.title)
+    const color = normalizeToString(parsed.data.color)
+    const position = parsePosition(parsed.data.position)
 
     // Extract edges from original content (before stripping wikilinks)
     const edges = extractEdges(content, graph.nodes)
@@ -113,7 +134,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     const contentWithoutYamlOrLinks = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
 
     // Compute title using markdownToTitle
-    const title = markdownToTitle(frontmatter, content, filename)
+    const title = markdownToTitle(titleFromFrontmatter, content, filename)
 
     // Extract additional YAML properties from raw YAML data
     const additionalYAMLProps = extractAdditionalYAMLProps(parsed.data)
@@ -125,8 +146,8 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
         contentWithoutYamlOrLinks,
         nodeUIMetadata: {
             title,
-            color: frontmatter.color ? O.some(frontmatter.color) : O.none,
-            position: frontmatter.position ? O.some(frontmatter.position) : O.none,
+            color: color ? O.some(color) : O.none,
+            position: position ? O.some(position) : O.none,
             additionalYAMLProps
         }
     }

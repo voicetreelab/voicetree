@@ -16,7 +16,7 @@ import {
     removeTerminalFromMapState,
     vanillaFloatingWindowInstances
 } from "@/shell/edge/UI-edge/state/UIAppState.ts";
-import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
 
 
 /**
@@ -64,7 +64,8 @@ export async function spawnTerminalWithNewContextNode(
         initialCommand: agentCommand,
         executeCommand: true,
         initialEnvVars: {
-            initial_content: contextContent
+            context_node_path: await getFilePathForNode(contextNodeId) ?? contextNodeId, // todo maybe node id being absolute always is better?
+            context_node_content: contextContent,
         },
         floatingWindow: {
             cyAnchorNodeId: contextNodeId,

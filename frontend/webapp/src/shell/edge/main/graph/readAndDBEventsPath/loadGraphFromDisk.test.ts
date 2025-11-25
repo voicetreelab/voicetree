@@ -94,8 +94,12 @@ This is in a subfolder.`
     const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
 
     const node1 = graph.nodes['node1.md']
-    expect(node1.contentWithoutYamlOrLinks).toContain('title: "Node One"')
-    expect(node1.contentWithoutYamlOrLinks).toContain('summary: "First node"')
+    // contentWithoutYamlOrLinks should NOT contain YAML frontmatter (it's stripped)
+    expect(node1.contentWithoutYamlOrLinks).not.toContain('title: "Node One"')
+    expect(node1.contentWithoutYamlOrLinks).not.toContain('summary: "First node"')
+    expect(node1.contentWithoutYamlOrLinks).toContain('# Node One Content')
+    expect(node1.contentWithoutYamlOrLinks).toContain('This is node one')
+    // But metadata should be parsed correctly
     expect(O.isSome(node1.nodeUIMetadata.color)).toBe(true)
     if (O.isSome(node1.nodeUIMetadata.color)) {
       expect(node1.nodeUIMetadata.color.value).toBe('#FF0000')
@@ -134,13 +138,6 @@ This is in a subfolder.`
 
     expect(graph.nodes['subfolder/nested.md']).toBeDefined()
     expect(graph.nodes['subfolder/nested.md'].contentWithoutYamlOrLinks).toContain('# Nested')
-  })
-
-  it('should preserve full content including frontmatter', async () => {
-    const graph = await loadGraphFromDisk(O.some(testVaultPaths.testVault))
-
-    expect(graph.nodes['node1.md'].contentWithoutYamlOrLinks).toContain('node_id: "1"')
-    expect(graph.nodes['node1.md'].contentWithoutYamlOrLinks).toContain('This is node one')
   })
 
   it('should be a pure IO function (same input -> same IO)', async () => {

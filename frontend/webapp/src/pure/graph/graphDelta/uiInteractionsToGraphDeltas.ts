@@ -1,7 +1,6 @@
 import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, NodeUIMetadata, Position} from '@/pure/graph'
 import {calculateInitialPositionForChild} from "@/pure/graph/positioning/calculateInitialPosition.ts";
 import {addOutgoingEdge} from "@/pure/graph/graph-operations /graph-edge-operations.ts";
-import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
 import * as O from "fp-ts/lib/Option.js";
 import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing/parse-markdown-to-node.ts";
 
@@ -30,7 +29,8 @@ export function fromCreateChildToUpsertNode(
         nodeUIMetadata :  {
             color: O.none,
             title: "Child of " + parentNode.nodeUIMetadata.title, // todo we aren't writing this to md
-            position: calculateInitialPositionForChild(parentNode, graph, undefined, 200)
+            position: calculateInitialPositionForChild(parentNode, graph, undefined, 200),
+            additionalYAMLProps: new Map()
         } as NodeUIMetadata,
     }
 
@@ -60,11 +60,11 @@ export function fromContentChangeToGraphDelta(
 ): GraphDelta {
     // Extract wikilinks from new content and update outgoingEdges
     // This ensures markdown is the source of truth for edges
-    const nodeUpdated = parseMarkdownToGraphNode(content, node.relativeFilePathIsID)
+    const nodeUpdated = parseMarkdownToGraphNode(content, node.relativeFilePathIsID, graph)
     // todo review if this new logic works
     return [{
         type: 'UpsertNode',
-        nodeToUpsert: {nodeUpdated}
+        nodeToUpsert: nodeUpdated
     }]
 }
 
@@ -99,7 +99,8 @@ export function createNewNodeNoParent(pos: Position) {
         nodeUIMetadata: {
             title: 'New',
             color: O.none,
-            position: O.of(pos)
+            position: O.of(pos),
+            additionalYAMLProps: new Map()
         },
     }
     const graphDelta: GraphDelta = [

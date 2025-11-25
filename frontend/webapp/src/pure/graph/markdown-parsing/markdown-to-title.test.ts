@@ -20,12 +20,13 @@ Content here`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
 
@@ -40,12 +41,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Simple Title')
         })
 
@@ -60,12 +62,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Title With Double Quotes')
         })
 
@@ -80,12 +83,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe("It's a Title with Apostrophe's")
         })
 
@@ -100,12 +104,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Special: Characters! & Symbols?')
         })
 
@@ -122,12 +127,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Frontmatter Title')
         })
 
@@ -145,12 +151,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Bug: Auto-open Markdown Editor (3)')
         })
     })
@@ -166,12 +173,13 @@ Content here`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('My Heading')
         })
 
@@ -188,12 +196,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Heading Title')
         })
     })
@@ -207,12 +216,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Just content, no heading') // Now uses first line, not filename
         })
 
@@ -224,12 +234,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Content') // Now uses first line, not filename
         })
 
@@ -241,12 +252,13 @@ Content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('test file name')
         })
     })
@@ -266,12 +278,13 @@ Users can manually create nodes in the task tree, often preferred over speaking.
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Manually Creating Task Tree Nodes (12)')
         })
 
@@ -290,12 +303,13 @@ position:
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Ethical Concern: Objectifying Colleagues (9)')
         })
     })
@@ -311,12 +325,13 @@ And this is more content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('This is the first line of content')
         })
 
@@ -337,12 +352,13 @@ More content here`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('This is the first line after frontmatter')
         })
 
@@ -358,12 +374,13 @@ More content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('First line with leading whitespace')
         })
 
@@ -378,12 +395,13 @@ More content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('Heading Title')
         })
 
@@ -396,12 +414,13 @@ More content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('a'.repeat(200) + '...') // Should truncate with ...
         })
     })
@@ -415,12 +434,13 @@ More content`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('empty')
         })
 
@@ -434,12 +454,13 @@ Short first line after heading`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe('a'.repeat(200) + '...')
         })
 
@@ -452,12 +473,13 @@ Short first line after heading`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
             expect(title).toBe(heading150) // Should now work with 200 char limit
         })
 
@@ -485,12 +507,13 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
 
             // The bug: title becomes "---" because the regex doesn't strip empty frontmatter
             // Expected: should use first real line of content or filename
@@ -512,12 +535,13 @@ there's a bug where in some condition somewhere, the title becomes "---"`,
                 nodeUIMetadata: {
                     title: '',
                     color: O.none,
-                    position: O.none
+                    position: O.none,
+                    additionalYAMLProps: new Map()
                 }
             }
 
             const frontmatter = extractFrontmatter(node.contentWithoutYamlOrLinks)
-            const title = markdownToTitle(frontmatter, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
+            const title = markdownToTitle(frontmatter.title, node.contentWithoutYamlOrLinks, node.relativeFilePathIsID)
 
             // Should correctly strip frontmatter and use first content line
             expect(title).not.toBe('---')

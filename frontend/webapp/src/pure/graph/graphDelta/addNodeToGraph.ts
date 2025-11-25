@@ -1,7 +1,7 @@
 import type {FSUpdate, Graph, GraphDelta, GraphNode, NodeIdAndFilePath, UpsertNodeAction} from '@/pure/graph'
 import path from 'path'
 import {parseMarkdownToGraphNode} from '@/pure/graph/markdown-parsing/parse-markdown-to-node.ts'
-import {extractEdges, extractPathSegments, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges.ts'
+import {extractPathSegments, findBestMatchingNode} from '@/pure/graph/markdown-parsing/extract-edges.ts'
 import {setOutgoingEdges} from '@/pure/graph/graph-operations /graph-edge-operations.ts'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils.ts'
 
