@@ -6,22 +6,28 @@ import type { NodeIdAndFilePath, GraphNode, Edge } from '@/pure/graph'
  *
  * @example
  * extractPathSegments("/Users/user/vault/folder/file.md")
- * => ["Users/user/vault/folder/file", "user/vault/folder/file", "vault/folder/file", "folder/file", "file"]
+ * => ["Users/user/vault/folder/file.md", "user/vault/folder/file.md", "vault/folder/file.md", "folder/file.md", "file.md"]
+ *      // and then append without extension  => ["Users/user/vault/folder/file", "user/vault/folder/file", "vault/folder/file", "folder/file", "file"]
  */
 export function extractPathSegments(path: string): readonly string[] {
-  // Remove extension first
-  const withoutExt = path.replace(/\.md$/, '')
-
-  const parts = withoutExt.split('/').filter(p => p.length > 0)
+  const parts = path.split('/').filter(p => p.length > 0)
 
   if (parts.length === 0) return []
 
   // Build segments from longest to shortest (most specific to least specific)
-  // Using Array.from with indices to generate segments functionally
-  return Array.from(
+  const segmentsWithExt = Array.from(
     { length: parts.length },
     (_, i) => parts.slice(i).join('/')
   )
+
+  // Remove extension from the last part to create "without extension" variants
+  const removeExtension = (s: string): string => s.replace(/\.[^.]+$/, '')
+
+  const segmentsWithoutExt = segmentsWithExt
+    .map(removeExtension)
+    .filter(s => !segmentsWithExt.includes(s)) // Only add if different from with-ext version
+
+  return [...segmentsWithExt, ...segmentsWithoutExt]
 }
 
 /**
@@ -35,12 +41,8 @@ function matchSegment(
   segment: string,
   nodes: Record<NodeIdAndFilePath, GraphNode>
 ): NodeIdAndFilePath | undefined {
-  // Try exact match with node ID
-  if (nodes[segment]) {
-    return segment
-  }
-
   // Find ALL nodes where segment matches any of their path segments
+  // (includes exact matches where nodeId === segment)
   const matches = Object.keys(nodes).filter((nodeId) => {
     const nodeSegments = extractPathSegments(nodeId)
     return nodeSegments.includes(segment)
@@ -50,7 +52,7 @@ function matchSegment(
     return undefined
   }
 
-  // Return most specific match (longest path)
+  // Return most specific match (longest path) for better specificity
   return matches.sort((a, b) => b.length - a.length)[0]
 }
 

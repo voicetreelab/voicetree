@@ -12,7 +12,8 @@ describe('extractLinkedNodeIds', () => {
       title,
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map()
+      additionalYAMLProps: new Map(),
+      isContextNode: false
     }
   })
 

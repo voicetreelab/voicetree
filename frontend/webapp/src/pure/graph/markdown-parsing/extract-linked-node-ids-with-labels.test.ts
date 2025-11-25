@@ -18,7 +18,8 @@ describe('extractLinkedNodeIds - relationship labels integration', () => {
       title,
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map()
+      additionalYAMLProps: new Map(),
+      isContextNode: false
     }
   })
 
