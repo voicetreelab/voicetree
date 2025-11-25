@@ -42,7 +42,8 @@ describe('settings', () => {
 
     const customSettings: Settings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/custom/path',
-      agentCommand: 'custom-command.sh'
+      agentCommand: 'custom-command.sh',
+      shiftEnterSendsOptionEnter: false
     };
 
     await saveSettings(customSettings);
@@ -54,7 +55,8 @@ describe('settings', () => {
   it('should persist data correctly with proper formatting', async () => {
     const customSettings: Settings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
-      agentCommand: 'test.sh'
+      agentCommand: 'test.sh',
+      shiftEnterSendsOptionEnter: true
     };
 
     await saveSettings(customSettings);
@@ -72,7 +74,8 @@ describe('settings', () => {
 
     const settings: Settings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
-      agentCommand: 'another.sh'
+      agentCommand: 'another.sh',
+      shiftEnterSendsOptionEnter: true
     };
 
     await saveSettings(settings);
