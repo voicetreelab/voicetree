@@ -143,3 +143,10 @@
     background-repeat: repeat;
   }
 }
+
+/* Command palette (ninja-keys) should appear above floating windows (z-index: 1000) */
+/* Note: --ninja-z-index is the CSS custom property that ninja-keys uses internally */
+/* for its .modal element. CSS custom properties pierce Shadow DOM, unlike z-index directly */
+ninja-keys {
+  --ninja-z-index: 10000;
+}
