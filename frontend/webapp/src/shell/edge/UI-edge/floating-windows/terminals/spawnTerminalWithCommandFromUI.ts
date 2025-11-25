@@ -168,7 +168,7 @@ export async function createFloatingTerminal(
         };
 
         // Create floating terminal window
-        const floatingWindow = createFloatingTerminalWindow(cy, terminalData);
+        const floatingWindow = await createFloatingTerminalWindow(cy, terminalData);
 
         if (parentNodeExists) {
             // Anchor to parent node

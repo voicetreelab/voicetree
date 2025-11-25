@@ -22,18 +22,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
 
-/** Unwrap Either or fail test */
-function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
-  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
-  return result.right
-}
 import { setGraph, setVaultPath, getVaultPath, getGraph } from '@/shell/edge/main/state/graph-store.ts'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath, Graph } from '@/pure/graph'
+import type { NodeIdAndFilePath } from '@/pure/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { getTerminals, clearTerminals } from '@/shell/edge/UI-edge/state/UIAppState.ts'
@@ -49,7 +44,9 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
+    const loadResult = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    if (E.isLeft(loadResult)) throw new Error('Expected Right')
+    const graph = loadResult.right
     setGraph(graph)
 
     // Create a minimal Cytoscape instance for testing

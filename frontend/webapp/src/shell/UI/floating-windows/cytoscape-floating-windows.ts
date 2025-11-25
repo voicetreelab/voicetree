@@ -264,7 +264,7 @@ function attachDragHandlers(
  * Get default shadow node dimensions based on component type
  * Terminals are larger, editors are medium, other components are small
  */
-function getDefaultDimensions(component: string): { width: number; height: number } {
+export function getDefaultDimensions(component: string): { width: number; height: number } {
     switch (component) {
         case 'Terminal':
             // Terminals need more width for 100+ cols and height for ~30+ rows
