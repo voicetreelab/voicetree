@@ -27,12 +27,13 @@ describe('createNewChildNodeFromUI - Integration', () => {
                 'parent.md': {
                     relativeFilePathIsID: 'parent.md',
                     contentWithoutYamlOrLinks: '# Parent GraphNode',
-                    outgoingEdges: [{ targetId: 'child1', label: '' }],
+                    outgoingEdges: [{ targetId: 'child1.md', label: '' }],
                     nodeUIMetadata: {
                         title: 'Parent GraphNode',
                         color: O.none,
                         position: O.some({ x: 100, y: 100 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: new Map(),
+                        isContextNode: false
                     }
                 },
                 'child1.md': {
@@ -43,7 +44,8 @@ describe('createNewChildNodeFromUI - Integration', () => {
                         title: 'Child 1',
                         color: O.none,
                         position: O.some({ x: 200, y: 200 }),
-                        additionalYAMLProps: new Map()
+                        additionalYAMLProps: new Map(),
+                        isContextNode: false
                     }
                 }
             }
@@ -109,8 +111,8 @@ describe('createNewChildNodeFromUI - Integration', () => {
         const newNodeId = 'parent.md_1.md' // Based on naming convention in fromUICreateChildToUpsertNode
         const newNode = cy.getElementById(newNodeId)
         expect(newNode.length).toBe(1)
-        // Label comes from nodeUIMetadata.title which is "Child of " + parentNode.nodeUIMetadata.title
-        expect(newNode.data('label')).toBe('Child of Parent GraphNode')
+        // Label comes from parsing "# new" content via markdownToTitle, extracting title "new"
+        expect(newNode.data('label')).toBe('new')
 
         // AND: There should be an edge from parent to the new node
         const newEdge = cy.getElementById(`parent.md->${newNodeId}`)

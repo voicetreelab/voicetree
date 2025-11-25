@@ -94,16 +94,9 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 // Remove edges that are no longer in outgoingEdges
                 currentEdges.forEach((edge) => {
                     const target = edge.data('target');
-                    if (!desiredTargets.has(target)) { // todo sus this actually working
-                        // Only remove edge if target node doesn't exist in UI-edge
-                        // This prevents race condition where file watcher processes parent before child exists
-                        const targetNode = cy.getElementById(target);
-                        if (targetNode.length === 0) {
-                            console.log(`[applyGraphDeltaToUI] Removing stale edge: ${nodeId}->${target}`);
-                            edge.remove();
-                        } else {
-                            console.log(`[applyGraphDeltaToUI] Keeping edge to existing node: ${nodeId}->${target} (race condition protection)`);
-                        }
+                    if (!desiredTargets.has(target)) {
+                        console.log(`[applyGraphDeltaToUI] Removing edge no longer in graph: ${nodeId}->${target}`);
+                        edge.remove();
                     }
                 });
 
@@ -111,9 +104,16 @@ export function applyGraphDeltaToUI(cy: Core, delta: GraphDelta): void {
                 node.outgoingEdges.forEach((edge) => {
                     if (!currentTargets.has(edge.targetId)) {
                         const edgeId = `${nodeId}->${edge.targetId}`;
-                        // Only create edge if target node exists
+                        // Only create edge if target node exists AND edge doesn't already exist
+                        // (belt-and-suspenders check - currentTargets should catch most cases,
+                        // but direct getElementById catches edge cases like same node appearing
+                        // multiple times in delta or race conditions between deltas)
                         const targetNode = cy.getElementById(edge.targetId);
-                        if (targetNode.length > 0) {
+                        const existingEdge = cy.getElementById(edgeId);
+                        if (existingEdge.length > 0) {
+                            // Edge already exists (race condition or duplicate in delta)
+                            console.log(`[applyGraphDeltaToUI] Edge ${edgeId} already exists, skipping`);
+                        } else if (targetNode.length > 0) {
                             console.log(`[applyGraphDeltaToUI] Adding new edge: ${edgeId} with label ${edge.label}`);
                             cy.add({
                                 group: 'edges' as const,

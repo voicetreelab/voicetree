@@ -44,7 +44,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Parent GraphNode',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -66,7 +67,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Child GraphNode',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -121,7 +123,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Orphan GraphNode',
                     color: O.none,
                     position: O.some({ x: 300, y: 300 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -153,7 +156,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'GraphNode to Delete',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -193,7 +197,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Original Content',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -219,7 +224,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Updated Content',
                     color: O.some('#ff0000'),
                     position: O.some({ x: 500, y: 500 }), // Different position
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -263,7 +269,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Bulk GraphNode 1',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -275,7 +282,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Bulk GraphNode 2',
                     color: O.some('#00ff00'),
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -287,7 +295,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Bulk GraphNode 3',
                     color: O.none,
                     position: O.some({ x: 300, y: 300 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -322,7 +331,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Existing',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -334,7 +344,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Will be deleted',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -356,7 +367,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'New GraphNode',
                     color: O.none,
                     position: O.some({ x: 300, y: 300 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -367,7 +379,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Updated Existing',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -407,7 +420,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Parent',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -419,7 +433,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Child',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -438,17 +453,23 @@ describe('applyGraphDeltaToUI - Integration', () => {
             expect(edges.length).toBe(1)
         })
 
-        it('should set edge label when creating edges with non-empty labels', () => {
-            // GIVEN: Two nodes
+        it('should not throw when same node appears twice in delta (healing scenario)', () => {
+            // This test reproduces the bug where addNodeToGraph returns a delta with the same
+            // node appearing twice (once as the new node, once as a "healed" node), causing
+            // duplicate edge creation that throws Cytoscape error.
+            // Example: parent has edge to child, when child is added, parent is also "healed"
+            // and re-added to the delta. If both entries have the same edge, it would throw.
+
             const parent: GraphNode = {
                 relativeFilePathIsID: 'parent',
                 contentWithoutYamlOrLinks: '# Parent',
-                outgoingEdges: [{ targetId: 'child', label: 'is parent of' }],
+                outgoingEdges: [{ targetId: 'child', label: 'test-label' }],
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -460,7 +481,101 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Child',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            // WHEN: Same parent node appears twice in the same delta (simulates healing scenario)
+            const deltaWithDuplicateNode: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: child },
+                { type: 'UpsertNode', nodeToUpsert: parent },
+                { type: 'UpsertNode', nodeToUpsert: parent }  // Parent appears again (healed)
+            ]
+
+            // THEN: Should not throw "Can not create second element with ID" error
+            expect(() => applyGraphDeltaToUI(cy, deltaWithDuplicateNode)).not.toThrow()
+
+            // AND: Should only have one edge
+            const edges = cy.edges(`[id = "parent->child"]`)
+            expect(edges.length).toBe(1)
+        })
+
+        it('should not throw when same edge is in two consecutive deltas (file watcher race)', () => {
+            // This simulates the scenario where two file changes trigger two deltas
+            // and both include the same parent node with edge to child (due to healing)
+
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                contentWithoutYamlOrLinks: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: '' }],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                contentWithoutYamlOrLinks: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Child',
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            // Delta 1: Child arrives with parent (healed) included
+            const delta1: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: child },
+                { type: 'UpsertNode', nodeToUpsert: parent }
+            ]
+            applyGraphDeltaToUI(cy, delta1)
+
+            // Delta 2: Parent file change causes parent to be re-sent
+            const delta2: GraphDelta = [
+                { type: 'UpsertNode', nodeToUpsert: parent }
+            ]
+
+            // THEN: Should not throw "Can not create second element with ID" error
+            expect(() => applyGraphDeltaToUI(cy, delta2)).not.toThrow()
+
+            // AND: Should only have one edge
+            const edges = cy.edges(`[id = "parent->child"]`)
+            expect(edges.length).toBe(1)
+        })
+
+        it('should set edge label when creating edges with non-empty labels', () => {
+            // GIVEN: Two nodes
+            const parent: GraphNode = {
+                relativeFilePathIsID: 'parent',
+                contentWithoutYamlOrLinks: '# Parent',
+                outgoingEdges: [{ targetId: 'child', label: 'is parent of' }],
+                nodeUIMetadata: {
+                    title: 'Parent',
+                    color: O.none,
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
+                }
+            }
+
+            const child: GraphNode = {
+                relativeFilePathIsID: 'child',
+                contentWithoutYamlOrLinks: '# Child',
+                outgoingEdges: [],
+                nodeUIMetadata: {
+                    title: 'Child',
+                    color: O.none,
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -488,7 +603,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Parent',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -500,7 +616,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Child',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -528,7 +645,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Parent',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -540,7 +658,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Child',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -568,7 +687,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Parent',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -580,7 +700,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Child',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -608,7 +729,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Parent',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -620,7 +742,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Child',
                     color: O.none,
                     position: O.some({ x: 200, y: 200 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -636,6 +759,39 @@ describe('applyGraphDeltaToUI - Integration', () => {
             const edge = cy.getElementById('parent->child')
             expect(edge.length).toBe(1)
             expect(edge.data('label')).toBe('simple label')
+        })
+
+        it('should handle edge lifecycle: creation after target exists, persistence on update, removal on link delete', () => {
+            // Helper to create node with minimal boilerplate
+            const makeNode = (id: string, edges: Array<{targetId: string, label: string}> = []): GraphNode => ({
+                relativeFilePathIsID: id,
+                contentWithoutYamlOrLinks: `# ${id}`,
+                outgoingEdges: edges,
+                nodeUIMetadata: { title: id, color: O.none, position: O.some({ x: 0, y: 0 }), additionalYAMLProps: new Map(), isContextNode: false }
+            })
+
+            // CASE 1: Edge created when child arrives in same delta as parent update (race condition fix)
+            // Simulates: parent delta arrived first (edge skipped), now child delta includes parent
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]) }])
+            expect(cy.edges().length).toBe(0) // Edge skipped - child doesn't exist yet
+
+            applyGraphDeltaToUI(cy, [
+                { type: 'UpsertNode', nodeToUpsert: makeNode('child') },
+                { type: 'UpsertNode', nodeToUpsert: makeNode('parent', [{ targetId: 'child', label: '' }]) } // Parent re-sent with child
+            ])
+            expect(cy.edges().length).toBe(1) // Edge now created
+            expect(cy.getElementById('parent->child').length).toBe(1)
+
+            // CASE 2: Edge persists when node updated but link remains (what old "race condition protection" tried to cover)
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: { ...makeNode('parent', [{ targetId: 'child', label: '' }]), contentWithoutYamlOrLinks: '# Parent Updated' } }])
+            expect(cy.edges().length).toBe(1) // Edge still exists
+            expect(cy.getElementById('parent').data('label')).toBe('parent') // Node was updated
+
+            // CASE 3: Edge removed when wikilink deleted from markdown
+            applyGraphDeltaToUI(cy, [{ type: 'UpsertNode', nodeToUpsert: makeNode('parent', []) }]) // No more edges
+            expect(cy.edges().length).toBe(0) // Edge removed
+            expect(cy.getElementById('parent').length).toBe(1) // Parent still exists
+            expect(cy.getElementById('child').length).toBe(1) // Child still exists
         })
     })
 
@@ -655,7 +811,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: `Node ${i}`,
                     color: O.some(color),
                     position: O.some({ x: i * 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }))
 
@@ -688,7 +845,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: `Invalid ${i}`,
                     color: O.some(color),
                     position: O.some({ x: i * 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }))
 
@@ -716,7 +874,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Original',
                     color: O.some('#ff0000'),
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -736,7 +895,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Updated',
                     color: O.some('cyancyan'),
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -767,7 +927,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Original Title',
                     color: O.none,
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 
@@ -797,7 +958,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                     title: 'Updated Title',
                     color: O.some('#ff0000'),
                     position: O.some({ x: 100, y: 100 }),
-                    additionalYAMLProps: new Map()
+                    additionalYAMLProps: new Map(),
+                    isContextNode: false
                 }
             }
 

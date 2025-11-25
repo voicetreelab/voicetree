@@ -13,9 +13,16 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { Core } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+
+/** Unwrap Either or fail test */
+function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
+  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
+  return result.right
+}
 import { applyGraphDeltaToUI } from '@/shell/edge/UI-edge/graph/applyGraphDeltaToUI.ts'
-import { mapNewGraphToDelta } from '@/pure/graph'
+import { mapNewGraphToDelta, type Graph } from '@/pure/graph'
 import path from 'path'
 
 describe('Node Positioning Spacing - Integration', () => {
@@ -38,7 +45,7 @@ describe('Node Positioning Spacing - Integration', () => {
     const exampleFolderPath = path.resolve(process.cwd(), 'example_folder_fixtures', 'example_real_large')
 
     // WHEN: Load graph from disk (this applies positions)
-    const graph = await loadGraphFromDisk(O.some(exampleFolderPath))
+    const graph = unwrapGraph(await loadGraphFromDisk(O.some(exampleFolderPath)))
 
     // AND: Convert graph to delta and apply to UI
     const delta = mapNewGraphToDelta(graph)
