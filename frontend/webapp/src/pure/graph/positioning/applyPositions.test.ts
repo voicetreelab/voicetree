@@ -222,7 +222,8 @@ function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFile
       title: id,
       color: O.none,
       position: O.none,
-      additionalYAMLProps: new Map()
+      additionalYAMLProps: new Map(),
+      isContextNode: false
     }
   }
 }

@@ -44,7 +44,8 @@ export function applyPositions(graph: Graph): Graph {
             title : "GHOST",
             color: O.none,
             position: O.some(GHOST_ROOT_POSITION),
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: new Map(),
+            isContextNode: false
         }
     }
 

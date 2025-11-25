@@ -14,6 +14,10 @@ export function getOnboardingDirectory(): string {
 /**
  * Get the onboarding source directory path
  * Returns the bundled source location of onboarding files
+ *
+ * IMPORTANT: For production builds, onboarding_tree must be in package.json extraResources!
+ * Without it, new users get an empty onboarding folder (only chromadb_data appears).
+ * See package.json extraResources: {"from": "public/onboarding_tree", "to": "onboarding_tree"}
  */
 function getOnboardingSource(): string {
   const appPath = app.getAppPath();

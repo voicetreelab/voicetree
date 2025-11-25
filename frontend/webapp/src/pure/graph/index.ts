@@ -45,6 +45,7 @@ export interface NodeUIMetadata {
     readonly color: O.Option<string>
     readonly position: O.Option<Position>
     readonly additionalYAMLProps: ReadonlyMap<string,string> // todo support this at both read and write paths for Node <-> Markdown
+    readonly isContextNode: boolean // Derived from path (ctx-nodes folder) or title (CONTEXT for prefix)
     // width/height is derived from node degree
 }
 
