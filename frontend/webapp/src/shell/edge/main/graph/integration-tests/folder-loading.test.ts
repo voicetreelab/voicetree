@@ -58,7 +58,7 @@ vi.mock('electron', () => ({
 }))
 
 describe('Folder Loading - Integration Tests', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset graph state
     setGraph({ nodes: {} })
     setVaultPath('')
@@ -75,6 +75,13 @@ describe('Folder Loading - Integration Tests', () => {
       },
       isDestroyed: vi.fn(() => false)
     }
+
+    // Clean up ctx-nodes directory before tests (may exist from previous test runs)
+    const ctxNodesPath = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
+    const ctxNodesDirExists = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
+    if (ctxNodesDirExists) {
+      await fs.rm(ctxNodesPath, { recursive: true, force: true })
+    }
   })
 
   afterEach(async () => {
@@ -85,6 +92,13 @@ describe('Folder Loading - Integration Tests', () => {
     const fileExists = await fs.access(testFilePath).then(() => true).catch(() => false)
     if (fileExists) {
       await fs.unlink(testFilePath)
+    }
+
+    // Clean up ctx-nodes directory if it exists (created by terminal tests)
+    const ctxNodesPath = path.join(EXAMPLE_SMALL_PATH, 'ctx-nodes')
+    const ctxNodesDirExists = await fs.access(ctxNodesPath).then(() => true).catch(() => false)
+    if (ctxNodesDirExists) {
+      await fs.rm(ctxNodesPath, { recursive: true, force: true })
     }
 
     vi.clearAllMocks()
@@ -204,6 +218,8 @@ describe('Folder Loading - Integration Tests', () => {
 
       const testFilePath = path.join(EXAMPLE_SMALL_PATH, 'test-new-file.md')
       const testFileContent = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[[5_Immediate_Test_Observation_No_Output]]'
+      // Expected content after wikilink replacement
+      const expectedContent = '# Test New File\n\nThis is a test file for chokidar detection.\n\n[5_Immediate_Test_Observation_No_Output]*'
 
       // Create a new file on disk
       await fs.writeFile(testFilePath, testFileContent, 'utf-8')
@@ -228,7 +244,7 @@ describe('Folder Loading - Integration Tests', () => {
       expect(nodeAdded).toBe(true)
       const graphAfterAdd = getGraph()
       expect(graphAfterAdd.nodes['test-new-file.md']).toBeDefined()
-      expect(graphAfterAdd.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(testFileContent)
+      expect(graphAfterAdd.nodes['test-new-file.md'].contentWithoutYamlOrLinks).toBe(expectedContent)
       expect(Object.keys(graphAfterAdd.nodes).length).toBe(EXPECTED_SMALL_NODE_COUNT + 1)
 
       // Verify edge was created from test-new-file to 5_Immediate_Test_Observation_No_Output
@@ -374,9 +390,8 @@ describe('Folder Loading - Integration Tests', () => {
       await fs.unlink(newFilePath)
 
       const deleteEvent = {
-        absolutePath: newFilePath,
-        content: '',
-        eventType: 'Deleted' as const
+        type: 'Delete' as const,
+        absolutePath: newFilePath
       }
 
        
@@ -467,7 +482,7 @@ describe('Folder Loading - Integration Tests', () => {
       nodes.forEach(node => {
         // Required properties
         expect(node).toHaveProperty('relativeFilePathIsID')
-        expect(node).toHaveProperty('content')
+        expect(node).toHaveProperty('contentWithoutYamlOrLinks')
         expect(node).toHaveProperty('nodeUIMetadata')
 
         // Property types

@@ -1,5 +1,4 @@
 import type {FilePath} from '@/pure/graph';
-import type {Frontmatter} from "@/pure/graph/markdown-parsing/extract-frontmatter.ts";
 
 /**
  * Compute the display title for a graph node
@@ -16,30 +15,25 @@ import type {Frontmatter} from "@/pure/graph/markdown-parsing/extract-frontmatte
  *
  * @example
  * ```typescript
- * // With frontmatter
- * const node1 = { content: '---\ntitle: My Title\n---\nContent', relativeFilePathIsID: 'path/to/file.md', ... }
- * markdownToTitle(node1) // => "My Title"
+ * // With frontmatter title
+ * markdownToTitle("My Title", content, 'path/to/file.md') // => "My Title"
  *
  * // With heading
- * const node2 = { content: '# Hello World\nContent', relativeFilePathIsID: 'path/to/file.md', ... }
- * markdownToTitle(node2) // => "Hello World"
+ * markdownToTitle(undefined, '# Hello World\nContent', 'path/to/file.md') // => "Hello World"
  *
  * // With first line
- * const node3 = { content: 'Plain content line', relativeFilePathIsID: 'path/to/file.md', ... }
- * markdownToTitle(node3) // => "Plain content line"
+ * markdownToTitle(undefined, 'Plain content line', 'path/to/file.md') // => "Plain content line"
  *
  * // Long heading truncated
- * const node4 = { content: '# ' + 'a'.repeat(250), relativeFilePathIsID: 'path/to/file.md', ... }
- * markdownToTitle(node4) // => "aaa...aaa..." (200 chars + "...")
+ * markdownToTitle(undefined, '# ' + 'a'.repeat(250), 'path/to/file.md') // => "aaa...aaa..." (200 chars + "...")
  *
  * // Filename fallback
- * const node5 = { content: '', relativeFilePathIsID: 'path/to/my-example_file.md', ... }
- * markdownToTitle(node5) // => "my example file"
+ * markdownToTitle(undefined, '', 'path/to/my-example_file.md') // => "my example file"
  * ```
  */
-export function markdownToTitle(frontmatter: Frontmatter, content: string, filePath: FilePath): string {
-    if (frontmatter.title) {
-        return frontmatter.title;
+export function markdownToTitle(title: string | undefined, content: string, filePath: FilePath): string {
+    if (title) {
+        return title;
     }
 
     // Remove frontmatter from content for title extraction

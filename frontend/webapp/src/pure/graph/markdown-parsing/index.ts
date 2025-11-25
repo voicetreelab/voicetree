@@ -1,11 +1,11 @@
 import { parseMarkdownToGraphNode } from './parse-markdown-to-node.ts'
 import { extractEdges } from './extract-edges.ts'
 import { nodeIdToFilePathWithExtension, filenameToNodeId } from './filename-utils.ts'
-import type { GraphNode, NodeIdAndFilePath, Edge } from '@/pure/graph'
+import type { GraphNode, NodeIdAndFilePath, Edge, Graph } from '@/pure/graph'
 
 // === MARKDOWN PARSING ===
 
-export type ParseMarkdownToGraphNode = (content: string, filename: string) => GraphNode
+export type ParseMarkdownToGraphNode = (content: string, filename: string, graph: Graph) => GraphNode
 
 export type ExtractLinkedNodeIds = (content: string, nodes: Record<NodeIdAndFilePath, GraphNode>) => readonly Edge[]
 

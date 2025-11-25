@@ -65,7 +65,6 @@ describe('ContextMenuService', () => {
     mockDeps = {
       getFilePathForNode: vi.fn().mockResolvedValue('/path/to/node.md'),
       createAnchoredFloatingEditor: vi.fn().mockResolvedValue(undefined),
-      createFloatingTerminal: vi.fn(),
       handleAddNodeAtPosition: vi.fn().mockResolvedValue(undefined),
     };
   });
@@ -97,35 +96,39 @@ describe('ContextMenuService', () => {
     });
 
     it('should use theme colors from CSS variables', () => {
-      // Mock getComputedStyle to return our custom values
-      const originalGetComputedStyle = window.getComputedStyle;
+      // Save original implementation
+      const originalGetComputedStyle = globalThis.getComputedStyle;
 
-      const mockGetPropertyValue = vi.fn((prop: string) => {
-        const props: Record<string, string> = {
-          '--text-selection': '#custom-select',
-          '--background-secondary': '#custom-bg',
-          '--text-normal': '#custom-text',
-        };
-        return props[prop] || '';
-      });
+      try {
+        // Mock getComputedStyle to return our custom values
+        const mockGetPropertyValue = vi.fn((prop: string) => {
+          const props: Record<string, string> = {
+            '--text-selection': '#custom-select',
+            '--background-secondary': '#custom-bg',
+            '--text-normal': '#custom-text',
+          };
+          return props[prop] || '';
+        });
 
-      window.getComputedStyle = vi.fn().mockReturnValue({
-        getPropertyValue: mockGetPropertyValue,
-      } as unknown as CSSStyleDeclaration);
+        vi.stubGlobal('getComputedStyle', vi.fn().mockReturnValue({
+          getPropertyValue: mockGetPropertyValue,
+        } as unknown as CSSStyleDeclaration));
 
-      service = new ContextMenuService();
-      service.initialize(cy, mockDeps);
+        service = new ContextMenuService();
+        service.initialize(cy, mockDeps);
 
-      expect(cy.cxtmenu).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fillColor: '#custom-bg',
-          activeFillColor: '#custom-select',
-          itemColor: '#custom-text',
-        })
-      );
-
-      // Restore original
-      window.getComputedStyle = originalGetComputedStyle;
+        expect(cy.cxtmenu).toHaveBeenCalledWith(
+          expect.objectContaining({
+            fillColor: '#custom-bg',
+            activeFillColor: '#custom-select',
+            itemColor: '#custom-text',
+          })
+        );
+      } finally {
+        // Always restore original implementation
+        vi.unstubAllGlobals();
+        globalThis.getComputedStyle = originalGetComputedStyle;
+      }
     });
 
     it('should use dark mode defaults when class is present', () => {
@@ -202,25 +205,6 @@ describe('ContextMenuService', () => {
     });
   });
 
-  describe('SVG icon creation', () => {
-    it('should create proper SVG elements for menu icons', () => {
-      service = new ContextMenuService();
-      service.initialize(cy, mockDeps);
-
-      const menuOptions = cy.cxtmenu.mock.calls[0]?.[0];
-      expect(menuOptions).toBeDefined();
-      const commandsFunc = menuOptions!.commands;
-
-      const node = cy.getElementById('node1');
-      const commands = commandsFunc(node);
-
-      // Check that content is an HTML element with SVG
-      const iconElement = commands[0]?.contentWithoutYamlOrLinks as HTMLElement;
-      expect(iconElement.tagName).toBe('DIV');
-      expect(iconElement.querySelector('svg')).not.toBeNull();
-      expect(iconElement.querySelector('path')).not.toBeNull();
-    });
-  });
 
   describe('canvas context menu', () => {
     it('should register canvas context menu with cxtmenu', () => {

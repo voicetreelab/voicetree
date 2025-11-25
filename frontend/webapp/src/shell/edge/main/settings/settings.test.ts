@@ -41,7 +41,7 @@ describe('settings', () => {
     expect(firstLoad).toEqual(DEFAULT_SETTINGS);
 
     const customSettings: Settings = {
-      agentLaunchPath: '/custom/path',
+      terminalSpawnPathRelativeToWatchedDirectory: '/custom/path',
       agentCommand: 'custom-command.sh'
     };
 
@@ -53,7 +53,7 @@ describe('settings', () => {
 
   it('should persist data correctly with proper formatting', async () => {
     const customSettings: Settings = {
-      agentLaunchPath: '/test/path',
+      terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
       agentCommand: 'test.sh'
     };
 
@@ -71,7 +71,7 @@ describe('settings', () => {
     await fs.rm(testUserDataPath, { recursive: true, force: true });
 
     const settings: Settings = {
-      agentLaunchPath: '/another/path',
+      terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
       agentCommand: 'another.sh'
     };
 

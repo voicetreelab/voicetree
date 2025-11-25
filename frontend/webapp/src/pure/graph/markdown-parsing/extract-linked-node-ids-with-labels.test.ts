@@ -17,7 +17,8 @@ describe('extractLinkedNodeIds - relationship labels integration', () => {
     nodeUIMetadata: {
       title,
       color: O.none,
-      position: O.none
+      position: O.none,
+      additionalYAMLProps: new Map()
     }
   })
 

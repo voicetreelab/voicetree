@@ -221,7 +221,8 @@ function createNode(id: NodeIdAndFilePath, outgoingEdges: readonly NodeIdAndFile
     nodeUIMetadata: {
       title: id,
       color: O.none,
-      position: O.none
+      position: O.none,
+      additionalYAMLProps: new Map()
     }
   }
 }

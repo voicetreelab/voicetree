@@ -11,7 +11,8 @@ describe('extractLinkedNodeIds', () => {
     nodeUIMetadata: {
       title,
       color: O.none,
-      position: O.none
+      position: O.none,
+      additionalYAMLProps: new Map()
     }
   })
 

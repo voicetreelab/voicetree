@@ -8,6 +8,8 @@ import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts";
 
+import {getFilePathForNode} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+
 export interface Position {
     x: number;
     y: number;
@@ -17,7 +19,6 @@ export interface Position {
 cytoscape.use(cxtmenu);
 
 export interface ContextMenuDependencies {
-    getFilePathForNode: (nodeId: string) => Promise<string | undefined>;
     createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) => Promise<void>;
     handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
@@ -215,7 +216,7 @@ export class ContextMenuService {
         commands.push({
             content: this.createSvgIcon('copy', 'Copy'),
             select: async () => {
-                const absolutePath = await this.deps!.getFilePathForNode(nodeId);
+                const absolutePath = await getFilePathForNode(nodeId);
                 void navigator.clipboard.writeText(absolutePath ?? nodeId);
             },
             enabled: true,

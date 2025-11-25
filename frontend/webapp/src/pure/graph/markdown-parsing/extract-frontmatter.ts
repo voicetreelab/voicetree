@@ -4,6 +4,8 @@ import matter from 'gray-matter'
  * Frontmatter extracted from markdown files
  */
 export interface Frontmatter {
+    // todo, can we avoid this additional unnecessary type?
+    // and just whatever we read from md yaml frontmatter we try fit into the GraphNode metadata type
     readonly node_id?: string
     readonly title?: string
     readonly summary?: string

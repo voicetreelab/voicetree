@@ -61,7 +61,10 @@ export async function createContextNode(
     parentNode,
     content,
     contextNodeId
-  )
+  ) // todo HERE IS WHERE THE BUG IS FOR MULTIPLE EDGES FOR CONTEXT NODES!!!
+    // bc we set content as the markdown content with []* type links, which will be written toMarkdown as real links (?)
+    // wait actually this would skip the Node -> markdown stage? no it wouldn't.
+    // yes it would, via writeNodeToFile(node: GraphNode): FSWriteEffect<void> {
 
   // 8. EDGE: Apply via GraphDelta pipeline
   await applyGraphDeltaToDBThroughMem(contextNodeDelta)
@@ -80,13 +83,14 @@ function buildContextNodeContent(
   asciiTree: string,
   subgraph: Graph
 ): string {
+    // todo this should be done by creatingGraphNode, and then calling to markdown function on it.
   const nodeDetailsList = generateNodeDetailsList(subgraph, parentNodeId)
 
   return `---
-title: Context for ${parentTitle}
+title: CONTEXT for ${parentTitle}
 ---
 
-## Relevant context graph for: ${parentTitle}
+## CONTEXT for: (${parentTitle})
 \`\`\`
 ${asciiTree}
 \`\`\`
@@ -111,7 +115,10 @@ function generateNodeDetailsList(
 
   for (const nodeId of orderedNodeIds) {
     const node = subgraph.nodes[nodeId]
-    lines.push(`<${node.relativeFilePathIsID}> \n ${node.contentWithoutYamlOrLinks} \n </${node.relativeFilePathIsID}>`)
+    // Strip [link]* markers to prevent them being converted back to [[link]] wikilinks when written to disk.
+    // Without this, fromNodeToMarkdownContent would create real edges from context node to all embedded nodes.
+    const contentWithoutLinkStars = node.contentWithoutYamlOrLinks.replace(/\[([^\]]+)\]\*/g, '[$1]')
+    lines.push(`<${node.relativeFilePathIsID}> \n ${contentWithoutLinkStars} \n </${node.relativeFilePathIsID}>`)
   }
 
   return lines.join('\n')

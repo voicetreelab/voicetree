@@ -13,6 +13,7 @@ import { setupOnboardingDirectory } from './onboarding-setup.ts';
 import {setBackendPort, setMainWindow} from '@/shell/edge/main/state/app-electron-state.ts';
 import { registerTerminalIpcHandlers } from '@/shell/edge/main/ipc-terminal-handlers.ts';
 import { setupRPCHandlers } from '@/shell/edge/main/edge-auto-rpc/rpc-handler.ts';
+import { startMcpServer } from '@/shell/edge/main/mcp-server/mcp-server.ts';
 
 
 // Fix PATH for macOS/Linux GUI apps
@@ -208,6 +209,9 @@ registerTerminalIpcHandlers(
 // App event handlers
 void app.whenReady().then(async () => {
   setupRPCHandlers();
+
+  // Start MCP server in-process (shares graph state with Electron)
+  void startMcpServer();
 
   // Set dock icon for macOS (BrowserWindow icon property doesn't work on macOS)
   if (process.platform === 'darwin' && app.dock) {

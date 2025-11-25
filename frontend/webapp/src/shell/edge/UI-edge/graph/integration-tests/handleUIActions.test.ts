@@ -31,7 +31,8 @@ describe('createNewChildNodeFromUI - Integration', () => {
                     nodeUIMetadata: {
                         title: 'Parent GraphNode',
                         color: O.none,
-                        position: O.some({ x: 100, y: 100 })
+                        position: O.some({ x: 100, y: 100 }),
+                        additionalYAMLProps: new Map()
                     }
                 },
                 'child1.md': {
@@ -41,7 +42,8 @@ describe('createNewChildNodeFromUI - Integration', () => {
                     nodeUIMetadata: {
                         title: 'Child 1',
                         color: O.none,
-                        position: O.some({ x: 200, y: 200 })
+                        position: O.some({ x: 200, y: 200 }),
+                        additionalYAMLProps: new Map()
                     }
                 }
             }
@@ -118,22 +120,20 @@ describe('createNewChildNodeFromUI - Integration', () => {
 
         // AND: Should have called electronAPI to persist the change
         // The GraphDelta should contain 2 actions: new child node + updated parent with edge
-        expect((window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem).toHaveBeenCalledWith([
-            expect.objectContaining({
-                type: 'UpsertNode',
-                nodeToUpsert: expect.objectContaining({
-                    relativeFilePathIsID: newNodeId,
-                    content: '# new'
-                })
-            }),
-            expect.objectContaining({
-                type: 'UpsertNode',
-                nodeToUpsert: expect.objectContaining({
-                    relativeFilePathIsID: 'parent.md',
-                    outgoingEdges: expect.arrayContaining([expect.objectContaining({ targetId: newNodeId })])
-                })
-            })
-        ])
+        const graphDeltaCall = (window as any).electronAPI!.main.applyGraphDeltaToDBThroughMem.mock.calls[0]?.[0]
+        expect(graphDeltaCall).toHaveLength(2)
+
+        // First action: UpsertNode for new child
+        expect(graphDeltaCall[0].type).toBe('UpsertNode')
+        expect(graphDeltaCall[0].nodeToUpsert.relativeFilePathIsID).toBe(newNodeId)
+
+        // Second action: UpsertNode for parent with edge to new child
+        expect(graphDeltaCall[1].type).toBe('UpsertNode')
+        expect(graphDeltaCall[1].nodeToUpsert.relativeFilePathIsID).toBe('parent.md')
+        const hasEdgeToNewNode = graphDeltaCall[1].nodeToUpsert.outgoingEdges.some(
+            (edge: { targetId: string }) => edge.targetId === newNodeId
+        )
+        expect(hasEdgeToNewNode).toBe(true)
     })
 
     it('should position new child node away from parent', async () => {

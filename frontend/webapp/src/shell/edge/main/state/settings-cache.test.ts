@@ -4,12 +4,12 @@ import type { Settings } from '@/pure/settings';
 
 describe('settings-cache', () => {
   const mockSettings: Settings = {
-    agentLaunchPath: '/test/path',
+    terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
     agentCommand: 'test-command.sh'
   };
 
   const mockSettings2: Settings = {
-    agentLaunchPath: '/another/path',
+    terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
     agentCommand: 'another-command.sh'
   };
 

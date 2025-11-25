@@ -23,20 +23,19 @@ describe('loadGraphFromDisk - Frontmatter Title Priority', () => {
         // THEN: Graph should have multiple nodes
         expect(Object.keys(graph.nodes).length).toBeGreaterThan(0)
 
-        // AND: Should have at least one node with frontmatter
-        const nodesWithFrontmatter = Object.values(graph.nodes).filter(node =>
-            node.contentWithoutYamlOrLinks.includes('---') && node.contentWithoutYamlOrLinks.includes('node_id:')
-        )
-        expect(nodesWithFrontmatter.length).toBeGreaterThan(0)
-
         // AND: All nodes should have titles in their UI-edge metadata
-        nodesWithFrontmatter.forEach(node => {
+        Object.values(graph.nodes).forEach(node => {
             expect(node.nodeUIMetadata.title).toBeTruthy()
             expect(node.nodeUIMetadata.title.length).toBeGreaterThan(0)
         })
+
+        // AND: contentWithoutYamlOrLinks should NOT contain YAML frontmatter (it's stripped)
+        Object.values(graph.nodes).forEach(node => {
+            expect(node.contentWithoutYamlOrLinks).not.toContain('node_id:')
+        })
     })
 
-    it('should preserve full content for UI-edge to extract title', async () => {
+    it('should strip YAML frontmatter but preserve markdown content', async () => {
         // GIVEN: Test fixture
         const vaultPath = EXAMPLE_SMALL_PATH
 
@@ -48,13 +47,11 @@ describe('loadGraphFromDisk - Frontmatter Title Priority', () => {
             expect(node.contentWithoutYamlOrLinks.length).toBeGreaterThan(0)
         })
 
-        // AND: Nodes with frontmatter should preserve it
-        const nodesWithFrontmatter = Object.values(graph.nodes).filter(node =>
-            node.contentWithoutYamlOrLinks.includes('---')
-        )
-
-        nodesWithFrontmatter.forEach(node => {
-            expect(node.contentWithoutYamlOrLinks).toContain('---') // Frontmatter markers preserved
+        // AND: contentWithoutYamlOrLinks should NOT contain YAML properties
+        Object.values(graph.nodes).forEach(node => {
+            // Should not have YAML properties (these are stripped from frontmatter)
+            expect(node.contentWithoutYamlOrLinks).not.toContain('node_id:')
+            // Note: We can't check for '---' because that could be a markdown horizontal rule
         })
     })
 })

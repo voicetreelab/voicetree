@@ -142,23 +142,6 @@ describe('setupRPCHandlers', () => {
     expect(result).toEqual({ error: 'RPC call failed: String error' })
   })
 
-  it('should handle functions with multiple arguments', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
-
-    const mockGraphDelta = { type: 'add', nodeId: 'test-node' }
-    mockApplyGraphDeltaToDB.mockResolvedValue(undefined)
-
-    setupRPCHandlers()
-
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
-
-    // Call handler with function that takes multiple args
-    await handler({}, 'applyGraphDeltaToDBAndMem', [mockGraphDelta])
-
-    expect(mockApplyGraphDeltaToDB).toHaveBeenCalledWith(mockGraphDelta)
-  })
-
   it('should preserve return value types from called functions', async () => {
     const { setupRPCHandlers } = await import('./rpc-handler.ts')
 

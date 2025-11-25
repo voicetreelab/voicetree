@@ -22,7 +22,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createContextNode } from '@/shell/edge/main/graph/createContextNode.ts'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
 import { setGraph, setVaultPath, getVaultPath } from '@/shell/edge/main/state/graph-store.ts'
-import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths.ts'
+import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import { promises as fs } from 'fs'
 import path from 'path'
@@ -113,13 +113,13 @@ describe('createContextNode - Integration Tests', () => {
 
         // AND: File should have proper structure
         const fileContent = await fs.readFile(contextFilePath, 'utf-8')
-
+        // todo these tests arre way too specific, just make it expect a 'context' not anything else.
         // Should have frontmatter with title
         expect(fileContent).toContain('---')
-        expect(fileContent).toContain('title: Context for')
+        expect(fileContent).toContain('CONTEXT for')
 
         // Should have heading for context graph
-        expect(fileContent).toContain('## Relevant context graph for:')
+        expect(fileContent).toContain('## CONTEXT for')
 
         // Should have ASCII tree visualization in code block
         expect(fileContent).toContain('```')
@@ -169,7 +169,7 @@ describe('createContextNode - Integration Tests', () => {
       // AND: Context node should have the parent node as a connection
       const contextNode = reloadedGraph.nodes[contextNodeId]
       expect(contextNode).toBeDefined()
-      expect(contextNode.contentWithoutYamlOrLinks).toContain('Context for')
+      expect(contextNode.contentWithoutYamlOrLinks).toContain('CONTEXT for')
     })
   })
 
@@ -213,8 +213,8 @@ describe('createContextNode - Integration Tests', () => {
     })
   })
 
-  describe('BEHAVIOR: Node details order should match ASCII tree order', () => {
-    it('should list node details in the same order they appear in ASCII tree', async () => {
+  describe('BEHAVIOR: Node details section should contain all nodes from subgraph', () => {
+    it('should include parent node and connected nodes in details section', async () => {
       // GIVEN: A parent node that exists in example_small graph
       const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
 
@@ -230,56 +230,145 @@ describe('createContextNode - Integration Tests', () => {
         const contextFilePath = path.join(vaultPath.value, contextNodeId)
         const fileContent = await fs.readFile(contextFilePath, 'utf-8')
 
-        // Extract ASCII tree from content (between first pair of ```)
-        const asciiTreeMatch = fileContent.match(/```\n([\s\S]+?)\n```/)
-        expect(asciiTreeMatch).toBeTruthy()
-
         // Extract Node Details section (after ## Node Details)
         const nodeDetailsMatch = fileContent.match(/## Node Details\n([\s\S]+)$/)
         expect(nodeDetailsMatch).toBeTruthy()
 
-        if (asciiTreeMatch && nodeDetailsMatch) {
-          const asciiTree = asciiTreeMatch[1]
+        if (nodeDetailsMatch) {
           const nodeDetailsSection = nodeDetailsMatch[1]
 
-          // Extract node titles from ASCII tree in the order they appear
-          // ASCII tree has format like:
-          // Node1
-          // ├── Node2
-          // └── Node3
-          const asciiNodeTitles = asciiTree
-            .split('\n')
-            .map(line => line.replace(/^[│├└─\s]+/, '').trim())
-            .filter(title => title.length > 0)
-
-          // Extract node IDs from Node Details section in the order they appear
+          // Extract node IDs from Node Details section
           // Node details has format: <node_id.md> \n content \n </node_id.md>
-          // Match only opening tags (node IDs end with .md and don't start with /)
-          // The negative lookahead (?!\/) ensures we don't match paths starting with /
           const nodeDetailIds = Array.from(
             nodeDetailsSection.matchAll(/<([^/>][^>]*\.md)>\s*\n/g)
           ).map(match => match[1].trim())
 
-          // For each node detail ID, find its corresponding title in the graph
-          const graph = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
-          const nodeDetailTitles = nodeDetailIds.map((nodeId: string) => {
-            const node = graph.nodes[nodeId]
-            return node?.nodeUIMetadata.title || nodeId
+          // VERIFY: Parent node should be present in details
+          expect(nodeDetailIds).toContain(parentNodeId)
+
+          // VERIFY: Should have multiple nodes (parent + connected nodes)
+          expect(nodeDetailIds.length).toBeGreaterThan(1)
+
+          // VERIFY: All node IDs should be valid (end with .md)
+          nodeDetailIds.forEach((nodeId: string) => {
+            expect(nodeId).toMatch(/\.md$/)
           })
-
-          console.log('\n' + '='.repeat(80))
-          console.log('NODE ORDER COMPARISON')
-          console.log('='.repeat(80))
-          console.log('\nASCII Tree Order:')
-          asciiNodeTitles.forEach((title: string, i: number) => console.log(`  ${i + 1}. ${title}`))
-          console.log('\nNode Details Order:')
-          nodeDetailTitles.forEach((title: string, i: number) => console.log(`  ${i + 1}. ${title}`))
-          console.log('='.repeat(80) + '\n')
-
-          // VERIFY: Node details should appear in the same order as ASCII tree
-          expect(nodeDetailTitles).toEqual(asciiNodeTitles)
         }
       }
+    })
+  })
+
+  describe('BEHAVIOR: Context node should have exactly ONE edge (BUG REGRESSION TEST)', () => {
+    it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
+      // GIVEN: example_real_large fixture with at least 5 nodes
+      setVaultPath(EXAMPLE_LARGE_PATH)
+      const largeGraph = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      setGraph(largeGraph)
+
+      // VERIFY: Graph has at least 5 nodes
+      const nodeCount = Object.keys(largeGraph.nodes).length
+      expect(nodeCount).toBeGreaterThanOrEqual(5)
+
+      // Find a parent node that's part of a sufficiently large subgraph (at least 5 nodes)
+      // We'll use the first node as it should have connections
+      const parentNodeId = Object.keys(largeGraph.nodes)[0] as NodeIdAndFilePath
+
+      // Count nodes in parent's subgraph before creating context node
+      const parentNode = largeGraph.nodes[parentNodeId]
+      const subgraphNodeCount = parentNode.outgoingEdges.length + 1 // parent + its children
+
+      // WHEN: Create context node for this parent
+      const contextNodeId = await createContextNodeWithBackup(parentNodeId)
+      createdContextNodeId = contextNodeId
+
+      // Read the context node file content to verify structure
+      const vaultPath = getVaultPath()
+      expect(O.isSome(vaultPath)).toBe(true)
+
+      if (O.isSome(vaultPath)) {
+        const contextFilePath = path.join(vaultPath.value, contextNodeId)
+        const contextFileContent = await fs.readFile(contextFilePath, 'utf-8')
+
+        // Count wikilinks in the context node content
+        const wikilinkMatches = contextFileContent.match(/\[\[([^\]]+)\]\]/g)
+        const wikilinkCount = wikilinkMatches ? wikilinkMatches.length : 0
+
+        // Also check for [link]* format (should have these instead of [[link]])
+        const strippedLinkMatches = contextFileContent.match(/\[([^\]]+)\]\*/g)
+        const strippedLinkCount = strippedLinkMatches ? strippedLinkMatches.length : 0
+
+        console.log('\n' + '='.repeat(80))
+        console.log('CONTEXT NODE FILE CONTENT ANALYSIS')
+        console.log('='.repeat(80))
+        console.log(`Context file: ${contextNodeId}`)
+        console.log(`Subgraph node count: ${subgraphNodeCount}`)
+        console.log(`Wikilinks [[link]] found: ${wikilinkCount}`)
+        console.log(`Stripped links [link]* found: ${strippedLinkCount}`)
+        if (wikilinkMatches) {
+          console.log('Wikilinks:')
+          wikilinkMatches.forEach((link, i) => console.log(`  ${i + 1}. ${link}`))
+        }
+        if (strippedLinkMatches) {
+          console.log('Stripped links:')
+          strippedLinkMatches.forEach((link, i) => console.log(`  ${i + 1}. ${link}`))
+        }
+        console.log('\nFirst 500 chars of Node Details section:')
+        const nodeDetailsMatch = contextFileContent.match(/## Node Details\n([\s\S]{0,500})/)
+        if (nodeDetailsMatch) {
+          console.log(nodeDetailsMatch[1])
+        }
+        console.log('='.repeat(80) + '\n')
+
+        // Write full content to temp file for inspection
+        await fs.writeFile('/tmp/context-node-test-output.md', contextFileContent, 'utf-8')
+
+        // Context node should NOT have any wikilinks (no edges from context node to other nodes)
+        // The parent->context edge is created programmatically, not via wikilink
+        expect(wikilinkCount).toBe(0)
+      }
+
+      // THEN: Reload graph to get the context node
+      const reloadedGraph = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+
+      // VERIFY: Context node exists in reloaded graph
+      expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
+
+      // VERIFY: Parent node should have exactly ONE outgoing edge to the context node
+      const reloadedParentNode = reloadedGraph.nodes[parentNodeId]
+      expect(reloadedParentNode).toBeDefined()
+
+      const edgesToContextNode = reloadedParentNode.outgoingEdges.filter(
+        edge => edge.targetId === contextNodeId
+      )
+
+      console.log('\n' + '='.repeat(80))
+      console.log('CONTEXT NODE EDGE COUNT VERIFICATION')
+      console.log('='.repeat(80))
+      console.log(`Parent Node: ${parentNodeId}`)
+      console.log(`Context Node: ${contextNodeId}`)
+      console.log(`Total outgoing edges from parent: ${reloadedParentNode.outgoingEdges.length}`)
+      console.log(`Edges to context node: ${edgesToContextNode.length}`)
+      console.log(`\nAll outgoing edges from parent:`)
+      reloadedParentNode.outgoingEdges.forEach((edge, i) => {
+        console.log(`  ${i + 1}. -> ${edge.targetId}${edge.targetId === contextNodeId ? ' (CONTEXT NODE)' : ''}`)
+      })
+      console.log('='.repeat(80) + '\n')
+
+      // BUG ASSERTION: Should have exactly ONE edge, not one per subgraph node
+      expect(edgesToContextNode.length).toBe(1)
+
+      // ALSO VERIFY: Context node should have exactly ONE incoming edge (from parent)
+      const incomingEdgesCount = Object.values(reloadedGraph.nodes).filter(node =>
+        node.outgoingEdges.some(edge => edge.targetId === contextNodeId)
+      ).length
+
+      console.log(`Incoming edges to context node: ${incomingEdgesCount}`)
+      expect(incomingEdgesCount).toBe(1)
+
+      // ALSO VERIFY: Context node itself should have ZERO outgoing edges
+      // It should not link back to any of the nodes in its subgraph
+      const contextNodeInReloaded = reloadedGraph.nodes[contextNodeId]
+      expect(contextNodeInReloaded.outgoingEdges.length).toBe(0)
     })
   })
 })

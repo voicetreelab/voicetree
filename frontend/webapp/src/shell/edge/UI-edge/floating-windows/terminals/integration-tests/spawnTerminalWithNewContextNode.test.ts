@@ -30,6 +30,7 @@ import type { NodeIdAndFilePath } from '@/pure/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
 import { getTerminals } from '@/shell/edge/UI-edge/state/UIAppState.ts'
+import { createContextNode } from '@/shell/edge/main/graph/createContextNode.ts'
 
 describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
   let createdContextNodeIds: NodeIdAndFilePath[] = []
@@ -52,13 +53,18 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
 
     // Mock window.electronAPI for settings and graph
     // getGraph should return current graph state dynamically
+    // createContextNode calls the real implementation to test integration
     global.window = {
       electronAPI: {
         main: {
           loadSettings: vi.fn().mockResolvedValue({
             agentCommand: 'claude --dangerously-skip-permissions --settings "$settings_file" "$initial_content"'
           }),
-          getGraph: vi.fn().mockImplementation(async () => getGraph())
+          getGraph: vi.fn().mockImplementation(async () => getGraph()),
+          createContextNode: vi.fn().mockImplementation(async (parentNodeId: NodeIdAndFilePath) => {
+            // Call the real createContextNode to create node on disk and update graph
+            return await createContextNode(parentNodeId)
+          })
         }
       }
     } as unknown as Window & typeof globalThis
@@ -126,6 +132,9 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       // WHEN: Spawn terminal with new context node
       await spawnTerminalWithNewContextNode(parentNodeId, cy)
 
+      // Wait for terminal to be spawned (setTimeout in implementation)
+      await new Promise(resolve => setTimeout(resolve, 1100))
+
       // THEN: A context node should be created
       const terminals = getTerminals()
       const terminalEntries = Array.from(terminals.values())
@@ -160,8 +169,8 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
           // The initial_content should match the context node content (possibly with frontmatter differences)
           // Just verify it contains the key sections
           const initialContent = contextTerminal.initialEnvVars?.initial_content
-          expect(initialContent).toContain('title: Context for')
-          expect(initialContent).toContain('## Relevant context graph for:')
+          expect(initialContent).toContain('title: CONTEXT for')
+          expect(initialContent).toContain('## CONTEXT for:')
           expect(initialContent).toContain('## Node Details')
 
           // AND: Terminal should have agentCommand set
@@ -189,6 +198,9 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
 
       // WHEN: Spawn terminal with new context node
       await spawnTerminalWithNewContextNode(parentNodeId, cy)
+
+      // Wait for terminal to be spawned (setTimeout in implementation)
+      await new Promise(resolve => setTimeout(resolve, 1100))
 
       // THEN: Terminal should be attached to context node, not parent
       const terminals = getTerminals()
@@ -222,6 +234,9 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       // WHEN: Spawn first terminal with context node
       await spawnTerminalWithNewContextNode(parentNodeId, cy)
 
+      // Wait for terminal to be spawned (setTimeout in implementation)
+      await new Promise(resolve => setTimeout(resolve, 1100))
+
       // THEN: First terminal for the context node should have terminalCount = 0 (0-indexed)
       const terminals = getTerminals()
       const contextTerminal = Array.from(terminals.values()).find(t =>
@@ -251,6 +266,9 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
       // WHEN: Spawn terminal with context node
       await spawnTerminalWithNewContextNode(parentNodeId, cy)
 
+      // Wait for terminal to be spawned (setTimeout in implementation)
+      await new Promise(resolve => setTimeout(resolve, 1100))
+
       // THEN: initial_content should contain ASCII tree
       const terminals = getTerminals()
       const contextTerminal = Array.from(terminals.values()).find(t =>
@@ -267,10 +285,10 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
         if (initialContent) {
           // Should contain frontmatter
           expect(initialContent).toContain('---')
-          expect(initialContent).toContain('title: Context for')
+          expect(initialContent).toContain('title: CONTEXT for')
 
           // Should contain ASCII visualization
-          expect(initialContent).toContain('## Relevant context graph for:')
+          expect(initialContent).toContain('## CONTEXT for:')
           expect(initialContent).toContain('```')
 
           // Should contain node details

@@ -21,8 +21,7 @@ import {
 import type {Position} from '../../views/IVoiceTreeGraphView.ts';
 import type {HotkeyManager} from '../../views/HotkeyManager.ts';
 import type {Graph, GraphDelta, NodeIdAndFilePath} from '@/pure/graph';
-import {nodeIdToFilePathWithExtension} from '@/pure/graph/markdown-parsing';
-import { CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
+import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
 import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
 import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
@@ -398,15 +397,6 @@ export class FloatingEditorManager {
      * Get absolute file path for a node ID
      * Constructs path from vaultPath + nodeId.md
      */
-    async getFilePathForNode(nodeId: NodeIdAndFilePath): Promise<string | undefined> {
-        const status = await window.electronAPI?.main.getWatchStatus();
-        const vaultPath = status?.directory;
-        if (!vaultPath) {
-            console.warn('[FloatingWindowManager] No vault path available');
-            return undefined;
-        }
 
-        const filename = nodeIdToFilePathWithExtension(nodeId);
-        return `${vaultPath}/${filename}`;
-    }
 }
+

@@ -43,7 +43,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Parent GraphNode',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -64,7 +65,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Child GraphNode',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -118,7 +120,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Orphan GraphNode',
                     color: O.none,
-                    position: O.some({ x: 300, y: 300 })
+                    position: O.some({ x: 300, y: 300 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -149,7 +152,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'GraphNode to Delete',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -188,7 +192,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Original Content',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -213,7 +218,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Updated Content',
                     color: O.some('#ff0000'),
-                    position: O.some({ x: 500, y: 500 }) // Different position
+                    position: O.some({ x: 500, y: 500 }), // Different position
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -256,7 +262,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Bulk GraphNode 1',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -267,7 +274,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Bulk GraphNode 2',
                     color: O.some('#00ff00'),
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -278,7 +286,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Bulk GraphNode 3',
                     color: O.none,
-                    position: O.some({ x: 300, y: 300 })
+                    position: O.some({ x: 300, y: 300 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -312,7 +321,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Existing',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -323,7 +333,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Will be deleted',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -344,7 +355,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'New GraphNode',
                     color: O.none,
-                    position: O.some({ x: 300, y: 300 })
+                    position: O.some({ x: 300, y: 300 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -354,7 +366,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Updated Existing',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -393,7 +406,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -404,7 +418,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Child',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -432,7 +447,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -443,7 +459,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Child',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -470,7 +487,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -481,7 +499,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Child',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -508,7 +527,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -519,7 +539,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Child',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -546,7 +567,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -557,7 +579,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Child',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -584,7 +607,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Parent',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -595,7 +619,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Child',
                     color: O.none,
-                    position: O.some({ x: 200, y: 200 })
+                    position: O.some({ x: 200, y: 200 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -629,7 +654,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: `Node ${i}`,
                     color: O.some(color),
-                    position: O.some({ x: i * 100, y: 100 })
+                    position: O.some({ x: i * 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }))
 
@@ -661,7 +687,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: `Invalid ${i}`,
                     color: O.some(color),
-                    position: O.some({ x: i * 100, y: 100 })
+                    position: O.some({ x: i * 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }))
 
@@ -688,7 +715,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Original',
                     color: O.some('#ff0000'),
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -707,7 +735,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Updated',
                     color: O.some('cyancyan'),
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -737,7 +766,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Original Title',
                     color: O.none,
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
@@ -766,7 +796,8 @@ describe('applyGraphDeltaToUI - Integration', () => {
                 nodeUIMetadata: {
                     title: 'Updated Title',
                     color: O.some('#ff0000'),
-                    position: O.some({ x: 100, y: 100 })
+                    position: O.some({ x: 100, y: 100 }),
+                    additionalYAMLProps: new Map()
                 }
             }
 
