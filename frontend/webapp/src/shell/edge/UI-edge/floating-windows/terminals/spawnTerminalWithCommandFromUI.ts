@@ -25,6 +25,8 @@ import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/grap
  * Creates a context node for the parent, then spawns a terminal attached to that context node
  * with the context node content as an environment variable (initial_content)
  *
+ * If the parent node is already a context node, reuses it instead of creating a new one.
+ *
  * @param parentNodeId - The parent node to create context for
  * @param cy - Cytoscape instance
  */
@@ -41,14 +43,29 @@ export async function spawnTerminalWithNewContextNode(
     }
     const agentCommand = settings.agentCommand;
 
-    // Create context node for the parent
-    const contextNodeId = await window.electronAPI?.main.createContextNode(parentNodeId);
-    if (!contextNodeId) {
-        throw Error(`Failed to create contextNodeId ${contextNodeId}`);
+    // Check if the parent node is already a context node - if so, reuse it
+    const parentNode = await getNodeFromMainToUI(parentNodeId);
+    if (!parentNode) {
+        throw Error(`Node ${parentNodeId} not found in graph`);
+    }
+    let contextNodeId: NodeIdAndFilePath;
+
+    if (parentNode.nodeUIMetadata.isContextNode) {
+        // Reuse existing context node
+        contextNodeId = parentNodeId;
+    } else {
+        // Create context node for the parent
+        const createdContextNodeId = await window.electronAPI?.main.createContextNode(parentNodeId);
+        if (!createdContextNodeId) {
+            throw Error(`Failed to create contextNodeId ${createdContextNodeId}`);
+        }
+        contextNodeId = createdContextNodeId;
     }
 
     // Get the context node to read its content
-    const contextNode = await getNodeFromMainToUI(contextNodeId);
+    const contextNode = parentNode.nodeUIMetadata.isContextNode
+        ? parentNode
+        : await getNodeFromMainToUI(contextNodeId);
     const contextContent = contextNode.contentWithoutYamlOrLinks;
 
     // Get next terminal count for the context node

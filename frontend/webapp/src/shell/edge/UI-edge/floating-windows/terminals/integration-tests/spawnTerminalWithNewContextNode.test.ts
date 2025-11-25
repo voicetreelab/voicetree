@@ -21,15 +21,22 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { spawnTerminalWithNewContextNode } from '@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+
+/** Unwrap Either or fail test */
+function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
+  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
+  return result.right
+}
 import { setGraph, setVaultPath, getVaultPath, getGraph } from '@/shell/edge/main/state/graph-store.ts'
 import { EXAMPLE_SMALL_PATH } from '@/utils/test-utils/fixture-paths.ts'
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath } from '@/pure/graph'
+import type { NodeIdAndFilePath, Graph } from '@/pure/graph'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
-import { getTerminals } from '@/shell/edge/UI-edge/state/UIAppState.ts'
+import { getTerminals, clearTerminals } from '@/shell/edge/UI-edge/state/UIAppState.ts'
 import { createContextNode } from '@/shell/edge/main/graph/createContextNode.ts'
 
 describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
@@ -42,7 +49,7 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const graph = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
     setGraph(graph)
 
     // Create a minimal Cytoscape instance for testing
@@ -106,6 +113,7 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
     // Clean up
     createdContextNodeIds = []
     parentNodeBackups.clear()
+    clearTerminals()
     cy.destroy()
     vi.restoreAllMocks()
   })
@@ -253,6 +261,62 @@ describe('spawnTerminalWithNewContextNode - Integration Tests', () => {
         createdContextNodeIds.push(contextTerminal.attachedToNodeId)
         expect(contextTerminal.terminalCount).toBe(0)
       }
+    })
+  })
+
+  describe('BEHAVIOR: Reuse context node when spawning from context node', () => {
+    it('should reuse existing context node when spawning terminal from a context node', async () => {
+      // GIVEN: A parent node and its context node already exists
+      const parentNodeId: NodeIdAndFilePath = '1_VoiceTree_Website_Development_and_Node_Display_Bug.md'
+      await backupParentNode(parentNodeId)
+
+      cy.add({
+        group: 'nodes',
+        data: { id: parentNodeId },
+        position: { x: 100, y: 100 }
+      })
+
+      // First, create a context node by spawning terminal
+      await spawnTerminalWithNewContextNode(parentNodeId, cy)
+      await new Promise(resolve => setTimeout(resolve, 1100))
+
+      // Get the created context node ID
+      const terminals = getTerminals()
+      const firstTerminal = Array.from(terminals.values()).find(t =>
+        t.attachedToNodeId.includes('ctx-nodes/')
+      )
+      expect(firstTerminal).toBeDefined()
+      const contextNodeId = firstTerminal!.attachedToNodeId
+      createdContextNodeIds.push(contextNodeId)
+
+      // Add context node to cytoscape
+      cy.add({
+        group: 'nodes',
+        data: { id: contextNodeId },
+        position: { x: 200, y: 100 }
+      })
+
+      // WHEN: Spawn terminal FROM the context node itself
+      await spawnTerminalWithNewContextNode(contextNodeId, cy)
+      await new Promise(resolve => setTimeout(resolve, 1100))
+
+      // THEN: Should NOT create another context node, should reuse the existing one
+      const allTerminals = Array.from(getTerminals().values())
+
+      // There should be 2 terminals now
+      expect(allTerminals.length).toBe(2)
+
+      // Both terminals should be attached to the SAME context node
+      const contextTerminals = allTerminals.filter(t =>
+        t.attachedToNodeId === contextNodeId
+      )
+      expect(contextTerminals.length).toBe(2)
+
+      // Verify no nested context nodes were created (ctx-nodes/ctx-nodes/...)
+      const nestedContextTerminals = allTerminals.filter(t =>
+        t.attachedToNodeId.includes('ctx-nodes/ctx-nodes/')
+      )
+      expect(nestedContextTerminals.length).toBe(0)
     })
   })
 
