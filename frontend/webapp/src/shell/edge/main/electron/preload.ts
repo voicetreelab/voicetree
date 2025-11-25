@@ -4,7 +4,6 @@
 import {contextBridge, ipcRenderer} from 'electron';
 import type {GraphDelta} from "@/pure/graph";
 import type {ElectronAPI, Promisify} from '@/utils/types/electron';
-import type {MainAPI} from '@/shell/edge/main/api-types.ts';
 
 // Async function to build and expose the electronAPI
 // This allows us to dynamically fetch API keys from main process at runtime
