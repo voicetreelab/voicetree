@@ -42,3 +42,11 @@ export function getNextTerminalCount(
     }
     return maxCount + 1;
 }
+
+/**
+ * Clear all terminals from state (for testing)
+ * @internal - Only for test usage
+ */
+export function clearTerminals(): void {
+    terminals.clear();
+}
