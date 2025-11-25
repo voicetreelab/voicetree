@@ -57,7 +57,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           title: 'Test Integration GraphNode',
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
 
@@ -97,7 +98,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           title: 'GraphNode With Links',
           color: O.some('#FF5733'),
           position: O.some({ x: 100, y: 200 }),
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
 
@@ -134,7 +136,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           title: 'GraphNode To Delete',
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
 
@@ -180,7 +183,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           title: 'Original Content',
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
 
@@ -200,7 +204,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
           title: 'Updated Content',
           color: O.none,
           position: O.none,
-          additionalYAMLProps: new Map()
+          additionalYAMLProps: new Map(),
+          isContextNode: false
         }
       }
 
@@ -241,7 +246,8 @@ describe('applyGraphDeltaToDB - Integration Tests', () => {
             title: 'Test',
             color: O.none,
             position: O.none,
-            additionalYAMLProps: new Map()
+            additionalYAMLProps: new Map(),
+            isContextNode: false
           }
         }
       }]
