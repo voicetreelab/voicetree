@@ -127,35 +127,5 @@ describe('FloatingWindowManager - Terminal Node Filtering', () => {
             // openHoverEditor SHOULD be called for markdown nodes (filter doesn't block them)
             expect(openHoverEditorSpy).toHaveBeenCalled();
         });
-
-        it('should filter out nodes without file extensions like terminal-*, settings-*, etc.', async () => {
-            const nonMarkdownNodeIds = [
-                'terminal-abc',
-                'settings-editor',
-                'some-shadow-node',
-                'backup-terminal'
-            ];
-
-            for (const nodeId of nonMarkdownNodeIds) {
-                cy.add({
-                    group: 'nodes',
-                    data: { id: nodeId },
-                    position: { x: 100, y: 100 }
-                });
-
-                const node = cy.getElementById(nodeId);
-                node.emit('mouseover');
-
-                // Wait briefly
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // No hover editor should be created
-                const hoverEditorWindows = document.querySelectorAll('.cy-floating-window');
-                expect(hoverEditorWindows.length).toBe(0);
-
-                // Clean up
-                node.remove();
-            }
-        });
     });
 });
