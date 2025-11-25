@@ -4,6 +4,7 @@ import {setGraph, setVaultPath} from "@/shell/edge/main/state/graph-store.ts";
 import {app, dialog} from "electron";
 import path from "path";
 import * as O from "fp-ts/lib/Option.js";
+import * as E from "fp-ts/lib/Either.js";
 import {promises as fs} from "fs";
 import fsSync from "fs";
 import chokidar, {type FSWatcher} from "chokidar";
@@ -84,7 +85,15 @@ export async function loadFolder(vaultPath: FilePath): Promise<void>  {
     }
 
     // Load graph from disk (IO operation)
-    const currentGraph: Graph = await loadGraphFromDisk(O.some(vaultPath));
+    const loadResult = await loadGraphFromDisk(O.some(vaultPath));
+
+    // Exit early if file limit exceeded
+    if (E.isLeft(loadResult)) {
+        console.log('[loadFolder] File limit exceeded, not setting up watcher');
+        return;
+    }
+
+    const currentGraph: Graph = loadResult.right;
     console.log('[loadFolder] Graph loaded from disk, node count:', Object.keys(currentGraph.nodes).length);
 
     // Update graph store
@@ -150,23 +159,18 @@ async function setupWatcher(vaultPath: FilePath): Promise<void> {
     // Create new watcher
     watcher = chokidar.watch(vaultPath, {
         ignored: [
-            // Only watch .md files (but allow directories without extensions)
-            (filePath: string) => {
-                const ext = path.extname(filePath);
-                // If no extension, it's probably a directory - don't ignore
-                if (!ext) {
+            // Only watch .md files (directories must pass through for traversal)
+            (filePath: string, stats?: import('fs').Stats) => {
+                // If stats available, use it to detect directories
+                if (stats?.isDirectory()) {
                     return false;
                 }
-                // For files, only allow .md
-                return ext !== '.md';
+                // If stats unavailable and no extension, assume it's a directory
+                if (!stats && !path.extname(filePath)) {
+                    return false;
+                }
+                return !filePath.endsWith('.md');
             },
-            // and ignore common hidden
-            '**/node_modules/**',
-            '**/.git/**',
-            '**/.voicetree/**', // Ignore position data directory to prevent feedback loop
-            '**/.*', // Hidden files
-            '**/*.tmp',
-            '**/*.temp'
         ],
         persistent: true,
         ignoreInitial: true, // Skip initial scan (we already loaded the graph)
