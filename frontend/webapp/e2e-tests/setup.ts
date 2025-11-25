@@ -94,6 +94,17 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
+// Ensure getComputedStyle is always available (even after test mocking)
+// Store the original implementation
+const originalGetComputedStyle = globalThis.getComputedStyle;
+
+// Add a robust fallback that always works
+if (!originalGetComputedStyle) {
+  globalThis.getComputedStyle = (() => ({
+    getPropertyValue: () => '',
+  })) as unknown as typeof globalThis.getComputedStyle;
+} // todo why do we need this? do we really? covering up bug?
+
 // Mock localStorage with functional implementation
 const localStorageMock = (() => {
   let store: { [key: string]: string } = {};

@@ -240,7 +240,7 @@ test.describe('Settings Integration E2E', () => {
 
     console.log('Saved settings:', savedSettings);
     expect(savedSettings.agentCommand).toBe(newCommand);
-    expect(savedSettings.agentLaunchPath).toBe(newLaunchPath);
+    expect(savedSettings.terminalSpawnPathRelativeToWatchedDirectory).toBe(newLaunchPath);
     console.log('✓ Settings saved successfully');
 
     console.log('=== STEP 9: Get a node to spawn terminal from ===');
