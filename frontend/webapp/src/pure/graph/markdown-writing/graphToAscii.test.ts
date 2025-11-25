@@ -2,7 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { graphToAscii } from '@/pure/graph/markdown-writing/graphToAscii.ts'
 import type { Graph, GraphNode } from '@/pure/graph'
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+
+/** Unwrap Either or fail test */
+function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
+  // eslint-disable-next-line functional/no-throw-statements
+  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
+  return result.right
+}
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
 
 describe('graphToAscii', () => {
@@ -204,7 +212,7 @@ describe('graphToAscii', () => {
 
   it('should render example_large fixture - visual output inspection', async () => {
     // Load the real example_large graph from disk
-    const graph = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH)))
 
     // Generate ASCII visualization
     const result = graphToAscii(graph)
@@ -226,7 +234,7 @@ describe('graphToAscii', () => {
 
   it('should render example_small fixture - visual output inspection', async () => {
     // Load the real example_small graph from disk
-    const graph = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
 
     // Debug: Check if edges are loaded
     const edgeCount = Object.values(graph.nodes).reduce((sum, node) => sum + node.outgoingEdges.length, 0)

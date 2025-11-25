@@ -72,6 +72,11 @@ function buildFrontmatterFromMetadata(metadata: NodeUIMetadata): string {
         }
     )(metadata.position);
 
+    // Add isContextNode if true (only write when true to keep frontmatter clean)
+    if (metadata.isContextNode) {
+        frontmatterData.isContextNode = true;
+    }
+
     // Add additional YAML properties
     metadata.additionalYAMLProps.forEach((value, key) => {
         // Try to parse JSON strings back to their original structure
