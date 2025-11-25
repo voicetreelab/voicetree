@@ -16,7 +16,16 @@
 
 import { describe, it, expect } from 'vitest'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+import type { Graph, Edge } from '@/pure/graph'
+
+/** Unwrap Either or fail test */
+// todo this isn't worth a seperate method
+function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
+  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
+  return result.right
+}
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 
 describe('loadGraphFromDisk - Edge Extraction', () => {
   describe('BEHAVIOR: Extract edges from wikilinks in markdown files', () => {
@@ -25,7 +34,7 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       const vaultPath = '/Users/bobbobby/repos/vaults/vscode_spike'
 
       // WHEN: Load graph from disk
-      const graph = await loadGraphFromDisk(O.some(vaultPath))
+      const graph = unwrapGraph(await loadGraphFromDisk(O.some(vaultPath)))
 
       // THEN: Graph should contain both nodes
       expect(graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']).toBeDefined()
@@ -36,7 +45,7 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       // So node 181 should have _179 in its outgoing edges
       const node181 = graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']
 
-      expect(node181.outgoingEdges.some(e => e.targetId === '_179.md')).toBe(true)
+      expect(node181.outgoingEdges.some((e: Edge) => e.targetId === '_179.md')).toBe(true)
     })
   })
 })

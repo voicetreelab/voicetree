@@ -21,12 +21,19 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createContextNode } from '@/shell/edge/main/graph/createContextNode.ts'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
+
+/** Unwrap Either or fail test */
+function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
+  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
+  return result.right
+}
 import { setGraph, setVaultPath, getVaultPath } from '@/shell/edge/main/state/graph-store.ts'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
 import * as O from 'fp-ts/lib/Option.js'
+import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath } from '@/pure/graph'
+import type { NodeIdAndFilePath, Graph, Edge, GraphNode } from '@/pure/graph'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
@@ -37,7 +44,7 @@ describe('createContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const graph = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
     setGraph(graph)
 
     // Clear parent node backups
@@ -161,7 +168,7 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // AND: Reload graph from disk
-      const reloadedGraph = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+      const reloadedGraph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
 
       // THEN: The context node should be present in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
@@ -262,7 +269,7 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
-      const largeGraph = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      const largeGraph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH)))
       setGraph(largeGraph)
 
       // VERIFY: Graph has at least 5 nodes
@@ -328,7 +335,7 @@ describe('createContextNode - Integration Tests', () => {
       }
 
       // THEN: Reload graph to get the context node
-      const reloadedGraph = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      const reloadedGraph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH)))
 
       // VERIFY: Context node exists in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
@@ -338,7 +345,7 @@ describe('createContextNode - Integration Tests', () => {
       expect(reloadedParentNode).toBeDefined()
 
       const edgesToContextNode = reloadedParentNode.outgoingEdges.filter(
-        edge => edge.targetId === contextNodeId
+        (edge: Edge) => edge.targetId === contextNodeId
       )
 
       console.log('\n' + '='.repeat(80))
@@ -349,7 +356,7 @@ describe('createContextNode - Integration Tests', () => {
       console.log(`Total outgoing edges from parent: ${reloadedParentNode.outgoingEdges.length}`)
       console.log(`Edges to context node: ${edgesToContextNode.length}`)
       console.log(`\nAll outgoing edges from parent:`)
-      reloadedParentNode.outgoingEdges.forEach((edge, i) => {
+      reloadedParentNode.outgoingEdges.forEach((edge: Edge, i: number) => {
         console.log(`  ${i + 1}. -> ${edge.targetId}${edge.targetId === contextNodeId ? ' (CONTEXT NODE)' : ''}`)
       })
       console.log('='.repeat(80) + '\n')
@@ -358,8 +365,8 @@ describe('createContextNode - Integration Tests', () => {
       expect(edgesToContextNode.length).toBe(1)
 
       // ALSO VERIFY: Context node should have exactly ONE incoming edge (from parent)
-      const incomingEdgesCount = Object.values(reloadedGraph.nodes).filter(node =>
-        node.outgoingEdges.some(edge => edge.targetId === contextNodeId)
+      const incomingEdgesCount = Object.values(reloadedGraph.nodes).filter((node: GraphNode) =>
+        node.outgoingEdges.some((edge: Edge) => edge.targetId === contextNodeId)
       ).length
 
       console.log(`Incoming edges to context node: ${incomingEdgesCount}`)
