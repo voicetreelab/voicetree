@@ -2,6 +2,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import matter from 'gray-matter'
 import type {Graph, GraphNode} from '@/pure/graph'
+import {NODE_UI_METADATA_YAML_KEYS} from '@/pure/graph'
 import {filenameToNodeId} from '@/pure/graph/markdown-parsing/filename-utils.ts'
 import {markdownToTitle} from '@/pure/graph/markdown-parsing/markdown-to-title.ts'
 import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges.ts";
@@ -93,14 +94,14 @@ function valueToString(value: unknown): string {
 }
 
 /**
- * Extract additional YAML properties that are not known standard properties.
- * Known properties: color, position, title, node_id, summary, isContextNode
+ * Extract YAML properties, excluding keys that have explicit typed fields in NodeUIMetadata.
  */
-function extractAdditionalYAMLProps(rawYAMLData: Record<string, unknown>): ReadonlyMap<string, string> {
-    const knownProperties = new Set(['color', 'position', 'title', 'node_id', 'summary', 'isContextNode'])
-
+function extractAdditionalYAMLProps(
+    rawYAMLData: Record<string, unknown>,
+    keysWithExplicitFields: ReadonlySet<string>
+): ReadonlyMap<string, string> {
     const additionalProps = Object.entries(rawYAMLData).reduce((acc, [key, value]) => {
-        if (!knownProperties.has(key) && value !== undefined && value !== null) {
+        if (!keysWithExplicitFields.has(key) && value !== undefined && value !== null) {
             acc.set(key, valueToString(value))
         }
         return acc
@@ -136,11 +137,11 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     // Compute title using markdownToTitle
     const title = markdownToTitle(titleFromFrontmatter, content, filename)
 
-    // Extract additional YAML properties from raw YAML data
-    const additionalYAMLProps = extractAdditionalYAMLProps(parsed.data)
-
     // Read isContextNode from frontmatter (explicit, not derived)
     const isContextNode = parsed.data.isContextNode === true
+
+    // Extract additional YAML properties, excluding keys that have explicit fields in NodeUIMetadata
+    const additionalYAMLProps = extractAdditionalYAMLProps(parsed.data, NODE_UI_METADATA_YAML_KEYS)
 
     // Return node with computed title
     return {
