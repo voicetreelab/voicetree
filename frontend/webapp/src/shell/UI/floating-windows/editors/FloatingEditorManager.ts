@@ -18,8 +18,8 @@ import {
     createWindowChrome,
     getOrCreateOverlay
 } from '@/shell/UI/floating-windows/cytoscape-floating-windows.ts';
-import type {Position} from '../../views/IVoiceTreeGraphView.ts';
-import type {HotkeyManager} from '../../views/HotkeyManager.ts';
+import type {Position} from '@/shell/UI/views/IVoiceTreeGraphView.ts';
+import type {HotkeyManager} from '@/shell/UI/views/HotkeyManager.ts';
 import type {Graph, GraphDelta, NodeIdAndFilePath} from '@/pure/graph';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
 import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/edge/UI-edge/graph/handleUIActions.ts";
@@ -51,14 +51,13 @@ export async function createFloatingEditor(
     // Derive editor ID from node ID
     const id = `${nodeId}-editor`;
 
-    // Check if already exists
-    const existing = cy.nodes(`#${id}`);
-    if (existing && existing.length > 0) {
-        console.log('[createAnchoredFloatingEditor] Editor already exists:', id);
+    // Check if already exists in registry (prevents duplicate editors)
+    if (editorRegistry.has(nodeId)) {
+        console.log('[createFloatingEditor] Editor already exists in registry:', nodeId);
         return undefined;
     }
 
-    // Register in editor registry if provided
+    // Register in editor registry
     editorRegistry.set(nodeId, id);
 
     // Always resizable
@@ -111,7 +110,6 @@ export async function createFloatingEditor(
     // Create cleanup wrapper that handles registry and shadow node cleanup
     const floatingWindow: FloatingWindowUIHTMLData = {
         id,
-        cy,
         windowElement,
         contentContainer,
         titleBar,
@@ -152,8 +150,8 @@ export async function createFloatingEditor(
 export class FloatingEditorManager {
     private cy: Core;
 
-    // Hover mode state
-    private currentHoverEditor: HTMLElement | null = null;
+    // Hover mode state - store full object so cleanup() can be called
+    private currentHoverEditor: FloatingWindowUIHTMLData | null = null;
 
     // Track which editors are open for each node (for external content updates)
     private nodeIdToEditorId = new Map<NodeIdAndFilePath, string>();
@@ -322,6 +320,12 @@ export class FloatingEditorManager {
         nodeId: string,
         nodePos: Position
     ): Promise<void> {
+        // Skip if this node already has an editor open (hover or permanent)
+        if (this.nodeIdToEditorId.has(nodeId)) {
+            console.log('[HoverEditor] Skipping - node already has editor:', nodeId);
+            return;
+        }
+
         // Close any existing hover editor
         this.closeHoverEditor();
 
@@ -360,7 +364,7 @@ export class FloatingEditorManager {
             }, 100);
 
             // Store reference
-            this.currentHoverEditor = floatingWindow.windowElement;
+            this.currentHoverEditor = floatingWindow;
         } catch (error) {
             console.error('[FloatingWindowManager] Error creating hover editor:', error);
         }
@@ -370,7 +374,7 @@ export class FloatingEditorManager {
         if (!this.currentHoverEditor) return;
 
         console.log('[FloatingWindowManager] Closing command-hover editor');
-        this.currentHoverEditor.remove();
+        this.currentHoverEditor.cleanup();
         this.currentHoverEditor = null;
     }
 

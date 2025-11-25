@@ -32,7 +32,8 @@ import '@/shell/UI/cytoscape-graph-ui'; // Import to trigger extension registrat
 cytoscape.use(navigator);
 import {StyleService} from '@/shell/UI/cytoscape-graph-ui/services/StyleService.ts';
 import {BreathingAnimationService} from '@/shell/UI/cytoscape-graph-ui/services/BreathingAnimationService.ts';
-import {ContextMenuService} from '@/shell/UI/cytoscape-graph-ui/services/ContextMenuService.ts';
+import {RadialMenuService} from '@/shell/UI/cytoscape-graph-ui/services/RadialMenuService.ts';
+import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts';
 import {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
 import {HotkeyManager} from './HotkeyManager.ts';
 import {SearchService} from './SearchService.ts';
@@ -48,11 +49,8 @@ import {clearCytoscapeState} from '@/shell/edge/UI-edge/graph/clearCytoscapeStat
 import {createSettingsEditor} from "@/shell/edge/UI-edge/settings/createSettingsEditor.ts";
 
 import {
-    spawnBackupTerminal,
-    spawnTerminalWithSyntheticParent
+    spawnBackupTerminal
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnBackupTerminal.ts";
-import type {TerminalData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
-import {getNextTerminalCount, getTerminals} from "@/shell/edge/UI-edge/state/UIAppState.ts";
 
 /**
  * Main VoiceTreeGraphView implementation
@@ -67,7 +65,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     // Services
     private styleService!: StyleService; // Initialized in render()
     private animationService!: BreathingAnimationService; // Initialized in render()
-    private contextMenuService?: ContextMenuService; // Initialized in setupCytoscape()
+    private radialMenuService?: RadialMenuService; // Initialized in setupCytoscape()
+    private verticalMenuService?: VerticalMenuService; // Initialized in setupCytoscape()
 
     // Managers
     private floatingWindowManager: FloatingEditorManager;
@@ -413,7 +412,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
     }
 
     private setupCytoscape(): void {
-        this.contextMenuService = setupCytoscape({
+        const menuServices = setupCytoscape({
             cy: this.cy,
             savePositionsTimeout: {current: this.savePositionsTimeout},
             onLayoutComplete: () => this.layoutCompleteEmitter.emit(),
@@ -421,6 +420,8 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             getCurrentGraphState: () => this.getCurrentGraphState(),
             floatingWindowManager: this.floatingWindowManager
         });
+        this.radialMenuService = menuServices.radialMenuService;
+        this.verticalMenuService = menuServices.verticalMenuService;
     }
 
     /**
@@ -453,7 +454,7 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
             fitToLastNode: () => this.navigationService.fitToLastNode(),
             cycleTerminal: (direction) => this.navigationService.cycleTerminal(direction),
             createNewNode: createNewNodeAction(this.cy, this.floatingWindowManager),
-            runTerminal: runTerminalAction(this.cy, this.floatingWindowManager)
+            runTerminal: runTerminalAction(this.cy)
         });
 
         // Register cmd-f for search
@@ -671,9 +672,12 @@ export class VoiceTreeGraphView extends Disposable implements IVoiceTreeGraphVie
         this.floatingWindowManager.dispose();
         this.searchService.dispose();
 
-        // Dispose services
-        if (this.contextMenuService) {
-            this.contextMenuService.destroy();
+        // Dispose menu services
+        if (this.radialMenuService) {
+            this.radialMenuService.destroy();
+        }
+        if (this.verticalMenuService) {
+            this.verticalMenuService.destroy();
         }
 
         // Dispose speed dial menu
