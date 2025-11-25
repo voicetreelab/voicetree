@@ -4,13 +4,6 @@ import * as path from 'path'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
-import type { Graph } from '@/pure/graph'
-
-/** Unwrap Either or fail test */
-function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
-  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
-  return result.right
-}
 import { mapNewGraphToDelta } from '@/pure/graph/graphDelta/mapNewGraphtoDelta.ts'
 import cytoscape from 'cytoscape'
 import type { Core } from 'cytoscape'
@@ -73,7 +66,9 @@ Setup instructions.`
     console.log('✓ Step 1: Created markdown files on disk')
 
     // STEP 2: Load graph from disk
-    const graph = unwrapGraph(await loadGraphFromDisk(O.some(tempDir)))
+    const loadResult = await loadGraphFromDisk(O.some(tempDir))
+    if (E.isLeft(loadResult)) throw new Error('Expected Right')
+    const graph = loadResult.right
 
     console.log('✓ Step 2: Loaded graph from disk')
     console.log('  Graph nodes:', Object.keys(graph.nodes))
@@ -153,7 +148,9 @@ _Links:_
     await fs.writeFile(path.join(tempDir, 'node-b.md'), '# Node B', 'utf-8')
     await fs.writeFile(path.join(tempDir, 'node-c.md'), '# Node C', 'utf-8')
 
-    const graph = unwrapGraph(await loadGraphFromDisk(O.some(tempDir)))
+    const loadResult2 = await loadGraphFromDisk(O.some(tempDir))
+    if (E.isLeft(loadResult2)) throw new Error('Expected Right')
+    const graph = loadResult2.right
     const delta = mapNewGraphToDelta(graph)
     applyGraphDeltaToUI(cy, delta)
 

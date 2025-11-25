@@ -22,18 +22,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createContextNode } from '@/shell/edge/main/graph/createContextNode.ts'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
 
-/** Unwrap Either or fail test */
-function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
-  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
-  return result.right
-}
 import { setGraph, setVaultPath, getVaultPath } from '@/shell/edge/main/state/graph-store.ts'
 import { EXAMPLE_SMALL_PATH, EXAMPLE_LARGE_PATH } from '@/utils/test-utils/fixture-paths.ts'
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { NodeIdAndFilePath, Graph, Edge, GraphNode } from '@/pure/graph'
+import type { NodeIdAndFilePath, Edge, GraphNode } from '@/pure/graph'
 
 describe('createContextNode - Integration Tests', () => {
   let createdContextNodeId: NodeIdAndFilePath | null = null
@@ -44,7 +39,9 @@ describe('createContextNode - Integration Tests', () => {
     setVaultPath(EXAMPLE_SMALL_PATH)
 
     // Load the graph from disk
-    const graph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
+    const loadResult = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+    if (E.isLeft(loadResult)) throw new Error('Expected Right')
+    const graph = loadResult.right
     setGraph(graph)
 
     // Clear parent node backups
@@ -168,7 +165,9 @@ describe('createContextNode - Integration Tests', () => {
       createdContextNodeId = contextNodeId
 
       // AND: Reload graph from disk
-      const reloadedGraph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH)))
+      const reloadResult = await loadGraphFromDisk(O.some(EXAMPLE_SMALL_PATH))
+      if (E.isLeft(reloadResult)) throw new Error('Expected Right')
+      const reloadedGraph = reloadResult.right
 
       // THEN: The context node should be present in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
@@ -269,7 +268,9 @@ describe('createContextNode - Integration Tests', () => {
     it('should create context node with only one edge to parent, not one edge per subgraph node', async () => {
       // GIVEN: example_real_large fixture with at least 5 nodes
       setVaultPath(EXAMPLE_LARGE_PATH)
-      const largeGraph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH)))
+      const largeLoadResult = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      if (E.isLeft(largeLoadResult)) throw new Error('Expected Right')
+      const largeGraph = largeLoadResult.right
       setGraph(largeGraph)
 
       // VERIFY: Graph has at least 5 nodes
@@ -335,7 +336,9 @@ describe('createContextNode - Integration Tests', () => {
       }
 
       // THEN: Reload graph to get the context node
-      const reloadedGraph = unwrapGraph(await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH)))
+      const largeReloadResult = await loadGraphFromDisk(O.some(EXAMPLE_LARGE_PATH))
+      if (E.isLeft(largeReloadResult)) throw new Error('Expected Right')
+      const reloadedGraph = largeReloadResult.right
 
       // VERIFY: Context node exists in reloaded graph
       expect(reloadedGraph.nodes[contextNodeId]).toBeDefined()
@@ -365,7 +368,7 @@ describe('createContextNode - Integration Tests', () => {
       expect(edgesToContextNode.length).toBe(1)
 
       // ALSO VERIFY: Context node should have exactly ONE incoming edge (from parent)
-      const incomingEdgesCount = Object.values(reloadedGraph.nodes).filter((node: GraphNode) =>
+      const incomingEdgesCount = (Object.values(reloadedGraph.nodes) as GraphNode[]).filter((node: GraphNode) =>
         node.outgoingEdges.some((edge: Edge) => edge.targetId === contextNodeId)
       ).length
 

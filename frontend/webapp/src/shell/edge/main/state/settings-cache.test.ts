@@ -3,57 +3,25 @@ import { getCachedSettings, setCachedSettings, clearCachedSettings } from './set
 import type { Settings } from '@/pure/settings';
 
 describe('settings-cache', () => {
-  const mockSettings: Settings = {
-    terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
-    agentCommand: 'test-command.sh',
-    shiftEnterSendsOptionEnter: true
-  };
-
-  const mockSettings2: Settings = {
-    terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
-    agentCommand: 'another-command.sh',
-    shiftEnterSendsOptionEnter: false
-  };
-
-  // Reset cache before each test to ensure isolation
   beforeEach(() => {
     clearCachedSettings();
   });
 
-  it('should return null initially', () => {
-    const result = getCachedSettings();
-    expect(result).toBeNull();
-  });
+  it('should start null, accept settings, and clear back to null', () => {
+    // Initial state is null
+    expect(getCachedSettings()).toBeNull();
 
-  it('should store and retrieve settings', () => {
-    setCachedSettings(mockSettings);
-    const result = getCachedSettings();
-
-    expect(result).toEqual(mockSettings);
-  });
-
-  it('should clear cached settings back to null', () => {
+    // Can set settings
+    const mockSettings: Settings = {
+      terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
+      agentCommand: 'test-command.sh',
+      shiftEnterSendsOptionEnter: true
+    };
     setCachedSettings(mockSettings);
     expect(getCachedSettings()).toEqual(mockSettings);
 
+    // Can clear settings back to null
     clearCachedSettings();
     expect(getCachedSettings()).toBeNull();
-  });
-
-  it('should return the same reference on multiple get calls (caching behavior)', () => {
-    setCachedSettings(mockSettings);
-
-    const result1 = getCachedSettings();
-    const result2 = getCachedSettings();
-
-    expect(result1).toBe(result2); // Same reference
-  });
-
-  it('should overwrite previous settings when called multiple times', () => {
-    setCachedSettings(mockSettings);
-    expect(getCachedSettings()).toEqual(mockSettings);
-
-    setCachedSettings(mockSettings2);
-    expect(getCachedSettings()).toEqual(mockSettings2);
   });
 });

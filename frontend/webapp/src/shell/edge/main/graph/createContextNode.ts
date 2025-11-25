@@ -95,7 +95,7 @@ title: CONTEXT for ${parentTitle}
 isContextNode: true
 ---
 
-## CONTEXT for: (${parentTitle})
+## CONTEXT for: '${parentTitle}'
 \`\`\`
 ${asciiTree}
 \`\`\`

@@ -69,6 +69,7 @@
     "fp-ts": "^2.16.11",
     "gray-matter": "^4.0.3",
     "lodash.debounce": "^4.0.8",
+    "lucide": "^0.554.0",
     "lucide-react": "^0.544.0",
     "mermaid": "^11.12.0",
     "ninja-keys": "^1.2.2",

@@ -16,14 +16,8 @@
 
 import { describe, it, expect } from 'vitest'
 import { loadGraphFromDisk } from '@/shell/edge/main/graph/readAndDBEventsPath/loadGraphFromDisk.ts'
-import type { Graph, Edge } from '@/pure/graph'
+import type { Edge } from '@/pure/graph'
 
-/** Unwrap Either or fail test */
-// todo this isn't worth a seperate method
-function unwrapGraph(result: E.Either<unknown, Graph>): Graph {
-  if (E.isLeft(result)) throw new Error('Expected Right but got Left')
-  return result.right
-}
 import * as O from 'fp-ts/lib/Option.js'
 import * as E from 'fp-ts/lib/Either.js'
 
@@ -34,7 +28,9 @@ describe('loadGraphFromDisk - Edge Extraction', () => {
       const vaultPath = '/Users/bobbobby/repos/vaults/vscode_spike'
 
       // WHEN: Load graph from disk
-      const graph = unwrapGraph(await loadGraphFromDisk(O.some(vaultPath)))
+      const loadResult = await loadGraphFromDisk(O.some(vaultPath))
+      if (E.isLeft(loadResult)) throw new Error('Expected Right')
+      const graph = loadResult.right
 
       // THEN: Graph should contain both nodes
       expect(graph.nodes['181_Xavier_VS_Code_Integration_Summary_Path_C_Implementation_Analysis.md']).toBeDefined()

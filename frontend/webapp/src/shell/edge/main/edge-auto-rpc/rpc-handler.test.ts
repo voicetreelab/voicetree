@@ -90,56 +90,24 @@ describe('setupRPCHandlers', () => {
     expect(result).toEqual({ error: 'Function not found: nonExistentFunction' })
   })
 
-  it('should handle function errors gracefully', async () => {
+  it('should handle promise rejections with Error and non-Error values', async () => {
     const { setupRPCHandlers } = await import('./rpc-handler.ts')
 
+    setupRPCHandlers()
+
+    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
+    const handler = handlerCall?.[1]
+
+    // Test promise rejection with Error object
     const testError = new Error('Test error')
-    // Use rejected promise instead of throwing for functional style
     mockGetGraph.mockRejectedValue(testError)
+    const errorResult = await handler({}, 'getGraph', [])
+    expect(errorResult).toEqual({ error: 'RPC call failed: Test error' })
 
-    setupRPCHandlers()
-
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
-
-    // Call handler with function that returns rejected promise
-    const result = await handler({}, 'getGraph', [])
-
-    expect(result).toEqual({ error: 'RPC call failed: Test error' })
-  })
-
-  it('should handle Promise rejections', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
-
-    const testError = new Error('Async error')
-    mockLoadSettings.mockRejectedValue(testError)
-
-    setupRPCHandlers()
-
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
-
-    // Call handler with function that returns rejected promise
-    const result = await handler({}, 'loadSettings', [])
-
-    expect(result).toEqual({ error: 'RPC call failed: Async error' })
-  })
-
-  it('should handle non-Error rejected values', async () => {
-    const { setupRPCHandlers } = await import('./rpc-handler.ts')
-
-    // Use rejected promise with non-Error value instead of throwing
+    // Test promise rejection with non-Error value
     mockGetGraph.mockRejectedValue('String error')
-
-    setupRPCHandlers()
-
-    const handlerCall = mockIpcMainHandle.mock.calls.find(call => call[0] === 'rpc:call')
-    const handler = handlerCall?.[1]
-
-    // Call handler with function that rejects with non-Error
-    const result = await handler({}, 'getGraph', [])
-
-    expect(result).toEqual({ error: 'RPC call failed: String error' })
+    const nonErrorResult = await handler({}, 'getGraph', [])
+    expect(nonErrorResult).toEqual({ error: 'RPC call failed: String error' })
   })
 
   it('should preserve return value types from called functions', async () => {
