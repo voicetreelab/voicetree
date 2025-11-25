@@ -7,59 +7,45 @@ import type {NodeIdAndFilePath} from "@/pure/graph";
 import {
     spawnTerminalWithNewContextNode
 } from "@/shell/edge/UI-edge/floating-windows/terminals/spawnTerminalWithCommandFromUI.ts";
-
 import {getFilePathForNode} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
-
-export interface Position {
-    x: number;
-    y: number;
-}
 
 // Register the extension with cytoscape
 cytoscape.use(cxtmenu);
 
-export interface ContextMenuDependencies {
+export interface RadialMenuDependencies {
     createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) => Promise<void>;
-    handleAddNodeAtPosition: (position: Position) => Promise<void>;
 }
 
-interface MenuCommand {
+interface RadialMenuCommand {
     content: string | HTMLElement;
     select: (ele: NodeSingular) => void | Promise<void>;
     enabled: boolean;
 }
 
-
-export class ContextMenuService {
+export class RadialMenuService {
     private cy: Core | null = null;
-    private deps: ContextMenuDependencies | null = null;
-    private menuInstance: unknown = null;
-    private canvasMenuInstance: unknown = null;
-    private lastCanvasClickPosition: { x: number; y: number } | null = null;
+    private deps: RadialMenuDependencies | null = null;
+    private radialMenuInstance: unknown = null;
 
-    constructor() {
-        // Dependencies will be provided in initialize()
-    }
-
-    initialize(cy: Core, deps: ContextMenuDependencies): void {
+    initialize(cy: Core, deps: RadialMenuDependencies): void {
         this.cy = cy;
         this.deps = deps;
-        this.setupContextMenu();
-        this.setupCanvasContextMenu();
+        this.setupRadialMenuOnHover();
+        this.setupMenuCloseOnMouseLeave();
     }
 
-    private setupContextMenu(): void {
+    private setupRadialMenuOnHover(): void {
         if (!this.cy) return;
 
         // Skip if cytoscape is in headless mode (no container)
         if (!this.cy.container()) {
-            console.log('[ContextMenuService] Skipping context menu setup - cytoscape is in headless mode');
+            console.log('[RadialMenuService] Skipping radial menu setup - cytoscape is in headless mode');
             return;
         }
 
         // Skip if DOM is not available (e.g., in test environment)
         if (typeof document === 'undefined' || !document.body || !document.documentElement) {
-            console.log('[ContextMenuService] Skipping context menu setup - DOM not available');
+            console.log('[RadialMenuService] Skipping radial menu setup - DOM not available');
             return;
         }
 
@@ -77,7 +63,7 @@ export class ContextMenuService {
         const menuOptions = {
             menuRadius: 75,
             selector: 'node',
-            commands: (node: NodeSingular) => this.getNodeCommands(node),
+            commands: (node: NodeSingular) => this.getRadialMenuCommands(node),
             fillColor: backgroundColor,
             activeFillColor: selectColor,
             activePadding: 20,
@@ -85,7 +71,7 @@ export class ContextMenuService {
             separatorWidth: 3,
             spotlightPadding: 4,
             adaptativeNodeSpotlightRadius: true,
-            openMenuEvents: 'cxttapstart taphold',
+            openMenuEvents: 'mouseover', // Radial menu on hover
             itemColor: textColor,
             itemTextShadowColor: 'transparent',
             zIndex: 9999,
@@ -94,89 +80,27 @@ export class ContextMenuService {
         };
 
         // @ts-expect-error - cxtmenu doesn't have proper TypeScript definitions
-        this.menuInstance = this.cy.cxtmenu(menuOptions);
+        this.radialMenuInstance = this.cy.cxtmenu(menuOptions);
     }
 
-    private setupCanvasContextMenu(): void {
+    private setupMenuCloseOnMouseLeave(): void {
         if (!this.cy) return;
 
-        // Skip if cytoscape is in headless mode (no container)
-        if (!this.cy.container()) {
-            console.log('[ContextMenuService] Skipping canvas context menu setup - cytoscape is in headless mode');
-            return;
-        }
-
-        // Skip if DOM is not available (e.g., in test environment)
-        if (typeof document === 'undefined' || !document.body || !document.documentElement) {
-            console.log('[ContextMenuService] Skipping canvas context menu setup - DOM not available');
-            return;
-        }
-
-        // Get theme colors from CSS variables or use defaults
-        const style = getComputedStyle(document.body);
-        const isDarkMode = document.documentElement.classList.contains('dark');
-
-        const selectColor = style.getPropertyValue('--text-selection').trim() ||
-            (isDarkMode ? '#3b82f6' : '#2563eb');
-        const backgroundColor = style.getPropertyValue('--background-secondary').trim() ||
-            (isDarkMode ? '#1f2937' : '#f3f4f6');
-        const textColor = style.getPropertyValue('--text-normal').trim() ||
-            (isDarkMode ? '#ffffff' : '#111827');
-
-        // Store the canvas click position before menu opens
-        this.cy.on('cxttapstart', (event) => {
+        // Close radial menu when mouse moves to background (not over any node)
+        this.cy.on('mouseover', (event) => {
             if (event.target === this.cy) {
-                this.lastCanvasClickPosition = event.position;
+                const menuCanvas = document.querySelector('.cxtmenu-canvas') as HTMLElement | null;
+                if (menuCanvas) {
+                    menuCanvas.style.display = 'none';
+                }
             }
         });
-
-        const canvasMenuOptions = {
-            menuRadius: 75,
-            selector: 'core', // Use 'core' selector for canvas/background
-            commands: () => this.getCanvasCommands(),
-            fillColor: backgroundColor,
-            activeFillColor: selectColor,
-            activePadding: 20,
-            indicatorSize: 24,
-            separatorWidth: 3,
-            spotlightPadding: 4,
-            minSpotlightRadius: 24,
-            maxSpotlightRadius: 38,
-            openMenuEvents: 'cxttapstart taphold',
-            itemColor: textColor,
-            itemTextShadowColor: 'transparent',
-            zIndex: 9999,
-            atMouse: true, // Show menu at mouse position for canvas
-            outsideMenuCancel: 10,
-        };
-
-        // @ts-expect-error - cxtmenu doesn't have proper TypeScript definitions
-        this.canvasMenuInstance = this.cy.cxtmenu(canvasMenuOptions);
     }
 
-    private getCanvasCommands(): MenuCommand[] {
-        const commands: MenuCommand[] = [];
-
-        // Add GraphNode Here
-        if (this.deps && this.lastCanvasClickPosition) {
-            const position = this.lastCanvasClickPosition;
-            commands.push({
-                content: this.createSvgIcon('plus', 'Add GraphNode Here'),
-                select: async () => {
-                    console.log('[ContextMenuService] Creating node at position:', position);
-                    await this.deps!.handleAddNodeAtPosition(position);
-                },
-                enabled: true,
-            });
-        }
-
-        return commands;
-    }
-
-    private getNodeCommands(node: NodeSingular): MenuCommand[] {
+    private getRadialMenuCommands(node: NodeSingular): RadialMenuCommand[] {
         if (!this.cy || !this.deps) return [];
 
-        const commands: MenuCommand[] = [];
+        const commands: RadialMenuCommand[] = [];
         const nodeId = node.id();
 
         // Open in Editor
@@ -191,24 +115,23 @@ export class ContextMenuService {
         // Create child node
         commands.push({
             content: this.createSvgIcon('expand', 'Create Child'),
-            select:
-                this.createChildNodeFromContextMenu(nodeId),
+            select: this.createChildNodeFromContextMenu(nodeId),
             enabled: true,
         });
 
         // Terminal
         commands.push({
             content: this.createSvgIcon('terminal', 'Terminal'),
-            select:
-                this.createTerminalFromContextMenu(nodeId),
+            select: this.createTerminalFromContextMenu(nodeId),
             enabled: true,
         });
 
-        // Delete node
+        // Delete node(s) - shows count when multiple nodes are selected
+        const selectedCount = this.cy.$(':selected').nodes().size();
+        const deleteLabel = selectedCount > 1 ? `Delete (${selectedCount})` : 'Delete';
         commands.push({
-            content: this.createSvgIcon('trash', 'Delete'),
-            select:
-                this.deleteNode(nodeId),
+            content: this.createSvgIcon('trash', deleteLabel),
+            select: this.deleteNode(nodeId),
             enabled: true,
         });
 
@@ -227,7 +150,7 @@ export class ContextMenuService {
 
     private createChildNodeFromContextMenu(nodeId: string) {
         return async () => {
-            console.log('[ContextMenuService] adding child node to:', nodeId);
+            console.log('[RadialMenuService] adding child node to:', nodeId);
             const childId: NodeIdAndFilePath = await createNewChildNodeFromUI(nodeId, this.cy!);
             await this.deps!.createAnchoredFloatingEditor(childId);
         };
@@ -245,9 +168,21 @@ export class ContextMenuService {
     private deleteNode(nodeId: string) {
         return async () =>  {
             try {
-                await deleteNodeFromUI(nodeId, this.cy!);
+                // Get all selected nodes
+                const selectedNodeIds = this.cy!.$(':selected').nodes().map((n) => n.id());
+
+                // If clicked node is in selection, delete all selected nodes
+                // Otherwise just delete the clicked node
+                const nodesToDelete = selectedNodeIds.includes(nodeId) && selectedNodeIds.length > 1
+                    ? selectedNodeIds
+                    : [nodeId];
+
+                // Delete all nodes
+                for (const id of nodesToDelete) {
+                    await deleteNodeFromUI(id, this.cy!);
+                }
             } catch (error) {
-                console.error('[ContextMenuService] Error deleting node:', error);
+                console.error('[RadialMenuService] Error deleting node:', error);
                 alert(`Error deleting node: ${error}`);
             }
         };
@@ -300,15 +235,17 @@ export class ContextMenuService {
     }
 
     destroy(): void {
-        if (this.menuInstance && typeof (this.menuInstance as Record<string, unknown>).destroy === 'function') {
-            (this.menuInstance as { destroy: () => void }).destroy();
+        // Destroy radial menu instance
+        if (this.radialMenuInstance && typeof (this.radialMenuInstance as Record<string, unknown>).destroy === 'function') {
+            (this.radialMenuInstance as { destroy: () => void }).destroy();
         }
-        if (this.canvasMenuInstance && typeof (this.canvasMenuInstance as Record<string, unknown>).destroy === 'function') {
-            (this.canvasMenuInstance as { destroy: () => void }).destroy();
+
+        // Remove event listeners
+        if (this.cy) {
+            this.cy.removeListener('mouseover');
         }
-        this.menuInstance = null;
-        this.canvasMenuInstance = null;
-        this.lastCanvasClickPosition = null;
+
+        this.radialMenuInstance = null;
         this.cy = null;
         this.deps = null;
     }
