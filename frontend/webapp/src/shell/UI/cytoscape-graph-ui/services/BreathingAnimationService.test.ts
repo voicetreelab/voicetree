@@ -35,36 +35,11 @@ describe('BreathingAnimationService', () => {
       expect(node.data('animationType')).toBe(AnimationType.NEW_NODE);
     });
 
-    it('should apply correct classes for different animation types', () => {
+    it('should apply correct animation classes and toggle between expand/contract', () => {
       vi.useFakeTimers();
 
-      // Test NEW_NODE animation (green) - starts with expand class
+      // Test NEW_NODE animation starts with expand class and toggles correctly
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
-      expect(node.hasClass('breathing-new-expand')).toBe(true);
-
-      service.stopAnimationForNode(node);
-      vi.clearAllMocks();
-
-      // Test PINNED animation (orange) - starts with expand class
-      service.addBreathingAnimation(node, AnimationType.PINNED);
-      expect(node.hasClass('breathing-pinned-expand')).toBe(true);
-
-      service.stopAnimationForNode(node);
-      vi.clearAllMocks();
-
-      // Test APPENDED_CONTENT animation (cyan) - starts with expand class
-      service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
-      expect(node.hasClass('breathing-appended-expand')).toBe(true);
-
-      vi.useRealTimers();
-    });
-
-    it('should toggle between expand and contract classes', () => {
-      vi.useFakeTimers();
-
-      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
-
-      // Should start with expand class
       expect(node.hasClass('breathing-new-expand')).toBe(true);
       expect(node.hasClass('breathing-new-contract')).toBe(false);
 
@@ -77,6 +52,18 @@ describe('BreathingAnimationService', () => {
       vi.advanceTimersByTime(1000);
       expect(node.hasClass('breathing-new-expand')).toBe(true);
       expect(node.hasClass('breathing-new-contract')).toBe(false);
+
+      service.stopAnimationForNode(node);
+
+      // Test PINNED animation (orange) - starts with expand class
+      service.addBreathingAnimation(node, AnimationType.PINNED);
+      expect(node.hasClass('breathing-pinned-expand')).toBe(true);
+
+      service.stopAnimationForNode(node);
+
+      // Test APPENDED_CONTENT animation (cyan) - starts with expand class
+      service.addBreathingAnimation(node, AnimationType.APPENDED_CONTENT);
+      expect(node.hasClass('breathing-appended-expand')).toBe(true);
 
       vi.useRealTimers();
     });
@@ -157,8 +144,9 @@ describe('BreathingAnimationService', () => {
       vi.useRealTimers();
     });
 
-    it('should remove animation classes', () => {
+    it('should remove animation classes and data from node', () => {
       vi.useFakeTimers();
+      const removeDataSpy = vi.spyOn(node, 'removeData');
 
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
 
@@ -173,17 +161,10 @@ describe('BreathingAnimationService', () => {
       expect(node.hasClass('breathing-new-expand')).toBe(false);
       expect(node.hasClass('breathing-new-contract')).toBe(false);
 
-      vi.useRealTimers();
-    });
-
-    it('should remove animation data from node', () => {
-      // Spy on the removeData method
-      const removeDataSpy = vi.spyOn(node, 'removeData');
-
-      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
-      service.stopAnimationForNode(node);
-
+      // Animation data should be removed
       expect(removeDataSpy).toHaveBeenCalledWith('animationType');
+
+      vi.useRealTimers();
     });
 
     it('should clear the animation interval', () => {
@@ -216,17 +197,15 @@ describe('BreathingAnimationService', () => {
   });
 
   describe('isAnimationActive', () => {
-    it('should return true when animation is active', () => {
+    it('should correctly report animation state', () => {
+      // Initially false
+      expect(service.isAnimationActive(node)).toBe(false);
+
+      // True when animation is active
       service.addBreathingAnimation(node, AnimationType.NEW_NODE);
       expect(service.isAnimationActive(node)).toBe(true);
-    });
 
-    it('should return false when animation is not active', () => {
-      expect(service.isAnimationActive(node)).toBe(false);
-    });
-
-    it('should return false after stopping animation', () => {
-      service.addBreathingAnimation(node, AnimationType.NEW_NODE);
+      // False after stopping animation
       service.stopAnimationForNode(node);
       expect(service.isAnimationActive(node)).toBe(false);
     });

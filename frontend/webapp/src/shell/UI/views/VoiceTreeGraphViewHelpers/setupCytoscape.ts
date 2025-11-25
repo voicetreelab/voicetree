@@ -4,7 +4,7 @@
 import type {Core, NodeSingular} from 'cytoscape';
 import type {Graph, NodeIdAndFilePath} from '@/pure/graph';
 import type {FloatingEditorManager} from '@/shell/UI/floating-windows/editors/FloatingEditorManager.ts';
-import {RadialMenuService} from '@/shell/UI/cytoscape-graph-ui/services/RadialMenuService.ts';
+import {HorizontalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/HorizontalMenuService.ts';
 import {VerticalMenuService} from '@/shell/UI/cytoscape-graph-ui/services/VerticalMenuService.ts';
 import {enableAutoLayout} from '@/shell/UI/cytoscape-graph-ui/graphviz/layout/autoLayout.ts';
 
@@ -22,7 +22,7 @@ export interface SetupCytoscapeParams {
  * Returns the initialized menu services for lifecycle management.
  */
 export function setupCytoscape(params: SetupCytoscapeParams): {
-    radialMenuService: RadialMenuService;
+    horizontalMenuService: HorizontalMenuService;
     verticalMenuService: VerticalMenuService;
 } {
     const {
@@ -55,9 +55,9 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
         void floatingWindowManager.createAnchoredFloatingEditor(node.id()).then(() => console.log('[VoiceTreeGraphView] Created editor'));
     });
 
-    // Setup radial menu (hover)
-    const radialMenuService = new RadialMenuService();
-    radialMenuService.initialize(cy, {
+    // Setup horizontal menu (node hover)
+    const horizontalMenuService = new HorizontalMenuService();
+    horizontalMenuService.initialize(cy, {
         createAnchoredFloatingEditor: (nodeId: NodeIdAndFilePath) =>
             floatingWindowManager.createAnchoredFloatingEditor(nodeId),
     });
@@ -69,5 +69,5 @@ export function setupCytoscape(params: SetupCytoscapeParams): {
             floatingWindowManager.handleAddNodeAtPosition(position)
     });
 
-    return { radialMenuService, verticalMenuService };
+    return { horizontalMenuService, verticalMenuService };
 }
