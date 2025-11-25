@@ -27,12 +27,12 @@ export class TerminalVanilla {
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: NodeJS.Timeout | null = null;
   private fullscreen: FloatingWindowFullscreen;
-  private shiftEnterSendsOptionEnter: boolean;
+  private shiftEnterSendsOptionEnter: boolean = true;
 
   constructor(config: TerminalVanillaConfig) {
     this.container = config.container;
     this.terminalData = config.terminalData;
-    this.shiftEnterSendsOptionEnter = config.shiftEnterSendsOptionEnter ?? true;
+    void window.electronAPI?.main.loadSettings().then(settings => this.shiftEnterSendsOptionEnter = settings.shiftEnterSendsOptionEnter); // todo ugly
 
     // Setup fullscreen with callback to fit terminal when fullscreen changes
     this.fullscreen = new FloatingWindowFullscreen(config.container, () => {
