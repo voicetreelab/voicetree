@@ -4,7 +4,7 @@
   "description": "Transform voice into navigable concept graphs",
   "author": "Manu Masson",
   "private": true,
-  "version": "1.4.3",
+  "version": "1.4.5",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -24,7 +24,8 @@
     "electron:prod": "electron-vite build && electron .",
     "electron:build": "electron-vite build",
     "electron:pack": "electron-vite build && electron-builder",
-    "electron:dist": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && electron-builder --mac --publish=always",
+    "electron:dist": "export CSC_IDENTITY_AUTO_DISCOVERY=false && electron-vite build && electron-builder --mac --config -c.mac.identity=null --publish=never",
+    "electron:dist-and-publish": "export $(cat .env | grep -v '^#' | xargs) && electron-vite build && electron-builder --mac --publish=always",
     "mcp": "npx tsx src/shell/edge/main/mcp-server/index.ts"
   },
   "dependencies": {
@@ -150,6 +151,10 @@
       {
         "from": "../../dist/resources/backend",
         "to": "backend"
+      },
+      {
+        "from": "public/onboarding_tree",
+        "to": "onboarding_tree"
       }
     ],
     "mac": {

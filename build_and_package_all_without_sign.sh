@@ -7,17 +7,6 @@
 
 set -e  # Exit on error
 
-# Parse arguments
-PUBLISH=false
-for arg in "$@"; do
-    case $arg in
-        --publish)
-            PUBLISH=true
-            shift
-            ;;
-    esac
-done
-
 echo "=========================================="
 echo "VoiceTree Complete Build & Package Script"
 echo "=========================================="
@@ -126,26 +115,8 @@ rm -rf dist/electron
 # Build the distributable from frontend
 cd frontend/webapp
 
-# Load environment variables for code signing and notarization
-if [ -f ".env" ]; then
-  echo "Loading Apple code signing credentials from .env..."
-  export $(grep -E '^(APPLE_ID|APPLE_APP_SPECIFIC_PASSWORD|APPLE_TEAM_ID)=' .env | xargs)
-fi
 
-# Update file modification times to satisfy codesign timestamp validation
-echo "Updating file timestamps for codesign..."
-cd ../..
-find dist/resources -type f -exec touch {} +
-cd frontend/webapp
-echo "✅ File timestamps updated"
-
-if [ "$PUBLISH" = true ]; then
-    echo "Publishing enabled - will upload to GitHub releases"
-    npm run electron:dist-and-publish
-else
-    npm run electron:dist
-fi
-
+npm run electron:dist
 # Step 7: Report results
 echo ""
 echo "=========================================="
@@ -187,11 +158,6 @@ if [ -d "../../dist/electron" ]; then
     fi
 fi
 
-echo ""
-if [ "$PUBLISH" = true ]; then
-    echo "Published to GitHub releases!"
-else
-    echo "To publish, run: ./build_and_package_all.sh --publish"
-fi
+echo "To publish, run: ./build_and_package_all.sh --publish"
 echo ""
 echo "Done! 🚀"
