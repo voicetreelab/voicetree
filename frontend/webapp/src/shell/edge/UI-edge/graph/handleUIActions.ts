@@ -1,12 +1,14 @@
-import type {GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeAction} from "@/pure/graph";
+import type {Graph, GraphDelta, GraphNode, NodeIdAndFilePath, Position, UpsertNodeAction} from "@/pure/graph";
 import {
     createDeleteNodeAction,
     createNewNodeNoParent,
-    fromContentChangeToGraphDelta,
     fromCreateChildToUpsertNode
 } from "@/pure/graph/graphDelta/uiInteractionsToGraphDeltas";
 import type {Core} from 'cytoscape';
 import {applyGraphDeltaToUI} from "./applyGraphDeltaToUI";
+import {extractEdges} from "@/pure/graph/markdown-parsing/extract-edges";
+import {markdownToTitle} from "@/pure/graph/markdown-parsing/markdown-to-title";
+import {parseMarkdownToGraphNode} from "@/pure/graph/markdown-parsing";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI";
 
 
@@ -48,22 +50,30 @@ export async function createNewEmptyOrphanNodeFromUI(
     return newNode.relativeFilePathIsID;
 }
 
+function nodeToDelta(graphNode: GraphNode) : GraphDelta {
+    return [{type: 'UpsertNode', nodeToUpsert: graphNode}];
+}
+
 export async function modifyNodeContentFromUI(
     nodeId: NodeIdAndFilePath,
     newContent: string,
     cy: Core,
 ): Promise<void> {
 
-    // Get current graph state
+    // // Get current graph state
     const currentNode: GraphNode = await getNodeFromMainToUI(nodeId);
-    const currentGraph: import("/Users/bobbobby/repos/VoiceTree/frontend/webapp/src/pure/graph/index").Graph = await window.electronAPI?.main.getGraph();
+    const currentGraph: Graph = await window.electronAPI?.main.getGraph();
     if (!currentGraph) {
         console.error("NO GRAPH IN STATE");
         return;
     }
 
     // Create GraphDelta with updated edges based on new content
-    const graphDelta: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent, currentGraph);
+    // const graphDelta: GraphDelta = fromContentChangeToGraphDelta(currentNode, newContent, currentGraph);
+    const newNodeFromContentChange : GraphNode = parseMarkdownToGraphNode(newContent, nodeId, currentGraph)
+    const nodeChangedWithOldMetadata : GraphNode = {...newNodeFromContentChange, nodeUIMetadata: currentNode.nodeUIMetadata};
+
+    const graphDelta : GraphDelta = nodeToDelta(nodeChangedWithOldMetadata)
 
     // Optimistic UI-edge update for edge changes
     applyGraphDeltaToUI(cy, graphDelta);
