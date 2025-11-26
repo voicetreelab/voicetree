@@ -1,4 +1,4 @@
-import type {} from '@/utils/types/electron';
+import type {} from '@/shell/electron';
 import type {NodeIdAndFilePath, Position} from "@/pure/graph";
 import type {Core} from "cytoscape";
 import {
@@ -18,6 +18,7 @@ import {
     vanillaFloatingWindowInstances
 } from "@/shell/edge/UI-edge/state/UIAppState.ts";
 import {getFilePathForNode, getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
+import type {VTSettings} from "@/pure/settings";
 
 
 /**
@@ -37,7 +38,7 @@ export async function spawnTerminalWithNewContextNode(
     const terminals = getTerminals();
 
     // Load settings to get the agentCommand
-    const settings = await window.electronAPI?.main.loadSettings();
+    const settings : VTSettings = await window.electronAPI.main.loadSettings();
     if (!settings) {
         throw Error(`Failed to load settings for ${parentNodeId}`);
     }

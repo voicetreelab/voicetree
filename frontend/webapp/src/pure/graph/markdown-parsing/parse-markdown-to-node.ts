@@ -135,7 +135,7 @@ export function parseMarkdownToGraphNode(content: string, filename: string, grap
     const contentWithoutYamlOrLinks = contentWithoutFrontmatter.replace(/\[\[([^\]]+)\]\]/g, '[$1]*')
 
     // Compute title using markdownToTitle
-    const title = markdownToTitle(titleFromFrontmatter, content, filename)
+    const title = markdownToTitle(titleFromFrontmatter, contentWithoutYamlOrLinks, filename)
 
     // Read isContextNode from frontmatter (explicit, not derived)
     const isContextNode = parsed.data.isContextNode === true

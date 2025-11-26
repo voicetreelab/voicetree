@@ -26,6 +26,7 @@ import {createNewEmptyOrphanNodeFromUI, modifyNodeContentFromUI} from "@/shell/e
 import type {FloatingWindowUIHTMLData} from "@/shell/edge/UI-edge/floating-windows/types.ts";
 import {getNodeFromMainToUI} from "@/shell/edge/UI-edge/graph/getNodeFromMainToUI.ts";
 import {getVanillaInstance, vanillaFloatingWindowInstances} from "@/shell/edge/UI-edge/state/UIAppState.ts";
+import {fromNodeToMarkdownContent} from "@/pure/graph/markdown-writing/node_to_markdown.ts";
 
 /**
  * Function type for getting current graph state
@@ -68,7 +69,7 @@ export async function createFloatingEditor(
     let content = "loading..."
     let title = `${nodeId}`; // fallback to nodeId if node not found
     if (node) {
-        content = node.contentWithoutYamlOrLinks;
+        content = fromNodeToMarkdownContent(node);
         title = `${node.nodeUIMetadata.title}`;
     }
 
@@ -249,7 +250,7 @@ export class FloatingEditorManager {
         for (const nodeDelta of delta) {
             if (nodeDelta.type === 'UpsertNode') {
                 const nodeId = nodeDelta.nodeToUpsert.relativeFilePathIsID;
-                const newContent = nodeDelta.nodeToUpsert.contentWithoutYamlOrLinks;
+                const newContent = fromNodeToMarkdownContent(nodeDelta.nodeToUpsert);
                 const editorId = this.nodeIdToEditorId.get(nodeId);
 
                 if (editorId) {

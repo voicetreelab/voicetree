@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getCachedSettings, setCachedSettings, clearCachedSettings } from './settings-cache.ts';
-import type { Settings } from '@/pure/settings';
+import type { VTSettings } from '@/pure/settings';
 
 describe('settings-cache', () => {
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe('settings-cache', () => {
     expect(getCachedSettings()).toBeNull();
 
     // Can set settings
-    const mockSettings: Settings = {
+    const mockSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
       agentCommand: 'test-command.sh',
       shiftEnterSendsOptionEnter: true

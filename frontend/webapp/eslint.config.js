@@ -54,7 +54,17 @@ export default tseslint.config([
           group: ['../*', '../**'],
           message: 'Use absolute imports for cross-directory imports. Use @/* for src imports.'
         }]
-      }]
+      }],
+      // Require explicit type annotations on variables and function returns
+      '@typescript-eslint/typedef': ['error', {
+        variableDeclaration: true,
+        variableDeclarationIgnoreFunction: false,
+      }],
+      '@typescript-eslint/explicit-function-return-type': ['error', {
+        allowExpressions: true,
+        allowTypedFunctionExpressions: true,
+        allowHigherOrderFunctions: true,
+      }],
     },
   },
   // Functional programming rules for functional architecture files

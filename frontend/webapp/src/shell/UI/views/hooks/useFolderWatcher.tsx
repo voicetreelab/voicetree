@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { WatchStatus } from '@/utils/types/electron';
+import type { WatchStatus } from '@/shell/electron';
 
 
 interface UseFolderWatcherReturn {

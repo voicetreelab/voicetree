@@ -8,7 +8,7 @@ import getAPIKey from "@/utils/get-api-key.ts";
 import Renderer from "./renderer.tsx";
 import useAutoScroll from "@/shell/UI/views/hooks/useAutoScroll.tsx";
 import { type Token } from "@soniox/speech-to-text-web";
-import type {} from "@/utils/types/electron";
+import type {} from "@/shell/electron";
 
 export default function VoiceTreeTranscribe() {
   const [textInput, setTextInput] = useState("");

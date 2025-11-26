@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { loadSettings, saveSettings } from './settings_IO.ts';
-import type { Settings } from '@/pure/settings/types.ts';
+import type { VTSettings } from '@/pure/settings/types.ts';
 import { DEFAULT_SETTINGS } from '@/pure/settings/types.ts';
 
 vi.mock('electron', () => ({
@@ -40,7 +40,7 @@ describe('settings', () => {
     const firstLoad = await loadSettings();
     expect(firstLoad).toEqual(DEFAULT_SETTINGS);
 
-    const customSettings: Settings = {
+    const customSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/custom/path',
       agentCommand: 'custom-command.sh',
       shiftEnterSendsOptionEnter: false
@@ -53,7 +53,7 @@ describe('settings', () => {
   });
 
   it('should persist data correctly', async () => {
-    const customSettings: Settings = {
+    const customSettings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/test/path',
       agentCommand: 'test.sh',
       shiftEnterSendsOptionEnter: true
@@ -70,7 +70,7 @@ describe('settings', () => {
   it('should create parent directory if needed', async () => {
     await fs.rm(testUserDataPath, { recursive: true, force: true });
 
-    const settings: Settings = {
+    const settings: VTSettings = {
       terminalSpawnPathRelativeToWatchedDirectory: '/another/path',
       agentCommand: 'another.sh',
       shiftEnterSendsOptionEnter: true

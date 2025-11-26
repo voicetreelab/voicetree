@@ -3,10 +3,10 @@
  * Loads settings from IPC and allows editing them as JSON
  */
 
-import type {} from '@/utils/types/electron';
+import type {} from '@/shell/electron';
 import type {Core} from 'cytoscape';
 import {createWindowChrome, getOrCreateOverlay} from '@/shell/UI/floating-windows/cytoscape-floating-windows.ts';
-import type {Settings} from '@/pure/settings/types.ts';
+import type {VTSettings} from '@/pure/settings/types.ts';
 import {CodeMirrorEditorView} from '@/shell/UI/floating-windows/editors/CodeMirrorEditorView.ts';
 
 export async function createSettingsEditor(cy: Core): Promise<void> {
@@ -27,7 +27,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
         }
 
         // Load current settings from IPC
-        const settings = await window.electronAPI.main.loadSettings() as Settings;
+        const settings = await window.electronAPI.main.loadSettings() as VTSettings;
         const settingsJson = JSON.stringify(settings, null, 2);
 
         // Get overlay
@@ -57,7 +57,7 @@ export async function createSettingsEditor(cy: Core): Promise<void> {
             void (async () => {
                 try {
                     // Parse JSON to validate
-                    const parsedSettings = JSON.parse(newContent) as Settings;
+                    const parsedSettings = JSON.parse(newContent) as VTSettings;
 
                     // Save to IPC
                     if (window.electronAPI) {
